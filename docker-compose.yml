@@ -1,66 +1,188 @@
 version: '3.9'
 
+# ============================================================
+# SCALABLE PRODUCTION SETUP
+# Supports: 20 clan battles × 80 players + thousands of concurrent users
+# Architecture: stateless backend → PgBouncer → PostgreSQL
+#               Redis (state + pub/sub + queues) + BullMQ workers
+#               Nginx upstream pool for horizontal scaling
+# ============================================================
+
 services:
+  # ----------------------------------------------------------
+  # PostgreSQL — persistent storage
+  # ----------------------------------------------------------
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: mmo90s
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-mmo90s}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/docker/postgres-init:/docker-entrypoint-initdb.d
+    # NOTE: Do NOT expose port 5432 externally in production.
+    # Backend connects through PgBouncer only.
     ports:
       - '5432:5432'
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ----------------------------------------------------------
+  # PgBouncer — connection pooler
+  # REQUIRED: without it PostgreSQL crashes at 500+ concurrent connections.
+  # At 3000+ users we expect ~900 concurrent DB queries.
+  # ----------------------------------------------------------
+  pgbouncer:
+    image: edoburu/pgbouncer:1.22.0
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-mmo90s}"
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 2000
+      DEFAULT_POOL_SIZE: 50
+      MIN_POOL_SIZE: 10
+      RESERVE_POOL_SIZE: 20
+      RESERVE_POOL_TIMEOUT: 5
+      SERVER_IDLE_TIMEOUT: 600
+      LOG_CONNECTIONS: 0
+      LOG_DISCONNECTIONS: 0
+    ports:
+      - '6432:5432'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -p 5432']
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ----------------------------------------------------------
+  # Redis — REQUIRED from Day 1 (not a future feature!)
+  # Used for:
+  #   - battle:{id}:state       (active battle state, NOT in PostgreSQL)
+  #   - battle:{id}:lock        (distributed lock, prevents race conditions)
+  #   - battle:{id}:actions     (round action collection queue)
+  #   - session:{token}         (JWT sessions)
+  #   - ratelimit:{ip}:{route}  (rate limiting, works across all instances)
+  #   - char:{id}:status        (online status)
+  #   - Socket.io pub/sub       (via @socket.io/redis-adapter)
+  #   - BullMQ queues           (battle resolver, production, farm timers)
+  # ----------------------------------------------------------
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
     ports:
       - '6379:6379'
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 768M
 
+  # ----------------------------------------------------------
+  # Backend — STATELESS, horizontally scalable
+  # Scale with: docker compose up --scale backend=3
+  # All state in Redis / PostgreSQL, NEVER in process memory.
+  # ----------------------------------------------------------
   backend:
     build:
       context: ./backend
       dockerfile: ../infra/docker/backend.Dockerfile
     restart: unless-stopped
     env_file: ./backend/.env
-    ports:
-      - '4000:4000'
+    environment:
+      # Override DB URL to route through PgBouncer
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@pgbouncer:5432/${POSTGRES_DB:-mmo90s}"
+      REDIS_URL: "redis://redis:6379"
     depends_on:
-      postgres:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+    # NOTE: No port exposure — traffic comes through Nginx
+    expose:
+      - '4000'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      # Start with 2 instances, scale as needed
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
 
+  # ----------------------------------------------------------
+  # BullMQ Workers — separate process for heavy async jobs
+  # Handles: battle round resolution, production cycles,
+  #          farm timers, helper workers, suspicious flag checks
+  # REQUIRED: without this, 80-player clan battle rounds
+  # would block the HTTP process.
+  # ----------------------------------------------------------
+  worker:
+    build:
+      context: ./backend
+      dockerfile: ../infra/docker/worker.Dockerfile
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@pgbouncer:5432/${POSTGRES_DB:-mmo90s}"
+      REDIS_URL: "redis://redis:6379"
+      WORKER_MODE: "true"
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+
+  # ----------------------------------------------------------
+  # Frontend — static build served by Nginx
+  # ----------------------------------------------------------
   frontend:
     build:
       context: ./frontend
       dockerfile: ../infra/docker/frontend.Dockerfile
     restart: unless-stopped
-    env_file: ./frontend/.env
-    ports:
-      - '3000:3000'
+    expose:
+      - '80'
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
 
+  # ----------------------------------------------------------
+  # Nginx — load balancer + reverse proxy
+  # Routes: / → frontend, /api/ → backend upstream,
+  #         /socket.io/ → backend upstream (sticky sessions via ip_hash)
+  # ----------------------------------------------------------
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -68,10 +190,16 @@ services:
       - '80:80'
       - '443:443'
     volumes:
-      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./infra/nginx/upstream.conf:/etc/nginx/conf.d/upstream.conf:ro
     depends_on:
       - frontend
       - backend
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
 volumes:
   postgres_data:
+  redis_data:
