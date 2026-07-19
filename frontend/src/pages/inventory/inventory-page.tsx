@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import {
   WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, QUALITY_LABELS, type ItemInstance
 } from '../../shared/types/api.types'
-import { useState } from 'react'
 import { ApiError } from '../../shared/api/client'
+import { charactersApi } from '../../shared/api/characters.api'
 
 function ItemDetail({ item }: { item: ItemInstance }) {
   const { template: t } = item
@@ -18,6 +19,7 @@ function ItemDetail({ item }: { item: ItemInstance }) {
       )}
       <span>Вес: {t.weight} | </span>
       <span>Цена: <span className="money" style={{ fontSize: 11 }}>{t.priceBase}</span></span>
+      {t.levelReq > 0 && <span> | Ур.≥{t.levelReq}</span>}
     </div>
   )
 }
@@ -26,6 +28,11 @@ export function InventoryPage() {
   const qc = useQueryClient()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  const { data: char } = useQuery({
+    queryKey: ['character', 'me'],
+    queryFn: () => charactersApi.getMe(),
+  })
+
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['inventory'],
     queryFn: () => inventoryApi.getItems(),
@@ -33,8 +40,10 @@ export function InventoryPage() {
 
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text })
-    setTimeout(() => setMessage(null), 3000)
+    setTimeout(() => setMessage(null), 4000)
   }
+
+  const inBattle = char?.status === 'IN_BATTLE'
 
   const equipMut = useMutation({
     mutationFn: (id: string) => inventoryApi.equip(id),
@@ -44,7 +53,14 @@ export function InventoryPage() {
       showMsg('success', 'Предмет надет')
     },
     onError: (err) => {
-      showMsg('error', err instanceof ApiError ? err.message : 'Ошибка')
+      const msg = err instanceof ApiError
+        ? (err.status === 400 && err.code === 'CHAR_003' ? 'Нельзя менять экипировку во время боя'
+        : err.status === 400 && err.code === 'ITEM_004'  ? 'Предмет уже надет'
+        : err.status === 400 && err.code === 'ITEM_003'  ? 'Предмет сломан — сначала починить'
+        : err.status === 400 && err.code === 'ITEM_007'  ? 'Недостаточный уровень'
+        : err.message)
+        : 'Ошибка сервера'
+      showMsg('error', msg)
     },
   })
 
@@ -56,7 +72,7 @@ export function InventoryPage() {
       showMsg('success', 'Предмет снят')
     },
     onError: (err) => {
-      showMsg('error', err instanceof ApiError ? err.message : 'Ошибка')
+      showMsg('error', err instanceof ApiError ? err.message : 'Ошибка сервера')
     },
   })
 
@@ -70,16 +86,19 @@ export function InventoryPage() {
     const typeLabel = t.weaponType
       ? WEAPON_TYPE_LABELS[t.weaponType]
       : t.armorSlot ? ARMOR_SLOT_LABELS[t.armorSlot] : t.type
-    const durPct = (item.durabilityCurrent / item.durabilityMax) * 100
+    const durPct  = (item.durabilityCurrent / item.durabilityMax) * 100
     const durColor = durPct > 60 ? 'var(--success)' : durPct > 25 ? 'var(--warning)' : 'var(--danger)'
+    const isBroken  = item.status === 'BROKEN' || item.durabilityCurrent <= 0
+    const tooLow    = (char?.battleLevel ?? 0) < t.levelReq
 
     return (
-      <tr key={item.id} style={item.status === 'BROKEN' ? { opacity: 0.6 } : {}}>
+      <tr key={item.id} style={isBroken ? { opacity: 0.65 } : {}}>
         <td>
           <div className={`q-${item.quality}`} style={{ fontWeight: item.isEquipped ? 'bold' : 'normal' }}>
             {t.name}
             {item.isEquipped && <span style={{ color: 'var(--success)', marginLeft: 4 }}>▲ Надето</span>}
-            {item.status === 'BROKEN' && <span style={{ color: 'var(--danger)', marginLeft: 4 }}>⚠ Сломан</span>}
+            {isBroken   && <span style={{ color: 'var(--danger)', marginLeft: 4 }}>⚠ Сломан</span>}
+            {tooLow     && <span style={{ color: 'var(--warning)', marginLeft: 4, fontSize: 10 }}>Ур.{t.levelReq}</span>}
           </div>
           <ItemDetail item={item} />
         </td>
@@ -97,11 +116,21 @@ export function InventoryPage() {
         </td>
         <td>
           {item.isEquipped ? (
-            <button className="btn btn-sm" onClick={() => unequipMut.mutate(item.id)}
-              disabled={unequipMut.isPending}>Снять</button>
+            <button className="btn btn-sm"
+              disabled={unequipMut.isPending || inBattle}
+              title={inBattle ? 'Нельзя снять во время боя' : ''}
+              onClick={() => unequipMut.mutate(item.id)}>
+              Снять
+            </button>
           ) : (
             <button className="btn btn-sm btn-primary"
-              disabled={item.status === 'BROKEN' || equipMut.isPending}
+              disabled={isBroken || tooLow || equipMut.isPending || inBattle}
+              title={
+                inBattle ? 'Нельзя надеть во время боя'
+                : isBroken ? 'Сломан — нужен ремонт'
+                : tooLow  ? `Нужен уровень ${t.levelReq}`
+                : ''
+              }
               onClick={() => equipMut.mutate(item.id)}>
               Надеть
             </button>
@@ -113,9 +142,16 @@ export function InventoryPage() {
 
   return (
     <div>
-      {message && (
-        <div className={`alert alert-${message.type} mb8`}>{message.text}</div>
+      {inBattle && (
+        <div className="alert alert-warning mb8">
+          ⚔️ Вы в бою — менять экипировку нельзя.{' '}
+          <a href="#" onClick={e => { e.preventDefault(); const id = localStorage.getItem('mmo_current_battle'); if (id) window.location.href = '/battle/' + id }}>
+            Вернуться в бой →
+          </a>
+        </div>
       )}
+
+      {message && <div className={`alert alert-${message.type} mb8`}>{message.text}</div>}
 
       {equipped.length > 0 && (
         <div className="panel">
