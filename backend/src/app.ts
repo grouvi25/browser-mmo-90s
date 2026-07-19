@@ -38,13 +38,18 @@ export async function buildApp() {
 
   await fastify.register(fastifyRateLimit, {
     global: true,
-    max: 120,
+    max: 600,                     // 600 req/min per real IP (was 120)
     timeWindow: '1 minute',
     redis: getRedis(),
-    keyGenerator: (req) => req.ip,
+    // Use CF-Connecting-IP → each real user has own limit (not all of Cloudflare as one)
+    keyGenerator: (req) => {
+      return (req.headers['cf-connecting-ip'] as string)
+          || (req.headers['x-real-ip'] as string)
+          || req.ip
+    },
     errorResponseBuilder: () => ({
       code: 'GEN_004',
-      message: 'Too many requests, slow down',
+      message: 'Слишком много запросов, подождите немного',
     }),
   })
 

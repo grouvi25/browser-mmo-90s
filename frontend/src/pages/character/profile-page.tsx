@@ -99,6 +99,8 @@ export function ProfilePage() {
     mutationFn: () => battlesApi.startPve(selectedBot),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['character'] })
+      // Store battleId so we can navigate back to it after page reload
+      localStorage.setItem('mmo_current_battle', data.battleId)
       navigate(`/battle/${data.battleId}`)
     },
     onError: (err) => {

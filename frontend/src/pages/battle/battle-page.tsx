@@ -92,7 +92,14 @@ export function BattlePage() {
     queryKey: ['battle', battleId],
     queryFn: () => battlesApi.getBattle(battleId!),
     enabled: !!battleId && battleId !== 'current',
-    refetchInterval: battleFinished ? false : 3000,
+    // Stop polling when battle is done (finished/cancelled/not active)
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (!data) return 3000
+      const status = data.battle?.status
+      if (status === 'FINISHED' || status === 'CANCELLED') return false
+      return battleFinished ? false : 3000
+    },
   })
 
   // Auto-scroll log
@@ -112,6 +119,7 @@ export function BattlePage() {
       if (data.battleOver) {
         setBattleFinished(true)
         setFinishResult(data)
+        localStorage.removeItem('mmo_current_battle')
         qc.invalidateQueries({ queryKey: ['character', 'me'] })
         qc.invalidateQueries({ queryKey: ['inventory'] })
       }
