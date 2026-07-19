@@ -1,6 +1,10 @@
 # Logs
 logs
 *.log
+
+# EXCEPTION: our audit logs module is named 'logs'
+!backend/src/modules/logs/
+!backend/src/modules/logs/**
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

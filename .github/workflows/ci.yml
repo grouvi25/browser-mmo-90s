@@ -132,8 +132,8 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Run migrations
-        run: npx prisma migrate deploy
+      - name: Push schema to test DB
+        run: npx prisma db push --force-reset --accept-data-loss
 
       - name: Seed test data
         run: npx tsx prisma/seed.ts
