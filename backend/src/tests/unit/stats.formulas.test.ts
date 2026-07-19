@@ -170,7 +170,9 @@ describe('getWeaponSkillLevelFromExp', () => {
   })
 
   it('never exceeds max level', () => {
-    expect(getWeaponSkillLevelFromExp(999_999_999)).toBeLessThanOrEqual(30)
+    // Max level = expThresholds.length (31 levels in our table: 1 to 31)
+    const maxLevel = BalanceConfig.weaponSkill.expThresholds.length
+    expect(getWeaponSkillLevelFromExp(999_999_999)).toBeLessThanOrEqual(maxLevel)
   })
 })
 
