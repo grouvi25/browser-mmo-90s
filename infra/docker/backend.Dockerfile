@@ -1,7 +1,10 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
+COPY prisma/ ./prisma/
 RUN npm ci
+# Generate Prisma client (required before TypeScript compilation)
+RUN npx prisma generate
 COPY . .
 RUN npm run build
 
