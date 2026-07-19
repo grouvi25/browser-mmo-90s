@@ -42,7 +42,7 @@ services:
   # At 3000+ users we expect ~900 concurrent DB queries.
   # ----------------------------------------------------------
   pgbouncer:
-    image: edoburu/pgbouncer:1.22.0
+    image: edoburu/pgbouncer:latest
     restart: unless-stopped
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-mmo90s}"

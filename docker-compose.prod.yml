@@ -28,7 +28,7 @@ services:
       - mmo90s_internal
 
   pgbouncer:
-    image: edoburu/pgbouncer:1.22.0
+    image: edoburu/pgbouncer:latest
     restart: unless-stopped
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER:-mmo90s_user}:${POSTGRES_PASSWORD:-CHANGE_ME}@postgres:5432/${POSTGRES_DB:-mmo90s}"
