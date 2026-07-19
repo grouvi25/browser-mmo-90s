@@ -1,0 +1,127 @@
+version: '3.9'
+
+# =============================================================
+# PRODUCTION Docker Compose for VPS
+# Used by CD workflow. Backend connects through PgBouncer.
+# Other projects on VPS use different internal ports.
+# =============================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mmo90s_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME}
+      POSTGRES_DB: ${POSTGRES_DB:-mmo90s}
+    volumes:
+      - mmo90s_postgres_data:/var/lib/postgresql/data
+    # Internal only — NOT exposed to host
+    expose:
+      - '5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-mmo90s_user}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mmo90s_internal
+
+  pgbouncer:
+    image: edoburu/pgbouncer:1.22.0
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER:-mmo90s_user}:${POSTGRES_PASSWORD:-CHANGE_ME}@postgres:5432/${POSTGRES_DB:-mmo90s}"
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 2000
+      DEFAULT_POOL_SIZE: 50
+      MIN_POOL_SIZE: 10
+      RESERVE_POOL_SIZE: 20
+      LOG_CONNECTIONS: 0
+      LOG_DISCONNECTIONS: 0
+    expose:
+      - '5432'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mmo90s_internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - mmo90s_redis_data:/data
+    # Internal only — NOT exposed to host  
+    expose:
+      - '6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mmo90s_internal
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../infra/docker/backend.Dockerfile
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-mmo90s_user}:${POSTGRES_PASSWORD:-CHANGE_ME}@pgbouncer:5432/${POSTGRES_DB:-mmo90s}"
+      REDIS_URL: "redis://redis:6379"
+      NODE_ENV: production
+    # Exposed on localhost only — nginx proxies from outside
+    ports:
+      - '127.0.0.1:4080:4000'
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: 1
+    networks:
+      - mmo90s_internal
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: ../infra/docker/worker.Dockerfile
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-mmo90s_user}:${POSTGRES_PASSWORD:-CHANGE_ME}@pgbouncer:5432/${POSTGRES_DB:-mmo90s}"
+      REDIS_URL: "redis://redis:6379"
+      NODE_ENV: production
+      WORKER_MODE: "true"
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mmo90s_internal
+
+volumes:
+  mmo90s_postgres_data:
+  mmo90s_redis_data:
+
+networks:
+  mmo90s_internal:
+    driver: bridge
+    name: mmo90s_network
