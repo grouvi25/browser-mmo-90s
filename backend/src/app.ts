@@ -19,6 +19,7 @@ import { inventoryRoutes } from './modules/inventory/inventory.routes'
 import { governmentShopRoutes } from './modules/government-shop/government-shop.routes'
 import { battlesRoutes } from './modules/battles/battles.routes'
 import { repairRoutes } from './modules/repair/repair.routes'
+import { adminBasicRoutes } from './modules/admin-basic/admin-basic.routes'
 
 export async function buildApp() {
   const fastify = Fastify({
@@ -86,6 +87,7 @@ export async function buildApp() {
   await fastify.register(governmentShopRoutes, { prefix: '/api/shops/government' })
   await fastify.register(battlesRoutes, { prefix: '/api/battles' })
   await fastify.register(repairRoutes, { prefix: '/api/repair' })
+  await fastify.register(adminBasicRoutes, { prefix: '/api/admin' })
 
   return fastify
 }

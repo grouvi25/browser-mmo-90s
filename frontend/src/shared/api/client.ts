@@ -42,8 +42,11 @@ export async function request<T>(
 ): Promise<T> {
   const { method = 'GET', body, noAuth = false } = options
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+  const headers: Record<string, string> = {}
+
+  // Only set Content-Type when there's a body to send
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json'
   }
 
   if (!noAuth) {

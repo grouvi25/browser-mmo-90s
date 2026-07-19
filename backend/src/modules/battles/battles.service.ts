@@ -637,9 +637,12 @@ export const BattleService = {
         }
       }
 
-      // Weapon skill exp
-      if (weapon && weaponExpGain > 0) {
-        const wt = weapon.template.weaponType!
+      // Weapon skill exp — save even for MELEE (no weapon equipped = fists)
+      // Weapon skill exp — save even for MELEE (no weapon = fists)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const weaponTypeForSkill: any = weapon?.template.weaponType ?? 'MELEE'
+      if (weaponExpGain > 0) {
+        const wt = weaponTypeForSkill
         const existing = await tx.weaponSkill.findUnique({
           where: { characterId_weaponType: { characterId: char.id, weaponType: wt } },
         })
