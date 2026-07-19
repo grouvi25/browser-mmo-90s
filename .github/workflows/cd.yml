@@ -60,14 +60,22 @@ jobs:
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml run --rm backend npx prisma migrate deploy
+            # Run migrations with direct postgres connection (bypasses pgbouncer)
+            DIRECT_URL="postgresql://$(grep POSTGRES_USER backend/.env | cut -d= -f2):$(grep POSTGRES_PASSWORD backend/.env | cut -d= -f2)@postgres:5432/$(grep POSTGRES_DB backend/.env | cut -d= -f2)"
+            docker compose -f docker-compose.prod.yml run --rm \
+              -e DATABASE_URL="$DIRECT_URL" \
+              backend npx prisma migrate deploy
           SSHEOF
 
       - name: Seed database
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml run --rm backend npx tsx prisma/seed.ts
+            # Seed with direct postgres connection
+            DIRECT_URL="postgresql://$(grep POSTGRES_USER backend/.env | cut -d= -f2):$(grep POSTGRES_PASSWORD backend/.env | cut -d= -f2)@postgres:5432/$(grep POSTGRES_DB backend/.env | cut -d= -f2)"
+            docker compose -f docker-compose.prod.yml run --rm \
+              -e DATABASE_URL="$DIRECT_URL" \
+              backend npx tsx prisma/seed.ts
           SSHEOF
 
       - name: Start services
