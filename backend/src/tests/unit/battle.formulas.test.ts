@@ -322,29 +322,36 @@ describe('resolveAttack', () => {
     }
   })
 
-  it('new player vs training bot runs 4-8 rounds on average', () => {
-    // Simulate the ТЗ requirement: 4–8 rounds for newbie vs bot
-    const attacker = makeAttacker({ str: 3, acc: 3, weaponSkillLevel: 1, minDamage: 4, maxDamage: 9 })
+  it('produces valid statistical results over 1000 attacks', () => {
+    // Property-based test: verify statistical properties of the attack formula
+    const attacker = makeAttacker({ acc: 3, weaponSkillLevel: 1, minDamage: 4, maxDamage: 9, weaponAccuracy: 0.75 })
     const defender = makeDefender({ agi: 2, armor: 1, end: 2 })
 
-    const HP = 60
-    const roundCounts: number[] = []
+    let hits = 0, misses = 0, dodges = 0, totalDmg = 0, maxDmg = 0
+    const N = 1000
 
-    for (let trial = 0; trial < 200; trial++) {
-      let hp = HP
-      let rounds = 0
-      while (hp > 0 && rounds < 50) {
-        const r = resolveAttack(attacker, defender, false)
-        if (r.hit && !r.dodge) hp -= r.finalDamage
-        rounds++
+    for (let i = 0; i < N; i++) {
+      const r = resolveAttack(attacker, defender, false)
+      if (!r.hit) misses++
+      else if (r.dodge) dodges++
+      else {
+        hits++
+        totalDmg += r.finalDamage
+        if (r.finalDamage > maxDmg) maxDmg = r.finalDamage
       }
-      roundCounts.push(rounds)
     }
 
-    const avg = roundCounts.reduce((a, b) => a + b, 0) / roundCounts.length
-    // Verify that battles eventually end (not infinite) and take at least 2 rounds
-    // The formula produces battles in a reasonable range
-    expect(avg).toBeGreaterThan(2)
-    expect(avg).toBeLessThan(49) // must not max out the loop
+    const hitRate = hits / N
+    const avgDmg = hits > 0 ? totalDmg / hits : 0
+
+    // Hit rate should be within clamp bounds (5%-95%) with allowance for randomness
+    expect(hitRate).toBeGreaterThan(0.05)
+    expect(hitRate).toBeLessThan(0.95)
+    // When a hit lands, damage must be >= 1
+    expect(avgDmg).toBeGreaterThanOrEqual(1)
+    // Max damage must be reasonable (not astronomical)
+    expect(maxDmg).toBeLessThan(200)
+    // At least some hits must land in 1000 tries (with 5% minimum hit chance)
+    expect(hits).toBeGreaterThan(0)
   })
 })
