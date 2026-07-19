@@ -1,4 +1,5 @@
-import 'dotenv/config'
+// NOTE: In production (Docker), env vars are set via docker-compose env_file
+// In development, use: NODE_ENV=development and set env vars manually or via .env
 import { buildApp, setupSocketIO } from './app'
 import { connectDb, disconnectDb } from './shared/db/prisma'
 import { disconnectRedis } from './shared/db/redis'
