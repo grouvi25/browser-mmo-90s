@@ -1,27 +1,28 @@
 import Fastify from 'fastify'
+import type { FastifyError } from 'fastify'
 import fastifyJwt from '@fastify/jwt'
 import fastifyCors from '@fastify/cors'
 import fastifyHelmet from '@fastify/helmet'
 import fastifyRateLimit from '@fastify/rate-limit'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { Server as SocketIO } from 'socket.io'
-import { getRedis, getRedisSub } from '../shared/db/redis'
-import { AppConfig } from '../config/app.config'
-import { AuthConfig } from '../config/auth.config'
-import { AppError } from '../shared/errors/app-error'
-import { logger } from '../shared/logger/logger'
+import { getRedis, getRedisSub } from './shared/db/redis'
+import { AppConfig } from './config/app.config'
+import { AuthConfig } from './config/auth.config'
+import { AppError } from './shared/errors/app-error'
+import { logger } from './shared/logger/logger'
 
 // Routes
-import { authRoutes } from '../modules/auth/auth.routes'
-import { charactersRoutes } from '../modules/characters/characters.routes'
-import { inventoryRoutes } from '../modules/inventory/inventory.routes'
-import { governmentShopRoutes } from '../modules/government-shop/government-shop.routes'
-import { battlesRoutes } from '../modules/battles/battles.routes'
-import { repairRoutes } from '../modules/repair/repair.routes'
+import { authRoutes } from './modules/auth/auth.routes'
+import { charactersRoutes } from './modules/characters/characters.routes'
+import { inventoryRoutes } from './modules/inventory/inventory.routes'
+import { governmentShopRoutes } from './modules/government-shop/government-shop.routes'
+import { battlesRoutes } from './modules/battles/battles.routes'
+import { repairRoutes } from './modules/repair/repair.routes'
 
 export async function buildApp() {
   const fastify = Fastify({
-    logger: false, // using pino directly
+    logger: false,
     trustProxy: true,
   })
 
@@ -39,7 +40,7 @@ export async function buildApp() {
     global: true,
     max: 120,
     timeWindow: '1 minute',
-    redis: getRedis(),  // Rate limiting via Redis — works across all instances!
+    redis: getRedis(),
     keyGenerator: (req) => req.ip,
     errorResponseBuilder: () => ({
       code: 'GEN_004',
@@ -54,7 +55,7 @@ export async function buildApp() {
   // -------------------------------------------------------
   // Error handler
   // -------------------------------------------------------
-  fastify.setErrorHandler((err, _req, reply) => {
+  fastify.setErrorHandler((err: FastifyError & { details?: unknown }, _req, reply) => {
     if (err instanceof AppError) {
       return reply.code(err.statusCode).send({
         code: err.code,
@@ -85,7 +86,7 @@ export async function buildApp() {
 }
 
 // -------------------------------------------------------
-// Socket.io setup (call after server is listening)
+// Socket.io setup
 // -------------------------------------------------------
 export async function setupSocketIO(httpServer: ReturnType<typeof Fastify>['server']) {
   const io = new SocketIO(httpServer, {
@@ -93,21 +94,14 @@ export async function setupSocketIO(httpServer: ReturnType<typeof Fastify>['serv
     transports: ['websocket', 'polling'],
   })
 
-  // CRITICAL: Redis adapter for multi-instance support
   const pubClient = getRedis()
   const subClient = getRedisSub()
   io.adapter(createAdapter(pubClient, subClient))
   logger.info('[Socket.io] Redis adapter attached')
 
   io.on('connection', (socket) => {
-    logger.debug({ socketId: socket.id }, '[Socket.io] Client connected')
-
     socket.on('join:battle', (battleId: string) => {
       socket.join(`battle:${battleId}`)
-    })
-
-    socket.on('disconnect', () => {
-      logger.debug({ socketId: socket.id }, '[Socket.io] Client disconnected')
     })
   })
 

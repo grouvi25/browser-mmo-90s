@@ -1,3 +1,4 @@
+import type { BattleAction, WeaponType as PrismaWeaponType } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { BattleRedis } from '../../shared/db/redis'
 import { CharactersRepository } from '../characters/characters.repository'
@@ -485,7 +486,7 @@ export const BattleService = {
       actorBotId: t.actor === 'bot' ? botPart.botId : null,
       targetCharId: t.actor === 'bot' ? char.id : null,
       targetBotId: t.actor === 'player' ? botPart.botId : null,
-      action: (t.action.toUpperCase() as Parameters<typeof prisma.battleTurn.createMany>[0]['data'][0]['action']),
+      action: t.action.toUpperCase() as BattleAction,
       weaponId: t.actor === 'player' ? weapon?.id ?? null : null,
       hit: t.result.hit,
       dodge: t.result.dodge,
@@ -499,7 +500,8 @@ export const BattleService = {
       logLine: t.result.logParts.join(', '),
     }))
 
-    await prisma.battleTurn.createMany({ data: turnRecords as Parameters<typeof prisma.battleTurn.createMany>[0]['data'] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await prisma.battleTurn.createMany({ data: turnRecords as any })
 
     if (battleOver) {
       state.status = 'finishing'
