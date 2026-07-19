@@ -18,7 +18,8 @@ jobs:
   deploy:
     name: 'Deploy to VPS'
     runs-on: ubuntu-latest
-    environment: production
+    # environment: production  # requires paid GitHub plan for branch protection
+    # Protection: only runs on push to main (configured in on: push: branches: [main])
 
     steps:
       - uses: actions/checkout@v4
