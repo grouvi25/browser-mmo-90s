@@ -5,68 +5,56 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { battlesApi } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import {
-  ARCHETYPE_LABELS, STAT_LABELS, STATUS_LABELS, QUALITY_LABELS,
-  WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, type ItemInstance
+  ARCHETYPE_LABELS, STAT_LABELS, STATUS_LABELS,
+  QUALITY_LABELS, WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS,
+  type ItemInstance
 } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 
-function DurBar({ cur, max }: { cur: number; max: number }) {
-  const pct = max > 0 ? (cur / max) * 100 : 0
-  const color = pct > 60 ? 'var(--success)' : pct > 25 ? 'var(--warning)' : 'var(--danger)'
+// Иконки для архетипов
+const ARCH_ICONS: Record<string, string> = {
+  ATHLETE: '🏋️', WORKER: '⚙️', SHUTTLE: '🧳', VETERAN: '🎖️',
+  STREET: '🥊', MERCHANT: '💼', STUDENT: '📖', RESOLVER: '🤝',
+}
+
+// Слоты экипировки для визуализации
+const EQUIP_SLOTS = [
+  { key: 'weapon_main', label: 'Оружие', icon: '⚔️', types: ['WEAPON'] },
+  { key: 'HEAD',        label: 'Голова',  icon: '⛑️', slot: 'HEAD' },
+  { key: 'CHEST',       label: 'Тело',    icon: '🛡️', slot: 'CHEST' },
+  { key: 'LEGS',        label: 'Ноги',    icon: '🩲', slot: 'LEGS' },
+  { key: 'FEET',        label: 'Обувь',   icon: '👟', slot: 'FEET' },
+  { key: 'HANDS',       label: 'Руки',    icon: '🧤', slot: 'HANDS' },
+] as const
+
+function EquipSlotCard({ label, icon, item }: {
+  label: string; icon: string; item: ItemInstance | null
+}) {
+  const durPct = item ? (item.durabilityCurrent / item.durabilityMax) * 100 : 0
   return (
-    <div className="dur-bar" style={{ flex: 1, height: 6, background: 'var(--border)' }}>
-      <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 0.3s' }} />
+    <div className={`equip-slot${item ? ' filled' : ''}${item?.template.type === 'WEAPON' ? ' weapon' : ''}`}>
+      <div className="equip-slot-label">{icon} {label}</div>
+      {item ? (
+        <>
+          <div className={`equip-slot-item q-${item.quality}`}>
+            {item.template.name}
+          </div>
+          <div className="equip-slot-dur">
+            <div className="equip-slot-dur-fill" style={{ width: `${durPct}%`, background: durPct > 60 ? 'var(--green)' : durPct > 25 ? 'var(--warning)' : 'var(--danger)' }} />
+          </div>
+        </>
+      ) : (
+        <div className="equip-slot-empty">— пусто —</div>
+      )}
     </div>
   )
 }
 
-function ItemRow({ item, onEquip, onUnequip }: {
-  item: ItemInstance
-  onEquip: (id: string) => void
-  onUnequip: (id: string) => void
-}) {
-  const slotLabel = item.armorSlot ? ARMOR_SLOT_LABELS[item.armorSlot] ?? item.armorSlot : null
-  const typeLabel = item.template.weaponType
-    ? WEAPON_TYPE_LABELS[item.template.weaponType]
-    : item.template.armorSlot
-      ? ARMOR_SLOT_LABELS[item.template.armorSlot]
-      : item.template.type
-
-  return (
-    <tr style={item.status === 'BROKEN' ? { opacity: 0.6 } : {}}>
-      <td>
-        <span className={`q-${item.quality}`}>{item.template.name}</span>
-        {item.isEquipped && <span style={{ color: 'var(--success)', fontSize: 10, marginLeft: 4 }}>▲</span>}
-        {item.status === 'BROKEN' && <span style={{ color: 'var(--danger)', fontSize: 10, marginLeft: 4 }}>СЛОМАН</span>}
-      </td>
-      <td className="text-dim" style={{ fontSize: 11 }}>{typeLabel}</td>
-      <td className="text-dim" style={{ fontSize: 11 }}>
-        <span className={`q-${item.quality}`}>{QUALITY_LABELS[item.quality]}</span>
-      </td>
-      <td>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <DurBar cur={item.durabilityCurrent} max={item.durabilityMax} />
-          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
-            {item.durabilityCurrent}/{item.durabilityMax}
-          </span>
-        </div>
-      </td>
-      <td>
-        {item.isEquipped ? (
-          <button className="btn btn-sm" onClick={() => onUnequip(item.id)}>Снять</button>
-        ) : (
-          <button
-            className="btn btn-sm btn-primary"
-            disabled={item.status === 'BROKEN'}
-            onClick={() => onEquip(item.id)}
-          >
-            Надеть
-          </button>
-        )}
-      </td>
-    </tr>
-  )
-}
+const BOTS = [
+  { code: 'training_bandit', label: 'Тренировочный хулиган', level: 1, danger: '🟢 Лёгкий' },
+  { code: 'basic_gangster',  label: 'Гопник',                level: 2, danger: '🟡 Средний' },
+  { code: 'armed_thug',     label: 'Вооружённый бандит',     level: 4, danger: '🔴 Сложный' },
+]
 
 export function ProfilePage() {
   const navigate = useNavigate()
@@ -74,32 +62,20 @@ export function ProfilePage() {
   const [battleError, setBattleError] = useState('')
   const [selectedBot, setSelectedBot] = useState('training_bandit')
 
-  const { data: char, isLoading, error } = useQuery({
+  const { data: char, isLoading } = useQuery({
     queryKey: ['character', 'me'],
     queryFn: () => charactersApi.getMe(),
   })
-
   const { data: items = [] } = useQuery({
     queryKey: ['inventory'],
     queryFn: () => inventoryApi.getItems(),
     enabled: !!char,
   })
 
-  const equipMut  = useMutation({
-    mutationFn: (id: string) => inventoryApi.equip(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); qc.invalidateQueries({ queryKey: ['character'] }) },
-  })
-
-  const unequipMut = useMutation({
-    mutationFn: (id: string) => inventoryApi.unequip(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['inventory'] }); qc.invalidateQueries({ queryKey: ['character'] }) },
-  })
-
   const battleMut = useMutation({
     mutationFn: () => battlesApi.startPve(selectedBot),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['character'] })
-      // Store battleId so we can navigate back to it after page reload
       localStorage.setItem('mmo_current_battle', data.battleId)
       navigate(`/battle/${data.battleId}`)
     },
@@ -110,211 +86,227 @@ export function ProfilePage() {
 
   if (isLoading) return <div className="loading"><span className="spinner" />Загрузка...</div>
 
-  if (error || !char) {
+  if (!char) {
     return (
-      <div style={{ maxWidth: 500, margin: '0 auto' }}>
-        <div className="alert alert-warning">
-          У вас нет персонажа.{' '}
-          <a href="/character/create" onClick={e => { e.preventDefault(); navigate('/character/create') }}>
-            Создать персонажа
-          </a>
-        </div>
+      <div className="alert alert-warning">
+        Персонаж не найден.{' '}
+        <a href="#" onClick={e => { e.preventDefault(); navigate('/character/create') }}>
+          Создать персонажа →
+        </a>
       </div>
     )
   }
 
   const equipped = items.filter(i => i.isEquipped)
-  const inventory = items.filter(i => !i.isEquipped && i.status !== 'DELETED')
   const hpPct = (char.hpCurrent / char.hpMax) * 100
+  const hpClass = hpPct > 60 ? 'hp' : hpPct > 25 ? 'hp mid' : 'hp'
 
-  const bots = [
-    { code: 'training_bandit', name: 'Тренировочный хулиган', level: 1 },
-    { code: 'basic_gangster',  name: 'Гопник',                level: 2 },
-    { code: 'armed_thug',     name: 'Вооружённый бандит',     level: 4 },
-  ]
+  // Собираем экипировку по слотам
+  const getEquippedItem = (slotType: string | null, weaponSlot?: boolean): ItemInstance | null => {
+    if (weaponSlot) return equipped.find(i => i.template.type === 'WEAPON') ?? null
+    if (slotType) return equipped.find(i => i.armorSlot === slotType) ?? null
+    return null
+  }
+
+  const s = char.stats
+  const expCurr = char.battleExp
+  // Примерный порог следующего уровня
+  const expThresholds = [0, 5, 15, 37, 76, 143, 240, 370, 535, 740, 1000]
+  const levelExp = expThresholds[char.battleLevel - 1] ?? 0
+  const nextExp  = expThresholds[char.battleLevel]     ?? expCurr + 100
+  const expPct   = Math.min(100, ((expCurr - levelExp) / Math.max(nextExp - levelExp, 1)) * 100)
 
   return (
-    <div>
-      <div className="row">
-        {/* Left: Character info */}
-        <div className="col" style={{ maxWidth: 380 }}>
-          <div className="panel">
-            <div className="panel-header">
-              <span className="panel-title">👤 ПЕРСОНАЖ</span>
-              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                {STATUS_LABELS[char.status] ?? char.status}
-              </span>
-            </div>
-            <div className="panel-body">
-              <table className="data-table">
-                <tbody>
-                  <tr>
-                    <td>Никнейм</td>
-                    <td style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{char.nickname}</td>
-                  </tr>
-                  <tr>
-                    <td>Архетип</td>
-                    <td>{ARCHETYPE_LABELS[char.archetype] ?? char.archetype}</td>
-                  </tr>
-                  <tr>
-                    <td>Боевой уровень</td>
-                    <td style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
-                      {char.battleLevel}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Боевой опыт</td>
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>{char.battleExp}</td>
-                  </tr>
-                  <tr>
-                    <td>Деньги</td>
-                    <td className="money">{char.money.toLocaleString('ru')}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div className="mt8">
-                <div className="stat-bar-wrap">
-                  <div className="stat-bar-label">❤️ Здоровье</div>
-                  <div className="stat-bar">
-                    <div className="stat-bar-fill hp" style={{ width: `${hpPct}%` }} />
-                  </div>
-                  <div className="stat-bar-val">{char.hpCurrent}/{char.hpMax}</div>
+    <div className="row" style={{ alignItems: 'flex-start' }}>
+      {/* ─── Левая колонка: персонаж ──────────── */}
+      <div style={{ width: 280, flexShrink: 0 }}>
+        {/* Карточка персонажа */}
+        <div className="panel panel-gold">
+          <div className="panel-header">
+            <span className="panel-title">👤 Персонаж</span>
+            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+              {STATUS_LABELS[char.status] ?? char.status}
+            </span>
+          </div>
+          <div className="panel-body">
+            <div className="char-card">
+              {/* Аватар */}
+              <div className="char-avatar">
+                <div className="avatar-figure">
+                  <span style={{ fontSize: 40, position: 'relative', zIndex: 1 }}>
+                    {ARCH_ICONS[char.archetype] ?? '👤'}
+                  </span>
                 </div>
+                <div className="avatar-level">
+                  Ур.<span>{char.battleLevel}</span>
+                </div>
+                <div style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'center' }}>
+                  {ARCHETYPE_LABELS[char.archetype]}
+                </div>
+              </div>
+
+              {/* Инфо */}
+              <div className="char-info">
+                <div style={{ fontSize: 14, fontWeight: 'bold', color: 'var(--text-title)', marginBottom: 6 }}>
+                  {char.nickname}
+                </div>
+
+                <div style={{ marginBottom: 8 }}>
+                  <div className="stat-bar-row">
+                    <div className="stat-bar-label">❤️ HP</div>
+                    <div className="stat-bar">
+                      <div className={`stat-bar-fill ${hpClass}`}
+                        style={{ width: `${hpPct}%`, background: hpPct > 60 ? 'var(--green)' : hpPct > 25 ? 'var(--warning)' : 'var(--red)' }} />
+                    </div>
+                    <div className="stat-bar-val">{char.hpCurrent}/{char.hpMax}</div>
+                  </div>
+                  <div className="stat-bar-row">
+                    <div className="stat-bar-label">⭐ Опыт</div>
+                    <div className="stat-bar">
+                      <div className="stat-bar-fill xp" style={{ width: `${expPct}%` }} />
+                    </div>
+                    <div className="stat-bar-val">{expPct.toFixed(0)}%</div>
+                  </div>
+                </div>
+
+                <table style={{ width: '100%', fontSize: 11 }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ color: 'var(--text-dim)' }}>Деньги</td>
+                      <td className="money">{char.money.toLocaleString('ru')}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ color: 'var(--text-dim)' }}>Боевой опыт</td>
+                      <td style={{ fontFamily: 'var(--font-mono)' }}>{char.battleExp}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
-
-          {/* Stats */}
-          {char.stats && (
-            <div className="panel">
-              <div className="panel-header"><span className="panel-title">📊 ХАРАКТЕРИСТИКИ</span></div>
-              <div className="panel-body">
-                <div className="stat-grid">
-                  {Object.entries(STAT_LABELS).map(([key, label]) => (
-                    <div key={key} className="stat-item">
-                      <div className="stat-abbr">{label}</div>
-                      <div className="stat-val">{(char.stats as unknown as Record<string, number>)[key]}</div>
-                    </div>
-                  ))}
-                </div>
-                {char.stats.pointsAvailable > 0 && (
-                  <div className="alert alert-warning mt8">
-                    Доступно очков: <strong>{char.stats.pointsAvailable}</strong>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right: Equipment + Battle */}
-        <div className="col">
-          {/* Equipped items */}
-          <div className="panel">
+        {/* Характеристики */}
+        {s && (
+          <div className="panel mt8">
             <div className="panel-header">
-              <span className="panel-title">🛡️ ЭКИПИРОВКА</span>
-              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{equipped.length} предм.</span>
-            </div>
-            <div className="panel-body">
-              {equipped.length === 0 ? (
-                <div className="text-dim" style={{ fontSize: 12, textAlign: 'center', padding: 8 }}>
-                  Ничего не надето
-                </div>
-              ) : (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Предмет</th><th>Тип</th><th>Качество</th><th>Прочность</th><th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {equipped.map(item => (
-                      <ItemRow key={item.id} item={item}
-                        onEquip={equipMut.mutate} onUnequip={unequipMut.mutate} />
-                    ))}
-                  </tbody>
-                </table>
+              <span className="panel-title">📊 Характеристики</span>
+              {s.pointsAvailable > 0 && (
+                <span className="text-gold" style={{ fontSize: 10 }}>+{s.pointsAvailable} очков</span>
               )}
             </div>
-          </div>
-
-          {/* Start battle */}
-          <div className="panel">
-            <div className="panel-header"><span className="panel-title">⚔️ БОЙ</span></div>
             <div className="panel-body">
-              {battleError && <div className="alert alert-error mb8">{battleError}</div>}
-              {char.status === 'IN_BATTLE' && (
-                <div className="alert alert-warning mb8">
-                  Вы уже в бою!{' '}
-                  <a href="#" onClick={e => { e.preventDefault(); navigate('/battle/current') }}>
-                    Перейти в бой
-                  </a>
-                </div>
-              )}
-
-              <div className="form-group">
-                <label className="form-label">Выбери противника</label>
-                <select
-                  className="form-select"
-                  value={selectedBot}
-                  onChange={e => setSelectedBot(e.target.value)}
-                >
-                  {bots.map(b => (
-                    <option key={b.code} value={b.code}>
-                      {b.name} (ур. {b.level})
-                    </option>
-                  ))}
-                </select>
+              <div className="stat-grid">
+                {Object.entries(STAT_LABELS).map(([key, label]) => (
+                  <div key={key} className="stat-cell">
+                    <div className="abbr">{label}</div>
+                    <div className="val">{(s as unknown as Record<string, number>)[key]}</div>
+                  </div>
+                ))}
               </div>
-
-              <button
-                className="btn btn-danger btn-block"
-                onClick={() => battleMut.mutate()}
-                disabled={battleMut.isPending || char.status === 'IN_BATTLE'}
-              >
-                {battleMut.isPending
-                  ? <><span className="spinner" />Начинаем...</>
-                  : '⚔️ Начать PvE бой'}
-              </button>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Inventory preview */}
-          {inventory.length > 0 && (
-            <div className="panel">
-              <div className="panel-header">
-                <span className="panel-title">🎒 ИНВЕНТАРЬ</span>
-                <a href="/inventory" style={{ fontSize: 11 }}
-                  onClick={e => { e.preventDefault(); navigate('/inventory') }}>
-                  Открыть →
+      {/* ─── Правая колонка: экипировка + бой ── */}
+      <div className="col">
+        {/* Экипировка — слоты */}
+        <div className="panel">
+          <div className="panel-header">
+            <span className="panel-title">🛡️ Экипировка</span>
+            <a href="#" onClick={e => { e.preventDefault(); navigate('/inventory') }}
+              style={{ fontSize: 10 }}>Инвентарь →</a>
+          </div>
+          <div className="panel-body">
+            <div className="equip-slots">
+              <EquipSlotCard label="Оружие" icon="⚔️" item={getEquippedItem(null, true)} />
+              <EquipSlotCard label="Голова" icon="⛑️" item={getEquippedItem('HEAD')} />
+              <EquipSlotCard label="Тело"   icon="🛡️" item={getEquippedItem('CHEST')} />
+              <EquipSlotCard label="Ноги"   icon="🩲" item={getEquippedItem('LEGS')} />
+              <EquipSlotCard label="Обувь"  icon="👟" item={getEquippedItem('FEET')} />
+              <EquipSlotCard label="Руки"   icon="🧤" item={getEquippedItem('HANDS')} />
+            </div>
+            {equipped.length === 0 && (
+              <div className="text-dim mt8" style={{ fontSize: 11, textAlign: 'center' }}>
+                Ничего не надето. <a href="#" onClick={e => { e.preventDefault(); navigate('/shop') }}>Зайди в магазин →</a>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Начать бой */}
+        <div className="panel panel-red">
+          <div className="panel-header">
+            <span className="panel-title">⚔️ Начать PvE бой</span>
+          </div>
+          <div className="panel-body">
+            {battleError && <div className="alert alert-error mb8">{battleError}</div>}
+            {char.status === 'IN_BATTLE' && (
+              <div className="alert alert-warning mb8">
+                ⚔️ Вы уже в бою!{' '}
+                <a href="#" onClick={e => {
+                  e.preventDefault()
+                  const id = localStorage.getItem('mmo_current_battle')
+                  if (id) navigate(`/battle/${id}`)
+                }}>
+                  Вернуться →
                 </a>
               </div>
-              <div className="panel-body">
-                <table className="data-table">
-                  <thead>
-                    <tr><th>Предмет</th><th>Тип</th><th>Прочность</th><th></th></tr>
-                  </thead>
-                  <tbody>
-                    {inventory.slice(0, 6).map(item => (
-                      <ItemRow key={item.id} item={item}
-                        onEquip={equipMut.mutate} onUnequip={unequipMut.mutate} />
-                    ))}
-                    {inventory.length > 6 && (
-                      <tr>
-                        <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 11 }}>
-                          +{inventory.length - 6} предметов...{' '}
-                          <a href="/inventory" onClick={e => { e.preventDefault(); navigate('/inventory') }}>
-                            Показать все
-                          </a>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 10 }}>
+              {BOTS.map(bot => (
+                <div
+                  key={bot.code}
+                  onClick={() => setSelectedBot(bot.code)}
+                  style={{
+                    background: selectedBot === bot.code ? 'var(--bg-panel3)' : 'var(--bg-panel2)',
+                    border: `1px solid ${selectedBot === bot.code ? 'var(--gold-dim)' : 'var(--border)'}`,
+                    padding: '8px 6px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.1s',
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--text-bright)', marginBottom: 4 }}>
+                    {bot.label}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>Ур. {bot.level}</div>
+                  <div style={{ fontSize: 10, marginTop: 2 }}>{bot.danger}</div>
+                </div>
+              ))}
             </div>
-          )}
+
+            <button
+              className="btn btn-danger btn-block btn-lg"
+              onClick={() => battleMut.mutate()}
+              disabled={battleMut.isPending || char.status === 'IN_BATTLE'}
+            >
+              {battleMut.isPending
+                ? <><span className="spinner" />Начинаем...</>
+                : '⚔️ В БОЙ!'}
+            </button>
+          </div>
+        </div>
+
+        {/* PvP */}
+        <div className="panel" style={{ borderColor: 'var(--gold-dim)' }}>
+          <div className="panel-header">
+            <span className="panel-title">🥊 PvP Дуэль</span>
+          </div>
+          <div className="panel-body">
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>
+              Вызов другого игрока на дуэль. Победа даёт больше опыта чем PvE.
+            </div>
+            <button
+              className="btn btn-gold btn-block"
+              onClick={() => navigate('/pvp')}
+              disabled={char.status === 'IN_BATTLE'}
+            >
+              🥊 Открыть дуэльный зал
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -5,6 +5,14 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { authApi } from '../../shared/api/auth.api'
 import { STAT_LABELS, STATUS_LABELS } from '../../shared/types/api.types'
 
+const STATUS_ICONS: Record<string, string> = {
+  ACTIVE:     '●',
+  IN_BATTLE:  '⚔',
+  WORKING:    '⚙',
+  RECOVERING: '⊕',
+  OFFLINE:    '○',
+}
+
 export function GameLayout() {
   const { login, signOut } = useAuth()
   const navigate = useNavigate()
@@ -13,6 +21,7 @@ export function GameLayout() {
     queryKey: ['character', 'me'],
     queryFn:  () => charactersApi.getMe(),
     retry: false,
+    refetchInterval: 30_000,
   })
 
   const handleLogout = async () => {
@@ -21,45 +30,71 @@ export function GameLayout() {
     navigate('/login')
   }
 
-  const hpPct  = char ? Math.round((char.hpCurrent / char.hpMax) * 100) : 0
-  const status = char ? (STATUS_LABELS[char.status] ?? char.status) : '...'
+  const hp     = char?.hpCurrent ?? 0
+  const hpMax  = char?.hpMax     ?? 1
+  const hpPct  = Math.max(0, Math.min(100, (hp / hpMax) * 100))
+  const status = char?.status ?? 'OFFLINE'
+  const statusLabel = STATUS_LABELS[status] ?? status
+  const statusIcon  = STATUS_ICONS[status]  ?? '●'
+
+  const hpColor = hpPct > 60 ? 'green' : hpPct > 25 ? 'yellow' : 'red'
 
   return (
     <div className="layout-game">
-      {/* Topbar */}
+      {/* ─── Topbar ─────────────────────────────── */}
       <div className="layout-topbar">
-        <span className="site-name">⚡ БРАТВА 90-Х</span>
+        <div className="topbar-logo">
+          ⚡ БРАТВА 90-Х
+        </div>
 
-        {char && (
-          <div className="char-info">
-            <span className="text-gold">{char.nickname}</span>
-            <span className="text-dim">|</span>
-            <span>Ур.<span style={{ color: 'var(--accent)' }}>{char.battleLevel}</span></span>
-            <span className="text-dim">|</span>
-            <span>
-              ❤️ <span style={{ color: hpPct < 30 ? 'var(--danger)' : 'var(--text)' }}>
-                {char.hpCurrent}/{char.hpMax}
+        {char ? (
+          <div className="topbar-char">
+            <div className="topbar-stat">
+              <span className="label">Игрок:</span>
+              <span className="val gold">{char.nickname}</span>
+            </div>
+            <div className="topbar-stat">
+              <span className="label">Ур.</span>
+              <span className="val gold">{char.battleLevel}</span>
+            </div>
+            <div className="topbar-stat">
+              <span className="label">HP</span>
+              <div className="hp-mini">
+                <div className="hp-mini-bar">
+                  <div className={`hp-mini-fill hp-${hpColor}`}
+                    style={{ width: `${hpPct}%`, background: hpColor === 'green' ? 'var(--green)' : hpColor === 'yellow' ? 'var(--warning)' : 'var(--red)' }} />
+                </div>
+                <span className="val" style={{ color: hpColor === 'green' ? 'var(--success)' : hpColor === 'yellow' ? 'var(--warning)' : 'var(--danger)' }}>
+                  {hp}/{hpMax}
+                </span>
+              </div>
+            </div>
+            <div className="topbar-stat">
+              <span className="label">Деньги:</span>
+              <span className="val gold">₽{char.money.toLocaleString('ru')}</span>
+            </div>
+            <div className="topbar-stat">
+              <span style={{ color: status === 'IN_BATTLE' ? 'var(--danger)' : status === 'ACTIVE' ? 'var(--success)' : 'var(--text-dim)' }}>
+                {statusIcon} {statusLabel}
               </span>
-            </span>
-            <span className="text-dim">|</span>
-            <span className="money">{char.money.toLocaleString('ru')}</span>
-            <span className="text-dim">|</span>
-            <span style={{ color: char.status === 'IN_BATTLE' ? 'var(--danger)' : 'var(--text-dim)' }}>
-              {status}
-            </span>
+            </div>
+          </div>
+        ) : (
+          <div className="topbar-char">
+            <div className="topbar-stat">
+              <span className="label">Загрузка...</span>
+            </div>
           </div>
         )}
 
-        <div className="topbar-nav">
-          <span className="text-dim" style={{ fontSize: 11 }}>{login}</span>
-          <button className="btn btn-sm" onClick={handleLogout} style={{ marginLeft: 8 }}>
-            Выход
-          </button>
+        <div className="topbar-right">
+          <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>{login}</span>
+          <button className="btn btn-sm" onClick={handleLogout}>Выход</button>
         </div>
       </div>
 
       <div className="layout-main">
-        {/* Sidebar */}
+        {/* ─── Sidebar ──────────────────────────── */}
         <nav className="layout-sidebar">
           <div className="sidebar-section">
             <div className="sidebar-section-title">Персонаж</div>
@@ -68,6 +103,9 @@ export function GameLayout() {
             </NavLink>
             <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/inventory">
               🎒 Инвентарь
+            </NavLink>
+            <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/skills">
+              📊 Навыки
             </NavLink>
           </div>
 
@@ -83,26 +121,29 @@ export function GameLayout() {
 
           <div className="sidebar-section">
             <div className="sidebar-section-title">Бой</div>
-            <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')}
-              to={char?.status === 'IN_BATTLE'
-                ? ('/battle/' + (localStorage.getItem('mmo_current_battle') ?? 'none'))
-                : '#'}
-              onClick={(e) => {
-                if (char?.status !== 'IN_BATTLE') e.preventDefault()
-              }}
-              style={char?.status !== 'IN_BATTLE' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-            >
-              ⚔️ Текущий бой
+            {char?.status === 'IN_BATTLE' ? (
+              <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')}
+                to={'/battle/' + (localStorage.getItem('mmo_current_battle') ?? 'none')}>
+                ⚔️ Текущий бой
+              </NavLink>
+            ) : (
+              <span className="sidebar-link" style={{ opacity: 0.4, cursor: 'not-allowed' }}>
+                ⚔️ Не в бою
+              </span>
+            )}
+            <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/pvp">
+              🥊 PvP Дуэль
             </NavLink>
           </div>
 
-          {char && (
-            <div style={{ padding: '8px 10px', marginTop: 4 }}>
-              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 6 }}>ХАРАКТЕРИСТИКИ</div>
-              {char.stats && Object.entries(STAT_LABELS).map(([key, label]) => (
-                <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
-                  <span style={{ color: 'var(--text-dim)' }}>{label}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
+          {/* Характеристики в сайдбаре */}
+          {char?.stats && (
+            <div className="sidebar-stats">
+              <div className="sidebar-stats-title">Статы</div>
+              {Object.entries(STAT_LABELS).map(([key, label]) => (
+                <div key={key} className="sidebar-stat-row">
+                  <span className="s-key">{label}</span>
+                  <span className="s-val">
                     {(char.stats as unknown as Record<string, number>)[key]}
                   </span>
                 </div>
@@ -111,7 +152,7 @@ export function GameLayout() {
           )}
         </nav>
 
-        {/* Main content */}
+        {/* ─── Content ────────────────────────── */}
         <main className="layout-content">
           <Outlet />
         </main>

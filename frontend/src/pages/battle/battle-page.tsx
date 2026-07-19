@@ -2,80 +2,85 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useRef, useEffect } from 'react'
 import { battlesApi } from '../../shared/api/battles.api'
+import { inventoryApi } from '../../shared/api/inventory.api'
 import { type BattleAction } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 
-interface RoundResult {
-  roundNumber?: number
-  playerHp?: number
-  botHp?: number
-  battleOver?: boolean
-  result?: string
-  expGain?: number
-  weaponExpGain?: number
-  moneyReward?: number
-  newLevel?: number
-  waiting?: boolean
-  turns?: Array<{
-    actor: string
-    action: string
-    hit: boolean
-    dodge: boolean
-    block: boolean
-    crit: boolean
-    rawDamage: number
-    finalDamage: number
-    logParts: string[]
-  }>
-}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 interface LogEntry {
   text: string
-  type: 'hit' | 'miss' | 'crit' | 'block' | 'dodge' | 'system' | 'result'
+  type: 'attack' | 'crit' | 'miss' | 'dodge' | 'block' | 'system' | 'result' | 'change' | 'heal'
+  round?: number
 }
 
-// UUID validation regex
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+interface RoundResult {
+  roundNumber?: number; playerHp?: number; botHp?: number; battleOver?: boolean
+  result?: string; expGain?: number; weaponExpGain?: number; moneyReward?: number
+  newLevel?: number; waiting?: boolean
+  turns?: Array<{
+    actor: string; action: string; hit: boolean; dodge: boolean; block: boolean
+    crit: boolean; rawDamage: number; finalDamage: number; logParts: string[]
+  }>
+}
 
-function buildLogLines(result: RoundResult): LogEntry[] {
+function buildLogLines(result: RoundResult, round: number): LogEntry[] {
   const lines: LogEntry[] = []
-
   if (result.turns) {
     result.turns.forEach(turn => {
-      const actor  = turn.actor === 'player' ? 'ВЫ' : 'ВРАГ'
+      const actor  = turn.actor === 'player' ? 'ВЫ'   : 'ВРАГ'
       const target = turn.actor === 'player' ? 'ВРАГУ' : 'ВАМ'
-
+      if (turn.action === 'change_weapon') {
+        lines.push({ text: `${actor}: Сменил оружие`, type: 'change', round })
+        return
+      }
+      if (turn.action === 'use_item') {
+        lines.push({ text: `${actor}: Использовал предмет`, type: 'heal', round })
+        return
+      }
       if (!turn.hit) {
-        lines.push({ text: `Раунд: ${actor} — Промах`, type: 'miss' })
+        lines.push({ text: `${actor} → ${target}: Промах!`, type: 'miss', round })
       } else if (turn.dodge) {
-        lines.push({ text: `Раунд: ${actor} → ${target} — Уворот!`, type: 'dodge' })
+        lines.push({ text: `${actor} → ${target}: Уворот!`, type: 'dodge', round })
       } else if (turn.block) {
-        lines.push({ text: `Раунд: ${actor} → ${target} — Заблокировано (−${turn.finalDamage} HP)`, type: 'block' })
+        lines.push({ text: `${actor} → ${target}: Блок! (−${turn.finalDamage} HP)`, type: 'block', round })
       } else if (turn.crit) {
-        lines.push({ text: `Раунд: ${actor} → ${target} — КРИТ! −${turn.finalDamage} HP`, type: 'crit' })
+        lines.push({ text: `${actor} → ${target}: ⚡ КРИТ! −${turn.finalDamage} HP`, type: 'crit', round })
       } else {
-        lines.push({ text: `Раунд: ${actor} → ${target} — Удар −${turn.finalDamage} HP`, type: 'hit' })
+        lines.push({ text: `${actor} → ${target}: Удар −${turn.finalDamage} HP`, type: 'attack', round })
       }
     })
   }
-
   if (result.battleOver) {
     const won = result.result === 'PVE_WIN'
-    if (won) {
-      lines.push({
-        text: `=== ПОБЕДА! Опыт: +${result.expGain ?? 0} | Навык: +${Number(result.weaponExpGain ?? 0).toFixed(1)} | Деньги: +${result.moneyReward ?? 0} ===`,
-        type: 'result',
-      })
-      if ((result.newLevel ?? 1) > 1) {
-        lines.push({ text: `🎉 Новый уровень: ${result.newLevel}!`, type: 'result' })
-      }
-    } else {
-      lines.push({ text: '=== ПОРАЖЕНИЕ ===', type: 'result' })
+    lines.push({
+      text: won
+        ? `══ ПОБЕДА! Опыт: +${result.expGain ?? 0} | Навык: +${Number(result.weaponExpGain ?? 0).toFixed(1)} | ₽+${result.moneyReward ?? 0} ══`
+        : '══ ПОРАЖЕНИЕ ══',
+      type: 'result', round,
+    })
+    if ((result.newLevel ?? 0) > 1) {
+      lines.push({ text: `🎉 НОВЫЙ УРОВЕНЬ: ${result.newLevel}!`, type: 'result', round })
     }
   }
-
   return lines
+}
+
+function HpBar({ current, max, side }: { current: number; max: number; side: 'player' | 'enemy' }) {
+  const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0
+  const color = pct > 60 ? 'green' : pct > 25 ? 'yellow' : 'red'
+  const bgMap = { green: 'var(--green)', yellow: 'var(--warning)', red: 'var(--red)' }
+  return (
+    <div className="fighter-hp-wrap">
+      {side === 'enemy' && <div className="fighter-hp-text">{current}/{max}</div>}
+      <div className="fighter-hp-bar" style={{ transform: side === 'enemy' ? 'scaleX(-1)' : 'none' }}>
+        <div className={`fighter-hp-fill ${color}`}
+          style={{ width: `${pct}%`, background: bgMap[color] }} />
+      </div>
+      {side === 'player' && <div className="fighter-hp-text">{current}/{max}</div>}
+    </div>
+  )
 }
 
 export function BattlePage() {
@@ -84,18 +89,17 @@ export function BattlePage() {
   const qc = useQueryClient()
   const logRef = useRef<HTMLDivElement>(null)
 
-  const [log, setLog] = useState<LogEntry[]>([{ text: 'Бой начался!', type: 'system' }])
+  const [log, setLog] = useState<LogEntry[]>([{ text: '── Бой начался! ──', type: 'system', round: 0 }])
   const [actionError, setActionError] = useState('')
   const [battleFinished, setBattleFinished] = useState(false)
   const [finishResult, setFinishResult] = useState<RoundResult | null>(null)
+  const [selectedWeapon, setSelectedWeapon] = useState<string>('')
+  const [currentRound, setCurrentRound] = useState(1)
 
-  // Guard: redirect to profile if battleId is not a valid UUID
   const isValidId = !!battleId && UUID_RE.test(battleId)
 
   useEffect(() => {
-    if (!isValidId) {
-      navigate('/profile', { replace: true })
-    }
+    if (!isValidId) navigate('/profile', { replace: true })
   }, [isValidId, navigate])
 
   const { data: char } = useQuery({
@@ -103,6 +107,17 @@ export function BattlePage() {
     queryFn: () => charactersApi.getMe(),
     enabled: isValidId,
   })
+
+  // Оружие в инвентаре (для смены)
+  const { data: items = [] } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: () => inventoryApi.getItems(),
+    enabled: isValidId && !!char,
+  })
+
+  const weapons = items.filter(i =>
+    i.template.type === 'WEAPON' && i.status !== 'BROKEN' && i.status !== 'DELETED'
+  )
 
   const { data: battleData } = useQuery({
     queryKey: ['battle', battleId],
@@ -115,20 +130,17 @@ export function BattlePage() {
     },
   })
 
-  // Auto-scroll log
   useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight
-    }
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
   }, [log])
 
   const actionMut = useMutation({
-    mutationFn: (action: BattleAction) =>
-      battlesApi.submitAction(battleId!, action),
+    mutationFn: ({ action, itemId }: { action: BattleAction; itemId?: string }) =>
+      battlesApi.submitAction(battleId!, action, itemId),
     onSuccess: (data: RoundResult) => {
-      const newLines = buildLogLines(data)
+      if (data.roundNumber) setCurrentRound(data.roundNumber)
+      const newLines = buildLogLines(data, data.roundNumber ?? currentRound)
       setLog(prev => [...prev, ...newLines])
-
       if (data.battleOver) {
         setBattleFinished(true)
         setFinishResult(data)
@@ -144,9 +156,7 @@ export function BattlePage() {
     },
   })
 
-  if (!isValidId) {
-    return <div className="loading"><span className="spinner" />Перенаправление...</div>
-  }
+  if (!isValidId) return <div className="loading"><span className="spinner" />Перенаправление...</div>
 
   const liveState  = battleData?.liveState
   const battle     = battleData?.battle
@@ -158,127 +168,216 @@ export function BattlePage() {
   const enemyHp     = enemyPart?.hpCurrent  ?? 0
   const enemyHpMax  = enemyPart?.hpMax      ?? 1
 
-  const playerHpPct = Math.max(0, Math.min(100, (playerHp / playerHpMax) * 100))
-  const enemyHpPct  = Math.max(0, Math.min(100, (enemyHp  / enemyHpMax)  * 100))
-
+  const equippedWeapon = items.find(i => i.isEquipped && i.template.type === 'WEAPON')
   const canAct = !battleFinished && !actionMut.isPending
-  const round  = liveState?.roundNumber ?? 1
 
-  const actions: Array<{ action: BattleAction; label: string; cls: string }> = [
-    { action: 'attack',    label: '⚔️ Атака',   cls: 'btn-danger'  },
-    { action: 'block',     label: '🛡️ Блок',    cls: 'btn-primary' },
-    { action: 'surrender', label: '🏳️ Сдаться', cls: ''            },
-  ]
+  const act = (action: BattleAction, itemId?: string) =>
+    actionMut.mutate({ action, itemId })
+
+  // Расходники в инвентаре
+  const consumables = items.filter(i =>
+    i.template.type === 'CONSUMABLE' && i.status !== 'DELETED'
+  )
 
   return (
-    <div style={{ maxWidth: 700 }}>
-      <div className="panel">
+    <div style={{ maxWidth: 760 }}>
+      {/* ─── Арена боя ──────────────────────── */}
+      <div className="panel panel-red">
         <div className="panel-header">
-          <span className="panel-title">⚔️ БОЙ</span>
-          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-            Раунд {round}
+          <span className="panel-title">⚔️ АРЕНА</span>
+          <span className="round-indicator" style={{ margin: 0 }}>
+            Раунд {currentRound}
             {battleFinished ? ' — ЗАВЕРШЁН' : battle?.status === 'ACTIVE' ? ' — Идёт...' : ''}
           </span>
         </div>
-        <div className="panel-body">
-          {/* HP bars */}
-          <div className="battle-hp-bars">
-            <div className="combatant-hp">
-              <div className="combatant-name" style={{ color: 'var(--success)' }}>
-                👤 {char?.nickname ?? 'Вы'}
-              </div>
-              <div className="stat-bar-wrap">
-                <div className="stat-bar" style={{ flex: 1 }}>
-                  <div className="stat-bar-fill hp" style={{ width: `${playerHpPct}%` }} />
-                </div>
-                <div className="stat-bar-val">{playerHp}/{playerHpMax}</div>
-              </div>
+        <div className="panel-body" style={{ padding: 0 }}>
+          <div className="battle-arena">
+            <div className="battle-arena-bg" />
+
+            <div className="round-indicator" style={{ marginBottom: 8, fontSize: 11 }}>
+              ━━━━━━━━━━ РАУНД {currentRound} ━━━━━━━━━━
             </div>
-            <div className="combatant-hp">
-              <div className="combatant-name" style={{ color: 'var(--danger)' }}>
-                💀 Противник
-              </div>
-              <div className="stat-bar-wrap">
-                <div className="stat-bar" style={{ flex: 1 }}>
-                  <div className="stat-bar-fill hp" style={{ width: `${enemyHpPct}%` }} />
+
+            <div className="battle-fighters">
+              {/* Игрок */}
+              <div className={`fighter player${!playerPart?.isAlive && battleFinished ? ' defeated' : ''}`}>
+                <div className="fighter-name">
+                  <span className="fighter-icon">🧍</span>
+                  <span>{char?.nickname ?? 'Вы'}</span>
                 </div>
-                <div className="stat-bar-val">{enemyHp}/{enemyHpMax}</div>
+                <HpBar current={playerHp} max={playerHpMax} side="player" />
+                <div className="fighter-status">
+                  {equippedWeapon
+                    ? `⚔️ ${equippedWeapon.template.name}`
+                    : '✊ Кулаки'}
+                  {playerPart && ` | Урон: ${playerPart.damageDealt}`}
+                </div>
+              </div>
+
+              {/* VS */}
+              <div className="battle-vs">
+                {battleFinished
+                  ? (finishResult?.result === 'PVE_WIN' ? '🏆' : '💀')
+                  : '⚔️'}
+              </div>
+
+              {/* Противник */}
+              <div className={`fighter enemy${!enemyPart?.isAlive && battleFinished ? ' defeated' : ''}`}>
+                <div className="fighter-name" style={{ justifyContent: 'flex-end' }}>
+                  <span>Противник</span>
+                  <span className="fighter-icon">💀</span>
+                </div>
+                <HpBar current={enemyHp} max={enemyHpMax} side="enemy" />
+                <div className="fighter-status" style={{ textAlign: 'right' }}>
+                  {enemyPart && `Урон: ${enemyPart.damageDealt}`}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Battle log */}
+          {/* Лог боя */}
           <div className="battle-log" ref={logRef}>
             {log.map((line, i) => (
-              <div key={i} className={`battle-log-line ${line.type}`}>
+              <div key={i} className={`log-line ${line.type}`}>
+                {line.round !== undefined && line.round > 0 && (
+                  <span className="round-num">[{line.round}]</span>
+                )}
                 {line.text}
               </div>
             ))}
             {actionMut.isPending && (
-              <div className="battle-log-line system">
+              <div className="log-line system">
                 <span className="spinner" /> Обработка хода...
               </div>
             )}
           </div>
 
-          {/* Actions */}
+          {/* Действия */}
           {!battleFinished && (
-            <div>
-              {actionError && <div className="alert alert-error mt8">{actionError}</div>}
-              <div className="battle-actions mt8">
-                {actions.map(({ action, label, cls }) => (
-                  <button
-                    key={action}
-                    className={`btn ${cls}`}
-                    disabled={!canAct}
-                    onClick={() => actionMut.mutate(action)}
-                  >
-                    {label}
+            <div style={{ padding: '8px 10px', background: 'var(--bg-panel2)', borderTop: '1px solid var(--border)' }}>
+              {actionError && (
+                <div className="alert alert-error mb8" style={{ marginBottom: 6 }}>{actionError}</div>
+              )}
+
+              <div className="battle-actions">
+                <div className="action-btn-group">
+                  <button className="btn btn-danger" disabled={!canAct} onClick={() => act('attack')}>
+                    ⚔️ Атака
                   </button>
-                ))}
+                  <button className="btn btn-primary" disabled={!canAct} onClick={() => act('block')}>
+                    🛡️ Блок
+                  </button>
+                </div>
+
+                {/* Использовать предмет */}
+                {consumables.length > 0 && (
+                  <div className="action-btn-group">
+                    <select
+                      className="form-select"
+                      style={{ width: 140, padding: '4px 6px', fontSize: 10 }}
+                      disabled={!canAct}
+                      onChange={e => act('use_item', e.target.value)}
+                      value=""
+                    >
+                      <option value="">💊 Предмет...</option>
+                      {consumables.map(c => (
+                        <option key={c.id} value={c.id}>{c.template.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Сменить оружие */}
+                {weapons.length > 1 && (
+                  <div className="weapon-select-row" style={{ border: 0, padding: 0 }}>
+                    <select
+                      className="form-select"
+                      style={{ width: 160, padding: '4px 6px', fontSize: 10 }}
+                      disabled={!canAct}
+                      value={selectedWeapon}
+                      onChange={e => setSelectedWeapon(e.target.value)}
+                    >
+                      <option value="">🔄 Сменить оружие...</option>
+                      {weapons.filter(w => !w.isEquipped).map(w => (
+                        <option key={w.id} value={w.id}>{w.template.name}</option>
+                      ))}
+                    </select>
+                    {selectedWeapon && (
+                      <button
+                        className="btn btn-sm"
+                        disabled={!canAct}
+                        onClick={() => { act('change_weapon', selectedWeapon); setSelectedWeapon('') }}
+                      >
+                        Сменить
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  className="btn btn-sm"
+                  disabled={!canAct}
+                  style={{ marginLeft: 'auto', opacity: 0.6 }}
+                  onClick={() => act('surrender')}
+                >
+                  🏳️ Сдаться
+                </button>
               </div>
             </div>
           )}
 
-          {/* Finish result */}
+          {/* Результат боя */}
           {battleFinished && finishResult && (
-            <div className="panel mt12"
-              style={{ borderColor: finishResult.result === 'PVE_WIN' ? 'var(--success)' : 'var(--danger)' }}>
-              <div className="panel-header">
-                <span className="panel-title">
-                  {finishResult.result === 'PVE_WIN' ? '🏆 ПОБЕДА!' : '💀 ПОРАЖЕНИЕ'}
-                </span>
+            <div style={{
+              padding: '12px',
+              background: finishResult.result === 'PVE_WIN' ? '#081808' : '#180808',
+              borderTop: `2px solid ${finishResult.result === 'PVE_WIN' ? 'var(--green)' : 'var(--red)'}`,
+            }}>
+              <div style={{
+                fontSize: 16, fontWeight: 'bold',
+                color: finishResult.result === 'PVE_WIN' ? 'var(--success)' : 'var(--danger)',
+                marginBottom: 10, textAlign: 'center',
+              }}>
+                {finishResult.result === 'PVE_WIN' ? '🏆 ПОБЕДА!' : '💀 ПОРАЖЕНИЕ'}
               </div>
-              <div className="panel-body">
-                <table className="data-table mb8">
-                  <tbody>
-                    {(finishResult.expGain ?? 0) > 0 && (
-                      <tr><td>Боевой опыт</td>
-                        <td style={{ color: 'var(--xp)' }}>+{finishResult.expGain}</td></tr>
-                    )}
-                    {(finishResult.weaponExpGain ?? 0) > 0 && (
-                      <tr><td>Навык оружия</td>
-                        <td style={{ color: 'var(--accent)' }}>+{Number(finishResult.weaponExpGain).toFixed(2)}</td></tr>
-                    )}
-                    {(finishResult.moneyReward ?? 0) > 0 && (
-                      <tr><td>Деньги</td>
-                        <td className="money">+{finishResult.moneyReward}</td></tr>
-                    )}
-                    {(finishResult.newLevel ?? 0) > 1 && (
-                      <tr><td>Уровень</td>
-                        <td style={{ color: 'var(--gold)' }}>🎉 {finishResult.newLevel}</td></tr>
-                    )}
-                  </tbody>
-                </table>
 
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-primary" onClick={() => navigate('/profile')}>
-                    ← Профиль
-                  </button>
-                  <button className="btn" onClick={() => navigate('/repair')}>
-                    🔧 Ремонт
-                  </button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+                {(finishResult.expGain ?? 0) > 0 && (
+                  <div style={{ textAlign: 'center', padding: '6px 4px', background: 'var(--bg-panel2)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase' }}>Боевой опыт</div>
+                    <div style={{ fontSize: 16, color: 'var(--xp)', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
+                      +{finishResult.expGain}
+                    </div>
+                  </div>
+                )}
+                {(finishResult.weaponExpGain ?? 0) > 0 && (
+                  <div style={{ textAlign: 'center', padding: '6px 4px', background: 'var(--bg-panel2)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase' }}>Навык</div>
+                    <div style={{ fontSize: 16, color: 'var(--accent-light)', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
+                      +{Number(finishResult.weaponExpGain).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+                {(finishResult.moneyReward ?? 0) > 0 && (
+                  <div style={{ textAlign: 'center', padding: '6px 4px', background: 'var(--bg-panel2)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase' }}>Деньги</div>
+                    <div style={{ fontSize: 16, color: 'var(--gold)', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
+                      +{finishResult.moneyReward}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {(finishResult.newLevel ?? 0) > 1 && (
+                <div style={{ textAlign: 'center', color: 'var(--gold)', fontWeight: 'bold', marginBottom: 10, fontSize: 14 }}>
+                  🎉 НОВЫЙ УРОВЕНЬ: {finishResult.newLevel}!
                 </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                <button className="btn btn-primary" onClick={() => navigate('/profile')}>← Профиль</button>
+                <button className="btn btn-gold" onClick={() => navigate('/repair')}>🔧 Ремонт</button>
+                <button className="btn btn-danger" onClick={() => { navigate('/profile') }}>⚔️ Ещё раз</button>
               </div>
             </div>
           )}

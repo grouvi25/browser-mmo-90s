@@ -340,7 +340,6 @@ export const BattleService = {
   // Submit action (PvE: auto-resolve when player acts)
   // -------------------------------------------------------
   async submitAction(userId: string, battleId: string, action: string, targetItemId?: string) {
-    // Acquire distributed lock
     const locked = await BattleRedis.acquireLock(battleId, 5000)
     if (!locked) throw new AppError(ErrorCode.BATTLE_LOCK_FAILED, 'Battle is processing, retry', 409)
 
@@ -357,18 +356,62 @@ export const BattleService = {
       if (!playerPart.isAlive) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'You are dead', 400)
       if (playerPart.hasActedThisRound) throw new AppError(ErrorCode.BATTLE_ACTION_TAKEN, 'Already acted this round', 400)
 
+      // ── Сдача ───────────────────────────────────────────
       if (action === 'surrender') {
         playerPart.isSurrendered = true
         playerPart.isAlive = false
+        await BattleRedis.setState(battleId, state)
         return this._finishBattle(battleId, state, null)
       }
 
-      // For PvE: auto-resolve the round immediately
+      // ── Смена оружия ─────────────────────────────────────
+      if (action === 'change_weapon') {
+        if (!targetItemId) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'No weapon specified', 400)
+        const newWeapon = await ItemsRepository.findInstanceById(targetItemId)
+        if (!newWeapon || newWeapon.ownerId !== char.id)
+          throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your weapon', 403)
+        if (newWeapon.status === 'BROKEN')
+          throw new AppError(ErrorCode.ITEM_BROKEN, 'Weapon is broken', 400)
+        if (newWeapon.template.type !== 'WEAPON')
+          throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Not a weapon', 400)
+
+        // Equip new weapon, unequip old
+        if (playerPart.weaponInstanceId && playerPart.weaponInstanceId !== targetItemId) {
+          await ItemsRepository.unequip(playerPart.weaponInstanceId)
+        }
+        await ItemsRepository.equip(targetItemId, null)
+        playerPart.weaponInstanceId = targetItemId
+        state.roundNumber++
+
+        await prisma.battleTurn.create({
+          data: {
+            battleId, roundNumber: state.roundNumber - 1,
+            actorCharId: char.id, action: 'CHANGE_WEAPON' as BattleAction,
+            weaponId: targetItemId,
+            hit: false, dodge: false, block: false, crit: false,
+            rawDamage: 0, finalDamage: 0,
+            logLine: `Сменил оружие на: ${newWeapon.template.name}`,
+          },
+        })
+
+        await BattleRedis.setState(battleId, state)
+        return {
+          roundNumber: state.roundNumber - 1,
+          weaponChanged: true,
+          newWeaponName: newWeapon.template.name,
+          turns: [{ actor: 'player', action: 'change_weapon', hit: false, dodge: false, block: false, crit: false, rawDamage: 0, finalDamage: 0, logParts: [`Сменил оружие: ${newWeapon.template.name}`] }],
+          playerHp: playerPart.hpCurrent,
+          botHp: state.participants.find(p => p.botId)?.hpCurrent ?? 0,
+          battleOver: false,
+        }
+      }
+
+      // ── PvE: авторазрешение раунда ─────────────────────
       if (state.type === 'PVE_BOT') {
         return this._resolveRoundPve(battleId, state, char, action, targetItemId)
       }
 
-      // For PvP: store action and wait for opponent
+      // ── PvP: сохраняем действие, ждём противника ───────
       playerPart.pendingAction = action
       playerPart.hasActedThisRound = true
       await BattleRedis.setState(battleId, state)
@@ -377,8 +420,8 @@ export const BattleService = {
       if (allActed) {
         return this._resolveRoundPvp(battleId, state)
       }
-
       return { waiting: true, roundNumber: state.roundNumber }
+
     } finally {
       await BattleRedis.releaseLock(battleId)
     }
