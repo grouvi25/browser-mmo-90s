@@ -1,4 +1,4 @@
-﻿import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../providers/auth-provider'
 import { charactersApi } from '../../shared/api/characters.api'
@@ -28,16 +28,16 @@ export function GameLayout() {
     <div className="layout-game">
       {/* Topbar */}
       <div className="layout-topbar">
-        <span className="site-name">вљЎ Р‘Р РђРўР’Рђ 90-РҐ</span>
+        <span className="site-name">⚡ БРАТВА 90-Х</span>
 
         {char && (
           <div className="char-info">
             <span className="text-gold">{char.nickname}</span>
             <span className="text-dim">|</span>
-            <span>РЈСЂ.<span style={{ color: 'var(--accent)' }}>{char.battleLevel}</span></span>
+            <span>Ур.<span style={{ color: 'var(--accent)' }}>{char.battleLevel}</span></span>
             <span className="text-dim">|</span>
             <span>
-              вќ¤пёЏ <span style={{ color: hpPct < 30 ? 'var(--danger)' : 'var(--text)' }}>
+              ❤️ <span style={{ color: hpPct < 30 ? 'var(--danger)' : 'var(--text)' }}>
                 {char.hpCurrent}/{char.hpMax}
               </span>
             </span>
@@ -53,7 +53,7 @@ export function GameLayout() {
         <div className="topbar-nav">
           <span className="text-dim" style={{ fontSize: 11 }}>{login}</span>
           <button className="btn btn-sm" onClick={handleLogout} style={{ marginLeft: 8 }}>
-            Р’С‹С…РѕРґ
+            Выход
           </button>
         </div>
       </div>
@@ -62,41 +62,43 @@ export function GameLayout() {
         {/* Sidebar */}
         <nav className="layout-sidebar">
           <div className="sidebar-section">
-            <div className="sidebar-section-title">РџРµСЂСЃРѕРЅР°Р¶</div>
+            <div className="sidebar-section-title">Персонаж</div>
             <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/profile">
-              рџ“‹ РџСЂРѕС„РёР»СЊ
+              📋 Профиль
             </NavLink>
             <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/inventory">
-              рџЋ’ РРЅРІРµРЅС‚Р°СЂСЊ
+              🎒 Инвентарь
             </NavLink>
           </div>
 
           <div className="sidebar-section">
-            <div className="sidebar-section-title">Р”РµР№СЃС‚РІРёСЏ</div>
+            <div className="sidebar-section-title">Действия</div>
             <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/shop">
-              рџЏЄ РњР°РіР°Р·РёРЅ
+              🏪 Магазин
             </NavLink>
             <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/repair">
-              рџ”§ РњР°СЃС‚РµСЂСЃРєР°СЏ
+              🔧 Мастерская
             </NavLink>
           </div>
 
           <div className="sidebar-section">
-            <div className="sidebar-section-title">Р‘РѕР№</div>
+            <div className="sidebar-section-title">Бой</div>
             <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')}
-              to={char?.status === 'IN_BATTLE' ? ('/battle/' + (localStorage.getItem('mmo_current_battle') ?? 'none')) : '#'}
+              to={char?.status === 'IN_BATTLE'
+                ? ('/battle/' + (localStorage.getItem('mmo_current_battle') ?? 'none'))
+                : '#'}
               onClick={(e) => {
                 if (char?.status !== 'IN_BATTLE') e.preventDefault()
               }}
               style={char?.status !== 'IN_BATTLE' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
             >
-              вљ”пёЏ РўРµРєСѓС‰РёР№ Р±РѕР№
+              ⚔️ Текущий бой
             </NavLink>
           </div>
 
           {char && (
             <div style={{ padding: '8px 10px', marginTop: 4 }}>
-              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 6 }}>РҐРђР РђРљРўР•Р РРЎРўРРљР</div>
+              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 6 }}>ХАРАКТЕРИСТИКИ</div>
               {char.stats && Object.entries(STAT_LABELS).map(([key, label]) => (
                 <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
                   <span style={{ color: 'var(--text-dim)' }}>{label}</span>
