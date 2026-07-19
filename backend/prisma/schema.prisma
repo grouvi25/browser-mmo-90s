@@ -1,0 +1,648 @@
+// =============================================================
+// PRISMA SCHEMA — Browser MMO 90s
+// Этап 1: боевое ядро
+// Все таблицы по мастер-ТЗ раздел 15
+// =============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================
+// ENUMS
+// =============================================================
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+  MUTED
+  PENDING_EMAIL
+}
+
+enum CharacterStatus {
+  ACTIVE
+  IN_BATTLE
+  WORKING
+  TRAVELLING
+  RECOVERING
+  BANNED
+  OFFLINE
+}
+
+enum CharacterArchetype {
+  ATHLETE       // Спортсмен   — +STR +END
+  WORKER        // Работяга    — +STR +END
+  SHUTTLE       // Челнок      — +ACC +LUCK
+  VETERAN       // Бывший срочник — +REA +ACC
+  STREET        // Уличный     — +AGI +AGR
+  MERCHANT      // Коммерсант  — +LUCK +AUTH
+  STUDENT       // Студент     — универсальный
+  RESOLVER      // Решала      — +AUTH
+}
+
+enum ItemType {
+  WEAPON
+  ARMOR
+  ACCESSORY
+  CONSUMABLE
+  RESOURCE
+  COMPONENT
+  UPGRADE_MODULE
+  TOOL
+  SEED
+  CROP
+}
+
+enum WeaponType {
+  MELEE        // Рукопашка
+  KNIFE        // Ножи
+  CLUB         // Дубинки / арматура
+  PISTOL       // Пистолеты
+  SHOTGUN      // Дробовики
+  SMG          // Пистолеты-пулемёты
+  RIFLE        // Автоматы
+  SNIPER       // Винтовки
+  HEAVY        // Тяжёлое
+  THROWN       // Метательное / взрывчатка
+}
+
+enum ArmorSlot {
+  HEAD
+  CHEST
+  LEGS
+  FEET
+  HANDS
+  BELT
+  BACK
+  POCKET
+  ACCESSORY
+}
+
+enum ItemQuality {
+  JUNK    // Хлам
+  COMMON  // Обычный
+  GOOD    // Хороший
+  RARE    // Редкий
+  NAMED   // Именной
+  UNIQUE  // Уникальный
+}
+
+enum ItemStatus {
+  NORMAL
+  EQUIPPED
+  BROKEN
+  LOCKED
+  ON_MARKET
+  IN_STORAGE
+  IN_REPAIR
+  CONSUMED
+  DELETED
+}
+
+enum ItemSourceType {
+  GOVERNMENT  // Государственный магазин
+  PRIVATE     // Частный магазин (этап 2)
+  PREMIUM     // Премиум-магазин (этап 4)
+  DROP        // Дроп с боя / NPC
+  CRAFTED     // Скрафчено (этап 3)
+  ADMIN       // Выдано администратором
+}
+
+enum BattleType {
+  PVE_BOT     // Бой с ботом
+  PVP_DUEL    // Простая PvP-дуэль
+  PVP_OPEN    // Открытая заявка (этап 2+)
+  CLAN        // Клановый бой (этап 4)
+  TERRITORY   // Бой за территорию (этап 4)
+}
+
+enum BattleStatus {
+  CREATED           // Создан, ждём игроков
+  WAITING_PLAYERS   // Ждём принятия (PvP)
+  ACTIVE            // Идёт
+  FINISHED          // Завершён
+  CANCELLED         // Отменён
+  TECHNICAL_WIN     // Техническая победа
+}
+
+enum BattleAction {
+  ATTACK
+  BLOCK
+  USE_ITEM
+  CHANGE_WEAPON
+  SURRENDER
+}
+
+enum CurrencyLogReason {
+  SHOP_PURCHASE     // Покупка в магазине
+  SHOP_SELL         // Продажа магазину
+  BATTLE_REWARD     // Награда за бой
+  REPAIR_COST       // Стоимость ремонта
+  ADMIN_GRANT       // Выдача администратором
+  ADMIN_DEDUCT      // Снятие администратором
+  MARKET_SELL       // Продажа на рынке (этап 2)
+  MARKET_FEE        // Комиссия рынка (этап 2)
+  WORK_SALARY       // Зарплата за работу (этап 2)
+}
+
+enum ItemLogAction {
+  CREATED_FROM_SHOP
+  CREATED_FROM_DROP
+  CREATED_BY_ADMIN
+  EQUIPPED
+  UNEQUIPPED
+  SOLD_TO_SHOP
+  DURABILITY_CHANGED
+  REPAIRED
+  UPGRADED
+  GRANTED_BY_ADMIN
+  DELETED_BY_ADMIN
+  STATUS_CHANGED
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  MODERATOR
+  SUPPORT
+}
+
+// =============================================================
+// USERS & AUTH
+// =============================================================
+
+model User {
+  id              String      @id @default(uuid())
+  login           String      @unique
+  email           String      @unique
+  passwordHash    String      @map("password_hash")
+  status          UserStatus  @default(ACTIVE)
+  emailVerified   Boolean     @default(false) @map("email_verified")
+  banReason       String?     @map("ban_reason")
+  mutedUntil      DateTime?   @map("muted_until")
+  lastIp          String?     @map("last_ip")
+  lastUserAgent   String?     @map("last_user_agent")
+  lastLoginAt     DateTime?   @map("last_login_at")
+  registeredAt    DateTime    @default(now()) @map("registered_at")
+
+  // Relations
+  character       Character?
+  sessions        Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  tokenHash   String    @unique @map("token_hash")  // sha256 of the JWT jti
+  expiresAt   DateTime  @map("expires_at")
+  ip          String?
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  revokedAt   DateTime? @map("revoked_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// =============================================================
+// CHARACTER
+// =============================================================
+
+model Character {
+  id                String            @id @default(uuid())
+  userId            String            @unique @map("user_id")
+  nickname          String            @unique
+  archetype         CharacterArchetype
+  avatar            String?
+
+  // Battle progression
+  battleLevel       Int               @default(1) @map("battle_level")
+  battleExp         Int               @default(0) @map("battle_exp")
+
+  // Economic progression (Stage 2+, зарезервировано)
+  economicLevel     Int               @default(0) @map("economic_level")
+  economicExp       Int               @default(0) @map("economic_exp")
+
+  // Production progression (Stage 2+, зарезервировано)
+  productionLevel   Int               @default(0) @map("production_level")
+  productionExp     Int               @default(0) @map("production_exp")
+
+  // Money
+  money             Int               @default(1250) // Стартовые деньги по ТЗ
+
+  // HP
+  hpCurrent         Int               @map("hp_current")
+  hpMax             Int               @map("hp_max")
+
+  // Status
+  status            CharacterStatus   @default(ACTIVE)
+
+  // Future hooks (задел на этапы 3-4)
+  clanId            String?           @map("clan_id")   // этап 3
+  locationId        String?           @map("location_id") // этап 2
+
+  // Premium (задел этап 4)
+  isPremium         Boolean           @default(false) @map("is_premium")
+  premiumExpiresAt  DateTime?         @map("premium_expires_at")
+
+  createdAt         DateTime          @default(now()) @map("created_at")
+  lastActiveAt      DateTime          @default(now()) @map("last_active_at")
+
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stats             CharacterStats?
+  items             ItemInstance[]    @relation("OwnerItems")
+  weaponSkills      WeaponSkill[]
+  battlesAsParticipant BattleParticipant[]
+  currencyLogs      CurrencyLog[]
+  itemLogs          ItemLog[]
+  repairLogs        RepairLog[]
+
+  @@map("characters")
+}
+
+model CharacterStats {
+  id                String    @id @default(uuid())
+  characterId       String    @unique @map("character_id")
+
+  // Base stats (из ТЗ раздел 17.1)
+  str               Int       @default(3)  // Сила
+  agi               Int       @default(3)  // Ловкость
+  rea               Int       @default(2)  // Реакция
+  acc               Int       @default(3)  // Меткость
+  end               Int       @default(3)  // Выносливость
+  luck              Int       @default(1)  // Фарт
+  agr               Int       @default(1)  // Агрессия
+  auth              Int       @default(1)  // Авторитет
+
+  // Available points to distribute
+  pointsAvailable   Int       @default(0) @map("points_available")
+
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  character         Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@map("character_stats")
+}
+
+// =============================================================
+// ITEMS
+// =============================================================
+
+model ItemTemplate {
+  id              String          @id @default(uuid())
+  code            String          @unique  // e.g. "weapon_knife_basic"
+  name            String
+  description     String?
+  type            ItemType
+  weaponType      WeaponType?     @map("weapon_type")
+  armorSlot       ArmorSlot?      @map("armor_slot")
+
+  // Weapon stats
+  minDamage       Int?            @map("min_damage")
+  maxDamage       Int?            @map("max_damage")
+  weaponAccuracy  Float?          @default(0.7) @map("weapon_accuracy")
+  critBonus       Float?          @default(0.0) @map("crit_bonus")
+  critDamageBonus Float?          @default(0.0) @map("crit_damage_bonus")
+  blockPierce     Float?          @default(0.0) @map("block_pierce")
+
+  // Armor stats
+  armor           Int?            @default(0)
+  dodgeBonus      Float?          @default(0.0) @map("dodge_bonus")
+  antiCrit        Float?          @default(0.0) @map("anti_crit")
+  blockBonus      Float?          @default(0.0) @map("block_bonus")
+  hpBonus         Int?            @default(0) @map("hp_bonus")
+
+  // Physical
+  weight          Float           @default(1.0)
+  durabilityMax   Int             @default(100) @map("durability_max")
+  qualityBase     ItemQuality     @default(COMMON) @map("quality_base")
+  priceBase       Int             @default(100) @map("price_base")
+
+  // Requirements
+  levelReq        Int             @default(0) @map("level_req")
+  skillReq        Int             @default(0) @map("skill_req")   // мин. уровень навыка
+  strReq          Int             @default(0) @map("str_req")
+
+  // Meta
+  sourceType      ItemSourceType  @default(GOVERNMENT) @map("source_type")
+  isActive        Boolean         @default(true) @map("is_active")
+  isSellable      Boolean         @default(true) @map("is_sellable")
+  isEquippable    Boolean         @default(true) @map("is_equippable")
+  isTradeable     Boolean         @default(true) @map("is_tradeable")
+
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  instances       ItemInstance[]
+  shopEntries     GovernmentShopItem[]
+
+  @@map("item_templates")
+}
+
+model ItemInstance {
+  id              String          @id @default(uuid())
+  templateId      String          @map("template_id")
+  ownerId         String          @map("owner_id")
+
+  quality         ItemQuality     @default(COMMON)
+  durabilityCurrent Int           @map("durability_current")
+  durabilityMax   Int             @map("durability_max")
+  upgradeLevel    Int             @default(0) @map("upgrade_level")
+
+  status          ItemStatus      @default(NORMAL)
+  isEquipped      Boolean         @default(false) @map("is_equipped")
+  armorSlot       ArmorSlot?      @map("armor_slot")  // если экипировано, какой слот
+
+  weight          Float
+  sourceType      ItemSourceType  @map("source_type")
+
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  template        ItemTemplate    @relation(fields: [templateId], references: [id])
+  owner           Character       @relation("OwnerItems", fields: [ownerId], references: [id], onDelete: Cascade)
+  itemLogs        ItemLog[]
+  repairLogs      RepairLog[]
+
+  // Battle: участник может использовать/менять оружие
+  battleTurnsWeapon BattleTurn[]   @relation("TurnWeapon")
+
+  @@index([ownerId])
+  @@index([templateId])
+  @@index([ownerId, status])
+  @@map("item_instances")
+}
+
+// =============================================================
+// GOVERNMENT SHOP
+// =============================================================
+
+model GovernmentShopItem {
+  id            String        @id @default(uuid())
+  templateId    String        @map("template_id")
+  isAvailable   Boolean       @default(true) @map("is_available")
+  overridePrice Int?          @map("override_price")  // если null — берём priceBase
+  sortOrder     Int           @default(0) @map("sort_order")
+
+  template      ItemTemplate  @relation(fields: [templateId], references: [id])
+
+  @@unique([templateId])
+  @@map("shop_items_government")
+}
+
+// =============================================================
+// BOTS
+// =============================================================
+
+model Bot {
+  id              String    @id @default(uuid())
+  code            String    @unique  // e.g. "training_bandit", "basic_gangster"
+  name            String
+  battleLevel     Int       @default(1) @map("battle_level")
+  power           Int       @default(10)
+  hpMax           Int       @map("hp_max")
+
+  // Stats as JSON (same structure as CharacterStats)
+  stats           Json      // { str, agi, rea, acc, end, luck, agr }
+
+  // Equipment as JSON list of template codes
+  equipment       Json      // { mainWeapon: "code", armor: {...} }
+
+  // Reward config
+  expReward       Int       @default(10) @map("exp_reward")
+  moneyRewardMin  Int       @default(0) @map("money_reward_min")
+  moneyRewardMax  Int       @default(0) @map("money_reward_max")
+
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  battleParticipants BattleParticipant[]
+
+  @@map("bots")
+}
+
+// =============================================================
+// BATTLES
+// =============================================================
+
+model Battle {
+  id              String        @id @default(uuid())
+  type            BattleType
+  status          BattleStatus  @default(CREATED)
+
+  winnerId        String?       @map("winner_id")   // character_id or bot_id
+
+  roundCount      Int           @default(0) @map("round_count")
+  maxRounds       Int           @default(30) @map("max_rounds")   // автопобеда если превышено
+
+  // Anti-abuse flags
+  isSuspicious    Boolean       @default(false) @map("is_suspicious")
+  suspicionReason String?       @map("suspicion_reason")
+
+  // Redis key for live state (not stored in DB during battle)
+  // battle:{id}:state — in Redis
+  // battle:{id}:lock  — distributed lock in Redis
+
+  // Timing
+  startedAt       DateTime?     @map("started_at")
+  finishedAt      DateTime?     @map("finished_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  participants    BattleParticipant[]
+  turns           BattleTurn[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("battles")
+}
+
+model BattleParticipant {
+  id              String    @id @default(uuid())
+  battleId        String    @map("battle_id")
+  characterId     String?   @map("character_id")  // null если бот
+  botId           String?   @map("bot_id")         // null если игрок
+  side            Int       @default(1)             // 1 или 2 для клановых боёв
+
+  // Snapshot at battle start
+  hpMax           Int       @map("hp_max")
+  hpCurrent       Int       @map("hp_current")
+
+  isAlive         Boolean   @default(true) @map("is_alive")
+  isSurrendered   Boolean   @default(false) @map("is_surrendered")
+
+  // Stats
+  damageDealt     Int       @default(0) @map("damage_dealt")
+  damageReceived  Int       @default(0) @map("damage_received")
+  hitsLanded      Int       @default(0) @map("hits_landed")
+  hitsTaken       Int       @default(0) @map("hits_taken")
+  critLanded      Int       @default(0) @map("crit_landed")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  battle          Battle    @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  character       Character? @relation(fields: [characterId], references: [id])
+  bot             Bot?       @relation(fields: [botId], references: [id])
+
+  @@unique([battleId, characterId])
+  @@index([battleId])
+  @@index([characterId])
+  @@map("battle_participants")
+}
+
+model BattleTurn {
+  id              String        @id @default(uuid())
+  battleId        String        @map("battle_id")
+  roundNumber     Int           @map("round_number")
+
+  // Actor (character or bot)
+  actorCharId     String?       @map("actor_char_id")
+  actorBotId      String?       @map("actor_bot_id")
+
+  // Target
+  targetCharId    String?       @map("target_char_id")
+  targetBotId     String?       @map("target_bot_id")
+
+  action          BattleAction
+  weaponId        String?       @map("weapon_id")   // ItemInstance used
+
+  // Results
+  hit             Boolean       @default(false)
+  dodge           Boolean       @default(false)
+  block           Boolean       @default(false)
+  crit            Boolean       @default(false)
+
+  rawDamage       Int           @default(0) @map("raw_damage")
+  finalDamage     Int           @default(0) @map("final_damage")
+
+  // HP tracking
+  targetHpBefore  Int           @default(0) @map("target_hp_before")
+  targetHpAfter   Int           @default(0) @map("target_hp_after")
+
+  // Durability
+  weaponDurLoss   Int           @default(0) @map("weapon_dur_loss")
+  armorDurLoss    Int           @default(0) @map("armor_dur_loss")
+
+  // Weapon skill exp gained this turn
+  weaponSkillExp  Float         @default(0) @map("weapon_skill_exp")
+
+  // Human readable log line for frontend
+  logLine         String?       @map("log_line")
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  battle          Battle        @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  weapon          ItemInstance? @relation("TurnWeapon", fields: [weaponId], references: [id])
+
+  @@index([battleId, roundNumber])
+  @@map("battle_turns")
+}
+
+// =============================================================
+// WEAPON SKILLS (отдельная прогрессия по типу оружия)
+// =============================================================
+
+model WeaponSkill {
+  id                String      @id @default(uuid())
+  characterId       String      @map("character_id")
+  weaponType        WeaponType  @map("weapon_type")
+
+  skillLevel        Int         @default(1) @map("skill_level")
+  skillExp          Float       @default(0) @map("skill_exp")
+
+  // Anti-mastery (защита от типа оружия, растёт после 20 уровня)
+  antiSkillLevel    Int         @default(0) @map("anti_skill_level")
+  antiSkillExp      Float       @default(0) @map("anti_skill_exp")
+
+  // Premium multiplier (задел этап 4)
+  premiumMultiplier Float       @default(1.0) @map("premium_multiplier")
+
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  character         Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, weaponType])
+  @@index([characterId])
+  @@map("weapon_skills")
+}
+
+// =============================================================
+// LOGS
+// =============================================================
+
+model CurrencyLog {
+  id            String              @id @default(uuid())
+  characterId   String              @map("character_id")
+  amount        Int                 // положительный — приход, отрицательный — расход
+  balanceAfter  Int                 @map("balance_after")
+  reasonCode    CurrencyLogReason   @map("reason_code")
+  refId         String?             @map("ref_id")    // id связанной сущности (battle_id, item_id, etc.)
+  refType       String?             @map("ref_type")  // 'battle' | 'item' | 'repair' | 'shop'
+  note          String?
+  createdAt     DateTime            @default(now()) @map("created_at")
+
+  character     Character           @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([characterId, createdAt])
+  @@map("currency_logs")
+}
+
+model ItemLog {
+  id            String          @id @default(uuid())
+  itemId        String          @map("item_id")
+  characterId   String          @map("character_id")
+  actionCode    ItemLogAction   @map("action_code")
+  details       Json?           // { before: ..., after: ..., reason: ... }
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  item          ItemInstance    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  character     Character       @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, createdAt])
+  @@index([characterId, createdAt])
+  @@map("item_logs")
+}
+
+model RepairLog {
+  id                String        @id @default(uuid())
+  characterId       String        @map("character_id")
+  itemId            String        @map("item_id")
+  cost              Int
+  durabilityBefore  Int           @map("durability_before")
+  durabilityAfter   Int           @map("durability_after")
+  repairedAt        DateTime      @default(now()) @map("repaired_at")
+
+  character         Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  item              ItemInstance  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([characterId])
+  @@index([itemId])
+  @@map("repair_logs")
+}
+
+// =============================================================
+// ADMIN
+// =============================================================
+
+model AdminUser {
+  id            String      @id @default(uuid())
+  username      String      @unique
+  passwordHash  String      @map("password_hash")
+  role          AdminRole   @default(SUPPORT)
+  isActive      Boolean     @default(true) @map("is_active")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  lastLoginAt   DateTime?   @map("last_login_at")
+
+  @@map("admin_users")
+}
