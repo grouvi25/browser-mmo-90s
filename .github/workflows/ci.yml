@@ -1,44 +1,31 @@
-# =============================================================
-# CI — Continuous Integration
-# Runs on every push and pull request
-# Jobs: typecheck → lint → unit-tests → integration-tests → build
-# =============================================================
-
 name: CI
 
 on:
   push:
     branches: ['**']
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  NODE_VERSION: '20'
-  POSTGRES_DB: mmo90s_test
-  POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: postgres_test
-
 jobs:
   # ============================================================
-  # Job 1: TypeScript type check
+  # Job 1: TypeScript type check + Build
   # ============================================================
-  typecheck:
-    name: 'TypeScript check'
+  typecheck-and-build:
+    name: Typecheck & Build
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '20'
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -51,22 +38,32 @@ jobs:
       - name: TypeScript typecheck
         run: npx tsc --noEmit
 
+      - name: Build TypeScript
+        run: npx tsc -p tsconfig.build.json
+
+      - name: Verify dist
+        run: test -f dist/main.js && echo "Build OK" || (echo "Build FAILED" && exit 1)
+
   # ============================================================
-  # Job 2: Unit tests (pure functions, no DB/Redis required)
+  # Job 2: Unit tests (no DB/Redis needed)
   # ============================================================
   unit-tests:
-    name: 'Unit tests'
+    name: Unit Tests
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
-
+    env:
+      DATABASE_URL: postgresql://x:x@localhost:5432/x
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: test_secret_that_is_at_least_32_chars_long_for_jwt
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '20'
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -78,40 +75,27 @@ jobs:
 
       - name: Run unit tests
         run: npx vitest run --config vitest.config.ts --reporter=verbose
-        env:
-          DATABASE_URL: 'postgresql://x:x@localhost:5432/x'
-          REDIS_URL: 'redis://localhost:6379'
-          JWT_SECRET: 'test_secret_that_is_at_least_32_chars_long'
-          NODE_ENV: test
-
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: unit-test-coverage
-          path: backend/coverage/
 
   # ============================================================
-  # Job 3: Integration tests (real PostgreSQL + Redis)
+  # Job 3: Integration tests (PostgreSQL + Redis)
   # ============================================================
   integration-tests:
-    name: 'Integration tests'
+    name: Integration Tests
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
-
     services:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: mmo90s_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -127,9 +111,9 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
+      DATABASE_URL: postgresql://postgres:postgres_test@localhost:5432/mmo90s_test
       REDIS_URL: redis://localhost:6379
-      JWT_SECRET: integration_test_secret_32_chars_min
+      JWT_SECRET: integration_test_secret_32_chars_min_for_jwt
       NODE_ENV: test
       BCRYPT_ROUNDS: '4'
 
@@ -138,7 +122,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '20'
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -148,7 +132,7 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Run database migrations
+      - name: Run migrations
         run: npx prisma migrate deploy
 
       - name: Seed test data
@@ -156,44 +140,3 @@ jobs:
 
       - name: Run integration tests
         run: npx vitest run --config vitest.integration.config.ts --reporter=verbose
-
-  # ============================================================
-  # Job 4: Build check (TypeScript compilation)
-  # ============================================================
-  build:
-    name: 'Build'
-    runs-on: ubuntu-latest
-    needs: [typecheck, unit-tests]
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Build TypeScript
-        run: npx tsc -p tsconfig.build.json
-
-      - name: Verify dist exists
-        run: |
-          test -f dist/main.js || (echo "❌ dist/main.js not found!" && exit 1)
-          echo "✅ Build successful: dist/main.js exists"
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-dist
-          path: backend/dist/
-          retention-days: 1

@@ -1,33 +1,21 @@
-# =============================================================
-# CD — Continuous Deployment
-# Deploys to VPS on push to main branch (after CI passes)
-# =============================================================
-
 name: CD
 
 on:
   push:
     branches: [main]
 
-# Only one deploy at a time
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: 'Deploy to VPS'
+    name: Deploy to VPS
     runs-on: ubuntu-latest
-    # environment: production  # requires paid GitHub plan for branch protection
-    # Protection: only runs on push to main (configured in on: push: branches: [main])
-
     steps:
       - uses: actions/checkout@v4
 
-      # --------------------------------------------------------
-      # 1. Setup SSH
-      # --------------------------------------------------------
-      - name: Setup SSH key
+      - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
@@ -38,133 +26,79 @@ jobs:
           echo "${{ secrets.VPS_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      # --------------------------------------------------------
-      # 2. First-time setup: create project dir + .env
-      # --------------------------------------------------------
-      - name: Ensure project directory exists on VPS
+      - name: Prepare project directory
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            mkdir -p ${{ secrets.VPS_PROJECT_DIR }}
-          "
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "mkdir -p ${{ secrets.VPS_PROJECT_DIR }}"
 
-      # --------------------------------------------------------
-      # 3. Deploy code
-      # --------------------------------------------------------
-      - name: Pull latest code
+      - name: Deploy code
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            cd ${{ secrets.VPS_PROJECT_DIR }} || (
-              git clone https://github.com/${{ github.repository }}.git ${{ secrets.VPS_PROJECT_DIR }} &&
-              cd ${{ secrets.VPS_PROJECT_DIR }}
-            )
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
+            set -e
+            PROJECT_DIR="${{ secrets.VPS_PROJECT_DIR }}"
+            REPO="https://github.com/${{ github.repository }}.git"
+
+            if [ -d "$PROJECT_DIR/.git" ]; then
+              cd "$PROJECT_DIR"
+              git fetch origin
+              git reset --hard origin/main
+            else
+              git clone "$REPO" "$PROJECT_DIR"
+              cd "$PROJECT_DIR"
+            fi
+
+            echo "Code updated: $(git log -1 --pretty='%h %s')"
+          SSHEOF
+
+      - name: Build images
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            git fetch origin
-            git reset --hard origin/main
-          "
+            docker compose -f docker-compose.prod.yml build 2>&1 | tail -30
+          SSHEOF
 
-      # --------------------------------------------------------
-      # 4. Create .env if secrets are provided
-      # --------------------------------------------------------
-      - name: Write backend .env
-        if: ${{ secrets.BACKEND_ENV != '' }}
+      - name: Run migrations
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            cat > ${{ secrets.VPS_PROJECT_DIR }}/backend/.env << 'ENVEOF'
-          ${{ secrets.BACKEND_ENV }}
-          ENVEOF
-          "
-
-      # --------------------------------------------------------
-      # 5. Build Docker images
-      # --------------------------------------------------------
-      - name: Build Docker images
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml build --no-cache 2>&1 | tail -20
-          "
+            docker compose -f docker-compose.prod.yml run --rm backend npx prisma migrate deploy
+          SSHEOF
 
-      # --------------------------------------------------------
-      # 6. Run database migrations (zero-downtime safe)
-      # --------------------------------------------------------
-      - name: Run Prisma migrations
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml run --rm backend \
-              npx prisma migrate deploy
-          "
-
-      # --------------------------------------------------------
-      # 7. Seed / upsert reference data
-      # --------------------------------------------------------
       - name: Seed database
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml run --rm backend \
-              npx tsx prisma/seed.ts
-          "
+            docker compose -f docker-compose.prod.yml run --rm backend npx tsx prisma/seed.ts
+          SSHEOF
 
-      # --------------------------------------------------------
-      # 8. Restart services (rolling: workers first, then API)
-      # --------------------------------------------------------
-      - name: Restart services
+      - name: Start services
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
             cd ${{ secrets.VPS_PROJECT_DIR }}
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
-          "
+          SSHEOF
 
-      # --------------------------------------------------------
-      # 9. Reload nginx vhost
-      # --------------------------------------------------------
-      - name: Reload nginx
+      - name: Link nginx vhost
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            # Link vhost if not already linked
-            if [ ! -f /etc/nginx/sites-enabled/mmo90s ]; then
-              ln -s ${{ secrets.VPS_PROJECT_DIR }}/infra/nginx/vhost-vps.conf /etc/nginx/sites-enabled/mmo90s
-              echo 'Nginx vhost linked'
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
+            VHOST_SRC="${{ secrets.VPS_PROJECT_DIR }}/infra/nginx/vhost-vps.conf"
+            VHOST_DST="/etc/nginx/sites-enabled/mmo90s"
+            if [ ! -f "$VHOST_DST" ]; then
+              ln -s "$VHOST_SRC" "$VHOST_DST"
+              echo "Nginx vhost linked"
             fi
             nginx -t && nginx -s reload
-          "
+          SSHEOF
 
-      # --------------------------------------------------------
-      # 10. Health check
-      # --------------------------------------------------------
       - name: Health check
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            sleep 5
-            for i in 1 2 3 4 5; do
-              STATUS=\$(docker compose -f ${{ secrets.VPS_PROJECT_DIR }}/docker-compose.prod.yml ps --format json 2>/dev/null | python3 -c \"import json,sys; data=sys.stdin.read(); print('OK')\" 2>/dev/null || echo 'WAIT')
-              if [ \"\$STATUS\" = 'OK' ]; then
-                echo '✅ Services are up'
-                break
-              fi
-              echo 'Waiting... (\$i/5)'
-              sleep 5
-            done
-
-            # HTTP health check
-            HTTP_STATUS=\$(curl -s -o /dev/null -w '%{http_code}' http://localhost:4080/health 2>/dev/null || echo '000')
-            echo \"Health endpoint: \$HTTP_STATUS\"
-            if [ \"\$HTTP_STATUS\" = '200' ]; then
-              echo '✅ API is healthy'
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
+            sleep 8
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4080/health 2>/dev/null || echo "000")
+            echo "Health: $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Deploy successful!"
             else
-              echo '⚠️  API health check returned: '\$HTTP_STATUS
+              echo "Warning: health check returned $STATUS"
             fi
-
             docker compose -f ${{ secrets.VPS_PROJECT_DIR }}/docker-compose.prod.yml ps
-          "
-
-      # --------------------------------------------------------
-      # Notify on failure
-      # --------------------------------------------------------
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "🚨 DEPLOY FAILED on commit ${{ github.sha }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Triggered by: ${{ github.actor }}"
+          SSHEOF
