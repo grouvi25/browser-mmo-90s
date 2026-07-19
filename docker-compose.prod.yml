@@ -2,8 +2,8 @@ version: '3.9'
 
 # =============================================================
 # PRODUCTION Docker Compose for VPS
-# Used by CD workflow. Backend connects through PgBouncer.
-# Other projects on VPS use different internal ports.
+# Backend DATABASE_URL comes from backend/.env (direct postgres)
+# PgBouncer is available but not used by backend yet (scram-sha-256 compat)
 # =============================================================
 
 services:
@@ -16,7 +16,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-mmo90s}
     volumes:
       - mmo90s_postgres_data:/var/lib/postgresql/data
-    # Internal only — NOT exposed to host
     expose:
       - '5432'
     healthcheck:
@@ -64,7 +63,6 @@ services:
       --appendfsync everysec
     volumes:
       - mmo90s_redis_data:/data
-    # Internal only — NOT exposed to host  
     expose:
       - '6379'
     healthcheck:
@@ -81,15 +79,15 @@ services:
       dockerfile: ../infra/docker/backend.Dockerfile
     restart: unless-stopped
     env_file: ./backend/.env
+    # DATABASE_URL comes from backend/.env (direct postgres connection)
+    # REDIS_URL overridden to ensure correct internal service name
     environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-mmo90s_user}:${POSTGRES_PASSWORD:-CHANGE_ME}@pgbouncer:5432/${POSTGRES_DB:-mmo90s}"
       REDIS_URL: "redis://redis:6379"
       NODE_ENV: production
-    # Exposed on localhost only — nginx proxies from outside
     ports:
       - '127.0.0.1:4080:4000'
     depends_on:
-      pgbouncer:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -111,12 +109,11 @@ services:
     restart: unless-stopped
     env_file: ./backend/.env
     environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-mmo90s_user}:${POSTGRES_PASSWORD:-CHANGE_ME}@pgbouncer:5432/${POSTGRES_DB:-mmo90s}"
       REDIS_URL: "redis://redis:6379"
       NODE_ENV: production
       WORKER_MODE: "true"
     depends_on:
-      pgbouncer:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
