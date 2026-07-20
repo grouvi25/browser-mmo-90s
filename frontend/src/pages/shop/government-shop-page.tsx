@@ -14,10 +14,31 @@ function ItemPrice({ item }: { item: ShopItem }) {
 function ItemStats({ item }: { item: ShopItem }) {
   const t = item.template
   const parts: string[] = []
-  if (t.minDamage != null) parts.push(`Урон: ${t.minDamage}–${t.maxDamage}`)
-  if (t.armor != null && t.armor > 0) parts.push(`Броня: ${t.armor}`)
-  if (t.weight) parts.push(`Вес: ${t.weight}`)
-  return <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{parts.join(' | ')}</span>
+  if (t.type === 'CONSUMABLE') {
+    if (t.hpBonus && t.hpBonus > 0) parts.push(`❤️ +${t.hpBonus} HP`)
+    else parts.push('Расходник')
+  } else {
+    if (t.minDamage != null) parts.push(`⚔️ Урон: ${t.minDamage}–${t.maxDamage}`)
+    if (t.weaponAccuracy) parts.push(`Точность: ${Math.round(t.weaponAccuracy * 100)}%`)
+    if (t.critBonus && t.critBonus > 0) parts.push(`Крит: +${Math.round(t.critBonus * 100)}%`)
+    if (t.armor != null && t.armor > 0) parts.push(`🛡️ Броня: ${t.armor}`)
+    if (t.dodgeBonus && t.dodgeBonus > 0) parts.push(`Уворот: +${Math.round(t.dodgeBonus * 100)}%`)
+    if (t.antiCrit && t.antiCrit > 0) parts.push(`Антикрит: +${Math.round(t.antiCrit * 100)}%`)
+    if (t.weight) parts.push(`Вес: ${t.weight}`)
+  }
+  const reqs: string[] = []
+  if (t.strReq > 0) reqs.push(`СИЛ≥${t.strReq}`)
+  if (t.skillReq > 0) reqs.push(`Навык≥${t.skillReq}`)
+  const sellPrice = Math.floor(t.priceBase * 0.3)
+  return (
+    <div>
+      <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{parts.join(' | ')}</span>
+      {reqs.length > 0 && <span style={{ fontSize: 10, color: 'var(--warning)', marginLeft: 6 }}>({reqs.join(', ')})</span>}
+      <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 6, opacity: 0.7 }}>
+        продажа: <span className="money" style={{ fontSize: 10 }}>{sellPrice}</span>
+      </span>
+    </div>
+  )
 }
 
 export function GovernmentShopPage() {

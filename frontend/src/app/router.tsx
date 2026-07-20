@@ -14,6 +14,7 @@ import { RepairPage }         from '../pages/repair/repair-page'
 import { SkillsPage }         from '../pages/skills/skills-page'
 import { PvpPage }            from '../pages/pvp/pvp-page'
 import { AdminPage }          from '../pages/admin/admin-page'
+import { StatsPage }          from '../pages/character/stats-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -47,6 +48,7 @@ export function AppRouter() {
         <Route path="/skills"           element={<SkillsPage />} />
         <Route path="/pvp"              element={<PvpPage />} />
         <Route path="/admin"            element={<AdminPage />} />
+        <Route path="/stats"            element={<StatsPage />} />
       </Route>
 
       <Route path="/"  element={<Navigate to="/profile" replace />} />

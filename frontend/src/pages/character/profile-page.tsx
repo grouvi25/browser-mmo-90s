@@ -5,7 +5,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { battlesApi } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import {
-  ARCHETYPE_LABELS, STAT_LABELS, STATUS_LABELS,
+  ARCHETYPE_LABELS, STAT_LABELS, STAT_DESCRIPTIONS, STAT_FULL, STATUS_LABELS,
   QUALITY_LABELS, WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS,
   type ItemInstance
 } from '../../shared/types/api.types'
@@ -198,11 +198,19 @@ export function ProfilePage() {
             <div className="panel-body">
               <div className="stat-grid">
                 {Object.entries(STAT_LABELS).map(([key, label]) => (
-                  <div key={key} className="stat-cell">
-                    <div className="abbr">{label}</div>
+                  <div key={key} className="stat-cell" title={STAT_DESCRIPTIONS[key]}>
+                    <div className="abbr" style={{ cursor: 'help' }}>{label}</div>
                     <div className="val">{(s as unknown as Record<string, number>)[key]}</div>
                   </div>
                 ))}
+              </div>
+              {s.pointsAvailable > 0 && (
+                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--gold)' }}>
+                  ✨ {s.pointsAvailable} очк{s.pointsAvailable === 1 ? 'о' : 'а'} для распределения → <a href="/stats">Распределить</a>
+                </div>
+              )}
+              <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-dim)' }}>
+                ℹ Наведи на характеристику чтобы увидеть описание
               </div>
             </div>
           </div>

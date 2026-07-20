@@ -9,17 +9,26 @@ import { charactersApi } from '../../shared/api/characters.api'
 
 function ItemDetail({ item }: { item: ItemInstance }) {
   const { template: t } = item
+  const parts: string[] = []
+  if (t.type === 'CONSUMABLE') {
+    if (t.hpBonus && t.hpBonus > 0) parts.push(`❤️ +${t.hpBonus} HP`)
+    parts.push('Одноразовый')
+  } else {
+    if (t.minDamage != null) parts.push(`Урон: ${t.minDamage}–${t.maxDamage}`)
+    if (t.weaponAccuracy) parts.push(`Точн: ${Math.round(t.weaponAccuracy * 100)}%`)
+    if (t.armor != null && t.armor > 0) parts.push(`Броня: ${t.armor}`)
+    if (t.dodgeBonus && t.dodgeBonus > 0) parts.push(`Уворот: +${Math.round(t.dodgeBonus * 100)}%`)
+    if (t.antiCrit && t.antiCrit > 0) parts.push(`АнтиКрит: +${Math.round(t.antiCrit * 100)}%`)
+    parts.push(`Вес: ${t.weight}`)
+  }
+  const reqs: string[] = []
+  if (t.levelReq > 0) reqs.push(`Ур.≥${t.levelReq}`)
+  if (t.strReq > 0) reqs.push(`СИЛ≥${t.strReq}`)
+  if (t.skillReq > 0) reqs.push(`Навык≥${t.skillReq}`)
   return (
     <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-      {t.minDamage != null && (
-        <span>Урон: <strong style={{ color: 'var(--danger)' }}>{t.minDamage}–{t.maxDamage}</strong> | </span>
-      )}
-      {t.armor != null && t.armor > 0 && (
-        <span>Броня: <strong style={{ color: 'var(--accent)' }}>{t.armor}</strong> | </span>
-      )}
-      <span>Вес: {t.weight} | </span>
-      <span>Цена: <span className="money" style={{ fontSize: 11 }}>{t.priceBase}</span></span>
-      {t.levelReq > 0 && <span> | Ур.≥{t.levelReq}</span>}
+      {parts.join(' | ')}
+      {reqs.length > 0 && <span style={{ color: 'var(--warning)', marginLeft: 6 }}>[{reqs.join(', ')}]</span>}
     </div>
   )
 }
@@ -76,6 +85,18 @@ export function InventoryPage() {
     },
   })
 
+  const useItemMut = useMutation({
+    mutationFn: (id: string) => inventoryApi.useItem(id),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['inventory'] })
+      qc.invalidateQueries({ queryKey: ['character'] })
+      showMsg('success', `${data.itemName}: +${data.hpRestored} HP (теперь ${data.newHp} HP)`)
+    },
+    onError: (err) => {
+      showMsg('error', err instanceof ApiError ? err.message : 'Ошибка')
+    },
+  })
+
   if (isLoading) return <div className="loading"><span className="spinner" />Загрузка инвентаря...</div>
 
   const equipped  = items.filter(i => i.isEquipped)
@@ -105,17 +126,28 @@ export function InventoryPage() {
         <td style={{ fontSize: 11, color: 'var(--text-dim)' }}>{typeLabel}</td>
         <td style={{ fontSize: 11 }}><span className={`q-${item.quality}`}>{QUALITY_LABELS[item.quality]}</span></td>
         <td>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ flex: 1, height: 6, background: 'var(--border)' }}>
-              <div style={{ width: `${durPct}%`, height: '100%', background: durColor }} />
+          {t.type === 'CONSUMABLE' ? (
+            <span style={{ fontSize: 10, color: 'var(--text-dim)', fontStyle: 'italic' }}>одноразовый</span>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ flex: 1, height: 6, background: 'var(--border)' }}>
+                <div style={{ width: `${durPct}%`, height: '100%', background: durColor }} />
+              </div>
+              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                {item.durabilityCurrent}/{item.durabilityMax}
+              </span>
             </div>
-            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
-              {item.durabilityCurrent}/{item.durabilityMax}
-            </span>
-          </div>
+          )}
         </td>
         <td>
-          {item.isEquipped ? (
+          {t.type === 'CONSUMABLE' ? (
+            <button className="btn btn-sm btn-success"
+              disabled={useItemMut.isPending || inBattle}
+              title={inBattle ? 'Используй расходник в бою через меню действий' : `Восстановить HP (+${t.hpBonus ?? 0})`}
+              onClick={() => useItemMut.mutate(item.id)}>
+              💊 Лечиться
+            </button>
+          ) : item.isEquipped ? (
             <button className="btn btn-sm"
               disabled={unequipMut.isPending || inBattle}
               title={inBattle ? 'Нельзя снять во время боя' : ''}

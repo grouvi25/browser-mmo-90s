@@ -10,4 +10,8 @@ export const inventoryApi = {
 
   unequip: (itemInstanceId: string) =>
     api.post<{ message: string; itemId: string }>('/api/inventory/unequip', { itemInstanceId }),
+
+  // Использовать расходник вне боя
+  useItem: (itemInstanceId: string) =>
+    api.post<{ hpRestored: number; newHp: number; itemName: string }>('/api/inventory/use-item', { itemInstanceId }),
 }

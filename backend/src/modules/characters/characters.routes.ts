@@ -64,16 +64,27 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
         throw new AppError(ErrorCode.CONFLICT, `Характеристика не может превышать ${MAX_STAT}`, 400)
       }
 
-      await prisma.characterStats.update({
-        where: { characterId: char.id },
-        data: {
-          [stat]: { increment: amount },
-          pointsAvailable: { decrement: amount },
-        },
+      // Atomic update: read pointsAvailable fresh inside transaction to prevent race condition
+      const result = await prisma.$transaction(async (tx) => {
+        const freshStats = await tx.characterStats.findUnique({ where: { characterId: char.id } })
+        if (!freshStats) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Stats not found', 404)
+        if (freshStats.pointsAvailable < amount) {
+          throw new AppError(ErrorCode.CONFLICT, `Недостаточно очков (${freshStats.pointsAvailable} < ${amount})`, 400)
+        }
+        const statsAsAny = freshStats as unknown as Record<string, number>
+        if ((statsAsAny[stat] ?? 0) + amount > 20) {
+          throw new AppError(ErrorCode.CONFLICT, `Характеристика не может превышать 20`, 400)
+        }
+        return tx.characterStats.update({
+          where: { characterId: char.id },
+          data: {
+            [stat]: { increment: amount },
+            pointsAvailable: { decrement: amount },
+          },
+        })
       })
 
-      const updated = await CharactersService.getProfile(req.authUser.userId)
-      return reply.send({ message: `+${amount} ${stat}`, stats: updated.stats })
+      return reply.send({ message: `+${amount} ${stat}`, stats: result })
     })
 
   fastify.get<{ Params: { id: string } }>('/:id', { preHandler: authenticate },

@@ -27,11 +27,16 @@ export interface Character {
   archetype: string
   battleLevel: number
   battleExp: number
+  economicLevel: number
+  economicExp: number
+  productionLevel: number
+  productionExp: number
   money: number
   hpCurrent: number
   hpMax: number
   status: string
   stats: CharacterStats | null
+  weaponSkills?: WeaponSkill[]
   createdAt: string
   lastActiveAt: string
 }
@@ -40,18 +45,33 @@ export interface ItemTemplate {
   id: string
   code: string
   name: string
+  description: string | null
   type: string
   weaponType: string | null
   armorSlot: string | null
+  // Weapon stats
   minDamage: number | null
   maxDamage: number | null
+  weaponAccuracy: number | null
+  critBonus: number | null
+  // Armor stats
   armor: number | null
+  dodgeBonus: number | null
+  antiCrit: number | null
+  blockBonus: number | null
+  // Consumable
+  hpBonus: number | null
+  // Physical
   weight: number
   durabilityMax: number
   qualityBase: string
   priceBase: number
+  // Requirements
   levelReq: number
+  skillReq: number
+  strReq: number
   sourceType: string
+  isEquippable: boolean
 }
 
 export interface ItemInstance {
@@ -183,6 +203,22 @@ export const ARCHETYPE_BONUS: Record<string, string> = {
 export const STAT_LABELS: Record<string, string> = {
   str:  'СИЛ', agi: 'ЛВК', rea: 'РЕА', acc: 'МТК',
   end:  'ВЫН', luck: 'ФРТ', agr: 'АГР', auth: 'АВТ',
+}
+
+export const STAT_DESCRIPTIONS: Record<string, string> = {
+  str:  'Сила: урон в ближнем бою, перенос веса снаряжения',
+  agi:  'Ловкость: шанс уворота от ударов, скорость',
+  rea:  'Реакция: шанс блока, ответный удар, инициатива',
+  acc:  'Меткость: шанс попадания, точность стрельбы',
+  end:  'Выносливость: максимальный HP (+6 HP за 1 ВЫН), снижение урона',
+  luck: 'Фарт: пробитие блока противника, редкие события',
+  agr:  'Агрессия: шанс критического удара',
+  auth: 'Авторитет: клановые бонусы, влияние, дипломатия',
+}
+
+export const STAT_FULL: Record<string, string> = {
+  str: 'Сила', agi: 'Ловкость', rea: 'Реакция', acc: 'Меткость',
+  end: 'Выносливость', luck: 'Фарт', agr: 'Агрессия', auth: 'Авторитет',
 }
 
 export const WEAPON_TYPE_LABELS: Record<string, string> = {

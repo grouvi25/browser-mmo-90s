@@ -108,4 +108,46 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
 
       return reply.send({ message: 'Unequipped', itemId: item.id })
     })
+
+  // POST /api/inventory/use-item — использовать расходник ВНЕ БОЯ
+  fastify.post('/use-item', { preHandler: authenticate },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const parsed = EquipSchema.safeParse(req.body)
+      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+
+      const char = await CharactersRepository.findByUserId(req.authUser.userId)
+      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      if (!char.stats) throw AppError.internal('Stats missing')
+
+      // Нельзя использовать вне боя при статусе IN_BATTLE
+      if (char.status === 'IN_BATTLE') {
+        throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Используй расходник через меню действий в бою', 400)
+      }
+
+      const item = await ItemsRepository.findInstanceById(parsed.data.itemInstanceId)
+      if (!item) throw AppError.notFound('Item', parsed.data.itemInstanceId)
+      if (item.ownerId !== char.id) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
+      if (item.template.type !== 'CONSUMABLE') {
+        throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Это не расходник', 400)
+      }
+      if (item.status === 'CONSUMED' || item.status === 'DELETED') {
+        throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Предмет уже использован', 400)
+      }
+      if (char.hpCurrent >= char.hpMax) {
+        throw new AppError(ErrorCode.CONFLICT, 'HP уже полное — расходник не нужен', 400)
+      }
+
+      const hpRestore = item.template.hpBonus ?? 0
+      const newHp = Math.min(char.hpMax, char.hpCurrent + hpRestore)
+
+      await ItemsRepository.updateStatus(item.id, 'CONSUMED')
+      await CharactersRepository.updateHp(char.id, newHp)
+
+      return reply.send({
+        hpRestored: hpRestore,
+        newHp,
+        hpMax: char.hpMax,
+        itemName: item.template.name,
+      })
+    })
 }
