@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { authenticate } from '../../shared/security/auth-middleware'
 import { CharactersRepository } from '../characters/characters.repository'
 import { ItemsRepository } from '../items/item-instance.repository'
+import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repository'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { LogsRepository } from '../logs/logs.repository'
@@ -39,7 +40,21 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
 
       // Level requirement check
       if (char.battleLevel < item.template.levelReq) {
-        throw new AppError(ErrorCode.ITEM_LEVEL_REQ, `Need battle level ${item.template.levelReq}`, 400)
+        throw new AppError(ErrorCode.ITEM_LEVEL_REQ, `Нужен боевой уровень ${item.template.levelReq}`, 400)
+      }
+
+      // STR requirement check (TZ section 4.2)
+      const charStats = char.stats
+      if (charStats && item.template.strReq > 0 && charStats.str < item.template.strReq) {
+        throw new AppError(ErrorCode.ITEM_LEVEL_REQ, `Нужна сила (STR) ${item.template.strReq}`, 400)
+      }
+
+      // Weapon skill requirement check
+      if (item.template.skillReq > 0 && item.template.weaponType) {
+        const skill = await WeaponSkillsRepository.getByType(char.id, item.template.weaponType)
+        if (!skill || skill.skillLevel < item.template.skillReq) {
+          throw new AppError(ErrorCode.ITEM_LEVEL_REQ, `Нужен навык оружия ${item.template.skillReq}`, 400)
+        }
       }
 
       // Unequip existing in the same slot if armor

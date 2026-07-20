@@ -131,3 +131,33 @@ export function calcWeaponDurabilityLoss(attackActions: number): number {
 export function calcArmorDurabilityLoss(receivedHits: number): number {
   return Math.max(0, Math.floor(receivedHits * BalanceConfig.durability.armorLossPerHit))
 }
+
+// ---------------------------------------------------------------
+// Economic level from exp (GanjaWars reference table)
+// ---------------------------------------------------------------
+export function getEconomicLevelFromExp(exp: number): number {
+  const thresholds = BalanceConfig.economicExp.levelThresholds
+  let level = 0
+  for (let i = 1; i < thresholds.length; i++) {
+    if (exp >= thresholds[i]) level = i
+    else break
+  }
+  return level
+}
+
+// ---------------------------------------------------------------
+// Power calculation (GanjaWars formula, simplified for Stage 1)
+// power = (BL + EL + PL) × 0.5 + weaponBonus + armorBonus
+// ---------------------------------------------------------------
+export function calcCharacterPower(
+  battleLevel: number,
+  economicLevel: number,
+  productionLevel: number,
+  equippedWeaponPrice = 0,
+  totalArmorValue = 0
+): number {
+  const naturalPower = (battleLevel + economicLevel + productionLevel) * 0.5
+  const weaponPower = equippedWeaponPrice / 200   // 200₽ weapon ≈ 1 power unit
+  const armorPower  = totalArmorValue / 10         // 10 ARM ≈ 1 power unit
+  return Math.max(1, Math.round(naturalPower + weaponPower + armorPower))
+}

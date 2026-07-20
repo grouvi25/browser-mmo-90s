@@ -1,6 +1,7 @@
 import type { BattleAction, WeaponType as PrismaWeaponType } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { BattleRedis, AntiFarmRedis } from '../../shared/db/redis'
+import { BalanceConfig } from '../../config/balance.config'
 import { CharactersRepository } from '../characters/characters.repository'
 import { ItemsRepository } from '../items/item-instance.repository'
 import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repository'
@@ -12,6 +13,8 @@ import { logger } from '../../shared/logger/logger'
 import {
   resolveAttack,
   calcInitiative,
+  calcCounterAttackChance,
+  resolveCounterAttack,
   type AttackerSnapshot,
   type DefenderSnapshot,
 } from './battle.formulas'
@@ -22,6 +25,7 @@ import {
   calcHpMax,
   calcArmorDurabilityLoss,
   getWeaponSkillLevelFromExp,
+  calcCharacterPower,
 } from '../stats/stats.formulas'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
@@ -149,6 +153,7 @@ function buildBotDefenderSnapshot(botStats: Record<string, number>): DefenderSna
 
 // ---------------------------------------------------------------
 // Save weapon skill exp to DB (shared helper)
+// After WSK=20, overflow exp builds antiSkillLevel (WRES)
 // ---------------------------------------------------------------
 async function saveWeaponSkillExp(
   tx: typeof prisma,
@@ -160,19 +165,41 @@ async function saveWeaponSkillExp(
   const existing = await tx.weaponSkill.findUnique({
     where: { characterId_weaponType: { characterId, weaponType: weaponType as PrismaWeaponType } },
   })
-  const base = existing ?? { skillLevel: 1, skillExp: 0 }
-  const newWskExp = base.skillExp + weaponExpGain
-  // Use shared formula from stats.formulas.ts
-  const newWskLevel = getWeaponSkillLevelFromExp(newWskExp)
-  if (existing) {
-    await tx.weaponSkill.update({
-      where: { characterId_weaponType: { characterId, weaponType: weaponType as PrismaWeaponType } },
-      data: { skillExp: newWskExp, skillLevel: newWskLevel },
-    })
+  const base = existing ?? { skillLevel: 1, skillExp: 0, antiSkillLevel: 0, antiSkillExp: 0 }
+
+  const MAX_WSK = 20
+  if (base.skillLevel < MAX_WSK) {
+    // Normal WSK progression
+    const newWskExp = base.skillExp + weaponExpGain
+    const newWskLevel = getWeaponSkillLevelFromExp(newWskExp)
+    if (existing) {
+      await tx.weaponSkill.update({
+        where: { characterId_weaponType: { characterId, weaponType: weaponType as PrismaWeaponType } },
+        data: { skillExp: newWskExp, skillLevel: newWskLevel },
+      })
+    } else {
+      await tx.weaponSkill.create({
+        data: { characterId, weaponType: weaponType as PrismaWeaponType, skillExp: newWskExp, skillLevel: newWskLevel },
+      })
+    }
   } else {
-    await tx.weaponSkill.create({
-      data: { characterId, weaponType: weaponType as PrismaWeaponType, skillExp: newWskExp, skillLevel: newWskLevel },
-    })
+    // WSK=20 reached → overflow exp goes to antiSkillLevel (WRES)
+    // antiSkill thresholds: each level requires the same table but offset
+    // 20/1=1 antiSkill point, 20/2=2, etc. (simplified: 100 exp per anti-skill level)
+    const ANTI_EXP_PER_LEVEL = 500
+    const MAX_ANTI_LEVEL = 10
+    const newAntiExp = (base.antiSkillExp ?? 0) + weaponExpGain * 0.5 // 50% overflow to anti-skill
+    const newAntiLevel = Math.min(MAX_ANTI_LEVEL, Math.floor(newAntiExp / ANTI_EXP_PER_LEVEL))
+    if (existing) {
+      await tx.weaponSkill.update({
+        where: { characterId_weaponType: { characterId, weaponType: weaponType as PrismaWeaponType } },
+        data: { antiSkillExp: newAntiExp, antiSkillLevel: newAntiLevel },
+      })
+    } else {
+      await tx.weaponSkill.create({
+        data: { characterId, weaponType: weaponType as PrismaWeaponType, skillExp: base.skillExp, skillLevel: MAX_WSK, antiSkillExp: newAntiExp, antiSkillLevel: newAntiLevel },
+      })
+    }
   }
 }
 
@@ -682,6 +709,17 @@ export const BattleService = {
         playerPart.damageReceived += r.finalDamage
         if (r.hit) botPart.hitsLanded++
         if (r.hit) playerPart.hitsTaken++
+
+        // ── Ответный удар (ответка, Apeha mechanic) ──────────
+        const counterWeapon = weapon
+          ? { minDamage: weapon.template.minDamage ?? 2, maxDamage: weapon.template.maxDamage ?? 6 }
+          : { minDamage: 2, maxDamage: 6 }
+        const counter = resolveCounterAttack(playerDefSnap, botAttackSnap, counterWeapon)
+        if (counter.triggered && botHp > 0) {
+          botHp = Math.max(0, botHp - counter.damage)
+          playerPart.damageDealt += counter.damage
+          botPart.damageReceived += counter.damage
+        }
       }
       return r
     }
@@ -821,11 +859,14 @@ export const BattleService = {
     )
 
     return withTransaction(async (tx) => {
-      // Update character HP, exp, level
+      // Update character HP, exp, level + stat points for level-up
       const newBattleExp = char.battleExp + expGain
       const newLevel = getLevelFromExp(newBattleExp)
       const newHpMax = calcHpMax(char.stats!.end, newLevel)
       const newHpCurrent = Math.max(1, playerPart.hpCurrent)
+      const levelsGained = newLevel - char.battleLevel
+      // statPointsPerLevel is stored in battleExp config
+      const statPointsGain = levelsGained * 1  // 1 point per level
 
       await tx.character.update({
         where: { id: char.id },
@@ -837,6 +878,13 @@ export const BattleService = {
           status: 'ACTIVE',
         },
       })
+      // Award stat points for level-up
+      if (levelsGained > 0) {
+        await tx.characterStats.update({
+          where: { characterId: char.id },
+          data: { pointsAvailable: { increment: levelsGained } },
+        })
+      }
 
       // Money reward
       let moneyReward = 0

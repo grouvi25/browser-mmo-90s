@@ -6,6 +6,8 @@ import { ItemsRepository } from '../items/item-instance.repository'
 import { LogsRepository } from '../logs/logs.repository'
 import { withTransaction } from '../../shared/db/transaction'
 import { audit } from '../../shared/logger/audit-logger'
+import { BalanceConfig } from '../../config/balance.config'
+import { getEconomicLevelFromExp } from '../stats/stats.formulas'
 
 export type ShopItemWithTemplate = GovernmentShopItem & { template: ItemTemplate }
 
@@ -107,7 +109,21 @@ export const GovernmentShopService = {
       if (!char) throw AppError.notFound('Character', characterId)
       const newBalance = char.money + sellPrice
 
-      await tx.character.update({ where: { id: characterId }, data: { money: newBalance } })
+      // Economic exp for selling (GanjaWars: price × 0.047 for new item, × 0.067 for broken)
+      const isBroken = item.status === 'BROKEN'
+      const ecoExpRate = isBroken
+        ? BalanceConfig.economicExp.sellBrokenRate
+        : BalanceConfig.economicExp.sellNewRate
+      const ecoExpGain = Math.floor(item.template.priceBase * ecoExpRate)
+
+      const newEcoExp = char.economicExp + ecoExpGain
+      const newEcoLevel = getEconomicLevelFromExp(newEcoExp)
+
+      await tx.character.update({ where: { id: characterId }, data: {
+        money: newBalance,
+        economicExp: newEcoExp,
+        economicLevel: newEcoLevel,
+      }})
       await tx.itemInstance.update({ where: { id: itemInstanceId }, data: { status: 'DELETED', isEquipped: false } })
 
       await tx.currencyLog.create({
@@ -125,12 +141,12 @@ export const GovernmentShopService = {
           itemId: itemInstanceId,
           characterId,
           actionCode: 'SOLD_TO_SHOP',
-          details: { sellPrice },
+          details: { sellPrice, ecoExpGain },
         },
       })
 
-      audit('item.sold', { characterId, itemId: itemInstanceId, sellPrice })
-      return { sellPrice, newBalance }
+      audit('item.sold', { characterId, itemId: itemInstanceId, sellPrice, ecoExpGain })
+      return { sellPrice, newBalance, ecoExpGain, newEcoLevel }
     })
   },
 }
