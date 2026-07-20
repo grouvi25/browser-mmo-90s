@@ -86,8 +86,33 @@ async function main() {
     },
   ]
 
+  // --- Consumable templates ---
+  const consumableTemplates = [
+    {
+      code: 'consumable_bandage', name: 'Бинт', type: 'CONSUMABLE' as const,
+      hpBonus: 20,  // Restores 20 HP when used in battle
+      weight: 0.1, durabilityMax: 1, qualityBase: 'COMMON' as const,
+      priceBase: 50, levelReq: 0, isSellable: true, isActive: true,
+      sourceType: 'GOVERNMENT' as const, isEquippable: false,
+    },
+    {
+      code: 'consumable_first_aid_kit', name: 'Аптечка', type: 'CONSUMABLE' as const,
+      hpBonus: 50,  // Restores 50 HP when used in battle
+      weight: 0.3, durabilityMax: 1, qualityBase: 'COMMON' as const,
+      priceBase: 150, levelReq: 0, isSellable: true, isActive: true,
+      sourceType: 'GOVERNMENT' as const, isEquippable: false,
+    },
+    {
+      code: 'consumable_energy_drink', name: 'Энергетик', type: 'CONSUMABLE' as const,
+      hpBonus: 30,  // Restores 30 HP
+      weight: 0.2, durabilityMax: 1, qualityBase: 'COMMON' as const,
+      priceBase: 80, levelReq: 0, isSellable: true, isActive: true,
+      sourceType: 'GOVERNMENT' as const, isEquippable: false,
+    },
+  ]
+
   // Upsert templates
-  for (const tpl of [...weaponTemplates, ...armorTemplates]) {
+  for (const tpl of [...weaponTemplates, ...armorTemplates, ...consumableTemplates]) {
     const { code, ...data } = tpl
     await prisma.itemTemplate.upsert({
       where: { code },

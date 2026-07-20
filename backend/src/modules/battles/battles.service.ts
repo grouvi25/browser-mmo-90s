@@ -21,6 +21,7 @@ import {
   getLevelFromExp,
   calcHpMax,
   calcArmorDurabilityLoss,
+  getWeaponSkillLevelFromExp,
 } from '../stats/stats.formulas'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
@@ -38,12 +39,13 @@ export interface LiveParticipant {
   isAlive: boolean
   isSurrendered: boolean
   hasActedThisRound: boolean
-  pendingAction?: string   // 'attack' | 'block' | 'surrender' | 'change_weapon:{id}'
+  pendingAction?: string   // 'attack' | 'block' | 'surrender' | 'change_weapon:{id}' | 'use_item:{id}'
   weaponInstanceId?: string
   damageDealt: number
   damageReceived: number
   hitsTaken: number
   hitsLanded: number
+  skippedTurns: number   // tracks AFK/passive turns for anti-abuse
 }
 
 export interface LiveBattleState {
@@ -140,6 +142,35 @@ function buildBotDefenderSnapshot(botStats: Record<string, number>): DefenderSna
 }
 
 // ---------------------------------------------------------------
+// Save weapon skill exp to DB (shared helper)
+// ---------------------------------------------------------------
+async function saveWeaponSkillExp(
+  tx: typeof prisma,
+  characterId: string,
+  weaponType: string,
+  weaponExpGain: number
+): Promise<void> {
+  if (weaponExpGain <= 0) return
+  const existing = await tx.weaponSkill.findUnique({
+    where: { characterId_weaponType: { characterId, weaponType: weaponType as PrismaWeaponType } },
+  })
+  const base = existing ?? { skillLevel: 1, skillExp: 0 }
+  const newWskExp = base.skillExp + weaponExpGain
+  // Use shared formula from stats.formulas.ts
+  const newWskLevel = getWeaponSkillLevelFromExp(newWskExp)
+  if (existing) {
+    await tx.weaponSkill.update({
+      where: { characterId_weaponType: { characterId, weaponType: weaponType as PrismaWeaponType } },
+      data: { skillExp: newWskExp, skillLevel: newWskLevel },
+    })
+  } else {
+    await tx.weaponSkill.create({
+      data: { characterId, weaponType: weaponType as PrismaWeaponType, skillExp: newWskExp, skillLevel: newWskLevel },
+    })
+  }
+}
+
+// ---------------------------------------------------------------
 // BattleService
 // ---------------------------------------------------------------
 export const BattleService = {
@@ -206,6 +237,7 @@ export const BattleService = {
             hasActedThisRound: false,
             weaponInstanceId: weapon?.id,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+            skippedTurns: 0,
           },
           {
             participantId: botPart.id,
@@ -217,6 +249,7 @@ export const BattleService = {
             isSurrendered: false,
             hasActedThisRound: false,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+            skippedTurns: 0,
           },
         ],
       }
@@ -277,7 +310,8 @@ export const BattleService = {
     const opponentPart = battle.participants[0]
 
     return withTransaction(async (tx) => {
-      await tx.battleParticipant.create({
+      // FIX: capture the created participant ID
+      const newParticipant = await tx.battleParticipant.create({
         data: {
           battleId: battle.id,
           characterId: char.id,
@@ -309,9 +343,10 @@ export const BattleService = {
             hasActedThisRound: false,
             weaponInstanceId: oppWeapon?.id,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+            skippedTurns: 0,
           },
           {
-            participantId: '', // filled after create
+            participantId: newParticipant.id, // FIX: use actual ID
             characterId: char.id,
             hpCurrent: char.hpCurrent,
             hpMax: char.hpMax,
@@ -321,6 +356,7 @@ export const BattleService = {
             hasActedThisRound: false,
             weaponInstanceId: weapon?.id,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+            skippedTurns: 0,
           },
         ],
       }
@@ -344,7 +380,7 @@ export const BattleService = {
   },
 
   // -------------------------------------------------------
-  // Submit action (PvE: auto-resolve when player acts)
+  // Submit action
   // -------------------------------------------------------
   async submitAction(userId: string, battleId: string, action: string, targetItemId?: string) {
     const locked = await BattleRedis.acquireLock(battleId, 5000)
@@ -413,6 +449,12 @@ export const BattleService = {
         }
       }
 
+      // ── Использование предмета (расходник) ───────────────
+      if (action === 'use_item') {
+        if (!targetItemId) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'No item specified', 400)
+        return this._handleUseItem(battleId, state, char, playerPart, targetItemId)
+      }
+
       // ── PvE: авторазрешение раунда ─────────────────────
       if (state.type === 'PVE_BOT') {
         return this._resolveRoundPve(battleId, state, char, action, targetItemId)
@@ -431,6 +473,124 @@ export const BattleService = {
 
     } finally {
       await BattleRedis.releaseLock(battleId)
+    }
+  },
+
+  // -------------------------------------------------------
+  // Handle use_item: consumable usage in battle
+  // -------------------------------------------------------
+  async _handleUseItem(
+    battleId: string,
+    state: LiveBattleState,
+    char: CharacterWithStats,
+    playerPart: LiveParticipant,
+    itemInstanceId: string
+  ) {
+    const item = await ItemsRepository.findInstanceById(itemInstanceId)
+    if (!item) throw AppError.notFound('Item', itemInstanceId)
+    if (item.ownerId !== char.id) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
+    if (item.template.type !== 'CONSUMABLE') {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Item is not a consumable', 400)
+    }
+    if (item.status === 'CONSUMED' || item.status === 'DELETED') {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Item already used', 400)
+    }
+
+    // Apply effect: restore HP by hpBonus (used as hpRestore for consumables)
+    const hpRestore = item.template.hpBonus ?? 0
+    const newHp = Math.min(playerPart.hpMax, playerPart.hpCurrent + hpRestore)
+    playerPart.hpCurrent = newHp
+
+    // Consume the item
+    await ItemsRepository.updateStatus(itemInstanceId, 'CONSUMED')
+
+    // Log the action
+    const roundNumber = state.roundNumber
+    await prisma.battleTurn.create({
+      data: {
+        battleId, roundNumber,
+        actorCharId: char.id, action: 'USE_ITEM' as BattleAction,
+        hit: false, dodge: false, block: false, crit: false,
+        rawDamage: 0, finalDamage: 0,
+        logLine: `Использовал ${item.template.name}: +${hpRestore} HP (теперь ${newHp}/${playerPart.hpMax})`,
+      },
+    })
+
+    // Mark player as having acted this round
+    playerPart.hasActedThisRound = true
+
+    // For PvE: bot also attacks on same round
+    if (state.type === 'PVE_BOT') {
+      const botPart = state.participants.find(p => p.botId)!
+      const bot = await loadBotData(botPart.botId!)
+      const botStats = bot.stats as Record<string, number>
+      const botEquip = bot.equipment as Record<string, unknown>
+      const equippedItems = await ItemsRepository.findEquipped(char.id)
+      const equippedArmor = equippedItems.filter(i => i.template.type === 'ARMOR')
+      const playerDefSnap = buildDefenderSnapshot(char, equippedArmor)
+      const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
+
+      const botResult = resolveAttack(botAttackSnap, playerDefSnap, false)
+      if (botResult.hit && !botResult.dodge) {
+        const dmg = botResult.finalDamage
+        playerPart.hpCurrent = Math.max(0, playerPart.hpCurrent - dmg)
+        botPart.damageDealt += dmg
+        playerPart.damageReceived += dmg
+        botPart.hitsLanded++
+        playerPart.hitsTaken++
+      }
+      playerPart.isAlive = playerPart.hpCurrent > 0
+
+      await prisma.battleTurn.create({
+        data: {
+          battleId, roundNumber,
+          actorBotId: botPart.botId, targetCharId: char.id,
+          action: 'ATTACK' as BattleAction,
+          hit: botResult.hit, dodge: botResult.dodge, block: botResult.block, crit: botResult.crit,
+          rawDamage: botResult.rawDamage, finalDamage: botResult.finalDamage,
+          logLine: botResult.logParts.join(', '),
+        },
+      })
+
+      if (!playerPart.isAlive) {
+        state.status = 'finishing'
+        const weapon = playerPart.weaponInstanceId
+          ? await ItemsRepository.findInstanceById(playerPart.weaponInstanceId)
+          : null
+        const skillRecord = await WeaponSkillsRepository.findOrCreate(
+          char.id,
+          (weapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+        )
+        await BattleRedis.setState(battleId, state)
+        return this._finishPveBattle(battleId, state, char, bot, playerPart, botPart, null, weapon, skillRecord.skillLevel)
+      }
+
+      state.roundNumber++
+      playerPart.hasActedThisRound = false
+      await BattleRedis.setState(battleId, state)
+
+      return {
+        roundNumber,
+        itemUsed: item.template.name,
+        hpRestored: hpRestore,
+        botAttack: { ...botResult },
+        playerHp: playerPart.hpCurrent,
+        botHp: botPart.hpCurrent,
+        battleOver: false,
+      }
+    }
+
+    // PvP: check if both acted
+    await BattleRedis.setState(battleId, state)
+    const allActed = state.participants.every(p => !p.isAlive || p.isSurrendered || p.hasActedThisRound)
+    if (allActed) {
+      return this._resolveRoundPvp(battleId, state)
+    }
+    return {
+      waiting: true,
+      itemUsed: item.template.name,
+      hpRestored: hpRestore,
+      roundNumber: state.roundNumber,
     }
   },
 
@@ -528,10 +688,21 @@ export const BattleService = {
 
     const roundNumber = state.roundNumber
 
-    // Durability loss
+    // FIX: Apply weapon durability loss
     if (weapon && turns.some(t => t.actor === 'player' && t.result.hit)) {
       const newDur = Math.max(0, weapon.durabilityCurrent - 1)
       await ItemsRepository.updateDurability(weapon.id, newDur)
+    }
+
+    // FIX: Apply armor durability loss (floor(receivedHits / 2) per TZ section 19.2)
+    const botHitsOnPlayer = turns.filter(t => t.actor === 'bot' && t.result.hit && !t.result.dodge).length
+    const armorDurLoss = Math.floor(botHitsOnPlayer / 2)
+    // Actually: if player took 1 hit → floor(1/2) = 0; if 2 hits → 1. For MVP simplicity apply to all equipped armor
+    if (armorDurLoss > 0 && equippedArmor.length > 0) {
+      // Distribute loss: apply to random armor piece (simple: first equipped)
+      const armorToDegrade = equippedArmor[Math.floor(Math.random() * equippedArmor.length)]
+      const newArmorDur = Math.max(0, armorToDegrade.durabilityCurrent - armorDurLoss)
+      await ItemsRepository.updateDurability(armorToDegrade.id, newArmorDur)
     }
 
     // Check battle end
@@ -665,34 +836,11 @@ export const BattleService = {
         }
       }
 
+      // FIX: Use shared getWeaponSkillLevelFromExp instead of inline duplicate
       // Weapon skill exp — save even for MELEE (no weapon equipped = fists)
-      // Weapon skill exp — save even for MELEE (no weapon = fists)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const weaponTypeForSkill: any = weapon?.template.weaponType ?? 'MELEE'
-      if (weaponExpGain > 0) {
-        const wt = weaponTypeForSkill
-        const existing = await tx.weaponSkill.findUnique({
-          where: { characterId_weaponType: { characterId: char.id, weaponType: wt } },
-        })
-        const base = existing ?? { skillLevel: 1, skillExp: 0 }
-        const newWskExp = base.skillExp + weaponExpGain
-        const newWskLevel = (() => {
-          const thresholds = [0, 4, 8, 13, 23, 36, 56, 84, 123, 176, 248, 344, 471, 637, 852, 1128, 1480, 1926, 2489, 3193, 4070]
-          let lv = 1
-          for (let i = 1; i < thresholds.length; i++) if (newWskExp >= thresholds[i]) lv = i + 1; else break
-          return Math.min(lv, 20)
-        })()
-        if (existing) {
-          await tx.weaponSkill.update({
-            where: { characterId_weaponType: { characterId: char.id, weaponType: wt } },
-            data: { skillExp: newWskExp, skillLevel: newWskLevel },
-          })
-        } else {
-          await tx.weaponSkill.create({
-            data: { characterId: char.id, weaponType: wt, skillExp: newWskExp, skillLevel: newWskLevel },
-          })
-        }
-      }
+      await saveWeaponSkillExp(tx as typeof prisma, char.id, weaponTypeForSkill, weaponExpGain)
 
       // Update battle record
       await tx.battle.update({
@@ -742,11 +890,289 @@ export const BattleService = {
 
   // -------------------------------------------------------
   // Resolve PvP round (both players have acted)
+  // FIX: Full implementation replacing the stub
   // -------------------------------------------------------
   async _resolveRoundPvp(battleId: string, state: LiveBattleState) {
-    // TODO: implement full PvP round resolution
-    // For now return state
-    return { roundNumber: state.roundNumber, waiting: false }
+    const [part1, part2] = state.participants.filter(p => p.characterId)
+    if (!part1 || !part2) {
+      logger.error({ battleId }, 'PvP round resolve: cannot find two character participants')
+      return { roundNumber: state.roundNumber, waiting: false }
+    }
+
+    // Load both characters with their data
+    const [char1, char2] = await Promise.all([
+      CharactersRepository.findById(part1.characterId!),
+      CharactersRepository.findById(part2.characterId!),
+    ])
+    if (!char1 || !char2) {
+      logger.error({ battleId }, 'PvP round resolve: character not found')
+      return { roundNumber: state.roundNumber, waiting: false }
+    }
+
+    // Load weapons
+    const [weapon1, weapon2] = await Promise.all([
+      part1.weaponInstanceId ? ItemsRepository.findInstanceById(part1.weaponInstanceId) : Promise.resolve(null),
+      part2.weaponInstanceId ? ItemsRepository.findInstanceById(part2.weaponInstanceId) : Promise.resolve(null),
+    ])
+
+    // Load armor for both
+    const [equippedItems1, equippedItems2] = await Promise.all([
+      ItemsRepository.findEquipped(char1.id),
+      ItemsRepository.findEquipped(char2.id),
+    ])
+    const armor1 = equippedItems1.filter(i => i.template.type === 'ARMOR')
+    const armor2 = equippedItems2.filter(i => i.template.type === 'ARMOR')
+
+    // Load weapon skills
+    const wtype1 = (weapon1?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+    const wtype2 = (weapon2?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+    const [skill1, skill2] = await Promise.all([
+      WeaponSkillsRepository.findOrCreate(char1.id, wtype1),
+      WeaponSkillsRepository.findOrCreate(char2.id, wtype2),
+    ])
+
+    // Get anti-skill: char1's anti-skill vs char2's weapon type, and vice versa
+    const [antiSkill1vs2, antiSkill2vs1] = await Promise.all([
+      WeaponSkillsRepository.findOrCreate(char1.id, wtype2),
+      WeaponSkillsRepository.findOrCreate(char2.id, wtype1),
+    ])
+
+    // Build snapshots
+    const snap1Atk = await buildAttackerSnapshotAsync(char1, weapon1, skill1.skillLevel, armor1)
+    const snap2Atk = await buildAttackerSnapshotAsync(char2, weapon2, skill2.skillLevel, armor2)
+    const snap1Def = buildDefenderSnapshot(char1, armor1, antiSkill1vs2.antiSkillLevel)
+    const snap2Def = buildDefenderSnapshot(char2, armor2, antiSkill2vs1.antiSkillLevel)
+
+    // Calculate initiatives
+    const init1 = calcInitiative(char1.stats!.rea, char1.stats!.agi, skill1.skillLevel, snap1Atk.equipmentWeight)
+    const init2 = calcInitiative(char2.stats!.rea, char2.stats!.agi, skill2.skillLevel, snap2Atk.equipmentWeight)
+
+    // Determine acting order
+    const firstPart = init1 >= init2 ? part1 : part2
+    const secondPart = init1 >= init2 ? part2 : part1
+    const firstSnap = init1 >= init2 ? snap1Atk : snap2Atk
+    const secondSnap = init1 >= init2 ? snap2Atk : snap1Atk
+    const firstDefSnap = init1 >= init2 ? snap2Def : snap1Def  // first attacks → second defends
+    const secondDefSnap = init1 >= init2 ? snap1Def : snap2Def
+
+    let hp1 = part1.hpCurrent
+    let hp2 = part2.hpCurrent
+
+    const roundTurns: Array<{
+      actorPart: LiveParticipant
+      defenderPart: LiveParticipant
+      result: ReturnType<typeof resolveAttack>
+    }> = []
+
+    const action1 = (init1 >= init2 ? part1 : part2).pendingAction ?? 'attack'
+    const action2 = (init1 >= init2 ? part2 : part1).pendingAction ?? 'attack'
+    const isFirstBlocking = action1 === 'block'
+    const isSecondBlocking = action2 === 'block'
+
+    // First actor attacks
+    if (action1 === 'attack' || isFirstBlocking === false) {
+      if (action1 === 'attack') {
+        const r = resolveAttack(firstSnap, firstDefSnap, isSecondBlocking)
+        if (r.hit && !r.dodge) {
+          if (init1 >= init2) {
+            hp2 = Math.max(0, hp2 - r.finalDamage)
+            part1.damageDealt += r.finalDamage
+            part2.damageReceived += r.finalDamage
+            part1.hitsLanded++
+            part2.hitsTaken++
+          } else {
+            hp1 = Math.max(0, hp1 - r.finalDamage)
+            part2.damageDealt += r.finalDamage
+            part1.damageReceived += r.finalDamage
+            part2.hitsLanded++
+            part1.hitsTaken++
+          }
+        }
+        roundTurns.push({ actorPart: firstPart, defenderPart: secondPart, result: r })
+      }
+    }
+
+    // Second actor attacks (if first actor isn't dead)
+    const firstTargetHp = init1 >= init2 ? hp2 : hp1
+    if (firstTargetHp > 0 && action2 === 'attack') {
+      const r = resolveAttack(secondSnap, secondDefSnap, isFirstBlocking)
+      if (r.hit && !r.dodge) {
+        if (init1 >= init2) {
+          hp1 = Math.max(0, hp1 - r.finalDamage)
+          part2.damageDealt += r.finalDamage
+          part1.damageReceived += r.finalDamage
+          part2.hitsLanded++
+          part1.hitsTaken++
+        } else {
+          hp2 = Math.max(0, hp2 - r.finalDamage)
+          part1.damageDealt += r.finalDamage
+          part2.damageReceived += r.finalDamage
+          part1.hitsLanded++
+          part2.hitsTaken++
+        }
+      }
+      roundTurns.push({ actorPart: secondPart, defenderPart: firstPart, result: r })
+    }
+
+    part1.hpCurrent = hp1
+    part2.hpCurrent = hp2
+    part1.isAlive = hp1 > 0
+    part2.isAlive = hp2 > 0
+
+    const roundNumber = state.roundNumber
+
+    // Apply weapon durability loss
+    for (const turn of roundTurns) {
+      const weapon = turn.actorPart === part1 ? weapon1 : weapon2
+      if (weapon && turn.result.hit) {
+        const newDur = Math.max(0, weapon.durabilityCurrent - 1)
+        await ItemsRepository.updateDurability(weapon.id, newDur)
+      }
+    }
+
+    // Apply armor durability loss
+    const hitsOnPlayer1 = roundTurns.filter(t => t.defenderPart === part1 && t.result.hit && !t.result.dodge).length
+    const hitsOnPlayer2 = roundTurns.filter(t => t.defenderPart === part2 && t.result.hit && !t.result.dodge).length
+    if (Math.floor(hitsOnPlayer1 / 2) > 0 && armor1.length > 0) {
+      const a = armor1[Math.floor(Math.random() * armor1.length)]
+      await ItemsRepository.updateDurability(a.id, Math.max(0, a.durabilityCurrent - Math.floor(hitsOnPlayer1 / 2)))
+    }
+    if (Math.floor(hitsOnPlayer2 / 2) > 0 && armor2.length > 0) {
+      const a = armor2[Math.floor(Math.random() * armor2.length)]
+      await ItemsRepository.updateDurability(a.id, Math.max(0, a.durabilityCurrent - Math.floor(hitsOnPlayer2 / 2)))
+    }
+
+    // Save turns to DB
+    const turnRecords = roundTurns.map(t => ({
+      battleId,
+      roundNumber,
+      actorCharId: t.actorPart.characterId ?? null,
+      targetCharId: t.defenderPart.characterId ?? null,
+      action: 'ATTACK' as BattleAction,
+      weaponId: t.actorPart === part1 ? weapon1?.id ?? null : weapon2?.id ?? null,
+      hit: t.result.hit, dodge: t.result.dodge, block: t.result.block, crit: t.result.crit,
+      rawDamage: t.result.rawDamage, finalDamage: t.result.finalDamage,
+      logLine: t.result.logParts.join(', '),
+    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await prisma.battleTurn.createMany({ data: turnRecords as any })
+
+    // Check battle end
+    const p1Dead = !part1.isAlive
+    const p2Dead = !part2.isAlive
+    const battleOver = p1Dead || p2Dead || roundNumber >= 30
+
+    if (battleOver) {
+      state.status = 'finishing'
+      const winnerId = p2Dead && !p1Dead ? char1.id : p1Dead && !p2Dead ? char2.id : null
+      await BattleRedis.setState(battleId, state)
+      return this._finishPvpBattle(battleId, state, char1, char2, part1, part2, winnerId, weapon1, weapon2, skill1.skillLevel, skill2.skillLevel)
+    }
+
+    // Continue: reset actions, increment round
+    state.roundNumber++
+    part1.hasActedThisRound = false
+    part2.hasActedThisRound = false
+    part1.pendingAction = undefined
+    part2.pendingAction = undefined
+    await BattleRedis.setState(battleId, state)
+
+    return {
+      roundNumber,
+      turns: roundTurns.map(t => ({
+        actor: t.actorPart.characterId,
+        ...t.result,
+      })),
+      player1Hp: hp1,
+      player2Hp: hp2,
+      battleOver: false,
+    }
+  },
+
+  // -------------------------------------------------------
+  // Finish PvP battle
+  // -------------------------------------------------------
+  async _finishPvpBattle(
+    battleId: string,
+    state: LiveBattleState,
+    char1: CharacterWithStats,
+    char2: CharacterWithStats,
+    part1: LiveParticipant,
+    part2: LiveParticipant,
+    winnerId: string | null,
+    weapon1: ItemWithTemplate | null,
+    weapon2: ItemWithTemplate | null,
+    skill1Level: number,
+    skill2Level: number
+  ) {
+    const levelDiff = Math.abs(char1.battleLevel - char2.battleLevel)
+
+    const result1 = winnerId === char1.id ? 'PVP_WIN' : winnerId === char2.id ? 'PVP_LOSS' : 'DRAW'
+    const result2 = winnerId === char2.id ? 'PVP_WIN' : winnerId === char1.id ? 'PVP_LOSS' : 'DRAW'
+
+    const exp1 = calcBattleExp(part1.damageDealt, char2.battleLevel * 5, char2.hpMax, levelDiff, result1 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW')
+    const exp2 = calcBattleExp(part2.damageDealt, char1.battleLevel * 5, char1.hpMax, levelDiff, result2 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW')
+
+    const wskExp1 = calcWeaponSkillExp(part1.damageDealt, char2.hpMax, winnerId === char1.id ? 1 : 0, levelDiff)
+    const wskExp2 = calcWeaponSkillExp(part2.damageDealt, char1.hpMax, winnerId === char2.id ? 1 : 0, levelDiff)
+
+    return withTransaction(async (tx) => {
+      // Update char1
+      const newExp1 = char1.battleExp + exp1
+      const newLevel1 = getLevelFromExp(newExp1)
+      await tx.character.update({
+        where: { id: char1.id },
+        data: { hpCurrent: Math.max(1, part1.hpCurrent), battleExp: newExp1, battleLevel: newLevel1, status: 'ACTIVE' },
+      })
+
+      // Update char2
+      const newExp2 = char2.battleExp + exp2
+      const newLevel2 = getLevelFromExp(newExp2)
+      await tx.character.update({
+        where: { id: char2.id },
+        data: { hpCurrent: Math.max(1, part2.hpCurrent), battleExp: newExp2, battleLevel: newLevel2, status: 'ACTIVE' },
+      })
+
+      // Weapon skill exp
+      const wtype1 = weapon1?.template.weaponType ?? 'MELEE'
+      const wtype2 = weapon2?.template.weaponType ?? 'MELEE'
+      await saveWeaponSkillExp(tx as typeof prisma, char1.id, wtype1, wskExp1)
+      await saveWeaponSkillExp(tx as typeof prisma, char2.id, wtype2, wskExp2)
+
+      // Update battle
+      await tx.battle.update({
+        where: { id: battleId },
+        data: { status: 'FINISHED', winnerId, finishedAt: new Date(), roundCount: state.roundNumber },
+      })
+
+      // Update participants
+      for (const [part, char] of [[part1, char1], [part2, char2]] as const) {
+        await tx.battleParticipant.updateMany({
+          where: { battleId, characterId: char.id },
+          data: {
+            hpCurrent: part.hpCurrent, isAlive: part.isAlive,
+            damageDealt: part.damageDealt, damageReceived: part.damageReceived,
+            hitsLanded: part.hitsLanded, hitsTaken: part.hitsTaken,
+          },
+        })
+      }
+
+      await BattleRedis.deleteState(battleId)
+
+      audit('battle.finished', {
+        battleId, type: 'PVP_DUEL', winnerId,
+        char1: { id: char1.id, exp: exp1, wskExp: wskExp1 },
+        char2: { id: char2.id, exp: exp2, wskExp: wskExp2 },
+      })
+
+      return {
+        battleOver: true,
+        winnerId,
+        char1: { expGain: exp1, weaponExpGain: wskExp1, newLevel: newLevel1, hp: Math.max(1, part1.hpCurrent) },
+        char2: { expGain: exp2, weaponExpGain: wskExp2, newLevel: newLevel2, hp: Math.max(1, part2.hpCurrent) },
+        rounds: state.roundNumber,
+      }
+    })
   },
 
   async _finishBattle(battleId: string, state: LiveBattleState, winnerId: string | null) {
