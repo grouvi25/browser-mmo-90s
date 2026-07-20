@@ -1,17 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
-  calcHitChance,
-  calcDodgeChance,
-  calcBlockChance,
-  calcCritChance,
-  calcWeaponSkillMultiplier,
-  calcRawDamage,
-  applyArmor,
-  applyEndurance,
-  calcInitiative,
-  resolveAttack,
-  type AttackerSnapshot,
-  type DefenderSnapshot,
+  calcHitChance, calcDodgeChance, calcBlockChance, calcCritChance,
+  calcWeaponSkillMultiplier, calcRawDamage, applyArmor, applyEndurance,
+  calcInitiative, resolveAttack, calcEffectiveWeaponSkill,
+  calcWeaponResistanceMult,
+  type AttackerSnapshot, type DefenderSnapshot,
 } from '../../modules/battles/battle.formulas'
 
 // ---------------------------------------------------------------
@@ -353,5 +346,94 @@ describe('resolveAttack', () => {
     expect(maxDmg).toBeLessThan(200)
     // At least some hits must land in 1000 tries (with 5% minimum hit chance)
     expect(hits).toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------
+// Anti-mastery (WRES) Ч TZ раздел 10, 18.7
+// ---------------------------------------------------------------
+describe('calcEffectiveWeaponSkill (anti-mastery)', () => {
+  it('no anti-mastery = full skill level', () => {
+    expect(calcEffectiveWeaponSkill(10, 0)).toBe(10)
+  })
+
+  it('anti-mastery reduces effective skill by 0.5 per level', () => {
+    // effectiveWSK = max(0, 10 - 4 ? 0.5) = 10 - 2 = 8
+    expect(calcEffectiveWeaponSkill(10, 4)).toBe(8)
+  })
+
+  it('never goes below 0', () => {
+    expect(calcEffectiveWeaponSkill(5, 20)).toBe(0)
+    expect(calcEffectiveWeaponSkill(0, 10)).toBe(0)
+  })
+})
+
+describe('calcWeaponResistanceMult (WRES damage reduction)', () => {
+  it('no WRES = no reduction (multiplier = 1.0)', () => {
+    expect(calcWeaponResistanceMult(0)).toBe(1.0)
+  })
+
+  it('WRES reduces damage by 2% per level', () => {
+    // 5 levels ? 2% = 10% reduction > multiplier = 0.90
+    expect(calcWeaponResistanceMult(5)).toBeCloseTo(0.90)
+  })
+
+  it('capped at 40% max reduction', () => {
+    // Even with very high WRES, max reduction is 40%
+    expect(calcWeaponResistanceMult(100)).toBeCloseTo(0.60)
+    expect(calcWeaponResistanceMult(20)).toBeCloseTo(0.60) // 20 ? 0.02 = 0.4 > cap
+  })
+})
+
+describe('Anti-mastery integration: high defender WRES reduces damage', () => {
+  it('high anti-skill level reduces final damage', () => {
+    const attacker: AttackerSnapshot = {
+      str: 5, acc: 8, agi: 3, rea: 2, luck: 1, agr: 2, end: 3,
+      weaponSkillLevel: 15, minDamage: 10, maxDamage: 15,
+      weaponAccuracy: 0.9, critBonus: 0, critDamageBonus: 0,
+      blockPierce: 0, flatDamageBonus: 0, equipmentWeight: 0,
+    }
+    const defenderNoWres: DefenderSnapshot = {
+      agi: 1, rea: 1, end: 1, luck: 0,
+      armor: 0, dodgeBonus: 0, antiCrit: 0, blockBonus: 0, armorWeight: 0,
+      antiSkillLevel: 0,
+    }
+    const defenderHighWres: DefenderSnapshot = {
+      ...defenderNoWres,
+      antiSkillLevel: 15, // High anti-mastery vs this weapon type
+    }
+
+    // Run 100 attacks and compare averages
+    let totalNoWres = 0, totalHighWres = 0, hits = 0
+    for (let i = 0; i < 200; i++) {
+      const r1 = resolveAttack(attacker, defenderNoWres, false)
+      const r2 = resolveAttack(attacker, defenderHighWres, false)
+      if (r1.hit && !r1.dodge && !r1.block) {
+        totalNoWres += r1.finalDamage
+        hits++
+      }
+      if (r2.hit && !r2.dodge && !r2.block) {
+        totalHighWres += r2.finalDamage
+      }
+    }
+    if (hits > 10) {
+      const avgNoWres  = totalNoWres / hits
+      const avgHiWres  = totalHighWres / hits
+      // High WRES should give meaningfully less damage
+      expect(avgHiWres).toBeLessThan(avgNoWres)
+    }
+  })
+})
+
+describe('Initiative: equipment weight penalty', () => {
+  it('heavy equipment reduces initiative', () => {
+    let lightWins = 0
+    for (let i = 0; i < 200; i++) {
+      const heavy = calcInitiative(5, 5, 5, 30) // heavy armor
+      const light = calcInitiative(5, 5, 5, 0)  // no armor
+      if (light > heavy) lightWins++
+    }
+    // Light build should win initiative more often
+    expect(lightWins).toBeGreaterThan(100) // > 50% of the time
   })
 })

@@ -5,22 +5,23 @@ import { randomFloat, randomInt, rollChance } from '../../shared/utils/random'
 // Types for battle formula inputs
 export interface AttackerSnapshot {
   str: number; acc: number; agi: number; rea: number; luck: number; agr: number; end: number
-  weaponSkillLevel: number
+  weaponSkillLevel: number       // Raw skill level
+  effectiveSkillLevel?: number   // After anti-mastery reduction (calculated if not provided)
   minDamage: number; maxDamage: number
   weaponAccuracy: number
   critBonus: number; critDamageBonus: number
   blockPierce: number
   flatDamageBonus: number
-  equipmentWeight: number
+  equipmentWeight: number        // Sum of all equipped items weight (for initiative penalty)
 }
 
 export interface DefenderSnapshot {
   agi: number; rea: number; end: number; luck: number
   armor: number
   dodgeBonus: number; antiCrit: number; blockBonus: number
-  armorWeight: number
-  weaponSkillType?: string   // for anti-mastery calc
-  antiSkillLevel: number
+  armorWeight: number            // Defender's armor weight (for dodge penalty)
+  weaponTypeResistance?: number  // Anti-mastery: defense against attacker's weapon type (WRES)
+  antiSkillLevel: number         // Anti-mastery level (reduces attacker's effective weapon skill)
 }
 
 export interface AttackResult {
@@ -36,7 +37,20 @@ export interface AttackResult {
 const B = BalanceConfig
 
 // ---------------------------------------------------------------
-// Initiative
+// Effective weapon skill (applies anti-mastery — ТЗ раздел 10, 18.7)
+// effectiveWeaponSkill = max(0, attackerWSK - defenderAntiSkill × 0.5)
+// ---------------------------------------------------------------
+export function calcEffectiveWeaponSkill(
+  attackerSkillLevel: number,
+  defenderAntiSkillLevel: number
+): number {
+  const raw = attackerSkillLevel - defenderAntiSkillLevel * B.weaponSkill.antiSkillReductionPerLevel
+  return Math.max(0, raw)
+}
+
+// ---------------------------------------------------------------
+// Initiative (ТЗ раздел 17.3)
+// initiative = REA × 1.2 + AGI × 0.6 + WSK × 0.3 - equipmentWeight × 0.25 + rand(-5,5)
 // ---------------------------------------------------------------
 export function calcInitiative(
   rea: number,
@@ -55,7 +69,7 @@ export function calcInitiative(
 }
 
 // ---------------------------------------------------------------
-// Hit chance
+// Hit chance (ТЗ раздел 17.4)
 // ---------------------------------------------------------------
 export function calcHitChance(
   attacker: Pick<AttackerSnapshot, 'acc' | 'weaponAccuracy' | 'weaponSkillLevel'>,
@@ -70,7 +84,7 @@ export function calcHitChance(
 }
 
 // ---------------------------------------------------------------
-// Dodge chance
+// Dodge chance (ТЗ раздел 17.5)
 // ---------------------------------------------------------------
 export function calcDodgeChance(
   defender: Pick<DefenderSnapshot, 'agi' | 'armorWeight' | 'dodgeBonus'>,
@@ -84,7 +98,7 @@ export function calcDodgeChance(
 }
 
 // ---------------------------------------------------------------
-// Block chance
+// Block chance (ТЗ раздел 17.6)
 // ---------------------------------------------------------------
 export function calcBlockChance(
   defender: Pick<DefenderSnapshot, 'rea' | 'blockBonus'>,
@@ -98,7 +112,7 @@ export function calcBlockChance(
 }
 
 // ---------------------------------------------------------------
-// Crit chance
+// Crit chance (ТЗ раздел 17.7)
 // ---------------------------------------------------------------
 export function calcCritChance(
   attacker: Pick<AttackerSnapshot, 'agr' | 'weaponSkillLevel' | 'critBonus'>,
@@ -115,29 +129,50 @@ export function calcCritChance(
 }
 
 // ---------------------------------------------------------------
-// Weapon skill multiplier
+// Weapon skill multiplier (ТЗ раздел 9.2, использует effectiveSkill)
 // ---------------------------------------------------------------
-export function calcWeaponSkillMultiplier(skillLevel: number): number {
+export function calcWeaponSkillMultiplier(effectiveSkillLevel: number): number {
   const C = B.damage
-  const base = C.wskBase + Math.min(skillLevel, 20) * C.wskPerLevel
-  const extra = Math.max(0, skillLevel - 20) * C.wskPerLevelOver20
+  const base = C.wskBase + Math.min(effectiveSkillLevel, 20) * C.wskPerLevel
+  const extra = Math.max(0, effectiveSkillLevel - 20) * C.wskPerLevelOver20
   return clamp(base + extra, C.wskMin, C.wskCap)
 }
 
 // ---------------------------------------------------------------
-// Raw damage
+// Weapon type resistance multiplier (ТЗ раздел 10.2)
+// Reduces damage when defender has anti-skill for this weapon type
+// weaponResistanceMultiplier = 1 - min(WRES × 0.02, 0.4)
 // ---------------------------------------------------------------
-export function calcRawDamage(
-  attacker: Pick<AttackerSnapshot, 'str' | 'minDamage' | 'maxDamage' | 'weaponSkillLevel' | 'flatDamageBonus'>
-): number {
-  const C = B.damage
-  const weaponRoll = randomInt(attacker.minDamage, attacker.maxDamage)
-  const wskMult = calcWeaponSkillMultiplier(attacker.weaponSkillLevel)
-  return weaponRoll * wskMult + attacker.str * C.strCoeff + attacker.flatDamageBonus
+export function calcWeaponResistanceMult(defenderAntiSkillLevel: number): number {
+  const reduction = Math.min(
+    defenderAntiSkillLevel * B.weaponSkill.weaponResistPerLevel,
+    B.weaponSkill.weaponResistMaxReduction
+  )
+  return 1 - reduction
 }
 
 // ---------------------------------------------------------------
-// Apply armor
+// Raw damage (ТЗ раздел 9.1)
+// ---------------------------------------------------------------
+export function calcRawDamage(
+  attacker: Pick<AttackerSnapshot, 'str' | 'minDamage' | 'maxDamage' | 'weaponSkillLevel' | 'flatDamageBonus'>,
+  defenderAntiSkillLevel = 0
+): number {
+  const C = B.damage
+  const weaponRoll = randomInt(attacker.minDamage, attacker.maxDamage)
+
+  // Apply anti-mastery to effective weapon skill for damage multiplier
+  const effectiveSkill = calcEffectiveWeaponSkill(attacker.weaponSkillLevel, defenderAntiSkillLevel)
+  const wskMult = calcWeaponSkillMultiplier(effectiveSkill)
+
+  // Apply weapon type resistance
+  const resistMult = calcWeaponResistanceMult(defenderAntiSkillLevel)
+
+  return weaponRoll * wskMult * resistMult + attacker.str * C.strCoeff + attacker.flatDamageBonus
+}
+
+// ---------------------------------------------------------------
+// Apply armor (ТЗ раздел 11.3 — гибридная модель)
 // ---------------------------------------------------------------
 export function applyArmor(rawDamage: number, armor: number, isCrit: boolean): number {
   const C = B.damage
@@ -148,7 +183,7 @@ export function applyArmor(rawDamage: number, armor: number, isCrit: boolean): n
 }
 
 // ---------------------------------------------------------------
-// Apply endurance
+// Apply endurance (ТЗ раздел 12.1)
 // ---------------------------------------------------------------
 export function applyEndurance(damage: number, end: number): number {
   const C = B.damage
@@ -157,7 +192,9 @@ export function applyEndurance(damage: number, end: number): number {
 }
 
 // ---------------------------------------------------------------
-// Full attack resolution (порядок из ТЗ раздел 17.11)
+// Full attack resolution (ТЗ раздел 17.11 + мат. модель раздел 14)
+// Порядок: проверка → попадание → уворот → блок → крит → урон →
+//          броня → блок-редукция → выносливость → итог
 // ---------------------------------------------------------------
 export function resolveAttack(
   attacker: AttackerSnapshot,
@@ -184,7 +221,7 @@ export function resolveAttack(
     return { hit, dodge, block, crit, rawDamage, finalDamage, logParts: log }
   }
 
-  // 3. Block check (only if defender is blocking)
+  // 3. Block check (only if defender chose "block" action)
   if (defenderIsBlocking) {
     const blockChance = calcBlockChance(defender, attacker)
     block = rollChance(blockChance)
@@ -197,14 +234,14 @@ export function resolveAttack(
     ? clamp(B.crit.multiplierBase + attacker.critDamageBonus, B.crit.multiplierMin, B.crit.multiplierMax)
     : 1
 
-  // 5. Raw damage
-  rawDamage = calcRawDamage(attacker) * critMult
+  // 5. Raw damage (with anti-mastery applied)
+  rawDamage = calcRawDamage(attacker, defender.antiSkillLevel) * critMult
   if (crit) log.push('КРИТ!')
 
   // 6. Armor
   let dmg = applyArmor(rawDamage, defender.armor, crit)
 
-  // 7. Block reduction
+  // 7. Block reduction (35% damage passes through block)
   if (block) {
     dmg = dmg * B.blockChance.blockReduction
     log.push('Заблокировано')

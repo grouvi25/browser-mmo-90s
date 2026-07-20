@@ -1,6 +1,6 @@
 import type { BattleAction, WeaponType as PrismaWeaponType } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
-import { BattleRedis } from '../../shared/db/redis'
+import { BattleRedis, AntiFarmRedis } from '../../shared/db/redis'
 import { CharactersRepository } from '../characters/characters.repository'
 import { ItemsRepository } from '../items/item-instance.repository'
 import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repository'
@@ -65,15 +65,21 @@ async function loadBotData(botId: string) {
 }
 
 // ---------------------------------------------------------------
-// Build attacker snapshot from character
+// Build attacker snapshot from character + equipped armor weight
 // ---------------------------------------------------------------
-function buildAttackerSnapshot(
+async function buildAttackerSnapshotAsync(
   char: CharacterWithStats,
   weapon: ItemWithTemplate | null,
-  weaponSkillLevel: number
-): AttackerSnapshot {
+  weaponSkillLevel: number,
+  equippedArmor: ItemWithTemplate[]
+): Promise<AttackerSnapshot> {
   const s = char.stats!
   const t = weapon?.template
+  // Sum weight of all equipped items (weapon + armor)
+  const equipmentWeight =
+    (weapon?.weight ?? 0) +
+    equippedArmor.reduce((sum, a) => sum + a.weight, 0)
+
   return {
     str: s.str, acc: s.acc, agi: s.agi, rea: s.rea, luck: s.luck, agr: s.agr, end: s.end,
     weaponSkillLevel,
@@ -84,24 +90,25 @@ function buildAttackerSnapshot(
     critDamageBonus: t?.critDamageBonus ?? 0,
     blockPierce: t?.blockPierce ?? 0,
     flatDamageBonus: 0,
-    equipmentWeight: 0, // TODO: sum equipped armor weight
+    equipmentWeight,   // Real equipment weight for initiative calc
   }
 }
 
 function buildDefenderSnapshot(
   char: CharacterWithStats,
-  equippedArmor: ItemWithTemplate[]
+  equippedArmor: ItemWithTemplate[],
+  antiSkillLevel = 0   // Anti-mastery vs current attacker's weapon type
 ): DefenderSnapshot {
   const s = char.stats!
-  const totalArmor = equippedArmor.reduce((sum, a) => sum + (a.template.armor ?? 0), 0)
-  const antiCrit = equippedArmor.reduce((sum, a) => sum + (a.template.antiCrit ?? 0), 0)
-  const blockBonus = equippedArmor.reduce((sum, a) => sum + (a.template.blockBonus ?? 0), 0)
-  const dodgeBonus = equippedArmor.reduce((sum, a) => sum + (a.template.dodgeBonus ?? 0), 0)
-  const armorWeight = equippedArmor.reduce((sum, a) => sum + a.weight, 0)
+  const totalArmor   = equippedArmor.reduce((sum, a) => sum + (a.template.armor ?? 0), 0)
+  const antiCrit     = equippedArmor.reduce((sum, a) => sum + (a.template.antiCrit ?? 0), 0)
+  const blockBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.blockBonus ?? 0), 0)
+  const dodgeBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.dodgeBonus ?? 0), 0)
+  const armorWeight  = equippedArmor.reduce((sum, a) => sum + a.weight, 0)
   return {
     agi: s.agi, rea: s.rea, end: s.end, luck: s.luck,
     armor: totalArmor, dodgeBonus, antiCrit, blockBonus, armorWeight,
-    antiSkillLevel: 0, // TODO: load from weapon skills (anti-mastery)
+    antiSkillLevel,  // Loaded from weapon_skills where weaponType = attacker's weapon type
   }
 }
 
@@ -447,17 +454,28 @@ export const BattleService = {
       ? await ItemsRepository.findInstanceById(playerPart.weaponInstanceId)
       : null
 
-    const weaponType = weapon?.template.weaponType ?? 'MELEE'
+    const weaponType = (weapon?.template.weaponType ?? 'MELEE') as string
+
+    // Load weapon skill for player's weapon type
     const skillRecord = await WeaponSkillsRepository.findOrCreate(char.id, weaponType as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1])
 
-    const attackerSnap = buildAttackerSnapshot(char, weapon, skillRecord.skillLevel)
-    const defenderSnap = buildBotDefenderSnapshot(botStats)
-    const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
-    const playerDefSnap = buildDefenderSnapshot(char, []) // TODO: load equipped armor
+    // Load all equipped armor for player (for defender snapshot + attacker equipment weight)
+    const equippedItems = await ItemsRepository.findEquipped(char.id)
+    const equippedArmor = equippedItems.filter(i => i.template.type === 'ARMOR')
 
-    // Initiative determines order
-    const playerInit = calcInitiative(char.stats!.rea, char.stats!.agi, skillRecord.skillLevel, 0)
-    const botInit = calcInitiative(botStats.rea ?? 2, botStats.agi ?? 2, 1, 0)
+    // Build snapshots with real equipment weight and anti-mastery
+    const attackerSnap = await buildAttackerSnapshotAsync(char, weapon, skillRecord.skillLevel, equippedArmor)
+
+    // For defender (bot): no anti-mastery in stage 1, use bot stats directly
+    const defenderSnap = buildBotDefenderSnapshot(botStats)
+
+    const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
+    // Player's defense includes real equipped armor  
+    const playerDefSnap = buildDefenderSnapshot(char, equippedArmor)
+
+    // Initiative: now uses real equipmentWeight from attackerSnap
+    const playerInit = calcInitiative(char.stats!.rea, char.stats!.agi, skillRecord.skillLevel, attackerSnap.equipmentWeight)
+    const botInit    = calcInitiative(botStats.rea ?? 2, botStats.agi ?? 2, 1, 0)
     const playerFirst = playerInit >= botInit
 
     const turns: Array<{
@@ -584,12 +602,22 @@ export const BattleService = {
     const result = playerWon ? 'PVE_WIN' : 'PVE_LOSS'
     const levelDiff = Math.abs(char.battleLevel - bot.battleLevel)
 
+    // Anti-farm coefficient (ТЗ раздел 27.3)
+    const dailyKills = await AntiFarmRedis.getPveKills(char.id)
+    const antiFarmCoeff = AntiFarmRedis.calcPveAntiFarmCoeff(dailyKills)
+
+    // Increment kill counter if won
+    if (playerWon) {
+      await AntiFarmRedis.incrementPveKills(char.id)
+    }
+
     const expGain = calcBattleExp(
       playerPart.damageDealt,
       bot.power,
       bot.hpMax,
       levelDiff,
-      result
+      result,
+      antiFarmCoeff   // Apply daily anti-farm
     )
 
     const weaponExpGain = calcWeaponSkillExp(

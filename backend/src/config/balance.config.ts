@@ -114,9 +114,9 @@ export const BalanceConfig = {
       344, 471, 637, 852, 1128, 1480, 1926, 2489, 3193, 4070,
       5500, 7140, 9270, 12050, 15600, 20000, 26300, 34200, 45000, 58000,
     ],
-    antiSkillReductionPerLevel: 0.5,
-    weaponResistMaxReduction: 0.4,
-    weaponResistPerLevel: 0.02,
+    antiSkillReductionPerLevel: 0.5,   // effectiveWSK = WSK - antiSkill × 0.5
+    weaponResistMaxReduction: 0.4,      // max 40% damage reduction from anti-skill
+    weaponResistPerLevel: 0.02,         // per anti-skill level: 2% damage reduction
   },
 
   // --- Battle exp ---

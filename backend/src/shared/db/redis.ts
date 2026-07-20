@@ -89,8 +89,32 @@ export const BattleRedis = {
 }
 
 // ----------------------------------------------------------------
-// Session helpers
+// Anti-farm helpers — track daily PvE bot kill count per character
+// ТЗ раздел 27.3: pveExpCoeff = max(0.1, 1 - botKillsToday × 0.05)
 // ----------------------------------------------------------------
+const PVE_ANTIFARM_KEY = (charId: string) =>
+  `char:${charId}:pve_today:${new Date().toISOString().slice(0, 10)}`
+
+export const AntiFarmRedis = {
+  async incrementPveKills(charId: string): Promise<number> {
+    const key  = PVE_ANTIFARM_KEY(charId)
+    const redis = getRedis()
+    const count = await redis.incr(key)
+    // Expire at end of day (UTC midnight + buffer)
+    if (count === 1) await redis.expire(key, 90_000) // ~25 hours
+    return count
+  },
+
+  async getPveKills(charId: string): Promise<number> {
+    const raw = await getRedis().get(PVE_ANTIFARM_KEY(charId))
+    return raw ? parseInt(raw, 10) : 0
+  },
+
+  /** ТЗ formula: pveExpCoeff = max(0.1, 1 - botKillsToday × 0.05) */
+  calcPveAntiFarmCoeff(dailyKills: number): number {
+    return Math.max(0.1, 1 - dailyKills * 0.05)
+  },
+}
 const SESSION_PREFIX = 'session:'
 
 export const SessionRedis = {
