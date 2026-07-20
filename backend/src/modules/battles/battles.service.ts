@@ -399,6 +399,13 @@ export const BattleService = {
       if (!playerPart.isAlive) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'You are dead', 400)
       if (playerPart.hasActedThisRound) throw new AppError(ErrorCode.BATTLE_ACTION_TAKEN, 'Already acted this round', 400)
 
+      // ── Anti-abuse: отслеживаем пропуски ────────────────
+      // "block" без атаки — пассивный ход, считается как активный
+      // Только явное бездействие (не block, attack, use_item, change_weapon, surrender) = пропуск
+      // В текущей схеме все actions явные, поэтому skippedTurns не растёт здесь,
+      // но обнуляем при любом активном действии для честности
+      playerPart.skippedTurns = 0
+
       // ── Сдача ───────────────────────────────────────────
       if (action === 'surrender') {
         playerPart.isSurrendered = true
@@ -772,6 +779,15 @@ export const BattleService = {
     const playerWon = winnerId === char.id
     const result = playerWon ? 'PVE_WIN' : 'PVE_LOSS'
     const levelDiff = Math.abs(char.battleLevel - bot.battleLevel)
+
+    // Anti-abuse: пометить бой как подозрительный если разница уровней > 10
+    // (высокоуровневый фармит слабых ботов)
+    if (levelDiff > 10) {
+      await prisma.battle.update({
+        where: { id: battleId },
+        data: { isSuspicious: true, suspicionReason: `level_diff_${levelDiff}` },
+      })
+    }
 
     // Anti-farm coefficient (ТЗ раздел 27.3)
     const dailyKills = await AntiFarmRedis.getPveKills(char.id)
@@ -1154,6 +1170,16 @@ export const BattleService = {
             damageDealt: part.damageDealt, damageReceived: part.damageReceived,
             hitsLanded: part.hitsLanded, hitsTaken: part.hitsTaken,
           },
+        })
+      }
+
+      // Anti-abuse: пометить бой как подозрительный если один из игроков
+      // нанёс 0 урона (возможно договорной бой)
+      const isSuspicious = part1.damageDealt === 0 || part2.damageDealt === 0
+      if (isSuspicious) {
+        await tx.battle.update({
+          where: { id: battleId },
+          data: { isSuspicious: true, suspicionReason: 'zero_damage_participant' },
         })
       }
 

@@ -6,10 +6,7 @@
 import { connectDb, disconnectDb } from './shared/db/prisma'
 import { getRedis, disconnectRedis } from './shared/db/redis'
 import { logger } from './shared/logger/logger'
-
-// TODO: Import and register queue processors as they're implemented
-// import { registerBattleWorkers } from './workers/battle.worker'
-// import { registerProductionWorkers } from './workers/production.worker'
+import { runBattleCleanup } from './workers/battle-cleanup.worker'
 
 async function startWorker(): Promise<void> {
   logger.info('🔧 Starting MMO 90s BullMQ workers...')
@@ -17,19 +14,29 @@ async function startWorker(): Promise<void> {
   await connectDb()
   logger.info('✅ PostgreSQL connected')
 
-  // Ensure Redis is accessible
   const redis = getRedis()
   await redis.ping()
   logger.info('✅ Redis connected')
 
-  // TODO: Register BullMQ queue workers here as they're implemented
-  // registerBattleWorkers()
-  // registerProductionWorkers()
+  // ─── Cron: Orphaned battles cleanup (every 5 minutes) ────────────────────
+  const CLEANUP_INTERVAL_MS = 5 * 60 * 1000
 
-  logger.info('✅ Workers ready (Phase 1: placeholder — battle workers coming in next iteration)')
+  const runCleanup = async () => {
+    try {
+      await runBattleCleanup()
+    } catch (err) {
+      logger.error({ err }, '[Worker] Battle cleanup error')
+    }
+  }
+
+  // Run once on startup, then every 5 min
+  await runCleanup()
+  const cleanupTimer = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
+  logger.info('✅ Battle cleanup cron started (every 5 min)')
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`[${signal}] Worker shutting down...`)
+    clearInterval(cleanupTimer)
     await disconnectDb()
     await disconnectRedis()
     process.exit(0)

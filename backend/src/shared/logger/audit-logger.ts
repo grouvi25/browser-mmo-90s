@@ -14,6 +14,7 @@ type AuditEvent =
   | 'battle.started'
   | 'battle.action'
   | 'battle.finished'
+  | 'battle.cleanup.orphaned'
   | 'money.changed'
   | 'admin.action'
 

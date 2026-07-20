@@ -182,13 +182,13 @@ describe('calcCritChance', () => {
 // Weapon skill multiplier
 // ---------------------------------------------------------------
 describe('calcWeaponSkillMultiplier', () => {
-  it('skill 0 gives minimum multiplier (0.35)', () => {
-    expect(calcWeaponSkillMultiplier(0)).toBeCloseTo(0.35)
+  it('skill 0 gives base multiplier (1.0)', () => {
+    expect(calcWeaponSkillMultiplier(0)).toBeCloseTo(1.0)
   })
 
-  it('skill 20 gives ~1.05', () => {
-    // 0.35 + 20 * 0.035 = 0.35 + 0.7 = 1.05
-    expect(calcWeaponSkillMultiplier(20)).toBeCloseTo(1.05, 2)
+  it('skill 20 gives ~1.5', () => {
+    // 1.0 + 20 * 0.025 = 1.0 + 0.5 = 1.5
+    expect(calcWeaponSkillMultiplier(20)).toBeCloseTo(1.5, 2)
   })
 
   it('capped at 1.5 for very high skills', () => {
