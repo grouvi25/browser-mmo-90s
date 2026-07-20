@@ -1,6 +1,7 @@
 import { AuthRepository } from './auth.repository'
 import { hashPassword, verifyPassword } from '../../shared/security/password'
 import { generateJti, storeSession, revokeSession } from '../../shared/security/jwt'
+import { SessionRedis } from '../../shared/db/redis'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { audit } from '../../shared/logger/audit-logger'
@@ -52,6 +53,9 @@ export const AuthService = {
     }
 
     await AuthRepository.updateLastLogin(user.id, ip, userAgent)
+
+    // SINGLE DEVICE: revoke all previous sessions before creating new one
+    await SessionRedis.revokeAllForUser(user.id)
 
     const jti = generateJti()
     await storeSession(jti, user.id)

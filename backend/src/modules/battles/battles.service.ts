@@ -93,6 +93,8 @@ async function buildAttackerSnapshotAsync(
     blockPierce: t?.blockPierce ?? 0,
     flatDamageBonus: 0,
     equipmentWeight,   // Real equipment weight for initiative calc
+    antiDodgeBonus: 0,    // TODO: load from item modifiers when upgrade system is implemented
+    antiCounterBonus: 0,  // TODO: load from item modifiers
   }
 }
 
@@ -111,6 +113,7 @@ function buildDefenderSnapshot(
     agi: s.agi, rea: s.rea, end: s.end, luck: s.luck,
     armor: totalArmor, dodgeBonus, antiCrit, blockBonus, armorWeight,
     antiSkillLevel,  // Loaded from weapon_skills where weaponType = attacker's weapon type
+    antiCounterDefense: 0, // TODO: from item modifiers when upgrade system is implemented
   }
 }
 
@@ -128,6 +131,8 @@ function buildBotAttackerSnapshot(botStats: Record<string, number>, botEquip: Re
     weaponAccuracy: w?.accuracy ?? 0.65,
     critBonus: 0, critDamageBonus: 0, blockPierce: 0, flatDamageBonus: 0,
     equipmentWeight: 0,
+    antiDodgeBonus: 0,
+    antiCounterBonus: 0,
   }
 }
 
@@ -138,6 +143,7 @@ function buildBotDefenderSnapshot(botStats: Record<string, number>): DefenderSna
     armor: botStats.armor ?? 2,
     dodgeBonus: 0, antiCrit: 0, blockBonus: 0, armorWeight: 0,
     antiSkillLevel: 0,
+    antiCounterDefense: 0,
   }
 }
 

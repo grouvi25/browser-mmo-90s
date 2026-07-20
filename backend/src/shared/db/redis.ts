@@ -116,10 +116,15 @@ export const AntiFarmRedis = {
   },
 }
 const SESSION_PREFIX = 'session:'
+const USER_SESSIONS_PREFIX = 'user:sessions:'
 
 export const SessionRedis = {
   async set(jti: string, userId: string, ttlSeconds: number): Promise<void> {
-    await getRedis().setex(`${SESSION_PREFIX}${jti}`, ttlSeconds, userId)
+    const redis = getRedis()
+    await redis.setex(`${SESSION_PREFIX}${jti}`, ttlSeconds, userId)
+    // Track jti in user's session set (for single-device enforcement)
+    await redis.sadd(`${USER_SESSIONS_PREFIX}${userId}`, jti)
+    await redis.expire(`${USER_SESSIONS_PREFIX}${userId}`, ttlSeconds + 60)
   },
 
   async get(jti: string): Promise<string | null> {
@@ -127,7 +132,22 @@ export const SessionRedis = {
   },
 
   async revoke(jti: string): Promise<void> {
+    const userId = await getRedis().get(`${SESSION_PREFIX}${jti}`)
     await getRedis().del(`${SESSION_PREFIX}${jti}`)
+    if (userId) {
+      await getRedis().srem(`${USER_SESSIONS_PREFIX}${userId}`, jti)
+    }
+  },
+
+  /** Revoke ALL sessions for a user — used for single-device login */
+  async revokeAllForUser(userId: string): Promise<void> {
+    const redis = getRedis()
+    const jtis = await redis.smembers(`${USER_SESSIONS_PREFIX}${userId}`)
+    if (jtis.length > 0) {
+      const keys = jtis.map(j => `${SESSION_PREFIX}${j}`)
+      await redis.del(...keys)
+    }
+    await redis.del(`${USER_SESSIONS_PREFIX}${userId}`)
   },
 
   async revokeAll(userId: string, jtis: string[]): Promise<void> {

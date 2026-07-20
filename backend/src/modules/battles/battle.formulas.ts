@@ -13,6 +13,9 @@ export interface AttackerSnapshot {
   blockPierce: number
   flatDamageBonus: number
   equipmentWeight: number        // Sum of all equipped items weight (for initiative penalty)
+  // Oberegs (оберег уворота) — снижает шанс уворота у цели
+  antiDodgeBonus: number         // From item modifiers (Apeha: оберег уворота)
+  antiCounterBonus: number       // Снижает шанс ответки у цели
 }
 
 export interface DefenderSnapshot {
@@ -22,6 +25,17 @@ export interface DefenderSnapshot {
   armorWeight: number            // Defender's armor weight (for dodge penalty)
   weaponTypeResistance?: number  // Anti-mastery: defense against attacker's weapon type (WRES)
   antiSkillLevel: number         // Anti-mastery level (reduces attacker's effective weapon skill)
+  // Oberegs (оберег ответа) — снижает шанс ответки самого защитника (для будущего использования)
+  antiCounterDefense: number     // Снижает собственный шанс ответки (если нужно)
+}
+
+// ---------------------------------------------------------------
+// Counter-attack result (ответный удар, Apeha mechanic)
+// ---------------------------------------------------------------
+export interface CounterAttackResult {
+  triggered: boolean
+  damage: number
+  logParts: string[]
 }
 
 export interface AttackResult {
@@ -84,17 +98,59 @@ export function calcHitChance(
 }
 
 // ---------------------------------------------------------------
-// Dodge chance (ТЗ раздел 17.5)
+// Dodge chance (ТЗ раздел 17.5 + Apeha: оберег уворота)
+// rawDodgeChance = base + agilityRatio×0.35 + dodgeBonus - antiDodgeBonus - armorPenalty
 // ---------------------------------------------------------------
 export function calcDodgeChance(
   defender: Pick<DefenderSnapshot, 'agi' | 'armorWeight' | 'dodgeBonus'>,
-  attacker: Pick<AttackerSnapshot, 'acc' | 'agi'>
+  attacker: Pick<AttackerSnapshot, 'acc' | 'agi' | 'antiDodgeBonus'>
 ): number {
   const C = B.dodgeChance
   const agilityRatio = defender.agi / Math.max(attacker.acc + attacker.agi, 1)
   const armorPenalty = defender.armorWeight * C.armorWeightPenalty
-  const raw = C.base + agilityRatio * C.agilityRatioMult + defender.dodgeBonus - armorPenalty
+  const raw = C.base + agilityRatio * C.agilityRatioMult + defender.dodgeBonus
+    - (attacker.antiDodgeBonus ?? 0)  // Apeha: оберег уворота атакующего
+    - armorPenalty
   return clamp(raw, 0, C.max)
+}
+
+// ---------------------------------------------------------------
+// Counter-attack chance (ответный удар, Apeha mechanic)
+// Triggered AFTER defender takes damage — chance to hit back
+// counterChance = base + reactionRatio×0.3 - attacker.antiCounterBonus
+// ---------------------------------------------------------------
+export function calcCounterAttackChance(
+  defender: Pick<DefenderSnapshot, 'rea'>,
+  attacker: Pick<AttackerSnapshot, 'rea' | 'luck' | 'antiCounterBonus'>
+): number {
+  const reactionRatio = defender.rea / Math.max(attacker.rea + attacker.luck, 1)
+  const raw = 0.05 + reactionRatio * 0.30 - (attacker.antiCounterBonus ?? 0)
+  return clamp(raw, 0, 0.40) // max 40% counter chance
+}
+
+// ---------------------------------------------------------------
+// Resolve counter-attack (ответка без крита и без рекурсии)
+// ---------------------------------------------------------------
+export function resolveCounterAttack(
+  defender: DefenderSnapshot,  // defender hits back
+  attacker: AttackerSnapshot,  // attacker receives counter
+  defenderWeapon: { minDamage: number; maxDamage: number }
+): CounterAttackResult {
+  if (!rollChance(calcCounterAttackChance(defender, attacker))) {
+    return { triggered: false, damage: 0, logParts: [] }
+  }
+
+  const weaponRoll = randomInt(defenderWeapon.minDamage, defenderWeapon.maxDamage)
+  const wskMult = calcWeaponSkillMultiplier(0) // ответка без навыка (базовая)
+  const rawDmg = weaponRoll * wskMult + defender.rea * 0.3 // REA как источник урона ответки
+  const dmgAfterArmor = applyArmor(rawDmg, attacker.end, false) // используем END как защиту
+  const finalDmg = Math.max(1, Math.round(dmgAfterArmor))
+
+  return {
+    triggered: true,
+    damage: finalDmg,
+    logParts: [`Ответный удар: −${finalDmg} HP`],
+  }
 }
 
 // ---------------------------------------------------------------
