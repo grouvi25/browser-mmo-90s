@@ -18,7 +18,7 @@ interface ActionResponse {
   newLevel?: number
   waiting?: boolean
   turns?: Array<{
-    actor: string
+    actor: "player" | "enemy" | string
     action: string
     hit: boolean
     dodge: boolean

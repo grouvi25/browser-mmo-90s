@@ -1340,3 +1340,410 @@ button { font-family: inherit; }
 }
 .pocket-slot:hover { opacity: 0.9; }
 
+
+/* ═══════════════════════════════════════════════════
+   BATTLE PAGE — Visual Arena (redesign)
+═══════════════════════════════════════════════════ */
+.battle-page {
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+/* ─── Header ────────────────────────────────────── */
+.battle-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-panel2);
+  border: 1px solid var(--border-accent);
+  border-bottom: 3px solid var(--red-dim);
+}
+
+.battle-header-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--gold);
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px rgba(212,160,23,0.3);
+}
+
+.battle-round-badge {
+  padding: 3px 10px;
+  background: var(--bg-panel3);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.battle-status-badge {
+  margin-left: auto;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: bold;
+  border: 1px solid;
+}
+.battle-status-badge.active { color: var(--success); border-color: var(--green-dim); background: rgba(74,138,53,0.1); }
+.battle-status-badge.won    { color: var(--gold);    border-color: var(--gold-dim);  background: rgba(212,160,23,0.1); }
+.battle-status-badge.lost   { color: var(--danger);  border-color: var(--red-dim);   background: rgba(196,48,48,0.1); }
+
+/* ─── Fighters Row ──────────────────────────────── */
+.battle-fighters-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.fighter-card {
+  flex: 1;
+  background: var(--bg-panel2);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.fighter-card.fighter-player { border-left: 3px solid var(--accent); }
+.fighter-card.fighter-enemy  { border-right: 3px solid var(--red-dim); }
+
+.fighter-card.fighter-defeated {
+  opacity: 0.5;
+  filter: grayscale(0.8);
+}
+
+.fighter-card.fighter-flash {
+  animation: fighter-hit 0.4s ease-out;
+}
+@keyframes fighter-hit {
+  0%   { background: rgba(196,48,48,0.35); border-color: var(--red); }
+  100% { background: var(--bg-panel2); }
+}
+
+.fighter-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.fighter-card-icon { font-size: 28px; }
+
+.fighter-card-name {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--text-title);
+}
+
+.fighter-card-weapon {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.arena-hp-bar {
+  position: relative;
+  height: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.arena-hp-fill {
+  height: 100%;
+}
+
+.arena-hp-text {
+  position: absolute;
+  right: 4px;
+  top: 0;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  line-height: 16px;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8);
+  font-weight: bold;
+}
+
+.fighter-card-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* VS divider */
+.battle-vs-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  flex-shrink: 0;
+  font-size: 22px;
+}
+.vs-text {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: bold;
+  letter-spacing: 1px;
+  writing-mode: vertical-lr;
+}
+
+/* ─── Last Round Panel ──────────────────────────── */
+.last-round-panel {
+  background: var(--bg-panel2);
+  border: 1px solid var(--border-accent);
+  padding: 10px 12px;
+}
+
+.last-round-title {
+  margin-bottom: 8px;
+}
+
+.round-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--bg-panel3);
+  border: 1px solid var(--border-accent);
+  font-size: 10px;
+  color: var(--gold-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.last-round-events {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.round-event-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 0;
+  font-size: 12px;
+}
+
+.event-icon { font-size: 16px; flex-shrink: 0; }
+
+.event-text { flex: 1; }
+
+.battle-start-msg {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 12px;
+  background: var(--bg-panel2);
+  border: 1px solid var(--border);
+}
+
+/* ─── Battle History ────────────────────────────── */
+.battle-history {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+}
+
+.history-toggle {
+  width: 100%;
+  padding: 6px 12px;
+  background: var(--bg-panel2);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.history-toggle:hover { color: var(--text-bright); background: var(--bg-hover); }
+
+.history-list {
+  padding: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-round {
+  border-left: 2px solid var(--border);
+  padding-left: 8px;
+}
+
+.history-round-header {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+.history-event {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ─── Actions Panel ─────────────────────────────── */
+.battle-actions-panel {
+  background: var(--bg-panel2);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--border-accent);
+  padding: 10px 12px;
+}
+
+.battle-main-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.battle-action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 8px;
+  background: var(--bg-panel3);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: all 0.15s;
+  min-height: 64px;
+}
+
+.battle-action-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+.battle-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.battle-action-btn.attack {
+  border-color: var(--red-dim);
+  color: var(--danger);
+}
+.battle-action-btn.attack:hover:not(:disabled) {
+  background: rgba(196,48,48,0.15);
+  border-color: var(--red);
+  box-shadow: 0 0 8px rgba(196,48,48,0.3);
+}
+
+.battle-action-btn.block {
+  border-color: var(--accent);
+  color: var(--accent-light);
+}
+.battle-action-btn.block:hover:not(:disabled) {
+  background: rgba(106,138,58,0.15);
+  border-color: var(--accent-light);
+  box-shadow: 0 0 8px rgba(106,138,58,0.3);
+}
+
+.battle-action-btn.consumable {
+  border-color: var(--success);
+  color: var(--success);
+  flex: 0 0 auto;
+  min-width: 90px;
+  min-height: 56px;
+}
+.battle-action-btn.consumable:hover:not(:disabled) {
+  background: rgba(74,138,53,0.15);
+}
+
+.action-btn-icon { font-size: 22px; }
+.action-btn-label { font-size: 12px; font-weight: bold; }
+.action-btn-hint { font-size: 9px; color: var(--text-dim); }
+
+.battle-consumables {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.battle-secondary-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.weapon-switch-row {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.surrender-btn {
+  opacity: 0.5;
+  margin-left: auto;
+}
+.surrender-btn:hover:not(:disabled) { opacity: 0.9; }
+
+/* ─── Result Panel ──────────────────────────────── */
+.battle-result {
+  padding: 16px;
+  border: 2px solid;
+  text-align: center;
+}
+.battle-result.win  { background: rgba(74,138,53,0.08);  border-color: var(--green); }
+.battle-result.lose { background: rgba(196,48,48,0.08);  border-color: var(--red); }
+
+.battle-result-title {
+  font-size: 22px;
+  font-weight: bold;
+  margin-bottom: 14px;
+  letter-spacing: 2px;
+}
+.battle-result.win  .battle-result-title { color: var(--gold); }
+.battle-result.lose .battle-result-title { color: var(--danger); }
+
+.battle-rewards {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.reward-card {
+  padding: 8px 14px;
+  background: var(--bg-panel2);
+  border: 1px solid var(--border);
+  min-width: 80px;
+}
+
+.reward-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
+.reward-value { font-size: 18px; font-family: var(--font-mono); font-weight: bold; }
+.reward-value.xp     { color: var(--xp); }
+.reward-value.skill  { color: var(--accent-light); }
+.reward-value.money  { color: var(--gold); }
+
+.levelup-banner {
+  padding: 8px;
+  background: rgba(212,160,23,0.15);
+  border: 1px solid var(--gold-dim);
+  color: var(--gold);
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 12px;
+  animation: levelup-pulse 1s ease-in-out 3;
+}
+@keyframes levelup-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+.battle-result-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
