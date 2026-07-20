@@ -84,6 +84,11 @@ services:
     environment:
       REDIS_URL: "redis://redis:6379"
       NODE_ENV: production
+      # Cluster mode: run 1 worker per CPU (2× throughput on 2-core VPS)
+      # Set NODE_CLUSTER=false to disable (for debugging)
+      NODE_CLUSTER: "true"
+      # UV thread pool for native bcrypt + async I/O (default 4, too low)
+      UV_THREADPOOL_SIZE: "16"
     ports:
       - '0.0.0.0:4080:4000'
     depends_on:
