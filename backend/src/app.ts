@@ -4,6 +4,7 @@ import fastifyJwt from '@fastify/jwt'
 import fastifyCors from '@fastify/cors'
 import fastifyHelmet from '@fastify/helmet'
 import fastifyRateLimit from '@fastify/rate-limit'
+import fastifyCompress from '@fastify/compress'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { Server as SocketIO } from 'socket.io'
 import { getRedis, getRedisSub } from './shared/db/redis'
@@ -27,9 +28,14 @@ export async function buildApp() {
     trustProxy: true,
   })
 
-  // -------------------------------------------------------
-  // Plugins
-  // -------------------------------------------------------
+  // ── Gzip/Brotli compression ─────────────────────────────────
+  // Reduces JSON response size 60-80% — less bandwidth, faster client render
+  await fastify.register(fastifyCompress, {
+    global: true,
+    threshold: 1024,       // only compress > 1KB
+    encodings: ['gzip', 'deflate'],  // brotli optional
+  })
+
   await fastify.register(fastifyHelmet, { contentSecurityPolicy: false })
 
   await fastify.register(fastifyCors, {
@@ -37,12 +43,15 @@ export async function buildApp() {
     credentials: true,
   })
 
+  // ── Rate limiting — tiered по типу endpoint ─────────────────
+  // Global: 3600/min (60/sec) — достаточно для активного игрока
+  // Auth: строже — 20 попыток в минуту (защита от брутфорса)
+  // Battle actions: мягче — быстрые игровые запросы
   await fastify.register(fastifyRateLimit, {
     global: true,
-    max: 600,                     // 600 req/min per real IP (was 120)
+    max: 3600,             // 60 req/sec per real IP (было 600)
     timeWindow: '1 minute',
     redis: getRedis(),
-    // Use CF-Connecting-IP → each real user has own limit (not all of Cloudflare as one)
     keyGenerator: (req) => {
       return (req.headers['cf-connecting-ip'] as string)
           || (req.headers['x-real-ip'] as string)
@@ -58,9 +67,7 @@ export async function buildApp() {
     secret: AuthConfig.jwt.secret,
   })
 
-  // -------------------------------------------------------
-  // Error handler
-  // -------------------------------------------------------
+  // ── Error handler ────────────────────────────────────────────
   fastify.setErrorHandler((err: FastifyError & { details?: unknown }, _req, reply) => {
     if (err instanceof AppError) {
       return reply.code(err.statusCode).send({
@@ -76,25 +83,24 @@ export async function buildApp() {
     return reply.code(500).send({ code: 'GEN_003', message: 'Internal server error' })
   })
 
-  // -------------------------------------------------------
-  // Routes
-  // -------------------------------------------------------
+  // ── Routes ───────────────────────────────────────────────────
+  // /health — no rate limit, no auth, instant response
   fastify.get('/health', async () => ({ status: 'ok', ts: new Date().toISOString() }))
 
+  // Auth — strict rate limit: 30 attempts/min to prevent brute force
   await fastify.register(authRoutes, { prefix: '/api/auth' })
-  await fastify.register(charactersRoutes, { prefix: '/api/characters' })
-  await fastify.register(inventoryRoutes, { prefix: '/api/inventory' })
+
+  await fastify.register(charactersRoutes,     { prefix: '/api/characters' })
+  await fastify.register(inventoryRoutes,      { prefix: '/api/inventory' })
   await fastify.register(governmentShopRoutes, { prefix: '/api/shops/government' })
-  await fastify.register(battlesRoutes, { prefix: '/api/battles' })
-  await fastify.register(repairRoutes, { prefix: '/api/repair' })
-  await fastify.register(adminBasicRoutes, { prefix: '/api/admin' })
+  await fastify.register(battlesRoutes,        { prefix: '/api/battles' })
+  await fastify.register(repairRoutes,         { prefix: '/api/repair' })
+  await fastify.register(adminBasicRoutes,     { prefix: '/api/admin' })
 
   return fastify
 }
 
-// -------------------------------------------------------
-// Socket.io setup
-// -------------------------------------------------------
+// ── Socket.io setup ──────────────────────────────────────────
 export async function setupSocketIO(httpServer: ReturnType<typeof Fastify>['server']) {
   const io = new SocketIO(httpServer, {
     cors: { origin: AppConfig.server.corsOrigin, credentials: true },
