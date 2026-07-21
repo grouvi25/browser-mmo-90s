@@ -4,7 +4,6 @@ import fastifyJwt from '@fastify/jwt'
 import fastifyCors from '@fastify/cors'
 import fastifyHelmet from '@fastify/helmet'
 import fastifyRateLimit from '@fastify/rate-limit'
-import fastifyCompress from '@fastify/compress'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { Server as SocketIO } from 'socket.io'
 import { getRedis, getRedisSub } from './shared/db/redis'
@@ -26,14 +25,6 @@ export async function buildApp() {
   const fastify = Fastify({
     logger: false,
     trustProxy: true,
-  })
-
-  // ── Gzip/Brotli compression ─────────────────────────────────
-  // Reduces JSON response size 60-80% — less bandwidth, faster client render
-  await fastify.register(fastifyCompress, {
-    global: true,
-    threshold: 1024,       // only compress > 1KB
-    encodings: ['gzip', 'deflate'],  // brotli optional
   })
 
   await fastify.register(fastifyHelmet, { contentSecurityPolicy: false })
