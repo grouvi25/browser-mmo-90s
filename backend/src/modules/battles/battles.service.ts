@@ -1256,10 +1256,24 @@ export const BattleService = {
   },
 
   async _finishBattle(battleId: string, state: LiveBattleState, winnerId: string | null) {
+    // Update battle status
     await prisma.battle.update({
       where: { id: battleId },
       data: { status: 'FINISHED', winnerId, finishedAt: new Date(), roundCount: state.roundNumber },
     })
+
+    // CRITICAL FIX: unlock ALL character participants back to ACTIVE
+    // Without this, characters stay IN_BATTLE forever after surrender/disconnect
+    const characterIds = state.participants
+      .filter(p => p.characterId)
+      .map(p => p.characterId!)
+    if (characterIds.length > 0) {
+      await prisma.character.updateMany({
+        where: { id: { in: characterIds } },
+        data: { status: 'ACTIVE' },
+      })
+    }
+
     await BattleRedis.deleteState(battleId)
     return { battleOver: true, winnerId }
   },
