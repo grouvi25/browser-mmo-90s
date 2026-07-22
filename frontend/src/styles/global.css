@@ -1147,24 +1147,220 @@ button { font-family: inherit; }
 /* ═══════════════════════════════════════════════════
    PROFILE PAGE (redesign)
 ═══════════════════════════════════════════════════ */
-.profile-layout {
+/* ═══════════════════════════════════════════════════
+   PROFILE PAGE — десктопный грид
+═══════════════════════════════════════════════════ */
+.profile-page {
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
   padding: 8px;
-  max-width: 900px;
+  max-width: 980px;
 }
 
-.profile-left {
-  flex: 0 0 300px;
-  min-width: 260px;
+/* ─── Шапка персонажа (полная ширина) ───────────── */
+.profile-char-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
 }
 
-.profile-right {
-  flex: 0 0 300px;
-  min-width: 260px;
-  max-width: 340px;
+.pch-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
+
+.pch-arch {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--gold-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-panel3);
+  color: var(--gold-dim);
+  flex-shrink: 0;
+}
+
+.pch-name-block { line-height: 1.3; }
+.pch-name {
+  font-size: 15px;
+  font-weight: bold;
+  color: var(--text-title);
+  letter-spacing: 0.5px;
+}
+.pch-sub { font-size: 9px; color: var(--text-dim); }
+.pch-status.in-battle { color: var(--danger); font-weight: bold; }
+
+.pch-level {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 10px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.pch-level-num {
+  font-size: 22px;
+  font-weight: bold;
+  font-family: var(--font-mono);
+  color: var(--gold);
+  line-height: 1;
+}
+.pch-level-label { font-size: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+
+.pch-money {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 8px;
+}
+
+/* HP / EXP полосы */
+.pch-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 140px;
+  max-width: 260px;
+}
+
+.pch-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pch-bar-bg {
+  flex: 1;
+  height: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.pch-bar-fill { height: 100%; transition: width 0.4s; }
+.pch-bar-num {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  white-space: nowrap;
+  min-width: 56px;
+  text-align: right;
+}
+
+/* Мини-статы справа */
+.pch-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 130px;
+  position: relative;
+}
+
+.pch-stat-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+
+.pch-stat-bar {
+  flex: 1;
+  height: 5px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.pch-stat-abbr { font-size: 8px; color: var(--text-dim); width: 22px; text-align: right; }
+.pch-stat-val  { font-size: 9px; font-family: var(--font-mono); color: var(--text-bright); width: 14px; text-align: right; }
+
+.pch-points-badge {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 6px;
+  background: rgba(212,160,23,0.15);
+  border: 1px solid var(--gold-dim);
+  color: var(--gold);
+  font-size: 9px;
+  font-weight: bold;
+  text-decoration: none;
+  text-align: center;
+}
+.pch-points-badge:hover { background: rgba(212,160,23,0.25); color: var(--gold); text-decoration: none; }
+
+/* ─── Нижняя сетка: снаряжение + бой ───────────── */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 310px;
+  gap: 8px;
+  align-items: start;
+}
+
+.profile-equip { }
+.profile-battle { }
+
+/* ─── Таблица снаряжения ────────────────────────── */
+.equip-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.equip-list-row td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.equip-list-row:last-child td { border-bottom: none; }
+.equip-list-row:hover td      { background: var(--bg-hover); }
+.equip-list-row.broken td     { opacity: 0.65; }
+
+.elt-slot {
+  color: var(--text-dim);
+  font-size: 10px;
+  white-space: nowrap;
+  width: 80px;
+}
+
+.elt-item {
+  font-size: 11px;
+  min-width: 100px;
+}
+.elt-empty {
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 10px;
+}
+
+.elt-stats {
+  white-space: nowrap;
+  width: 80px;
+}
+
+.elt-dur {
+  width: 90px;
+}
+.elt-dur-bar {
+  height: 5px;
+  background: var(--border);
+  margin-bottom: 2px;
+}
+.elt-dur-fill { height: 100%; transition: width 0.3s; }
+.elt-dur-num  { font-size: 9px; color: var(--text-dim); font-family: var(--font-mono); }
+
+.elt-extras {
+  width: 50px;
+  white-space: nowrap;
+}
+.elt-ring   { color: var(--gold-dim);  font-size: 10px; margin-right: 2px; opacity: 0.6; }
+.elt-pocket { color: var(--accent);    font-size: 10px; margin-right: 2px; opacity: 0.6; }
+
+.elt-action { width: 50px; text-align: right; }
 
 /* ─── Стата с прогресс-баром ────────────────────── */
 .profile-stats-grid {
