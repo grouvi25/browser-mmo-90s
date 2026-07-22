@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { Swords, Plus, ArrowRight } from 'lucide-react'
 import { battlesApi } from '../../shared/api/battles.api'
 import { charactersApi } from '../../shared/api/characters.api'
 import { ApiError } from '../../shared/api/client'
@@ -54,7 +55,8 @@ export function PvpPage() {
 
       {inBattle && (
         <div className="alert alert-warning mb8">
-          ⚔️ Вы уже в бою!{' '}
+          <Swords size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+          Вы уже в бою!{' '}
           <a href="#" onClick={e => { e.preventDefault(); const id = localStorage.getItem('mmo_current_battle'); if (id) navigate(`/battle/${id}`) }}>
             Вернуться →
           </a>
@@ -63,7 +65,10 @@ export function PvpPage() {
 
       <div className="panel panel-gold">
         <div className="panel-header">
-          <span className="panel-title">🥊 ДУЭЛЬНЫЙ ЗАЛ</span>
+          <span className="panel-title">
+            <Swords size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            ДУЭЛЬНЫЙ ЗАЛ
+          </span>
           <span className="panel-subtitle">PvP 1vs1</span>
         </div>
         <div className="panel-body">
@@ -74,7 +79,10 @@ export function PvpPage() {
           <div className="row">
             <div className="col panel" style={{ margin: 0, borderColor: 'var(--green-dim)' }}>
               <div className="panel-header">
-                <span className="panel-title">⊕ Создать дуэль</span>
+                <span className="panel-title">
+                  <Plus size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                  Создать дуэль
+                </span>
               </div>
               <div className="panel-body">
                 <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>
@@ -85,14 +93,19 @@ export function PvpPage() {
                   onClick={() => createMut.mutate()}
                   disabled={createMut.isPending || inBattle}
                 >
-                  {createMut.isPending ? <><span className="spinner" />Создание...</> : '⊕ Создать вызов'}
+                  {createMut.isPending
+                    ? <><span className="spinner" />Создание...</>
+                    : <><Plus size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />Создать вызов</>}
                 </button>
               </div>
             </div>
 
             <div className="col panel" style={{ margin: 0, borderColor: 'var(--red-dim)' }}>
               <div className="panel-header">
-                <span className="panel-title">⚔️ Принять дуэль</span>
+                <span className="panel-title">
+                  <ArrowRight size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                  Принять дуэль
+                </span>
               </div>
               <div className="panel-body">
                 <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>
@@ -109,7 +122,9 @@ export function PvpPage() {
                   onClick={() => acceptMut.mutate(battleIdInput.trim())}
                   disabled={!battleIdInput.trim() || acceptMut.isPending || inBattle}
                 >
-                  {acceptMut.isPending ? <><span className="spinner" />Принятие...</> : '⚔️ Принять вызов'}
+                  {acceptMut.isPending
+                    ? <><span className="spinner" />Принятие...</>
+                    : <><Swords size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />Принять вызов</>}
                 </button>
               </div>
             </div>

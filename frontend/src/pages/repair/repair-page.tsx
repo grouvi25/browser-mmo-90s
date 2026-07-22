@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Wrench, ClipboardList, Check, X } from 'lucide-react'
 import { repairApi } from '../../shared/api/repair.api'
 import { QUALITY_LABELS, WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, type RepairItem } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
@@ -53,7 +54,10 @@ export function RepairPage() {
         <div className="col">
           <div className="panel">
             <div className="panel-header">
-              <span className="panel-title">🔧 МАСТЕРСКАЯ — РЕМОНТ</span>
+              <span className="panel-title">
+                <Wrench size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                МАСТЕРСКАЯ — РЕМОНТ
+              </span>
               <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
                 Стоимость: базовая цена / 120 × потеря прочности
               </span>
@@ -140,7 +144,10 @@ export function RepairPage() {
           <div style={{ width: 260, flexShrink: 0 }}>
             <div className="panel">
               <div className="panel-header">
-                <span className="panel-title">📋 ДЕТАЛИ РЕМОНТА</span>
+                <span className="panel-title">
+                  <ClipboardList size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                  ДЕТАЛИ РЕМОНТА
+                </span>
               </div>
               <div className="panel-body">
                 {previewLoading ? (
@@ -173,8 +180,10 @@ export function RepairPage() {
                         </tr>
                         <tr>
                           <td>Хватит?</td>
-                          <td style={{ color: preview.canAfford ? 'var(--success)' : 'var(--danger)' }}>
-                            {preview.canAfford ? '✅ Да' : '❌ Нет'}
+                          <td style={{ color: preview.canAfford ? 'var(--success)' : 'var(--danger)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {preview.canAfford
+                              ? <><Check size={12} /> Да</>
+                              : <><X size={12} /> Нет</>}
                           </td>
                         </tr>
                       </tbody>
@@ -187,7 +196,7 @@ export function RepairPage() {
                     >
                       {repairMut.isPending
                         ? <><span className="spinner" />Ремонт...</>
-                        : '🔧 Починить'}
+                        : <><Wrench size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Починить</>}
                     </button>
 
                     {!preview.canAfford && (

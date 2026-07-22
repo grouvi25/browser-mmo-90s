@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Swords, Shield, Pill, Store } from 'lucide-react'
 import { shopApi } from '../../shared/api/shop.api'
 import {
   WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, QUALITY_LABELS, type ShopItem
@@ -15,13 +16,13 @@ function ItemStats({ item }: { item: ShopItem }) {
   const t = item.template
   const parts: string[] = []
   if (t.type === 'CONSUMABLE') {
-    if (t.hpBonus && t.hpBonus > 0) parts.push(`❤️ +${t.hpBonus} HP`)
+    if (t.hpBonus && t.hpBonus > 0) parts.push(`+${t.hpBonus} HP`)
     else parts.push('Расходник')
   } else {
-    if (t.minDamage != null) parts.push(`⚔️ Урон: ${t.minDamage}–${t.maxDamage}`)
+    if (t.minDamage != null) parts.push(`Урон: ${t.minDamage}–${t.maxDamage}`)
     if (t.weaponAccuracy) parts.push(`Точность: ${Math.round(t.weaponAccuracy * 100)}%`)
     if (t.critBonus && t.critBonus > 0) parts.push(`Крит: +${Math.round(t.critBonus * 100)}%`)
-    if (t.armor != null && t.armor > 0) parts.push(`🛡️ Броня: ${t.armor}`)
+    if (t.armor != null && t.armor > 0) parts.push(`Броня: ${t.armor}`)
     if (t.dodgeBonus && t.dodgeBonus > 0) parts.push(`Уворот: +${Math.round(t.dodgeBonus * 100)}%`)
     if (t.antiCrit && t.antiCrit > 0) parts.push(`Антикрит: +${Math.round(t.antiCrit * 100)}%`)
     if (t.weight) parts.push(`Вес: ${t.weight}`)
@@ -86,7 +87,10 @@ export function GovernmentShopPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">🏪 ГОСУДАРСТВЕННЫЙ МАГАЗИН</span>
+          <span className="panel-title">
+            <Store size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            ГОСУДАРСТВЕННЫЙ МАГАЗИН
+          </span>
           <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
             Базовое снаряжение по фиксированным ценам
           </span>
@@ -99,7 +103,15 @@ export function GovernmentShopPage() {
                 className={`btn btn-sm${filter === f ? ' btn-primary' : ''}`}
                 onClick={() => setFilter(f)}
               >
-                {f === 'ALL' ? 'Все' : f === 'WEAPON' ? '⚔️ Оружие' : f === 'ARMOR' ? '🛡️ Броня' : '💊 Расходники'}
+                {f === 'ALL' ? (
+                  'Все'
+                ) : f === 'WEAPON' ? (
+                  <><Swords size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />Оружие</>
+                ) : f === 'ARMOR' ? (
+                  <><Shield size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />Броня</>
+                ) : (
+                  <><Pill size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />Расходники</>
+                )}
               </button>
             ))}
           </div>

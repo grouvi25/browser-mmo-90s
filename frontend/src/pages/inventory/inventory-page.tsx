@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Shield, Backpack, Swords, Pill } from 'lucide-react'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import {
   WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, QUALITY_LABELS, type ItemInstance
@@ -11,7 +12,7 @@ function ItemDetail({ item }: { item: ItemInstance }) {
   const { template: t } = item
   const parts: string[] = []
   if (t.type === 'CONSUMABLE') {
-    if (t.hpBonus && t.hpBonus > 0) parts.push(`❤️ +${t.hpBonus} HP`)
+    if (t.hpBonus && t.hpBonus > 0) parts.push(`+${t.hpBonus} HP`)
     parts.push('Одноразовый')
   } else {
     if (t.minDamage != null) parts.push(`Урон: ${t.minDamage}–${t.maxDamage}`)
@@ -145,7 +146,8 @@ export function InventoryPage() {
               disabled={useItemMut.isPending || inBattle}
               title={inBattle ? 'Используй расходник в бою через меню действий' : `Восстановить HP (+${t.hpBonus ?? 0})`}
               onClick={() => useItemMut.mutate(item.id)}>
-              💊 Лечиться
+              <Pill size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              Лечиться
             </button>
           ) : item.isEquipped ? (
             <button className="btn btn-sm"
@@ -176,7 +178,8 @@ export function InventoryPage() {
     <div>
       {inBattle && (
         <div className="alert alert-warning mb8">
-          ⚔️ Вы в бою — менять экипировку нельзя.{' '}
+          <Swords size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+          Вы в бою — менять экипировку нельзя.{' '}
           <a href="#" onClick={e => { e.preventDefault(); const id = localStorage.getItem('mmo_current_battle'); if (id) window.location.href = '/battle/' + id }}>
             Вернуться в бой →
           </a>
@@ -188,7 +191,10 @@ export function InventoryPage() {
       {equipped.length > 0 && (
         <div className="panel">
           <div className="panel-header">
-            <span className="panel-title">🛡️ НАДЕТО ({equipped.length})</span>
+            <span className="panel-title">
+              <Shield size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              НАДЕТО ({equipped.length})
+            </span>
           </div>
           <div className="panel-body">
             <table className="data-table">
@@ -203,7 +209,10 @@ export function InventoryPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">🎒 ИНВЕНТАРЬ ({inventory.length} предм.)</span>
+          <span className="panel-title">
+            <Backpack size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            ИНВЕНТАРЬ ({inventory.length} предм.)
+          </span>
         </div>
         <div className="panel-body">
           {inventory.length === 0 ? (

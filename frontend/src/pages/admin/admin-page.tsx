@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
 import { api } from '../../shared/api/client'
-import { ApiError } from '../../shared/api/client'
 import { useState } from 'react'
+import { Settings, BarChart2, Users, Swords, Backpack, User } from 'lucide-react'
 
 interface AdminStats {
   users: number
@@ -33,7 +32,10 @@ export function AdminPage() {
     <div>
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">⚙️ АДМИНИСТРИРОВАНИЕ</span>
+          <span className="panel-title">
+            <Settings size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            АДМИНИСТРИРОВАНИЕ
+          </span>
           <span className="admin-badge">ADMIN</span>
         </div>
         <div className="panel-body">
@@ -48,7 +50,13 @@ export function AdminPage() {
                 className={`btn btn-sm${tab === t ? ' btn-gold' : ''}`}
                 onClick={() => setTab(t)}
               >
-                {t === 'stats' ? '📊 Статистика' : t === 'users' ? '👥 Пользователи' : '⚔️ Бои'}
+                {t === 'stats' ? (
+                  <><BarChart2 size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />Статистика</>
+                ) : t === 'users' ? (
+                  <><Users size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />Пользователи</>
+                ) : (
+                  <><Swords size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />Бои</>
+                )}
               </button>
             ))}
           </div>
@@ -56,13 +64,15 @@ export function AdminPage() {
           {tab === 'stats' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
               {[
-                { label: 'Пользователи', val: '—', icon: '👤' },
-                { label: 'Персонажи',    val: '—', icon: '⚔️' },
-                { label: 'Бои',          val: '—', icon: '🏟️' },
-                { label: 'Предметы',     val: '—', icon: '🎒' },
+                { label: 'Пользователи', val: '—', Icon: User },
+                { label: 'Персонажи',    val: '—', Icon: Swords },
+                { label: 'Бои',          val: '—', Icon: BarChart2 },
+                { label: 'Предметы',     val: '—', Icon: Backpack },
               ].map(item => (
                 <div key={item.label} className="panel" style={{ margin: 0, textAlign: 'center', padding: '12px 8px' }}>
-                  <div style={{ fontSize: 24 }}>{item.icon}</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: 'var(--text-dim)' }}>
+                    <item.Icon size={24} />
+                  </div>
                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>{item.label}</div>
                   <div style={{ fontSize: 20, color: 'var(--gold)', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
                     {item.val}

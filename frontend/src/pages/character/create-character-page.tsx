@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { User, Check } from 'lucide-react'
 import { charactersApi } from '../../shared/api/characters.api'
 import { ARCHETYPE_LABELS, ARCHETYPE_BONUS } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
@@ -49,7 +50,10 @@ export function CreateCharacterPage() {
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">⚙️ СОЗДАНИЕ ПЕРСОНАЖА</span>
+          <span className="panel-title">
+            <User size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            СОЗДАНИЕ ПЕРСОНАЖА
+          </span>
         </div>
         <div className="panel-body">
           <div className="alert alert-info" style={{ marginBottom: 12 }}>
@@ -119,7 +123,9 @@ export function CreateCharacterPage() {
               className="btn btn-primary btn-block mt12"
               disabled={isPending}
             >
-              {isPending ? <><span className="spinner" />Создание...</> : '✅ Создать персонажа'}
+              {isPending
+                ? <><span className="spinner" />Создание...</>
+                : <><Check size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Создать персонажа</>}
             </button>
           </form>
         </div>

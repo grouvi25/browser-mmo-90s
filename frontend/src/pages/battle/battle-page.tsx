@@ -1,6 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import {
+  Sword, Shield, Heart, Zap, Wind, ArrowRight,
+  RotateCcw, Flag, ChevronDown, ChevronUp, Skull,
+  CircleDot, User, Trophy, AlertTriangle, Wrench,
+} from 'lucide-react'
 import { battlesApi } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { type BattleAction } from '../../shared/types/api.types'
@@ -24,20 +29,132 @@ interface RoundResult {
   newLevel?: number; waiting?: boolean; turns?: TurnEvent[]
 }
 
-// ── Иконки событий ────────────────────────────────────────────
-function getEvent(t: TurnEvent) {
-  if (!t.hit)  return { icon: '💨', label: 'Промах',  color: '#666',    badge: 'miss' }
-  if (t.dodge) return { icon: '👻', label: 'Уворот',  color: '#88b048', badge: 'dodge' }
-  if (t.block) return { icon: '🛡️', label: 'Блок',    color: '#6a8a3a', badge: 'block' }
-  if (t.crit)  return { icon: '⚡', label: 'КРИТ!',   color: '#f0c030', badge: 'crit' }
-  return              { icon: '💥', label: 'Удар',    color: '#c43030', badge: 'hit' }
+// ── Иконки событий (без эмодзи) ───────────────────────────
+function EventIcon({ type }: { type: string }) {
+  const sz = 14
+  if (type === 'miss')  return <Wind size={sz} />
+  if (type === 'dodge') return <ArrowRight size={sz} />
+  if (type === 'block') return <Shield size={sz} />
+  if (type === 'crit')  return <Zap size={sz} />
+  return <Sword size={sz} />
 }
 
-// ── Плавающее число урона ─────────────────────────────────────
-function FloatingDmg({ dmg, crit, side }: { dmg: number; crit: boolean; side: 'left'|'right' }) {
+function getEvent(t: TurnEvent) {
+  if (!t.hit)  return { type: 'miss',  label: 'Промах',  color: '#555' }
+  if (t.dodge) return { type: 'dodge', label: 'Уворот',  color: '#88b048' }
+  if (t.block) return { type: 'block', label: 'Блок',    color: '#6a9a3a' }
+  if (t.crit)  return { type: 'crit',  label: 'КРИТ',    color: '#d4a017' }
+  return              { type: 'hit',   label: 'Удар',    color: '#c43030' }
+}
+
+// ── Сетка поля боя ─────────────────────────────────────────
+const GRID_COLS = 9
+const GRID_ROWS = 5
+const PLAYER_COL = 1
+const ENEMY_COL  = 7
+
+function BattleGrid({
+  playerName, playerHp, playerHpMax,
+  enemyHp, enemyHpMax,
+  playerDefeated, enemyDefeated,
+  playerHit, enemyHit,
+  lastEvent,
+}: {
+  playerName: string
+  playerHp: number; playerHpMax: number
+  enemyHp: number;  enemyHpMax: number
+  playerDefeated: boolean; enemyDefeated: boolean
+  playerHit: boolean; enemyHit: boolean
+  lastEvent: TurnEvent | null
+}) {
+  const pHpPct = Math.max(0, Math.min(100, playerHp / playerHpMax * 100))
+  const eHpPct = Math.max(0, Math.min(100, enemyHp  / enemyHpMax  * 100))
+  const midRow = Math.floor(GRID_ROWS / 2)
+
   return (
-    <div className={`float-dmg float-dmg-${side} ${crit ? 'crit' : ''}`}>
-      {crit && '⚡'}{dmg > 0 ? `-${dmg}` : 'Мимо!'}
+    <div className="grid-arena">
+      {/* ── Сетка ── */}
+      <div className="grid-field">
+        {Array.from({ length: GRID_ROWS }).map((_, row) =>
+          Array.from({ length: GRID_COLS }).map((_, col) => {
+            const isPlayerCell = col === PLAYER_COL && row === midRow
+            const isEnemyCell  = col === ENEMY_COL  && row === midRow
+            const isCenter = col === Math.floor(GRID_COLS / 2) && row === midRow
+            return (
+              <div
+                key={`${row}-${col}`}
+                className={`grid-cell ${isPlayerCell ? 'cell-player' : ''} ${isEnemyCell ? 'cell-enemy' : ''} ${isCenter ? 'cell-center' : ''}`}
+              >
+                {isPlayerCell && (
+                  <div className={`fighter-token token-player ${playerHit ? 'token-hit' : ''} ${playerDefeated ? 'token-dead' : ''}`}>
+                    {playerDefeated ? <Skull size={18} /> : <User size={18} />}
+                    <span className="token-label">{playerName.slice(0,4)}</span>
+                  </div>
+                )}
+                {isEnemyCell && (
+                  <div className={`fighter-token token-enemy ${enemyHit ? 'token-hit' : ''} ${enemyDefeated ? 'token-dead' : ''}`}>
+                    {enemyDefeated ? <Skull size={18} /> : <CircleDot size={18} />}
+                    <span className="token-label">Враг</span>
+                  </div>
+                )}
+                {isCenter && lastEvent && !isPlayerCell && !isEnemyCell && (
+                  <div className={`grid-event-flash event-${getEvent(lastEvent).type}`}>
+                    <EventIcon type={getEvent(lastEvent).type} />
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* ── HP-полосы ── */}
+      <div className="grid-hp-row">
+        <div className="grid-hp-block">
+          <div className="grid-hp-name">{playerName}</div>
+          <div className="grid-hp-bar-bg">
+            <div className="grid-hp-fill" style={{
+              width: `${pHpPct}%`,
+              background: pHpPct > 60 ? '#4a8a35' : pHpPct > 25 ? '#c4802a' : '#c43030',
+            }} />
+          </div>
+          <div className="grid-hp-num">{playerHp}/{playerHpMax}</div>
+        </div>
+
+        <div className="grid-round-info">
+          <Sword size={14} style={{ color: 'var(--gold-dim)' }} />
+        </div>
+
+        <div className="grid-hp-block grid-hp-right">
+          <div className="grid-hp-name">Противник</div>
+          <div className="grid-hp-bar-bg">
+            <div className="grid-hp-fill" style={{
+              width: `${eHpPct}%`,
+              background: eHpPct > 60 ? '#4a8a35' : eHpPct > 25 ? '#c4802a' : '#c43030',
+            }} />
+          </div>
+          <div className="grid-hp-num">{enemyHp}/{enemyHpMax}</div>
+        </div>
+      </div>
+
+      {/* ── Последнее событие ── */}
+      {lastEvent && (() => {
+        const e = getEvent(lastEvent)
+        return (
+          <div className="grid-last-event" style={{ borderColor: e.color }}>
+            <span style={{ color: e.color }}><EventIcon type={e.type} /></span>
+            <span style={{ color: lastEvent.actor === 'player' ? 'var(--accent-light)' : 'var(--danger)', fontWeight: 'bold', fontSize: 11 }}>
+              {lastEvent.actor === 'player' ? playerName : 'Враг'}
+            </span>
+            <span style={{ color: e.color, fontWeight: 'bold', fontSize: 11 }}>{e.label}</span>
+            {lastEvent.finalDamage > 0 && (
+              <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                -{lastEvent.finalDamage} HP
+              </span>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -47,25 +164,23 @@ export function BattlePage() {
   const { id: battleId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const logRef = useRef<HTMLDivElement>(null)
 
-  const [rounds, setRounds] = useState<RoundRecord[]>([])
-  const [floatingDmg, setFloatingDmg] = useState<{side:'left'|'right';dmg:number;crit:boolean;key:number}|null>(null)
-  const [playerShake, setPlayerShake] = useState(false)
-  const [enemyShake, setEnemyShake] = useState(false)
-  const [playerHp, setPlayerHp] = useState<number|null>(null)
-  const [enemyHp, setEnemyHp] = useState<number|null>(null)
-  const [playerDmgTotal, setPlayerDmgTotal] = useState(0)
-  const [enemyDmgTotal, setEnemyDmgTotal] = useState(0)
-  const [currentRound, setCurrentRound] = useState(1)
-  const [battleOver, setBattleOver] = useState(false)
-  const [result, setResult] = useState<RoundResult|null>(null)
-  const [actionError, setActionError] = useState('')
+  const [rounds, setRounds]               = useState<RoundRecord[]>([])
+  const [playerHp, setPlayerHp]           = useState<number|null>(null)
+  const [enemyHp, setEnemyHp]             = useState<number|null>(null)
+  const [playerDmg, setPlayerDmg]         = useState(0)
+  const [enemyDmg, setEnemyDmg]           = useState(0)
+  const [currentRound, setCurrentRound]   = useState(1)
+  const [battleOver, setBattleOver]       = useState(false)
+  const [finishResult, setFinishResult]   = useState<RoundResult|null>(null)
+  const [actionError, setActionError]     = useState('')
   const [selectedWeapon, setSelectedWeapon] = useState('')
-  const [showLog, setShowLog] = useState(false)
+  const [showLog, setShowLog]             = useState(false)
+  const [playerHit, setPlayerHit]         = useState(false)
+  const [enemyHit, setEnemyHit]           = useState(false)
+  const [lastEvent, setLastEvent]         = useState<TurnEvent|null>(null)
 
   const isValid = !!battleId && UUID_RE.test(battleId)
-
   useEffect(() => { if (!isValid) navigate('/profile', { replace: true }) }, [isValid, navigate])
 
   const { data: char } = useQuery({ queryKey: ['character','me'], queryFn: () => charactersApi.getMe(), enabled: isValid })
@@ -77,27 +192,16 @@ export function BattlePage() {
     refetchInterval: q => q.state.data?.battle?.status === 'FINISHED' || battleOver ? false : 3000,
   })
 
-  const live = battleData?.liveState
-  const playerPart = live?.participants.find(p => p.characterId === char?.id)
-  const enemyPart  = live?.participants.find(p => !!p.botId || p.characterId !== char?.id)
-
-  const pHp    = playerHp ?? playerPart?.hpCurrent ?? char?.hpCurrent ?? 0
-  const pHpMax = playerPart?.hpMax ?? char?.hpMax ?? 1
-  const eHp    = enemyHp ?? enemyPart?.hpCurrent ?? 0
-  const eHpMax = enemyPart?.hpMax ?? 1
-  const pHpPct = Math.max(0, Math.min(100, pHp / pHpMax * 100))
-  const eHpPct = Math.max(0, Math.min(100, eHp / eHpMax * 100))
-
-  const weapon     = items.find(i => i.isEquipped && i.template.type === 'WEAPON')
+  const live     = battleData?.liveState
+  const pPart    = live?.participants.find(p => p.characterId === char?.id)
+  const ePart    = live?.participants.find(p => !!p.botId || p.characterId !== char?.id)
+  const pHp      = playerHp ?? pPart?.hpCurrent ?? char?.hpCurrent ?? 0
+  const pHpMax   = pPart?.hpMax ?? char?.hpMax ?? 1
+  const eHp      = enemyHp ?? ePart?.hpCurrent ?? 0
+  const eHpMax   = ePart?.hpMax ?? 1
+  const weapon   = items.find(i => i.isEquipped && i.template.type === 'WEAPON')
   const consumables = items.filter(i => i.template.type === 'CONSUMABLE' && i.status !== 'DELETED' && i.status !== 'CONSUMED')
-  const weapons    = items.filter(i => i.template.type === 'WEAPON' && i.status !== 'BROKEN' && !i.isEquipped)
-
-  function shake(side: 'player'|'enemy', dmg: number, crit: boolean) {
-    if (side === 'player') setPlayerShake(true)
-    else setEnemyShake(true)
-    setFloatingDmg({ side: side === 'player' ? 'left' : 'right', dmg, crit, key: Date.now() })
-    setTimeout(() => { setPlayerShake(false); setEnemyShake(false); setFloatingDmg(null) }, 900)
-  }
+  const altWeapons  = items.filter(i => i.template.type === 'WEAPON' && i.status !== 'BROKEN' && !i.isEquipped)
 
   const actionMut = useMutation({
     mutationFn: ({ action, itemId }: { action: BattleAction; itemId?: string }) =>
@@ -108,21 +212,27 @@ export function BattlePage() {
       if (data.playerHp != null) setPlayerHp(data.playerHp)
       if (data.botHp    != null) setEnemyHp(data.botHp)
 
-      let pDmg = 0, eDmg = 0
       const events: TurnEvent[] = data.turns?.map(t => ({
         actor: t.actor === 'player' ? 'player' : 'enemy',
         action: t.action, hit: t.hit, dodge: t.dodge, block: t.block,
         crit: t.crit, rawDamage: t.rawDamage, finalDamage: t.finalDamage, logParts: t.logParts,
       })) ?? []
 
+      let pd = 0, ed = 0
       events.forEach(t => {
         if (t.hit && !t.dodge) {
-          if (t.actor === 'player') { shake('enemy', t.finalDamage, t.crit); pDmg += t.finalDamage }
-          else { shake('player', t.finalDamage, t.crit); eDmg += t.finalDamage }
+          if (t.actor === 'player') {
+            setEnemyHit(true); setTimeout(() => setEnemyHit(false), 500)
+            pd += t.finalDamage
+          } else {
+            setPlayerHit(true); setTimeout(() => setPlayerHit(false), 500)
+            ed += t.finalDamage
+          }
         }
       })
-      setPlayerDmgTotal(p => p + pDmg)
-      setEnemyDmgTotal(p => p + eDmg)
+      setPlayerDmg(p => p + pd)
+      setEnemyDmg(p => p + ed)
+      if (events.length > 0) setLastEvent(events[events.length - 1])
 
       setRounds(prev => [...prev, {
         round: rn, events,
@@ -131,7 +241,7 @@ export function BattlePage() {
       }])
 
       if (data.battleOver) {
-        setBattleOver(true); setResult(data)
+        setBattleOver(true); setFinishResult(data)
         localStorage.removeItem('mmo_current_battle')
         qc.invalidateQueries({ queryKey: ['character','me'] })
         qc.invalidateQueries({ queryKey: ['inventory'] })
@@ -144,30 +254,45 @@ export function BattlePage() {
   })
 
   const canAct = !battleOver && !actionMut.isPending
-  const act = (action: BattleAction, itemId?: string) => actionMut.mutate({ action, itemId })
-  const lastRound = rounds[rounds.length - 1]
+  const act    = (action: BattleAction, itemId?: string) => actionMut.mutate({ action, itemId })
+  const playerName = char?.nickname ?? 'Игрок'
 
   if (!isValid) return null
 
-  // ── Финальный экран ───────────────────────────────────────────
-  if (battleOver && result) {
-    const won = result.result === 'PVE_WIN'
+  // ── Финальный экран ───────────────────────────────────────
+  if (battleOver && finishResult) {
+    const won = finishResult.result === 'PVE_WIN'
     return (
-      <div className="battle-scene-wrap">
-        <div className={`battle-result-screen ${won ? 'win' : 'lose'}`}>
-          <div className="brs-title">{won ? '🏆 ПОБЕДА!' : '💀 ПОРАЖЕНИЕ'}</div>
+      <div className="battle-page-v2">
+        <div className={`battle-result-v2 ${won ? 'win' : 'lose'}`}>
+          <div className="brv2-icon">{won ? <Trophy size={48} /> : <Skull size={48} />}</div>
+          <div className="brv2-title">{won ? 'ПОБЕДА' : 'ПОРАЖЕНИЕ'}</div>
           {won && (
-            <div className="brs-rewards">
-              {(result.expGain ?? 0) > 0 && <div className="brs-reward"><span>⭐</span><strong>+{result.expGain}</strong><small>боевой опыт</small></div>}
-              {(result.weaponExpGain ?? 0) > 0 && <div className="brs-reward"><span>🗡️</span><strong>+{Number(result.weaponExpGain).toFixed(1)}</strong><small>навык</small></div>}
-              {(result.moneyReward ?? 0) > 0 && <div className="brs-reward"><span>💰</span><strong>+{result.moneyReward}₽</strong><small>деньги</small></div>}
+            <div className="brv2-rewards">
+              {(finishResult.expGain ?? 0) > 0 && (
+                <div className="brv2-reward">
+                  <Heart size={16} /><span>+{finishResult.expGain}</span><small>опыт</small>
+                </div>
+              )}
+              {(finishResult.weaponExpGain ?? 0) > 0 && (
+                <div className="brv2-reward">
+                  <Sword size={16} /><span>+{Number(finishResult.weaponExpGain).toFixed(1)}</span><small>навык</small>
+                </div>
+              )}
+              {(finishResult.moneyReward ?? 0) > 0 && (
+                <div className="brv2-reward">
+                  <CircleDot size={16} /><span>+{finishResult.moneyReward}₽</span><small>деньги</small>
+                </div>
+              )}
             </div>
           )}
-          {(result.newLevel ?? 0) > 1 && <div className="brs-levelup">🎉 НОВЫЙ УРОВЕНЬ {result.newLevel}!</div>}
-          <div className="brs-actions">
-            <button className="btn btn-primary" onClick={() => navigate('/profile')}>← Профиль</button>
-            <button className="btn btn-gold" onClick={() => navigate('/repair')}>🔧 Ремонт</button>
-            <button className="btn btn-danger" onClick={() => navigate('/profile')}>⚔️ Снова</button>
+          {(finishResult.newLevel ?? 0) > 1 && (
+            <div className="brv2-levelup">НОВЫЙ УРОВЕНЬ {finishResult.newLevel}</div>
+          )}
+          <div className="brv2-actions">
+            <button className="btn btn-primary" onClick={() => navigate('/profile')}>Профиль</button>
+            <button className="btn btn-gold" onClick={() => navigate('/repair')}>Ремонт</button>
+            <button className="btn btn-danger" onClick={() => navigate('/profile')}>Ещё раз</button>
           </div>
         </div>
       </div>
@@ -175,165 +300,132 @@ export function BattlePage() {
   }
 
   return (
-    <div className="battle-scene-wrap">
+    <div className="battle-page-v2">
 
-      {/* ══ ЕДИНАЯ СЦЕНА БОЯ ═══════════════════════════════════ */}
-      <div className="battle-scene">
-
-        {/* Фоновый слой — промзона 90-х (заменить на арт дизайнера) */}
-        <div className="battle-bg">
-          <div className="battle-bg-ground" />
-          <div className="battle-bg-sky" />
-          {/* Элементы сцены — промышленный двор */}
-          <div className="scene-barrel scene-barrel-1" />
-          <div className="scene-barrel scene-barrel-2" />
-          <div className="scene-crate scene-crate-1" />
-          <div className="scene-crate scene-crate-2" />
-          <div className="scene-lamp" />
-          {/* Ограничители дуэли — будут скрыты для массовых боёв */}
-          <div className="duel-fence duel-fence-left" />
-          <div className="duel-fence duel-fence-right" />
+      {/* ── Шапка ── */}
+      <div className="battle-header-v2">
+        <div className="bh-left">
+          <Sword size={14} style={{ color: 'var(--gold-dim)' }} />
+          <span>АРЕНА</span>
         </div>
-
-        {/* Плавающий урон */}
-        {floatingDmg && (
-          <FloatingDmg key={floatingDmg.key} dmg={floatingDmg.dmg} crit={floatingDmg.crit} side={floatingDmg.side} />
-        )}
-
-        {/* ── Левый боец (игрок) ── */}
-        <div className={`battle-fighter battle-fighter-left ${playerShake ? 'fighter-shake' : ''} ${battleOver && result?.result !== 'PVE_WIN' ? 'fighter-dead' : ''}`}>
-          <div className="fighter-shadow" />
-          <div className="fighter-sprite fighter-sprite-player">
-            {pHpPct < 25 ? '🤕' : pHpPct < 60 ? '😤' : '🧍'}
-          </div>
-          <div className="fighter-info fighter-info-left">
-            <div className="fighter-name-badge">{char?.nickname ?? 'Вы'}</div>
-            <div className="fighter-weapon-badge">{weapon?.template.name ?? '✊ Кулаки'}</div>
-          </div>
-          {/* HP bar */}
-          <div className="fighter-hp-block fighter-hp-left">
-            <div className="fhp-bar-bg">
-              <div className="fhp-bar-fill" style={{
-                width: `${pHpPct}%`,
-                background: pHpPct > 60 ? '#4a8a35' : pHpPct > 25 ? '#c4802a' : '#c43030',
-              }} />
-            </div>
-            <div className="fhp-text">{pHp}/{pHpMax}</div>
-          </div>
-          <div className="fighter-dmg-badge">⚔️ {playerDmgTotal + (playerPart?.damageDealt ?? 0)}</div>
+        <div className="bh-center">
+          РАУ НД {currentRound} / 30
         </div>
-
-        {/* ── Центр: раунд + VS ── */}
-        <div className="battle-center">
-          <div className="battle-round-pill">
-            Раунд {currentRound}
-          </div>
-          <div className="battle-vs-glow">
-            {actionMut.isPending ? <span className="vs-loading">⏳</span> : 'VS'}
-          </div>
+        <div className="bh-right">
+          {actionMut.isPending
+            ? <><RotateCcw size={12} className="spin" /> Ход...</>
+            : <><CircleDot size={10} style={{ color: 'var(--success)' }} /> Идёт бой</>}
         </div>
+      </div>
 
-        {/* ── Правый боец (враг) ── */}
-        <div className={`battle-fighter battle-fighter-right ${enemyShake ? 'fighter-shake' : ''} ${battleOver && result?.result === 'PVE_WIN' ? 'fighter-dead' : ''}`}>
-          <div className="fighter-shadow" />
-          <div className="fighter-sprite fighter-sprite-enemy">
-            {eHpPct < 25 ? '💀' : eHpPct < 60 ? '😠' : '💀'}
-          </div>
-          <div className="fighter-info fighter-info-right">
-            <div className="fighter-name-badge">Противник</div>
-          </div>
-          {/* HP bar */}
-          <div className="fighter-hp-block fighter-hp-right">
-            <div className="fhp-bar-bg">
-              <div className="fhp-bar-fill" style={{
-                width: `${eHpPct}%`,
-                background: eHpPct > 60 ? '#4a8a35' : eHpPct > 25 ? '#c4802a' : '#c43030',
-              }} />
-            </div>
-            <div className="fhp-text">{eHp}/{eHpMax}</div>
-          </div>
-          <div className="fighter-dmg-badge">⚔️ {enemyDmgTotal + (enemyPart?.damageDealt ?? 0)}</div>
-        </div>
+      {/* ── Поле боя (сетка) ── */}
+      <BattleGrid
+        playerName={playerName}
+        playerHp={pHp} playerHpMax={pHpMax}
+        enemyHp={eHp}  enemyHpMax={eHpMax}
+        playerDefeated={battleOver && finishResult?.result !== 'PVE_WIN'}
+        enemyDefeated={battleOver && finishResult?.result === 'PVE_WIN'}
+        playerHit={playerHit} enemyHit={enemyHit}
+        lastEvent={lastEvent}
+      />
 
-        {/* ── Последнее событие поверх сцены ── */}
-        {lastRound && lastRound.events.length > 0 && (
-          <div className="scene-events-overlay">
-            {lastRound.events.slice(-2).map((t, i) => {
-              const e = getEvent(t)
-              return (
-                <div key={i} className={`scene-event scene-event-${e.badge}`} style={{ color: e.color }}>
-                  <span>{e.icon}</span>
-                  <span className="se-actor">{t.actor === 'player' ? char?.nickname ?? 'Вы' : 'Враг'}</span>
-                  <span className="se-label">{e.label}</span>
-                  {t.finalDamage > 0 && <span className="se-dmg">−{t.finalDamage}</span>}
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-      </div>{/* /battle-scene */}
-
-      {/* ══ ПАНЕЛЬ ДЕЙСТВИЙ ════════════════════════════════════ */}
+      {/* ── Кнопки действий ── */}
       {!battleOver && (
-        <div className="battle-hud">
-          {actionError && <div className="battle-hud-error">{actionError}</div>}
+        <div className="battle-hud-v2">
+          {actionError && (
+            <div className="battle-error-v2">
+              <AlertTriangle size={13} /> {actionError}
+            </div>
+          )}
 
-          <div className="battle-hud-actions">
-            <button className="hud-btn hud-attack" disabled={!canAct} onClick={() => act('attack')}>
-              <span className="hud-btn-icon">⚔️</span>
-              <span className="hud-btn-label">Атака</span>
+          <div className="hud-v2-actions">
+            {/* Атака */}
+            <button className="hud-v2-btn attack" disabled={!canAct} onClick={() => act('attack')}>
+              <Sword size={20} />
+              <span>Атака</span>
             </button>
-            <button className="hud-btn hud-block" disabled={!canAct} onClick={() => act('block')}>
-              <span className="hud-btn-icon">🛡️</span>
-              <span className="hud-btn-label">Блок</span>
+
+            {/* Блок */}
+            <button className="hud-v2-btn block" disabled={!canAct} onClick={() => act('block')}>
+              <Shield size={20} />
+              <span>Блок</span>
             </button>
+
+            {/* Расходники */}
             {consumables.map(c => (
-              <button key={c.id} className="hud-btn hud-heal" disabled={!canAct} onClick={() => act('use_item', c.id)}>
-                <span className="hud-btn-icon">💊</span>
-                <span className="hud-btn-label">+{c.template.hpBonus}HP</span>
+              <button key={c.id} className="hud-v2-btn heal" disabled={!canAct} onClick={() => act('use_item', c.id)}
+                title={c.template.name}>
+                <Heart size={18} />
+                <span>+{c.template.hpBonus}</span>
               </button>
             ))}
-            {weapons.length > 0 && (
-              <div className="hud-weapon-switch">
-                <select className="hud-select" disabled={!canAct} value={selectedWeapon}
-                  onChange={e => setSelectedWeapon(e.target.value)}>
-                  <option value="">🔄 Смена...</option>
-                  {weapons.map(w => <option key={w.id} value={w.id}>{w.template.name}</option>)}
+
+            {/* Смена оружия */}
+            {altWeapons.length > 0 && (
+              <div className="hud-v2-switch">
+                <select
+                  className="hud-v2-select" disabled={!canAct}
+                  value={selectedWeapon}
+                  onChange={e => setSelectedWeapon(e.target.value)}
+                >
+                  <option value="">Сменить...</option>
+                  {altWeapons.map(w => <option key={w.id} value={w.id}>{w.template.name}</option>)}
                 </select>
                 {selectedWeapon && (
-                  <button className="hud-btn hud-switch-confirm" disabled={!canAct}
-                    onClick={() => { act('change_weapon', selectedWeapon); setSelectedWeapon('') }}>OK</button>
+                  <button className="hud-v2-btn switch-confirm" disabled={!canAct}
+                    onClick={() => { act('change_weapon', selectedWeapon); setSelectedWeapon('') }}>
+                    <RotateCcw size={14} />
+                  </button>
                 )}
               </div>
             )}
-            <button className="hud-btn hud-surrender" disabled={!canAct} onClick={() => act('surrender')}>🏳️</button>
+
+            {/* Сдаться */}
+            <button className="hud-v2-btn surrender" disabled={!canAct} onClick={() => act('surrender')}
+              title="Сдаться">
+              <Flag size={16} />
+            </button>
           </div>
 
-          {/* Лог — сворачиваемый */}
-          <div className="battle-log-toggle" onClick={() => setShowLog(v => !v)}>
-            📜 Лог боя (раунд {currentRound}) {showLog ? '▲' : '▼'}
+          {/* Оружие */}
+          <div className="hud-v2-weapon">
+            <Sword size={11} style={{ color: 'var(--text-dim)' }} />
+            <span>{weapon?.template.name ?? 'Кулаки'}</span>
+            <span style={{ color: 'var(--text-dim)', marginLeft: 'auto' }}>
+              Нанесено: {playerDmg + (pPart?.damageDealt ?? 0)}
+            </span>
           </div>
-          {showLog && (
-            <div className="battle-log-mini" ref={logRef}>
-              {rounds.slice().reverse().map(r => (
-                <div key={r.round} className="log-round-row">
-                  <span className="log-rn">[{r.round}]</span>
-                  {r.events.map((t, i) => {
-                    const e = getEvent(t)
-                    return (
-                      <span key={i} className="log-ev" style={{ color: e.color }}>
-                        {t.actor === 'player' ? '👤' : '💀'}{e.icon}
-                        {t.finalDamage > 0 && `−${t.finalDamage}`}{' '}
-                      </span>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
+
+      {/* ── Лог ── */}
+      <div className="battle-log-v2">
+        <button className="log-toggle-v2" onClick={() => setShowLog(v => !v)}>
+          {showLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          <span>Лог боя — раунд {currentRound}</span>
+          <span style={{ marginLeft: 'auto', color: 'var(--text-dim)', fontSize: 10 }}>
+            {rounds.length} раундов
+          </span>
+        </button>
+        {showLog && (
+          <div className="log-body-v2">
+            {rounds.slice().reverse().map(r => (
+              <div key={r.round} className="log-row-v2">
+                <span className="log-rn-v2">[{r.round}]</span>
+                {r.events.map((t, i) => {
+                  const e = getEvent(t)
+                  return (
+                    <span key={i} className="log-ev-v2" style={{ color: e.color }}>
+                      <EventIcon type={e.type} />
+                      {t.finalDamage > 0 ? `-${t.finalDamage}` : ''}
+                    </span>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
     </div>
   )

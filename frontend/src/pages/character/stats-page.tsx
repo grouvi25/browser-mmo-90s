@@ -7,12 +7,23 @@ import {
 } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { useState } from 'react'
+import {
+  Dumbbell, Wind, Activity, Target, Droplet, Clover, Flame, Crown,
+  Heart, Scale, Zap, BarChart2,
+} from 'lucide-react'
 
 const STAT_KEYS = ['str', 'agi', 'rea', 'acc', 'end', 'luck', 'agr', 'auth'] as const
 
-const STAT_ICONS: Record<string, string> = {
-  str: '💪', agi: '🐆', rea: '⚡', acc: '🎯',
-  end: '🩸', luck: '🍀', agr: '🔥', auth: '👑',
+// Lucide иконки для каждой характеристики
+const STAT_ICON_MAP: Record<string, React.ReactNode> = {
+  str:  <Dumbbell size={20} />,
+  agi:  <Wind     size={20} />,
+  rea:  <Activity size={20} />,
+  acc:  <Target   size={20} />,
+  end:  <Droplet  size={20} />,
+  luck: <Clover   size={20} />,
+  agr:  <Flame    size={20} />,
+  auth: <Crown    size={20} />,
 }
 
 export function StatsPage() {
@@ -53,7 +64,10 @@ export function StatsPage() {
 
       <div className="panel panel-gold">
         <div className="panel-header">
-          <span className="panel-title">📊 Характеристики — {char.nickname}</span>
+          <span className="panel-title">
+            <BarChart2 size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            Характеристики — {char.nickname}
+          </span>
           <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
             Боевой уровень: {char.battleLevel}
           </span>
@@ -61,7 +75,7 @@ export function StatsPage() {
         <div className="panel-body">
           {points > 0 ? (
             <div className="alert alert-warning mb12">
-              ✨ Доступно <strong>{points}</strong> очк{points === 1 ? 'о' : 'а'} для распределения!
+              Доступно <strong>{points}</strong> очк{points === 1 ? 'о' : 'а'} для распределения!
               Нажми «+» рядом с нужной характеристикой.
             </div>
           ) : (
@@ -84,7 +98,9 @@ export function StatsPage() {
                   alignItems: 'center',
                   gap: 10,
                 }}>
-                  <div style={{ fontSize: 22 }}>{STAT_ICONS[key]}</div>
+                  <div style={{ fontSize: 22, color: 'var(--text-dim)', lineHeight: 1 }}>
+                    {STAT_ICON_MAP[key]}
+                  </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 13, fontWeight: 'bold', color: 'var(--text-title)' }}>
@@ -121,26 +137,32 @@ export function StatsPage() {
 
           {/* HP & derived stats */}
           <div style={{ marginTop: 16, padding: 10, background: 'var(--bg-panel2)', border: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-bright)', marginBottom: 8 }}>
-              📐 Производные параметры
+            <div style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-bright)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <BarChart2 size={12} /> Производные параметры
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 11 }}>
               <div>
-                <div style={{ color: 'var(--text-dim)' }}>❤️ HP</div>
+                <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <Heart size={11} /> HP
+                </div>
                 <div style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
                   {char.hpCurrent} / {char.hpMax}
                 </div>
                 <div style={{ color: 'var(--text-dim)', fontSize: 10 }}>60 + ВЫН×6 + Ур.×2</div>
               </div>
               <div>
-                <div style={{ color: 'var(--text-dim)' }}>⚖️ Перенос веса</div>
+                <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <Scale size={11} /> Перенос веса
+                </div>
                 <div style={{ fontFamily: 'var(--font-mono)' }}>
                   {20 + s.str * 6} кг
                 </div>
                 <div style={{ color: 'var(--text-dim)', fontSize: 10 }}>20 + СИЛ×6</div>
               </div>
               <div>
-                <div style={{ color: 'var(--text-dim)' }}>⚡ Инициатива</div>
+                <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <Zap size={11} /> Инициатива
+                </div>
                 <div style={{ fontFamily: 'var(--font-mono)' }}>
                   ~{(s.rea * 1.2 + s.agi * 0.6).toFixed(1)}
                 </div>

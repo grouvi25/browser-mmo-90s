@@ -3,6 +3,7 @@ import { api } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { WEAPON_TYPE_LABELS, type WeaponSkill } from '../../shared/types/api.types'
 import { BalanceConfigFE } from '../../shared/constants/balance'
+import { BarChart2, BookOpen } from 'lucide-react'
 
 // Порог опыта для каждого уровня навыка (из ТЗ)
 const WSK_THRESHOLDS = [
@@ -68,7 +69,10 @@ export function SkillsPage() {
     <div>
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">📊 Навыки владения оружием</span>
+          <span className="panel-title">
+            <BarChart2 size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            Навыки владения оружием
+          </span>
           <span className="panel-subtitle">Опыт начисляется за нанесённый урон в бою</span>
         </div>
         <div className="panel-body">
@@ -93,7 +97,10 @@ export function SkillsPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">📖 Таблица прогресса навыка</span>
+          <span className="panel-title">
+            <BookOpen size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            Таблица прогресса навыка
+          </span>
         </div>
         <div className="panel-body">
           <table className="data-table">

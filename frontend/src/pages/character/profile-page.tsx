@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import {
+  Shield, Swords, Heart, Star, Lightbulb, HardHat, Hand,
+  Layers, PersonStanding, Wrench, Shirt, Footprints,
+  Dumbbell, Zap, Activity, Target, Droplet, Clover, Flame, Crown,
+  Briefcase, Award, BookOpen, Settings,
+} from 'lucide-react'
 import { charactersApi } from '../../shared/api/characters.api'
 import { battlesApi } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
@@ -11,10 +17,16 @@ import {
 } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 
-// ── Иконки архетипов ──────────────────────────────────────────
-const ARCH_ICONS: Record<string, string> = {
-  ATHLETE: '🏋️', WORKER: '⚙️', SHUTTLE: '🧳', VETERAN: '🎖️',
-  STREET: '🥊', MERCHANT: '💼', STUDENT: '📖', RESOLVER: '🤝',
+// ── Иконки архетипов (Lucide) ─────────────────────────────────
+const ARCH_ICON_MAP: Record<string, React.ReactNode> = {
+  ATHLETE:  <Dumbbell  size={14} />,
+  WORKER:   <Settings  size={14} />,
+  SHUTTLE:  <Briefcase size={14} />,
+  VETERAN:  <Award     size={14} />,
+  STREET:   <Zap       size={14} />,
+  MERCHANT: <Briefcase size={14} />,
+  STUDENT:  <BookOpen  size={14} />,
+  RESOLVER: <Award     size={14} />,
 }
 
 // ── Описания статов для прогресс-баров ────────────────────────
@@ -24,20 +36,34 @@ const STAT_COLOR: Record<string, string> = {
   agr: '#c4802a', auth: '#6a8a3a',
 }
 
+// ── Иконка опасности бота (без эмодзи) ───────────────────────
+function DangerBadge({ level }: { level: 'easy' | 'medium' | 'hard' }) {
+  const cfg = {
+    easy:   { color: 'var(--success)', label: 'Лёгкий' },
+    medium: { color: 'var(--warning)', label: 'Средний' },
+    hard:   { color: 'var(--danger)',  label: 'Сложный' },
+  }[level]
+  return (
+    <span style={{ color: cfg.color, fontWeight: 'bold', fontSize: 10 }}>
+      ● {cfg.label}
+    </span>
+  )
+}
+
 // ── Компонент: один слот снаряжения ───────────────────────────
 function EquipSlot({
   label, icon, item, slot, onEquip, onUnequip, inBattle,
-  pockets = 0, rings = 0, equippedItems = [],
+  pockets = 0, rings = 0,
 }: {
   label: string
-  icon: string
+  icon: React.ReactNode
   item: ItemInstance | null
   slot?: string
   onEquip?: (id: string) => void
   onUnequip?: (id: string) => void
   inBattle?: boolean
-  pockets?: number   // карманы на этом предмете
-  rings?: number     // кольца на этом предмете
+  pockets?: number
+  rings?: number
   equippedItems?: ItemInstance[]
 }) {
   const durPct = item ? (item.durabilityCurrent / item.durabilityMax) * 100 : 0
@@ -58,10 +84,16 @@ function EquipSlot({
           {/* Stats */}
           <div className="equip-slot-stats">
             {item.template.minDamage != null && (
-              <span className="equip-stat dmg">⚔{item.template.minDamage}–{item.template.maxDamage}</span>
+              <span className="equip-stat dmg">
+                <Swords size={9} style={{ marginRight: 2, verticalAlign: 'middle' }} />
+                {item.template.minDamage}–{item.template.maxDamage}
+              </span>
             )}
             {(item.template.armor ?? 0) > 0 && (
-              <span className="equip-stat arm">🛡{item.template.armor}</span>
+              <span className="equip-stat arm">
+                <Shield size={9} style={{ marginRight: 2, verticalAlign: 'middle' }} />
+                {item.template.armor}
+              </span>
             )}
           </div>
           {/* Durability bar */}
@@ -131,7 +163,7 @@ function CharacterStand({
     <div className="char-stand">
       {/* ── Голова ── */}
       <div className="stand-row stand-top">
-        <EquipSlot label="Голова" icon="⛑️" item={getItem('ARMOR', 'HEAD')} slot="HEAD"
+        <EquipSlot label="Голова" icon={<HardHat size={13} />} item={getItem('ARMOR', 'HEAD')} slot="HEAD"
           onUnequip={onUnequip} inBattle={inBattle} />
       </div>
 
@@ -139,16 +171,18 @@ function CharacterStand({
       <div className="stand-row stand-middle">
         {/* Левая рука — оружие */}
         <div className="stand-col-side">
-          <EquipSlot label="Оружие" icon="⚔️" item={getItem('WEAPON')}
+          <EquipSlot label="Оружие" icon={<Swords size={13} />} item={getItem('WEAPON')}
             onUnequip={onUnequip} inBattle={inBattle} />
-          <EquipSlot label="Руки Л" icon="🧤" item={getItem('ARMOR', 'HANDS')} slot="HANDS"
+          <EquipSlot label="Руки Л" icon={<Hand size={13} />} item={getItem('ARMOR', 'HANDS')} slot="HANDS"
             onUnequip={onUnequip} inBattle={inBattle}
             rings={3} />
         </div>
 
         {/* Силуэт персонажа */}
         <div className="stand-figure">
-          <div className="figure-silhouette">🧍</div>
+          <div className="figure-silhouette">
+            <PersonStanding size={40} style={{ color: 'var(--text-dim)' }} />
+          </div>
           <div className="figure-name">
             {items.length === 0 ? 'Не одето' : `${items.filter(i => i.isEquipped).length} предм.`}
           </div>
@@ -156,30 +190,30 @@ function CharacterStand({
 
         {/* Правая рука — доп. слот */}
         <div className="stand-col-side">
-          <EquipSlot label="Пояс" icon="🎗️" item={getItem('ARMOR', 'BELT')} slot="BELT"
+          <EquipSlot label="Пояс" icon={<Layers size={13} />} item={getItem('ARMOR', 'BELT')} slot="BELT"
             onUnequip={onUnequip} inBattle={inBattle} />
-          <EquipSlot label="Руки П" icon="🧤" item={null}
+          <EquipSlot label="Руки П" icon={<Hand size={13} />} item={null}
             rings={3} />
         </div>
       </div>
 
       {/* ── Торс ── */}
       <div className="stand-row stand-torso">
-        <EquipSlot label="Куртка" icon="🧥" item={getItem('ARMOR', 'CHEST')} slot="CHEST"
+        <EquipSlot label="Куртка" icon={<Shirt size={13} />} item={getItem('ARMOR', 'CHEST')} slot="CHEST"
           onUnequip={onUnequip} inBattle={inBattle}
           pockets={2} />
       </div>
 
       {/* ── Ноги ── */}
       <div className="stand-row">
-        <EquipSlot label="Джинсы" icon="👖" item={getItem('ARMOR', 'LEGS')} slot="LEGS"
+        <EquipSlot label="Джинсы" icon={<Activity size={13} />} item={getItem('ARMOR', 'LEGS')} slot="LEGS"
           onUnequip={onUnequip} inBattle={inBattle}
           pockets={2} />
       </div>
 
       {/* ── Обувь ── */}
       <div className="stand-row stand-bottom">
-        <EquipSlot label="Обувь" icon="👟" item={getItem('ARMOR', 'FEET')} slot="FEET"
+        <EquipSlot label="Обувь" icon={<Footprints size={13} />} item={getItem('ARMOR', 'FEET')} slot="FEET"
           onUnequip={onUnequip} inBattle={inBattle} />
       </div>
     </div>
@@ -188,9 +222,9 @@ function CharacterStand({
 
 // ── Боты ──────────────────────────────────────────────────────
 const BOTS = [
-  { code: 'training_bandit', label: 'Тренировочный хулиган', level: 1, danger: '🟢 Лёгкий', reward: '20–50₽' },
-  { code: 'basic_gangster',  label: 'Гопник',                level: 2, danger: '🟡 Средний', reward: '50–120₽' },
-  { code: 'armed_thug',      label: 'Вооружённый бандит',    level: 4, danger: '🔴 Сложный', reward: '100–300₽' },
+  { code: 'training_bandit', label: 'Тренировочный хулиган', level: 1, danger: 'easy'   as const, reward: '20–50₽'   },
+  { code: 'basic_gangster',  label: 'Гопник',                level: 2, danger: 'medium' as const, reward: '50–120₽'  },
+  { code: 'armed_thug',      label: 'Вооружённый бандит',    level: 4, danger: 'hard'   as const, reward: '100–300₽' },
 ]
 
 // ══════════════════════════════════════════════════════════════
@@ -253,7 +287,10 @@ export function ProfilePage() {
         {/* Карточка персонажа */}
         <div className="panel panel-gold" style={{ marginBottom: 8 }}>
           <div className="panel-header">
-            <span className="panel-title">{ARCH_ICONS[char.archetype]} {char.nickname}</span>
+            <span className="panel-title">
+              {ARCH_ICON_MAP[char.archetype] ?? null}
+              {' '}{char.nickname}
+            </span>
             <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
               {ARCHETYPE_LABELS[char.archetype]} · {STATUS_LABELS[char.status] ?? char.status}
             </span>
@@ -276,7 +313,9 @@ export function ProfilePage() {
             {/* HP */}
             <div style={{ marginBottom: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
-                <span style={{ color: 'var(--text-dim)' }}>❤️ Здоровье</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--text-dim)' }}>
+                  <Heart size={11} /> Здоровье
+                </span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: hpPct < 25 ? 'var(--red)' : 'var(--text-bright)' }}>
                   {char.hpCurrent} / {char.hpMax}
                 </span>
@@ -293,7 +332,9 @@ export function ProfilePage() {
             {/* EXP */}
             <div style={{ marginBottom: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
-                <span style={{ color: 'var(--text-dim)' }}>⭐ Опыт</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--text-dim)' }}>
+                  <Star size={11} /> Опыт
+                </span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--xp)' }}>
                   {char.battleExp} / {nextExp}
                 </span>
@@ -310,7 +351,7 @@ export function ProfilePage() {
                   Характеристики
                   {s.pointsAvailable > 0 && (
                     <a href="/stats" style={{ color: 'var(--gold)', marginLeft: 8 }}>
-                      ✨ +{s.pointsAvailable} →
+                      +{s.pointsAvailable} →
                     </a>
                   )}
                 </div>
@@ -336,7 +377,10 @@ export function ProfilePage() {
         {/* Стенд брони */}
         <div className="panel" style={{ marginBottom: 8 }}>
           <div className="panel-header">
-            <span className="panel-title">🛡️ Снаряжение</span>
+            <span className="panel-title">
+              <Shield size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              Снаряжение
+            </span>
             <a href="#" onClick={e => { e.preventDefault(); navigate('/inventory') }} style={{ fontSize: 10 }}>
               Весь инвентарь →
             </a>
@@ -365,13 +409,17 @@ export function ProfilePage() {
         {/* PvE бой */}
         <div className="panel panel-red" style={{ marginBottom: 8 }}>
           <div className="panel-header">
-            <span className="panel-title">⚔️ Начать бой (PvE)</span>
+            <span className="panel-title">
+              <Swords size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              Начать бой (PvE)
+            </span>
           </div>
           <div className="panel-body">
             {battleError && <div className="alert alert-error mb8">{battleError}</div>}
             {char.status === 'IN_BATTLE' && (
               <div className="alert alert-warning mb8">
-                ⚔️ Ты уже в бою!{' '}
+                <Swords size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                Ты уже в бою!{' '}
                 <a href="#" onClick={e => { e.preventDefault(); const id = localStorage.getItem('mmo_current_battle'); if (id) navigate(`/battle/${id}`) }}>
                   Вернуться →
                 </a>
@@ -388,7 +436,9 @@ export function ProfilePage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-bright)' }}>{bot.label}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>Ур. {bot.level} · {bot.danger}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+                        Ур. {bot.level} · <DangerBadge level={bot.danger} />
+                      </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div className="money" style={{ fontSize: 11 }}>{bot.reward}</div>
@@ -404,7 +454,9 @@ export function ProfilePage() {
               onClick={() => battleMut.mutate()}
               disabled={battleMut.isPending || char.status === 'IN_BATTLE'}
             >
-              {battleMut.isPending ? <><span className="spinner" />Начинаем...</> : '⚔️ В БОЙ!'}
+              {battleMut.isPending
+                ? <><span className="spinner" />Начинаем...</>
+                : <><Swords size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />В БОЙ!</>}
             </button>
           </div>
         </div>
@@ -412,7 +464,10 @@ export function ProfilePage() {
         {/* PvP */}
         <div className="panel" style={{ borderColor: 'var(--gold-dim)', marginBottom: 8 }}>
           <div className="panel-header">
-            <span className="panel-title">🥊 PvP Дуэль</span>
+            <span className="panel-title">
+              <Swords size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              PvP Дуэль
+            </span>
           </div>
           <div className="panel-body">
             <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>
@@ -423,7 +478,8 @@ export function ProfilePage() {
               onClick={() => navigate('/pvp')}
               disabled={char.status === 'IN_BATTLE'}
             >
-              🥊 Дуэльный зал
+              <Swords size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+              Дуэльный зал
             </button>
           </div>
         </div>
@@ -431,7 +487,10 @@ export function ProfilePage() {
         {/* Подсказка — карманы */}
         <div className="panel" style={{ borderColor: 'var(--border-light)' }}>
           <div className="panel-header">
-            <span className="panel-title" style={{ fontSize: 10 }}>💡 Карманы (скоро)</span>
+            <span className="panel-title" style={{ fontSize: 10 }}>
+              <Lightbulb size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              Карманы (скоро)
+            </span>
           </div>
           <div className="panel-body" style={{ fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.6 }}>
             Надень <strong style={{ color: 'var(--text-bright)' }}>куртку</strong> и <strong style={{ color: 'var(--text-bright)' }}>джинсы</strong> — получишь 4 кармана.
