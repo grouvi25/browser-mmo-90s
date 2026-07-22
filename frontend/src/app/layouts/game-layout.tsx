@@ -81,7 +81,7 @@ export function GameLayout() {
       <div className="layout-topbar">
         <div className="topbar-logo">
           <Zap size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />
-          БРАТВА 90-Х
+          КООПЕРАТИВ
         </div>
 
         {char ? (

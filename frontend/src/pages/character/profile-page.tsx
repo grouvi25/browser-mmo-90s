@@ -5,8 +5,13 @@ import {
   Shield, Swords, Heart, Star, Lightbulb, HardHat, Hand,
   Layers, PersonStanding, Wrench, Shirt, Footprints,
   Dumbbell, Zap, Activity, Target, Droplet, Clover, Flame, Crown,
-  Briefcase, Award, BookOpen, Settings,
+  Briefcase, Award, BookOpen, Settings, Pill, X,
 } from 'lucide-react'
+
+const LOADOUT_KEY = 'mmo_battle_loadout'
+function getLoadout(): string[] {
+  try { return JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '[]') } catch { return [] }
+}
 import { charactersApi } from '../../shared/api/characters.api'
 import { battlesApi } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
@@ -233,6 +238,17 @@ export function ProfilePage() {
   const qc = useQueryClient()
   const [battleError, setBattleError] = useState('')
   const [selectedBot, setSelectedBot] = useState('training_bandit')
+  const [loadoutIds, setLoadoutIds] = useState<string[]>(() => getLoadout())
+
+  const toggleLoadout = (id: string) => {
+    setLoadoutIds(prev => {
+      const next = prev.includes(id)
+        ? prev.filter(x => x !== id)
+        : prev.length < 4 ? [...prev, id] : prev
+      localStorage.setItem(LOADOUT_KEY, JSON.stringify(next))
+      return next
+    })
+  }
 
   const { data: char, isLoading } = useQuery({
     queryKey: ['character', 'me'],
@@ -448,6 +464,69 @@ export function ProfilePage() {
                 </div>
               ))}
             </div>
+
+            {/* Карманы — выбор расходников */}
+            {(() => {
+              const avail = items.filter(i => i.template.type === 'CONSUMABLE' && i.status !== 'DELETED' && i.status !== 'CONSUMED')
+              return (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 9, color: 'var(--gold-dim)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Pill size={9} /> Карманы (взять в бой, макс. 4)
+                  </div>
+                  {/* 4 слота */}
+                  <div className="loadout-slots">
+                    {[0, 1, 2, 3].map(i => {
+                      const id   = loadoutIds[i]
+                      const item = id ? avail.find(x => x.id === id) : null
+                      return (
+                        <div
+                          key={i}
+                          className={`loadout-slot ${item ? 'filled' : 'empty'}`}
+                          onClick={() => item && toggleLoadout(item.id)}
+                          title={item ? 'Нажми чтобы убрать' : 'Пусто'}
+                        >
+                          <span className="loadout-slot-num">{i + 1}</span>
+                          {item ? (
+                            <>
+                              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.template.name}</span>
+                              <X size={9} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+                            </>
+                          ) : (
+                            <span>— пусто —</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* Список расходников */}
+                  {avail.length > 0 && (
+                    <div className="consumable-list">
+                      {avail.map(c => {
+                        const inL = loadoutIds.includes(c.id)
+                        const full = loadoutIds.length >= 4 && !inL
+                        return (
+                          <div
+                            key={c.id}
+                            className={`consumable-pick-row ${inL ? 'in-loadout' : ''} ${full ? 'full-loadout' : ''}`}
+                            onClick={() => !full && toggleLoadout(c.id)}
+                          >
+                            <Pill size={10} style={{ color: inL ? 'var(--success)' : 'var(--text-dim)', flexShrink: 0 }} />
+                            <span style={{ flex: 1 }}>{c.template.name}</span>
+                            <span style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>+{c.template.hpBonus} HP</span>
+                            {inL && <span style={{ color: 'var(--success)', fontSize: 9 }}>✓</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {avail.length === 0 && (
+                    <div style={{ fontSize: 10, color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                      Нет расходников. Купи в магазине.
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             <button
               className="btn btn-danger btn-block btn-lg"
