@@ -83,11 +83,20 @@ jobs:
       # ── 5.5 ONE-TIME: give all characters 99999 money (REMOVE AFTER RUN) ───
       - name: One-time money grant
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            RESULT=$(docker exec mmo90s-postgres-1 psql -U mmo90s_user -d mmo90s \
-              -c 'SET search_path = public; UPDATE "Character" SET money = 99999;')
-            echo "Result: $RESULT"
-          EOF
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
+            # Найти схему где живёт таблица Character
+            SCHEMA=$(docker exec mmo90s-postgres-1 psql -U mmo90s_user -d mmo90s -t \
+              -c "SELECT table_schema FROM information_schema.tables WHERE table_name = 'Character' LIMIT 1;" | tr -d ' ')
+            echo "Found schema: '$SCHEMA'"
+            if [ -n "$SCHEMA" ]; then
+              RESULT=$(docker exec mmo90s-postgres-1 psql -U mmo90s_user -d mmo90s \
+                -c "UPDATE \"${SCHEMA}\".\"Character\" SET money = 99999;")
+              echo "Result: $RESULT"
+            else
+              echo "ERROR: Character table not found in any schema!"
+              docker exec mmo90s-postgres-1 psql -U mmo90s_user -d mmo90s -c "\dt *.*" | grep -i char
+            fi
+          SSHEOF
 
       # ── 6. Restart services ───────────────────────────────────
       - name: Restart services
