@@ -80,15 +80,6 @@ jobs:
               backend npx tsx prisma/seed.ts
           SSHEOF
 
-      # ── 5.5 ONE-TIME: give all characters 99999 money (REMOVE AFTER RUN) ───
-      - name: One-time money grant
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            RESULT=$(docker exec mmo90s-postgres-1 psql -U mmo90s_user -d mmo90s \
-              -c 'UPDATE public.characters SET money = 99999;')
-            echo "Result: $RESULT"
-          EOF
-
       # ── 6. Restart services ───────────────────────────────────
       - name: Restart services
         run: |
