@@ -1148,7 +1148,7 @@ button { font-family: inherit; }
    PROFILE PAGE (redesign)
 ═══════════════════════════════════════════════════ */
 /* ═══════════════════════════════════════════════════
-   PROFILE PAGE — десктопный грид
+   PROFILE PAGE
 ═══════════════════════════════════════════════════ */
 .profile-page {
   display: flex;
@@ -1158,209 +1158,227 @@ button { font-family: inherit; }
   max-width: 980px;
 }
 
-/* ─── Шапка персонажа (полная ширина) ───────────── */
+/* ─── Шапка персонажа ───────────────────────────── */
 .profile-char-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   padding: 10px 14px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
-.pch-left {
+/* Идентификация: иконка + имя + уровень + деньги */
+.pch-ident {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
-.pch-arch {
-  width: 32px;
-  height: 32px;
+.pch-arch-box {
+  width: 30px; height: 30px;
   border: 1px solid var(--gold-dim);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: var(--bg-panel3);
-  color: var(--gold-dim);
-  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--gold-dim); flex-shrink: 0;
 }
 
-.pch-name-block { line-height: 1.3; }
-.pch-name {
-  font-size: 15px;
-  font-weight: bold;
-  color: var(--text-title);
-  letter-spacing: 0.5px;
-}
-.pch-sub { font-size: 9px; color: var(--text-dim); }
+.pch-name { font-size: 14px; font-weight: bold; color: var(--text-title); letter-spacing: 0.5px; }
+.pch-sub  { font-size: 9px; color: var(--text-dim); }
 .pch-status.in-battle { color: var(--danger); font-weight: bold; }
 
-.pch-level {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0 10px;
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-}
-.pch-level-num {
-  font-size: 22px;
-  font-weight: bold;
-  font-family: var(--font-mono);
-  color: var(--gold);
-  line-height: 1;
-}
-.pch-level-label { font-size: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
-
-.pch-money {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.pch-badge {
   padding: 0 8px;
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; line-height: 1.2;
 }
+.pch-lvl-num { font-size: 20px; font-weight: bold; font-family: var(--font-mono); color: var(--gold); }
+.pch-lvl-lbl { font-size: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
 
-/* HP / EXP полосы */
+/* HP / EXP */
 .pch-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  flex: 1;
-  min-width: 140px;
-  max-width: 260px;
+  display: flex; flex-direction: column; gap: 5px;
+  flex: 1; min-width: 140px; max-width: 240px;
 }
-
 .pch-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  display: flex; align-items: center; gap: 5px;
 }
-
-.pch-bar-bg {
-  flex: 1;
-  height: 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  overflow: hidden;
+.pch-bar-track {
+  flex: 1; height: 12px;
+  background: var(--bg); border: 1px solid var(--border); overflow: hidden;
 }
 .pch-bar-fill { height: 100%; transition: width 0.4s; }
-.pch-bar-num {
-  font-size: 9px;
-  font-family: var(--font-mono);
-  color: var(--text-dim);
-  white-space: nowrap;
-  min-width: 56px;
-  text-align: right;
-}
+.pch-bar-val  { font-size: 10px; font-family: var(--font-mono); color: var(--text-dim); white-space: nowrap; min-width: 64px; text-align: right; }
 
-/* Мини-статы справа */
-.pch-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 130px;
+/* Мини-статы */
+.pch-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 10px;
+  min-width: 200px;
   position: relative;
 }
-
-.pch-stat-cell {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: help;
+.pch-stat-row {
+  display: flex; align-items: center; gap: 4px; cursor: help;
 }
-
-.pch-stat-bar {
-  flex: 1;
-  height: 5px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  overflow: hidden;
+.pch-stat-abbr { font-size: 9px; color: var(--text-dim); width: 24px; text-align: right; flex-shrink: 0; }
+.pch-stat-track {
+  flex: 1; height: 8px;
+  background: var(--bg); border: 1px solid var(--border); overflow: hidden;
 }
-.pch-stat-abbr { font-size: 8px; color: var(--text-dim); width: 22px; text-align: right; }
-.pch-stat-val  { font-size: 9px; font-family: var(--font-mono); color: var(--text-bright); width: 14px; text-align: right; }
-
-.pch-points-badge {
-  display: inline-block;
-  margin-top: 3px;
-  padding: 1px 6px;
-  background: rgba(212,160,23,0.15);
-  border: 1px solid var(--gold-dim);
-  color: var(--gold);
-  font-size: 9px;
-  font-weight: bold;
-  text-decoration: none;
-  text-align: center;
+.pch-stat-val  { font-size: 10px; font-family: var(--font-mono); color: var(--gold); width: 14px; text-align: right; flex-shrink: 0; }
+.pch-pts {
+  grid-column: 1 / -1; text-align: center;
+  font-size: 10px; color: var(--gold);
+  background: rgba(212,160,23,0.1); border: 1px solid var(--gold-dim);
+  padding: 2px 0; text-decoration: none; margin-top: 2px;
 }
-.pch-points-badge:hover { background: rgba(212,160,23,0.25); color: var(--gold); text-decoration: none; }
+.pch-pts:hover { background: rgba(212,160,23,0.2); text-decoration: none; }
 
-/* ─── Нижняя сетка: снаряжение + бой ───────────── */
+/* ─── Нижняя сетка ──────────────────────────────── */
 .profile-grid {
   display: grid;
-  grid-template-columns: 1fr 310px;
+  grid-template-columns: 1fr 300px;
   gap: 8px;
   align-items: start;
 }
+.profile-equip {}
+.profile-battle {}
 
-.profile-equip { }
-.profile-battle { }
-
-/* ─── Таблица снаряжения ────────────────────────── */
-.equip-list-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
+/* ═══════════════════════════════════════════════════
+   МАНЕКЕН СНАРЯЖЕНИЯ (Character Doll)
+═══════════════════════════════════════════════════ */
+.char-doll {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.equip-list-row td {
-  padding: 5px 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
+/* Ряды манекена */
+.cd-row {
+  display: grid;
+  gap: 4px;
+  align-items: start;
 }
-.equip-list-row:last-child td { border-bottom: none; }
-.equip-list-row:hover td      { background: var(--bg-hover); }
-.equip-list-row.broken td     { opacity: 0.65; }
 
-.elt-slot {
+/* Голова — 3 колонки, слот по центру */
+.cd-row-head {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+/* Средний ряд: оружие | фигура | пояс */
+.cd-row-mid {
+  grid-template-columns: 1fr 100px 1fr;
+  align-items: stretch;
+}
+/* Руки */
+.cd-row-hands {
+  grid-template-columns: 1fr 100px 1fr;
+}
+/* Тело: куртка | джинсы | обувь */
+.cd-row-body {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.cd-spacer { /* пустая ячейка для выравнивания */ }
+
+/* ── Центральная фигура персонажа ── */
+.cd-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-panel3);
+  border: 1px dashed var(--border-light);
+  padding: 6px 4px;
+  gap: 3px;
+  min-height: 72px;
+}
+.cd-fig-icon {
+  color: var(--gold-dim);
+  opacity: 0.8;
+}
+.cd-fig-name {
+  font-size: 9px;
+  font-weight: bold;
+  color: var(--text-bright);
+  text-align: center;
+  letter-spacing: 0.5px;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cd-fig-count {
+  font-size: 8px;
   color: var(--text-dim);
-  font-size: 10px;
-  white-space: nowrap;
-  width: 80px;
 }
 
-.elt-item {
-  font-size: 11px;
-  min-width: 100px;
+/* ── Карточка слота ── */
+.esc-card {
+  background: var(--bg-panel2);
+  border: 1px solid var(--border);
+  padding: 5px 7px;
+  min-height: 52px;
+  transition: border-color 0.12s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-.elt-empty {
+.esc-card:hover          { border-color: var(--border-light); }
+.esc-filled              { border-color: rgba(90,74,16,0.8); }
+.esc-broken              { border-color: var(--red-dim); opacity: 0.7; }
+.esc-filled:hover        { border-color: var(--gold-dim); }
+
+.esc-head {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
   color: var(--text-dim);
-  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.esc-pockets { color: var(--accent);   font-size: 9px; margin-left: auto; }
+.esc-rings   { color: var(--gold-dim); font-size: 9px; margin-left: auto; }
+
+.esc-body { display: flex; flex-direction: column; gap: 2px; }
+
+.esc-name {
   font-size: 10px;
-}
-
-.elt-stats {
-  white-space: nowrap;
-  width: 80px;
-}
-
-.elt-dur {
-  width: 90px;
-}
-.elt-dur-bar {
-  height: 5px;
-  background: var(--border);
-  margin-bottom: 2px;
-}
-.elt-dur-fill { height: 100%; transition: width 0.3s; }
-.elt-dur-num  { font-size: 9px; color: var(--text-dim); font-family: var(--font-mono); }
-
-.elt-extras {
-  width: 50px;
+  font-weight: bold;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.elt-ring   { color: var(--gold-dim);  font-size: 10px; margin-right: 2px; opacity: 0.6; }
-.elt-pocket { color: var(--accent);    font-size: 10px; margin-right: 2px; opacity: 0.6; }
+.esc-broken-label { color: var(--danger); font-weight: normal; font-size: 8px; }
 
-.elt-action { width: 50px; text-align: right; }
+.esc-stats-row { display: flex; gap: 3px; flex-wrap: wrap; }
+.esc-stat {
+  font-size: 8px; padding: 1px 3px;
+  background: var(--bg); border: 1px solid var(--border);
+  font-family: var(--font-mono);
+}
+.esc-stat.dmg { color: var(--red); }
+.esc-stat.arm { color: var(--accent-light); }
+
+.esc-dur-row {
+  display: flex; align-items: center; gap: 4px;
+}
+.esc-dur-bg {
+  flex: 1; height: 4px;
+  background: var(--bg); border: 1px solid var(--border); overflow: hidden;
+}
+.esc-dur-fill { height: 100%; transition: width 0.3s; }
+.esc-dur-num  { font-size: 8px; color: var(--text-dim); font-family: var(--font-mono); white-space: nowrap; }
+
+.esc-unequip { margin-top: 3px; font-size: 9px; padding: 1px 6px; }
+
+.esc-empty {
+  font-size: 9px; color: var(--text-dim);
+  font-style: italic; text-align: center;
+  margin: auto 0; padding: 6px 0;
+}
 
 /* ─── Стата с прогресс-баром ────────────────────── */
 .profile-stats-grid {
