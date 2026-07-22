@@ -402,7 +402,7 @@ export function BattlePage() {
       <div className="battle-log-v2">
         <button className="log-toggle-v2" onClick={() => setShowLog(v => !v)}>
           {showLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          <span>Лог боя — раунд {currentRound}</span>
+          <span>Лог боя</span>
           <span style={{ marginLeft: 'auto', color: 'var(--text-dim)', fontSize: 10 }}>
             {rounds.length} раундов
           </span>
@@ -410,15 +410,33 @@ export function BattlePage() {
         {showLog && (
           <div className="log-body-v2">
             {rounds.slice().reverse().map(r => (
-              <div key={r.round} className="log-row-v2">
-                <span className="log-rn-v2">[{r.round}]</span>
+              <div key={r.round} className="log-round-v2">
+                <div className="log-round-header">Раунд {r.round}</div>
                 {r.events.map((t, i) => {
                   const e = getEvent(t)
+                  const isPlayer = t.actor === 'player' || t.actor === playerName
+                  const actorName = isPlayer ? playerName : 'Противник'
                   return (
-                    <span key={i} className="log-ev-v2" style={{ color: e.color }}>
-                      <EventIcon type={e.type} />
-                      {t.finalDamage > 0 ? `-${t.finalDamage}` : ''}
-                    </span>
+                    <div key={i} className={`log-event-line ${isPlayer ? 'log-ev-player' : 'log-ev-enemy'}`}>
+                      {/* Кто атакует */}
+                      <span className="log-ev-actor">{actorName}</span>
+                      <span className="log-ev-arrow">→</span>
+                      {/* Что случилось */}
+                      <span className="log-ev-icon" style={{ color: e.color }}>
+                        <EventIcon type={e.type} />
+                      </span>
+                      <span className="log-ev-label" style={{ color: e.color }}>{e.label}</span>
+                      {/* Урон */}
+                      {t.finalDamage > 0 && (
+                        <>
+                          <span className="log-ev-arrow">→</span>
+                          <span className="log-ev-dmg" style={{ color: e.type === 'crit' ? 'var(--gold)' : 'var(--danger)' }}>
+                            -{t.finalDamage} HP
+                          </span>
+                          {t.crit && <span className="log-ev-crit">КРИТ!</span>}
+                        </>
+                      )}
+                    </div>
                   )
                 })}
               </div>

@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   User, Shield, BarChart2, Sword, Swords, Store, Wrench, Factory,
-  Beer, Trophy, Users, Map, Lock, Zap, Radio, Star,
+  Beer, Lock, Zap, Radio, Heart, Star, Map,
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '../providers/auth-provider'
@@ -10,23 +10,42 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { authApi } from '../../shared/api/auth.api'
 import { STATUS_LABELS } from '../../shared/types/api.types'
 
-// ── Карта города 90-х ─────────────────────────────────────────
+// ── Карта города ───────────────────────────────────────────────
 const CITY_ZONES = [
-  { id: 'market',   label: 'Рынок',    href: '/shop',    desc: 'Госмагазин, торговля',    Icon: Store },
-  { id: 'arena',    label: 'Арена',    href: '/pvp',     desc: 'Дуэли, PvP',               Icon: Swords, hot: true },
-  { id: 'workshop', label: 'Мастерск.', href: '/repair',  desc: 'Ремонт, улучшения',       Icon: Wrench },
-  { id: 'factory',  label: 'Промзона',  href: '#',        desc: 'Заводы (Этап 2)',          Icon: Factory, locked: true },
-  { id: 'bar',      label: 'Бар',       href: '#',        desc: 'Баффы, еда (Этап 3)',      Icon: Beer,    locked: true },
-  { id: 'farm',     label: 'Колхоз',    href: '#',        desc: 'Ферма (Этап 3)',           Icon: Star,    locked: true },
+  { id: 'market',   label: 'Рынок',     href: '/shop',   Icon: Store,   hot: false, locked: false },
+  { id: 'arena',    label: 'Арена',     href: '/pvp',    Icon: Swords,  hot: true,  locked: false },
+  { id: 'workshop', label: 'Мастерс.',  href: '/repair', Icon: Wrench,  hot: false, locked: false },
+  { id: 'factory',  label: 'Промзона',  href: '#',       Icon: Factory, hot: false, locked: true  },
+  { id: 'bar',      label: 'Бар',       href: '#',       Icon: Beer,    hot: false, locked: true  },
 ]
 
-const STATUS_ICONS: Record<string, string> = {
-  ACTIVE: '●', IN_BATTLE: '✕', WORKING: '◈', RECOVERING: '◎', OFFLINE: '○',
+const STATUS_DOT: Record<string, string> = {
+  ACTIVE: 'var(--success)', IN_BATTLE: 'var(--danger)',
+  WORKING: 'var(--warning)', RECOVERING: 'var(--gold-dim)', OFFLINE: 'var(--text-dim)',
 }
 
-// ── Вспомогательный компонент для иконки сайдбара ──────────────
-function SIcon({ Icon: I, size = 12 }: { Icon: LucideIcon, size?: number }) {
-  return <I size={size} style={{ marginRight: 5, verticalAlign: 'middle', flexShrink: 0 }} />
+// ── Таббар: одна ссылка ────────────────────────────────────────
+function TLink({ to, Icon: I, label }: { to: string; Icon: LucideIcon; label: string }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) => 'tabbar-link' + (isActive ? ' active' : '')}
+    >
+      <I size={12} />
+      <span>{label}</span>
+    </NavLink>
+  )
+}
+
+// ── Таббар: специальная ссылка «В бой» ────────────────────────
+function BattleLink({ inBattle, battleId }: { inBattle: boolean; battleId: string | null }) {
+  const to = inBattle && battleId ? `/battle/${battleId}` : '/profile'
+  return (
+    <NavLink to={to} className={({ isActive }) => 'tabbar-link tabbar-battle' + (isActive ? ' active' : '')}>
+      <Swords size={12} />
+      <span>{inBattle ? 'Текущий бой' : 'В бой!'}</span>
+    </NavLink>
+  )
 }
 
 export function GameLayout() {
@@ -35,7 +54,7 @@ export function GameLayout() {
 
   const { data: char } = useQuery({
     queryKey: ['character', 'me'],
-    queryFn:  () => charactersApi.getMe(),
+    queryFn: () => charactersApi.getMe(),
     retry: false,
     refetchInterval: 30_000,
   })
@@ -47,32 +66,42 @@ export function GameLayout() {
   }
 
   const hp     = char?.hpCurrent ?? 0
-  const hpMax  = char?.hpMax     ?? 1
+  const hpMax  = char?.hpMax ?? 1
   const hpPct  = Math.max(0, Math.min(100, (hp / hpMax) * 100))
   const status = char?.status ?? 'OFFLINE'
   const hpColor = hpPct > 60 ? 'var(--green)' : hpPct > 25 ? 'var(--warning)' : 'var(--red)'
+  const inBattle = status === 'IN_BATTLE'
+  const battleId = localStorage.getItem('mmo_current_battle')
+  const points   = char?.stats?.pointsAvailable ?? 0
 
   return (
     <div className="layout-game">
-      {/* ═══ TOPBAR ════════════════════════════════════════════ */}
+
+      {/* ═══ TOPBAR ═══════════════════════════════════════════ */}
       <div className="layout-topbar">
         <div className="topbar-logo">
-          <Zap size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+          <Zap size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />
           БРАТВА 90-Х
         </div>
 
         {char ? (
           <div className="topbar-char">
             <div className="topbar-stat">
-              <span className="label">Игрок:</span>
-              <span className="val gold">{char.nickname}</span>
+              <span className="label">
+                <span style={{
+                  display: 'inline-block', width: 7, height: 7,
+                  borderRadius: '50%', background: STATUS_DOT[status] ?? 'var(--text-dim)',
+                  marginRight: 4, verticalAlign: 'middle',
+                }} />
+                {char.nickname}
+              </span>
             </div>
             <div className="topbar-stat">
               <span className="label">Ур.</span>
               <span className="val gold">{char.battleLevel}</span>
             </div>
             <div className="topbar-stat">
-              <span className="label">HP</span>
+              <Heart size={10} style={{ color: hpColor, marginRight: 2, verticalAlign: 'middle' }} />
               <div className="hp-mini">
                 <div className="hp-mini-bar">
                   <div className="hp-mini-fill" style={{ width: `${hpPct}%`, background: hpColor }} />
@@ -84,19 +113,20 @@ export function GameLayout() {
               <span className="label">₽</span>
               <span className="val gold">{char.money.toLocaleString('ru')}</span>
             </div>
-            <div className="topbar-stat">
-              <span style={{ color: status === 'IN_BATTLE' ? 'var(--danger)' : status === 'ACTIVE' ? 'var(--success)' : 'var(--text-dim)', fontSize: 11 }}>
-                {STATUS_ICONS[status]} {STATUS_LABELS[status] ?? status}
-              </span>
-            </div>
-            {char.stats && char.stats.pointsAvailable > 0 && (
+            {points > 0 && (
               <div className="topbar-stat" style={{ color: 'var(--gold)' }}>
-                +{char.stats.pointsAvailable} очк.
+                <Star size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} />
+                +{points} очк.
               </div>
             )}
+            <div className="topbar-stat" style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+              {STATUS_LABELS[status] ?? status}
+            </div>
           </div>
         ) : (
-          <div className="topbar-char"><div className="topbar-stat"><span className="label">Загрузка...</span></div></div>
+          <div className="topbar-char">
+            <div className="topbar-stat"><span className="label">Загрузка...</span></div>
+          </div>
         )}
 
         <div className="topbar-right">
@@ -105,90 +135,55 @@ export function GameLayout() {
         </div>
       </div>
 
+      {/* ═══ ТАББАР НАВИГАЦИИ ══════════════════════════════════ */}
+      <nav className="layout-tabbar">
+        {/* Группа: Персонаж */}
+        <div className="tabbar-group">
+          <span className="tabbar-group-label">Персонаж</span>
+          <TLink to="/profile"   Icon={User}     label="Профиль" />
+          <TLink to="/inventory" Icon={Shield}   label="Снаряжение" />
+          <TLink to="/stats"     Icon={BarChart2} label={points > 0 ? `Статы +${points}` : 'Статы'} />
+          <TLink to="/skills"    Icon={Sword}    label="Навыки" />
+        </div>
+
+        <div className="tabbar-sep" />
+
+        {/* Группа: Город */}
+        <div className="tabbar-group">
+          <span className="tabbar-group-label">Город</span>
+          <TLink to="/shop"   Icon={Store}  label="Магазин" />
+          <TLink to="/repair" Icon={Wrench} label="Мастерская" />
+        </div>
+
+        <div className="tabbar-sep" />
+
+        {/* Группа: Бой */}
+        <div className="tabbar-group">
+          <span className="tabbar-group-label">Бой</span>
+          <BattleLink inBattle={inBattle} battleId={battleId} />
+          <TLink to="/pvp" Icon={Swords} label="PvP" />
+        </div>
+
+        {/* Рейтинги — заблокированы */}
+        <div className="tabbar-sep" />
+        <div className="tabbar-group tabbar-locked" title="Откроется в Этапе 2+">
+          <span className="tabbar-group-label">Рейтинги</span>
+          <span className="tabbar-link disabled">Клан</span>
+          <span className="tabbar-link disabled">Топ</span>
+        </div>
+      </nav>
+
+      {/* ═══ ОСНОВНОЙ КОНТЕНТ ══════════════════════════════════ */}
       <div className="layout-main">
-        {/* ═══ ЛЕВЫЙ САЙДБАР ════════════════════════════════════ */}
-        <nav className="layout-sidebar">
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">Персонаж</div>
-            <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/profile">
-              <SIcon Icon={User} /> Профиль
-            </NavLink>
-            <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/inventory">
-              <SIcon Icon={Shield} /> Снаряжение
-            </NavLink>
-            <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/stats">
-              <SIcon Icon={BarChart2} /> Характеристики
-              {(char?.stats?.pointsAvailable ?? 0) > 0 && (
-                <span style={{ color: 'var(--gold)', marginLeft: 4 }}>●</span>
-              )}
-            </NavLink>
-            <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/skills">
-              <SIcon Icon={Sword} /> Навыки
-            </NavLink>
-          </div>
-
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">Город</div>
-            <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/shop">
-              <SIcon Icon={Store} /> Магазин
-            </NavLink>
-            <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/repair">
-              <SIcon Icon={Wrench} /> Мастерская
-            </NavLink>
-            <span className="sidebar-link" style={{ opacity: 0.35, cursor: 'not-allowed', fontSize: 11 }}>
-              <SIcon Icon={Factory} /> Заводы
-            </span>
-            <span className="sidebar-link" style={{ opacity: 0.35, cursor: 'not-allowed', fontSize: 11 }}>
-              <SIcon Icon={Beer} /> Бар
-            </span>
-          </div>
-
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">Бой</div>
-            {char?.status === 'IN_BATTLE' ? (
-              <NavLink
-                className={({ isActive }) => 'sidebar-link active-battle' + (isActive ? ' active' : '')}
-                to={'/battle/' + (localStorage.getItem('mmo_current_battle') ?? 'none')}
-              >
-                <SIcon Icon={Swords} /> Текущий бой
-              </NavLink>
-            ) : (
-              <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/profile">
-                <SIcon Icon={Swords} /> В бой (PvE)
-              </NavLink>
-            )}
-            <NavLink className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')} to="/pvp">
-              <SIcon Icon={Swords} /> PvP дуэль
-            </NavLink>
-          </div>
-
-          <div className="sidebar-section" style={{ marginTop: 'auto' }}>
-            <div className="sidebar-section-title" style={{ fontSize: 9, color: 'var(--text-dim)', marginTop: 8 }}>
-              Рейтинги (Этап 2+)
-            </div>
-            <span className="sidebar-link" style={{ opacity: 0.3, cursor: 'not-allowed' }}>
-              <SIcon Icon={Trophy} /> Рейтинг
-            </span>
-            <span className="sidebar-link" style={{ opacity: 0.3, cursor: 'not-allowed' }}>
-              <SIcon Icon={Users} /> Кланы
-            </span>
-            <span className="sidebar-link" style={{ opacity: 0.3, cursor: 'not-allowed' }}>
-              <SIcon Icon={Map} /> Территории
-            </span>
-          </div>
-        </nav>
-
-        {/* ═══ КОНТЕНТ ══════════════════════════════════════════ */}
         <main className="layout-content">
           <Outlet />
         </main>
 
-        {/* ═══ ПРАВАЯ КОЛОНКА — КАРТА ГОРОДА ═══════════════════ */}
+        {/* ═══ ПРАВАЯ ПАНЕЛЬ — только карта ════════════════════ */}
         <aside className="layout-rightbar">
-          {/* Карта города */}
           <div className="city-map-panel">
             <div className="city-map-title">
-              <Map size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              <Map size={10} style={{ marginRight: 4, verticalAlign: 'middle' }} />
               Карта города
             </div>
             <div className="city-map-grid">
@@ -197,64 +192,33 @@ export function GameLayout() {
                   key={zone.id}
                   href={zone.locked ? undefined : zone.href}
                   className={`city-zone ${zone.locked ? 'locked' : ''} ${zone.hot ? 'hot' : ''}`}
-                  title={zone.desc}
-                  onClick={zone.locked ? (e) => e.preventDefault() : undefined}
+                  title={zone.locked ? 'Откроется в Этапе 2–3' : undefined}
+                  onClick={zone.locked ? e => e.preventDefault() : undefined}
                 >
-                  <zone.Icon size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />
+                  <zone.Icon size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} />
                   <span className="zone-label">{zone.label}</span>
-                  {zone.locked && <Lock size={9} style={{ marginLeft: 2, verticalAlign: 'middle', opacity: 0.6 }} />}
+                  {zone.locked && <Lock size={8} style={{ marginLeft: 2, opacity: 0.5, verticalAlign: 'middle' }} />}
                 </a>
               ))}
             </div>
-            <div style={{ fontSize: 9, color: 'var(--text-dim)', padding: '4px 6px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 3 }}>
-              <Lock size={8} /> — Откроется в Этапе 2–3
+            <div style={{ fontSize: 9, color: 'var(--text-dim)', padding: '3px 6px', borderTop: '1px solid var(--border)', display: 'flex', gap: 3, alignItems: 'center' }}>
+              <Lock size={8} /> Откроется в Этапе 2–3
             </div>
           </div>
 
-          {/* Онлайн-статистика */}
+          {/* Статус сервера */}
           <div className="panel mt8" style={{ fontSize: 10 }}>
-            <div className="panel-header" style={{ padding: '4px 8px' }}>
-              <span className="panel-title" style={{ fontSize: 10 }}>
-                <Radio size={10} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            <div className="panel-header" style={{ padding: '3px 8px' }}>
+              <span className="panel-title" style={{ fontSize: 9 }}>
+                <Radio size={9} style={{ marginRight: 3, verticalAlign: 'middle' }} />
                 Сервер
               </span>
+              <span style={{ color: 'var(--success)', fontSize: 9 }}>● Онлайн</span>
             </div>
-            <div className="panel-body" style={{ padding: '6px 8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ color: 'var(--text-dim)' }}>Статус:</span>
-                <span style={{ color: 'var(--success)' }}>● Онлайн</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-dim)' }}>game.grouvi.online</span>
-              </div>
+            <div className="panel-body" style={{ padding: '4px 8px', fontSize: 9, color: 'var(--text-dim)' }}>
+              game.grouvi.online
             </div>
           </div>
-
-          {/* Быстрые действия */}
-          {char && (
-            <div className="panel mt8">
-              <div className="panel-header" style={{ padding: '4px 8px' }}>
-                <span className="panel-title" style={{ fontSize: 10 }}>
-                  <Zap size={10} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  Быстро
-                </span>
-              </div>
-              <div className="panel-body" style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <NavLink to="/profile" className="btn btn-sm btn-danger" style={{ textAlign: 'center', textDecoration: 'none' }}>
-                  <Swords size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  В бой
-                </NavLink>
-                <NavLink to="/shop" className="btn btn-sm" style={{ textAlign: 'center', textDecoration: 'none' }}>
-                  <Store size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  Магазин
-                </NavLink>
-                <NavLink to="/repair" className="btn btn-sm" style={{ textAlign: 'center', textDecoration: 'none' }}>
-                  <Wrench size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  Починить
-                </NavLink>
-              </div>
-            </div>
-          )}
         </aside>
       </div>
     </div>
