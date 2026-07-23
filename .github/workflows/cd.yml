@@ -80,14 +80,6 @@ jobs:
               backend npx tsx prisma/seed.ts
           SSHEOF
 
-      # ── TMP: check backend logs for PvP error ───────────────
-      - name: Debug PvP error
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            echo "=== Last 50 backend error lines ==="
-            docker logs mmo90s-backend-1 --tail=80 2>&1 | grep -i "error\|pvp\|duel\|500\|GEN_003" | tail -30
-          EOF
-
       # ── 6. Restart services ───────────────────────────────────
       - name: Restart services
         run: |

@@ -35,7 +35,7 @@ export const battlesApi = {
     api.post<StartPveResponse>('/api/battles/pve/start', { botCode }),
 
   createPvpDuel: () =>
-    api.post<{ battleId: string; status: string }>('/api/battles/pvp/create'),
+    api.post<{ battleId: string; status: string }>('/api/battles/pvp/create', {}),
 
   acceptDuel: (battleId: string) =>
     api.post<{ battleId: string; status: string }>('/api/battles/pvp/accept', { battleId }),

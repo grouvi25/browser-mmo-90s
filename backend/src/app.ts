@@ -58,6 +58,21 @@ export async function buildApp() {
     secret: AuthConfig.jwt.secret,
   })
 
+  // ── Пустое JSON-тело в POST (Fastify строго требует тело когда Content-Type: application/json)
+  // Фикс: если тело пустое — подставляем {}
+  fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    if (!body || (body as string).trim() === '') {
+      return done(null, {})
+    }
+    try {
+      done(null, JSON.parse(body as string))
+    } catch (err: unknown) {
+      const e = err as Error & { statusCode?: number }
+      e.statusCode = 400
+      done(e, undefined)
+    }
+  })
+
   // ── Error handler ────────────────────────────────────────────
   fastify.setErrorHandler((err: FastifyError & { details?: unknown }, _req, reply) => {
     if (err instanceof AppError) {
