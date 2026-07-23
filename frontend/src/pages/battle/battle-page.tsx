@@ -301,8 +301,33 @@ export function BattlePage() {
   })
 
   const canAct = !battleOver && !actionMut.isPending
-  const act = (action: BattleAction, itemId?: string) => actionMut.mutate({ action, itemId })
+  const act = (action: BattleAction, itemId?: string) => {
+    setTimeLeft(7) // сброс таймера при действии
+    actionMut.mutate({ action, itemId })
+  }
   const playerName = char?.nickname ?? 'Игрок'
+
+  // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────
+  const [timeLeft, setTimeLeft] = useState(7)
+
+  useEffect(() => {
+    if (battleOver || actionMut.isPending) return
+    setTimeLeft(7)
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          if (!battleOver && !actionMut.isPending) {
+            actionMut.mutate({ action: 'block' })
+          }
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRound, battleOver])
 
   if (!isValid) return null
 
@@ -414,6 +439,22 @@ export function BattlePage() {
           {actionError && (
             <div className="battle-error-v2">
               <AlertTriangle size={13} /> {actionError}
+            </div>
+          )}
+
+          {/* Таймер хода */}
+          {!battleOver && !actionMut.isPending && (
+            <div className="hud-timer" style={{
+              color: timeLeft <= 2 ? 'var(--danger)' : timeLeft <= 4 ? 'var(--warning)' : 'var(--text-dim)',
+            }}>
+              <div
+                className="hud-timer-bar"
+                style={{
+                  width: `${(timeLeft / 7) * 100}%`,
+                  background: timeLeft <= 2 ? 'var(--red)' : timeLeft <= 4 ? 'var(--warning)' : 'var(--accent)',
+                }}
+              />
+              <span className="hud-timer-num">{timeLeft}с</span>
             </div>
           )}
 

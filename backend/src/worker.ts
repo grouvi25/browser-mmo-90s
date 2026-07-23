@@ -8,6 +8,7 @@ import { getRedis, disconnectRedis } from './shared/db/redis'
 import { logger } from './shared/logger/logger'
 import { runBattleCleanup } from './workers/battle-cleanup.worker'
 import { runHpRecovery, TICK_MS as HP_TICK_MS } from './workers/hp-recovery.worker'
+import { runBattleTimeout, TIMER_TICK_MS } from './workers/battle-timeout.worker'
 
 async function startWorker(): Promise<void> {
   logger.info('🔧 Starting MMO 90s BullMQ workers...')
@@ -42,10 +43,18 @@ async function startWorker(): Promise<void> {
   }, HP_TICK_MS)
   logger.info(`✅ HP recovery cron started (every ${HP_TICK_MS / 1000}s)`)
 
+  // ─── Cron: Battle turn timeout (every 2 seconds) ──────────────────────────
+  const battleTimeoutTimer = setInterval(async () => {
+    try { await runBattleTimeout() }
+    catch (err) { logger.error({ err }, '[Worker] Battle timeout error') }
+  }, TIMER_TICK_MS)
+  logger.info(`✅ Battle timeout cron started (every ${TIMER_TICK_MS / 1000}s, auto-block at 7s)`)
+
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`[${signal}] Worker shutting down...`)
     clearInterval(cleanupTimer)
     clearInterval(hpRecoveryTimer)
+    clearInterval(battleTimeoutTimer)
     await disconnectDb()
     await disconnectRedis()
     process.exit(0)

@@ -30,6 +30,9 @@ import {
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
 
+// ── Таймер хода: 7 секунд, потом авто-блок ─────────────────────
+const TURN_TIMEOUT_MS = 7_000
+
 // ---------------------------------------------------------------
 // Live battle state stored in Redis
 // ---------------------------------------------------------------
@@ -258,6 +261,7 @@ export const BattleService = {
         type: 'PVE_BOT',
         roundNumber: 1,
         status: 'active',
+        roundDeadline: Date.now() + TURN_TIMEOUT_MS,
         participants: [
           {
             participantId: playerPart.id,
@@ -374,6 +378,7 @@ export const BattleService = {
         type: 'PVP_DUEL',
         roundNumber: 1,
         status: 'active',
+        roundDeadline: Date.now() + TURN_TIMEOUT_MS,
         participants: [
           {
             participantId: opponentPart.id,
@@ -475,6 +480,7 @@ export const BattleService = {
         await ItemsRepository.equip(targetItemId, null)
         playerPart.weaponInstanceId = targetItemId
         state.roundNumber++
+      state.roundDeadline = Date.now() + TURN_TIMEOUT_MS
 
         await prisma.battleTurn.create({
           data: {
@@ -616,6 +622,7 @@ export const BattleService = {
       }
 
       state.roundNumber++
+      state.roundDeadline = Date.now() + TURN_TIMEOUT_MS
       playerPart.hasActedThisRound = false
       await BattleRedis.setState(battleId, state)
 
@@ -804,6 +811,7 @@ export const BattleService = {
 
     // Continue
     state.roundNumber++
+    state.roundDeadline = Date.now() + TURN_TIMEOUT_MS
     playerPart.hasActedThisRound = false
     await BattleRedis.setState(battleId, state)
 
