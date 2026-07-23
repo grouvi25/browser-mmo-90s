@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import {
-  Sword, Shield, Heart, Zap, Wind, ArrowRight,
+  Sword, Shield, Heart, Zap, ArrowRight,
   RotateCcw, Flag, ChevronDown, ChevronUp, Skull,
   CircleDot, User, Trophy, AlertTriangle, Pill,
 } from 'lucide-react'
@@ -22,7 +22,8 @@ function getLoadout(): string[] {
 interface TurnEvent {
   actor: 'player' | 'enemy' | string
   action: string; hit: boolean; dodge: boolean; block: boolean
-  crit: boolean; rawDamage: number; finalDamage: number; logParts: string[]
+  crit: boolean; lucky?: boolean; counterDamage?: number
+  rawDamage: number; finalDamage: number; logParts: string[]
 }
 interface RoundRecord {
   round: number; events: TurnEvent[]; type: 'normal' | 'win' | 'lose'
@@ -37,19 +38,21 @@ interface RoundResult {
 // ── Иконки событий ─────────────────────────────────────────
 function EventIcon({ type }: { type: string }) {
   const sz = 13
-  if (type === 'miss')  return <Wind size={sz} />
-  if (type === 'dodge') return <ArrowRight size={sz} />
-  if (type === 'block') return <Shield size={sz} />
-  if (type === 'crit')  return <Zap size={sz} />
+  if (type === 'dodge')   return <ArrowRight size={sz} />
+  if (type === 'block')   return <Shield size={sz} />
+  if (type === 'counter') return <RotateCcw size={sz} />
+  if (type === 'crit')    return <Zap size={sz} />
+  if (type === 'lucky')   return <Zap size={sz} />
   return <Sword size={sz} />
 }
 
 function getEvent(t: TurnEvent) {
-  if (!t.hit)  return { type: 'miss',  label: 'Промах',  color: '#555' }
-  if (t.dodge) return { type: 'dodge', label: 'Уворот',  color: '#88b048' }
-  if (t.block) return { type: 'block', label: 'Блок',    color: '#6a9a3a' }
-  if (t.crit)  return { type: 'crit',  label: 'КРИТ',    color: '#d4a017' }
-  return              { type: 'hit',   label: 'Удар',    color: '#c43030' }
+  if (!t.hit && t.dodge) return { type: 'dodge',   label: 'Уворот',   color: '#88b048' }
+  if (!t.hit)            return { type: 'dodge',   label: 'Уворот',   color: '#88b048' } // нет промаха
+  if (t.block)           return { type: 'block',   label: (t.counterDamage ?? 0) > 0 ? 'Блок + ответка' : 'Блок', color: '#6a9a3a' }
+  if (t.lucky)           return { type: 'lucky',   label: 'Пробитие', color: '#9a60c0' }
+  if (t.crit)            return { type: 'crit',    label: 'КРИТ',     color: '#d4a017' }
+  return                        { type: 'hit',     label: 'Удар',     color: '#c43030' }
 }
 
 // ── HP-полоска ─────────────────────────────────────────────
@@ -268,7 +271,8 @@ export function BattlePage() {
       const events: TurnEvent[] = data.turns?.map(t => ({
         actor: t.actor === 'player' ? 'player' : 'enemy',
         action: t.action, hit: t.hit, dodge: t.dodge, block: t.block,
-        crit: t.crit, rawDamage: t.rawDamage, finalDamage: t.finalDamage, logParts: t.logParts,
+        crit: t.crit, lucky: t.lucky, counterDamage: t.counterDamage,
+        rawDamage: t.rawDamage, finalDamage: t.finalDamage, logParts: t.logParts,
       })) ?? []
 
       let pd = 0

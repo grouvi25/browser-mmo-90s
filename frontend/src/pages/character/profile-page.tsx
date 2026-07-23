@@ -100,10 +100,12 @@ function CharacterDoll({
   items: ItemInstance[]; archetype: string; nickname: string; equippedCount: number
   onUnequip: (id: string) => void; inBattle: boolean
 }) {
-  const get = (type: string, slot?: string) =>
-    type === 'WEAPON'
-      ? items.find(i => i.template.type === 'WEAPON' && i.isEquipped) ?? null
-      : items.find(i => i.armorSlot === slot && i.isEquipped) ?? null
+  const get = (type: string, slot?: string) => {
+    if (type === 'WEAPON')     return items.find(i => i.template.type === 'WEAPON' && i.isEquipped) ?? null
+    if (type === 'SHIELD')     return items.find(i => i.armorSlot === 'RIGHT_HAND' && i.isEquipped) ?? null
+    if (slot) return items.find(i => i.armorSlot === slot && i.isEquipped) ?? null
+    return null
+  }
 
   const slotProps = (label: string, Icon: LucideIcon, type: string, slot?: string, opts?: { pockets?: number; rings?: number }) => ({
     label, Icon,
@@ -124,21 +126,21 @@ function CharacterDoll({
 
       {/* ── Средний ряд: оружие | фигура | пояс ── */}
       <div className="cd-row cd-row-mid">
-        <EquipSlotCard {...slotProps('Оружие', Swords, 'WEAPON')} />
+        <EquipSlotCard {...slotProps('Лев. рука', Swords, 'WEAPON')} />
         {/* Центральная фигура */}
         <div className="cd-figure">
           <div className="cd-fig-icon">{ARCH_ICON[archetype] ?? <User size={20} />}</div>
           <div className="cd-fig-name">{nickname.slice(0, 8)}</div>
           <div className="cd-fig-count">{equippedCount} пред.</div>
         </div>
-        <EquipSlotCard {...slotProps('Пояс', Layers, 'ARMOR', 'BELT')} />
+        <EquipSlotCard {...slotProps('Прав. рука', Shield, 'SHIELD')} />
       </div>
 
-      {/* ── Руки ── */}
+      {/* ── Руки / Перчатки ── */}
       <div className="cd-row cd-row-hands">
-        <EquipSlotCard {...slotProps('Руки Л', Hand, 'ARMOR', 'HANDS', { rings: 3 })} />
+        <EquipSlotCard {...slotProps('Перчатки', Hand, 'ARMOR', 'GLOVES', { rings: 3 })} />
         <div className="cd-spacer" />
-        <EquipSlotCard {...slotProps('Руки П', Hand, 'ARMOR', 'HANDS_R')} rings={3} />
+        <EquipSlotCard {...slotProps('Пояс', Layers, 'ARMOR', 'BELT')} />
       </div>
 
       {/* ── Нижние слоты (полная ширина) ── */}
@@ -246,6 +248,19 @@ export function ProfilePage() {
           <div className="pch-badge">
             <span className="money" style={{ fontSize:15 }}>₽{char.money.toLocaleString('ru')}</span>
           </div>
+          {(char.battlesTotal ?? 0) > 0 && (
+            <div className="pch-badge">
+              <span style={{ fontSize:13, fontWeight:'bold', fontFamily:'var(--font-mono)', color:'var(--text-bright)' }}>
+                {char.battlesTotal}
+              </span>
+              <span className="pch-lvl-lbl">боёв</span>
+            </div>
+          )}
+          {char.location && (
+            <div className="pch-badge" style={{ fontSize:10, color:'var(--text-dim)' }}>
+              {char.location}
+            </div>
+          )}
         </div>
 
         {/* HP + EXP полосы */}
@@ -364,53 +379,27 @@ export function ProfilePage() {
                 ))}
               </div>
 
-              {/* Карманы */}
+              {/* Карманы — только просмотр. Редактировать в Снаряжении → Инвентарь */}
               <div style={{ marginBottom:8 }}>
-                <div style={{ fontSize:9, color:'var(--gold-dim)', textTransform:'uppercase', letterSpacing:1, marginBottom:4, display:'flex', alignItems:'center', gap:3 }}>
-                  <Pill size={9} /> Карманы (макс. 4)
+                <div style={{ fontSize:9, color:'var(--gold-dim)', textTransform:'uppercase', letterSpacing:1, marginBottom:4, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <span style={{ display:'flex', alignItems:'center', gap:3 }}><Pill size={9} /> Карманы (в бой)</span>
+                  <a href="/inventory" style={{ fontSize:9, color:'var(--text-dim)' }}>Настроить →</a>
                 </div>
-                <div className="loadout-slots" style={{ marginBottom: consumables.length ? 4 : 0 }}>
+                <div className="loadout-slots">
                   {[0,1,2,3].map(i => {
                     const id = loadoutIds[i]
                     const item = id ? consumables.find(x => x.id === id) : null
                     return (
-                      <div key={i}
-                        className={`loadout-slot ${item ? 'filled' : 'empty'}`}
-                        onClick={() => item && toggleLoadout(item.id)}
-                        title={item ? 'Убрать' : 'Пусто'}
-                      >
+                      <div key={i} className={`loadout-slot ${item ? 'filled' : 'empty'}`} style={{ cursor:'default' }}>
                         <span className="loadout-slot-num">{i+1}</span>
                         {item
-                          ? <><span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontSize:9 }}>{item.template.name}</span><X size={8} style={{ color:'var(--danger)', flexShrink:0 }} /></>
+                          ? <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontSize:9 }}>{item.template.name}</span>
                           : <span>— пусто —</span>
                         }
                       </div>
                     )
                   })}
                 </div>
-                {consumables.length > 0 ? (
-                  <div className="consumable-list">
-                    {consumables.map(c => {
-                      const inL = loadoutIds.includes(c.id)
-                      const full = loadoutIds.length >= 4 && !inL
-                      return (
-                        <div key={c.id}
-                          className={`consumable-pick-row ${inL?'in-loadout':''} ${full?'full-loadout':''}`}
-                          onClick={() => !full && toggleLoadout(c.id)}
-                        >
-                          <Pill size={9} style={{ color:inL?'var(--success)':'var(--text-dim)', flexShrink:0 }} />
-                          <span style={{ flex:1 }}>{c.template.name}</span>
-                          <span style={{ color:'var(--success)', fontFamily:'var(--font-mono)', fontSize:10 }}>+{c.template.hpBonus}</span>
-                          {inL && <span style={{ color:'var(--success)', fontSize:8 }}>✓</span>}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div style={{ fontSize:9, color:'var(--text-dim)', fontStyle:'italic' }}>
-                    Нет расходников — <a href="/shop">купи в магазине</a>
-                  </div>
-                )}
               </div>
 
               <button

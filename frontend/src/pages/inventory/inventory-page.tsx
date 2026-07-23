@@ -1,12 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Shield, Backpack, Swords, Pill } from 'lucide-react'
+import { Shield, Backpack, Swords, Pill, X } from 'lucide-react'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import {
   WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, QUALITY_LABELS, type ItemInstance
 } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
+
+const LOADOUT_KEY = 'mmo_battle_loadout'
+function getLoadout(): string[] {
+  try { return JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '[]') } catch { return [] }
+}
 
 function ItemDetail({ item }: { item: ItemInstance }) {
   const { template: t } = item
@@ -37,6 +42,15 @@ function ItemDetail({ item }: { item: ItemInstance }) {
 export function InventoryPage() {
   const qc = useQueryClient()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [loadoutIds, setLoadoutIds] = useState<string[]>(() => getLoadout())
+
+  const toggleLoadout = (id: string) => {
+    setLoadoutIds(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 4 ? [...prev, id] : prev
+      localStorage.setItem(LOADOUT_KEY, JSON.stringify(next))
+      return next
+    })
+  }
 
   const { data: char } = useQuery({
     queryKey: ['character', 'me'],
@@ -229,6 +243,90 @@ export function InventoryPage() {
           )}
         </div>
       </div>
+
+      {/* ═══ КАРМАНЫ — редактор ════════════════════════════════ */}
+      {(() => {
+        const consumables = items.filter(i => i.template.type === 'CONSUMABLE' && i.status !== 'DELETED' && i.status !== 'CONSUMED')
+        return (
+          <div className="panel">
+            <div className="panel-header">
+              <span className="panel-title">
+                <Pill size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                КАРМАНЫ (взять в бой, макс. 4)
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+                Наполни перед боем — расходники будут доступны прямо в схватке
+              </span>
+            </div>
+            <div className="panel-body">
+              {/* 4 слота */}
+              <div className="loadout-slots" style={{ marginBottom: 10 }}>
+                {[0,1,2,3].map(i => {
+                  const id = loadoutIds[i]
+                  const item = id ? consumables.find(x => x.id === id) : null
+                  return (
+                    <div key={i}
+                      className={`loadout-slot ${item ? 'filled' : 'empty'}`}
+                      onClick={() => item && toggleLoadout(item.id)}
+                      title={item ? 'Нажми чтобы убрать' : 'Пусто'}
+                    >
+                      <span className="loadout-slot-num">{i+1}</span>
+                      {item ? (
+                        <>
+                          <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.template.name}</span>
+                          <span style={{ fontSize:9, color:'var(--success)', marginLeft:4 }}>+{item.template.hpBonus}HP</span>
+                          <X size={9} style={{ color:'var(--danger)', flexShrink:0, marginLeft:4 }} />
+                        </>
+                      ) : (
+                        <span>— пусто —</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Список расходников */}
+              {consumables.length === 0 ? (
+                <div style={{ fontSize:10, color:'var(--text-dim)', fontStyle:'italic' }}>
+                  Нет расходников. <a href="/shop">Купи в магазине</a>.
+                </div>
+              ) : (
+                <table className="data-table" style={{ maxWidth: 500 }}>
+                  <thead>
+                    <tr><th>Расходник</th><th>HP</th><th>Действие</th></tr>
+                  </thead>
+                  <tbody>
+                    {consumables.map(c => {
+                      const inL = loadoutIds.includes(c.id)
+                      const full = loadoutIds.length >= 4 && !inL
+                      return (
+                        <tr key={c.id} style={{ opacity: full ? 0.4 : 1 }}>
+                          <td>
+                            <span className={`q-${c.quality}`}>{c.template.name}</span>
+                          </td>
+                          <td style={{ color:'var(--success)', fontFamily:'var(--font-mono)' }}>
+                            +{c.template.hpBonus}
+                          </td>
+                          <td>
+                            <button
+                              className={`btn btn-sm ${inL ? '' : 'btn-success'}`}
+                              disabled={full && !inL}
+                              onClick={() => toggleLoadout(c.id)}
+                            >
+                              {inL ? 'Убрать' : 'В карман'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
     </div>
   )
 }

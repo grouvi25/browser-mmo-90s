@@ -22,11 +22,12 @@ export interface DefenderSnapshot {
   agi: number; rea: number; end: number; luck: number
   armor: number
   dodgeBonus: number; antiCrit: number; blockBonus: number
-  armorWeight: number            // Defender's armor weight (for dodge penalty)
-  weaponTypeResistance?: number  // Anti-mastery: defense against attacker's weapon type (WRES)
-  antiSkillLevel: number         // Anti-mastery level (reduces attacker's effective weapon skill)
-  // Oberegs (оберег ответа) — снижает шанс ответки самого защитника (для будущего использования)
-  antiCounterDefense: number     // Снижает собственный шанс ответки (если нужно)
+  armorWeight: number
+  weaponTypeResistance?: number
+  antiSkillLevel: number
+  antiCounterDefense: number
+  // Базовый урон защитника (для ответки)
+  minDamage: number; maxDamage: number
 }
 
 // ---------------------------------------------------------------
@@ -39,12 +40,14 @@ export interface CounterAttackResult {
 }
 
 export interface AttackResult {
-  hit: boolean
+  hit: boolean        // false = уворот (не промах!)
   dodge: boolean
   block: boolean
   crit: boolean
+  lucky: boolean      // удачный удар (пробивает броню)
   rawDamage: number
   finalDamage: number
+  counterDamage: number  // ответка при блоке с REA (50% атаки защитника)
   logParts: string[]
 }
 
@@ -119,6 +122,24 @@ export function calcDodgeChance(
 // Triggered AFTER defender takes damage — chance to hit back
 // counterChance = base + reactionRatio×0.3 - attacker.antiCounterBonus
 // ---------------------------------------------------------------
+// Ответка при блоке: 50% от базовой атаки защитника (ответ заказчика вопрос 1)
+// Срабатывает если REA защитника >= порога
+export function calcCounterAttack(
+  defender: Pick<DefenderSnapshot, 'rea' | 'minDamage' | 'maxDamage'>,
+  attacker: Pick<AttackerSnapshot, 'rea' | 'luck' | 'antiCounterBonus'>
+): CounterAttackResult {
+  const REA_THRESHOLD = 5 // минимальный REA для ответки
+  if (defender.rea < REA_THRESHOLD) return { triggered: false, damage: 0, logParts: [] }
+
+  if (!rollChance(calcCounterAttackChance(defender, attacker))) {
+    return { triggered: false, damage: 0, logParts: [] }
+  }
+
+  const defBaseAttack = randomInt(defender.minDamage, defender.maxDamage)
+  const damage = Math.max(1, Math.round(defBaseAttack * 0.5))
+  return { triggered: true, damage, logParts: [`Ответка: −${damage} HP`] }
+}
+
 export function calcCounterAttackChance(
   defender: Pick<DefenderSnapshot, 'rea'>,
   attacker: Pick<AttackerSnapshot, 'rea' | 'luck' | 'antiCounterBonus'>
@@ -258,30 +279,38 @@ export function resolveAttack(
   defenderIsBlocking: boolean
 ): AttackResult {
   const log: string[] = []
-  let hit = false, dodge = false, block = false, crit = false
-  let rawDamage = 0, finalDamage = 0
+  let hit = true, dodge = false, block = false, crit = false, lucky = false
+  let rawDamage = 0, finalDamage = 0, counterDamage = 0
 
-  // 1. Hit check
-  const hitChance = calcHitChance(attacker, defender)
-  hit = rollChance(hitChance)
-  if (!hit) {
-    log.push('Промах')
-    return { hit, dodge, block, crit, rawDamage, finalDamage, logParts: log }
-  }
-
-  // 2. Dodge check
+  // 1. Dodge check — заменяет «Промах»: либо уворачивается, либо попадает
   const dodgeChance = calcDodgeChance(defender, attacker)
   dodge = rollChance(dodgeChance)
   if (dodge) {
+    hit = false
     log.push('Уворот')
-    return { hit, dodge, block, crit, rawDamage, finalDamage, logParts: log }
+    return { hit, dodge, block, crit, lucky, rawDamage, finalDamage, counterDamage, logParts: log }
   }
 
-  // 3. Block check (only if defender chose "block" action)
+  // 2. Block check (только если защитник выбрал "block")
   if (defenderIsBlocking) {
     const blockChance = calcBlockChance(defender, attacker)
     block = rollChance(blockChance)
+    if (block) {
+      // Ответка: если REA защитника достаточно — контратака 50% его атаки
+      const counter = calcCounterAttack(defender, attacker)
+      if (counter.triggered) {
+        counterDamage = counter.damage
+        log.push(`Блок + ответка ${counterDamage}`)
+      } else {
+        log.push('Блок')
+      }
+      return { hit, dodge, block, crit, lucky, rawDamage, finalDamage, counterDamage, logParts: log }
+    }
   }
+
+  // 3. Удачный удар (пробитие брони — LUCK-check)
+  const luckyChance = clamp((defender.luck ?? 0) * 0.02, 0, 0.25) // до 25%
+  lucky = rollChance(luckyChance)
 
   // 4. Crit check
   const critChance = calcCritChance(attacker, defender)
@@ -290,24 +319,19 @@ export function resolveAttack(
     ? clamp(B.crit.multiplierBase + attacker.critDamageBonus, B.crit.multiplierMin, B.crit.multiplierMax)
     : 1
 
-  // 5. Raw damage (with anti-mastery applied)
+  // 5. Raw damage
   rawDamage = calcRawDamage(attacker, defender.antiSkillLevel) * critMult
-  if (crit) log.push('КРИТ!')
+  if (crit)  log.push('КРИТ!')
+  if (lucky) log.push('Удачный!')
 
-  // 6. Armor
-  let dmg = applyArmor(rawDamage, defender.armor, crit)
+  // 6. Armor (lucky удар пробивает броню)
+  let dmg = lucky ? rawDamage : applyArmor(rawDamage, defender.armor, crit)
 
-  // 7. Block reduction (35% damage passes through block)
-  if (block) {
-    dmg = dmg * B.blockChance.blockReduction
-    log.push('Заблокировано')
-  }
-
-  // 8. Endurance
+  // 7. Endurance
   dmg = applyEndurance(dmg, defender.end)
 
   finalDamage = Math.max(1, Math.round(dmg))
   log.push(`Урон: ${finalDamage}`)
 
-  return { hit, dodge, block, crit, rawDamage: Math.round(rawDamage), finalDamage, logParts: log }
+  return { hit, dodge, block, crit, lucky, rawDamage: Math.round(rawDamage), finalDamage, counterDamage, logParts: log }
 }

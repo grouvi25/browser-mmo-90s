@@ -108,7 +108,8 @@ async function buildAttackerSnapshotAsync(
 function buildDefenderSnapshot(
   char: CharacterWithStats,
   equippedArmor: ItemWithTemplate[],
-  antiSkillLevel = 0   // Anti-mastery vs current attacker's weapon type
+  antiSkillLevel = 0,
+  equippedWeapon?: ItemWithTemplate | null  // нужен для ответки
 ): DefenderSnapshot {
   const s = char.stats!
   const totalArmor   = equippedArmor.reduce((sum, a) => sum + (a.template.armor ?? 0), 0)
@@ -116,11 +117,15 @@ function buildDefenderSnapshot(
   const blockBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.blockBonus ?? 0), 0)
   const dodgeBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.dodgeBonus ?? 0), 0)
   const armorWeight  = equippedArmor.reduce((sum, a) => sum + a.weight, 0)
+  // Базовый урон для ответки (оружие защитника или кулаки)
+  const wMin = equippedWeapon?.template.minDamage ?? 2
+  const wMax = equippedWeapon?.template.maxDamage ?? 5
   return {
     agi: s.agi, rea: s.rea, end: s.end, luck: s.luck,
     armor: totalArmor, dodgeBonus, antiCrit, blockBonus, armorWeight,
-    antiSkillLevel,  // Loaded from weapon_skills where weaponType = attacker's weapon type
-    antiCounterDefense: 0, // TODO: from item modifiers when upgrade system is implemented
+    antiSkillLevel,
+    antiCounterDefense: 0,
+    minDamage: wMin, maxDamage: wMax,
   }
 }
 
@@ -151,6 +156,7 @@ function buildBotDefenderSnapshot(botStats: Record<string, number>): DefenderSna
     dodgeBonus: 0, antiCrit: 0, blockBonus: 0, armorWeight: 0,
     antiSkillLevel: 0,
     antiCounterDefense: 0,
+    minDamage: botStats.minDamage ?? 3, maxDamage: botStats.maxDamage ?? 8,
   }
 }
 

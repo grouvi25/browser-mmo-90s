@@ -35,6 +35,11 @@ export interface Character {
   hpCurrent: number
   hpMax: number
   status: string
+  battlesTotal: number
+  battlesWon: number
+  location: string | null
+  isInvisible: boolean
+  isPremium: boolean
   stats: CharacterStats | null
   weaponSkills?: WeaponSkill[]
   createdAt: string

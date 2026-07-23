@@ -49,6 +49,7 @@ enum CharacterArchetype {
 enum ItemType {
   WEAPON
   ARMOR
+  SHIELD     // щит / защитное снаряжение для правой руки
   ACCESSORY
   CONSUMABLE
   RESOURCE
@@ -77,7 +78,10 @@ enum ArmorSlot {
   CHEST
   LEGS
   FEET
-  HANDS
+  HANDS      // оставляем для совместимости (старые предметы → GLOVES при рефакторинге)
+  LEFT_HAND  // основное оружие (новый слот)
+  RIGHT_HAND // щит или доп. оружие
+  GLOVES     // перчатки (заменяет HANDS для новых предметов)
   BELT
   BACK
   POCKET

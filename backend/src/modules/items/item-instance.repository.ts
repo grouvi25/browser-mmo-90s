@@ -34,11 +34,25 @@ export const ItemsRepository = {
   },
 
   async findEquippedWeapon(ownerId: string): Promise<ItemWithTemplate | null> {
+    // Ищем оружие: тип WEAPON, в слоте LEFT_HAND (новый) или без слота (старый стиль)
     return prisma.itemInstance.findFirst({
       where: {
         ownerId,
         isEquipped: true,
         template: { type: 'WEAPON' },
+        status: { not: 'DELETED' },
+      },
+      include: { template: true },
+    })
+  },
+
+  // Найти щит в правой руке
+  async findEquippedShield(ownerId: string): Promise<ItemWithTemplate | null> {
+    return prisma.itemInstance.findFirst({
+      where: {
+        ownerId,
+        isEquipped: true,
+        armorSlot: 'RIGHT_HAND',
         status: { not: 'DELETED' },
       },
       include: { template: true },
