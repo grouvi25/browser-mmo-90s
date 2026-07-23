@@ -296,16 +296,22 @@ export const BattleService = {
   // -------------------------------------------------------
   // Create PvP Duel
   // -------------------------------------------------------
-  async createPvpDuel(userId: string) {
+  async createPvpDuel(userId: string, levelMin?: number, levelMax?: number) {
     const char = await CharactersRepository.findByUserId(userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
     if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
 
-    const battle = await prisma.battle.create({
-      data: { type: 'PVP_DUEL', status: 'WAITING_PLAYERS' },
-    })
+    const lMin = levelMin ?? Math.max(1, char.battleLevel - 2)
+    const lMax = levelMax ?? Math.min(99, char.battleLevel + 2)
 
-    const weapon = await ItemsRepository.findEquippedWeapon(char.id)
+    const battle = await prisma.battle.create({
+      data: {
+        type: 'PVP_DUEL',
+        status: 'WAITING_PLAYERS',
+        levelMin: lMin,
+        levelMax: lMax,
+      },
+    })
 
     await prisma.battleParticipant.create({
       data: {
@@ -318,7 +324,7 @@ export const BattleService = {
     })
 
     await CharactersRepository.updateStatus(char.id, 'IN_BATTLE')
-    return { battleId: battle.id, status: 'WAITING_PLAYERS' }
+    return { battleId: battle.id, status: 'WAITING_PLAYERS', levelMin: lMin, levelMax: lMax }
   },
 
   // -------------------------------------------------------
@@ -337,6 +343,10 @@ export const BattleService = {
     if (battle.status !== 'WAITING_PLAYERS') throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Duel not open for joining', 400)
     if (battle.participants.some(p => p.characterId === char.id)) {
       throw new AppError(ErrorCode.CONFLICT, 'You are already in this duel', 400)
+    }
+    // Проверка уровневого диапазона
+    if (char.battleLevel < battle.levelMin || char.battleLevel > battle.levelMax) {
+      throw new AppError(ErrorCode.CONFLICT, `Требуется уровень ${battle.levelMin}–${battle.levelMax}`, 400)
     }
 
     const weapon = await ItemsRepository.findEquippedWeapon(char.id)
@@ -876,6 +886,9 @@ export const BattleService = {
           battleExp: newBattleExp,
           battleLevel: newLevel,
           status: 'ACTIVE',
+          battlesTotal: { increment: 1 },
+          battlesWon: playerWon ? { increment: 1 } : undefined,
+          lastBattleFinishedAt: new Date(),
         },
       })
       // Award stat points for level-up
@@ -1276,5 +1289,101 @@ export const BattleService = {
 
     await BattleRedis.deleteState(battleId)
     return { battleOver: true, winnerId }
+  },
+
+  // -------------------------------------------------------
+  // List open PvP duels
+  // -------------------------------------------------------
+  async listOpenDuels(userId: string) {
+    const char = await CharactersRepository.findByUserId(userId)
+    const charLevel = char?.battleLevel ?? 1
+
+    const battles = await prisma.battle.findMany({
+      where: {
+        type: 'PVP_DUEL',
+        status: 'WAITING_PLAYERS',
+        createdAt: { gt: new Date(Date.now() - 30 * 60 * 1000) }, // не старше 30 мин
+      },
+      include: {
+        participants: {
+          include: { character: { select: { nickname: true, battleLevel: true, archetype: true } } },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    })
+
+    return battles.map(b => {
+      const creator = b.participants[0]
+      return {
+        battleId: b.id,
+        levelMin: b.levelMin,
+        levelMax: b.levelMax,
+        createdAt: b.createdAt,
+        creator: creator?.character
+          ? { nickname: creator.character.nickname, level: creator.character.battleLevel, archetype: creator.character.archetype }
+          : null,
+        canJoin: charLevel >= b.levelMin && charLevel <= b.levelMax && char?.status === 'ACTIVE',
+      }
+    })
+  },
+
+  // -------------------------------------------------------
+  // Battle history
+  // -------------------------------------------------------
+  async getBattleHistory(userId: string, page: number, limit: number) {
+    const char = await CharactersRepository.findByUserId(userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+
+    const skip = (page - 1) * limit
+
+    const [battles, total] = await Promise.all([
+      prisma.battle.findMany({
+        where: {
+          status: 'FINISHED',
+          participants: { some: { characterId: char.id } },
+        },
+        include: {
+          participants: {
+            include: {
+              character: { select: { nickname: true, battleLevel: true } },
+              bot: { select: { name: true, battleLevel: true } },
+            },
+          },
+        },
+        orderBy: { finishedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.battle.count({
+        where: {
+          status: 'FINISHED',
+          participants: { some: { characterId: char.id } },
+        },
+      }),
+    ])
+
+    const items = battles.map(b => {
+      const myPart = b.participants.find(p => p.characterId === char.id)
+      const oppPart = b.participants.find(p => p.characterId !== char.id || p.botId)
+      const won = b.winnerId === char.id
+      const result = b.winnerId === null ? 'draw' : won ? 'win' : 'lose'
+      const opponent = oppPart?.character?.nickname ?? oppPart?.bot?.name ?? '?'
+      const opponentLevel = oppPart?.character?.battleLevel ?? oppPart?.bot?.battleLevel ?? 0
+      return {
+        id: b.id,
+        type: b.type,
+        result,
+        opponent,
+        opponentLevel,
+        expGain: 0, // expGain хранится в Character.battleExp, не в BattleParticipant
+        moneyGain: 0,
+        rounds: b.roundCount,
+        finishedAt: b.finishedAt,
+      }
+    })
+
+    return { items, total, page, limit, pages: Math.ceil(total / limit) }
   },
 }

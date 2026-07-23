@@ -3,18 +3,19 @@ import { useAuth } from './providers/auth-provider'
 import { PublicLayout } from './layouts/public-layout'
 import { GameLayout } from './layouts/game-layout'
 
-import { LoginPage }          from '../pages/auth/login-page'
-import { RegisterPage }       from '../pages/auth/register-page'
+import { LoginPage }           from '../pages/auth/login-page'
+import { RegisterPage }        from '../pages/auth/register-page'
 import { CreateCharacterPage } from '../pages/character/create-character-page'
-import { ProfilePage }        from '../pages/character/profile-page'
-import { InventoryPage }      from '../pages/inventory/inventory-page'
-import { GovernmentShopPage } from '../pages/shop/government-shop-page'
-import { BattlePage }         from '../pages/battle/battle-page'
-import { RepairPage }         from '../pages/repair/repair-page'
-import { SkillsPage }         from '../pages/skills/skills-page'
-import { PvpPage }            from '../pages/pvp/pvp-page'
-import { AdminPage }          from '../pages/admin/admin-page'
-import { StatsPage }          from '../pages/character/stats-page'
+import { ProfilePage }         from '../pages/character/profile-page'
+import { InventoryPage }       from '../pages/inventory/inventory-page'
+import { GovernmentShopPage }  from '../pages/shop/government-shop-page'
+import { BattlePage }          from '../pages/battle/battle-page'
+import { BattleHistoryPage }   from '../pages/battles/battle-history-page'
+import { RepairPage }          from '../pages/repair/repair-page'
+import { SkillsPage }          from '../pages/skills/skills-page'
+import { PvpPage }             from '../pages/pvp/pvp-page'
+import { AdminPage }           from '../pages/admin/admin-page'
+import { StatsPage }           from '../pages/character/stats-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -47,6 +48,7 @@ export function AppRouter() {
         <Route path="/repair"           element={<RepairPage />} />
         <Route path="/skills"           element={<SkillsPage />} />
         <Route path="/pvp"              element={<PvpPage />} />
+        <Route path="/battles/history"  element={<BattleHistoryPage />} />
         <Route path="/admin"            element={<AdminPage />} />
         <Route path="/stats"            element={<StatsPage />} />
       </Route>

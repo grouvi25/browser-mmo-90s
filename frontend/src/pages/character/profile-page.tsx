@@ -5,7 +5,7 @@ import {
   Shield, Swords, Heart, Star, Lightbulb, HardHat, Hand,
   Layers, Shirt, Footprints, Dumbbell, Zap, Activity, Target,
   Droplet, Clover, Flame, Crown, Briefcase, Award, BookOpen,
-  Settings, Pill, X, User,
+  Settings, Pill, X, User, Link,
   type LucideIcon,
 } from 'lucide-react'
 import { charactersApi } from '../../shared/api/characters.api'
@@ -223,6 +223,17 @@ export function ProfilePage() {
           <div className="pch-arch-box">{ARCH_ICON[char.archetype] ?? <User size={14} />}</div>
           <div>
             <div className="pch-name">{char.nickname}</div>
+            <button
+              className="btn btn-sm"
+              style={{ fontSize: 9, padding: '1px 5px', marginLeft: 4 }}
+              title="Скопировать ссылку на профиль"
+              onClick={() => {
+                const url = `${window.location.origin}/u/${char.nickname}`
+                navigator.clipboard.writeText(url).catch(() => {})
+              }}
+            >
+              <Link size={10} />
+            </button>
             <div className="pch-sub">
               {ARCHETYPE_LABELS[char.archetype]}
               <span className={`pch-status${inBattle ? ' in-battle' : ''}`}> · {STATUS_LABELS[char.status] ?? char.status}</span>

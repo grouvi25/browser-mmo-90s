@@ -9,6 +9,14 @@ const ActionSchema = z.object({
   itemInstanceId: z.string().uuid().optional(),
 })
 const AcceptDuelSchema = z.object({ battleId: z.string().uuid() })
+const CreateDuelSchema = z.object({
+  levelMin: z.number().int().min(1).max(99).optional(),
+  levelMax: z.number().int().min(1).max(99).optional(),
+})
+const HistorySchema = z.object({
+  page:  z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+})
 
 export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
 
@@ -24,8 +32,20 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
   // POST /api/battles/pvp/create
   fastify.post('/pvp/create', { preHandler: authenticate },
     async (req, reply) => {
-      const result = await BattleService.createPvpDuel(req.authUser.userId)
+      const parsed = CreateDuelSchema.safeParse(req.body)
+      const result = await BattleService.createPvpDuel(
+        req.authUser.userId,
+        parsed.success ? parsed.data.levelMin : undefined,
+        parsed.success ? parsed.data.levelMax : undefined,
+      )
       return reply.code(201).send(result)
+    })
+
+  // GET /api/battles/pvp/open — список открытых дуэлей
+  fastify.get('/pvp/open', { preHandler: authenticate },
+    async (req, reply) => {
+      const result = await BattleService.listOpenDuels(req.authUser.userId)
+      return reply.send(result)
     })
 
   // POST /api/battles/pvp/accept
@@ -34,6 +54,15 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
       const parsed = AcceptDuelSchema.safeParse(req.body)
       if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
       const result = await BattleService.acceptPvpDuel(req.authUser.userId, parsed.data.battleId)
+      return reply.send(result)
+    })
+
+  // GET /api/battles/me/history — история боёв персонажа
+  fastify.get('/me/history', { preHandler: authenticate },
+    async (req, reply) => {
+      const parsed = HistorySchema.safeParse(req.query)
+      const { page, limit } = parsed.success ? parsed.data : { page: 1, limit: 20 }
+      const result = await BattleService.getBattleHistory(req.authUser.userId, page, limit)
       return reply.send(result)
     })
 

@@ -92,4 +92,25 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
       const char = await CharactersService.getById(req.params.id)
       return reply.send(char)
     })
+
+  // GET /api/characters/by-nickname/:nickname — публичный профиль
+  fastify.get<{ Params: { nickname: string } }>('/by-nickname/:nickname', { preHandler: authenticate },
+    async (req, reply) => {
+      const char = await prisma.character.findUnique({
+        where: { nickname: req.params.nickname },
+        include: { stats: true },
+      })
+      if (!char) throw AppError.notFound('Character', req.params.nickname)
+      if (char.isInvisible) return reply.send({ hidden: true, nickname: req.params.nickname })
+      return reply.send({
+        id: char.id,
+        nickname: char.nickname,
+        archetype: char.archetype,
+        battleLevel: char.battleLevel,
+        battlesTotal: char.battlesTotal,
+        battlesWon: char.battlesWon,
+        location: char.location,
+        createdAt: char.createdAt,
+      })
+    })
 }

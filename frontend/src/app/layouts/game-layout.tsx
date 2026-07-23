@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   User, Shield, BarChart2, Sword, Swords, Store, Wrench, Factory,
-  Beer, Lock, Zap, Radio, Heart, Star, Map,
+  Beer, Lock, Zap, Radio, Heart, Star, Map, BookOpen,
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '../providers/auth-provider'
@@ -162,6 +162,7 @@ export function GameLayout() {
           <span className="tabbar-group-label">Бой</span>
           <BattleLink inBattle={inBattle} battleId={battleId} />
           <TLink to="/pvp" Icon={Swords} label="PvP" />
+          <TLink to="/battles/history" Icon={BookOpen} label="История" />
         </div>
 
         {/* Рейтинги — заблокированы */}

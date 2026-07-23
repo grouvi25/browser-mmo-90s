@@ -45,7 +45,8 @@ function ItemStats({ item }: { item: ShopItem }) {
 export function GovernmentShopPage() {
   const qc = useQueryClient()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [filter, setFilter] = useState<'ALL' | 'WEAPON' | 'ARMOR' | 'CONSUMABLE'>('ALL')
+  const [filterType, setFilterType] = useState<'ALL' | 'WEAPON' | 'ARMOR' | 'CONSUMABLE'>('ALL')
+  const [filterLevel, setFilterLevel] = useState<number>(0) // 0 = любой
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['shop', 'government'],
@@ -75,8 +76,9 @@ export function GovernmentShopPage() {
   })
 
   const filtered = items.filter(item => {
-    if (filter === 'ALL') return true
-    return item.template.type === filter
+    if (filterType !== 'ALL' && item.template.type !== filterType) return false
+    if (filterLevel > 0 && item.template.levelReq > filterLevel) return false
+    return true
   })
 
   if (isLoading) return <div className="loading"><span className="spinner" />Загрузка магазина...</div>
@@ -96,12 +98,12 @@ export function GovernmentShopPage() {
           </span>
         </div>
         <div className="panel-body">
-          <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
             {(['ALL', 'WEAPON', 'ARMOR', 'CONSUMABLE'] as const).map(f => (
               <button
                 key={f}
-                className={`btn btn-sm${filter === f ? ' btn-primary' : ''}`}
-                onClick={() => setFilter(f)}
+                className={`btn btn-sm${filterType === f ? ' btn-primary' : ''}`}
+                onClick={() => setFilterType(f)}
               >
                 {f === 'ALL' ? (
                   'Все'
@@ -114,6 +116,19 @@ export function GovernmentShopPage() {
                 )}
               </button>
             ))}
+            <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Макс. ур.:</span>
+              {[0, 1, 2, 3, 4].map(lv => (
+                <button
+                  key={lv}
+                  className={`btn btn-sm${filterLevel === lv ? ' btn-gold' : ''}`}
+                  onClick={() => setFilterLevel(lv)}
+                  style={{ minWidth: 28 }}
+                >
+                  {lv === 0 ? 'Все' : `≤${lv}`}
+                </button>
+              ))}
+            </div>
           </div>
 
           <table className="data-table shop-item-row">

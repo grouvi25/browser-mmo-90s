@@ -107,6 +107,8 @@ enum ItemStatus {
 
 enum ItemSourceType {
   GOVERNMENT  // Государственный магазин
+  WORKSHOP    // Мастерская / крафт
+  DONATE      // Донатный магазин (продаётся за игровые деньги)
   PRIVATE     // Частный магазин (этап 2)
   PREMIUM     // Премиум-магазин (этап 4)
   DROP        // Дроп с боя / NPC
@@ -254,6 +256,13 @@ model Character {
   // Premium (задел этап 4)
   isPremium         Boolean           @default(false) @map("is_premium")
   premiumExpiresAt  DateTime?         @map("premium_expires_at")
+
+  // Profile extras
+  battlesTotal      Int               @default(0) @map("battles_total")
+  battlesWon        Int               @default(0) @map("battles_won")
+  location          String?           // Текстовое местоположение
+  isInvisible       Boolean           @default(false) @map("is_invisible")
+  lastBattleFinishedAt DateTime?      @map("last_battle_finished_at") // для HP recovery
 
   createdAt         DateTime          @default(now()) @map("created_at")
   lastActiveAt      DateTime          @default(now()) @map("last_active_at")
@@ -450,6 +459,10 @@ model Battle {
   // Anti-abuse flags
   isSuspicious    Boolean       @default(false) @map("is_suspicious")
   suspicionReason String?       @map("suspicion_reason")
+
+  // PvP level range (кто может присоединиться)
+  levelMin        Int           @default(1)  @map("level_min")
+  levelMax        Int           @default(99) @map("level_max")
 
   // Redis key for live state (not stored in DB during battle)
   // battle:{id}:state — in Redis

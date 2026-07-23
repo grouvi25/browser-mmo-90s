@@ -254,11 +254,16 @@ export function BattlePage() {
   const actionMut = useMutation({
     mutationFn: ({ action, itemId }: { action: BattleAction; itemId?: string }) =>
       battlesApi.submitAction(battleId!, action, itemId) as unknown as Promise<RoundResult>,
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       const rn = data.roundNumber ?? currentRound
       setCurrentRound(rn)
       if (data.playerHp != null) setPlayerHp(data.playerHp)
       if (data.botHp    != null) setEnemyHp(data.botHp)
+
+      // Fix 1.1: аптечка пропадает сразу после использования
+      if (variables.action === 'use_item') {
+        qc.invalidateQueries({ queryKey: ['inventory'] })
+      }
 
       const events: TurnEvent[] = data.turns?.map(t => ({
         actor: t.actor === 'player' ? 'player' : 'enemy',
@@ -332,6 +337,44 @@ export function BattlePage() {
               <button className="btn btn-danger"  onClick={() => navigate('/profile')}>Ещё раз</button>
             </div>
           </div>
+
+          {/* Fix 1.2: Лог боя на экране результата */}
+          {rounds.length > 0 && (
+            <div className="battle-log-v2" style={{ marginTop: 8 }}>
+              <div className="log-toggle-v2" style={{ cursor: 'default' }}>
+                <ChevronDown size={12} />
+                <span>Лог боя — {rounds.length} раундов</span>
+              </div>
+              <div className="log-body-v2">
+                {rounds.map(r => (
+                  <div key={r.round} className="log-round-v2">
+                    <div className="log-round-header">Раунд {r.round}</div>
+                    {r.events.map((t, i) => {
+                      const e = getEvent(t)
+                      const isPlayer = t.actor === 'player'
+                      return (
+                        <div key={i} className={`log-event-line ${isPlayer ? 'log-ev-player' : 'log-ev-enemy'}`}>
+                          <span className="log-ev-actor">{isPlayer ? playerName : enemyName}</span>
+                          <span className="log-ev-arrow">→</span>
+                          <span className="log-ev-icon" style={{ color: e.color }}><EventIcon type={e.type} /></span>
+                          <span className="log-ev-label" style={{ color: e.color }}>{e.label}</span>
+                          {t.finalDamage > 0 && (
+                            <>
+                              <span className="log-ev-arrow">→</span>
+                              <span className="log-ev-dmg" style={{ color: e.type === 'crit' ? 'var(--gold)' : 'var(--danger)' }}>
+                                -{t.finalDamage} HP
+                              </span>
+                              {t.crit && <span className="log-ev-crit">КРИТ!</span>}
+                            </>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     )

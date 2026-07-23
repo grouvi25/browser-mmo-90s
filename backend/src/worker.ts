@@ -7,6 +7,7 @@ import { connectDb, disconnectDb } from './shared/db/prisma'
 import { getRedis, disconnectRedis } from './shared/db/redis'
 import { logger } from './shared/logger/logger'
 import { runBattleCleanup } from './workers/battle-cleanup.worker'
+import { runHpRecovery, TICK_MS as HP_TICK_MS } from './workers/hp-recovery.worker'
 
 async function startWorker(): Promise<void> {
   logger.info('🔧 Starting MMO 90s BullMQ workers...')
@@ -34,9 +35,17 @@ async function startWorker(): Promise<void> {
   const cleanupTimer = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
   logger.info('✅ Battle cleanup cron started (every 5 min)')
 
+  // ─── Cron: HP recovery (every 10 seconds) ────────────────────────────────
+  const hpRecoveryTimer = setInterval(async () => {
+    try { await runHpRecovery() }
+    catch (err) { logger.error({ err }, '[Worker] HP recovery error') }
+  }, HP_TICK_MS)
+  logger.info(`✅ HP recovery cron started (every ${HP_TICK_MS / 1000}s)`)
+
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`[${signal}] Worker shutting down...`)
     clearInterval(cleanupTimer)
+    clearInterval(hpRecoveryTimer)
     await disconnectDb()
     await disconnectRedis()
     process.exit(0)
