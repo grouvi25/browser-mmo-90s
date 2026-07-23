@@ -80,11 +80,6 @@ jobs:
               backend npx tsx prisma/seed.ts
           SSHEOF
 
-      # ── 5.5 ONE-TIME: fix stuck IN_BATTLE characters (REMOVE AFTER RUN) ────
-      - name: Fix stuck characters
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} 'docker exec mmo90s-postgres-1 psql -U mmo90s_user -d mmo90s -c "UPDATE public.battles SET status='"'"'FINISHED'"'"',finished_at=NOW() WHERE type='"'"'PVP_DUEL'"'"' AND status='"'"'WAITING_PLAYERS'"'"' AND created_at<NOW()-INTERVAL '"'"'30 minutes'"'"'; UPDATE public.characters SET status='"'"'ACTIVE'"'"' WHERE status='"'"'IN_BATTLE'"'"' AND id NOT IN (SELECT bp.character_id FROM public.battle_participants bp JOIN public.battles b ON b.id=bp.battle_id WHERE b.status IN ('"'"'ACTIVE'"'"','"'"'WAITING_PLAYERS'"'"')); SELECT nickname,status FROM public.characters;"'
-
       # ── 6. Restart services ───────────────────────────────────
       - name: Restart services
         run: |
