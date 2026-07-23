@@ -59,4 +59,17 @@ export async function governmentShopRoutes(fastify: FastifyInstance): Promise<vo
       const result = await GovernmentShopService.sell(char.id, parsed.data.itemInstanceId)
       return reply.send(result)
     })
+
+  // POST /api/shops/government/discard — выбросить предмет (без денег)
+  fastify.post('/discard', { preHandler: authenticate },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const parsed = SellSchema.safeParse(req.body)
+      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+
+      const char = await CharactersRepository.findByUserId(req.authUser.userId)
+      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+
+      const result = await GovernmentShopService.discard(char.id, parsed.data.itemInstanceId)
+      return reply.send(result)
+    })
 }

@@ -640,6 +640,22 @@ export const BattleService = {
         playerHp: playerPart.hpCurrent,
         botHp: botPart.hpCurrent,
         battleOver: false,
+        // Turns для лога (аптечка + ответный удар бота)
+        turns: [
+          {
+            actor: 'player', action: 'use_item',
+            hit: false, dodge: false, block: false, crit: false, lucky: false,
+            rawDamage: 0, finalDamage: 0, counterDamage: 0,
+            logParts: [`${item.template.name}: +${hpRestore} HP`],
+          },
+          {
+            actor: 'enemy', action: 'attack',
+            hit: botResult.hit, dodge: botResult.dodge, block: botResult.block,
+            crit: botResult.crit, lucky: false, counterDamage: 0,
+            rawDamage: botResult.rawDamage, finalDamage: botResult.finalDamage,
+            logParts: botResult.logParts,
+          },
+        ],
       }
     }
 
@@ -768,15 +784,16 @@ export const BattleService = {
       await ItemsRepository.updateDurability(weapon.id, newDur)
     }
 
-    // FIX: Apply armor durability loss (floor(receivedHits / 2) per TZ section 19.2)
+    // Apply armor durability loss — 1 прочность за каждый полученный удар
     const botHitsOnPlayer = turns.filter(t => t.actor === 'bot' && t.result.hit && !t.result.dodge).length
-    const armorDurLoss = Math.floor(botHitsOnPlayer / 2)
-    // Actually: if player took 1 hit → floor(1/2) = 0; if 2 hits → 1. For MVP simplicity apply to all equipped armor
-    if (armorDurLoss > 0 && equippedArmor.length > 0) {
-      // Distribute loss: apply to random armor piece (simple: first equipped)
+    if (botHitsOnPlayer > 0 && equippedArmor.length > 0) {
+      // Применяем к случайному куску брони (простая логика для MVP)
       const armorToDegrade = equippedArmor[Math.floor(Math.random() * equippedArmor.length)]
-      const newArmorDur = Math.max(0, armorToDegrade.durabilityCurrent - armorDurLoss)
+      const newArmorDur = Math.max(0, armorToDegrade.durabilityCurrent - botHitsOnPlayer)
       await ItemsRepository.updateDurability(armorToDegrade.id, newArmorDur)
+      if (newArmorDur <= 0) {
+        await ItemsRepository.updateStatus(armorToDegrade.id, 'BROKEN')
+      }
     }
 
     // Check battle end

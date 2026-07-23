@@ -103,7 +103,7 @@ export const GovernmentShopService = {
         throw new AppError(ErrorCode.ITEM_NOT_SELLABLE, 'This item cannot be sold', 400)
       }
 
-      const sellPrice = Math.floor(item.template.priceBase * 0.3)
+      const sellPrice = Math.floor(item.template.priceBase * 0.5) // 50% от базовой цены
 
       const char = await tx.character.findUnique({ where: { id: characterId } })
       if (!char) throw AppError.notFound('Character', characterId)
@@ -148,5 +148,26 @@ export const GovernmentShopService = {
       audit('item.sold', { characterId, itemId: itemInstanceId, sellPrice, ecoExpGain })
       return { sellPrice, newBalance, ecoExpGain, newEcoLevel }
     })
+  },
+
+  // Выбросить предмет (без денег)
+  async discard(characterId: string, itemInstanceId: string) {
+    const item = await prisma.itemInstance.findUnique({
+      where: { id: itemInstanceId },
+      include: { template: true },
+    })
+    if (!item) throw AppError.notFound('Item', itemInstanceId)
+    if (item.ownerId !== characterId) {
+      throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'You do not own this item', 403)
+    }
+    if (item.isEquipped) {
+      throw new AppError(ErrorCode.ITEM_ALREADY_EQUIPPED, 'Unequip item before discarding', 400)
+    }
+    await prisma.itemInstance.update({
+      where: { id: itemInstanceId },
+      data: { status: 'DELETED' },
+    })
+    audit('item.discarded', { characterId, itemId: itemInstanceId })
+    return { success: true }
   },
 }

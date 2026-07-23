@@ -10,4 +10,7 @@ export const shopApi = {
 
   sell: (itemInstanceId: string) =>
     api.post<{ sellPrice: number; newBalance: number }>('/api/shops/government/sell', { itemInstanceId }),
+
+  discard: (itemInstanceId: string) =>
+    api.post<{ success: boolean }>('/api/shops/government/discard', { itemInstanceId }),
 }

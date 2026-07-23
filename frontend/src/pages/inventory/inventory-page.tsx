@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Shield, Backpack, Swords, Pill, X } from 'lucide-react'
+import { Shield, Backpack, Swords, Pill, X, Trash2, ShoppingBag } from 'lucide-react'
 import { inventoryApi } from '../../shared/api/inventory.api'
+import { shopApi } from '../../shared/api/shop.api'
 import {
   WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, QUALITY_LABELS, type ItemInstance
 } from '../../shared/types/api.types'
@@ -107,9 +108,26 @@ export function InventoryPage() {
       qc.invalidateQueries({ queryKey: ['character'] })
       showMsg('success', `${data.itemName}: +${data.hpRestored} HP (теперь ${data.newHp} HP)`)
     },
-    onError: (err) => {
-      showMsg('error', err instanceof ApiError ? err.message : 'Ошибка')
+    onError: (err) => { showMsg('error', err instanceof ApiError ? err.message : 'Ошибка') },
+  })
+
+  const sellMut = useMutation({
+    mutationFn: (id: string) => shopApi.sell(id),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['inventory'] })
+      qc.invalidateQueries({ queryKey: ['character'] })
+      showMsg('success', `Продано за ₽${data.sellPrice.toLocaleString('ru')}`)
     },
+    onError: (err) => { showMsg('error', err instanceof ApiError ? err.message : 'Ошибка') },
+  })
+
+  const discardMut = useMutation({
+    mutationFn: (id: string) => shopApi.discard(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory'] })
+      showMsg('success', 'Предмет выброшен')
+    },
+    onError: (err) => { showMsg('error', err instanceof ApiError ? err.message : 'Ошибка') },
   })
 
   if (isLoading) return <div className="loading"><span className="spinner" />Загрузка инвентаря...</div>
@@ -155,34 +173,55 @@ export function InventoryPage() {
           )}
         </td>
         <td>
-          {t.type === 'CONSUMABLE' ? (
-            <button className="btn btn-sm btn-success"
-              disabled={useItemMut.isPending || inBattle}
-              title={inBattle ? 'Используй расходник в бою через меню действий' : `Восстановить HP (+${t.hpBonus ?? 0})`}
-              onClick={() => useItemMut.mutate(item.id)}>
-              <Pill size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-              Лечиться
-            </button>
-          ) : item.isEquipped ? (
-            <button className="btn btn-sm"
-              disabled={unequipMut.isPending || inBattle}
-              title={inBattle ? 'Нельзя снять во время боя' : ''}
-              onClick={() => unequipMut.mutate(item.id)}>
-              Снять
-            </button>
-          ) : (
-            <button className="btn btn-sm btn-primary"
-              disabled={isBroken || tooLow || equipMut.isPending || inBattle}
-              title={
-                inBattle ? 'Нельзя надеть во время боя'
-                : isBroken ? 'Сломан — нужен ремонт'
-                : tooLow  ? `Нужен уровень ${t.levelReq}`
-                : ''
-              }
-              onClick={() => equipMut.mutate(item.id)}>
-              Надеть
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+            {t.type === 'CONSUMABLE' ? (
+              <button className="btn btn-sm btn-success"
+                disabled={useItemMut.isPending || inBattle}
+                title={inBattle ? 'Используй в бою через карманы' : `+${t.hpBonus ?? 0} HP`}
+                onClick={() => useItemMut.mutate(item.id)}>
+                <Pill size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                Лечиться
+              </button>
+            ) : item.isEquipped ? (
+              <button className="btn btn-sm" disabled={unequipMut.isPending || inBattle}
+                title={inBattle ? 'Нельзя снять во время боя' : ''}
+                onClick={() => unequipMut.mutate(item.id)}>
+                Снять
+              </button>
+            ) : (
+              <button className="btn btn-sm btn-primary"
+                disabled={isBroken || tooLow || equipMut.isPending || inBattle}
+                title={inBattle ? 'Нельзя надеть во время боя' : isBroken ? 'Сломан — нужен ремонт' : tooLow ? `Нужен уровень ${t.levelReq}` : ''}
+                onClick={() => equipMut.mutate(item.id)}>
+                Надеть
+              </button>
+            )}
+            {/* Продать / выброс — только для не надетых предметов */}
+            {!item.isEquipped && (
+              <>
+                <button
+                  className="btn btn-sm btn-gold"
+                  disabled={sellMut.isPending || inBattle}
+                  title={`Продать за ₽${Math.floor((t.priceBase ?? 0) * 0.5).toLocaleString('ru')} (50%)`}
+                  onClick={() => sellMut.mutate(item.id)}
+                >
+                  <ShoppingBag size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} />
+                  ₽{Math.floor((t.priceBase ?? 0) * 0.5).toLocaleString('ru')}
+                </button>
+                <button
+                  className="btn btn-sm"
+                  style={{ opacity: 0.5 }}
+                  disabled={discardMut.isPending}
+                  title="Выбросить (безвозвратно)"
+                  onClick={() => {
+                    if (window.confirm(`Выбросить «${t.name}»? Это безвозвратно.`)) discardMut.mutate(item.id)
+                  }}
+                >
+                  <Trash2 size={10} />
+                </button>
+              </>
+            )}
+          </div>
         </td>
       </tr>
     )

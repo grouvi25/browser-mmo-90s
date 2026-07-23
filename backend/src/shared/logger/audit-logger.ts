@@ -8,6 +8,7 @@ type AuditEvent =
   | 'character.created'
   | 'item.purchased'
   | 'item.sold'
+  | 'item.discarded'
   | 'item.equipped'
   | 'item.unequipped'
   | 'item.repaired'
