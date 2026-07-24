@@ -76,12 +76,9 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            set -a
-            . ./backend/.env
-            set +a
-            DIRECT_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
-            docker compose -f docker-compose.prod.yml run --rm \
-              -e DATABASE_URL="$DIRECT_URL" backend npx prisma migrate deploy
+            # backend/.env already contains the direct PostgreSQL DATABASE_URL.
+            # Do not source dotenv files as shell scripts (BOM/CRLF and special values are unsafe).
+            docker compose -f docker-compose.prod.yml run --rm backend npx prisma migrate deploy
           EOF
 
       - name: Restart services

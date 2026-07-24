@@ -8,23 +8,15 @@ TIMESTAMP="$(date -u +%Y%m%d_%H%M%S)"
 FILENAME="mmo90s_${TIMESTAMP}.sql.gz"
 
 cd "$PROJECT_DIR"
-if [[ -f backend/.env ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  . ./backend/.env
-  set +a
-fi
-
-: "${POSTGRES_USER:?POSTGRES_USER must be set}"
-: "${POSTGRES_DB:?POSTGRES_DB must be set}"
-
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 
 echo "==> Creating PostgreSQL backup: $FILENAME"
+# Read database identity from the already running PostgreSQL container.
+# This avoids sourcing .env files, which may contain BOM/CRLF or shell-unsafe values.
 docker compose -f docker-compose.prod.yml exec -T postgres \
-  pg_dump --format=plain --no-owner --no-privileges \
-  -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip -9 > "$BACKUP_DIR/$FILENAME"
+  sh -ec 'pg_dump --format=plain --no-owner --no-privileges -U "$POSTGRES_USER" "$POSTGRES_DB"' \
+  | gzip -9 > "$BACKUP_DIR/$FILENAME"
 
 test -s "$BACKUP_DIR/$FILENAME"
 chmod 600 "$BACKUP_DIR/$FILENAME"
