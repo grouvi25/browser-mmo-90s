@@ -318,6 +318,14 @@ export const BattleService = {
     const weapon = await ItemsRepository.findEquippedWeapon(char.id)
 
     return withTransaction(async (tx) => {
+      const claimed = await tx.character.updateMany({
+        where: { id: char.id, status: 'ACTIVE' },
+        data: { status: 'IN_BATTLE' },
+      })
+      if (claimed.count !== 1) {
+        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Character is not available for battle', 409)
+      }
+
       // Create battle record
       const battle = await tx.battle.create({
         data: { type: 'PVE_BOT', status: 'ACTIVE', startedAt: new Date() },
@@ -345,8 +353,7 @@ export const BattleService = {
         },
       })
 
-      // Update character status
-      await tx.character.update({ where: { id: char.id }, data: { status: 'IN_BATTLE' } })
+      // Character was claimed atomically before battle creation.
 
       // Init Redis battle state
       const liveState: LiveBattleState = {
@@ -402,27 +409,36 @@ export const BattleService = {
     const lMin = levelMin ?? Math.max(1, char.battleLevel - 2)
     const lMax = levelMax ?? Math.min(99, char.battleLevel + 2)
 
-    const battle = await prisma.battle.create({
-      data: {
-        type: 'PVP_DUEL',
-        status: 'WAITING_PLAYERS',
-        levelMin: lMin,
-        levelMax: lMax,
-      },
-    })
+    return withTransaction(async tx => {
+      const claimed = await tx.character.updateMany({
+        where: { id: char.id, status: 'ACTIVE' },
+        data: { status: 'IN_BATTLE' },
+      })
+      if (claimed.count !== 1) {
+        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Character is not available for battle', 409)
+      }
 
-    await prisma.battleParticipant.create({
-      data: {
-        battleId: battle.id,
-        characterId: char.id,
-        side: 1,
-        hpMax: char.hpMax,
-        hpCurrent: char.hpCurrent,
-      },
-    })
+      const battle = await tx.battle.create({
+        data: {
+          type: 'PVP_DUEL',
+          status: 'WAITING_PLAYERS',
+          levelMin: lMin,
+          levelMax: lMax,
+        },
+      })
 
-    await CharactersRepository.updateStatus(char.id, 'IN_BATTLE')
-    return { battleId: battle.id, status: 'WAITING_PLAYERS', levelMin: lMin, levelMax: lMax }
+      await tx.battleParticipant.create({
+        data: {
+          battleId: battle.id,
+          characterId: char.id,
+          side: 1,
+          hpMax: char.hpMax,
+          hpCurrent: char.hpCurrent,
+        },
+      })
+
+      return { battleId: battle.id, status: 'WAITING_PLAYERS', levelMin: lMin, levelMax: lMax }
+    })
   },
 
   // -------------------------------------------------------
@@ -451,7 +467,23 @@ export const BattleService = {
     const opponentPart = battle.participants[0]
 
     return withTransaction(async (tx) => {
-      // FIX: capture the created participant ID
+      const claimedCharacter = await tx.character.updateMany({
+        where: { id: char.id, status: 'ACTIVE' },
+        data: { status: 'IN_BATTLE' },
+      })
+      if (claimedCharacter.count !== 1) {
+        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Character is not available for battle', 409)
+      }
+
+      const claimedBattle = await tx.battle.updateMany({
+        where: { id: battleId, status: 'WAITING_PLAYERS' },
+        data: { status: 'ACTIVE', startedAt: new Date() },
+      })
+      if (claimedBattle.count !== 1) {
+        throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Duel is no longer open', 409)
+      }
+
+      // Capture the created participant ID.
       const newParticipant = await tx.battleParticipant.create({
         data: {
           battleId: battle.id,
@@ -461,9 +493,6 @@ export const BattleService = {
           hpCurrent: char.hpCurrent,
         },
       })
-      await tx.battle.update({ where: { id: battleId }, data: { status: 'ACTIVE', startedAt: new Date() } })
-      await tx.character.update({ where: { id: char.id }, data: { status: 'IN_BATTLE' } })
-
       const opponentChar = await CharactersRepository.findById(opponentPart.characterId!)
       const oppWeapon = opponentChar ? await ItemsRepository.findEquippedWeapon(opponentChar.id) : null
 
