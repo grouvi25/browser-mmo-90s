@@ -104,12 +104,17 @@ function BattleGrid({
   enemyName, enemyHp, enemyHpMax,
   playerDefeated, enemyDefeated,
   playerHit, enemyHit, lastEvent, distance,
+  playerPosition, enemyPosition, selectedMove, onSelectMove,
 }: {
   playerName: string; playerHp: number; playerHpMax: number
   enemyName: string;  enemyHp: number;  enemyHpMax: number
   playerDefeated: boolean; enemyDefeated: boolean
   playerHit: boolean; enemyHit: boolean; lastEvent: TurnEvent | null
   distance?: number
+  playerPosition?: { x: number; y: number }
+  enemyPosition?: { x: number; y: number }
+  selectedMove?: { x: number; y: number } | null
+  onSelectMove?: (position: { x: number; y: number }) => void
 }) {
   const midRow = Math.floor(GRID_ROWS / 2)
   // позиция врага зависит от дистанции (ближний бой = соседняя клетка)
@@ -132,12 +137,18 @@ function BattleGrid({
       <div className="grid-field">
         {Array.from({ length: GRID_ROWS }).map((_, row) =>
           Array.from({ length: GRID_COLS }).map((_, col) => {
-            const isPlayer = col === PLAYER_COL && row === midRow
-            const isEnemy  = col === enemyCol  && row === midRow
+            const playerCell = playerPosition ?? { x: PLAYER_COL, y: midRow }
+            const enemyCell = enemyPosition ?? { x: enemyCol, y: midRow }
+            const isPlayer = col === playerCell.x && row === playerCell.y
+            const isEnemy  = col === enemyCell.x  && row === enemyCell.y
             const isCenter = col === Math.floor(GRID_COLS / 2) && row === midRow
+            const canMove = Math.abs(col - playerCell.x) + Math.abs(row - playerCell.y) === 1 && !isEnemy
+            const isSelected = selectedMove?.x === col && selectedMove?.y === row
             return (
               <div key={`${row}-${col}`}
-                className={`grid-cell ${isPlayer ? 'cell-player' : ''} ${isEnemy ? 'cell-enemy' : ''} ${isCenter ? 'cell-center' : ''}`}>
+                onClick={() => canMove && onSelectMove?.({ x: col, y: row })}
+                className={`grid-cell ${isPlayer ? 'cell-player' : ''} ${isEnemy ? 'cell-enemy' : ''} ${isCenter ? 'cell-center' : ''} ${canMove ? 'cell-movable' : ''} ${isSelected ? 'cell-selected' : ''}`}
+                style={canMove ? { cursor: 'pointer', boxShadow: isSelected ? 'inset 0 0 0 2px #d4a017' : 'inset 0 0 0 1px rgba(212,160,23,.35)' } : undefined}>
                 {isPlayer && (
                   <div className={`fighter-token token-player ${playerHit ? 'token-hit' : ''} ${playerDefeated ? 'token-dead' : ''}`}>
                     {playerDefeated ? <Skull size={18} /> : <User size={18} />}
@@ -254,6 +265,7 @@ export function BattlePage() {
   const [enemyStance, setEnemyStance]   = useState<{ stance: Stance; attackZones: BodyZone[]; blockZones: BodyZone[] } | null>(null)
   const [distance, setDistance]         = useState<number | null>(null)
   const [playerRange, setPlayerRange]   = useState<number | null>(null)
+  const [selectedMove, setSelectedMove] = useState<{ x: number; y: number } | null>(null)
 
   const isValid = !!battleId && UUID_RE.test(battleId)
   useEffect(() => { if (!isValid) navigate('/profile', { replace: true }) }, [isValid, navigate])
@@ -368,7 +380,12 @@ export function BattlePage() {
   const submitTurn = () => {
     const action: BattleAction = stance === 'defense4' ? 'block' : 'attack'
     act(action, { stance, attackZones, blockZones })
-    setAttackZones([]); setBlockZones([])
+    setAttackZones([]); setBlockZones([]); setSelectedMove(null)
+  }
+  const submitMove = () => {
+    if (!selectedMove) return
+    act('move', { moveTo: selectedMove })
+    setSelectedMove(null); setAttackZones([]); setBlockZones([])
   }
 
   // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────
@@ -497,6 +514,10 @@ export function BattlePage() {
           playerHit={playerHit} enemyHit={enemyHit}
           lastEvent={lastEvent}
           distance={distance ?? live?.distance ?? undefined}
+          playerPosition={pPart?.position}
+          enemyPosition={ePart?.position}
+          selectedMove={selectedMove}
+          onSelectMove={setSelectedMove}
         />
 
         {/* HUD */}
@@ -591,8 +612,13 @@ export function BattlePage() {
               })}
             </div>
 
+            {selectedMove && (
+              <button className="btn btn-gold" disabled={!canAct} onClick={submitMove} style={{ width: '100%', marginBottom: 6, fontWeight: 'bold' }}>
+                Перейти в клетку ({selectedMove.x}, {selectedMove.y})
+              </button>
+            )}
             <div style={{ display: 'flex', gap: 6 }}>
-              <button className="btn btn-danger" disabled={!canAct} onClick={submitTurn} style={{ flex: 1, fontWeight: 'bold' }}>
+              <button className="btn btn-danger" disabled={!canAct || !!selectedMove} onClick={submitTurn} style={{ flex: 1, fontWeight: 'bold' }}>
                 <Sword size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
                 Ходить
                 <span style={{ fontSize: 10, opacity: 0.8, marginLeft: 6 }}>

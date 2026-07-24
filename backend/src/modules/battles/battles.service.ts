@@ -935,18 +935,34 @@ export const BattleService = {
     const botZoneArmor = defenderSnap.armor   // у бота равномерная броня по зонам
 
     // ── Движение / дистанция ──────────────────────────────
-    const distance = state.distance ?? START_DISTANCE
     const playerRange = weaponRangeOf(weapon)
-    const botRange = 1  // боты — ближний бой
-    const playerWantsAttack = playerTurn.attackZones.length > 0
+    const botWeapon = botEquip.weapon as Record<string, number> | undefined
+    const botRange = Math.max(1, botWeapon?.maxRange ?? 1)
+    const playerMoved = applyRequestedMove(state, playerPart, playerTurn.moveTo)
+
+    let projected = positionedParticipants(state)
+    let gridPlayer = projected.find(p => p.participantId === playerPart.participantId)!
+    let gridBot = projected.find(p => p.participantId === botPart.participantId)!
+    let botMoved = false
     const botWantsAttack = botTurn.attackZones.length > 0
-    const playerInRange = distance <= playerRange
-    const botInRange = distance <= botRange
-    // хочет бить, но далеко → сближается (в этот раунд без удара)
-    const playerMoving = playerWantsAttack && !playerInRange
-    const botMoving = botWantsAttack && !botInRange
-    const doPlayerStrike = playerWantsAttack && playerInRange
-    const doBotStrike = botWantsAttack && botInRange
+    if (botWantsAttack && !canAttackTarget(gridBot, gridPlayer, projected, botRange)) {
+      const candidates = botRange > 1 && gridDistance(gridBot.position, gridPlayer.position) <= 1
+        ? stepAway(gridBot.position, gridPlayer.position)
+        : stepToward(gridBot.position, gridPlayer.position)
+      const destination = candidates.find(cell => canMoveTo(gridBot, cell, projected))
+      if (destination) {
+        botPart.position = destination
+        botMoved = true
+        projected = positionedParticipants(state)
+        gridPlayer = projected.find(p => p.participantId === playerPart.participantId)!
+        gridBot = projected.find(p => p.participantId === botPart.participantId)!
+      }
+    }
+
+    const distance = syncGridDistance(state)
+    const playerWantsAttack = !playerMoved && playerTurn.attackZones.length > 0
+    const doPlayerStrike = playerWantsAttack && canAttackTarget(gridPlayer, gridBot, projected, playerRange)
+    const doBotStrike = !botMoved && botWantsAttack && canAttackTarget(gridBot, gridPlayer, projected, botRange)
 
     const playerInit = calcInitiative(char.stats!.rea, char.stats!.agi, skillRecord.skillLevel, attackerSnap.equipmentWeight)
     const botInit    = calcInitiative(botStats.rea ?? 2, botStats.agi ?? 2, 1, 0)
@@ -1013,11 +1029,9 @@ export const BattleService = {
     }
 
     // Применяем сближение (дистанция уменьшается за каждого, кто двигался)
-    const movesThisRound = (playerMoving ? 1 : 0) + (botMoving ? 1 : 0)
-    if (movesThisRound > 0) state.distance = Math.max(MIN_GAP, distance - movesThisRound)
     const moveEvents = [
-      ...(playerMoving ? [{ actor: 'player', action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Сближение (дистанция ${state.distance})`] }] : []),
-      ...(botMoving ? [{ actor: 'bot', action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Противник сближается (дистанция ${state.distance})`] }] : []),
+      ...(playerMoved ? [{ actor: 'player', action: 'move', to: playerPart.position, hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Перемещение в (${playerPart.position.x}, ${playerPart.position.y})`] }] : []),
+      ...(botMoved ? [{ actor: 'bot', action: 'move', to: botPart.position, hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Противник переместился в (${botPart.position.x}, ${botPart.position.y})`] }] : []),
     ]
 
     playerPart.hpCurrent = playerHp
