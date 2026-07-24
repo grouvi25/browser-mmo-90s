@@ -48,6 +48,19 @@ export function armorOfZone(equipped: EquipArmorLike[], zone: BodyZone): number 
   }, 0)
 }
 
+export function botArmorOfZone(
+  equipment: Record<string, unknown>,
+  zone: BodyZone,
+  fallbackArmor: number,
+): number {
+  const armor = equipment.armor
+  if (!armor || typeof armor !== 'object' || Array.isArray(armor)) return Math.max(0, fallbackArmor)
+  const value = (armor as Record<string, unknown>)[zone]
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(0, value)
+    : Math.max(0, fallbackArmor)
+}
+
 // Валидируем и нормализуем ход. Обрезаем зоны под бюджет стойки,
 // убираем дубли блоков (по одной зоне блок ставится один раз),
 // для атаки дубли разрешены (можно бить дважды в одну зону).

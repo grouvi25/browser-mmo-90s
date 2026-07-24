@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   armorOfZone,
+  botArmorOfZone,
   normalizeTurn,
   legacyActionToTurn,
   botChooseTurn,
@@ -57,6 +58,18 @@ describe('zones: armorOfZone', () => {
   it('LEGS = штаны + обувь', () => expect(armorOfZone(equip, 'LEGS')).toBe(12))
   it('RIGHT_ARM берёт щит', () => expect(armorOfZone(equip, 'RIGHT_ARM')).toBe(8))
   it('LEFT_ARM без перчаток = 0', () => expect(armorOfZone(equip, 'LEFT_ARM')).toBe(0))
+})
+
+describe('zones: botArmorOfZone', () => {
+  const equipment = { armor: { HEAD: 4, CHEST: 12, LEGS: 7, RIGHT_ARM: 2, LEFT_ARM: 2 } }
+  it('uses armor configured for the attacked body zone', () => {
+    expect(botArmorOfZone(equipment, 'HEAD', 99)).toBe(4)
+    expect(botArmorOfZone(equipment, 'CHEST', 99)).toBe(12)
+  })
+  it('falls back to legacy armor for incomplete bot equipment', () => {
+    expect(botArmorOfZone({ armor: { HEAD: 3 } }, 'LEGS', 8)).toBe(8)
+    expect(botArmorOfZone({}, 'HEAD', 5)).toBe(5)
+  })
 })
 
 describe('zones: normalizeTurn / stances', () => {

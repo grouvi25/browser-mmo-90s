@@ -19,6 +19,7 @@ import {
 } from './battle.formulas'
 import {
   armorOfZone,
+  botArmorOfZone,
   legacyActionToTurn,
   normalizeTurn,
   botChooseTurn,
@@ -1012,7 +1013,6 @@ export const BattleService = {
 
     // Бот выбирает свою стойку и зоны
     const botTurn = botChooseTurn()
-    const botZoneArmor = defenderSnap.armor   // у бота равномерная броня по зонам
 
     // ── Движение / дистанция ──────────────────────────────
     const playerRange = weaponRangeOf(weapon)
@@ -1060,7 +1060,7 @@ export const BattleService = {
     const playerStrike = () => {
       const res = executeStrikes({
         attackerSnap, defenderSnap,
-        zoneArmorFor: () => botZoneArmor,
+        zoneArmorFor: (zone) => botArmorOfZone(botEquip, zone, defenderSnap.armor),
         attackZones: playerTurn.attackZones,
         blockedZones: botTurn.blockZones,
         defenderHp: botHp,
