@@ -5,6 +5,7 @@ import {
   gridDistance,
   hasLineOfSight,
   isAdjacentStep,
+  resolveSimultaneousMoves,
   stepAway,
   stepToward,
   type PositionedParticipant,
@@ -33,6 +34,30 @@ describe('battle grid movement', () => {
       { x: 2, y: 2 }, { x: 1, y: 3 },
     ])
     expect(gridDistance(stepAway({ x: 4, y: 2 }, { x: 3, y: 2 })[0], { x: 3, y: 2 })).toBe(2)
+  })
+
+  it('allows two fighters to swap adjacent cells simultaneously', () => {
+    const first = fighter('p1', 1, 3, 2)
+    const second = fighter('p2', 2, 4, 2)
+    const resolved = resolveSimultaneousMoves([first, second], [
+      { participantId: 'p1', destination: { x: 4, y: 2 } },
+      { participantId: 'p2', destination: { x: 3, y: 2 } },
+    ])
+    expect(resolved.find(p => p.participantId === 'p1')?.position).toEqual({ x: 4, y: 2 })
+    expect(resolved.find(p => p.participantId === 'p2')?.position).toEqual({ x: 3, y: 2 })
+  })
+
+  it('rejects collisions and movement into a stationary occupied cell', () => {
+    const first = fighter('p1', 1, 2, 2)
+    const second = fighter('p2', 2, 4, 2)
+    const blocker = fighter('p3', 2, 3, 2)
+    expect(() => resolveSimultaneousMoves([first, second], [
+      { participantId: 'p1', destination: { x: 3, y: 2 } },
+      { participantId: 'p2', destination: { x: 3, y: 2 } },
+    ])).toThrow('Multiple fighters')
+    expect(() => resolveSimultaneousMoves([first, blocker], [
+      { participantId: 'p1', destination: { x: 3, y: 2 } },
+    ])).toThrow('occupied')
   })
 })
 

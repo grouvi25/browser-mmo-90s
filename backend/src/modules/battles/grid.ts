@@ -49,6 +49,49 @@ export function canMoveTo(
     && !participantAt(participants, destination, participant.participantId)
 }
 
+export interface GridMoveRequest {
+  participantId: string
+  destination: GridPosition
+}
+
+export function resolveSimultaneousMoves(
+  participants: PositionedParticipant[],
+  requests: GridMoveRequest[],
+): PositionedParticipant[] {
+  const activeRequests = requests.filter((request, index) =>
+    requests.findIndex(candidate => candidate.participantId === request.participantId) === index)
+  if (activeRequests.length !== requests.length) throw new Error('Duplicate movement request')
+
+  for (const request of activeRequests) {
+    const actor = participants.find(participant => participant.participantId === request.participantId)
+    if (!actor?.isAlive || !isAdjacentStep(actor.position, request.destination)) {
+      throw new Error('Invalid destination cell')
+    }
+  }
+
+  for (let index = 0; index < activeRequests.length; index++) {
+    if (activeRequests.slice(index + 1).some(request =>
+      samePosition(request.destination, activeRequests[index].destination))) {
+      throw new Error('Multiple fighters cannot occupy the same cell')
+    }
+  }
+
+  for (const request of activeRequests) {
+    const blocker = participantAt(participants, request.destination, request.participantId)
+    const blockerMovesAway = blocker && activeRequests.some(candidate =>
+      candidate.participantId === blocker.participantId
+      && !samePosition(candidate.destination, blocker.position))
+    if (blocker && !blockerMovesAway) throw new Error('Destination cell is occupied')
+  }
+
+  return participants.map(participant => {
+    const request = activeRequests.find(candidate => candidate.participantId === participant.participantId)
+    return request
+      ? { ...participant, position: { ...request.destination } }
+      : { ...participant, position: { ...participant.position } }
+  })
+}
+
 export function isInWeaponRange(
   attacker: GridPosition,
   target: GridPosition,

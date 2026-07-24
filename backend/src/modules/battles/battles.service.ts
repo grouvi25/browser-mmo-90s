@@ -32,9 +32,7 @@ import {
   canAttackTarget,
   canMoveTo,
   gridDistance,
-  isAdjacentStep,
-  isInsideGrid,
-  samePosition,
+  resolveSimultaneousMoves,
   stepAway,
   stepToward,
   type GridPosition,
@@ -142,26 +140,22 @@ function applySimultaneousDuelMoves(
 ): [boolean, boolean] {
   ensureGridState(state)
   const requests = [
-    { actor: first, target: firstTarget },
-    ...(second ? [{ actor: second, target: secondTarget }] : []),
-  ].filter((request): request is { actor: LiveParticipant; target: GridPosition } => Boolean(request.target))
-
-  for (const { actor, target } of requests) {
-    if (!isInsideGrid(target) || !isAdjacentStep(actor.position, target)) {
-      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid destination cell', 400)
+    ...(firstTarget ? [{ participantId: first.participantId, destination: firstTarget }] : []),
+    ...(second && secondTarget ? [{ participantId: second.participantId, destination: secondTarget }] : []),
+  ]
+  try {
+    const resolved = resolveSimultaneousMoves(positionedParticipants(state), requests)
+    for (const participant of state.participants) {
+      const next = resolved.find(candidate => candidate.participantId === participant.participantId)
+      if (next) participant.position = next.position
     }
+  } catch (error) {
+    throw new AppError(
+      ErrorCode.BATTLE_INVALID_ACTION,
+      error instanceof Error ? error.message : 'Invalid movement request',
+      400,
+    )
   }
-  if (requests.length === 2 && samePosition(requests[0].target, requests[1].target)) {
-    throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Both fighters cannot occupy the same cell', 400)
-  }
-  for (const { actor, target } of requests) {
-    const blocker = state.participants.find(p => p.isAlive && p.participantId !== actor.participantId && samePosition(p.position, target))
-    const blockerMovesAway = blocker && requests.some(r => r.actor.participantId === blocker.participantId && !samePosition(r.target, blocker.position))
-    if (blocker && !blockerMovesAway) {
-      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Destination cell is occupied', 400)
-    }
-  }
-  for (const request of requests) request.actor.position = { ...request.target }
   return [Boolean(firstTarget), Boolean(secondTarget)]
 }
 
