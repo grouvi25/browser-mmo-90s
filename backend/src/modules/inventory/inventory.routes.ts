@@ -140,7 +140,8 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       const hpRestore = item.template.hpBonus ?? 0
       const newHp = Math.min(char.hpMax, char.hpCurrent + hpRestore)
 
-      await ItemsRepository.updateStatus(item.id, 'CONSUMED')
+      // Использованный расходник сразу удаляется из инвентаря (soft-delete в DELETED)
+      await ItemsRepository.delete(item.id)
       await CharactersRepository.updateHp(char.id, newHp)
 
       return reply.send({

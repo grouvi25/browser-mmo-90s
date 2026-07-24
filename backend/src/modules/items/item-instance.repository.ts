@@ -13,7 +13,8 @@ export const ItemsRepository = {
 
   async findByOwner(ownerId: string): Promise<ItemWithTemplate[]> {
     return prisma.itemInstance.findMany({
-      where: { ownerId, status: { not: 'DELETED' } },
+      // Использованные расходники (CONSUMED) и удалённые (DELETED) не показываем в инвентаре
+      where: { ownerId, status: { notIn: ['DELETED', 'CONSUMED'] } },
       include: { template: true },
       orderBy: { createdAt: 'desc' },
     })
