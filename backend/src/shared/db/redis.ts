@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import Redis from 'ioredis'
 import { env } from '../../config/env'
 
@@ -72,19 +73,26 @@ export const BattleRedis = {
     )
   },
 
-  /** Acquire distributed lock. Returns true if acquired. */
-  async acquireLock(id: string, ttlMs = 10_000): Promise<boolean> {
+  /** Acquire a token-owned distributed lock. Returns the token when acquired. */
+  async acquireLock(id: string, ttlMs = 10_000): Promise<string | null> {
+    const token = randomUUID()
     const result = await getRedis().set(
       BattleRedis.lockKey(id),
-      '1',
+      token,
       'PX', ttlMs,
       'NX'
     )
-    return result === 'OK'
+    return result === 'OK' ? token : null
   },
 
-  async releaseLock(id: string): Promise<void> {
-    await getRedis().del(BattleRedis.lockKey(id))
+  async releaseLock(id: string, token: string): Promise<void> {
+    const script = `
+      if redis.call('get', KEYS[1]) == ARGV[1] then
+        return redis.call('del', KEYS[1])
+      end
+      return 0
+    `
+    await getRedis().eval(script, 1, BattleRedis.lockKey(id), token)
   },
 }
 

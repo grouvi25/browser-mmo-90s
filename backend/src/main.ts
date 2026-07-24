@@ -46,7 +46,7 @@ async function startServer() {
   await app.listen({ port: AppConfig.server.port, host: AppConfig.server.host })
   logger.info(`✅ HTTP server on :${AppConfig.server.port} (worker ${process.pid})`)
 
-  await setupSocketIO(app.server)
+  await setupSocketIO(app)
   logger.info('✅ Socket.io ready')
 
   const shutdown = async (signal: string) => {

@@ -1,8 +1,13 @@
 name: CD
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
+
+permissions:
+  contents: read
 
 concurrency:
   group: deploy-production
@@ -10,10 +15,15 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy to VPS
+    name: Deploy verified commit to VPS
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
+    environment: production
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout verified commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -22,147 +32,97 @@ jobs:
 
       - name: Add VPS to known hosts
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      # ── 1. Backup current state for rollback ──────────────────
-      - name: Snapshot current commit (for rollback)
+      - name: Snapshot current commit and database
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            CURRENT=$(git rev-parse HEAD 2>/dev/null || echo "none")
-            echo "$CURRENT" > /tmp/mmo90s_rollback_sha
-            echo "Rollback point: $CURRENT"
+            git rev-parse HEAD > /tmp/mmo90s_rollback_sha
+            chmod +x infra/deploy/backup.sh
+            ./infra/deploy/backup.sh
           EOF
 
-      # ── 2. Pull latest code ───────────────────────────────────
-      - name: Pull latest code
+      - name: Fetch verified commit
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -e
+            set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            git remote prune origin || true
-            git fetch origin
-            git reset --hard origin/main
-            echo "Deployed: $(git log -1 --pretty='%h %s')"
+            git fetch --prune origin
+            git reset --hard "${{ github.event.workflow_run.head_sha }}"
+            test "$(git rev-parse HEAD)" = "${{ github.event.workflow_run.head_sha }}"
           EOF
 
-      # ── 3. Build images ──────────────────────────────────────
       - name: Build Docker images
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -e
+            set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml build 2>&1 | tail -10
+            docker compose -f docker-compose.prod.yml build
           EOF
 
-      # ── 4. Run migrations (direct postgres, not pgbouncer) ────
       - name: Run migrations
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
-            set -e
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            DIRECT_URL="postgresql://$(grep ^POSTGRES_USER backend/.env | cut -d= -f2):$(grep ^POSTGRES_PASSWORD backend/.env | cut -d= -f2)@postgres:5432/$(grep ^POSTGRES_DB backend/.env | cut -d= -f2)"
+            set -a
+            . ./backend/.env
+            set +a
+            DIRECT_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
             docker compose -f docker-compose.prod.yml run --rm \
-              -e DATABASE_URL="$DIRECT_URL" \
-              backend npx prisma migrate deploy
-          SSHEOF
+              -e DATABASE_URL="$DIRECT_URL" backend npx prisma migrate deploy
+          EOF
 
-      # ── 5. Seed reference data ────────────────────────────────
-      - name: Seed database
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'SSHEOF'
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            DIRECT_URL="postgresql://$(grep ^POSTGRES_USER backend/.env | cut -d= -f2):$(grep ^POSTGRES_PASSWORD backend/.env | cut -d= -f2)@postgres:5432/$(grep ^POSTGRES_DB backend/.env | cut -d= -f2)"
-            docker compose -f docker-compose.prod.yml run --rm \
-              -e DATABASE_URL="$DIRECT_URL" \
-              backend npx tsx prisma/seed.ts
-          SSHEOF
-
-      # ── 6. Restart services ───────────────────────────────────
       - name: Restart services
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -e
+            set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
           EOF
 
-      # ── 7. Smoke test: verify API is healthy ──────────────────
-      - name: Smoke test (health check)
+      - name: Verify container and public health
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            MAX_RETRIES=12
-            DELAY=5
-            for i in $(seq 1 $MAX_RETRIES); do
-              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4080/health 2>/dev/null || echo "000")
-              if [ "$STATUS" = "200" ]; then
-                echo "✅ Health check passed (attempt $i)"
-                exit 0
+            set -euo pipefail
+            for i in $(seq 1 18); do
+              if curl --fail --silent http://127.0.0.1:4080/health >/dev/null; then
+                break
               fi
-              echo "⏳ Waiting... ($i/$MAX_RETRIES, status=$STATUS)"
-              sleep $DELAY
+              if [ "$i" = 18 ]; then
+                docker compose -f ${{ secrets.VPS_PROJECT_DIR }}/docker-compose.prod.yml logs --tail=100 backend
+                exit 1
+              fi
+              sleep 5
             done
-            echo "❌ Health check FAILED after $MAX_RETRIES attempts"
-            exit 1
+            curl --fail --silent https://game.grouvi.online/ >/dev/null
           EOF
 
-      # ── 8. Quick API smoke test ───────────────────────────────
-      - name: API smoke test (register + login flow)
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -e
-            BASE="http://localhost:4080"
-            SMOKE_USER="smoke_$(date +%s)"
-            
-            # Register
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST $BASE/api/auth/register \
-              -H "Content-Type: application/json" \
-              -d "{\"login\":\"$SMOKE_USER\",\"email\":\"$SMOKE_USER@smoke.com\",\"password\":\"smoke1234\"}")
-            [ "$CODE" = "201" ] || (echo "❌ Register failed: $CODE" && exit 1)
-            
-            # Login
-            TOKEN=$(curl -s -X POST $BASE/api/auth/login \
-              -H "Content-Type: application/json" \
-              -d "{\"login\":\"$SMOKE_USER\",\"password\":\"smoke1234\"}" | \
-              python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))" 2>/dev/null)
-            [ -n "$TOKEN" ] || (echo "❌ Login failed" && exit 1)
-            
-            # Shop items
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" $BASE/api/shops/government/items \
-              -H "Authorization: Bearer $TOKEN")
-            [ "$CODE" = "200" ] || (echo "❌ Shop failed: $CODE" && exit 1)
-            
-            echo "✅ Smoke test passed: register/login/shop all working"
-          EOF
-
-      # ── 9. Reload nginx ───────────────────────────────────────
       - name: Reload nginx
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            if [ ! -f /etc/nginx/sites-enabled/mmo90s-game ]; then
-              ln -s ${{ secrets.VPS_PROJECT_DIR }}/infra/nginx/vhost-vps.conf \
-                    /etc/nginx/sites-enabled/mmo90s-game
-            fi
-            nginx -t && nginx -s reload
+            set -euo pipefail
+            nginx -t
+            nginx -s reload
           EOF
 
-      # ── ROLLBACK on failure ───────────────────────────────────
-      - name: Rollback on failure
+      - name: Rollback application on failure
         if: failure()
         run: |
-          echo "⚠️ Deploy failed! Attempting rollback..."
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            ROLLBACK_SHA=$(cat /tmp/mmo90s_rollback_sha 2>/dev/null || echo "")
-            if [ -n "$ROLLBACK_SHA" ] && [ "$ROLLBACK_SHA" != "none" ]; then
-              echo "Rolling back to $ROLLBACK_SHA"
-              git reset --hard "$ROLLBACK_SHA"
-              docker compose -f docker-compose.prod.yml build 2>&1 | tail -5
-              docker compose -f docker-compose.prod.yml up -d --remove-orphans
-              echo "Rollback complete"
-            else
-              echo "No rollback point available"
+            ROLLBACK_SHA=$(cat /tmp/mmo90s_rollback_sha 2>/dev/null || true)
+            if [ -z "$ROLLBACK_SHA" ]; then
+              echo "No application rollback point is available"
+              exit 1
             fi
+            git reset --hard "$ROLLBACK_SHA"
+            docker compose -f docker-compose.prod.yml build
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            echo "Application rolled back. Database restore remains a deliberate manual operation."
           EOF

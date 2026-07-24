@@ -1,18 +1,19 @@
 import Fastify from 'fastify'
-import type { FastifyError } from 'fastify'
+import type { FastifyError, FastifyInstance } from 'fastify'
 import fastifyJwt from '@fastify/jwt'
 import fastifyCors from '@fastify/cors'
 import fastifyHelmet from '@fastify/helmet'
 import fastifyRateLimit from '@fastify/rate-limit'
 import { createAdapter } from '@socket.io/redis-adapter'
-import { Server as SocketIO } from 'socket.io'
+import { Server as SocketIO, type Socket } from 'socket.io'
 import { getRedis, getRedisSub } from './shared/db/redis'
+import { prisma } from './shared/db/prisma'
+import { isSessionValid } from './shared/security/jwt'
 import { AppConfig } from './config/app.config'
 import { AuthConfig } from './config/auth.config'
 import { AppError } from './shared/errors/app-error'
 import { logger } from './shared/logger/logger'
 
-// Routes
 import { authRoutes } from './modules/auth/auth.routes'
 import { charactersRoutes } from './modules/characters/characters.routes'
 import { inventoryRoutes } from './modules/inventory/inventory.routes'
@@ -24,30 +25,25 @@ import { adminBasicRoutes } from './modules/admin-basic/admin-basic.routes'
 export async function buildApp() {
   const fastify = Fastify({
     logger: false,
+    // Production publishes the API on loopback only; nginx is the sole proxy.
     trustProxy: true,
   })
 
-  await fastify.register(fastifyHelmet, { contentSecurityPolicy: false })
+  await fastify.register(fastifyHelmet)
 
   await fastify.register(fastifyCors, {
     origin: AppConfig.server.corsOrigin,
     credentials: true,
   })
 
-  // ── Rate limiting — tiered по типу endpoint ─────────────────
-  // Global: 3600/min (60/sec) — достаточно для активного игрока
-  // Auth: строже — 20 попыток в минуту (защита от брутфорса)
-  // Battle actions: мягче — быстрые игровые запросы
   await fastify.register(fastifyRateLimit, {
     global: true,
-    max: 3600,             // 60 req/sec per real IP (было 600)
+    max: 3600,
     timeWindow: '1 minute',
     redis: getRedis(),
-    keyGenerator: (req) => {
-      return (req.headers['cf-connecting-ip'] as string)
-          || (req.headers['x-real-ip'] as string)
-          || req.ip
-    },
+    // req.ip is calculated by Fastify using the trusted proxy chain. Do not
+    // consume client-controlled forwarding headers directly here.
+    keyGenerator: (req) => req.ip,
     errorResponseBuilder: () => ({
       code: 'GEN_004',
       message: 'Слишком много запросов, подождите немного',
@@ -58,12 +54,8 @@ export async function buildApp() {
     secret: AuthConfig.jwt.secret,
   })
 
-  // ── Пустое JSON-тело в POST (Fastify строго требует тело когда Content-Type: application/json)
-  // Фикс: если тело пустое — подставляем {}
   fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
-    if (!body || (body as string).trim() === '') {
-      return done(null, {})
-    }
+    if (!body || (body as string).trim() === '') return done(null, {})
     try {
       done(null, JSON.parse(body as string))
     } catch (err: unknown) {
@@ -73,7 +65,6 @@ export async function buildApp() {
     }
   })
 
-  // ── Error handler ────────────────────────────────────────────
   fastify.setErrorHandler((err: FastifyError & { details?: unknown }, _req, reply) => {
     if (err instanceof AppError) {
       return reply.code(err.statusCode).send({
@@ -89,13 +80,12 @@ export async function buildApp() {
     return reply.code(500).send({ code: 'GEN_003', message: 'Internal server error' })
   })
 
-  // ── Routes ───────────────────────────────────────────────────
-  // /health — no rate limit, no auth, instant response
-  fastify.get('/health', async () => ({ status: 'ok', ts: new Date().toISOString() }))
+  fastify.get('/health', { config: { rateLimit: false } }, async () => ({
+    status: 'ok',
+    ts: new Date().toISOString(),
+  }))
 
-  // Auth — strict rate limit: 30 attempts/min to prevent brute force
-  await fastify.register(authRoutes, { prefix: '/api/auth' })
-
+  await fastify.register(authRoutes,           { prefix: '/api/auth' })
   await fastify.register(charactersRoutes,     { prefix: '/api/characters' })
   await fastify.register(inventoryRoutes,      { prefix: '/api/inventory' })
   await fastify.register(governmentShopRoutes, { prefix: '/api/shops/government' })
@@ -106,9 +96,19 @@ export async function buildApp() {
   return fastify
 }
 
-// ── Socket.io setup ──────────────────────────────────────────
-export async function setupSocketIO(httpServer: ReturnType<typeof Fastify>['server']) {
-  const io = new SocketIO(httpServer, {
+function socketBearerToken(socket: Socket): string | null {
+  const authToken = socket.handshake.auth?.token
+  if (typeof authToken === 'string' && authToken.length > 0) return authToken
+
+  const authorization = socket.handshake.headers.authorization
+  if (typeof authorization === 'string' && authorization.startsWith('Bearer ')) {
+    return authorization.slice('Bearer '.length)
+  }
+  return null
+}
+
+export async function setupSocketIO(app: FastifyInstance) {
+  const io = new SocketIO(app.server, {
     cors: { origin: AppConfig.server.corsOrigin, credentials: true },
     transports: ['websocket', 'polling'],
   })
@@ -118,9 +118,50 @@ export async function setupSocketIO(httpServer: ReturnType<typeof Fastify>['serv
   io.adapter(createAdapter(pubClient, subClient))
   logger.info('[Socket.io] Redis adapter attached')
 
+  io.use(async (socket, next) => {
+    try {
+      const token = socketBearerToken(socket)
+      if (!token) return next(new Error('Unauthorized'))
+
+      const payload = app.jwt.verify<{ sub: string; jti: string }>(token)
+      if (!payload.sub || !payload.jti || !(await isSessionValid(payload.jti))) {
+        return next(new Error('Unauthorized'))
+      }
+
+      socket.data.userId = payload.sub
+      socket.data.jti = payload.jti
+      next()
+    } catch {
+      next(new Error('Unauthorized'))
+    }
+  })
+
   io.on('connection', (socket) => {
-    socket.on('join:battle', (battleId: string) => {
-      socket.join(`battle:${battleId}`)
+    socket.on('join:battle', async (battleId: unknown, acknowledge?: (result: { ok: boolean; error?: string }) => void) => {
+      try {
+        if (typeof battleId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(battleId)) {
+          acknowledge?.({ ok: false, error: 'Invalid battle id' })
+          return
+        }
+
+        const participant = await prisma.battleParticipant.findFirst({
+          where: {
+            battleId,
+            character: { userId: socket.data.userId as string },
+          },
+          select: { id: true },
+        })
+        if (!participant) {
+          acknowledge?.({ ok: false, error: 'Not a battle participant' })
+          return
+        }
+
+        await socket.join(`battle:${battleId}`)
+        acknowledge?.({ ok: true })
+      } catch (err) {
+        logger.warn({ err, battleId, userId: socket.data.userId }, 'Socket battle join rejected')
+        acknowledge?.({ ok: false, error: 'Unable to join battle' })
+      }
     })
   })
 

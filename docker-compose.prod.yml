@@ -1,36 +1,26 @@
-version: '3.9'
-
-# =============================================================
-# PRODUCTION Docker Compose for VPS
-# Backend DATABASE_URL comes from backend/.env (direct postgres)
-# PgBouncer is available but not used by backend yet (scram-sha-256 compat)
-# =============================================================
-
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-mmo90s_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: ${POSTGRES_DB:-mmo90s}
     volumes:
       - mmo90s_postgres_data:/var/lib/postgresql/data
-    expose:
-      - '5432'
+    expose: ['5432']
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-mmo90s_user}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-mmo90s_user} -d ${POSTGRES_DB:-mmo90s}']
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - mmo90s_internal
+    networks: [mmo90s_internal]
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
     restart: unless-stopped
     environment:
-      DATABASE_URL: "postgres://${POSTGRES_USER:-mmo90s_user}:${POSTGRES_PASSWORD:-CHANGE_ME}@postgres:5432/${POSTGRES_DB:-mmo90s}"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-mmo90s_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-mmo90s}"
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 2000
       DEFAULT_POOL_SIZE: 50
@@ -38,19 +28,17 @@ services:
       RESERVE_POOL_SIZE: 20
       LOG_CONNECTIONS: 0
       LOG_DISCONNECTIONS: 0
-    expose:
-      - '5432'
+    expose: ['5432']
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -p 5432 || exit 0']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -p 5432 -U ${POSTGRES_USER:-mmo90s_user} -d ${POSTGRES_DB:-mmo90s}']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - mmo90s_internal
+    networks: [mmo90s_internal]
 
   redis:
     image: redis:7-alpine
@@ -63,15 +51,13 @@ services:
       --appendfsync everysec
     volumes:
       - mmo90s_redis_data:/data
-    expose:
-      - '6379'
+    expose: ['6379']
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - mmo90s_internal
+    networks: [mmo90s_internal]
 
   backend:
     build:
@@ -79,33 +65,25 @@ services:
       dockerfile: ../infra/docker/backend.Dockerfile
     restart: unless-stopped
     env_file: ./backend/.env
-    # DATABASE_URL comes from backend/.env (direct postgres connection)
-    # REDIS_URL overridden to ensure correct internal service name
     environment:
       REDIS_URL: "redis://redis:6379"
       NODE_ENV: production
-      # Cluster mode: run 1 worker per CPU (2× throughput on 2-core VPS)
-      # Set NODE_CLUSTER=false to disable (for debugging)
       NODE_CLUSTER: "true"
-      # UV thread pool for native bcrypt + async I/O (default 4, too low)
       UV_THREADPOOL_SIZE: "16"
     ports:
-      - '0.0.0.0:4080:4000'
+      - '127.0.0.1:4080:4000'
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/health >/dev/null || exit 1']
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 30s
-    deploy:
-      replicas: 1
-    networks:
-      - mmo90s_internal
+    networks: [mmo90s_internal]
 
   frontend:
     build:
@@ -113,9 +91,8 @@ services:
       dockerfile: ../infra/docker/frontend.Dockerfile
     restart: unless-stopped
     ports:
-      - '0.0.0.0:3080:80'
-    networks:
-      - mmo90s_internal
+      - '127.0.0.1:3080:80'
+    networks: [mmo90s_internal]
 
   worker:
     build:
@@ -132,8 +109,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - mmo90s_internal
+    networks: [mmo90s_internal]
 
 volumes:
   mmo90s_postgres_data:

@@ -512,11 +512,17 @@ export const BattleService = {
   // Get battle state
   // -------------------------------------------------------
   async getBattle(battleId: string, userId: string) {
+    const char = await CharactersRepository.findByUserId(userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+
     const battle = await prisma.battle.findUnique({
       where: { id: battleId },
       include: { participants: true, turns: { orderBy: { roundNumber: 'asc' }, take: 50 } },
     })
     if (!battle) throw AppError.notFound('Battle', battleId)
+    if (!battle.participants.some(participant => participant.characterId === char.id)) {
+      throw new AppError(ErrorCode.BATTLE_NOT_PARTICIPANT, 'Not a battle participant', 403)
+    }
 
     const liveState = await BattleRedis.getState<LiveBattleState>(battleId)
     return { battle, liveState }
@@ -544,8 +550,8 @@ export const BattleService = {
     const action = payload.action
     const targetItemId = payload.itemInstanceId
 
-    const locked = await BattleRedis.acquireLock(battleId, 5000)
-    if (!locked) throw new AppError(ErrorCode.BATTLE_LOCK_FAILED, 'Battle is processing, retry', 409)
+    const lockToken = await BattleRedis.acquireLock(battleId, 5000)
+    if (!lockToken) throw new AppError(ErrorCode.BATTLE_LOCK_FAILED, 'Battle is processing, retry', 409)
 
     try {
       const state = await BattleRedis.getState<LiveBattleState>(battleId)
@@ -651,7 +657,7 @@ export const BattleService = {
       return { waiting: true, roundNumber: state.roundNumber }
 
     } finally {
-      await BattleRedis.releaseLock(battleId)
+      await BattleRedis.releaseLock(battleId, lockToken)
     }
   },
 

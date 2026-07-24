@@ -6,16 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # ============================================================
-  # Job 1: TypeScript check + Build
-  # ============================================================
-  typecheck-and-build:
-    name: Typecheck & Build
+  backend-build:
+    name: Backend Typecheck & Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -34,11 +34,27 @@ jobs:
       - name: Build TypeScript
         run: npx tsc -p tsconfig.build.json
       - name: Verify dist
-        run: test -f dist/main.js && echo "Build OK"
+        run: test -f dist/main.js
 
-  # ============================================================
-  # Job 2: Unit tests (pure functions, no DB/Redis)
-  # ============================================================
+  frontend-build:
+    name: Frontend Typecheck & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+      - name: Production build
+        run: npm run build
+
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -59,12 +75,8 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npx prisma generate
-      - name: Run unit tests
-        run: npx vitest run --config vitest.config.ts --reporter=verbose
+      - run: npx vitest run --config vitest.config.ts --reporter=verbose
 
-  # ============================================================
-  # Job 3: Integration tests (PostgreSQL + Redis)
-  # ============================================================
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
@@ -78,8 +90,7 @@ jobs:
           POSTGRES_DB: mmo90s_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres_test
-        ports:
-          - 5432:5432
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
@@ -87,8 +98,7 @@ jobs:
           --health-retries 5
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
+        ports: ['6379:6379']
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -111,17 +121,12 @@ jobs:
       - run: npx prisma generate
       - run: npx prisma db push --force-reset --accept-data-loss
       - run: npx tsx prisma/seed.ts
-      - name: Run integration tests
-        run: npx vitest run --config vitest.integration.config.ts --reporter=verbose
+      - run: npx vitest run --config vitest.integration.config.ts --reporter=verbose
 
-  # ============================================================
-  # Job 4: E2E tests (full running backend)
-  # Tests complete game cycle per TZ section 11
-  # ============================================================
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
-    needs: [typecheck-and-build]
+    needs: [backend-build]
     defaults:
       run:
         working-directory: backend
@@ -132,8 +137,7 @@ jobs:
           POSTGRES_DB: mmo90s_e2e
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres_e2e
-        ports:
-          - 5432:5432
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
@@ -141,8 +145,7 @@ jobs:
           --health-retries 5
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
+        ports: ['6379:6379']
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -170,32 +173,19 @@ jobs:
       - run: npx prisma generate
       - run: npx prisma db push --force-reset --accept-data-loss
       - run: npx tsx prisma/seed.ts
-
-      - name: Start backend server
+      - name: Build backend
+        run: npx tsc -p tsconfig.build.json
+      - name: Start backend and verify readiness
         run: |
-          node dist/main.js &
-          echo "Backend PID: $!"
-          # Wait for server to be ready
+          node dist/main.js > /tmp/mmo90s-e2e.log 2>&1 &
+          echo $! > /tmp/mmo90s-e2e.pid
           for i in $(seq 1 30); do
-            curl -s http://localhost:4000/health && break
+            if curl --fail --silent http://127.0.0.1:4000/health; then
+              exit 0
+            fi
             sleep 2
           done
-        env:
-          NODE_ENV: test
-          JWT_SECRET: e2e_test_secret_minimum_32_characters_here
-
-      - name: Build first (need dist)
-        run: npx tsc -p tsconfig.build.json
-
-      - name: Start backend
-        run: |
-          node dist/main.js &
-          sleep 5
-          curl -f http://localhost:4000/health
-        env:
-          NODE_ENV: test
-
+          cat /tmp/mmo90s-e2e.log
+          exit 1
       - name: Run E2E tests
         run: npx vitest run --config vitest.e2e.config.ts --reporter=verbose
-        env:
-          E2E_API_URL: http://localhost:4000
