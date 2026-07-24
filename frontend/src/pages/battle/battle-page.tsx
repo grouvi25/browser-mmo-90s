@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import {
-  Sword, Shield, Heart, Zap, ArrowRight,
+  Sword, Shield, Heart, Zap, ArrowRight, ArrowLeft,
   RotateCcw, Flag, ChevronDown, ChevronUp, Skull,
   CircleDot, User, Trophy, AlertTriangle, Pill,
 } from 'lucide-react'
@@ -531,10 +531,49 @@ export function BattlePage() {
               return (
                 <div style={{ fontSize: 11, textAlign: 'center', marginBottom: 5, color: far ? 'var(--warning, #c4802a)' : 'var(--text-dim)' }}>
                   Дистанция: {d}{playerRange != null && ` · оружие бьёт с ${playerRange}`}
-                  {far && ' — далеко: при атаке сближаешься (без удара)'}
+                  {far && ' — далеко, нужно подойти ближе'}
                 </div>
               )
             })()}
+
+            {/* Движение по полю: Подойти / Отойти — это ход вместо удара */}
+            {(() => {
+              const d = (distance ?? live?.distance) as number | null
+              const far = d != null && playerRange != null && d > playerRange
+              const atMelee = d != null && d <= 1
+              return (
+                <div className="hz-move" style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+                  <button
+                    onClick={() => act('move', { moveDir: 'retreat' })}
+                    disabled={!canAct}
+                    title="Отойти на клетку — увеличить дистанцию (ход вместо удара)"
+                    style={{
+                      flex: 1, padding: '6px 4px', fontSize: 11, fontWeight: 'bold',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      cursor: canAct ? 'pointer' : 'default', borderRadius: 4,
+                      border: '1px solid var(--border,#444)', background: 'transparent', color: 'var(--text-dim,#999)',
+                    }}>
+                    <ArrowLeft size={13} /> Отойти
+                  </button>
+                  <button
+                    onClick={() => act('move', { moveDir: 'approach' })}
+                    disabled={!canAct || atMelee}
+                    title="Подойти на клетку — сократить дистанцию (ход вместо удара)"
+                    style={{
+                      flex: 1, padding: '6px 4px', fontSize: 11, fontWeight: 'bold',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      cursor: (!canAct || atMelee) ? 'default' : 'pointer', borderRadius: 4,
+                      border: `1px solid ${far ? 'var(--gold,#d4a017)' : 'var(--border,#444)'}`,
+                      background: far ? 'rgba(212,160,23,0.15)' : 'transparent',
+                      color: far ? 'var(--gold,#d4a017)' : 'var(--text-dim,#999)',
+                      opacity: atMelee ? 0.4 : 1,
+                    }}>
+                    Подойти <ArrowRight size={13} />
+                  </button>
+                </div>
+              )
+            })()}
+
             <div className="hz-stances" style={{ display: 'flex', gap: 4 }}>
               {STANCES.map(s => (
                 <button key={s.key} onClick={() => changeStance(s.key)} disabled={!canAct} title={s.hint}

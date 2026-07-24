@@ -17,6 +17,7 @@ export interface SubmitActionOpts {
   attackZones?: BodyZone[]
   blockZones?: BodyZone[]
   moveTo?: GridPosition
+  moveDir?: 'approach' | 'retreat'
   targetParticipantId?: string
 }
 
@@ -101,6 +102,7 @@ export const battlesApi = {
       attackZones: opts?.attackZones,
       blockZones: opts?.blockZones,
       moveTo: opts?.moveTo,
+      moveDir: opts?.moveDir,
       targetParticipantId: opts?.targetParticipantId,
     }),
 

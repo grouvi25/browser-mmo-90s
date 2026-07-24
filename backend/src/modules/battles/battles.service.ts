@@ -54,6 +54,7 @@ const TURN_TIMEOUT_MS = 7_000
 // ── Поле боя (движение/дистанция) ──────────────────────────────
 const START_DISTANCE = 4   // стартовая дистанция между бойцами (клеток)
 const MIN_GAP = 1          // ближний бой = соседние клетки (дистанция 1)
+const MAX_FIELD_DISTANCE = 8  // ширина поля 9 клеток → максимальная дистанция между бойцами
 // Радиус оружия: у ближнего = 1, у дальнего — из шаблона (maxRange)
 function weaponRangeOf(weapon: ItemWithTemplate | null | undefined): number {
   return Math.max(1, weapon?.template.maxRange ?? 1)
@@ -119,6 +120,23 @@ function syncGridDistance(state: LiveBattleState): number {
   const distance = alive.length >= 2 ? gridDistance(alive[0].position, alive[1].position) : 0
   state.distance = distance
   return distance
+}
+
+// Переводит намерение движения (approach/retreat) в конкретную клетку-шаг
+// относительно живого противника. undefined — если валидного шага нет (край/занято).
+function resolveMoveDirToCell(
+  state: LiveBattleState,
+  part: LiveParticipant,
+  dir: 'approach' | 'retreat',
+): GridPosition | undefined {
+  const opponent = state.participants.find(p => p.participantId !== part.participantId && p.isAlive)
+  if (!opponent) return undefined
+  const projected = positionedParticipants(state)
+  const actor = projected.find(p => p.participantId === part.participantId)!
+  const candidates = dir === 'approach'
+    ? stepToward(part.position, opponent.position)
+    : stepAway(part.position, opponent.position)
+  return candidates.find(cell => canMoveTo(actor, cell, projected))
 }
 
 // ---------------------------------------------------------------
@@ -615,6 +633,7 @@ export const BattleService = {
       attackZones?: string[]
       blockZones?: string[]
       moveTo?: GridPosition
+      moveDir?: 'approach' | 'retreat'
       targetParticipantId?: string
     } | string,
     legacyTargetItemId?: string
@@ -707,12 +726,13 @@ export const BattleService = {
       }
 
       // ── Зональный ход: стойка (2 удара / 1 блок+1 удар / 4 блока) + зоны ──
-      const turn: ZonalTurnInput = payload.stance || payload.moveTo
+      const turn: ZonalTurnInput = payload.stance || payload.moveTo || payload.moveDir
         ? normalizeTurn({
             stance: payload.stance as ZonalTurnInput['stance'],
             attackZones: (payload.attackZones ?? []) as BodyZone[],
             blockZones: (payload.blockZones ?? []) as BodyZone[],
             moveTo: payload.moveTo,
+            moveDir: payload.moveDir,
             targetParticipantId: payload.targetParticipantId,
           })
         : legacyActionToTurn(action)
@@ -730,7 +750,7 @@ export const BattleService = {
 
       const allActed = state.participants.every(p => !p.isAlive || p.isSurrendered || p.hasActedThisRound)
       if (allActed) {
-        return this._resolveRoundPvp(battleId, state)
+        return this._resolveRoundPvp(battleId, state, char.id)
       }
       return { waiting: true, roundNumber: state.roundNumber }
 
@@ -890,7 +910,7 @@ export const BattleService = {
     await BattleRedis.setState(battleId, state)
     const allActed = state.participants.every(p => !p.isAlive || p.isSurrendered || p.hasActedThisRound)
     if (allActed) {
-      return this._resolveRoundPvp(battleId, state)
+      return this._resolveRoundPvp(battleId, state, char.id)
     }
     return {
       waiting: true,
@@ -935,17 +955,24 @@ export const BattleService = {
     const botZoneArmor = defenderSnap.armor   // у бота равномерная броня по зонам
 
     // ── Движение / дистанция ──────────────────────────────
-    const distance = state.distance ?? START_DISTANCE
+    let curDistance = state.distance ?? START_DISTANCE
     const playerRange = weaponRangeOf(weapon)
     const botRange = 1  // боты — ближний бой
     const playerWantsAttack = playerTurn.attackZones.length > 0
     const botWantsAttack = botTurn.attackZones.length > 0
-    const playerInRange = distance <= playerRange
-    const botInRange = distance <= botRange
-    // хочет бить, но далеко → сближается (в этот раунд без удара)
-    const playerMoving = playerWantsAttack && !playerInRange
+
+    // Ручное движение игрока (Подойти/Отойти) — это действие раунда вместо удара
+    const playerManualMove: 'approach' | 'retreat' | null =
+      playerTurn.moveDir === 'approach' || playerTurn.moveDir === 'retreat' ? playerTurn.moveDir : null
+    if (playerManualMove === 'approach') curDistance = Math.max(MIN_GAP, curDistance - 1)
+    else if (playerManualMove === 'retreat') curDistance = Math.min(MAX_FIELD_DISTANCE, curDistance + 1)
+
+    const playerInRange = curDistance <= playerRange
+    const botInRange = curDistance <= botRange
+    // хочет бить, но далеко → авто-сближение (фолбэк, только если не ходил вручную)
+    const playerMoving = !playerManualMove && playerWantsAttack && !playerInRange
     const botMoving = botWantsAttack && !botInRange
-    const doPlayerStrike = playerWantsAttack && playerInRange
+    const doPlayerStrike = !playerManualMove && playerWantsAttack && playerInRange
     const doBotStrike = botWantsAttack && botInRange
 
     const playerInit = calcInitiative(char.stats!.rea, char.stats!.agi, skillRecord.skillLevel, attackerSnap.equipmentWeight)
@@ -1012,12 +1039,14 @@ export const BattleService = {
       if (doPlayerStrike && playerHp > 0 && botHp > 0) playerStrike()
     }
 
-    // Применяем сближение (дистанция уменьшается за каждого, кто двигался)
-    const movesThisRound = (playerMoving ? 1 : 0) + (botMoving ? 1 : 0)
-    if (movesThisRound > 0) state.distance = Math.max(MIN_GAP, distance - movesThisRound)
+    // Авто-сближение: дистанция уменьшается за каждого, кто атаковал издалека
+    const autoMoves = (playerMoving ? 1 : 0) + (botMoving ? 1 : 0)
+    if (autoMoves > 0) curDistance = Math.max(MIN_GAP, curDistance - autoMoves)
+    state.distance = curDistance
     const moveEvents = [
-      ...(playerMoving ? [{ actor: 'player', action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Сближение (дистанция ${state.distance})`] }] : []),
-      ...(botMoving ? [{ actor: 'bot', action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Противник сближается (дистанция ${state.distance})`] }] : []),
+      ...(playerManualMove ? [{ actor: 'player', action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [playerManualMove === 'approach' ? `Подошёл ближе (дистанция ${curDistance})` : `Отошёл (дистанция ${curDistance})`] }] : []),
+      ...(playerMoving ? [{ actor: 'player', action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Сближение (дистанция ${curDistance})`] }] : []),
+      ...(botMoving ? [{ actor: 'bot', action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Противник сближается (дистанция ${curDistance})`] }] : []),
     ]
 
     playerPart.hpCurrent = playerHp
@@ -1237,7 +1266,7 @@ export const BattleService = {
   // -------------------------------------------------------
   // Resolve PvP round (зональная модель, оба игрока сходили)
   // -------------------------------------------------------
-  async _resolveRoundPvp(battleId: string, state: LiveBattleState) {
+  async _resolveRoundPvp(battleId: string, state: LiveBattleState, callerCharId?: string) {
     const [part1, part2] = state.participants.filter(p => p.characterId)
     if (!part1 || !part2) {
       logger.error({ battleId }, 'PvP round resolve: cannot find two character participants')
@@ -1330,6 +1359,9 @@ export const BattleService = {
     const p1First = init1 >= init2
 
     // ── Движение / дистанция ──────────────────────────────
+    // Направленное движение (Подойти/Отойти) → конкретная клетка относительно противника
+    if (turn1.moveDir && !turn1.moveTo) turn1.moveTo = resolveMoveDirToCell(state, part1, turn1.moveDir)
+    if (turn2.moveDir && !turn2.moveTo) turn2.moveTo = resolveMoveDirToCell(state, part2, turn2.moveDir)
     const moved1 = applyRequestedMove(state, part1, turn1.moveTo)
     const moved2 = applyRequestedMove(state, part2, turn2.moveTo)
     const distance = syncGridDistance(state)
@@ -1413,6 +1445,7 @@ export const BattleService = {
     return {
       roundNumber,
       distance: state.distance,
+      playerRange: callerCharId === char2.id ? range2 : range1,
       turns: [...moveEvents, ...roundTurns.map(t => ({ actor: t.actorPart.characterId, action: 'attack', ...t.r }))],
       player1Hp: hp1,
       player2Hp: hp2,

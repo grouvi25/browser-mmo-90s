@@ -30,6 +30,7 @@ export interface ZonalTurnInput {
   attackZones: BodyZone[]
   blockZones: BodyZone[]
   moveTo?: { x: number; y: number }
+  moveDir?: 'approach' | 'retreat'
   targetParticipantId?: string
 }
 
@@ -54,7 +55,7 @@ export function armorOfZone(equipped: EquipArmorLike[], zone: BodyZone): number 
 export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): ZonalTurnInput {
   const stance: Stance =
     input?.stance && STANCE_BUDGET[input.stance] ? input.stance : 'attack2'
-  const budget = input?.moveTo ? { attacks: 0, blocks: 0 } : STANCE_BUDGET[stance]
+  const budget = (input?.moveTo || input?.moveDir) ? { attacks: 0, blocks: 0 } : STANCE_BUDGET[stance]
 
   const rawAttack = (input?.attackZones ?? []).filter(isBodyZone)
   const rawBlock = (input?.blockZones ?? []).filter(isBodyZone)
@@ -78,6 +79,7 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
     attackZones,
     blockZones,
     moveTo: input?.moveTo,
+    moveDir: input?.moveDir,
     targetParticipantId: input?.targetParticipantId,
   }
 }
