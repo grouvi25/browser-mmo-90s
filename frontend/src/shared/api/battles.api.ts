@@ -6,6 +6,16 @@ interface StartPveResponse {
   state: LiveBattleState
 }
 
+export type BodyZone = 'HEAD' | 'CHEST' | 'LEGS' | 'RIGHT_ARM' | 'LEFT_ARM'
+export type Stance = 'attack2' | 'mixed' | 'defense4'
+
+export interface SubmitActionOpts {
+  itemInstanceId?: string
+  stance?: Stance
+  attackZones?: BodyZone[]
+  blockZones?: BodyZone[]
+}
+
 interface ActionResponse {
   roundNumber?: number
   playerHp?: number
@@ -17,10 +27,15 @@ interface ActionResponse {
   moneyReward?: number
   newLevel?: number
   waiting?: boolean
+  botStance?: Stance
+  botAttackZones?: BodyZone[]
+  botBlockZones?: BodyZone[]
   turns?: Array<{
     actor: "player" | "enemy" | string
     action: string; hit: boolean; dodge: boolean; block: boolean
-    crit: boolean; rawDamage: number; finalDamage: number; logParts: string[]
+    crit: boolean; lucky?: boolean; blockPierced?: boolean; zone?: BodyZone
+    counterDamage?: number
+    rawDamage: number; finalDamage: number; logParts: string[]
   }>
 }
 
@@ -72,8 +87,14 @@ export const battlesApi = {
   getBattleHistory: (page = 1, limit = 20) =>
     api.get<BattleHistoryResponse>(`/api/battles/me/history?page=${page}&limit=${limit}`),
 
-  submitAction: (battleId: string, action: BattleAction, itemInstanceId?: string) =>
-    api.post<ActionResponse>(`/api/battles/${battleId}/action`, { action, itemInstanceId }),
+  submitAction: (battleId: string, action: BattleAction, opts?: SubmitActionOpts) =>
+    api.post<ActionResponse>(`/api/battles/${battleId}/action`, {
+      action,
+      itemInstanceId: opts?.itemInstanceId,
+      stance: opts?.stance,
+      attackZones: opts?.attackZones,
+      blockZones: opts?.blockZones,
+    }),
 
   getBattle: (battleId: string) =>
     api.get<{ battle: Battle; liveState: LiveBattleState | null }>(`/api/battles/${battleId}`),

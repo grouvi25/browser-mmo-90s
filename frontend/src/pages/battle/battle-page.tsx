@@ -6,7 +6,7 @@ import {
   RotateCcw, Flag, ChevronDown, ChevronUp, Skull,
   CircleDot, User, Trophy, AlertTriangle, Pill,
 } from 'lucide-react'
-import { battlesApi } from '../../shared/api/battles.api'
+import { battlesApi, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { type BattleAction, type ItemInstance } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
@@ -15,6 +15,23 @@ import { charactersApi } from '../../shared/api/characters.api'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const LOADOUT_KEY = 'mmo_battle_loadout'
 
+// ── Зоны и стойки (модель Апехи) ───────────────────────────
+const ZONES: { key: BodyZone; label: string; short: string }[] = [
+  { key: 'HEAD',      label: 'Голова',    short: 'Гол' },
+  { key: 'CHEST',     label: 'Корпус',    short: 'Корп' },
+  { key: 'RIGHT_ARM', label: 'Пр. рука',  short: 'Пр.р' },
+  { key: 'LEFT_ARM',  label: 'Лев. рука', short: 'Лв.р' },
+  { key: 'LEGS',      label: 'Ноги',      short: 'Ноги' },
+]
+const ZONE_LABEL: Record<BodyZone, string> = {
+  HEAD: 'голова', CHEST: 'корпус', LEGS: 'ноги', RIGHT_ARM: 'правая рука', LEFT_ARM: 'левая рука',
+}
+const STANCES: { key: Stance; label: string; attacks: number; blocks: number; hint: string }[] = [
+  { key: 'attack2',  label: '2 удара',      attacks: 2, blocks: 0, hint: 'Максимум урона, ты открыт' },
+  { key: 'mixed',    label: '1 удар + блок', attacks: 1, blocks: 1, hint: 'Размен' },
+  { key: 'defense4', label: '4 блока',      attacks: 0, blocks: 4, hint: 'Глухая защита: закрыто 4 из 5 зон' },
+]
+
 function getLoadout(): string[] {
   try { return JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '[]') } catch { return [] }
 }
@@ -22,7 +39,8 @@ function getLoadout(): string[] {
 interface TurnEvent {
   actor: 'player' | 'enemy' | string
   action: string; hit: boolean; dodge: boolean; block: boolean
-  crit: boolean; lucky?: boolean; counterDamage?: number
+  crit: boolean; lucky?: boolean; blockPierced?: boolean; zone?: BodyZone
+  counterDamage?: number
   rawDamage: number; finalDamage: number; logParts: string[]
 }
 interface RoundRecord {
@@ -33,6 +51,7 @@ interface RoundResult {
   roundNumber?: number; playerHp?: number; botHp?: number; battleOver?: boolean
   result?: string; expGain?: number; weaponExpGain?: number; moneyReward?: number
   newLevel?: number; waiting?: boolean; turns?: TurnEvent[]
+  botStance?: Stance; botAttackZones?: BodyZone[]; botBlockZones?: BodyZone[]
 }
 
 // ── Иконки событий ─────────────────────────────────────────
@@ -47,13 +66,16 @@ function EventIcon({ type }: { type: string }) {
 }
 
 function getEvent(t: TurnEvent) {
-  if (!t.hit && t.dodge) return { type: 'dodge',   label: 'Уворот',   color: '#88b048' }
-  if (!t.hit)            return { type: 'dodge',   label: 'Уворот',   color: '#88b048' } // нет промаха
-  if (t.block)           return { type: 'block',   label: (t.counterDamage ?? 0) > 0 ? 'Блок + ответка' : 'Блок', color: '#6a9a3a' }
-  if (t.lucky)           return { type: 'lucky',   label: 'Пробитие', color: '#9a60c0' }
-  if (t.crit)            return { type: 'crit',    label: 'КРИТ',     color: '#d4a017' }
-  return                        { type: 'hit',     label: 'Удар',     color: '#c43030' }
+  const z = t.zone ? ` (${ZONE_LABEL[t.zone]})` : ''
+  if (!t.hit && t.dodge) return { type: 'dodge',   label: 'Уворот' + z,   color: '#88b048' }
+  if (!t.hit)            return { type: 'dodge',   label: 'Уворот' + z,   color: '#88b048' } // нет промаха
+  if (t.block)           return { type: 'block',   label: ((t.counterDamage ?? 0) > 0 ? 'Блок + ответка' : 'Блок') + z, color: '#6a9a3a' }
+  if (t.blockPierced)    return { type: 'lucky',   label: 'Пробил блок' + z, color: '#9a60c0' }
+  if (t.lucky)           return { type: 'lucky',   label: 'Пробитие' + z, color: '#9a60c0' }
+  if (t.crit)            return { type: 'crit',    label: 'КРИТ' + z,     color: '#d4a017' }
+  return                        { type: 'hit',     label: 'Удар' + z,     color: '#c43030' }
 }
+function zoneText(z?: BodyZone): string { return z ? ZONE_LABEL[z] : '' }
 
 // ── HP-полоска ─────────────────────────────────────────────
 function HpBar({ hp, hpMax, name, right = false }: { hp: number; hpMax: number; name: string; right?: boolean }) {
@@ -217,6 +239,12 @@ export function BattlePage() {
   // loadout IDs читается при mount и не меняется в течение боя
   const [loadoutIds] = useState<string[]>(() => getLoadout())
 
+  // ── Зональный ход ──────────────────────────────────────
+  const [stance, setStance]             = useState<Stance>('attack2')
+  const [attackZones, setAttackZones]   = useState<BodyZone[]>([])
+  const [blockZones, setBlockZones]     = useState<BodyZone[]>([])
+  const [enemyStance, setEnemyStance]   = useState<{ stance: Stance; attackZones: BodyZone[]; blockZones: BodyZone[] } | null>(null)
+
   const isValid = !!battleId && UUID_RE.test(battleId)
   useEffect(() => { if (!isValid) navigate('/profile', { replace: true }) }, [isValid, navigate])
 
@@ -255,13 +283,20 @@ export function BattlePage() {
   })
 
   const actionMut = useMutation({
-    mutationFn: ({ action, itemId }: { action: BattleAction; itemId?: string }) =>
-      battlesApi.submitAction(battleId!, action, itemId) as unknown as Promise<RoundResult>,
+    mutationFn: ({ action, opts }: { action: BattleAction; opts?: SubmitActionOpts }) =>
+      battlesApi.submitAction(battleId!, action, opts) as unknown as Promise<RoundResult>,
     onSuccess: (data, variables) => {
       const rn = data.roundNumber ?? currentRound
       setCurrentRound(rn)
       if (data.playerHp != null) setPlayerHp(data.playerHp)
       if (data.botHp    != null) setEnemyHp(data.botHp)
+      if (data.botStance) {
+        setEnemyStance({
+          stance: data.botStance,
+          attackZones: data.botAttackZones ?? [],
+          blockZones: data.botBlockZones ?? [],
+        })
+      }
 
       // Fix 1.1: аптечка пропадает сразу после использования
       if (variables.action === 'use_item') {
@@ -305,11 +340,24 @@ export function BattlePage() {
   })
 
   const canAct = !battleOver && !actionMut.isPending
-  const act = (action: BattleAction, itemId?: string) => {
+  const act = (action: BattleAction, opts?: SubmitActionOpts) => {
     setTimeLeft(7) // сброс таймера при действии
-    actionMut.mutate({ action, itemId })
+    actionMut.mutate({ action, opts })
   }
   const playerName = char?.nickname ?? 'Игрок'
+
+  // ── Зональный ход: стойки и выбор зон ──────────────────
+  const budget = STANCES.find(s => s.key === stance)!
+  const changeStance = (s: Stance) => { setStance(s); setAttackZones([]); setBlockZones([]) }
+  const toggleAttack = (z: BodyZone) => setAttackZones(prev =>
+    prev.includes(z) ? prev.filter(x => x !== z) : prev.length < budget.attacks ? [...prev, z] : prev)
+  const toggleBlock = (z: BodyZone) => setBlockZones(prev =>
+    prev.includes(z) ? prev.filter(x => x !== z) : prev.length < budget.blocks ? [...prev, z] : prev)
+  const submitTurn = () => {
+    const action: BattleAction = stance === 'defense4' ? 'block' : 'attack'
+    act(action, { stance, attackZones, blockZones })
+    setAttackZones([]); setBlockZones([])
+  }
 
   // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────
   const [timeLeft, setTimeLeft] = useState(7)
@@ -322,7 +370,7 @@ export function BattlePage() {
         if (prev <= 1) {
           clearInterval(interval)
           if (!battleOver && !actionMut.isPending) {
-            actionMut.mutate({ action: 'block' })
+            actionMut.mutate({ action: 'block', opts: { stance: 'defense4' } })
           }
           return 0
         }
@@ -462,16 +510,83 @@ export function BattlePage() {
             </div>
           )}
 
-          <div className="hud-v2-actions">
-            <button className="hud-v2-btn attack" disabled={!canAct} onClick={() => act('attack')}>
-              <Sword size={20} /><span>Атака</span>
-            </button>
-            <button className="hud-v2-btn block" disabled={!canAct} onClick={() => act('block')}>
-              <Shield size={20} /><span>Блок</span>
-            </button>
-            <button className="hud-v2-btn surrender" disabled={!canAct} onClick={() => act('surrender')} title="Сдаться">
-              <Flag size={16} />
-            </button>
+          {/* ── Зональный ход: стойка + зоны ── */}
+          <div className="hud-zonal">
+            <div className="hz-stances" style={{ display: 'flex', gap: 4 }}>
+              {STANCES.map(s => (
+                <button key={s.key} onClick={() => changeStance(s.key)} disabled={!canAct} title={s.hint}
+                  style={{
+                    flex: 1, padding: '6px 4px', fontSize: 11, fontWeight: 'bold', cursor: canAct ? 'pointer' : 'default',
+                    border: `1px solid ${stance === s.key ? 'var(--gold, #d4a017)' : 'var(--border, #444)'}`,
+                    background: stance === s.key ? 'rgba(212,160,23,0.15)' : 'transparent',
+                    color: stance === s.key ? 'var(--gold, #d4a017)' : 'var(--text-dim, #999)',
+                    borderRadius: 4,
+                  }}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'center', margin: '3px 0' }}>{budget.hint}</div>
+
+            <div className="hz-zones" style={{ display: 'flex', flexDirection: 'column', gap: 3, margin: '4px 0' }}>
+              {ZONES.map(z => {
+                const atk = attackZones.includes(z.key)
+                const blk = blockZones.includes(z.key)
+                const atkFull = !atk && attackZones.length >= budget.attacks
+                const blkFull = !blk && blockZones.length >= budget.blocks
+                return (
+                  <div key={z.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                    <span style={{ flex: 1, color: 'var(--text)' }}>{z.label}</span>
+                    {budget.attacks > 0 && (
+                      <button disabled={!canAct || atkFull} onClick={() => toggleAttack(z.key)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 4,
+                          cursor: (!canAct || atkFull) ? 'default' : 'pointer',
+                          border: `1px solid ${atk ? '#c43030' : 'var(--border,#444)'}`,
+                          background: atk ? 'rgba(196,48,48,0.2)' : 'transparent',
+                          color: atk ? '#e06060' : 'var(--text-dim,#888)',
+                          opacity: atkFull ? 0.35 : 1,
+                        }}>
+                        <Sword size={12} /> Удар
+                      </button>
+                    )}
+                    {budget.blocks > 0 && (
+                      <button disabled={!canAct || blkFull} onClick={() => toggleBlock(z.key)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 4,
+                          cursor: (!canAct || blkFull) ? 'default' : 'pointer',
+                          border: `1px solid ${blk ? '#4a8a35' : 'var(--border,#444)'}`,
+                          background: blk ? 'rgba(74,138,53,0.2)' : 'transparent',
+                          color: blk ? '#88c060' : 'var(--text-dim,#888)',
+                          opacity: blkFull ? 0.35 : 1,
+                        }}>
+                        <Shield size={12} /> Блок
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="btn btn-danger" disabled={!canAct} onClick={submitTurn} style={{ flex: 1, fontWeight: 'bold' }}>
+                <Sword size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                Ходить
+                <span style={{ fontSize: 10, opacity: 0.8, marginLeft: 6 }}>
+                  ({attackZones.length}/{budget.attacks} уд · {blockZones.length}/{budget.blocks} бл)
+                </span>
+              </button>
+              <button className="btn" disabled={!canAct} onClick={() => act('surrender')} title="Сдаться" style={{ padding: '0 12px' }}>
+                <Flag size={14} />
+              </button>
+            </div>
+
+            {enemyStance && (
+              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 5, textAlign: 'center' }}>
+                Противник: {STANCES.find(s => s.key === enemyStance.stance)?.label}
+                {enemyStance.blockZones.length > 0 && ` · блок: ${enemyStance.blockZones.map(zoneText).join(', ')}`}
+              </div>
+            )}
           </div>
 
           <div className="hud-v2-weapon">
@@ -529,7 +644,7 @@ export function BattlePage() {
       <PocketsPanel
         slots={pocketSlots}
         canAct={canAct}
-        onUse={(id) => act('use_item', id)}
+        onUse={(id) => act('use_item', { itemInstanceId: id })}
       />
 
     </div>
