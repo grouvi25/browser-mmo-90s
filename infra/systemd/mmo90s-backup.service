@@ -1,0 +1,14 @@
+[Unit]
+Description=MMO90s PostgreSQL backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/mmo90s
+Environment=PROJECT_DIR=/opt/mmo90s
+ExecStart=/opt/mmo90s/infra/deploy/backup.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

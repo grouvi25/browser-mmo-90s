@@ -102,12 +102,13 @@ jobs:
             curl --fail --silent https://game.grouvi.online/ >/dev/null
           EOF
 
-      - name: Reload nginx
+      - name: Harden VPS and enable scheduled backups
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             set -euo pipefail
-            nginx -t
-            nginx -s reload
+            cd ${{ secrets.VPS_PROJECT_DIR }}
+            chmod +x infra/deploy/backup.sh infra/deploy/harden-vps.sh
+            PROJECT_DIR="${{ secrets.VPS_PROJECT_DIR }}" ./infra/deploy/harden-vps.sh
           EOF
 
       - name: Rollback application on failure
