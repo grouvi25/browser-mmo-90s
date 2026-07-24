@@ -31,6 +31,9 @@ import {
   canAttackTarget,
   canMoveTo,
   gridDistance,
+  isAdjacentStep,
+  isInsideGrid,
+  samePosition,
   stepAway,
   stepToward,
   type GridPosition,
@@ -94,7 +97,22 @@ export interface LiveBattleState {
   grid?: typeof BATTLE_GRID
 }
 
+function ensureGridState(state: LiveBattleState): void {
+  state.grid ??= BATTLE_GRID
+  const sideOffsets = new Map<number, number>()
+  for (const part of state.participants) {
+    if (part.position) continue
+    const offset = sideOffsets.get(part.side) ?? 0
+    sideOffsets.set(part.side, offset + 1)
+    part.position = {
+      x: part.side === 1 ? 1 : BATTLE_GRID.width - 2,
+      y: Math.min(BATTLE_GRID.height - 1, 2 + Math.ceil(offset / 2) * (offset % 2 === 0 ? 1 : -1)),
+    }
+  }
+}
+
 function positionedParticipants(state: LiveBattleState): PositionedParticipant[] {
+  ensureGridState(state)
   return state.participants.map(p => ({
     participantId: p.participantId,
     side: p.side,
@@ -114,7 +132,40 @@ function applyRequestedMove(state: LiveBattleState, part: LiveParticipant, moveT
   return true
 }
 
+function applySimultaneousDuelMoves(
+  state: LiveBattleState,
+  first: LiveParticipant,
+  firstTarget?: GridPosition,
+  second?: LiveParticipant,
+  secondTarget?: GridPosition,
+): [boolean, boolean] {
+  ensureGridState(state)
+  const requests = [
+    { actor: first, target: firstTarget },
+    ...(second ? [{ actor: second, target: secondTarget }] : []),
+  ].filter((request): request is { actor: LiveParticipant; target: GridPosition } => Boolean(request.target))
+
+  for (const { actor, target } of requests) {
+    if (!isInsideGrid(target) || !isAdjacentStep(actor.position, target)) {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid destination cell', 400)
+    }
+  }
+  if (requests.length === 2 && samePosition(requests[0].target, requests[1].target)) {
+    throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Both fighters cannot occupy the same cell', 400)
+  }
+  for (const { actor, target } of requests) {
+    const blocker = state.participants.find(p => p.isAlive && p.participantId !== actor.participantId && samePosition(p.position, target))
+    const blockerMovesAway = blocker && requests.some(r => r.actor.participantId === blocker.participantId && !samePosition(r.target, blocker.position))
+    if (blocker && !blockerMovesAway) {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Destination cell is occupied', 400)
+    }
+  }
+  for (const request of requests) request.actor.position = { ...request.target }
+  return [Boolean(firstTarget), Boolean(secondTarget)]
+}
+
 function syncGridDistance(state: LiveBattleState): number {
+  ensureGridState(state)
   const alive = state.participants.filter(p => p.isAlive)
   const distance = alive.length >= 2 ? gridDistance(alive[0].position, alive[1].position) : 0
   state.distance = distance
@@ -1352,8 +1403,13 @@ export const BattleService = {
     // ── Движение / дистанция ──────────────────────────────
     const from1 = { ...part1.position }
     const from2 = { ...part2.position }
-    const moved1 = applyRequestedMove(state, part1, turn1.moveTo)
-    const moved2 = applyRequestedMove(state, part2, turn2.moveTo)
+    const [moved1, moved2] = applySimultaneousDuelMoves(
+      state,
+      part1,
+      turn1.moveTo,
+      part2,
+      turn2.moveTo,
+    )
     const distance = syncGridDistance(state)
     const range1 = weaponRangeOf(weapon1)
     const range2 = weaponRangeOf(weapon2)
