@@ -847,10 +847,30 @@ export const BattleService = {
       const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
 
       const botTurn = botChooseTurn()
-      const distance = state.distance ?? START_DISTANCE
+      const botWeapon = botEquip.weapon as Record<string, number> | undefined
+      const botRange = Math.max(1, botWeapon?.maxRange ?? 1)
+      ensureGridState(state)
+      const botFrom = { ...botPart.position }
+      let projected = positionedParticipants(state)
+      let gridBot = projected.find(p => p.participantId === botPart.participantId)!
+      let gridPlayer = projected.find(p => p.participantId === playerPart.participantId)!
       const botWantsAttack = botTurn.attackZones.length > 0
-      const botInRange = distance <= 1  // боты — ближний бой
-      const botMoving = botWantsAttack && !botInRange
+      let botMoving = false
+      if (botWantsAttack && !canAttackTarget(gridBot, gridPlayer, projected, botRange)) {
+        const candidates = botRange > 1 && gridDistance(gridBot.position, gridPlayer.position) <= 1
+          ? stepAway(gridBot.position, gridPlayer.position)
+          : stepToward(gridBot.position, gridPlayer.position)
+        const destination = candidates.find(cell => canMoveTo(gridBot, cell, projected))
+        if (destination) {
+          botPart.position = destination
+          botMoving = true
+          projected = positionedParticipants(state)
+          gridBot = projected.find(p => p.participantId === botPart.participantId)!
+          gridPlayer = projected.find(p => p.participantId === playerPart.participantId)!
+        }
+      }
+      syncGridDistance(state)
+      const botInRange = !botMoving && canAttackTarget(gridBot, gridPlayer, projected, botRange)
       const botHitZones: BodyZone[] = []
 
       // Клиентский лог: сначала событие аптечки
@@ -877,18 +897,27 @@ export const BattleService = {
         botPart.damageDealt += res.damageToDefender
         playerPart.damageReceived += res.damageToDefender
       } else if (botMoving) {
-        state.distance = Math.max(MIN_GAP, distance - 1)
         clientTurns.push({
-          actor: 'enemy', action: 'move',
+          actor: 'enemy', action: 'move', to: botPart.position,
           hit: false, dodge: false, block: false, crit: false, lucky: false,
           rawDamage: 0, finalDamage: 0, counterDamage: 0,
-          logParts: [`Противник сближается (дистанция ${state.distance})`],
+          logParts: [`Противник переместился в (${botPart.position.x}, ${botPart.position.y})`],
         })
       }
 
       playerPart.isAlive = playerPart.hpCurrent > 0
 
       // DB-записи по зональным ударам бота
+      if (botMoving) {
+        await prisma.battleTurn.create({
+          data: {
+            battleId, roundNumber, actorBotId: botPart.botId,
+            action: 'MOVE' as BattleAction,
+            fromX: botFrom.x, fromY: botFrom.y,
+            toX: botPart.position.x, toY: botPart.position.y,
+          },
+        })
+      }
       for (const t of clientTurns) {
         if (t.actor !== 'enemy' || t.action !== 'attack') continue
         await prisma.battleTurn.create({
