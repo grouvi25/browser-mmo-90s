@@ -379,7 +379,7 @@ export function BattlePage() {
     prev.includes(z) ? prev.filter(x => x !== z) : prev.length < budget.blocks ? [...prev, z] : prev)
   const submitTurn = () => {
     const action: BattleAction = stance === 'defense4' ? 'block' : 'attack'
-    act(action, { stance, attackZones, blockZones })
+    act(action, { stance, attackZones, blockZones, targetParticipantId: ePart?.participantId })
     setAttackZones([]); setBlockZones([]); setSelectedMove(null)
   }
   const submitMove = () => {
