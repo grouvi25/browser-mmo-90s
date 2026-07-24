@@ -2,10 +2,9 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { authenticate } from '../../shared/security/auth-middleware'
 import { CharactersRepository } from '../characters/characters.repository'
 import { ItemsRepository } from '../items/item-instance.repository'
-import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repository'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
-import { LogsRepository } from '../logs/logs.repository'
+import { withTransaction } from '../../shared/db/transaction'
 import { audit } from '../../shared/logger/audit-logger'
 import { z } from 'zod'
 
@@ -13,142 +12,182 @@ const EquipSchema = z.object({ itemInstanceId: z.string().uuid() })
 const UnequipSchema = z.object({ armorSlot: z.string().optional(), itemInstanceId: z.string().uuid().optional() })
 
 export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
+  fastify.get('/', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
+    const char = await CharactersRepository.findByUserId(req.authUser.userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    return reply.send(await ItemsRepository.findByOwner(char.id))
+  })
 
-  // GET /api/inventory
-  fastify.get('/', { preHandler: authenticate },
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      const char = await CharactersRepository.findByUserId(req.authUser.userId)
+  fastify.post('/equip', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
+    const parsed = EquipSchema.safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+
+    const result = await withTransaction(async tx => {
+      const char = await tx.character.findUnique({
+        where: { userId: req.authUser.userId },
+        include: { stats: true },
+      })
       if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
-      const items = await ItemsRepository.findByOwner(char.id)
-      return reply.send(items)
-    })
+      if (char.status === 'IN_BATTLE') {
+        throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Cannot change equipment during battle', 409)
+      }
 
-  // POST /api/inventory/equip
-  fastify.post('/equip', { preHandler: authenticate },
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      const parsed = EquipSchema.safeParse(req.body)
-      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
-
-      const char = await CharactersRepository.findByUserId(req.authUser.userId)
-      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
-
-      const item = await ItemsRepository.findInstanceById(parsed.data.itemInstanceId)
+      const item = await tx.itemInstance.findUnique({
+        where: { id: parsed.data.itemInstanceId },
+        include: { template: true },
+      })
       if (!item) throw AppError.notFound('Item', parsed.data.itemInstanceId)
       if (item.ownerId !== char.id) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
       if (item.status === 'BROKEN') throw new AppError(ErrorCode.ITEM_BROKEN, 'Item is broken, repair first', 400)
+      if (item.status === 'DELETED' || item.status === 'CONSUMED') {
+        throw new AppError(ErrorCode.ITEM_NOT_AVAILABLE, 'Item is not available', 409)
+      }
       if (item.isEquipped) throw new AppError(ErrorCode.ITEM_ALREADY_EQUIPPED, 'Already equipped', 400)
-
-      // Level requirement check
+      if (!item.template.isEquippable) throw new AppError(ErrorCode.ITEM_NOT_AVAILABLE, 'Item cannot be equipped', 400)
       if (char.battleLevel < item.template.levelReq) {
         throw new AppError(ErrorCode.ITEM_LEVEL_REQ, `Нужен боевой уровень ${item.template.levelReq}`, 400)
       }
-
-      // STR requirement check (TZ section 4.2)
-      const charStats = char.stats
-      if (charStats && item.template.strReq > 0 && charStats.str < item.template.strReq) {
+      if (char.stats && item.template.strReq > 0 && char.stats.str < item.template.strReq) {
         throw new AppError(ErrorCode.ITEM_LEVEL_REQ, `Нужна сила (STR) ${item.template.strReq}`, 400)
       }
-
-      // Weapon skill requirement check
       if (item.template.skillReq > 0 && item.template.weaponType) {
-        const skill = await WeaponSkillsRepository.getByType(char.id, item.template.weaponType)
+        const skill = await tx.weaponSkill.findUnique({
+          where: { characterId_weaponType: { characterId: char.id, weaponType: item.template.weaponType } },
+        })
         if (!skill || skill.skillLevel < item.template.skillReq) {
           throw new AppError(ErrorCode.ITEM_LEVEL_REQ, `Нужен навык оружия ${item.template.skillReq}`, 400)
         }
       }
 
-      // Unequip existing in the same slot if armor
-      if (item.template.type === 'ARMOR' && item.template.armorSlot) {
-        const existing = await ItemsRepository.findEquippedBySlot(char.id, item.template.armorSlot)
-        if (existing) {
-          await ItemsRepository.unequip(existing.id)
-          await LogsRepository.logItem({ itemId: existing.id, characterId: char.id, actionCode: 'UNEQUIPPED' })
-        }
-      }
-      // Unequip existing main weapon if this is a weapon
-      if (item.template.type === 'WEAPON') {
-        const existingWeapon = await ItemsRepository.findEquippedWeapon(char.id)
-        if (existingWeapon) {
-          await ItemsRepository.unequip(existingWeapon.id)
-          await LogsRepository.logItem({ itemId: existingWeapon.id, characterId: char.id, actionCode: 'UNEQUIPPED' })
-        }
+      const slot = item.template.type === 'ARMOR' || item.template.type === 'SHIELD'
+        ? item.template.armorSlot
+        : null
+      const existing = await tx.itemInstance.findMany({
+        where: {
+          ownerId: char.id,
+          isEquipped: true,
+          status: { not: 'DELETED' },
+          ...(item.template.type === 'WEAPON'
+            ? { template: { type: 'WEAPON' } }
+            : { armorSlot: slot }),
+        },
+        select: { id: true },
+      })
+
+      if (existing.length > 0) {
+        await tx.itemInstance.updateMany({
+          where: { id: { in: existing.map(entry => entry.id) }, ownerId: char.id, isEquipped: true },
+          data: { isEquipped: false, status: 'NORMAL', armorSlot: null },
+        })
+        await tx.itemLog.createMany({
+          data: existing.map(entry => ({
+            itemId: entry.id,
+            characterId: char.id,
+            actionCode: 'UNEQUIPPED' as const,
+          })),
+        })
       }
 
-      const slot = item.template.type === 'ARMOR' ? item.template.armorSlot : null
-      await ItemsRepository.equip(item.id, slot)
-      await LogsRepository.logItem({ itemId: item.id, characterId: char.id, actionCode: 'EQUIPPED' })
-      audit('item.equipped', { characterId: char.id, itemId: item.id })
+      const equipped = await tx.itemInstance.updateMany({
+        where: {
+          id: item.id,
+          ownerId: char.id,
+          isEquipped: false,
+          status: { notIn: ['BROKEN', 'DELETED', 'CONSUMED'] },
+        },
+        data: { isEquipped: true, status: 'EQUIPPED', armorSlot: slot },
+      })
+      if (equipped.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Equipment changed concurrently', 409)
 
-      return reply.send({ message: 'Equipped', itemId: item.id })
+      await tx.itemLog.create({
+        data: { itemId: item.id, characterId: char.id, actionCode: 'EQUIPPED' },
+      })
+      return { characterId: char.id, itemId: item.id }
     })
 
-  // POST /api/inventory/unequip
-  fastify.post('/unequip', { preHandler: authenticate },
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      const parsed = UnequipSchema.safeParse(req.body)
-      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    audit('item.equipped', result)
+    return reply.send({ message: 'Equipped', itemId: result.itemId })
+  })
 
-      const char = await CharactersRepository.findByUserId(req.authUser.userId)
+  fastify.post('/unequip', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
+    const parsed = UnequipSchema.safeParse(req.body)
+    if (!parsed.success || (!parsed.data.itemInstanceId && !parsed.data.armorSlot)) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    }
+
+    const result = await withTransaction(async tx => {
+      const char = await tx.character.findUnique({ where: { userId: req.authUser.userId } })
       if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
-
-      let item = null
-      if (parsed.data.itemInstanceId) {
-        item = await ItemsRepository.findInstanceById(parsed.data.itemInstanceId)
-      } else if (parsed.data.armorSlot) {
-        item = await ItemsRepository.findEquippedBySlot(char.id, parsed.data.armorSlot)
+      if (char.status === 'IN_BATTLE') {
+        throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Cannot change equipment during battle', 409)
       }
 
+      const item = await tx.itemInstance.findFirst({
+        where: parsed.data.itemInstanceId
+          ? { id: parsed.data.itemInstanceId, ownerId: char.id }
+          : { ownerId: char.id, isEquipped: true, armorSlot: parsed.data.armorSlot as never },
+      })
       if (!item) throw AppError.notFound('Equipped item')
-      if (item.ownerId !== char.id) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
       if (!item.isEquipped) throw new AppError(ErrorCode.ITEM_NOT_EQUIPPED, 'Item is not equipped', 400)
 
-      await ItemsRepository.unequip(item.id)
-      await LogsRepository.logItem({ itemId: item.id, characterId: char.id, actionCode: 'UNEQUIPPED' })
-      audit('item.unequipped', { characterId: char.id, itemId: item.id })
-
-      return reply.send({ message: 'Unequipped', itemId: item.id })
+      const updated = await tx.itemInstance.updateMany({
+        where: { id: item.id, ownerId: char.id, isEquipped: true },
+        data: { isEquipped: false, status: 'NORMAL', armorSlot: null },
+      })
+      if (updated.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Equipment changed concurrently', 409)
+      await tx.itemLog.create({
+        data: { itemId: item.id, characterId: char.id, actionCode: 'UNEQUIPPED' },
+      })
+      return { characterId: char.id, itemId: item.id }
     })
 
-  // POST /api/inventory/use-item — использовать расходник ВНЕ БОЯ
-  fastify.post('/use-item', { preHandler: authenticate },
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      const parsed = EquipSchema.safeParse(req.body)
-      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    audit('item.unequipped', result)
+    return reply.send({ message: 'Unequipped', itemId: result.itemId })
+  })
 
-      const char = await CharactersRepository.findByUserId(req.authUser.userId)
+  fastify.post('/use-item', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
+    const parsed = EquipSchema.safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+
+    const result = await withTransaction(async tx => {
+      const char = await tx.character.findUnique({ where: { userId: req.authUser.userId } })
       if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
-      if (!char.stats) throw AppError.internal('Stats missing')
-
-      // Нельзя использовать вне боя при статусе IN_BATTLE
       if (char.status === 'IN_BATTLE') {
         throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Используй расходник через меню действий в бою', 400)
       }
+      if (char.hpCurrent >= char.hpMax) throw new AppError(ErrorCode.CONFLICT, 'HP уже полное — расходник не нужен', 400)
 
-      const item = await ItemsRepository.findInstanceById(parsed.data.itemInstanceId)
+      const item = await tx.itemInstance.findUnique({
+        where: { id: parsed.data.itemInstanceId },
+        include: { template: true },
+      })
       if (!item) throw AppError.notFound('Item', parsed.data.itemInstanceId)
       if (item.ownerId !== char.id) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
       if (item.template.type !== 'CONSUMABLE') {
         throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Это не расходник', 400)
       }
-      if (item.status === 'CONSUMED' || item.status === 'DELETED') {
-        throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Предмет уже использован', 400)
-      }
-      if (char.hpCurrent >= char.hpMax) {
-        throw new AppError(ErrorCode.CONFLICT, 'HP уже полное — расходник не нужен', 400)
-      }
+
+      const consumed = await tx.itemInstance.updateMany({
+        where: { id: item.id, ownerId: char.id, status: { notIn: ['CONSUMED', 'DELETED'] } },
+        data: { status: 'DELETED', isEquipped: false },
+      })
+      if (consumed.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Предмет уже использован', 409)
 
       const hpRestore = item.template.hpBonus ?? 0
       const newHp = Math.min(char.hpMax, char.hpCurrent + hpRestore)
-
-      // Использованный расходник сразу удаляется из инвентаря (soft-delete в DELETED)
-      await ItemsRepository.delete(item.id)
-      await CharactersRepository.updateHp(char.id, newHp)
-
-      return reply.send({
-        hpRestored: hpRestore,
-        newHp,
-        hpMax: char.hpMax,
-        itemName: item.template.name,
+      await tx.character.update({ where: { id: char.id }, data: { hpCurrent: newHp } })
+      await tx.itemLog.create({
+        data: {
+          itemId: item.id,
+          characterId: char.id,
+          actionCode: 'STATUS_CHANGED',
+          details: { from: item.status, to: 'DELETED', reason: 'CONSUMED' },
+        },
       })
+
+      return { hpRestored: newHp - char.hpCurrent, newHp, hpMax: char.hpMax, itemName: item.template.name }
     })
+
+    return reply.send(result)
+  })
 }
