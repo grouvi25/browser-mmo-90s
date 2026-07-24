@@ -36,14 +36,12 @@ jobs:
           printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Snapshot current commit and database
+      - name: Snapshot current commit
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
             git rev-parse HEAD > /tmp/mmo90s_rollback_sha
-            chmod +x infra/deploy/backup.sh
-            ./infra/deploy/backup.sh
           EOF
 
       - name: Fetch verified commit
@@ -54,6 +52,15 @@ jobs:
             git fetch --prune origin
             git reset --hard "${{ github.event.workflow_run.head_sha }}"
             test "$(git rev-parse HEAD)" = "${{ github.event.workflow_run.head_sha }}"
+          EOF
+
+      - name: Backup database with verified deploy code
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -euo pipefail
+            cd ${{ secrets.VPS_PROJECT_DIR }}
+            chmod +x infra/deploy/backup.sh
+            ./infra/deploy/backup.sh
           EOF
 
       - name: Build Docker images
