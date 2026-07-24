@@ -11,7 +11,6 @@ import { withTransaction } from '../../shared/db/transaction'
 import { audit } from '../../shared/logger/audit-logger'
 import { logger } from '../../shared/logger/logger'
 import {
-  resolveAttack,
   resolveZonalAttack,
   calcInitiative,
   type AttackerSnapshot,
@@ -700,7 +699,7 @@ export const BattleService = {
     // Mark player as having acted this round
     playerPart.hasActedThisRound = true
 
-    // For PvE: bot also attacks on same round
+    // For PvE: бот ходит зонально в тот же раунд (игрок использовал предмет → не блокирует)
     if (state.type === 'PVE_BOT') {
       const botPart = state.participants.find(p => p.botId)!
       const bot = await loadBotData(botPart.botId!)
@@ -708,30 +707,70 @@ export const BattleService = {
       const botEquip = bot.equipment as Record<string, unknown>
       const equippedItems = await ItemsRepository.findEquipped(char.id)
       const equippedArmor = equippedItems.filter(i => i.template.type === 'ARMOR')
+      const playerArmorList = armorListFromEquipped(equippedArmor)
       const playerDefSnap = buildDefenderSnapshot(char, equippedArmor)
       const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
 
-      const botResult = resolveAttack(botAttackSnap, playerDefSnap, false)
-      if (botResult.hit && !botResult.dodge) {
-        const dmg = botResult.finalDamage
-        playerPart.hpCurrent = Math.max(0, playerPart.hpCurrent - dmg)
-        botPart.damageDealt += dmg
-        playerPart.damageReceived += dmg
-        botPart.hitsLanded++
-        playerPart.hitsTaken++
+      const botTurn = botChooseTurn()
+      const distance = state.distance ?? START_DISTANCE
+      const botWantsAttack = botTurn.attackZones.length > 0
+      const botInRange = distance <= 1  // боты — ближний бой
+      const botMoving = botWantsAttack && !botInRange
+      const botHitZones: BodyZone[] = []
+
+      // Клиентский лог: сначала событие аптечки
+      const clientTurns: Array<Record<string, unknown>> = [{
+        actor: 'player', action: 'use_item',
+        hit: false, dodge: false, block: false, crit: false, lucky: false,
+        rawDamage: 0, finalDamage: 0, counterDamage: 0,
+        logParts: [`${item.template.name}: +${hpRestore} HP`],
+      }]
+
+      if (botWantsAttack && botInRange) {
+        const res = executeStrikes({
+          attackerSnap: botAttackSnap, defenderSnap: playerDefSnap,
+          zoneArmorFor: (z) => armorOfZone(playerArmorList, z),
+          attackZones: botTurn.attackZones, blockedZones: [], defenderHp: playerPart.hpCurrent,
+        })
+        for (const r of res.results) {
+          if (r.hit && !r.dodge && !r.block) {
+            playerPart.hpCurrent = Math.max(0, playerPart.hpCurrent - r.finalDamage)
+            botPart.hitsLanded++; playerPart.hitsTaken++; botHitZones.push(r.zone)
+          }
+          clientTurns.push({ actor: 'enemy', action: 'attack', ...r })
+        }
+        botPart.damageDealt += res.damageToDefender
+        playerPart.damageReceived += res.damageToDefender
+      } else if (botMoving) {
+        state.distance = Math.max(MIN_GAP, distance - 1)
+        clientTurns.push({
+          actor: 'enemy', action: 'move',
+          hit: false, dodge: false, block: false, crit: false, lucky: false,
+          rawDamage: 0, finalDamage: 0, counterDamage: 0,
+          logParts: [`Противник сближается (дистанция ${state.distance})`],
+        })
       }
+
       playerPart.isAlive = playerPart.hpCurrent > 0
 
-      await prisma.battleTurn.create({
-        data: {
-          battleId, roundNumber,
-          actorBotId: botPart.botId, targetCharId: char.id,
-          action: 'ATTACK' as BattleAction,
-          hit: botResult.hit, dodge: botResult.dodge, block: botResult.block, crit: botResult.crit,
-          rawDamage: botResult.rawDamage, finalDamage: botResult.finalDamage,
-          logLine: botResult.logParts.join(', '),
-        },
-      })
+      // DB-записи по зональным ударам бота
+      for (const t of clientTurns) {
+        if (t.actor !== 'enemy' || t.action !== 'attack') continue
+        await prisma.battleTurn.create({
+          data: {
+            battleId, roundNumber,
+            actorBotId: botPart.botId, targetCharId: char.id,
+            action: 'ATTACK' as BattleAction,
+            zone: (t.zone as BodyZone) ?? null,
+            blockPierced: (t.blockPierced as boolean) ?? false,
+            hit: t.hit as boolean, dodge: t.dodge as boolean, block: t.block as boolean, crit: t.crit as boolean,
+            rawDamage: t.rawDamage as number, finalDamage: t.finalDamage as number,
+            logLine: (t.logParts as string[]).join(', '),
+          },
+        })
+      }
+      // Зональный износ брони
+      await applyZonalArmorWear(equippedArmor, botHitZones)
 
       if (!playerPart.isAlive) {
         state.status = 'finishing'
@@ -755,26 +794,11 @@ export const BattleService = {
         roundNumber,
         itemUsed: item.template.name,
         hpRestored: hpRestore,
-        botAttack: { ...botResult },
+        distance: state.distance,
         playerHp: playerPart.hpCurrent,
         botHp: botPart.hpCurrent,
         battleOver: false,
-        // Turns для лога (аптечка + ответный удар бота)
-        turns: [
-          {
-            actor: 'player', action: 'use_item',
-            hit: false, dodge: false, block: false, crit: false, lucky: false,
-            rawDamage: 0, finalDamage: 0, counterDamage: 0,
-            logParts: [`${item.template.name}: +${hpRestore} HP`],
-          },
-          {
-            actor: 'enemy', action: 'attack',
-            hit: botResult.hit, dodge: botResult.dodge, block: botResult.block,
-            crit: botResult.crit, lucky: false, counterDamage: 0,
-            rawDamage: botResult.rawDamage, finalDamage: botResult.finalDamage,
-            logParts: botResult.logParts,
-          },
-        ],
+        turns: clientTurns,
       }
     }
 

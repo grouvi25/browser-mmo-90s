@@ -7,6 +7,7 @@ import { LoginPage }           from '../pages/auth/login-page'
 import { RegisterPage }        from '../pages/auth/register-page'
 import { CreateCharacterPage } from '../pages/character/create-character-page'
 import { ProfilePage }         from '../pages/character/profile-page'
+import { PublicProfilePage }   from '../pages/character/public-profile-page'
 import { InventoryPage }       from '../pages/inventory/inventory-page'
 import { GovernmentShopPage }  from '../pages/shop/government-shop-page'
 import { BattlePage }          from '../pages/battle/battle-page'
@@ -42,6 +43,7 @@ export function AppRouter() {
       <Route element={<RequireAuth><GameLayout /></RequireAuth>}>
         <Route path="/character/create" element={<CreateCharacterPage />} />
         <Route path="/profile"          element={<ProfilePage />} />
+        <Route path="/u/:nickname"      element={<PublicProfilePage />} />
         <Route path="/inventory"        element={<InventoryPage />} />
         <Route path="/shop"             element={<GovernmentShopPage />} />
         <Route path="/battle/:id"       element={<BattlePage />} />

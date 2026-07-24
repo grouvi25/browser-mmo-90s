@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Swords, Plus, RefreshCw, Clock } from 'lucide-react'
 import { battlesApi, type OpenDuel } from '../../shared/api/battles.api'
 import { charactersApi } from '../../shared/api/characters.api'
@@ -154,9 +154,14 @@ export function PvpPage() {
                   {openDuels.map((duel: OpenDuel) => (
                     <tr key={duel.battleId} style={{ opacity: duel.canJoin ? 1 : 0.5 }}>
                       <td>
-                        <span style={{ fontWeight: 'bold', color: 'var(--text-bright)' }}>
-                          {duel.creator?.nickname ?? '?'}
-                        </span>
+                        {duel.creator?.nickname ? (
+                          <Link to={`/u/${encodeURIComponent(duel.creator.nickname)}`}
+                            style={{ fontWeight: 'bold', color: 'var(--accent, #6a9ad0)' }}>
+                            {duel.creator.nickname}
+                          </Link>
+                        ) : (
+                          <span style={{ fontWeight: 'bold', color: 'var(--text-bright)' }}>?</span>
+                        )}
                         <div style={{ fontSize: 9, color: 'var(--text-dim)' }}>
                           {ARCHETYPE_LABELS[duel.creator?.archetype ?? ''] ?? ''}
                         </div>
