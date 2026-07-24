@@ -52,6 +52,7 @@ interface RoundResult {
   result?: string; expGain?: number; weaponExpGain?: number; moneyReward?: number
   newLevel?: number; waiting?: boolean; turns?: TurnEvent[]
   botStance?: Stance; botAttackZones?: BodyZone[]; botBlockZones?: BodyZone[]
+  distance?: number; playerRange?: number
 }
 
 // ── Иконки событий ─────────────────────────────────────────
@@ -62,11 +63,13 @@ function EventIcon({ type }: { type: string }) {
   if (type === 'counter') return <RotateCcw size={sz} />
   if (type === 'crit')    return <Zap size={sz} />
   if (type === 'lucky')   return <Zap size={sz} />
+  if (type === 'move')    return <ArrowRight size={sz} />
   return <Sword size={sz} />
 }
 
 function getEvent(t: TurnEvent) {
   const z = t.zone ? ` (${ZONE_LABEL[t.zone]})` : ''
+  if (t.action === 'move') return { type: 'move', label: 'Сближение', color: '#7a9bd0' }
   if (!t.hit && t.dodge) return { type: 'dodge',   label: 'Уворот' + z,   color: '#88b048' }
   if (!t.hit)            return { type: 'dodge',   label: 'Уворот' + z,   color: '#88b048' } // нет промаха
   if (t.block)           return { type: 'block',   label: ((t.counterDamage ?? 0) > 0 ? 'Блок + ответка' : 'Блок') + z, color: '#6a9a3a' }
@@ -100,14 +103,19 @@ function BattleGrid({
   playerName, playerHp, playerHpMax,
   enemyName, enemyHp, enemyHpMax,
   playerDefeated, enemyDefeated,
-  playerHit, enemyHit, lastEvent,
+  playerHit, enemyHit, lastEvent, distance,
 }: {
   playerName: string; playerHp: number; playerHpMax: number
   enemyName: string;  enemyHp: number;  enemyHpMax: number
   playerDefeated: boolean; enemyDefeated: boolean
   playerHit: boolean; enemyHit: boolean; lastEvent: TurnEvent | null
+  distance?: number
 }) {
   const midRow = Math.floor(GRID_ROWS / 2)
+  // позиция врага зависит от дистанции (ближний бой = соседняя клетка)
+  const enemyCol = distance != null
+    ? Math.min(GRID_COLS - 1, Math.max(PLAYER_COL + 1, PLAYER_COL + distance))
+    : ENEMY_COL
 
   return (
     <div className="grid-arena">
@@ -125,7 +133,7 @@ function BattleGrid({
         {Array.from({ length: GRID_ROWS }).map((_, row) =>
           Array.from({ length: GRID_COLS }).map((_, col) => {
             const isPlayer = col === PLAYER_COL && row === midRow
-            const isEnemy  = col === ENEMY_COL  && row === midRow
+            const isEnemy  = col === enemyCol  && row === midRow
             const isCenter = col === Math.floor(GRID_COLS / 2) && row === midRow
             return (
               <div key={`${row}-${col}`}
@@ -244,6 +252,8 @@ export function BattlePage() {
   const [attackZones, setAttackZones]   = useState<BodyZone[]>([])
   const [blockZones, setBlockZones]     = useState<BodyZone[]>([])
   const [enemyStance, setEnemyStance]   = useState<{ stance: Stance; attackZones: BodyZone[]; blockZones: BodyZone[] } | null>(null)
+  const [distance, setDistance]         = useState<number | null>(null)
+  const [playerRange, setPlayerRange]   = useState<number | null>(null)
 
   const isValid = !!battleId && UUID_RE.test(battleId)
   useEffect(() => { if (!isValid) navigate('/profile', { replace: true }) }, [isValid, navigate])
@@ -297,6 +307,8 @@ export function BattlePage() {
           blockZones: data.botBlockZones ?? [],
         })
       }
+      if (data.distance != null) setDistance(data.distance)
+      if (data.playerRange != null) setPlayerRange(data.playerRange)
 
       // Fix 1.1: аптечка пропадает сразу после использования
       if (variables.action === 'use_item') {
@@ -484,6 +496,7 @@ export function BattlePage() {
           playerDefeated={false} enemyDefeated={false}
           playerHit={playerHit} enemyHit={enemyHit}
           lastEvent={lastEvent}
+          distance={distance ?? live?.distance ?? undefined}
         />
 
         {/* HUD */}
@@ -512,6 +525,16 @@ export function BattlePage() {
 
           {/* ── Зональный ход: стойка + зоны ── */}
           <div className="hud-zonal">
+            {(distance ?? live?.distance) != null && (() => {
+              const d = (distance ?? live?.distance) as number
+              const far = playerRange != null && d > playerRange
+              return (
+                <div style={{ fontSize: 11, textAlign: 'center', marginBottom: 5, color: far ? 'var(--warning, #c4802a)' : 'var(--text-dim)' }}>
+                  Дистанция: {d}{playerRange != null && ` · оружие бьёт с ${playerRange}`}
+                  {far && ' — далеко: при атаке сближаешься (без удара)'}
+                </div>
+              )
+            })()}
             <div className="hz-stances" style={{ display: 'flex', gap: 4 }}>
               {STANCES.map(s => (
                 <button key={s.key} onClick={() => changeStance(s.key)} disabled={!canAct} title={s.hint}

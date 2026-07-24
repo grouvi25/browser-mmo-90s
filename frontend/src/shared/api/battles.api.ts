@@ -30,6 +30,8 @@ interface ActionResponse {
   botStance?: Stance
   botAttackZones?: BodyZone[]
   botBlockZones?: BodyZone[]
+  distance?: number
+  playerRange?: number
   turns?: Array<{
     actor: "player" | "enemy" | string
     action: string; hit: boolean; dodge: boolean; block: boolean

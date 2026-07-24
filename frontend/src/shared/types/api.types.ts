@@ -166,6 +166,7 @@ export interface LiveBattleState {
   roundNumber: number
   status: string
   participants: LiveParticipant[]
+  distance?: number
 }
 
 export interface RepairItem extends ItemInstance {

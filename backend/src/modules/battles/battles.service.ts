@@ -42,6 +42,14 @@ import type { ItemWithTemplate } from '../items/item-instance.repository'
 // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────────
 const TURN_TIMEOUT_MS = 7_000
 
+// ── Поле боя (движение/дистанция) ──────────────────────────────
+const START_DISTANCE = 4   // стартовая дистанция между бойцами (клеток)
+const MIN_GAP = 1          // ближний бой = соседние клетки (дистанция 1)
+// Радиус оружия: у ближнего = 1, у дальнего — из шаблона (maxRange)
+function weaponRangeOf(weapon: ItemWithTemplate | null | undefined): number {
+  return Math.max(1, weapon?.template.maxRange ?? 1)
+}
+
 // ---------------------------------------------------------------
 // Live battle state stored in Redis
 // ---------------------------------------------------------------
@@ -72,6 +80,7 @@ export interface LiveBattleState {
   status: 'active' | 'finishing'
   participants: LiveParticipant[]
   roundDeadline?: number    // unix ms for auto-resolve
+  distance?: number         // дистанция между бойцами (движение/дальность оружия)
 }
 
 // ---------------------------------------------------------------
@@ -347,6 +356,7 @@ export const BattleService = {
         roundNumber: 1,
         status: 'active',
         roundDeadline: Date.now() + TURN_TIMEOUT_MS,
+        distance: START_DISTANCE,
         participants: [
           {
             participantId: playerPart.id,
@@ -464,6 +474,7 @@ export const BattleService = {
         roundNumber: 1,
         status: 'active',
         roundDeadline: Date.now() + TURN_TIMEOUT_MS,
+        distance: START_DISTANCE,
         participants: [
           {
             participantId: opponentPart.id,
@@ -815,6 +826,20 @@ export const BattleService = {
     const botTurn = botChooseTurn()
     const botZoneArmor = defenderSnap.armor   // у бота равномерная броня по зонам
 
+    // ── Движение / дистанция ──────────────────────────────
+    const distance = state.distance ?? START_DISTANCE
+    const playerRange = weaponRangeOf(weapon)
+    const botRange = 1  // боты — ближний бой
+    const playerWantsAttack = playerTurn.attackZones.length > 0
+    const botWantsAttack = botTurn.attackZones.length > 0
+    const playerInRange = distance <= playerRange
+    const botInRange = distance <= botRange
+    // хочет бить, но далеко → сближается (в этот раунд без удара)
+    const playerMoving = playerWantsAttack && !playerInRange
+    const botMoving = botWantsAttack && !botInRange
+    const doPlayerStrike = playerWantsAttack && playerInRange
+    const doBotStrike = botWantsAttack && botInRange
+
     const playerInit = calcInitiative(char.stats!.rea, char.stats!.agi, skillRecord.skillLevel, attackerSnap.equipmentWeight)
     const botInit    = calcInitiative(botStats.rea ?? 2, botStats.agi ?? 2, 1, 0)
     const playerFirst = playerInit >= botInit
@@ -872,12 +897,20 @@ export const BattleService = {
     }
 
     if (playerFirst) {
-      playerStrike()
-      if (playerHp > 0 && botHp > 0) botStrike()
+      if (doPlayerStrike) playerStrike()
+      if (doBotStrike && playerHp > 0 && botHp > 0) botStrike()
     } else {
-      botStrike()
-      if (playerHp > 0 && botHp > 0) playerStrike()
+      if (doBotStrike) botStrike()
+      if (doPlayerStrike && playerHp > 0 && botHp > 0) playerStrike()
     }
+
+    // Применяем сближение (дистанция уменьшается за каждого, кто двигался)
+    const movesThisRound = (playerMoving ? 1 : 0) + (botMoving ? 1 : 0)
+    if (movesThisRound > 0) state.distance = Math.max(MIN_GAP, distance - movesThisRound)
+    const moveEvents = [
+      ...(playerMoving ? [{ actor: 'player', action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Сближение (дистанция ${state.distance})`] }] : []),
+      ...(botMoving ? [{ actor: 'bot', action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Противник сближается (дистанция ${state.distance})`] }] : []),
+    ]
 
     playerPart.hpCurrent = playerHp
     botPart.hpCurrent = botHp
@@ -929,7 +962,9 @@ export const BattleService = {
       botStance: botTurn.stance,
       botAttackZones: botTurn.attackZones,
       botBlockZones: botTurn.blockZones,
-      turns: turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r })),
+      distance: state.distance,
+      playerRange,
+      turns: [...moveEvents, ...turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r }))],
       playerHp,
       botHp,
       battleOver: false,
@@ -1185,13 +1220,32 @@ export const BattleService = {
     }
 
     const p1First = init1 >= init2
+
+    // ── Движение / дистанция ──────────────────────────────
+    const distance = state.distance ?? START_DISTANCE
+    const range1 = weaponRangeOf(weapon1)
+    const range2 = weaponRangeOf(weapon2)
+    const wants1 = turn1.attackZones.length > 0
+    const wants2 = turn2.attackZones.length > 0
+    const doStrike1 = wants1 && distance <= range1
+    const doStrike2 = wants2 && distance <= range2
+    const moving1 = wants1 && distance > range1
+    const moving2 = wants2 && distance > range2
+
     if (p1First) {
-      doStrike(part1, snap1Atk, turn1, part2, snap2Def, armorList2, turn2)
-      if (hp1 > 0 && hp2 > 0) doStrike(part2, snap2Atk, turn2, part1, snap1Def, armorList1, turn1)
+      if (doStrike1) doStrike(part1, snap1Atk, turn1, part2, snap2Def, armorList2, turn2)
+      if (doStrike2 && hp1 > 0 && hp2 > 0) doStrike(part2, snap2Atk, turn2, part1, snap1Def, armorList1, turn1)
     } else {
-      doStrike(part2, snap2Atk, turn2, part1, snap1Def, armorList1, turn1)
-      if (hp1 > 0 && hp2 > 0) doStrike(part1, snap1Atk, turn1, part2, snap2Def, armorList2, turn2)
+      if (doStrike2) doStrike(part2, snap2Atk, turn2, part1, snap1Def, armorList1, turn1)
+      if (doStrike1 && hp1 > 0 && hp2 > 0) doStrike(part1, snap1Atk, turn1, part2, snap2Def, armorList2, turn2)
     }
+
+    const movesThisRound = (moving1 ? 1 : 0) + (moving2 ? 1 : 0)
+    if (movesThisRound > 0) state.distance = Math.max(MIN_GAP, distance - movesThisRound)
+    const moveEvents = [
+      ...(moving1 ? [{ actor: part1.characterId, action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Сближение (дистанция ${state.distance})`] }] : []),
+      ...(moving2 ? [{ actor: part2.characterId, action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Сближение (дистанция ${state.distance})`] }] : []),
+    ]
 
     part1.hpCurrent = hp1
     part2.hpCurrent = hp2
@@ -1249,7 +1303,8 @@ export const BattleService = {
 
     return {
       roundNumber,
-      turns: roundTurns.map(t => ({ actor: t.actorPart.characterId, action: 'attack', ...t.r })),
+      distance: state.distance,
+      turns: [...moveEvents, ...roundTurns.map(t => ({ actor: t.actorPart.characterId, action: 'attack', ...t.r }))],
       player1Hp: hp1,
       player2Hp: hp2,
       battleOver: false,
