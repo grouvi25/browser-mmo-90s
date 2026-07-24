@@ -563,8 +563,9 @@ export const BattleService = {
     const newHp = Math.min(playerPart.hpMax, playerPart.hpCurrent + hpRestore)
     playerPart.hpCurrent = newHp
 
-    // Consume the item
-    await ItemsRepository.updateStatus(itemInstanceId, 'CONSUMED')
+    // Consume the item — использованный расходник сразу удаляется из инвентаря
+    // (soft-delete в DELETED: сохраняет аудит ItemLog, но убирает из findByOwner)
+    await ItemsRepository.delete(itemInstanceId)
 
     // Log the action
     const roundNumber = state.roundNumber
