@@ -29,6 +29,8 @@ export interface ZonalTurnInput {
   stance: Stance
   attackZones: BodyZone[]
   blockZones: BodyZone[]
+  moveTo?: { x: number; y: number }
+  targetParticipantId?: string
 }
 
 // Минимальная форма экипированного предмета для расчёта брони по зоне.
@@ -52,7 +54,7 @@ export function armorOfZone(equipped: EquipArmorLike[], zone: BodyZone): number 
 export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): ZonalTurnInput {
   const stance: Stance =
     input?.stance && STANCE_BUDGET[input.stance] ? input.stance : 'attack2'
-  const budget = STANCE_BUDGET[stance]
+  const budget = input?.moveTo ? { attacks: 0, blocks: 0 } : STANCE_BUDGET[stance]
 
   const rawAttack = (input?.attackZones ?? []).filter(isBodyZone)
   const rawBlock = (input?.blockZones ?? []).filter(isBodyZone)
@@ -71,7 +73,13 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
     }
   }
 
-  return { stance, attackZones, blockZones }
+  return {
+    stance,
+    attackZones,
+    blockZones,
+    moveTo: input?.moveTo,
+    targetParticipantId: input?.targetParticipantId,
+  }
 }
 
 // Приоритет зон для авто-блока (голова и корпус важнее рук).

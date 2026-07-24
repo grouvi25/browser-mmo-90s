@@ -6,8 +6,10 @@ import { z } from 'zod'
 const StartPveSchema = z.object({ botCode: z.string().default('training_bandit') })
 const ZoneEnum = z.enum(['HEAD', 'CHEST', 'LEGS', 'RIGHT_ARM', 'LEFT_ARM'])
 const ActionSchema = z.object({
-  action: z.enum(['attack', 'block', 'use_item', 'change_weapon', 'surrender']),
+  action: z.enum(['attack', 'block', 'move', 'use_item', 'change_weapon', 'surrender']),
   itemInstanceId: z.string().uuid().optional(),
+  moveTo: z.object({ x: z.number().int().min(0).max(8), y: z.number().int().min(0).max(4) }).optional(),
+  targetParticipantId: z.string().uuid().optional(),
   // Зональная боёвка (опционально — старый фронт шлёт только action)
   stance: z.enum(['attack2', 'mixed', 'defense4']).optional(),
   attackZones: z.array(ZoneEnum).max(2).optional(),
@@ -85,6 +87,8 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
           stance: parsed.data.stance,
           attackZones: parsed.data.attackZones,
           blockZones: parsed.data.blockZones,
+          moveTo: parsed.data.moveTo,
+          targetParticipantId: parsed.data.targetParticipantId,
         }
       )
       return reply.send(result)

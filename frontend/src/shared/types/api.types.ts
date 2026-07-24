@@ -158,6 +158,7 @@ export interface LiveParticipant {
   weaponInstanceId?: string
   damageDealt: number
   damageReceived: number
+  position: { x: number; y: number }
 }
 
 export interface LiveBattleState {
@@ -182,7 +183,7 @@ export interface WeaponSkill {
   antiSkillExp: number
 }
 
-export type BattleAction = 'attack' | 'block' | 'use_item' | 'change_weapon' | 'surrender'
+export type BattleAction = 'attack' | 'block' | 'move' | 'use_item' | 'change_weapon' | 'surrender'
 
 export const ARCHETYPE_LABELS: Record<string, string> = {
   ATHLETE:  'Спортсмен',

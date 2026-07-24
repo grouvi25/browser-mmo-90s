@@ -27,6 +27,16 @@ import {
 } from './zones'
 import type { BodyZone } from '@prisma/client'
 import {
+  BATTLE_GRID,
+  canAttackTarget,
+  canMoveTo,
+  gridDistance,
+  stepAway,
+  stepToward,
+  type GridPosition,
+  type PositionedParticipant,
+} from './grid'
+import {
   calcBattleExp,
   calcWeaponSkillExp,
   getLevelFromExp,
@@ -70,6 +80,7 @@ export interface LiveParticipant {
   hitsTaken: number
   hitsLanded: number
   skippedTurns: number   // tracks AFK/passive turns for anti-abuse
+  position: GridPosition
 }
 
 export interface LiveBattleState {
@@ -79,7 +90,35 @@ export interface LiveBattleState {
   status: 'active' | 'finishing'
   participants: LiveParticipant[]
   roundDeadline?: number    // unix ms for auto-resolve
-  distance?: number         // дистанция между бойцами (движение/дальность оружия)
+  distance?: number         // compatibility projection of grid distance
+  grid?: typeof BATTLE_GRID
+}
+
+function positionedParticipants(state: LiveBattleState): PositionedParticipant[] {
+  return state.participants.map(p => ({
+    participantId: p.participantId,
+    side: p.side,
+    isAlive: p.isAlive,
+    position: p.position,
+  }))
+}
+
+function applyRequestedMove(state: LiveBattleState, part: LiveParticipant, moveTo?: GridPosition): boolean {
+  if (!moveTo) return false
+  const projected = positionedParticipants(state)
+  const actor = projected.find(p => p.participantId === part.participantId)!
+  if (!canMoveTo(actor, moveTo, projected)) {
+    throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid or occupied destination cell', 400)
+  }
+  part.position = { ...moveTo }
+  return true
+}
+
+function syncGridDistance(state: LiveBattleState): number {
+  const alive = state.participants.filter(p => p.isAlive)
+  const distance = alive.length >= 2 ? gridDistance(alive[0].position, alive[1].position) : 0
+  state.distance = distance
+  return distance
 }
 
 // ---------------------------------------------------------------
@@ -362,7 +401,8 @@ export const BattleService = {
         roundNumber: 1,
         status: 'active',
         roundDeadline: Date.now() + TURN_TIMEOUT_MS,
-        distance: START_DISTANCE,
+        distance: 6,
+        grid: BATTLE_GRID,
         participants: [
           {
             participantId: playerPart.id,
@@ -376,6 +416,7 @@ export const BattleService = {
             weaponInstanceId: weapon?.id,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
+            position: { x: 1, y: 2 },
           },
           {
             participantId: botPart.id,
@@ -388,6 +429,7 @@ export const BattleService = {
             hasActedThisRound: false,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
+            position: { x: 7, y: 2 },
           },
         ],
       }
@@ -502,7 +544,8 @@ export const BattleService = {
         roundNumber: 1,
         status: 'active',
         roundDeadline: Date.now() + TURN_TIMEOUT_MS,
-        distance: START_DISTANCE,
+        distance: 6,
+        grid: BATTLE_GRID,
         participants: [
           {
             participantId: opponentPart.id,
@@ -516,6 +559,7 @@ export const BattleService = {
             weaponInstanceId: oppWeapon?.id,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
+            position: { x: 1, y: 2 },
           },
           {
             participantId: newParticipant.id, // FIX: use actual ID
@@ -529,6 +573,7 @@ export const BattleService = {
             weaponInstanceId: weapon?.id,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
+            position: { x: 7, y: 2 },
           },
         ],
       }
@@ -569,6 +614,8 @@ export const BattleService = {
       stance?: string
       attackZones?: string[]
       blockZones?: string[]
+      moveTo?: GridPosition
+      targetParticipantId?: string
     } | string,
     legacyTargetItemId?: string
   ) {
@@ -660,11 +707,13 @@ export const BattleService = {
       }
 
       // ── Зональный ход: стойка (2 удара / 1 блок+1 удар / 4 блока) + зоны ──
-      const turn: ZonalTurnInput = payload.stance
+      const turn: ZonalTurnInput = payload.stance || payload.moveTo
         ? normalizeTurn({
             stance: payload.stance as ZonalTurnInput['stance'],
             attackZones: (payload.attackZones ?? []) as BodyZone[],
             blockZones: (payload.blockZones ?? []) as BodyZone[],
+            moveTo: payload.moveTo,
+            targetParticipantId: payload.targetParticipantId,
           })
         : legacyActionToTurn(action)
 
@@ -1281,15 +1330,18 @@ export const BattleService = {
     const p1First = init1 >= init2
 
     // ── Движение / дистанция ──────────────────────────────
-    const distance = state.distance ?? START_DISTANCE
+    const moved1 = applyRequestedMove(state, part1, turn1.moveTo)
+    const moved2 = applyRequestedMove(state, part2, turn2.moveTo)
+    const distance = syncGridDistance(state)
     const range1 = weaponRangeOf(weapon1)
     const range2 = weaponRangeOf(weapon2)
-    const wants1 = turn1.attackZones.length > 0
-    const wants2 = turn2.attackZones.length > 0
-    const doStrike1 = wants1 && distance <= range1
-    const doStrike2 = wants2 && distance <= range2
-    const moving1 = wants1 && distance > range1
-    const moving2 = wants2 && distance > range2
+    const projected = positionedParticipants(state)
+    const gridPart1 = projected.find(p => p.participantId === part1.participantId)!
+    const gridPart2 = projected.find(p => p.participantId === part2.participantId)!
+    const doStrike1 = !moved1 && turn1.attackZones.length > 0
+      && canAttackTarget(gridPart1, gridPart2, projected, range1)
+    const doStrike2 = !moved2 && turn2.attackZones.length > 0
+      && canAttackTarget(gridPart2, gridPart1, projected, range2)
 
     if (p1First) {
       if (doStrike1) doStrike(part1, snap1Atk, turn1, part2, snap2Def, armorList2, turn2)
@@ -1299,11 +1351,9 @@ export const BattleService = {
       if (doStrike1 && hp1 > 0 && hp2 > 0) doStrike(part1, snap1Atk, turn1, part2, snap2Def, armorList2, turn2)
     }
 
-    const movesThisRound = (moving1 ? 1 : 0) + (moving2 ? 1 : 0)
-    if (movesThisRound > 0) state.distance = Math.max(MIN_GAP, distance - movesThisRound)
     const moveEvents = [
-      ...(moving1 ? [{ actor: part1.characterId, action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Сближение (дистанция ${state.distance})`] }] : []),
-      ...(moving2 ? [{ actor: part2.characterId, action: 'move', hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Сближение (дистанция ${state.distance})`] }] : []),
+      ...(moved1 ? [{ actor: part1.characterId, action: 'move', from: null, to: part1.position, hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Перемещение в (${part1.position.x}, ${part1.position.y})`] }] : []),
+      ...(moved2 ? [{ actor: part2.characterId, action: 'move', from: null, to: part2.position, hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Перемещение в (${part2.position.x}, ${part2.position.y})`] }] : []),
     ]
 
     part1.hpCurrent = hp1

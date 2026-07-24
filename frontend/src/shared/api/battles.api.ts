@@ -9,11 +9,15 @@ interface StartPveResponse {
 export type BodyZone = 'HEAD' | 'CHEST' | 'LEGS' | 'RIGHT_ARM' | 'LEFT_ARM'
 export type Stance = 'attack2' | 'mixed' | 'defense4'
 
+export interface GridPosition { x: number; y: number }
+
 export interface SubmitActionOpts {
   itemInstanceId?: string
   stance?: Stance
   attackZones?: BodyZone[]
   blockZones?: BodyZone[]
+  moveTo?: GridPosition
+  targetParticipantId?: string
 }
 
 interface ActionResponse {
@@ -96,6 +100,8 @@ export const battlesApi = {
       stance: opts?.stance,
       attackZones: opts?.attackZones,
       blockZones: opts?.blockZones,
+      moveTo: opts?.moveTo,
+      targetParticipantId: opts?.targetParticipantId,
     }),
 
   getBattle: (battleId: string) =>
