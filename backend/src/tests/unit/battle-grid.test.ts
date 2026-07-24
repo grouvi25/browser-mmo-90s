@@ -6,8 +6,10 @@ import {
   hasLineOfSight,
   isAdjacentStep,
   resolveSimultaneousMoves,
+  selectEnemyTarget,
   stepAway,
   stepToward,
+  teamSpawnPositions,
   type PositionedParticipant,
 } from '../../modules/battles/grid'
 
@@ -78,5 +80,37 @@ describe('battle grid attacks and protection', () => {
     expect(hasLineOfSight(attacker.position, target.position, all, 'a', 't')).toBe(false)
     expect(canAttackTarget(attacker, target, all, 8)).toBe(false)
     expect(canAttackTarget(attacker, protector, all, 8)).toBe(true)
+  })
+})
+
+
+describe('battle grid teams and target selection', () => {
+  it('places both teams in deterministic center-out spawn rows', () => {
+    expect(teamSpawnPositions(1, 3)).toEqual([
+      { x: 1, y: 2 }, { x: 1, y: 1 }, { x: 1, y: 3 },
+    ])
+    expect(teamSpawnPositions(2, 3)).toEqual([
+      { x: 7, y: 2 }, { x: 7, y: 1 }, { x: 7, y: 3 },
+    ])
+  })
+
+  it('requires an explicit living enemy target when several enemies exist', () => {
+    const actor = fighter('a', 1, 1, 2)
+    const ally = fighter('ally', 1, 1, 1)
+    const front = fighter('front', 2, 4, 2)
+    const rear = fighter('rear', 2, 7, 2)
+    const all = [actor, ally, front, rear]
+
+    expect(() => selectEnemyTarget(actor, all)).toThrow('Invalid battle target')
+    expect(selectEnemyTarget(actor, all, 'front')).toBe(front)
+    expect(() => selectEnemyTarget(actor, all, 'ally')).toThrow('Invalid battle target')
+    rear.isAlive = false
+    expect(() => selectEnemyTarget(actor, all, 'rear')).toThrow('Invalid battle target')
+  })
+
+  it('keeps the one-enemy duel contract backward compatible', () => {
+    const actor = fighter('a', 1, 1, 2)
+    const target = fighter('t', 2, 7, 2)
+    expect(selectEnemyTarget(actor, [actor, target])).toBe(target)
   })
 })

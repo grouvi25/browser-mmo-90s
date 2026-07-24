@@ -12,6 +12,29 @@ export interface PositionedParticipant {
   position: GridPosition
 }
 
+const SPAWN_ROWS = [2, 1, 3, 0, 4] as const
+
+export function teamSpawnPositions(side: number, count: number): GridPosition[] {
+  if (!Number.isInteger(count) || count < 1 || count > BATTLE_GRID.height) {
+    throw new Error(`Team size must be between 1 and ${BATTLE_GRID.height}`)
+  }
+  const x = side === 1 ? 1 : BATTLE_GRID.width - 2
+  return SPAWN_ROWS.slice(0, count).map(y => ({ x, y }))
+}
+
+export function selectEnemyTarget<T extends PositionedParticipant>(
+  actor: T,
+  participants: T[],
+  requestedTargetId?: string,
+): T {
+  const enemies = participants.filter(participant => participant.isAlive && participant.side !== actor.side)
+  const target = requestedTargetId
+    ? enemies.find(participant => participant.participantId === requestedTargetId)
+    : enemies.length === 1 ? enemies[0] : undefined
+  if (!target) throw new Error('Invalid battle target')
+  return target
+}
+
 export function isInsideGrid(position: GridPosition): boolean {
   return Number.isInteger(position.x) && Number.isInteger(position.y)
     && position.x >= 0 && position.x < BATTLE_GRID.width

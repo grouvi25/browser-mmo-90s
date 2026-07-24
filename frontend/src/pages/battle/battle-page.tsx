@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { battlesApi, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
-import { type BattleAction, type ItemInstance } from '../../shared/types/api.types'
+import { type BattleAction, type ItemInstance, type LiveParticipant } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 
@@ -105,6 +105,7 @@ function BattleGrid({
   playerDefeated, enemyDefeated,
   playerHit, enemyHit, lastEvent, distance,
   playerPosition, enemyPosition, selectedMove, onSelectMove,
+  participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget,
 }: {
   playerName: string; playerHp: number; playerHpMax: number
   enemyName: string;  enemyHp: number;  enemyHpMax: number
@@ -115,6 +116,11 @@ function BattleGrid({
   enemyPosition?: { x: number; y: number }
   selectedMove?: { x: number; y: number } | null
   onSelectMove?: (position: { x: number; y: number }) => void
+  participants?: LiveParticipant[]
+  playerParticipantId?: string
+  playerSide?: number
+  selectedTargetId?: string | null
+  onSelectTarget?: (participantId: string) => void
 }) {
   const midRow = Math.floor(GRID_ROWS / 2)
   // позиция врага зависит от дистанции (ближний бой = соседняя клетка)
@@ -139,26 +145,29 @@ function BattleGrid({
           Array.from({ length: GRID_COLS }).map((_, col) => {
             const playerCell = playerPosition ?? { x: PLAYER_COL, y: midRow }
             const enemyCell = enemyPosition ?? { x: enemyCol, y: midRow }
-            const isPlayer = col === playerCell.x && row === playerCell.y
-            const isEnemy  = col === enemyCell.x  && row === enemyCell.y
+            const occupant = participants?.find(p => p.isAlive && p.position.x === col && p.position.y === row)
+            const isPlayer = occupant?.participantId === playerParticipantId
+            const isAlly = !!occupant && !isPlayer && occupant.side === playerSide
+            const isEnemy = !!occupant && occupant.side !== playerSide
             const isCenter = col === Math.floor(GRID_COLS / 2) && row === midRow
-            const canMove = Math.abs(col - playerCell.x) + Math.abs(row - playerCell.y) === 1 && !isEnemy
+            const canMove = Math.abs(col - playerCell.x) + Math.abs(row - playerCell.y) === 1 && !occupant
             const isSelected = selectedMove?.x === col && selectedMove?.y === row
+            const isTarget = isEnemy && occupant?.participantId === selectedTargetId
             return (
               <div key={`${row}-${col}`}
-                onClick={() => canMove && onSelectMove?.({ x: col, y: row })}
-                className={`grid-cell ${isPlayer ? 'cell-player' : ''} ${isEnemy ? 'cell-enemy' : ''} ${isCenter ? 'cell-center' : ''} ${canMove ? 'cell-movable' : ''} ${isSelected ? 'cell-selected' : ''}`}
-                style={canMove ? { cursor: 'pointer', boxShadow: isSelected ? 'inset 0 0 0 2px #d4a017' : 'inset 0 0 0 1px rgba(212,160,23,.35)' } : undefined}>
-                {isPlayer && (
-                  <div className={`fighter-token token-player ${playerHit ? 'token-hit' : ''} ${playerDefeated ? 'token-dead' : ''}`}>
-                    {playerDefeated ? <Skull size={18} /> : <User size={18} />}
-                    <span className="token-label">{playerName.slice(0, 5)}</span>
+                onClick={() => canMove ? onSelectMove?.({ x: col, y: row }) : isEnemy && occupant ? onSelectTarget?.(occupant.participantId) : undefined}
+                className={`grid-cell ${(isPlayer || isAlly) ? 'cell-player' : ''} ${isEnemy ? 'cell-enemy' : ''} ${isCenter ? 'cell-center' : ''} ${canMove ? 'cell-movable' : ''} ${isSelected ? 'cell-selected' : ''}`}
+                style={isTarget ? { cursor: 'pointer', boxShadow: 'inset 0 0 0 2px #c43030' } : canMove ? { cursor: 'pointer', boxShadow: isSelected ? 'inset 0 0 0 2px #d4a017' : 'inset 0 0 0 1px rgba(212,160,23,.35)' } : isEnemy ? { cursor: 'pointer' } : undefined}>
+                {(isPlayer || isAlly) && occupant && (
+                  <div className={`fighter-token token-player ${isPlayer && playerHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
+                    {!occupant.isAlive ? <Skull size={18} /> : <User size={18} />}
+                    <span className="token-label">{isPlayer ? playerName.slice(0, 5) : 'Союзн.'}</span>
                   </div>
                 )}
-                {isEnemy && (
-                  <div className={`fighter-token token-enemy ${enemyHit ? 'token-hit' : ''} ${enemyDefeated ? 'token-dead' : ''}`}>
-                    {enemyDefeated ? <Skull size={18} /> : <CircleDot size={18} />}
-                    <span className="token-label">{enemyName.slice(0, 5)}</span>
+                {isEnemy && occupant && (
+                  <div className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
+                    {!occupant.isAlive ? <Skull size={18} /> : <CircleDot size={18} />}
+                    <span className="token-label">{isTarget ? enemyName.slice(0, 5) : 'Враг'}</span>
                   </div>
                 )}
                 {isCenter && lastEvent && (
@@ -266,6 +275,7 @@ export function BattlePage() {
   const [distance, setDistance]         = useState<number | null>(null)
   const [playerRange, setPlayerRange]   = useState<number | null>(null)
   const [selectedMove, setSelectedMove] = useState<{ x: number; y: number } | null>(null)
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null)
 
   const isValid = !!battleId && UUID_RE.test(battleId)
   useEffect(() => { if (!isValid) navigate('/profile', { replace: true }) }, [isValid, navigate])
@@ -287,7 +297,8 @@ export function BattlePage() {
   const live      = battleData?.liveState
   const dbParts   = (battleData?.battle?.participants ?? []) as Array<{ characterId?: string | null; botId?: string | null; hpMax?: number; hpCurrent?: number }>
   const pPart     = live?.participants.find((p: { characterId?: string }) => p.characterId === char?.id)
-  const ePart     = live?.participants.find((p: { botId?: string; characterId?: string }) => !!p.botId || p.characterId !== char?.id)
+  const enemyParts = pPart ? (live?.participants ?? []).filter((p: LiveParticipant) => p.isAlive && p.side !== pPart.side) : []
+  const ePart     = enemyParts.find((p: LiveParticipant) => p.participantId === selectedTargetId) ?? enemyParts[0]
   // Fallback на DB participants для hpMax (важно: Redis может ещё не загрузиться)
   const dbEPart   = dbParts.find(p => !!p.botId || (p.characterId && p.characterId !== char?.id))
   const pHp       = playerHp ?? pPart?.hpCurrent ?? char?.hpCurrent ?? 0
@@ -518,6 +529,11 @@ export function BattlePage() {
           enemyPosition={ePart?.position}
           selectedMove={selectedMove}
           onSelectMove={setSelectedMove}
+          participants={live?.participants}
+          playerParticipantId={pPart?.participantId}
+          playerSide={pPart?.side}
+          selectedTargetId={ePart?.participantId}
+          onSelectTarget={setSelectedTargetId}
         />
 
         {/* HUD */}
@@ -572,6 +588,19 @@ export function BattlePage() {
             </div>
             <div style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'center', margin: '3px 0' }}>{budget.hint}</div>
 
+            {enemyParts.length > 1 && (
+              <div style={{ margin: '6px 0' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 4 }}>Цель атаки</div>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {enemyParts.map((enemy: LiveParticipant, index: number) => (
+                    <button key={enemy.participantId} disabled={!canAct} onClick={() => setSelectedTargetId(enemy.participantId)}
+                      style={{ border: `1px solid ${ePart?.participantId === enemy.participantId ? '#c43030' : 'var(--border,#444)'}`, background: ePart?.participantId === enemy.participantId ? 'rgba(196,48,48,.2)' : 'transparent', color: 'var(--text)', padding: '4px 7px', borderRadius: 4 }}>
+                      Враг {index + 1} · {enemy.hpCurrent}/{enemy.hpMax} HP
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="hz-zones" style={{ display: 'flex', flexDirection: 'column', gap: 3, margin: '4px 0' }}>
               {ZONES.map(z => {
                 const atk = attackZones.includes(z.key)

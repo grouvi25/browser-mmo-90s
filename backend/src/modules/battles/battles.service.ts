@@ -33,6 +33,7 @@ import {
   canMoveTo,
   gridDistance,
   resolveSimultaneousMoves,
+  selectEnemyTarget,
   stepAway,
   stepToward,
   type GridPosition,
@@ -159,16 +160,6 @@ function applySimultaneousDuelMoves(
   return [Boolean(firstTarget), Boolean(secondTarget)]
 }
 
-function validateRequestedTarget(
-  actor: LiveParticipant,
-  expectedTarget: LiveParticipant,
-  requestedTargetId?: string,
-): void {
-  if (!requestedTargetId) return
-  if (requestedTargetId !== expectedTarget.participantId || actor.side === expectedTarget.side || !expectedTarget.isAlive) {
-    throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid battle target', 400)
-  }
-}
 function syncGridDistance(state: LiveBattleState): number {
   ensureGridState(state)
   const alive = state.participants.filter(p => p.isAlive)
@@ -995,8 +986,13 @@ export const BattleService = {
     playerTurn: ZonalTurnInput
   ) {
     const playerPart = state.participants.find(p => p.characterId === char.id)!
-    const botPart = state.participants.find(p => p.botId)!
-    validateRequestedTarget(playerPart, botPart, playerTurn.targetParticipantId)
+    let botPart: LiveParticipant
+    try {
+      botPart = selectEnemyTarget(playerPart, state.participants, playerTurn.targetParticipantId)
+    } catch {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid battle target', 400)
+    }
+    if (!botPart.botId) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'PvE target must be a bot', 400)
     const bot = await loadBotData(botPart.botId!)
     const botStats = bot.stats as Record<string, number>
     const botEquip = bot.equipment as Record<string, unknown>
@@ -1393,8 +1389,12 @@ export const BattleService = {
 
     const turn1 = part1.pendingTurn ?? legacyActionToTurn(part1.pendingAction ?? 'attack')
     const turn2 = part2.pendingTurn ?? legacyActionToTurn(part2.pendingAction ?? 'attack')
-    validateRequestedTarget(part1, part2, turn1.targetParticipantId)
-    validateRequestedTarget(part2, part1, turn2.targetParticipantId)
+    try {
+      selectEnemyTarget(part1, state.participants, turn1.targetParticipantId)
+      selectEnemyTarget(part2, state.participants, turn2.targetParticipantId)
+    } catch {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid battle target', 400)
+    }
 
     let hp1 = part1.hpCurrent
     let hp2 = part2.hpCurrent
