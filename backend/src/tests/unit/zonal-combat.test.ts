@@ -79,6 +79,20 @@ describe('zones: normalizeTurn / stances', () => {
     const t = normalizeTurn({ stance: 'attack2', attackZones: [] })
     expect(t.attackZones).toEqual(['CHEST', 'CHEST'])
   })
+
+  it('movement consumes the turn and preserves its destination', () => {
+    const t = normalizeTurn({
+      stance: 'attack2',
+      attackZones: ['HEAD', 'CHEST'],
+      blockZones: ['LEGS'],
+      moveTo: { x: 2, y: 2 },
+      targetParticipantId: 'target-1',
+    })
+    expect(t.attackZones).toEqual([])
+    expect(t.blockZones).toEqual([])
+    expect(t.moveTo).toEqual({ x: 2, y: 2 })
+    expect(t.targetParticipantId).toBe('target-1')
+  })
 })
 
 describe('zones: legacyActionToTurn', () => {

@@ -938,6 +938,8 @@ export const BattleService = {
     const playerRange = weaponRangeOf(weapon)
     const botWeapon = botEquip.weapon as Record<string, number> | undefined
     const botRange = Math.max(1, botWeapon?.maxRange ?? 1)
+    const playerFrom = { ...playerPart.position }
+    const botFrom = { ...botPart.position }
     const playerMoved = applyRequestedMove(state, playerPart, playerTurn.moveTo)
 
     let projected = positionedParticipants(state)
@@ -1065,8 +1067,12 @@ export const BattleService = {
       weaponDurLoss: t.actor === 'player' && t.r.hit ? 1 : 0,
       logLine: t.r.logParts.join(', '),
     }))
+    const moveRecords = [
+      ...(playerMoved ? [{ battleId, roundNumber, actorCharId: char.id, action: 'MOVE' as BattleAction, fromX: playerFrom.x, fromY: playerFrom.y, toX: playerPart.position.x, toY: playerPart.position.y }] : []),
+      ...(botMoved ? [{ battleId, roundNumber, actorBotId: botPart.botId, action: 'MOVE' as BattleAction, fromX: botFrom.x, fromY: botFrom.y, toX: botPart.position.x, toY: botPart.position.y }] : []),
+    ]
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await prisma.battleTurn.createMany({ data: turnRecords as any })
+    await prisma.battleTurn.createMany({ data: [...moveRecords, ...turnRecords] as any })
 
     if (battleOver) {
       state.status = 'finishing'
@@ -1344,6 +1350,8 @@ export const BattleService = {
     const p1First = init1 >= init2
 
     // ── Движение / дистанция ──────────────────────────────
+    const from1 = { ...part1.position }
+    const from2 = { ...part2.position }
     const moved1 = applyRequestedMove(state, part1, turn1.moveTo)
     const moved2 = applyRequestedMove(state, part2, turn2.moveTo)
     const distance = syncGridDistance(state)
@@ -1400,8 +1408,12 @@ export const BattleService = {
       rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage,
       logLine: t.r.logParts.join(', '),
     }))
+    const moveRecords = [
+      ...(moved1 ? [{ battleId, roundNumber, actorCharId: part1.characterId, action: 'MOVE' as BattleAction, fromX: from1.x, fromY: from1.y, toX: part1.position.x, toY: part1.position.y }] : []),
+      ...(moved2 ? [{ battleId, roundNumber, actorCharId: part2.characterId, action: 'MOVE' as BattleAction, fromX: from2.x, fromY: from2.y, toX: part2.position.x, toY: part2.position.y }] : []),
+    ]
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await prisma.battleTurn.createMany({ data: turnRecords as any })
+    await prisma.battleTurn.createMany({ data: [...moveRecords, ...turnRecords] as any })
 
     const p1Dead = !part1.isAlive
     const p2Dead = !part2.isAlive
