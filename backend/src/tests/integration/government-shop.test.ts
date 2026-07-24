@@ -167,14 +167,14 @@ describe('GovernmentShopService.buy', () => {
 // Sell
 // ---------------------------------------------------------------
 describe('GovernmentShopService.sell', () => {
-  it('returns 30% of base price', async () => {
+  it('returns 50% of base price', async () => {
     const { char, template } = await createCharacterWithTemplate()
     const { item } = await GovernmentShopService.buy(char.id, template.id)
 
     const charAfterBuy = await testPrisma.character.findUnique({ where: { id: char.id } })
     const moneyBeforeSell = charAfterBuy!.money
 
-    const expectedReturn = Math.floor(template.priceBase * 0.3)
+    const expectedReturn = Math.floor(template.priceBase * 0.5)
     const result = await GovernmentShopService.sell(char.id, item.id)
 
     expect(result.sellPrice).toBe(expectedReturn)

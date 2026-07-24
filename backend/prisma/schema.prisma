@@ -145,6 +145,15 @@ enum BattleAction {
   SURRENDER
 }
 
+// Зоны тела для зональной боёвки (модель Апехи)
+enum BodyZone {
+  HEAD       // голова
+  CHEST      // корпус
+  LEGS       // ноги
+  RIGHT_ARM  // правая рука
+  LEFT_ARM   // левая рука
+}
+
 enum CurrencyLogReason {
   SHOP_PURCHASE     // Покупка в магазине
   SHOP_SELL         // Продажа магазину
@@ -335,6 +344,10 @@ model ItemTemplate {
   antiCrit        Float?          @default(0.0) @map("anti_crit")
   blockBonus      Float?          @default(0.0) @map("block_bonus")
   hpBonus         Int?            @default(0) @map("hp_bonus")
+
+  // Distance (зональная боёвка): дальность оружия. Ближнее = 1 (только вплотную)
+  optimalRange    Int?            @default(1) @map("optimal_range")
+  maxRange        Int?            @default(1) @map("max_range")
 
   // Physical
   weight          Float           @default(1.0)
@@ -534,6 +547,10 @@ model BattleTurn {
 
   action          BattleAction
   weaponId        String?       @map("weapon_id")   // ItemInstance used
+
+  // Zonal combat
+  zone            BodyZone?                          // зона удара
+  blockPierced    Boolean       @default(false) @map("block_pierced")  // удачный удар пробил блок
 
   // Results
   hit             Boolean       @default(false)

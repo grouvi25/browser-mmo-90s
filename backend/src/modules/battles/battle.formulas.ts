@@ -1,3 +1,4 @@
+import type { BodyZone } from '@prisma/client'
 import { BalanceConfig } from '../../config/balance.config'
 import { clamp } from '../../shared/utils/clamp'
 import { randomFloat, randomInt, rollChance } from '../../shared/utils/random'
@@ -335,3 +336,100 @@ export function resolveAttack(
 
   return { hit, dodge, block, crit, lucky, rawDamage: Math.round(rawDamage), finalDamage, counterDamage, logParts: log }
 }
+
+// ---------------------------------------------------------------
+// Zonal attack resolution (модель Апехи: зоны + блок-по-зонам)
+// Порядок: уворот → (блок зоны: 0 урона, кроме LUCK-пробития) →
+//          крит → сырой урон → броня ЗОНЫ → выносливость → итог
+// Отличия от resolveAttack:
+//  - удар направлен в конкретную зону (zone)
+//  - защитник блокирует набор зон (blockedZones); блок гасит урон в 0
+//  - пробить блок можно ТОЛЬКО «удачным ударом» (LUCK атакующего)
+//  - броня считается по зоне удара (zoneArmor), lucky пробивает броню
+// ---------------------------------------------------------------
+export interface ZonalAttackResult extends AttackResult {
+  zone: BodyZone
+  blockPierced: boolean   // удачный удар пробил выставленный блок
+}
+
+const ZONE_LABEL: Record<BodyZone, string> = {
+  HEAD: 'голова',
+  CHEST: 'корпус',
+  LEGS: 'ноги',
+  RIGHT_ARM: 'правая рука',
+  LEFT_ARM: 'левая рука',
+}
+
+// Шанс «удачного удара» (пробитие блока/брони) — зависит от УДАЧИ атакующего.
+export function calcLuckyPierceChance(attackerLuck: number): number {
+  return clamp((attackerLuck ?? 0) * 0.02, 0, 0.25) // до 25%
+}
+
+export function resolveZonalAttack(
+  attacker: AttackerSnapshot,
+  defender: DefenderSnapshot,
+  opts: { zone: BodyZone; blockedZones: BodyZone[]; zoneArmor: number }
+): ZonalAttackResult {
+  const { zone, blockedZones, zoneArmor } = opts
+  const zoneName = ZONE_LABEL[zone]
+  const log: string[] = []
+  let hit = true, dodge = false, block = false, crit = false, lucky = false, blockPierced = false
+  let rawDamage = 0, finalDamage = 0, counterDamage = 0
+
+  const base = (): ZonalAttackResult => ({
+    hit, dodge, block, crit, lucky, blockPierced, zone,
+    rawDamage: Math.round(rawDamage), finalDamage, counterDamage, logParts: log,
+  })
+
+  // 1. Уворот (заменяет «промах»)
+  const dodgeChance = calcDodgeChance(defender, attacker)
+  dodge = rollChance(dodgeChance)
+  if (dodge) {
+    hit = false
+    log.push(`Уворот (${zoneName})`)
+    return base()
+  }
+
+  // 2. «Удачный удар» — определяем заранее: он пробивает и блок, и броню.
+  lucky = rollChance(calcLuckyPierceChance(attacker.luck))
+
+  // 3. Блок зоны: если зона заблокирована и удар НЕ удачный — урон 0 + ответка.
+  const zoneBlocked = blockedZones.includes(zone)
+  if (zoneBlocked && !lucky) {
+    block = true
+    const counter = calcCounterAttack(defender, attacker)
+    if (counter.triggered) {
+      counterDamage = counter.damage
+      log.push(`Блок (${zoneName}) + ответка ${counterDamage}`)
+    } else {
+      log.push(`Блок (${zoneName})`)
+    }
+    return base()
+  }
+  if (zoneBlocked && lucky) {
+    blockPierced = true
+    log.push(`Удачный! Пробил блок (${zoneName})`)
+  }
+
+  // 4. Крит
+  const critChance = calcCritChance(attacker, defender)
+  crit = rollChance(critChance)
+  const critMult = crit
+    ? clamp(BalanceConfig.crit.multiplierBase + attacker.critDamageBonus, BalanceConfig.crit.multiplierMin, BalanceConfig.crit.multiplierMax)
+    : 1
+
+  // 5. Сырой урон
+  rawDamage = calcRawDamage(attacker, defender.antiSkillLevel) * critMult
+  if (crit) log.push('КРИТ!')
+
+  // 6. Броня зоны (lucky пробивает броню)
+  let dmg = lucky ? rawDamage : applyArmor(rawDamage, zoneArmor, crit)
+
+  // 7. Выносливость
+  dmg = applyEndurance(dmg, defender.end)
+
+  finalDamage = Math.max(1, Math.round(dmg))
+  log.push(`Удар в ${zoneName}: ${finalDamage}`)
+  return base()
+}
+

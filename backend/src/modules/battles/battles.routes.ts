@@ -4,9 +4,14 @@ import { BattleService } from './battles.service'
 import { z } from 'zod'
 
 const StartPveSchema = z.object({ botCode: z.string().default('training_bandit') })
+const ZoneEnum = z.enum(['HEAD', 'CHEST', 'LEGS', 'RIGHT_ARM', 'LEFT_ARM'])
 const ActionSchema = z.object({
   action: z.enum(['attack', 'block', 'use_item', 'change_weapon', 'surrender']),
   itemInstanceId: z.string().uuid().optional(),
+  // Зональная боёвка (опционально — старый фронт шлёт только action)
+  stance: z.enum(['attack2', 'mixed', 'defense4']).optional(),
+  attackZones: z.array(ZoneEnum).max(2).optional(),
+  blockZones: z.array(ZoneEnum).max(4).optional(),
 })
 const AcceptDuelSchema = z.object({ battleId: z.string().uuid() })
 const CreateDuelSchema = z.object({
@@ -74,8 +79,13 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
       const result = await BattleService.submitAction(
         req.authUser.userId,
         req.params.battleId,
-        parsed.data.action,
-        parsed.data.itemInstanceId
+        {
+          action: parsed.data.action,
+          itemInstanceId: parsed.data.itemInstanceId,
+          stance: parsed.data.stance,
+          attackZones: parsed.data.attackZones,
+          blockZones: parsed.data.blockZones,
+        }
       )
       return reply.send(result)
     })

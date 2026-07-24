@@ -12,12 +12,21 @@ import { audit } from '../../shared/logger/audit-logger'
 import { logger } from '../../shared/logger/logger'
 import {
   resolveAttack,
+  resolveZonalAttack,
   calcInitiative,
-  calcCounterAttackChance,
-  resolveCounterAttack,
   type AttackerSnapshot,
   type DefenderSnapshot,
+  type ZonalAttackResult,
 } from './battle.formulas'
+import {
+  armorOfZone,
+  legacyActionToTurn,
+  normalizeTurn,
+  botChooseTurn,
+  type ZonalTurnInput,
+  type EquipArmorLike,
+} from './zones'
+import type { BodyZone } from '@prisma/client'
 import {
   calcBattleExp,
   calcWeaponSkillExp,
@@ -47,6 +56,7 @@ export interface LiveParticipant {
   isSurrendered: boolean
   hasActedThisRound: boolean
   pendingAction?: string   // 'attack' | 'block' | 'surrender' | 'change_weapon:{id}' | 'use_item:{id}'
+  pendingTurn?: ZonalTurnInput   // зональный ход (стойка + зоны атаки/блока)
   weaponInstanceId?: string
   damageDealt: number
   damageReceived: number
@@ -126,6 +136,75 @@ function buildDefenderSnapshot(
     antiSkillLevel,
     antiCounterDefense: 0,
     minDamage: wMin, maxDamage: wMax,
+  }
+}
+
+// ---------------------------------------------------------------
+// Zonal helpers
+// ---------------------------------------------------------------
+// Преобразуем экипированную броню в форму для расчёта брони по зоне.
+function armorListFromEquipped(equippedArmor: ItemWithTemplate[]): EquipArmorLike[] {
+  return equippedArmor.map(it => ({
+    armor: it.template.armor ?? 0,
+    slot: it.armorSlot ?? it.template.armorSlot ?? null,
+  }))
+}
+
+// Обмен ударами: attacker бьёт по своим зонам, defender блокирует свои зоны.
+// Возвращает результаты ударов, суммарный урон защитнику и суммарную ответку атакующему.
+function executeStrikes(params: {
+  attackerSnap: AttackerSnapshot
+  defenderSnap: DefenderSnapshot
+  zoneArmorFor: (zone: BodyZone) => number
+  attackZones: BodyZone[]
+  blockedZones: BodyZone[]
+  defenderHp: number   // текущее HP защитника — прекращаем бить, если умер
+}): { results: ZonalAttackResult[]; damageToDefender: number; counterToAttacker: number } {
+  const results: ZonalAttackResult[] = []
+  let damageToDefender = 0
+  let counterToAttacker = 0
+  let hpLeft = params.defenderHp
+
+  for (const zone of params.attackZones) {
+    if (hpLeft <= 0) break
+    const zoneArmor = params.zoneArmorFor(zone)
+    const r = resolveZonalAttack(params.attackerSnap, params.defenderSnap, {
+      zone,
+      blockedZones: params.blockedZones,
+      zoneArmor,
+    })
+    if (r.hit && !r.dodge && !r.block) {
+      damageToDefender += r.finalDamage
+      hpLeft = Math.max(0, hpLeft - r.finalDamage)
+    }
+    if (r.counterDamage > 0) counterToAttacker += r.counterDamage
+    results.push(r)
+  }
+  return { results, damageToDefender, counterToAttacker }
+}
+
+// Зональный износ: списываем прочность у брони в зонах, куда попали.
+async function applyZonalArmorWear(
+  equippedArmor: ItemWithTemplate[],
+  hitZones: BodyZone[]
+): Promise<void> {
+  if (hitZones.length === 0 || equippedArmor.length === 0) return
+  // Считаем число попаданий по каждой зоне
+  const counts = new Map<BodyZone, number>()
+  for (const z of hitZones) counts.set(z, (counts.get(z) ?? 0) + 1)
+
+  for (const [zone, n] of counts) {
+    const armorList = armorListFromEquipped(equippedArmor)
+    // находим первый предмет, прикрывающий зону
+    const idx = equippedArmor.findIndex((_, i) => {
+      const el = armorList[i]
+      return el.slot != null && armorOfZone([el], zone) > 0
+    })
+    if (idx === -1) continue
+    const item = equippedArmor[idx]
+    const newDur = Math.max(0, item.durabilityCurrent - n)
+    await ItemsRepository.updateDurability(item.id, newDur)
+    if (newDur <= 0) await ItemsRepository.updateStatus(item.id, 'BROKEN')
   }
 }
 
@@ -436,7 +515,25 @@ export const BattleService = {
   // -------------------------------------------------------
   // Submit action
   // -------------------------------------------------------
-  async submitAction(userId: string, battleId: string, action: string, targetItemId?: string) {
+  async submitAction(
+    userId: string,
+    battleId: string,
+    input: {
+      action: string
+      itemInstanceId?: string
+      stance?: string
+      attackZones?: string[]
+      blockZones?: string[]
+    } | string,
+    legacyTargetItemId?: string
+  ) {
+    // Обратная совместимость: поддерживаем и старую сигнатуру (action, itemId), и новый payload
+    const payload = typeof input === 'string'
+      ? { action: input, itemInstanceId: legacyTargetItemId }
+      : input
+    const action = payload.action
+    const targetItemId = payload.itemInstanceId
+
     const locked = await BattleRedis.acquireLock(battleId, 5000)
     if (!locked) throw new AppError(ErrorCode.BATTLE_LOCK_FAILED, 'Battle is processing, retry', 409)
 
@@ -517,13 +614,23 @@ export const BattleService = {
         return this._handleUseItem(battleId, state, char, playerPart, targetItemId)
       }
 
+      // ── Зональный ход: стойка (2 удара / 1 блок+1 удар / 4 блока) + зоны ──
+      const turn: ZonalTurnInput = payload.stance
+        ? normalizeTurn({
+            stance: payload.stance as ZonalTurnInput['stance'],
+            attackZones: (payload.attackZones ?? []) as BodyZone[],
+            blockZones: (payload.blockZones ?? []) as BodyZone[],
+          })
+        : legacyActionToTurn(action)
+
       // ── PvE: авторазрешение раунда ─────────────────────
       if (state.type === 'PVE_BOT') {
-        return this._resolveRoundPve(battleId, state, char, action, targetItemId)
+        return this._resolveRoundPve(battleId, state, char, turn)
       }
 
-      // ── PvP: сохраняем действие, ждём противника ───────
+      // ── PvP: сохраняем ход, ждём противника ────────────
       playerPart.pendingAction = action
+      playerPart.pendingTurn = turn
       playerPart.hasActedThisRound = true
       await BattleRedis.setState(battleId, state)
 
@@ -675,14 +782,13 @@ export const BattleService = {
   },
 
   // -------------------------------------------------------
-  // Resolve PvE round
+  // Resolve PvE round (зональная модель)
   // -------------------------------------------------------
   async _resolveRoundPve(
     battleId: string,
     state: LiveBattleState,
     char: CharacterWithStats,
-    playerAction: string,
-    _targetItemId?: string
+    playerTurn: ZonalTurnInput
   ) {
     const playerPart = state.participants.find(p => p.characterId === char.id)!
     const botPart = state.participants.find(p => p.botId)!
@@ -693,83 +799,84 @@ export const BattleService = {
     const weapon = playerPart.weaponInstanceId
       ? await ItemsRepository.findInstanceById(playerPart.weaponInstanceId)
       : null
-
     const weaponType = (weapon?.template.weaponType ?? 'MELEE') as string
-
-    // Load weapon skill for player's weapon type
     const skillRecord = await WeaponSkillsRepository.findOrCreate(char.id, weaponType as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1])
 
-    // Load all equipped armor for player (for defender snapshot + attacker equipment weight)
     const equippedItems = await ItemsRepository.findEquipped(char.id)
     const equippedArmor = equippedItems.filter(i => i.template.type === 'ARMOR')
+    const playerArmorList = armorListFromEquipped(equippedArmor)
 
-    // Build snapshots with real equipment weight and anti-mastery
     const attackerSnap = await buildAttackerSnapshotAsync(char, weapon, skillRecord.skillLevel, equippedArmor)
-
-    // For defender (bot): no anti-mastery in stage 1, use bot stats directly
-    const defenderSnap = buildBotDefenderSnapshot(botStats)
-
+    const defenderSnap = buildBotDefenderSnapshot(botStats)   // бот как защитник
     const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
-    // Player's defense includes real equipped armor  
     const playerDefSnap = buildDefenderSnapshot(char, equippedArmor)
 
-    // Initiative: now uses real equipmentWeight from attackerSnap
+    // Бот выбирает свою стойку и зоны
+    const botTurn = botChooseTurn()
+    const botZoneArmor = defenderSnap.armor   // у бота равномерная броня по зонам
+
     const playerInit = calcInitiative(char.stats!.rea, char.stats!.agi, skillRecord.skillLevel, attackerSnap.equipmentWeight)
     const botInit    = calcInitiative(botStats.rea ?? 2, botStats.agi ?? 2, 1, 0)
     const playerFirst = playerInit >= botInit
 
-    const turns: Array<{
-      actor: 'player' | 'bot'
-      action: string
-      result: ReturnType<typeof resolveAttack>
-    }> = []
-
     let playerHp = playerPart.hpCurrent
     let botHp = botPart.hpCurrent
 
-    // Helper: apply attack
-    const doPlayerAttack = () => {
-      const r = resolveAttack(attackerSnap, defenderSnap, false)
-      if (r.hit && !r.dodge) {
-        botHp = Math.max(0, botHp - r.finalDamage)
-        playerPart.damageDealt += r.finalDamage
-        botPart.damageReceived += r.finalDamage
-        if (r.hit) playerPart.hitsLanded++
-        if (r.hit) botPart.hitsTaken++
+    type TurnRec = { actor: 'player' | 'bot'; r: ZonalAttackResult }
+    const turns: TurnRec[] = []
+    const botHitZonesOnPlayer: BodyZone[] = []
+
+    const playerStrike = () => {
+      const res = executeStrikes({
+        attackerSnap, defenderSnap,
+        zoneArmorFor: () => botZoneArmor,
+        attackZones: playerTurn.attackZones,
+        blockedZones: botTurn.blockZones,
+        defenderHp: botHp,
+      })
+      for (const r of res.results) {
+        if (r.hit && !r.dodge && !r.block) { botHp = Math.max(0, botHp - r.finalDamage); playerPart.hitsLanded++; botPart.hitsTaken++ }
+        turns.push({ actor: 'player', r })
       }
-      return r
+      playerPart.damageDealt += res.damageToDefender
+      botPart.damageReceived += res.damageToDefender
+      if (res.counterToAttacker > 0) {   // бот заблокировал и дал ответку
+        playerHp = Math.max(0, playerHp - res.counterToAttacker)
+        botPart.damageDealt += res.counterToAttacker
+        playerPart.damageReceived += res.counterToAttacker
+      }
     }
 
-    const doBotAttack = () => {
-      const isBlocking = playerAction === 'block'
-      const r = resolveAttack(botAttackSnap, playerDefSnap, isBlocking)
-      if (r.hit && !r.dodge) {
-        playerHp = Math.max(0, playerHp - r.finalDamage)
-        botPart.damageDealt += r.finalDamage
-        playerPart.damageReceived += r.finalDamage
-        if (r.hit) botPart.hitsLanded++
-        if (r.hit) playerPart.hitsTaken++
-
-        // ── Ответный удар (ответка, Apeha mechanic) ──────────
-        const counterWeapon = weapon
-          ? { minDamage: weapon.template.minDamage ?? 2, maxDamage: weapon.template.maxDamage ?? 6 }
-          : { minDamage: 2, maxDamage: 6 }
-        const counter = resolveCounterAttack(playerDefSnap, botAttackSnap, counterWeapon)
-        if (counter.triggered && botHp > 0) {
-          botHp = Math.max(0, botHp - counter.damage)
-          playerPart.damageDealt += counter.damage
-          botPart.damageReceived += counter.damage
+    const botStrike = () => {
+      const res = executeStrikes({
+        attackerSnap: botAttackSnap, defenderSnap: playerDefSnap,
+        zoneArmorFor: (z) => armorOfZone(playerArmorList, z),
+        attackZones: botTurn.attackZones,
+        blockedZones: playerTurn.blockZones,
+        defenderHp: playerHp,
+      })
+      for (const r of res.results) {
+        if (r.hit && !r.dodge && !r.block) {
+          playerHp = Math.max(0, playerHp - r.finalDamage); botPart.hitsLanded++; playerPart.hitsTaken++
+          botHitZonesOnPlayer.push(r.zone)
         }
+        turns.push({ actor: 'bot', r })
       }
-      return r
+      botPart.damageDealt += res.damageToDefender
+      playerPart.damageReceived += res.damageToDefender
+      if (res.counterToAttacker > 0) {   // игрок заблокировал и дал ответку
+        botHp = Math.max(0, botHp - res.counterToAttacker)
+        playerPart.damageDealt += res.counterToAttacker
+        botPart.damageReceived += res.counterToAttacker
+      }
     }
 
     if (playerFirst) {
-      if (playerAction === 'attack') turns.push({ actor: 'player', action: 'attack', result: doPlayerAttack() })
-      if (botHp > 0) turns.push({ actor: 'bot', action: 'attack', result: doBotAttack() })
+      playerStrike()
+      if (playerHp > 0 && botHp > 0) botStrike()
     } else {
-      turns.push({ actor: 'bot', action: 'attack', result: doBotAttack() })
-      if (playerHp > 0 && playerAction === 'attack') turns.push({ actor: 'player', action: 'attack', result: doPlayerAttack() })
+      botStrike()
+      if (playerHp > 0 && botHp > 0) playerStrike()
     }
 
     playerPart.hpCurrent = playerHp
@@ -779,61 +886,39 @@ export const BattleService = {
 
     const roundNumber = state.roundNumber
 
-    // FIX: Apply weapon durability loss
-    if (weapon && turns.some(t => t.actor === 'player' && t.result.hit)) {
-      const newDur = Math.max(0, weapon.durabilityCurrent - 1)
-      await ItemsRepository.updateDurability(weapon.id, newDur)
+    // Износ оружия — если игрок нанёс хоть один реальный удар
+    if (weapon && turns.some(t => t.actor === 'player' && t.r.hit && !t.r.dodge && !t.r.block)) {
+      await ItemsRepository.updateDurability(weapon.id, Math.max(0, weapon.durabilityCurrent - 1))
     }
+    // Зональный износ брони — ломается то, во что бьют
+    await applyZonalArmorWear(equippedArmor, botHitZonesOnPlayer)
 
-    // Apply armor durability loss — 1 прочность за каждый полученный удар
-    const botHitsOnPlayer = turns.filter(t => t.actor === 'bot' && t.result.hit && !t.result.dodge).length
-    if (botHitsOnPlayer > 0 && equippedArmor.length > 0) {
-      // Применяем к случайному куску брони (простая логика для MVP)
-      const armorToDegrade = equippedArmor[Math.floor(Math.random() * equippedArmor.length)]
-      const newArmorDur = Math.max(0, armorToDegrade.durabilityCurrent - botHitsOnPlayer)
-      await ItemsRepository.updateDurability(armorToDegrade.id, newArmorDur)
-      if (newArmorDur <= 0) {
-        await ItemsRepository.updateStatus(armorToDegrade.id, 'BROKEN')
-      }
-    }
+    const battleOver = !playerPart.isAlive || !botPart.isAlive || roundNumber >= 30
 
-    // Check battle end
-    const playerDead = !playerPart.isAlive
-    const botDead = !botPart.isAlive
-    const battleOver = playerDead || botDead || roundNumber >= 30
-
-    // Save turns to DB
     const turnRecords = turns.map(t => ({
-      battleId,
-      roundNumber,
+      battleId, roundNumber,
       actorCharId: t.actor === 'player' ? char.id : null,
-      actorBotId: t.actor === 'bot' ? botPart.botId : null,
+      actorBotId:  t.actor === 'bot' ? botPart.botId : null,
       targetCharId: t.actor === 'bot' ? char.id : null,
-      targetBotId: t.actor === 'player' ? botPart.botId : null,
-      action: t.action.toUpperCase() as BattleAction,
+      targetBotId:  t.actor === 'player' ? botPart.botId : null,
+      action: 'ATTACK' as BattleAction,
       weaponId: t.actor === 'player' ? weapon?.id ?? null : null,
-      hit: t.result.hit,
-      dodge: t.result.dodge,
-      block: t.result.block,
-      crit: t.result.crit,
-      rawDamage: t.result.rawDamage,
-      finalDamage: t.result.finalDamage,
-      targetHpBefore: t.actor === 'player' ? botHp + t.result.finalDamage : playerHp + t.result.finalDamage,
-      targetHpAfter: t.actor === 'player' ? botHp : playerHp,
-      weaponDurLoss: t.actor === 'player' && t.result.hit ? 1 : 0,
-      logLine: t.result.logParts.join(', '),
+      zone: t.r.zone,
+      blockPierced: t.r.blockPierced,
+      hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit,
+      rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage,
+      weaponDurLoss: t.actor === 'player' && t.r.hit ? 1 : 0,
+      logLine: t.r.logParts.join(', '),
     }))
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await prisma.battleTurn.createMany({ data: turnRecords as any })
 
     if (battleOver) {
       state.status = 'finishing'
-      const winnerId = botDead ? char.id : null
+      const winnerId = !botPart.isAlive ? char.id : null
       return this._finishPveBattle(battleId, state, char, bot, playerPart, botPart, winnerId, weapon, skillRecord.skillLevel)
     }
 
-    // Continue
     state.roundNumber++
     state.roundDeadline = Date.now() + TURN_TIMEOUT_MS
     playerPart.hasActedThisRound = false
@@ -841,7 +926,10 @@ export const BattleService = {
 
     return {
       roundNumber,
-      turns: turns.map(t => ({ actor: t.actor, action: t.action, ...t.result })),
+      botStance: botTurn.stance,
+      botAttackZones: botTurn.attackZones,
+      botBlockZones: botTurn.blockZones,
+      turns: turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r })),
       playerHp,
       botHp,
       battleOver: false,
@@ -1004,8 +1092,7 @@ export const BattleService = {
   },
 
   // -------------------------------------------------------
-  // Resolve PvP round (both players have acted)
-  // FIX: Full implementation replacing the stub
+  // Resolve PvP round (зональная модель, оба игрока сходили)
   // -------------------------------------------------------
   async _resolveRoundPvp(battleId: string, state: LiveBattleState) {
     const [part1, part2] = state.participants.filter(p => p.characterId)
@@ -1014,7 +1101,6 @@ export const BattleService = {
       return { roundNumber: state.roundNumber, waiting: false }
     }
 
-    // Load both characters with their data
     const [char1, char2] = await Promise.all([
       CharactersRepository.findById(part1.characterId!),
       CharactersRepository.findById(part2.characterId!),
@@ -1024,109 +1110,87 @@ export const BattleService = {
       return { roundNumber: state.roundNumber, waiting: false }
     }
 
-    // Load weapons
     const [weapon1, weapon2] = await Promise.all([
       part1.weaponInstanceId ? ItemsRepository.findInstanceById(part1.weaponInstanceId) : Promise.resolve(null),
       part2.weaponInstanceId ? ItemsRepository.findInstanceById(part2.weaponInstanceId) : Promise.resolve(null),
     ])
 
-    // Load armor for both
     const [equippedItems1, equippedItems2] = await Promise.all([
       ItemsRepository.findEquipped(char1.id),
       ItemsRepository.findEquipped(char2.id),
     ])
     const armor1 = equippedItems1.filter(i => i.template.type === 'ARMOR')
     const armor2 = equippedItems2.filter(i => i.template.type === 'ARMOR')
+    const armorList1 = armorListFromEquipped(armor1)
+    const armorList2 = armorListFromEquipped(armor2)
 
-    // Load weapon skills
     const wtype1 = (weapon1?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
     const wtype2 = (weapon2?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
     const [skill1, skill2] = await Promise.all([
       WeaponSkillsRepository.findOrCreate(char1.id, wtype1),
       WeaponSkillsRepository.findOrCreate(char2.id, wtype2),
     ])
-
-    // Get anti-skill: char1's anti-skill vs char2's weapon type, and vice versa
     const [antiSkill1vs2, antiSkill2vs1] = await Promise.all([
       WeaponSkillsRepository.findOrCreate(char1.id, wtype2),
       WeaponSkillsRepository.findOrCreate(char2.id, wtype1),
     ])
 
-    // Build snapshots
     const snap1Atk = await buildAttackerSnapshotAsync(char1, weapon1, skill1.skillLevel, armor1)
     const snap2Atk = await buildAttackerSnapshotAsync(char2, weapon2, skill2.skillLevel, armor2)
-    const snap1Def = buildDefenderSnapshot(char1, armor1, antiSkill1vs2.antiSkillLevel)
-    const snap2Def = buildDefenderSnapshot(char2, armor2, antiSkill2vs1.antiSkillLevel)
+    const snap1Def = buildDefenderSnapshot(char1, armor1, antiSkill1vs2.antiSkillLevel, weapon1)
+    const snap2Def = buildDefenderSnapshot(char2, armor2, antiSkill2vs1.antiSkillLevel, weapon2)
 
-    // Calculate initiatives
     const init1 = calcInitiative(char1.stats!.rea, char1.stats!.agi, skill1.skillLevel, snap1Atk.equipmentWeight)
     const init2 = calcInitiative(char2.stats!.rea, char2.stats!.agi, skill2.skillLevel, snap2Atk.equipmentWeight)
 
-    // Determine acting order
-    const firstPart = init1 >= init2 ? part1 : part2
-    const secondPart = init1 >= init2 ? part2 : part1
-    const firstSnap = init1 >= init2 ? snap1Atk : snap2Atk
-    const secondSnap = init1 >= init2 ? snap2Atk : snap1Atk
-    const firstDefSnap = init1 >= init2 ? snap2Def : snap1Def  // first attacks → second defends
-    const secondDefSnap = init1 >= init2 ? snap1Def : snap2Def
+    const turn1 = part1.pendingTurn ?? legacyActionToTurn(part1.pendingAction ?? 'attack')
+    const turn2 = part2.pendingTurn ?? legacyActionToTurn(part2.pendingAction ?? 'attack')
 
     let hp1 = part1.hpCurrent
     let hp2 = part2.hpCurrent
 
-    const roundTurns: Array<{
-      actorPart: LiveParticipant
-      defenderPart: LiveParticipant
-      result: ReturnType<typeof resolveAttack>
-    }> = []
+    type TurnRec = { actorPart: LiveParticipant; defenderPart: LiveParticipant; r: ZonalAttackResult }
+    const roundTurns: TurnRec[] = []
+    const hitZonesOn1: BodyZone[] = []
+    const hitZonesOn2: BodyZone[] = []
 
-    const action1 = (init1 >= init2 ? part1 : part2).pendingAction ?? 'attack'
-    const action2 = (init1 >= init2 ? part2 : part1).pendingAction ?? 'attack'
-    const isFirstBlocking = action1 === 'block'
-    const isSecondBlocking = action2 === 'block'
-
-    // First actor attacks
-    if (action1 === 'attack' || isFirstBlocking === false) {
-      if (action1 === 'attack') {
-        const r = resolveAttack(firstSnap, firstDefSnap, isSecondBlocking)
-        if (r.hit && !r.dodge) {
-          if (init1 >= init2) {
-            hp2 = Math.max(0, hp2 - r.finalDamage)
-            part1.damageDealt += r.finalDamage
-            part2.damageReceived += r.finalDamage
-            part1.hitsLanded++
-            part2.hitsTaken++
-          } else {
-            hp1 = Math.max(0, hp1 - r.finalDamage)
-            part2.damageDealt += r.finalDamage
-            part1.damageReceived += r.finalDamage
-            part2.hitsLanded++
-            part1.hitsTaken++
-          }
+    const doStrike = (
+      atkPart: LiveParticipant, atkSnap: AttackerSnapshot, atkTurn: ZonalTurnInput,
+      defPart: LiveParticipant, defSnap: DefenderSnapshot, defArmorList: EquipArmorLike[], defTurn: ZonalTurnInput
+    ) => {
+      const defHp = defPart === part1 ? hp1 : hp2
+      const res = executeStrikes({
+        attackerSnap: atkSnap, defenderSnap: defSnap,
+        zoneArmorFor: (z) => armorOfZone(defArmorList, z),
+        attackZones: atkTurn.attackZones,
+        blockedZones: defTurn.blockZones,
+        defenderHp: defHp,
+      })
+      for (const r of res.results) {
+        if (r.hit && !r.dodge && !r.block) {
+          if (defPart === part1) { hp1 = Math.max(0, hp1 - r.finalDamage); hitZonesOn1.push(r.zone) }
+          else { hp2 = Math.max(0, hp2 - r.finalDamage); hitZonesOn2.push(r.zone) }
+          atkPart.hitsLanded++; defPart.hitsTaken++
         }
-        roundTurns.push({ actorPart: firstPart, defenderPart: secondPart, result: r })
+        roundTurns.push({ actorPart: atkPart, defenderPart: defPart, r })
+      }
+      atkPart.damageDealt += res.damageToDefender
+      defPart.damageReceived += res.damageToDefender
+      if (res.counterToAttacker > 0) {   // защитник заблокировал и дал ответку
+        if (atkPart === part1) hp1 = Math.max(0, hp1 - res.counterToAttacker)
+        else hp2 = Math.max(0, hp2 - res.counterToAttacker)
+        defPart.damageDealt += res.counterToAttacker
+        atkPart.damageReceived += res.counterToAttacker
       }
     }
 
-    // Second actor attacks (if first actor isn't dead)
-    const firstTargetHp = init1 >= init2 ? hp2 : hp1
-    if (firstTargetHp > 0 && action2 === 'attack') {
-      const r = resolveAttack(secondSnap, secondDefSnap, isFirstBlocking)
-      if (r.hit && !r.dodge) {
-        if (init1 >= init2) {
-          hp1 = Math.max(0, hp1 - r.finalDamage)
-          part2.damageDealt += r.finalDamage
-          part1.damageReceived += r.finalDamage
-          part2.hitsLanded++
-          part1.hitsTaken++
-        } else {
-          hp2 = Math.max(0, hp2 - r.finalDamage)
-          part1.damageDealt += r.finalDamage
-          part2.damageReceived += r.finalDamage
-          part1.hitsLanded++
-          part2.hitsTaken++
-        }
-      }
-      roundTurns.push({ actorPart: secondPart, defenderPart: firstPart, result: r })
+    const p1First = init1 >= init2
+    if (p1First) {
+      doStrike(part1, snap1Atk, turn1, part2, snap2Def, armorList2, turn2)
+      if (hp1 > 0 && hp2 > 0) doStrike(part2, snap2Atk, turn2, part1, snap1Def, armorList1, turn1)
+    } else {
+      doStrike(part2, snap2Atk, turn2, part1, snap1Def, armorList1, turn1)
+      if (hp1 > 0 && hp2 > 0) doStrike(part1, snap1Atk, turn1, part2, snap2Def, armorList2, turn2)
     }
 
     part1.hpCurrent = hp1
@@ -1136,43 +1200,32 @@ export const BattleService = {
 
     const roundNumber = state.roundNumber
 
-    // Apply weapon durability loss
-    for (const turn of roundTurns) {
-      const weapon = turn.actorPart === part1 ? weapon1 : weapon2
-      if (weapon && turn.result.hit) {
-        const newDur = Math.max(0, weapon.durabilityCurrent - 1)
-        await ItemsRepository.updateDurability(weapon.id, newDur)
-      }
+    // Износ оружия
+    if (weapon1 && roundTurns.some(t => t.actorPart === part1 && t.r.hit && !t.r.dodge && !t.r.block)) {
+      await ItemsRepository.updateDurability(weapon1.id, Math.max(0, weapon1.durabilityCurrent - 1))
     }
+    if (weapon2 && roundTurns.some(t => t.actorPart === part2 && t.r.hit && !t.r.dodge && !t.r.block)) {
+      await ItemsRepository.updateDurability(weapon2.id, Math.max(0, weapon2.durabilityCurrent - 1))
+    }
+    // Зональный износ брони — ломается то, во что бьют
+    await applyZonalArmorWear(armor1, hitZonesOn1)
+    await applyZonalArmorWear(armor2, hitZonesOn2)
 
-    // Apply armor durability loss
-    const hitsOnPlayer1 = roundTurns.filter(t => t.defenderPart === part1 && t.result.hit && !t.result.dodge).length
-    const hitsOnPlayer2 = roundTurns.filter(t => t.defenderPart === part2 && t.result.hit && !t.result.dodge).length
-    if (Math.floor(hitsOnPlayer1 / 2) > 0 && armor1.length > 0) {
-      const a = armor1[Math.floor(Math.random() * armor1.length)]
-      await ItemsRepository.updateDurability(a.id, Math.max(0, a.durabilityCurrent - Math.floor(hitsOnPlayer1 / 2)))
-    }
-    if (Math.floor(hitsOnPlayer2 / 2) > 0 && armor2.length > 0) {
-      const a = armor2[Math.floor(Math.random() * armor2.length)]
-      await ItemsRepository.updateDurability(a.id, Math.max(0, a.durabilityCurrent - Math.floor(hitsOnPlayer2 / 2)))
-    }
-
-    // Save turns to DB
     const turnRecords = roundTurns.map(t => ({
-      battleId,
-      roundNumber,
+      battleId, roundNumber,
       actorCharId: t.actorPart.characterId ?? null,
       targetCharId: t.defenderPart.characterId ?? null,
       action: 'ATTACK' as BattleAction,
       weaponId: t.actorPart === part1 ? weapon1?.id ?? null : weapon2?.id ?? null,
-      hit: t.result.hit, dodge: t.result.dodge, block: t.result.block, crit: t.result.crit,
-      rawDamage: t.result.rawDamage, finalDamage: t.result.finalDamage,
-      logLine: t.result.logParts.join(', '),
+      zone: t.r.zone,
+      blockPierced: t.r.blockPierced,
+      hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit,
+      rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage,
+      logLine: t.r.logParts.join(', '),
     }))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await prisma.battleTurn.createMany({ data: turnRecords as any })
 
-    // Check battle end
     const p1Dead = !part1.isAlive
     const p2Dead = !part2.isAlive
     const battleOver = p1Dead || p2Dead || roundNumber >= 30
@@ -1184,20 +1237,19 @@ export const BattleService = {
       return this._finishPvpBattle(battleId, state, char1, char2, part1, part2, winnerId, weapon1, weapon2, skill1.skillLevel, skill2.skillLevel)
     }
 
-    // Continue: reset actions, increment round
     state.roundNumber++
+    state.roundDeadline = Date.now() + TURN_TIMEOUT_MS
     part1.hasActedThisRound = false
     part2.hasActedThisRound = false
     part1.pendingAction = undefined
     part2.pendingAction = undefined
+    part1.pendingTurn = undefined
+    part2.pendingTurn = undefined
     await BattleRedis.setState(battleId, state)
 
     return {
       roundNumber,
-      turns: roundTurns.map(t => ({
-        actor: t.actorPart.characterId,
-        ...t.result,
-      })),
+      turns: roundTurns.map(t => ({ actor: t.actorPart.characterId, action: 'attack', ...t.r })),
       player1Hp: hp1,
       player2Hp: hp2,
       battleOver: false,
