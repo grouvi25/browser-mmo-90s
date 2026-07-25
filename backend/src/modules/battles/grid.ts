@@ -50,7 +50,8 @@ export function gridDistance(a: GridPosition, b: GridPosition): number {
 }
 
 export function isAdjacentStep(from: GridPosition, to: GridPosition): boolean {
-  return isInsideGrid(to) && gridDistance(from, to) === 1
+  return isInsideGrid(to)
+    && Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y)) === 1
 }
 
 export function participantAt(

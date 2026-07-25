@@ -150,7 +150,7 @@ function BattleGrid({
             const isAlly = !!occupant && !isPlayer && occupant.side === playerSide
             const isEnemy = !!occupant && occupant.side !== playerSide
             const isCenter = col === Math.floor(GRID_COLS / 2) && row === midRow
-            const canMove = Math.abs(col - playerCell.x) + Math.abs(row - playerCell.y) === 1 && !occupant
+            const canMove = Math.max(Math.abs(col - playerCell.x), Math.abs(row - playerCell.y)) === 1 && !occupant
             const isSelected = selectedMove?.x === col && selectedMove?.y === row
             const isTarget = isEnemy && occupant?.participantId === selectedTargetId
             return (

@@ -18,9 +18,11 @@ const fighter = (participantId: string, side: number, x: number, y: number): Pos
 })
 
 describe('battle grid movement', () => {
-  it('allows one orthogonal cell and rejects diagonal/jumps', () => {
+  it('allows all eight adjacent cells and rejects jumps or staying put', () => {
     expect(isAdjacentStep({ x: 1, y: 2 }, { x: 2, y: 2 })).toBe(true)
-    expect(isAdjacentStep({ x: 1, y: 2 }, { x: 2, y: 3 })).toBe(false)
+    expect(isAdjacentStep({ x: 1, y: 2 }, { x: 2, y: 3 })).toBe(true)
+    expect(isAdjacentStep({ x: 1, y: 2 }, { x: 0, y: 1 })).toBe(true)
+    expect(isAdjacentStep({ x: 1, y: 2 }, { x: 1, y: 2 })).toBe(false)
     expect(isAdjacentStep({ x: 1, y: 2 }, { x: 3, y: 2 })).toBe(false)
   })
 
