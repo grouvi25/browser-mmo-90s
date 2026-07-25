@@ -1,0 +1,7 @@
+ALTER TYPE "BattleAction" ADD VALUE IF NOT EXISTS 'MOVE';
+
+ALTER TABLE "battle_turns"
+  ADD COLUMN "from_x" INTEGER,
+  ADD COLUMN "from_y" INTEGER,
+  ADD COLUMN "to_x" INTEGER,
+  ADD COLUMN "to_y" INTEGER;

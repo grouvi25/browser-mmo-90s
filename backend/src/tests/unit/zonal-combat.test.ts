@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   armorOfZone,
+  botArmorOfZone,
   normalizeTurn,
   legacyActionToTurn,
   botChooseTurn,
@@ -59,6 +60,18 @@ describe('zones: armorOfZone', () => {
   it('LEFT_ARM без перчаток = 0', () => expect(armorOfZone(equip, 'LEFT_ARM')).toBe(0))
 })
 
+describe('zones: botArmorOfZone', () => {
+  const equipment = { armor: { HEAD: 4, CHEST: 12, LEGS: 7, RIGHT_ARM: 2, LEFT_ARM: 2 } }
+  it('uses armor configured for the attacked body zone', () => {
+    expect(botArmorOfZone(equipment, 'HEAD', 99)).toBe(4)
+    expect(botArmorOfZone(equipment, 'CHEST', 99)).toBe(12)
+  })
+  it('falls back to legacy armor for incomplete bot equipment', () => {
+    expect(botArmorOfZone({ armor: { HEAD: 3 } }, 'LEGS', 8)).toBe(8)
+    expect(botArmorOfZone({}, 'HEAD', 5)).toBe(5)
+  })
+})
+
 describe('zones: normalizeTurn / stances', () => {
   it('attack2 = 2 удара, 0 блоков', () => {
     const t = normalizeTurn({ stance: 'attack2', attackZones: ['HEAD', 'CHEST', 'LEGS'] })
@@ -78,6 +91,20 @@ describe('zones: normalizeTurn / stances', () => {
   it('добивает атаки корпусом до бюджета', () => {
     const t = normalizeTurn({ stance: 'attack2', attackZones: [] })
     expect(t.attackZones).toEqual(['CHEST', 'CHEST'])
+  })
+
+  it('movement consumes the turn and preserves its destination', () => {
+    const t = normalizeTurn({
+      stance: 'attack2',
+      attackZones: ['HEAD', 'CHEST'],
+      blockZones: ['LEGS'],
+      moveTo: { x: 2, y: 2 },
+      targetParticipantId: 'target-1',
+    })
+    expect(t.attackZones).toEqual([])
+    expect(t.blockZones).toEqual([])
+    expect(t.moveTo).toEqual({ x: 2, y: 2 })
+    expect(t.targetParticipantId).toBe('target-1')
   })
 })
 

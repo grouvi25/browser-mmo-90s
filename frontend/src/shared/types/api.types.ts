@@ -121,6 +121,10 @@ export interface BattleTurn {
   actorCharId: string | null
   actorBotId: string | null
   action: string
+  fromX: number | null
+  fromY: number | null
+  toX: number | null
+  toY: number | null
   hit: boolean
   dodge: boolean
   block: boolean

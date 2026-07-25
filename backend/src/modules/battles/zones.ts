@@ -30,7 +30,6 @@ export interface ZonalTurnInput {
   attackZones: BodyZone[]
   blockZones: BodyZone[]
   moveTo?: { x: number; y: number }
-  moveDir?: 'approach' | 'retreat'
   targetParticipantId?: string
 }
 
@@ -49,13 +48,26 @@ export function armorOfZone(equipped: EquipArmorLike[], zone: BodyZone): number 
   }, 0)
 }
 
+export function botArmorOfZone(
+  equipment: Record<string, unknown>,
+  zone: BodyZone,
+  fallbackArmor: number,
+): number {
+  const armor = equipment.armor
+  if (!armor || typeof armor !== 'object' || Array.isArray(armor)) return Math.max(0, fallbackArmor)
+  const value = (armor as Record<string, unknown>)[zone]
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(0, value)
+    : Math.max(0, fallbackArmor)
+}
+
 // Валидируем и нормализуем ход. Обрезаем зоны под бюджет стойки,
 // убираем дубли блоков (по одной зоне блок ставится один раз),
 // для атаки дубли разрешены (можно бить дважды в одну зону).
 export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): ZonalTurnInput {
   const stance: Stance =
     input?.stance && STANCE_BUDGET[input.stance] ? input.stance : 'attack2'
-  const budget = (input?.moveTo || input?.moveDir) ? { attacks: 0, blocks: 0 } : STANCE_BUDGET[stance]
+  const budget = input?.moveTo ? { attacks: 0, blocks: 0 } : STANCE_BUDGET[stance]
 
   const rawAttack = (input?.attackZones ?? []).filter(isBodyZone)
   const rawBlock = (input?.blockZones ?? []).filter(isBodyZone)
@@ -79,7 +91,6 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
     attackZones,
     blockZones,
     moveTo: input?.moveTo,
-    moveDir: input?.moveDir,
     targetParticipantId: input?.targetParticipantId,
   }
 }

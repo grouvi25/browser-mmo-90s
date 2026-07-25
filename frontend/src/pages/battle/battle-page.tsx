@@ -2,13 +2,13 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import {
-  Sword, Shield, Heart, Zap, ArrowRight, ArrowLeft,
+  Sword, Shield, Heart, Zap, ArrowRight,
   RotateCcw, Flag, ChevronDown, ChevronUp, Skull,
   CircleDot, User, Trophy, AlertTriangle, Pill,
 } from 'lucide-react'
 import { battlesApi, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
-import { type BattleAction, type ItemInstance } from '../../shared/types/api.types'
+import { type BattleAction, type ItemInstance, type LiveParticipant } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 
@@ -104,12 +104,23 @@ function BattleGrid({
   enemyName, enemyHp, enemyHpMax,
   playerDefeated, enemyDefeated,
   playerHit, enemyHit, lastEvent, distance,
+  playerPosition, enemyPosition, selectedMove, onSelectMove,
+  participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget,
 }: {
   playerName: string; playerHp: number; playerHpMax: number
   enemyName: string;  enemyHp: number;  enemyHpMax: number
   playerDefeated: boolean; enemyDefeated: boolean
   playerHit: boolean; enemyHit: boolean; lastEvent: TurnEvent | null
   distance?: number
+  playerPosition?: { x: number; y: number }
+  enemyPosition?: { x: number; y: number }
+  selectedMove?: { x: number; y: number } | null
+  onSelectMove?: (position: { x: number; y: number }) => void
+  participants?: LiveParticipant[]
+  playerParticipantId?: string
+  playerSide?: number
+  selectedTargetId?: string | null
+  onSelectTarget?: (participantId: string) => void
 }) {
   const midRow = Math.floor(GRID_ROWS / 2)
   // позиция врага зависит от дистанции (ближний бой = соседняя клетка)
@@ -132,22 +143,31 @@ function BattleGrid({
       <div className="grid-field">
         {Array.from({ length: GRID_ROWS }).map((_, row) =>
           Array.from({ length: GRID_COLS }).map((_, col) => {
-            const isPlayer = col === PLAYER_COL && row === midRow
-            const isEnemy  = col === enemyCol  && row === midRow
+            const playerCell = playerPosition ?? { x: PLAYER_COL, y: midRow }
+            const enemyCell = enemyPosition ?? { x: enemyCol, y: midRow }
+            const occupant = participants?.find(p => p.isAlive && p.position.x === col && p.position.y === row)
+            const isPlayer = occupant?.participantId === playerParticipantId
+            const isAlly = !!occupant && !isPlayer && occupant.side === playerSide
+            const isEnemy = !!occupant && occupant.side !== playerSide
             const isCenter = col === Math.floor(GRID_COLS / 2) && row === midRow
+            const canMove = Math.max(Math.abs(col - playerCell.x), Math.abs(row - playerCell.y)) === 1 && !occupant
+            const isSelected = selectedMove?.x === col && selectedMove?.y === row
+            const isTarget = isEnemy && occupant?.participantId === selectedTargetId
             return (
               <div key={`${row}-${col}`}
-                className={`grid-cell ${isPlayer ? 'cell-player' : ''} ${isEnemy ? 'cell-enemy' : ''} ${isCenter ? 'cell-center' : ''}`}>
-                {isPlayer && (
-                  <div className={`fighter-token token-player ${playerHit ? 'token-hit' : ''} ${playerDefeated ? 'token-dead' : ''}`}>
-                    {playerDefeated ? <Skull size={18} /> : <User size={18} />}
-                    <span className="token-label">{playerName.slice(0, 5)}</span>
+                onClick={() => canMove ? onSelectMove?.({ x: col, y: row }) : isEnemy && occupant ? onSelectTarget?.(occupant.participantId) : undefined}
+                className={`grid-cell ${(isPlayer || isAlly) ? 'cell-player' : ''} ${isEnemy ? 'cell-enemy' : ''} ${isCenter ? 'cell-center' : ''} ${canMove ? 'cell-movable' : ''} ${isSelected ? 'cell-selected' : ''}`}
+                style={isTarget ? { cursor: 'pointer', boxShadow: 'inset 0 0 0 2px #c43030' } : canMove ? { cursor: 'pointer', boxShadow: isSelected ? 'inset 0 0 0 2px #d4a017' : 'inset 0 0 0 1px rgba(212,160,23,.35)' } : isEnemy ? { cursor: 'pointer' } : undefined}>
+                {(isPlayer || isAlly) && occupant && (
+                  <div className={`fighter-token token-player ${isPlayer && playerHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
+                    {!occupant.isAlive ? <Skull size={18} /> : <User size={18} />}
+                    <span className="token-label">{isPlayer ? playerName.slice(0, 5) : 'Союзн.'}</span>
                   </div>
                 )}
-                {isEnemy && (
-                  <div className={`fighter-token token-enemy ${enemyHit ? 'token-hit' : ''} ${enemyDefeated ? 'token-dead' : ''}`}>
-                    {enemyDefeated ? <Skull size={18} /> : <CircleDot size={18} />}
-                    <span className="token-label">{enemyName.slice(0, 5)}</span>
+                {isEnemy && occupant && (
+                  <div className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
+                    {!occupant.isAlive ? <Skull size={18} /> : <CircleDot size={18} />}
+                    <span className="token-label">{isTarget ? enemyName.slice(0, 5) : 'Враг'}</span>
                   </div>
                 )}
                 {isCenter && lastEvent && (
@@ -254,6 +274,8 @@ export function BattlePage() {
   const [enemyStance, setEnemyStance]   = useState<{ stance: Stance; attackZones: BodyZone[]; blockZones: BodyZone[] } | null>(null)
   const [distance, setDistance]         = useState<number | null>(null)
   const [playerRange, setPlayerRange]   = useState<number | null>(null)
+  const [selectedMove, setSelectedMove] = useState<{ x: number; y: number } | null>(null)
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null)
 
   const isValid = !!battleId && UUID_RE.test(battleId)
   useEffect(() => { if (!isValid) navigate('/profile', { replace: true }) }, [isValid, navigate])
@@ -275,7 +297,8 @@ export function BattlePage() {
   const live      = battleData?.liveState
   const dbParts   = (battleData?.battle?.participants ?? []) as Array<{ characterId?: string | null; botId?: string | null; hpMax?: number; hpCurrent?: number }>
   const pPart     = live?.participants.find((p: { characterId?: string }) => p.characterId === char?.id)
-  const ePart     = live?.participants.find((p: { botId?: string; characterId?: string }) => !!p.botId || p.characterId !== char?.id)
+  const enemyParts = pPart ? (live?.participants ?? []).filter((p: LiveParticipant) => p.isAlive && p.side !== pPart.side) : []
+  const ePart     = enemyParts.find((p: LiveParticipant) => p.participantId === selectedTargetId) ?? enemyParts[0]
   // Fallback на DB participants для hpMax (важно: Redis может ещё не загрузиться)
   const dbEPart   = dbParts.find(p => !!p.botId || (p.characterId && p.characterId !== char?.id))
   const pHp       = playerHp ?? pPart?.hpCurrent ?? char?.hpCurrent ?? 0
@@ -367,8 +390,13 @@ export function BattlePage() {
     prev.includes(z) ? prev.filter(x => x !== z) : prev.length < budget.blocks ? [...prev, z] : prev)
   const submitTurn = () => {
     const action: BattleAction = stance === 'defense4' ? 'block' : 'attack'
-    act(action, { stance, attackZones, blockZones })
-    setAttackZones([]); setBlockZones([])
+    act(action, { stance, attackZones, blockZones, targetParticipantId: ePart?.participantId })
+    setAttackZones([]); setBlockZones([]); setSelectedMove(null)
+  }
+  const submitMove = () => {
+    if (!selectedMove) return
+    act('move', { moveTo: selectedMove })
+    setSelectedMove(null); setAttackZones([]); setBlockZones([])
   }
 
   // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────
@@ -497,6 +525,15 @@ export function BattlePage() {
           playerHit={playerHit} enemyHit={enemyHit}
           lastEvent={lastEvent}
           distance={distance ?? live?.distance ?? undefined}
+          playerPosition={pPart?.position}
+          enemyPosition={ePart?.position}
+          selectedMove={selectedMove}
+          onSelectMove={setSelectedMove}
+          participants={live?.participants}
+          playerParticipantId={pPart?.participantId}
+          playerSide={pPart?.side}
+          selectedTargetId={ePart?.participantId}
+          onSelectTarget={setSelectedTargetId}
         />
 
         {/* HUD */}
@@ -531,49 +568,10 @@ export function BattlePage() {
               return (
                 <div style={{ fontSize: 11, textAlign: 'center', marginBottom: 5, color: far ? 'var(--warning, #c4802a)' : 'var(--text-dim)' }}>
                   Дистанция: {d}{playerRange != null && ` · оружие бьёт с ${playerRange}`}
-                  {far && ' — далеко, нужно подойти ближе'}
+                  {far && ' — далеко: при атаке сближаешься (без удара)'}
                 </div>
               )
             })()}
-
-            {/* Движение по полю: Подойти / Отойти — это ход вместо удара */}
-            {(() => {
-              const d = (distance ?? live?.distance) as number | null
-              const far = d != null && playerRange != null && d > playerRange
-              const atMelee = d != null && d <= 1
-              return (
-                <div className="hz-move" style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
-                  <button
-                    onClick={() => act('move', { moveDir: 'retreat' })}
-                    disabled={!canAct}
-                    title="Отойти на клетку — увеличить дистанцию (ход вместо удара)"
-                    style={{
-                      flex: 1, padding: '6px 4px', fontSize: 11, fontWeight: 'bold',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                      cursor: canAct ? 'pointer' : 'default', borderRadius: 4,
-                      border: '1px solid var(--border,#444)', background: 'transparent', color: 'var(--text-dim,#999)',
-                    }}>
-                    <ArrowLeft size={13} /> Отойти
-                  </button>
-                  <button
-                    onClick={() => act('move', { moveDir: 'approach' })}
-                    disabled={!canAct || atMelee}
-                    title="Подойти на клетку — сократить дистанцию (ход вместо удара)"
-                    style={{
-                      flex: 1, padding: '6px 4px', fontSize: 11, fontWeight: 'bold',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                      cursor: (!canAct || atMelee) ? 'default' : 'pointer', borderRadius: 4,
-                      border: `1px solid ${far ? 'var(--gold,#d4a017)' : 'var(--border,#444)'}`,
-                      background: far ? 'rgba(212,160,23,0.15)' : 'transparent',
-                      color: far ? 'var(--gold,#d4a017)' : 'var(--text-dim,#999)',
-                      opacity: atMelee ? 0.4 : 1,
-                    }}>
-                    Подойти <ArrowRight size={13} />
-                  </button>
-                </div>
-              )
-            })()}
-
             <div className="hz-stances" style={{ display: 'flex', gap: 4 }}>
               {STANCES.map(s => (
                 <button key={s.key} onClick={() => changeStance(s.key)} disabled={!canAct} title={s.hint}
@@ -590,6 +588,19 @@ export function BattlePage() {
             </div>
             <div style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'center', margin: '3px 0' }}>{budget.hint}</div>
 
+            {enemyParts.length > 1 && (
+              <div style={{ margin: '6px 0' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 4 }}>Цель атаки</div>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {enemyParts.map((enemy: LiveParticipant, index: number) => (
+                    <button key={enemy.participantId} disabled={!canAct} onClick={() => setSelectedTargetId(enemy.participantId)}
+                      style={{ border: `1px solid ${ePart?.participantId === enemy.participantId ? '#c43030' : 'var(--border,#444)'}`, background: ePart?.participantId === enemy.participantId ? 'rgba(196,48,48,.2)' : 'transparent', color: 'var(--text)', padding: '4px 7px', borderRadius: 4 }}>
+                      Враг {index + 1} · {enemy.hpCurrent}/{enemy.hpMax} HP
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="hz-zones" style={{ display: 'flex', flexDirection: 'column', gap: 3, margin: '4px 0' }}>
               {ZONES.map(z => {
                 const atk = attackZones.includes(z.key)
@@ -630,8 +641,13 @@ export function BattlePage() {
               })}
             </div>
 
+            {selectedMove && (
+              <button className="btn btn-gold" disabled={!canAct} onClick={submitMove} style={{ width: '100%', marginBottom: 6, fontWeight: 'bold' }}>
+                Перейти в клетку ({selectedMove.x}, {selectedMove.y})
+              </button>
+            )}
             <div style={{ display: 'flex', gap: 6 }}>
-              <button className="btn btn-danger" disabled={!canAct} onClick={submitTurn} style={{ flex: 1, fontWeight: 'bold' }}>
+              <button className="btn btn-danger" disabled={!canAct || !!selectedMove} onClick={submitTurn} style={{ flex: 1, fontWeight: 'bold' }}>
                 <Sword size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
                 Ходить
                 <span style={{ fontSize: 10, opacity: 0.8, marginLeft: 6 }}>

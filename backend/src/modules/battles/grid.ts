@@ -12,6 +12,29 @@ export interface PositionedParticipant {
   position: GridPosition
 }
 
+const SPAWN_ROWS = [2, 1, 3, 0, 4] as const
+
+export function teamSpawnPositions(side: number, count: number): GridPosition[] {
+  if (!Number.isInteger(count) || count < 1 || count > BATTLE_GRID.height) {
+    throw new Error(`Team size must be between 1 and ${BATTLE_GRID.height}`)
+  }
+  const x = side === 1 ? 1 : BATTLE_GRID.width - 2
+  return SPAWN_ROWS.slice(0, count).map(y => ({ x, y }))
+}
+
+export function selectEnemyTarget<T extends PositionedParticipant>(
+  actor: T,
+  participants: T[],
+  requestedTargetId?: string,
+): T {
+  const enemies = participants.filter(participant => participant.isAlive && participant.side !== actor.side)
+  const target = requestedTargetId
+    ? enemies.find(participant => participant.participantId === requestedTargetId)
+    : enemies.length === 1 ? enemies[0] : undefined
+  if (!target) throw new Error('Invalid battle target')
+  return target
+}
+
 export function isInsideGrid(position: GridPosition): boolean {
   return Number.isInteger(position.x) && Number.isInteger(position.y)
     && position.x >= 0 && position.x < BATTLE_GRID.width
@@ -27,7 +50,8 @@ export function gridDistance(a: GridPosition, b: GridPosition): number {
 }
 
 export function isAdjacentStep(from: GridPosition, to: GridPosition): boolean {
-  return isInsideGrid(to) && gridDistance(from, to) === 1
+  return isInsideGrid(to)
+    && Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y)) === 1
 }
 
 export function participantAt(
@@ -47,6 +71,49 @@ export function canMoveTo(
 ): boolean {
   return isAdjacentStep(participant.position, destination)
     && !participantAt(participants, destination, participant.participantId)
+}
+
+export interface GridMoveRequest {
+  participantId: string
+  destination: GridPosition
+}
+
+export function resolveSimultaneousMoves(
+  participants: PositionedParticipant[],
+  requests: GridMoveRequest[],
+): PositionedParticipant[] {
+  const activeRequests = requests.filter((request, index) =>
+    requests.findIndex(candidate => candidate.participantId === request.participantId) === index)
+  if (activeRequests.length !== requests.length) throw new Error('Duplicate movement request')
+
+  for (const request of activeRequests) {
+    const actor = participants.find(participant => participant.participantId === request.participantId)
+    if (!actor?.isAlive || !isAdjacentStep(actor.position, request.destination)) {
+      throw new Error('Invalid destination cell')
+    }
+  }
+
+  for (let index = 0; index < activeRequests.length; index++) {
+    if (activeRequests.slice(index + 1).some(request =>
+      samePosition(request.destination, activeRequests[index].destination))) {
+      throw new Error('Multiple fighters cannot occupy the same cell')
+    }
+  }
+
+  for (const request of activeRequests) {
+    const blocker = participantAt(participants, request.destination, request.participantId)
+    const blockerMovesAway = blocker && activeRequests.some(candidate =>
+      candidate.participantId === blocker.participantId
+      && !samePosition(candidate.destination, blocker.position))
+    if (blocker && !blockerMovesAway) throw new Error('Destination cell is occupied')
+  }
+
+  return participants.map(participant => {
+    const request = activeRequests.find(candidate => candidate.participantId === participant.participantId)
+    return request
+      ? { ...participant, position: { ...request.destination } }
+      : { ...participant, position: { ...participant.position } }
+  })
 }
 
 export function isInWeaponRange(

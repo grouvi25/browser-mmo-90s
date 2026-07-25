@@ -140,6 +140,7 @@ enum BattleStatus {
 enum BattleAction {
   ATTACK
   BLOCK
+  MOVE
   USE_ITEM
   CHANGE_WEAPON
   SURRENDER
@@ -547,6 +548,12 @@ model BattleTurn {
 
   action          BattleAction
   weaponId        String?       @map("weapon_id")   // ItemInstance used
+
+  // Tactical grid movement
+  fromX           Int?          @map("from_x")
+  fromY           Int?          @map("from_y")
+  toX             Int?          @map("to_x")
+  toY             Int?          @map("to_y")
 
   // Zonal combat
   zone            BodyZone?                          // зона удара

@@ -11,9 +11,11 @@
 import { prisma } from '../shared/db/prisma'
 import { BattleRedis } from '../shared/db/redis'
 import { BattleService, type LiveBattleState } from '../modules/battles/battles.service'
+import { timedOutCharacterIds } from '../modules/battles/battle-timeout'
 import { logger } from '../shared/logger/logger'
 
 export const TIMER_TICK_MS = 2_000 // проверяем каждые 2 секунды
+
 
 export async function runBattleTimeout(): Promise<void> {
   const now = Date.now()
@@ -30,29 +32,34 @@ export async function runBattleTimeout(): Promise<void> {
   for (const { id: battleId } of activeBattles) {
     try {
       const state = await BattleRedis.getState<LiveBattleState>(battleId)
-      if (!state || state.status !== 'active') continue
-      if (!state.roundDeadline) continue
-      if (now < state.roundDeadline) continue // время не вышло
+      if (!state) continue
+      const timeoutRound = state.roundNumber
+      const pendingCharacterIds = timedOutCharacterIds(state, now)
+      for (const characterId of pendingCharacterIds) {
+        // A previous auto-turn may have resolved the round. Never submit a stale
+        // timeout action into the next round.
+        const currentState = await BattleRedis.getState<LiveBattleState>(battleId)
+        if (!currentState || currentState.status !== 'active' || currentState.roundNumber !== timeoutRound) break
+        const currentParticipant = currentState.participants.find(participant => participant.characterId === characterId)
+        if (!currentParticipant?.isAlive || currentParticipant.isSurrendered || currentParticipant.hasActedThisRound) continue
 
-      // Находим игрока который ещё не сделал ход
-      const pendingPlayer = state.participants.find(
-        p => p.characterId && p.isAlive && !p.hasActedThisRound
-      )
-      if (!pendingPlayer || !pendingPlayer.characterId) continue
+        const char = await prisma.character.findUnique({
+          where: { id: characterId },
+          select: { userId: true, nickname: true },
+        })
+        if (!char) continue
 
-      // Ищем userId по characterId
-      const char = await prisma.character.findUnique({
-        where: { id: pendingPlayer.characterId },
-        select: { userId: true, nickname: true },
-      })
-      if (!char) continue
+        logger.info({
+          battleId, characterId, round: timeoutRound,
+        }, '[BattleTimeout] Auto-defense for timeout')
 
-      logger.info({
-        battleId, characterId: pendingPlayer.characterId, round: state.roundNumber,
-      }, '[BattleTimeout] Auto-block for timeout')
-
-      // Авто-блок от имени игрока
-      await BattleService.submitAction(char.userId, battleId, 'block')
+        await BattleService.submitAction(char.userId, battleId, {
+          action: 'block',
+          stance: 'defense4',
+          attackZones: [],
+          blockZones: ['HEAD', 'CHEST', 'LEGS', 'RIGHT_ARM'],
+        })
+      }
 
     } catch (err) {
       // Тихо логируем — не прерываем цикл
