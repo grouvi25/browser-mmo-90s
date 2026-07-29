@@ -1,0 +1,490 @@
+/* =============================================================
+   ВИЗУАЛЬНАЯ ТЕМА ПО PSD-МАКЕТУ — «бумага и акварель»
+   Загружается ПОСЛЕ global.css и перекрывает старую тёмную тему.
+
+   Старая вёрстка целиком построена на CSS-переменных, поэтому
+   смена палитры здесь автоматически перекрашивает все прежние
+   экраны (магазин, мастерская, инвентарь и т.д.) — переписывать
+   каждую страницу не нужно.
+   ============================================================= */
+
+@font-face {
+  font-family: 'Doc';                 /* замена макетного B52 */
+  src: url('../shared/assets/fonts/PTMono-400.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Sign';                /* замена макетного Stengazeta */
+  src: url('../shared/assets/fonts/Oswald-var.woff2') format('woff2');
+  font-weight: 200 700; font-style: normal; font-display: swap;
+}
+
+:root {
+  /* --- бумага и картон --- */
+  --paper:        #faeadd;
+  --paper-warm:   #fde7d3;
+  --paper-edge:   #f0d4bb;
+  --paper-dark:   #e2cdb2;
+  --card-blue:    #dce9ef;
+
+  /* --- перекрытие палитры global.css --- */
+  --bg:           #b0a2b0;
+  --bg-panel:     #faeadd;
+  --bg-panel2:    #f5e2d0;
+  --bg-panel3:    #efd9c2;
+  --bg-hover:     #f7ddc4;
+  --bg-input:     #fff6ea;
+
+  --border:       #7d6a58;
+  --border-light: #a08880;
+  --border-accent:#b81e2c;
+
+  --text:         #1e1a17;
+  --text-dim:     #6b5c4e;
+  --text-bright:  #000000;
+  --text-title:   #1a1a1a;
+
+  --gold:         #b8860b;
+  --gold-dim:     #8a6a10;
+  --red:          #b81e2c;
+  --red-dim:      #7d1119;
+  --green:        #2f6b2a;
+  --green-dim:    #234f20;
+  --accent:       #8a5a2b;
+  --accent-light: #b8863f;
+
+  --hp-full:      #2f6b2a;
+  --hp-mid:       #c4802a;
+  --hp-low:       #b81e2c;
+  --xp:           #6a9a30;
+  --durability:   #a06a20;
+
+  --warning:      #c4802a;
+  --danger:       #b81e2c;
+  --success:      #2f6b2a;
+
+  --q-junk:       #7a6f5e;
+  --q-common:     #3a332b;
+  --q-good:       #2f6b2a;
+  --q-rare:       #23509c;
+  --q-named:      #7b2f9c;
+  --q-unique:     #b8860b;
+
+  /* --- игровые акценты из макета --- */
+  --ink-red:      #ab0303;
+  --stat-energy:  #fde339;
+  --stat-hp:      #e34647;
+  --lvl-red:      #e34647;
+  --lvl-cyan:     #00e4ff;
+  --lvl-orange:   #ff9c00;
+  --slot-bg:      #584d56;
+
+  --font-ui:   'Doc', 'PT Mono', 'Courier New', monospace;
+  --font-mono: 'Doc', 'PT Mono', 'Courier New', monospace;
+  --font-sign: 'Sign', 'Oswald', 'Arial Narrow', sans-serif;
+}
+
+html, body {
+  background: #232323;
+  color: var(--text);
+  font-family: var(--font-ui);
+  overflow-x: hidden;
+}
+#root { min-height: 100%; }
+
+/* =============================================================
+   СЦЕНА
+   ============================================================= */
+
+.stage-holder {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform-origin: top left;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  user-select: none;
+}
+.stage--menu    { background-image: var(--plate-menu); }
+.stage--profile { background-image: var(--plate-profile); }
+
+/* =============================================================
+   СПРАЙТЫ И ОБЛАСТИ НАЖАТИЯ
+   ============================================================= */
+
+.sprite { pointer-events: none; display: block; }
+
+.hotspot {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  display: block;
+  transition: filter .13s ease, transform .13s ease;
+}
+.hotspot:disabled { cursor: default; }
+
+.sprite-btn__img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  transition: filter .13s ease, transform .13s ease;
+}
+
+/* Подсветка наведением — цветокоррекция самой картинки,
+   без подмены ассета и без наложенных плашек. */
+.hotspot:not(:disabled):hover .sprite-btn__img,
+.hotspot:not(:disabled):hover > .sprite {
+  filter: brightness(1.18) saturate(1.25)
+          drop-shadow(0 0 3px rgba(255, 226, 150, .95));
+  transform: scale(1.04);
+}
+.hotspot:not(:disabled):active .sprite-btn__img {
+  transform: scale(.97);
+  filter: brightness(.92);
+}
+
+/* Выбранный элемент — тёплая подсветка держится постоянно */
+.hotspot.is-active .sprite-btn__img,
+.hotspot.is-active > .sprite {
+  filter: brightness(1.12) saturate(1.35)
+          drop-shadow(0 0 4px rgba(212, 160, 23, .9));
+}
+
+/* Недоступный предмет — обесцвечен */
+.hotspot:disabled .sprite-btn__img { filter: grayscale(1) opacity(.45) contrast(.9); }
+
+/* Пустой слот */
+.sprite-btn__empty {
+  position: absolute; inset: 14%;
+  border: 1px dashed rgba(255, 255, 255, .28);
+  border-radius: 4px;
+}
+
+/* Зоны тела — подсветка красным, это боевые цели */
+.zone-hot:not(:disabled):hover .sprite-btn__img {
+  filter: brightness(1.25) saturate(2)
+          drop-shadow(0 0 3px rgba(224, 60, 60, 1));
+}
+.zone-hot.is-active .sprite-btn__img {
+  filter: saturate(2.4) hue-rotate(-18deg) brightness(1.1)
+          drop-shadow(0 0 4px rgba(200, 30, 30, .95));
+}
+
+/* Портрет — рамка подсветки по контуру фотографии */
+.portrait-hot:not(:disabled):hover .sprite-btn__img {
+  filter: brightness(1.1) contrast(1.06)
+          drop-shadow(0 0 5px rgba(255, 226, 150, .9));
+}
+
+/* =============================================================
+   ТЕКСТ НА СЦЕНЕ
+   ============================================================= */
+
+.t-sign {
+  font-family: var(--font-sign);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #000;
+}
+.t-doc { font-family: var(--font-ui); color: #000; }
+
+.stage-link { cursor: pointer; background: none; border: 0; padding: 0; }
+.stage-link:hover { color: var(--red); }
+.stage-link.is-active { color: var(--red); }
+.stage-link.is-locked { color: #6f6f6f; cursor: not-allowed; }
+.stage-link.is-locked:hover { color: #6f6f6f; }
+.stage-link--exit { color: var(--red); }
+.stage-link--exit:hover { color: var(--red-dim); }
+
+.stat-num { position: absolute; font-family: var(--font-ui); line-height: 1;
+            text-shadow: 0 0 2px rgba(0, 0, 0, .55); }
+.stat-num--energy { color: var(--stat-energy); }
+.stat-num--hp     { color: var(--stat-hp); }
+
+.nick-badge { position: absolute; font-family: var(--font-ui); line-height: 1;
+              color: #cf2a37; cursor: pointer; }
+.nick-badge:hover { color: var(--red-dim); }
+
+/* =============================================================
+   ЧАТ И ОНЛАЙН
+   ============================================================= */
+
+.city-chat { position: absolute; transform-origin: left top;
+             font-family: var(--font-ui); width: max-content; }
+.city-chat__row { white-space: nowrap; }
+.city-chat__time { color: var(--ink-red); }
+.city-chat__nick { cursor: pointer; }
+.city-chat__nick:hover { text-decoration: underline; }
+
+.chat-input {
+  position: absolute; background: transparent; border: 0; outline: 0;
+  font-family: var(--font-ui); color: #000;
+}
+.chat-input::placeholder { color: #6b5c4e; }
+
+.online-title { position: absolute; font-family: var(--font-ui);
+                color: var(--ink-red); transform-origin: left top; width: max-content; }
+.online-list  { position: absolute; font-family: var(--font-ui);
+                transform-origin: left top; width: max-content; }
+.online-list__row {
+  display: flex; align-items: baseline; gap: 8px;
+  cursor: pointer; white-space: nowrap;
+}
+.online-list__row:hover .online-list__nick { color: var(--ink-red); }
+.online-list__nick { white-space: nowrap; }
+.online-lvl { font-family: var(--font-ui); line-height: 1;
+              text-shadow: 0 0 2px rgba(0, 0, 0, .55); }
+.online-lvl--r { color: var(--lvl-red); }
+.online-lvl--c { color: var(--lvl-cyan); }
+.online-lvl--o { color: var(--lvl-orange); }
+
+/* =============================================================
+   ЦЕНТРАЛЬНЫЙ ВЬЮПОРТ — сюда рендерятся все игровые экраны
+   ============================================================= */
+
+.viewport {
+  position: absolute;
+  overflow: hidden;
+}
+.viewport__scene { position: absolute; inset: 0; }
+.viewport__scene img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.viewport__content {
+  position: absolute; inset: 0;
+  overflow-y: auto; overflow-x: hidden;
+  padding: 14px 16px;
+  background: linear-gradient(178deg, #faeadd 0%, #f4dfc9 55%, #eed3b8 100%);
+  box-shadow: inset 0 0 60px rgba(160,120,80,.18);
+  font-size: 13px;
+}
+.viewport__content::-webkit-scrollbar { width: 9px; }
+.viewport__content::-webkit-scrollbar-track { background: rgba(125,106,88,.15); }
+.viewport__content::-webkit-scrollbar-thumb { background: #8a7563; border-radius: 4px; }
+
+/* Заголовок экрана внутри вьюпорта */
+.viewport__head {
+  display: flex; align-items: baseline; gap: 10px;
+  border-bottom: 2px solid #2b2b2b;
+  padding-bottom: 5px; margin-bottom: 12px;
+}
+.viewport__title {
+  font-family: var(--font-sign); font-weight: 700; text-transform: uppercase;
+  font-size: 26px; letter-spacing: .01em; color: #17130f;
+}
+.viewport__subtitle { font-size: 12px; color: var(--text-dim); }
+.viewport__back {
+  margin-left: auto; font-size: 12px; color: var(--red);
+  cursor: pointer; background: none; border: 0; font-family: var(--font-ui);
+}
+.viewport__back:hover { text-decoration: underline; }
+
+/* Заглушка недоступного раздела */
+.locked-note {
+  margin: 40px auto; max-width: 460px; text-align: center;
+  border: 1px dashed #8a7563; padding: 22px 18px;
+  background: rgba(255, 255, 255, .35);
+}
+.locked-note__title {
+  font-family: var(--font-sign); text-transform: uppercase; font-weight: 700;
+  font-size: 20px; margin-bottom: 8px;
+}
+.locked-note__text { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+
+/* =============================================================
+   ПЕРЕКРАСКА СТАРЫХ КОМПОНЕНТОВ ВНУТРИ ВЬЮПОРТА
+   ============================================================= */
+
+.viewport__content .panel {
+  background: rgba(255, 252, 245, .72);
+  border: 1px solid #8a7563;
+  box-shadow: none;
+}
+.viewport__content .panel-header {
+  background: rgba(226, 205, 178, .9);
+  border-bottom: 1px solid #8a7563;
+}
+.viewport__content .panel-title {
+  font-family: var(--font-sign); text-transform: uppercase;
+  letter-spacing: .02em; color: #17130f;
+}
+.viewport__content .btn {
+  background: #efe0c9; border: 1px solid #6b5c4e; color: #1e1a17;
+  font-family: var(--font-ui); border-radius: 2px;
+}
+.viewport__content .btn:hover { background: #fff3e0; border-color: #b81e2c; }
+.viewport__content .btn:disabled { opacity: .45; }
+.viewport__content .btn-primary { background: #d9c19a; border-color: #8a6a10; }
+.viewport__content .btn-danger  { background: #e8c4c4; border-color: #b81e2c; color: #7d1119; }
+.viewport__content table { background: transparent; }
+.viewport__content th {
+  background: rgba(226, 205, 178, .95); color: #17130f;
+  font-family: var(--font-sign); text-transform: uppercase; letter-spacing: .02em;
+  border-bottom: 1px solid #8a7563;
+}
+.viewport__content td { border-bottom: 1px solid rgba(125, 106, 88, .35); }
+.viewport__content tr:hover td { background: rgba(255, 255, 255, .4); }
+.viewport__content input,
+.viewport__content select,
+.viewport__content textarea {
+  background: #fff6ea; border: 1px solid #6b5c4e; color: #1e1a17;
+  font-family: var(--font-ui);
+}
+
+/* =============================================================
+   ЭКРАН ВХОДА
+   ============================================================= */
+
+.auth-page { background: #b0a2b0; }
+.auth-box {
+  background: var(--paper); border: 2px solid #2b2b2b;
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, .25);
+}
+.auth-logo { font-family: var(--font-sign); text-transform: uppercase; color: #17130f; }
+
+/* =============================================================
+   СЛУЖЕБНАЯ ПАНЕЛЬ РАЗРАБОТЧИКА
+   ============================================================= */
+
+.devbar {
+  position: fixed; left: 8px; bottom: 8px; z-index: 90;
+  display: flex; flex-direction: column; gap: 5px; align-items: flex-start;
+  font: 11px/1.4 system-ui, sans-serif; color: #ccc;
+  opacity: .3; transition: opacity .15s;
+}
+.devbar:hover { opacity: 1; }
+.devbar button {
+  background: #3a3a3a; color: #ddd; border: 1px solid #565656;
+  border-radius: 4px; padding: 4px 8px; cursor: pointer; font: inherit;
+}
+.devbar button:hover { background: #4a4a4a; }
+.devbar button.on { background: #7a5a1a; border-color: #c79b34; color: #fff; }
+
+/* =============================================================
+   ПОДЛОЖКА СЦЕНЫ
+   ============================================================= */
+
+.stage__plate {
+  position: absolute; inset: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+
+/* =============================================================
+   ГОРОД ВО ВЬЮПОРТЕ
+   ============================================================= */
+
+.hub { position: absolute; inset: 0; }
+.hub__scene { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hub__overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 14px 16px; pointer-events: none;
+}
+.hub__place {
+  align-self: flex-start;
+  font-family: var(--font-sign); text-transform: uppercase; font-weight: 700;
+  font-size: 16px; letter-spacing: .02em; color: #17130f;
+  background: rgba(250, 234, 221, .82); border: 1px solid #2b2b2b;
+  padding: 3px 10px; margin-bottom: auto;
+}
+.hub__resume {
+  pointer-events: auto; align-self: flex-start; margin-bottom: 8px;
+  font-family: var(--font-sign); text-transform: uppercase; font-weight: 700;
+  font-size: 15px; color: #fff; background: #b81e2c;
+  border: 1px solid #2b2b2b; padding: 6px 14px; cursor: pointer;
+}
+.hub__resume:hover { background: #d8384a; }
+.hub__actions { display: flex; gap: 8px; flex-wrap: wrap; pointer-events: auto; }
+.hub__action {
+  font-family: var(--font-sign); text-transform: uppercase; font-weight: 700;
+  font-size: 15px; letter-spacing: .02em; color: #17130f;
+  background: rgba(250, 234, 221, .92); border: 1px solid #2b2b2b;
+  padding: 6px 14px; cursor: pointer;
+  transition: background .12s, color .12s, transform .12s;
+}
+.hub__action:hover { background: #fff; color: #b81e2c; transform: translateY(-1px); }
+.hub__action:active { transform: translateY(0); }
+
+/* =============================================================
+   ТЕЛО КАРТОЧКИ ПЕРСОНАЖА
+   ============================================================= */
+
+.card-note {
+  font-family: var(--font-ui); font-size: 17px; color: #17130f;
+  border-top: 1px solid rgba(43, 43, 43, .35); padding-top: 4px;
+}
+.card-list { font-family: var(--font-ui); font-size: 16px; color: #17130f; overflow: hidden; }
+.card-list__title {
+  font-family: var(--font-sign); text-transform: uppercase; font-weight: 700;
+  font-size: 19px; border-bottom: 1px solid #2b2b2b; padding-bottom: 3px; margin-bottom: 6px;
+}
+.card-list__empty { color: var(--text-dim); font-size: 15px; }
+.card-list__row {
+  display: flex; gap: 6px; align-items: baseline; width: 100%;
+  background: none; border: 0; padding: 3px 2px; cursor: pointer;
+  font: inherit; color: inherit; text-align: left;
+  border-bottom: 1px dotted rgba(43, 43, 43, .3);
+}
+.card-list__row:hover { background: rgba(255, 255, 255, .5); }
+.card-list__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-list__meta { color: var(--text-dim); font-size: 14px; }
+.card-list__dur  { color: var(--durability); font-size: 14px; }
+.card-list__kv {
+  display: flex; justify-content: space-between; padding: 3px 2px;
+  border-bottom: 1px dotted rgba(43, 43, 43, .3);
+}
+.card-list__more {
+  margin-top: 10px; background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: var(--red);
+}
+.card-list__more:hover { text-decoration: underline; }
+.card-topstrip { opacity: 0; }
+
+/* =============================================================
+   ЧАТ: ЦВЕТА НИКОВ ИЗ МАКЕТА
+   ============================================================= */
+
+.city-chat__nick--1 { color: #ff6000; }
+.city-chat__nick--2 { color: #000cff; }
+.city-chat__nick--3 { color: #ff0024; }
+.city-chat__nick--4 { color: #e2783f; }
+.online-list__row.is-self .online-list__nick { color: var(--ink-red); font-weight: 700; }
+
+/* =============================================================
+   ЭКРАН ЛИЧНОГО ДЕЛА
+   ============================================================= */
+
+.dossier-search {
+  position: absolute; background: transparent; border: 0; outline: 0;
+  font-family: var(--font-ui); color: #000;
+}
+.dossier-search::placeholder { color: #4a4038; }
+.dossier-body {
+  position: absolute; font-family: var(--font-ui); color: #000;
+  white-space: pre; transform-origin: left top;
+}
+.dossier-notes {
+  position: absolute; background: transparent; border: 0; outline: 0; resize: none;
+  font-family: var(--font-ui); font-size: 24px; line-height: 41px; color: #1e1a17;
+  padding: 0;
+}
+.dossier-notes::placeholder { color: rgba(30, 26, 23, .35); }
+.dossier-back {
+  position: absolute; left: 40px; top: 118px;
+  font-family: var(--font-sign); text-transform: uppercase; font-weight: 700;
+  font-size: 20px; color: #17130f; background: rgba(250, 234, 221, .85);
+  border: 1px solid #2b2b2b; padding: 5px 12px; cursor: pointer;
+}
+.dossier-back:hover { color: var(--red); }

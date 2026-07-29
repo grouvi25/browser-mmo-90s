@@ -1,0 +1,202 @@
+{
+  "menu": {
+    "stage": {
+      "w": 1754,
+      "h": 1240
+    },
+    "sprites": {
+      "viewport-street": {
+        "file": "viewport-street.png",
+        "x": 358.5,
+        "y": 169.5,
+        "w": 1132.0,
+        "h": 682.5,
+        "psdName": "Поле боя"
+      },
+      "zone-chest": {
+        "file": "zone-chest.png",
+        "x": 190.0,
+        "y": 560.5,
+        "w": 24.5,
+        "h": 42.0,
+        "psdName": "Торс"
+      },
+      "zone-head": {
+        "file": "zone-head.png",
+        "x": 196.0,
+        "y": 539.5,
+        "w": 13.0,
+        "h": 20.0,
+        "psdName": "голова"
+      },
+      "zone-left-arm": {
+        "file": "zone-left-arm.png",
+        "x": 177.5,
+        "y": 566.5,
+        "w": 12.0,
+        "h": 45.0,
+        "psdName": "Л Рука"
+      },
+      "zone-right-arm": {
+        "file": "zone-right-arm.png",
+        "x": 215.0,
+        "y": 566.5,
+        "w": 12.0,
+        "h": 45.0,
+        "psdName": "П рука"
+      },
+      "zone-right-leg": {
+        "file": "zone-right-leg.png",
+        "x": 203.5,
+        "y": 602.5,
+        "w": 11.5,
+        "h": 59.5,
+        "psdName": "П нога"
+      },
+      "zone-left-leg": {
+        "file": "zone-left-leg.png",
+        "x": 190.0,
+        "y": 602.5,
+        "w": 11.5,
+        "h": 59.5,
+        "psdName": "Л нога"
+      },
+      "icon-hp": {
+        "file": "icon-hp.png",
+        "x": 286.0,
+        "y": 213.0,
+        "w": 35.0,
+        "h": 30.5,
+        "psdName": "ХП"
+      },
+      "icon-energy": {
+        "file": "icon-energy.png",
+        "x": 87.5,
+        "y": 207.5,
+        "w": 25.0,
+        "h": 41.0,
+        "psdName": "Энергия"
+      },
+      "portrait": {
+        "file": "portrait.png",
+        "x": 90.5,
+        "y": 193.0,
+        "w": 206.0,
+        "h": 279.5,
+        "psdName": "Портрет"
+      },
+      "item-dog": {
+        "file": "item-dog.png",
+        "x": 170.5,
+        "y": 687.0,
+        "w": 64.5,
+        "h": 98.0,
+        "psdName": "Собака"
+      },
+      "tab-eye": {
+        "file": "tab-eye.png",
+        "x": 61.5,
+        "y": 114.5,
+        "w": 53.5,
+        "h": 34.5,
+        "psdName": "Глаз"
+      },
+      "tab-wrench": {
+        "file": "tab-wrench.png",
+        "x": 140.0,
+        "y": 111.0,
+        "w": 52.5,
+        "h": 41.5,
+        "psdName": "Ключ"
+      },
+      "item-ak": {
+        "file": "item-ak.png",
+        "x": 62.5,
+        "y": 556.5,
+        "w": 93.5,
+        "h": 90.5,
+        "psdName": "АК"
+      },
+      "item-bat": {
+        "file": "item-bat.png",
+        "x": 255.0,
+        "y": 561.5,
+        "w": 86.5,
+        "h": 87.0,
+        "psdName": "Бита"
+      },
+      "tab-person": {
+        "file": "tab-person.png",
+        "x": 219.5,
+        "y": 103.5,
+        "w": 46.5,
+        "h": 57.5,
+        "psdName": "Иконка Профиль"
+      }
+    }
+  },
+  "profile": {
+    "stage": {
+      "w": 1240,
+      "h": 1754
+    },
+    "sprites": {
+      "p-icon-hp": {
+        "file": "p-icon-hp.png",
+        "x": 360.0,
+        "y": 388.5,
+        "w": 37.0,
+        "h": 32.5,
+        "psdName": "ХП"
+      },
+      "p-icon-energy": {
+        "file": "p-icon-energy.png",
+        "x": 153.5,
+        "y": 383.0,
+        "w": 26.5,
+        "h": 43.5,
+        "psdName": "Энергия"
+      },
+      "p-item-dog": {
+        "file": "p-item-dog.png",
+        "x": 195.5,
+        "y": 1353.0,
+        "w": 113.0,
+        "h": 172.0,
+        "psdName": "Собака"
+      },
+      "p-item-gloves": {
+        "file": "p-item-gloves.png",
+        "x": 203.0,
+        "y": 1302.5,
+        "w": 123.5,
+        "h": 87.5,
+        "psdName": "Перчатки"
+      },
+      "p-portrait": {
+        "file": "p-portrait.png",
+        "x": 154.5,
+        "y": 364.5,
+        "w": 235.0,
+        "h": 318.5,
+        "psdName": "Портрет"
+      },
+      "p-item-ak": {
+        "file": "p-item-ak.png",
+        "x": 91.5,
+        "y": 1121.0,
+        "w": 136.0,
+        "h": 131.0,
+        "psdName": "Слой 2"
+      },
+      "p-item-bat": {
+        "file": "p-item-bat.png",
+        "x": 288.0,
+        "y": 1120.5,
+        "w": 129.0,
+        "h": 129.5,
+        "psdName": "Слой 0 копия"
+      }
+    }
+  }
+}
