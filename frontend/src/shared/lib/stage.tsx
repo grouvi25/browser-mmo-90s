@@ -27,25 +27,18 @@ export function useStageScale(): number {
 
 export type StageFit = 'contain' | 'width'
 
-interface StageProps {
-  width: number
-  height: number
-  /** contain — вписать целиком (главный экран), width — по ширине со скроллом (профиль) */
-  fit?: StageFit
-  maxScale?: number
-  className?: string
-  children: ReactNode
-}
-
 /**
- * Оболочка сцены. Держит реальную высоту после масштабирования,
- * чтобы страница скроллилась корректно.
+ * Масштаб сцены под текущее окно.
+ *
+ * Вынесен отдельным хуком, чтобы один экран мог считать масштаб
+ * другого: у профиля холст вертикальный (A4), у главного экрана —
+ * горизонтальный, и без привязки одни и те же элементы выходили бы
+ * разного размера на разных экранах.
  */
-export function Stage({
-  width, height, fit = 'contain', maxScale = 1.5, className = '', children,
-}: StageProps) {
+export function useViewportScale(
+  width: number, height: number, fit: StageFit = 'contain', maxScale = 1.5,
+): number {
   const [scale, setScale] = useState(1)
-  const holderRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
     function recalc() {
@@ -58,6 +51,33 @@ export function Stage({
     window.addEventListener('resize', recalc)
     return () => window.removeEventListener('resize', recalc)
   }, [width, height, fit, maxScale])
+
+  return scale
+}
+
+interface StageProps {
+  width: number
+  height: number
+  /** contain — вписать целиком (главный экран), width — по ширине со скроллом */
+  fit?: StageFit
+  maxScale?: number
+  /** Готовый масштаб: сцена не считает его сама (нужно для привязки экранов) */
+  scale?: number
+  className?: string
+  children: ReactNode
+}
+
+/**
+ * Оболочка сцены. Держит реальную высоту после масштабирования,
+ * чтобы страница скроллилась корректно.
+ */
+export function Stage({
+  width, height, fit = 'contain', maxScale = 1.5,
+  scale: scaleOverride, className = '', children,
+}: StageProps) {
+  const auto = useViewportScale(width, height, fit, maxScale)
+  const scale = scaleOverride ?? auto
+  const holderRef = useRef<HTMLDivElement>(null)
 
   const holderStyle: CSSProperties = { height: height * scale }
   // Сцена прижата к left:50%, поэтому сдвигаем её на половину УЖЕ
