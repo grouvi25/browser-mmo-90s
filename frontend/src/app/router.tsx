@@ -16,7 +16,7 @@ import { BattlePage }          from '../pages/battle/battle-page'
 import { BattleHistoryPage }   from '../pages/battles/battle-history-page'
 import { RepairPage }          from '../pages/repair/repair-page'
 import { SkillsPage }          from '../pages/skills/skills-page'
-import { PvpPage }             from '../pages/pvp/pvp-page'
+import { ArenaPage }           from '../pages/arena/arena-page'
 import { AdminPage }           from '../pages/admin/admin-page'
 import { StatsPage }           from '../pages/character/stats-page'
 
@@ -95,8 +95,8 @@ export function AppRouter() {
           </ViewportPanel>} />
 
         <Route path="/pvp" element={
-          <ViewportPanel title="Спальный район" subtitle="Стрелки и бои с ботами">
-            <PvpPage />
+          <ViewportPanel title="Спальный район" subtitle="Бои с ботами и стрелки">
+            <ArenaPage />
           </ViewportPanel>} />
 
         <Route path="/battles/history" element={

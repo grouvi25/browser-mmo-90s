@@ -9,7 +9,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { SPRITES } from '../../shared/ui/sprite'
 
 const ACTIONS = [
-  { key: 'pve', label: 'Бой с ботом', to: '/pvp', hint: 'Тренировка на улице' },
+  { key: 'pve', label: 'В бой', to: '/pvp', hint: 'Арена: бой с ботом или дуэль' },
   { key: 'shop', label: 'Магазин', to: '/shop', hint: 'Госцены, базовое снаряжение' },
   { key: 'repair', label: 'Мастерская', to: '/repair', hint: 'Починить снаряжение' },
   { key: 'inventory', label: 'Снаряжение', to: '/inventory', hint: 'Надеть и снять' },
