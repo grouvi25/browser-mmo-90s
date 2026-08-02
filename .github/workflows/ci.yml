@@ -195,5 +195,42 @@ jobs:
           done
           cat /tmp/mmo90s-e2e.log
           exit 1
-      - name: Run E2E tests
+      - name: Run API E2E tests
         run: npx vitest run --config vitest.e2e.config.ts --reporter=verbose
+
+      - name: Install frontend and Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Start frontend and verify readiness
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 > /tmp/mmo90s-frontend.log 2>&1 &
+          echo $! > /tmp/mmo90s-frontend.pid
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3000/ >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/mmo90s-frontend.log
+          exit 1
+
+      - name: Run Playwright visual and browser flows
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+        run: npm run test:visual
+
+      - name: Upload Playwright report and visual proofs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-stage2-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: warn
+          retention-days: 14
