@@ -50,6 +50,7 @@ import {
 } from '../stats/stats.formulas'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
+import { applyBattleProgression } from '../experience/progression'
 
 // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────────
 const TURN_TIMEOUT_MS = 7_000
@@ -1247,34 +1248,12 @@ export const BattleService = {
 
     return withTransaction(async (tx) => {
       // Update character HP, exp, level + stat points for level-up
-      const newBattleExp = char.battleExp + expGain
-      const newLevel = getLevelFromExp(newBattleExp)
-      const newHpMax = calcHpMax(char.stats!.end, newLevel)
-      const newHpCurrent = Math.max(1, playerPart.hpCurrent)
-      const levelsGained = newLevel - char.battleLevel
-      // statPointsPerLevel is stored in battleExp config
-      const statPointsGain = levelsGained * 1  // 1 point per level
-
-      await tx.character.update({
-        where: { id: char.id },
-        data: {
-          hpCurrent: newHpCurrent,
-          hpMax: newHpMax,
-          battleExp: newBattleExp,
-          battleLevel: newLevel,
-          status: 'ACTIVE',
-          battlesTotal: { increment: 1 },
-          battlesWon: playerWon ? { increment: 1 } : undefined,
-          lastBattleFinishedAt: new Date(),
-        },
+      const progression = await applyBattleProgression(tx, char, {
+        expGain,
+        hpCurrentAfterBattle: playerPart.hpCurrent,
+        won: playerWon,
       })
-      // Award stat points for level-up
-      if (levelsGained > 0) {
-        await tx.characterStats.update({
-          where: { characterId: char.id },
-          data: { pointsAvailable: { increment: levelsGained } },
-        })
-      }
+      const newLevel = progression.newLevel
 
       // Money reward
       let moneyReward = 0
@@ -1308,6 +1287,7 @@ export const BattleService = {
         data: {
           status: 'FINISHED',
           winnerId,
+          winnerParticipantId: playerWon ? playerPart.participantId : botPart.participantId,
           finishedAt: new Date(),
           roundCount: state.roundNumber,
         },
@@ -1323,6 +1303,8 @@ export const BattleService = {
           damageReceived: playerPart.damageReceived,
           hitsLanded: playerPart.hitsLanded,
           hitsTaken: playerPart.hitsTaken,
+          expGained: expGain,
+          moneyGained: moneyReward,
         },
       })
 
@@ -1341,7 +1323,7 @@ export const BattleService = {
         weaponExpGain,
         moneyReward,
         newLevel,
-        newBattleExp,
+        newBattleExp: progression.newExp,
         playerHp: playerPart.hpCurrent,
         rounds: state.roundNumber,
       }
@@ -1579,20 +1561,16 @@ export const BattleService = {
     const wskExp2 = calcWeaponSkillExp(part2.damageDealt, char1.hpMax, winnerId === char2.id ? 1 : 0, levelDiff)
 
     return withTransaction(async (tx) => {
-      // Update char1
-      const newExp1 = char1.battleExp + exp1
-      const newLevel1 = getLevelFromExp(newExp1)
-      await tx.character.update({
-        where: { id: char1.id },
-        data: { hpCurrent: Math.max(1, part1.hpCurrent), battleExp: newExp1, battleLevel: newLevel1, status: 'ACTIVE' },
+      const progression1 = await applyBattleProgression(tx, char1, {
+        expGain: exp1,
+        hpCurrentAfterBattle: part1.hpCurrent,
+        won: winnerId === char1.id,
       })
 
-      // Update char2
-      const newExp2 = char2.battleExp + exp2
-      const newLevel2 = getLevelFromExp(newExp2)
-      await tx.character.update({
-        where: { id: char2.id },
-        data: { hpCurrent: Math.max(1, part2.hpCurrent), battleExp: newExp2, battleLevel: newLevel2, status: 'ACTIVE' },
+      const progression2 = await applyBattleProgression(tx, char2, {
+        expGain: exp2,
+        hpCurrentAfterBattle: part2.hpCurrent,
+        won: winnerId === char2.id,
       })
 
       // Weapon skill exp
@@ -1604,7 +1582,15 @@ export const BattleService = {
       // Update battle
       await tx.battle.update({
         where: { id: battleId },
-        data: { status: 'FINISHED', winnerId, finishedAt: new Date(), roundCount: state.roundNumber },
+        data: {
+          status: 'FINISHED',
+          winnerId,
+          winnerParticipantId:
+            winnerId === char1.id ? part1.participantId :
+            winnerId === char2.id ? part2.participantId : null,
+          finishedAt: new Date(),
+          roundCount: state.roundNumber,
+        },
       })
 
       // Update participants
@@ -1615,6 +1601,8 @@ export const BattleService = {
             hpCurrent: part.hpCurrent, isAlive: part.isAlive,
             damageDealt: part.damageDealt, damageReceived: part.damageReceived,
             hitsLanded: part.hitsLanded, hitsTaken: part.hitsTaken,
+            expGained: char.id === char1.id ? exp1 : exp2,
+            moneyGained: 0,
           },
         })
       }
@@ -1640,8 +1628,8 @@ export const BattleService = {
       return {
         battleOver: true,
         winnerId,
-        char1: { expGain: exp1, weaponExpGain: wskExp1, newLevel: newLevel1, hp: Math.max(1, part1.hpCurrent) },
-        char2: { expGain: exp2, weaponExpGain: wskExp2, newLevel: newLevel2, hp: Math.max(1, part2.hpCurrent) },
+        char1: { expGain: exp1, weaponExpGain: wskExp1, newLevel: progression1.newLevel, hp: Math.max(1, part1.hpCurrent) },
+        char2: { expGain: exp2, weaponExpGain: wskExp2, newLevel: progression2.newLevel, hp: Math.max(1, part2.hpCurrent) },
         rounds: state.roundNumber,
       }
     })
@@ -1746,8 +1734,8 @@ export const BattleService = {
     const items = battles.map(b => {
       const myPart = b.participants.find(p => p.characterId === char.id)
       const oppPart = b.participants.find(p => p.characterId !== char.id || p.botId)
-      const won = b.winnerId === char.id
-      const result = b.winnerId === null ? 'draw' : won ? 'win' : 'lose'
+      const won = b.winnerParticipantId === myPart?.id
+      const result = b.winnerParticipantId === null ? 'draw' : won ? 'win' : 'lose'
       const opponent = oppPart?.character?.nickname ?? oppPart?.bot?.name ?? '?'
       const opponentLevel = oppPart?.character?.battleLevel ?? oppPart?.bot?.battleLevel ?? 0
       return {
@@ -1756,8 +1744,8 @@ export const BattleService = {
         result,
         opponent,
         opponentLevel,
-        expGain: 0, // expGain хранится в Character.battleExp, не в BattleParticipant
-        moneyGain: 0,
+        expGain: myPart?.expGained ?? 0, // expGain хранится в Character.battleExp, не в BattleParticipant
+        moneyGain: myPart?.moneyGained ?? 0,
         rounds: b.roundCount,
         finishedAt: b.finishedAt,
       }
