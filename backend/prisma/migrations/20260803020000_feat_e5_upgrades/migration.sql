@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ItemLogAction" ADD VALUE 'UPGRADE_FAILED';
