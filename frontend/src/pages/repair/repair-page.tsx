@@ -189,9 +189,14 @@ export function RepairPage() {
                       </tbody>
                     </table>
 
+                    {preview.requiredParts.length > 0 && <div className="mb8">
+                      {preview.requiredParts.map(part => <div key={part.resourceCode} className={part.enough ? 'text-success' : 'text-danger'}>
+                        {part.resourceName}: {part.available}/{part.amount}
+                      </div>)}
+                    </div>}
                     <button
                       className="btn btn-success btn-block"
-                      disabled={!preview.canAfford || repairMut.isPending}
+                      disabled={!preview.canRepair || repairMut.isPending}
                       onClick={() => repairMut.mutate(previewItem)}
                     >
                       {repairMut.isPending

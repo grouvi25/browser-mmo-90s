@@ -21,6 +21,7 @@ import { AdminPage }           from '../pages/admin/admin-page'
 import { StatsPage }           from '../pages/character/stats-page'
 import { ResourcesPage }       from '../pages/resources/resources-page'
 import { WorkPage }            from '../pages/work/work-page'
+import { PrivateShopsPage }    from '../pages/private-shops/private-shops-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -84,6 +85,11 @@ export function AppRouter() {
         <Route path="/inventory" element={
           <ViewportPanel title="Снаряжение" subtitle="Инвентарь и экипировка">
             <InventoryPage />
+          </ViewportPanel>} />
+
+        <Route path="/shops/private" element={
+          <ViewportPanel title="Private shops" subtitle="Tier-2 gear and repair parts">
+            <PrivateShopsPage />
           </ViewportPanel>} />
 
         <Route path="/resources" element={

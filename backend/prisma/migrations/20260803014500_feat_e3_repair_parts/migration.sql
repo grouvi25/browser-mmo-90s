@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "ItemLogAction" ADD VALUE 'CREATED_FROM_PRIVATE_SHOP';
+
+-- AlterEnum
+ALTER TYPE "ResourceLogReason" ADD VALUE 'PRIVATE_SHOP_BUY';

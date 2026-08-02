@@ -9,9 +9,27 @@ import { withTransaction } from '../../shared/db/transaction'
 import { audit } from '../../shared/logger/audit-logger'
 import { z } from 'zod'
 import { EconomyService } from '../economy/economy.service'
+import { ResourcesService } from '../resources/resources.service'
+import { calcRequiredRepairParts, needsRepairParts, repairPartsCode } from './repair.formulas'
+import { prisma } from '../../shared/db/prisma'
 
 const PreviewSchema = z.object({ itemInstanceId: z.string().uuid() })
 const CommitSchema = z.object({ itemInstanceId: z.string().uuid() })
+
+async function repairPartsPreview(characterId: string, item: Awaited<ReturnType<typeof ItemsRepository.findInstanceById>>) {
+  if (!item) return { needsParts: false, requiredParts: [], partsEnough: true }
+  const lost = item.durabilityMax - item.durabilityCurrent
+  const needsParts = needsRepairParts(item.template.itemTier, item.upgradeLevel)
+  if (!needsParts) return { needsParts, requiredParts: [], partsEnough: true }
+  const code = repairPartsCode(item.template.repairResourceCode)
+  const template = await prisma.resourceTemplate.findUnique({ where: { code } })
+  if (!template || !template.isActive || !template.isRepairMaterial) throw AppError.internal(`Repair resource misconfigured: ${code}`)
+  const stack = await prisma.resourceStack.findUnique({ where: { characterId_resourceTemplateId: { characterId, resourceTemplateId: template.id } } })
+  const amount = calcRequiredRepairParts(lost, item.durabilityMax, item.template.itemTier, item.upgradeLevel)
+  const available = Math.max(0, (stack?.amount ?? 0) - (stack?.reservedAmount ?? 0))
+  const requiredParts = [{ resourceCode: code, resourceName: template.name, amount, available, enough: available >= amount }]
+  return { needsParts, requiredParts, partsEnough: requiredParts.every(part => part.enough) }
+}
 
 export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
 
@@ -27,14 +45,15 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
         i.status !== 'DELETED' &&
         i.template.isSellable  // repairable check
       )
-      return reply.send(repairable.map(i => ({
-        ...i,
-        repairCost: calcRepairCost(
-          i.template.priceBase,
-          i.durabilityMax - i.durabilityCurrent,
-          i.quality,
-          i.upgradeLevel
-        ),
+      return reply.send(await Promise.all(repairable.map(async i => {
+        const parts = await repairPartsPreview(char.id, i)
+        return {
+          ...i,
+          repairCost: calcRepairCost(i.template.priceBase, i.durabilityMax - i.durabilityCurrent, i.quality, i.upgradeLevel),
+          needsParts: parts.needsParts,
+          partsResourceCode: parts.requiredParts[0]?.resourceCode ?? null,
+          requiredPartsAmount: parts.requiredParts[0]?.amount ?? 0,
+        }
       })))
     })
 
@@ -56,6 +75,7 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
 
       const lostDur = item.durabilityMax - item.durabilityCurrent
       const cost = calcRepairCost(item.template.priceBase, lostDur, item.quality, item.upgradeLevel)
+      const parts = await repairPartsPreview(char.id, item)
       return reply.send({
         item,
         durabilityCurrent: item.durabilityCurrent,
@@ -64,6 +84,10 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
         repairCost: cost,
         canAfford: char.money >= cost,
         characterMoney: char.money,
+        itemTier: item.template.itemTier,
+        upgradeLevel: item.upgradeLevel,
+        ...parts,
+        canRepair: char.money >= cost && parts.partsEnough,
       })
     })
 
@@ -91,6 +115,15 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
 
         const lostDur = item.durabilityMax - item.durabilityCurrent
         const cost = calcRepairCost(item.template.priceBase, lostDur, item.quality, item.upgradeLevel)
+        let partsSpent: { resourceCode: string; amount: number } | null = null
+        if (needsRepairParts(item.template.itemTier, item.upgradeLevel)) {
+          const code = repairPartsCode(item.template.repairResourceCode)
+          const resource = await tx.resourceTemplate.findUnique({ where: { code } })
+          if (!resource || !resource.isActive || !resource.isRepairMaterial) throw AppError.internal(`Repair resource misconfigured: ${code}`)
+          const amount = calcRequiredRepairParts(lostDur, item.durabilityMax, item.template.itemTier, item.upgradeLevel)
+          await ResourcesService.consume(tx, { characterId: char.id, resourceTemplateId: resource.id, amount, reasonCode: 'REPAIR_USE', refType: 'repair', refId: item.id })
+          partsSpent = { resourceCode: code, amount }
+        }
 
         if (char.money < cost) throw AppError.insufficientFunds(char.money, cost)
 
@@ -116,12 +149,12 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
             itemId: item.id,
             characterId: char.id,
             actionCode: 'REPAIRED',
-            details: { cost, durBefore: item.durabilityCurrent, durAfter: item.durabilityMax },
+            details: { cost, durBefore: item.durabilityCurrent, durAfter: item.durabilityMax, partsSpent },
           },
         })
 
         audit('item.repaired', { characterId: char.id, itemId: item.id, cost })
-        return { itemId: item.id, durabilityAfter: item.durabilityMax, cost, newBalance }
+        return { itemId: item.id, durabilityAfter: item.durabilityMax, cost, partsSpent, newBalance }
       })
 
       return reply.send(result)

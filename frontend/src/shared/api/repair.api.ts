@@ -9,6 +9,12 @@ interface RepairPreview {
   repairCost: number
   canAfford: boolean
   characterMoney: number
+  itemTier: number
+  upgradeLevel: number
+  needsParts: boolean
+  requiredParts: { resourceCode: string; resourceName: string; amount: number; available: number; enough: boolean }[]
+  partsEnough: boolean
+  canRepair: boolean
 }
 
 interface RepairResult {

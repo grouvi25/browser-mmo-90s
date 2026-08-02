@@ -176,6 +176,7 @@ enum CurrencyLogReason {
 
 enum ItemLogAction {
   CREATED_FROM_SHOP
+  CREATED_FROM_PRIVATE_SHOP
   CREATED_FROM_DROP
   CREATED_BY_ADMIN
   EQUIPPED
@@ -270,6 +271,7 @@ enum ResourceLogReason {
   REPAIR_USE
   UPGRADE_USE
   ADMIN_ADJUSTMENT
+  PRIVATE_SHOP_BUY
 }
 
 enum ProductionLogEvent {
