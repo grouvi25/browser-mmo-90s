@@ -25,6 +25,7 @@ import { adminAuthRoutes } from './modules/admin-auth/admin-auth.routes'
 import { resourcesRoutes } from './modules/resources/resources.routes'
 import { workRoutes } from './modules/work/work.routes'
 import { privateShopsRoutes } from './modules/private-shops/private-shops.routes'
+import { marketRoutes } from './modules/market/market.routes'
 
 export async function buildApp() {
   const fastify = Fastify({
@@ -98,6 +99,7 @@ export async function buildApp() {
   await fastify.register(resourcesRoutes,      { prefix: '/api/resources' })
   await fastify.register(workRoutes,           { prefix: '/api/work' })
   await fastify.register(privateShopsRoutes,   { prefix: '/api/private-shops' })
+  await fastify.register(marketRoutes,         { prefix: '/api/market' })
   await fastify.register(adminAuthRoutes,      { prefix: '/api/admin/auth' })
   await fastify.register(adminBasicRoutes,     { prefix: '/api/admin' })
 
