@@ -63,26 +63,23 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
       if (currentVal + amount > MAX_STAT) {
         throw new AppError(ErrorCode.CONFLICT, `Характеристика не может превышать ${MAX_STAT}`, 400)
       }
-
-      // Atomic update: read pointsAvailable fresh inside transaction to prevent race condition
-      const result = await prisma.$transaction(async (tx) => {
-        const freshStats = await tx.characterStats.findUnique({ where: { characterId: char.id } })
-        if (!freshStats) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Stats not found', 404)
-        if (freshStats.pointsAvailable < amount) {
-          throw new AppError(ErrorCode.CONFLICT, `Недостаточно очков (${freshStats.pointsAvailable} < ${amount})`, 400)
-        }
-        const statsAsAny = freshStats as unknown as Record<string, number>
-        if ((statsAsAny[stat] ?? 0) + amount > 20) {
-          throw new AppError(ErrorCode.CONFLICT, `Характеристика не может превышать 20`, 400)
-        }
-        return tx.characterStats.update({
-          where: { characterId: char.id },
-          data: {
-            [stat]: { increment: amount },
-            pointsAvailable: { decrement: amount },
-          },
-        })
+      // Conditional update preserves points and stat caps under concurrent requests.
+      const updated = await prisma.characterStats.updateMany({
+        where: {
+          characterId: char.id,
+          pointsAvailable: { gte: amount },
+          [stat]: { lte: MAX_STAT - amount },
+        },
+        data: {
+          [stat]: { increment: amount },
+          pointsAvailable: { decrement: amount },
+        },
       })
+      if (updated.count !== 1) {
+        throw new AppError(ErrorCode.CONFLICT, 'Not enough points or stat limit reached', 409)
+      }
+      const result = await prisma.characterStats.findUnique({ where: { characterId: char.id } })
+      if (!result) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Stats not found', 404)
 
       return reply.send({ message: `+${amount} ${stat}`, stats: result })
     })
