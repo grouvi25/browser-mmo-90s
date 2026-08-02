@@ -458,6 +458,9 @@ model ItemTemplate {
   itemTier        Int             @default(1) @map("item_tier")
   requiredRepairParts Json?       @map("required_repair_parts")
   requiredUpgradeParts Json?      @map("required_upgrade_parts")
+  privateShopAllowed Boolean      @default(false) @map("private_shop_allowed")
+  upgradeAllowed     Boolean      @default(false) @map("upgrade_allowed")
+  repairResourceCode String?      @map("repair_resource_code")
 
   // Requirements
   levelReq        Int             @default(0) @map("level_req")
@@ -832,6 +835,8 @@ model PrivateShopItem {
   isActive Boolean @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   @@index([shopCode, isActive])
+  @@unique([shopCode, itemTemplateId])
+  @@unique([shopCode, resourceTemplateId])
   @@map("private_shop_items")
 }
 
