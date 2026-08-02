@@ -8,6 +8,10 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { prisma } from '../../shared/db/prisma'
 import { z } from 'zod'
 
+const BattleLoadoutSchema = z.object({
+  itemInstanceIds: z.array(z.string().uuid()).max(4),
+})
+
 const DistributeStatSchema = z.object({
   stat: z.enum(['str', 'agi', 'rea', 'acc', 'end', 'luck', 'agr', 'auth']),
   amount: z.number().int().min(1).max(5),
@@ -34,6 +38,18 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
     })
 
   // GET /api/characters/me/skills — weapon skills
+  fastify.get('/me/battle-loadout', { preHandler: authenticate }, async (req, reply) => {
+    return reply.send(await CharactersService.getBattleLoadout(req.authUser.userId))
+  })
+
+  fastify.put('/me/battle-loadout', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = BattleLoadoutSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten().fieldErrors })
+    }
+    return reply.send(await CharactersService.setBattleLoadout(req.authUser.userId, parsed.data.itemInstanceIds))
+  })
+
   fastify.get('/me/skills', { preHandler: authenticate },
     async (req, reply) => {
       const char = await CharactersService.getProfile(req.authUser.userId)

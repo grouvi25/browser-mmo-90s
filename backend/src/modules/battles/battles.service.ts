@@ -80,6 +80,7 @@ export interface LiveParticipant {
   pendingAction?: string   // 'attack' | 'block' | 'surrender' | 'change_weapon:{id}' | 'use_item:{id}'
   pendingTurn?: ZonalTurnInput   // зональный ход (стойка + зоны атаки/блока)
   weaponInstanceId?: string
+  pocketItemIds?: string[]
   damageDealt: number
   damageReceived: number
   hitsTaken: number
@@ -168,6 +169,19 @@ function syncGridDistance(state: LiveBattleState): number {
   const distance = alive.length >= 2 ? gridDistance(alive[0].position, alive[1].position) : 0
   state.distance = distance
   return distance
+}
+
+async function loadBattlePocket(char: CharacterWithStats): Promise<string[]> {
+  const ids = ((char.battleLoadoutJson as string[] | null) ?? []).slice(0, 4)
+  if (ids.length === 0) return []
+  const items = await prisma.itemInstance.findMany({
+    where: { id: { in: ids }, ownerId: char.id },
+    include: { template: true },
+  })
+  const valid = new Set(items
+    .filter(item => item.template.type === 'CONSUMABLE' && !['CONSUMED', 'DELETED'].includes(item.status))
+    .map(item => item.id))
+  return ids.filter(id => valid.has(id))
 }
 
 // ---------------------------------------------------------------
@@ -443,7 +457,8 @@ export const BattleService = {
 
       // Character was claimed atomically before battle creation.
 
-      // Init Redis battle state
+      // Snapshot the server-authoritative pocket at battle start.
+      const pocketItemIds = await loadBattlePocket(char)
       const liveState: LiveBattleState = {
         battleId: battle.id,
         type: 'PVE_BOT',
@@ -463,6 +478,7 @@ export const BattleService = {
             isSurrendered: false,
             hasActedThisRound: false,
             weaponInstanceId: weapon?.id,
+            pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
             position: { x: 1, y: 2 },
@@ -586,6 +602,8 @@ export const BattleService = {
       })
       const opponentChar = await CharactersRepository.findById(opponentPart.characterId!)
       const oppWeapon = opponentChar ? await ItemsRepository.findEquippedWeapon(opponentChar.id) : null
+      const opponentPocketItemIds = opponentChar ? await loadBattlePocket(opponentChar) : []
+      const pocketItemIds = await loadBattlePocket(char)
 
       const liveState: LiveBattleState = {
         battleId: battle.id,
@@ -606,6 +624,7 @@ export const BattleService = {
             isSurrendered: false,
             hasActedThisRound: false,
             weaponInstanceId: oppWeapon?.id,
+            pocketItemIds: opponentPocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
             position: { x: 1, y: 2 },
@@ -620,6 +639,7 @@ export const BattleService = {
             isSurrendered: false,
             hasActedThisRound: false,
             weaponInstanceId: weapon?.id,
+            pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
             position: { x: 7, y: 2 },
@@ -713,11 +733,64 @@ export const BattleService = {
       if (action === 'surrender') {
         playerPart.isSurrendered = true
         playerPart.isAlive = false
+        state.status = 'finishing'
         await BattleRedis.setState(battleId, state)
-        return this._finishBattle(battleId, state, null)
+
+        if (state.type === 'PVE_BOT') {
+          const botPart = state.participants.find(p => p.botId)
+          if (!botPart?.botId) throw AppError.internal('PvE opponent missing')
+          const bot = await loadBotData(botPart.botId)
+          const weapon = playerPart.weaponInstanceId
+            ? await ItemsRepository.findInstanceById(playerPart.weaponInstanceId)
+            : null
+          const skill = await WeaponSkillsRepository.findOrCreate(
+            char.id,
+            (weapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1],
+          )
+          return this._finishPveBattle(
+            battleId, state, char, bot, playerPart, botPart, null, weapon, skill.skillLevel,
+          )
+        }
+
+        const opponentPart = state.participants.find(p => p.characterId && p.characterId !== char.id)
+        if (!opponentPart?.characterId) throw AppError.internal('PvP opponent missing')
+        const opponent = await CharactersRepository.findById(opponentPart.characterId)
+        if (!opponent?.stats) throw AppError.internal('PvP opponent character missing')
+        const [weapon1, weapon2] = await Promise.all([
+          playerPart.weaponInstanceId ? ItemsRepository.findInstanceById(playerPart.weaponInstanceId) : Promise.resolve(null),
+          opponentPart.weaponInstanceId ? ItemsRepository.findInstanceById(opponentPart.weaponInstanceId) : Promise.resolve(null),
+        ])
+        const [skill1, skill2] = await Promise.all([
+          WeaponSkillsRepository.findOrCreate(char.id, (weapon1?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
+          WeaponSkillsRepository.findOrCreate(opponent.id, (weapon2?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
+        ])
+        return this._finishPvpBattle(
+          battleId, state, char, opponent, playerPart, opponentPart, opponent.id,
+          weapon1, weapon2, skill1.skillLevel, skill2.skillLevel,
+        )
       }
 
       // ── Смена оружия ─────────────────────────────────────
+      if (state.type === 'PVP_DUEL' && (action === 'change_weapon' || action === 'use_item')) {
+        if (!targetItemId) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'No item specified', 400)
+        const item = await ItemsRepository.findInstanceById(targetItemId)
+        if (!item || item.ownerId !== char.id) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
+        if (action === 'change_weapon') {
+          if (item.template.type !== 'WEAPON' || item.status === 'BROKEN') {
+            throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid weapon', 400)
+          }
+        } else if (!playerPart.pocketItemIds?.includes(targetItemId) || item.template.type !== 'CONSUMABLE') {
+          throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Item is not in battle loadout', 400)
+        }
+        playerPart.pendingAction = `${action}:${targetItemId}`
+        playerPart.pendingTurn = undefined
+        playerPart.hasActedThisRound = true
+        await BattleRedis.setState(battleId, state)
+        const allActed = state.participants.every(p => !p.isAlive || p.isSurrendered || p.hasActedThisRound)
+        if (allActed) return this._resolveRoundPvp(battleId, state)
+        return { waiting: true, roundNumber: state.roundNumber }
+      }
+
       if (action === 'change_weapon') {
         if (!targetItemId) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'No weapon specified', 400)
         const newWeapon = await ItemsRepository.findInstanceById(targetItemId)
@@ -810,6 +883,9 @@ export const BattleService = {
     playerPart: LiveParticipant,
     itemInstanceId: string
   ) {
+    if (!playerPart.pocketItemIds?.includes(itemInstanceId)) {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Item is not in battle loadout', 400)
+    }
     const item = await ItemsRepository.findInstanceById(itemInstanceId)
     if (!item) throw AppError.notFound('Item', itemInstanceId)
     if (item.ownerId !== char.id) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
@@ -841,6 +917,7 @@ export const BattleService = {
       },
     })
 
+    playerPart.pocketItemIds = playerPart.pocketItemIds.filter(id => id !== itemInstanceId)
     // Mark player as having acted this round
     playerPart.hasActedThisRound = true
 
@@ -1349,6 +1426,34 @@ export const BattleService = {
       return { roundNumber: state.roundNumber, waiting: false }
     }
 
+    const applyUtility = async (part: LiveParticipant, char: CharacterWithStats): Promise<boolean> => {
+      const pending = part.pendingAction ?? ''
+      if (pending.startsWith('change_weapon:')) {
+        const itemId = pending.slice('change_weapon:'.length)
+        const item = await ItemsRepository.findInstanceById(itemId)
+        if (item && item.ownerId === char.id && item.template.type === 'WEAPON' && item.status !== 'BROKEN') {
+          if (part.weaponInstanceId && part.weaponInstanceId !== itemId) await ItemsRepository.unequip(part.weaponInstanceId)
+          await ItemsRepository.equip(itemId, null)
+          part.weaponInstanceId = itemId
+        }
+        return true
+      }
+      if (pending.startsWith('use_item:')) {
+        const itemId = pending.slice('use_item:'.length)
+        if (!part.pocketItemIds?.includes(itemId)) return true
+        const item = await ItemsRepository.findInstanceById(itemId)
+        if (item && item.ownerId === char.id && item.template.type === 'CONSUMABLE' && !['CONSUMED', 'DELETED'].includes(item.status)) {
+          part.hpCurrent = Math.min(part.hpMax, part.hpCurrent + (item.template.hpBonus ?? 0))
+          part.pocketItemIds = part.pocketItemIds.filter(id => id !== itemId)
+          await ItemsRepository.delete(itemId)
+        }
+        return true
+      }
+      return false
+    }
+    const utility1 = await applyUtility(part1, char1)
+    const utility2 = await applyUtility(part2, char2)
+
     const [weapon1, weapon2] = await Promise.all([
       part1.weaponInstanceId ? ItemsRepository.findInstanceById(part1.weaponInstanceId) : Promise.resolve(null),
       part2.weaponInstanceId ? ItemsRepository.findInstanceById(part2.weaponInstanceId) : Promise.resolve(null),
@@ -1382,8 +1487,12 @@ export const BattleService = {
     const init1 = calcInitiative(char1.stats!.rea, char1.stats!.agi, skill1.skillLevel, snap1Atk.equipmentWeight)
     const init2 = calcInitiative(char2.stats!.rea, char2.stats!.agi, skill2.skillLevel, snap2Atk.equipmentWeight)
 
-    const turn1 = part1.pendingTurn ?? legacyActionToTurn(part1.pendingAction ?? 'attack')
-    const turn2 = part2.pendingTurn ?? legacyActionToTurn(part2.pendingAction ?? 'attack')
+    const turn1 = utility1
+      ? normalizeTurn({ stance: 'defense4', attackZones: [], blockZones: [] })
+      : part1.pendingTurn ?? legacyActionToTurn(part1.pendingAction ?? 'attack')
+    const turn2 = utility2
+      ? normalizeTurn({ stance: 'defense4', attackZones: [], blockZones: [] })
+      : part2.pendingTurn ?? legacyActionToTurn(part2.pendingAction ?? 'attack')
     try {
       selectEnemyTarget(part1, state.participants, turn1.targetParticipantId)
       selectEnemyTarget(part2, state.participants, turn2.targetParticipantId)

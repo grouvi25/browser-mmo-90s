@@ -5,6 +5,7 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
 import { audit } from '../../shared/logger/audit-logger'
 import type { CreateCharacterInput } from './characters.schemas'
+import { prisma } from '../../shared/db/prisma'
 
 export const CharactersService = {
   async create(userId: string, input: CreateCharacterInput) {
@@ -64,6 +65,37 @@ export const CharactersService = {
       throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
     }
     return char
+  },
+
+  async getBattleLoadout(userId: string) {
+    const char = await this.getProfile(userId)
+    return { itemInstanceIds: ((char.battleLoadoutJson as string[] | null) ?? []).slice(0, 4) }
+  },
+
+  async setBattleLoadout(userId: string, itemInstanceIds: string[]) {
+    const char = await this.getProfile(userId)
+    if (char.status === 'IN_BATTLE') {
+      throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Cannot edit loadout in battle', 400)
+    }
+    const unique = [...new Set(itemInstanceIds)]
+    if (unique.length > 4) throw new AppError(ErrorCode.CONFLICT, 'Maximum 4 items', 422)
+
+    const items = await prisma.itemInstance.findMany({
+      where: { id: { in: unique } },
+      include: { template: true },
+    })
+    if (items.length !== unique.length || items.some(item => item.ownerId !== char.id)) {
+      throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Loadout contains an item you do not own', 403)
+    }
+    if (items.some(item => item.template.type !== 'CONSUMABLE' || ['CONSUMED', 'DELETED'].includes(item.status))) {
+      throw new AppError(ErrorCode.CONFLICT, 'Only available consumables are allowed', 422)
+    }
+
+    await prisma.character.update({
+      where: { id: char.id },
+      data: { battleLoadoutJson: unique },
+    })
+    return { itemInstanceIds: unique }
   },
 
   async getById(characterId: string) {
