@@ -81,6 +81,18 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
     })
 
   // POST /api/admin/grant-item — выдача предмета
+  fastify.post<{ Params: { id: string } }>('/market/listings/:id/lock', { preHandler: authenticateAdmin }, async (req, reply) => {
+    const changed = await prisma.marketListing.updateMany({ where: { id: req.params.id, status: 'ACTIVE' }, data: { status: 'LOCKED' } })
+    if (changed.count !== 1) return reply.code(409).send({ code: 'MARKET_002', message: 'Listing cannot be locked' })
+    return reply.send({ listingId: req.params.id, status: 'LOCKED' })
+  })
+
+  fastify.post<{ Params: { id: string } }>('/market/listings/:id/unlock', { preHandler: authenticateAdmin }, async (req, reply) => {
+    const changed = await prisma.marketListing.updateMany({ where: { id: req.params.id, status: 'LOCKED' }, data: { status: 'ACTIVE' } })
+    if (changed.count !== 1) return reply.code(409).send({ code: 'MARKET_002', message: 'Listing cannot be unlocked' })
+    return reply.send({ listingId: req.params.id, status: 'ACTIVE' })
+  })
+
   fastify.post('/grant-item', { preHandler: authenticateAdmin },
     async (req, reply) => {
       const parsed = GrantItemSchema.safeParse(req.body)

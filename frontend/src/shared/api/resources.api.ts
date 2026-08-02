@@ -5,7 +5,7 @@ export interface ResourceStackView {
   amount: number
   reservedAmount: number
   availableAmount: number
-  template: { code: string; name: string; tier: number; basePrice: number; weight: number; category: string }
+  template: { id: string; code: string; name: string; tier: number; basePrice: number; weight: number; category: string }
 }
 export interface ResourcesResponse { items: ResourceStackView[]; totalWeight: number }
 
