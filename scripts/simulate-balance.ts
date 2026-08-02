@@ -5,11 +5,39 @@
  * Запуск: npx tsx scripts/simulate-balance.ts
  */
 
-import { resolveAttack, calcInitiative } from '../backend/src/modules/battles/battle.formulas'
+import { resolveAttack, resolveZonalAttack, calcInitiative } from '../backend/src/modules/battles/battle.formulas'
 import { calcHpMax, calcRepairCost } from '../backend/src/modules/stats/stats.formulas'
 import type { AttackerSnapshot, DefenderSnapshot } from '../backend/src/modules/battles/battle.formulas'
 
 // ─── Стартовый персонаж (уровень 1, базовые статы) ───────────────────────────
+if (process.argv.includes('--zonal')) {
+  const attacker = {
+    str: 3, acc: 3, agi: 3, rea: 2, luck: 1, agr: 1, end: 3,
+    weaponSkillLevel: 1, minDamage: 10, maxDamage: 25, weaponAccuracy: 0.85,
+    critBonus: 0, critDamageBonus: 0, blockPierce: 0, flatDamageBonus: 0,
+    equipmentWeight: 0, antiDodgeBonus: 0, antiCounterBonus: 0,
+  } as AttackerSnapshot
+  const defender = {
+    agi: 3, rea: 2, end: 3, luck: 1, armor: 5,
+    dodgeBonus: 0, antiCrit: 0, blockBonus: 0, armorWeight: 0,
+    antiSkillLevel: 0, antiCounterDefense: 0, minDamage: 3, maxDamage: 8,
+  } as DefenderSnapshot
+  const zones = ['HEAD', 'CHEST', 'LEGS', 'RIGHT_ARM', 'LEFT_ARM'] as const
+  let hits = 0, damage = 0, blockPierced = 0
+  for (let i = 0; i < 1000; i++) {
+    const zone = zones[i % zones.length]
+    const blockedZones = i % 2 === 0 ? [zone] : []
+    const result = resolveZonalAttack(attacker, defender, { zone, blockedZones, zoneArmor: 5 })
+    if (result.hit) hits++
+    damage += result.finalDamage
+    if (result.blockPierced) blockPierced++
+  }
+  const hitRate = hits / 1000
+  const ok = hitRate >= 0.05 && hitRate <= 0.95 && damage >= 0
+  console.log(JSON.stringify({ mode: 'zonal', runs: 1000, hitRate, damage, blockPierced, ok }, null, 2))
+  process.exit(ok ? 0 : 1)
+}
+
 const STARTER_PLAYER = {
   str: 3, acc: 3, agi: 3, rea: 2, luck: 1, agr: 1, end: 3,
   level: 1,
