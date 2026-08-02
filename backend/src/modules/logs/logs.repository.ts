@@ -1,30 +1,7 @@
 import { prisma } from '../../shared/db/prisma'
-import type { CurrencyLogReason, ItemLogAction } from '@prisma/client'
+import type { ItemLogAction } from '@prisma/client'
 
 export const LogsRepository = {
-  // -------------------------------------------------------
-  // Currency Log
-  // -------------------------------------------------------
-  async logCurrency(data: {
-    characterId: string
-    amount: number
-    balanceAfter: number
-    reasonCode: CurrencyLogReason
-    refId?: string
-    refType?: string
-    note?: string
-  }): Promise<void> {
-    await prisma.currencyLog.create({ data })
-  },
-
-  async getCurrencyLogs(characterId: string, limit = 50) {
-    return prisma.currencyLog.findMany({
-      where: { characterId },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    })
-  },
-
   // -------------------------------------------------------
   // Item Log
   // -------------------------------------------------------

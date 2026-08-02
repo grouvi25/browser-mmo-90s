@@ -51,6 +51,7 @@ import {
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
 import { applyBattleProgression } from '../experience/progression'
+import { EconomyService } from '../economy/economy.service'
 
 // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────────
 const TURN_TIMEOUT_MS = 7_000
@@ -1337,17 +1338,8 @@ export const BattleService = {
       if (playerWon) {
         moneyReward = Math.floor(Math.random() * (bot.moneyRewardMax - bot.moneyRewardMin + 1)) + bot.moneyRewardMin
         if (moneyReward > 0) {
-          await tx.character.update({ where: { id: char.id }, data: { money: { increment: moneyReward } } })
-          const updatedChar = await tx.character.findUnique({ where: { id: char.id } })
-          await tx.currencyLog.create({
-            data: {
-              characterId: char.id,
-              amount: moneyReward,
-              balanceAfter: updatedChar!.money,
-              reasonCode: 'BATTLE_REWARD',
-              refId: battleId,
-              refType: 'battle',
-            },
+          await EconomyService.credit(tx, {
+            characterId: char.id, amount: moneyReward, reasonCode: 'BATTLE_REWARD', refType: 'battle', refId: battleId,
           })
         }
       }

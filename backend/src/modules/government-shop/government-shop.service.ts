@@ -8,6 +8,7 @@ import { withTransaction } from '../../shared/db/transaction'
 import { audit } from '../../shared/logger/audit-logger'
 import { BalanceConfig } from '../../config/balance.config'
 import { getEconomicLevelFromExp } from '../stats/stats.formulas'
+import { EconomyService } from '../economy/economy.service'
 
 export type ShopItemWithTemplate = GovernmentShopItem & { template: ItemTemplate }
 
@@ -41,9 +42,9 @@ export const GovernmentShopService = {
         throw AppError.insufficientFunds(char.money, price)
       }
 
-      // Deduct money
-      const newBalance = char.money - price
-      await tx.character.update({ where: { id: characterId }, data: { money: newBalance } })
+      const newBalance = await EconomyService.debit(tx, {
+        characterId, amount: price, reasonCode: 'SHOP_PURCHASE', refType: 'shop', refId: shopEntry.id,
+      })
 
       // Create item instance
       const t = shopEntry.template
@@ -56,18 +57,6 @@ export const GovernmentShopService = {
           durabilityMax: t.durabilityMax,
           weight: t.weight,
           sourceType: 'GOVERNMENT',
-        },
-      })
-
-      // Log currency
-      await tx.currencyLog.create({
-        data: {
-          characterId,
-          amount: -price,
-          balanceAfter: newBalance,
-          reasonCode: 'SHOP_PURCHASE',
-          refId: item.id,
-          refType: 'item',
         },
       })
 
@@ -107,7 +96,9 @@ export const GovernmentShopService = {
 
       const char = await tx.character.findUnique({ where: { id: characterId } })
       if (!char) throw AppError.notFound('Character', characterId)
-      const newBalance = char.money + sellPrice
+      const newBalance = await EconomyService.credit(tx, {
+        characterId, amount: sellPrice, reasonCode: 'SHOP_SELL', refType: 'item', refId: itemInstanceId,
+      })
 
       // Economic exp for selling (GanjaWars: price × 0.047 for new item, × 0.067 for broken)
       const isBroken = item.status === 'BROKEN'
@@ -119,23 +110,9 @@ export const GovernmentShopService = {
       const newEcoExp = char.economicExp + ecoExpGain
       const newEcoLevel = getEconomicLevelFromExp(newEcoExp)
 
-      await tx.character.update({ where: { id: characterId }, data: {
-        money: newBalance,
-        economicExp: newEcoExp,
-        economicLevel: newEcoLevel,
-      }})
+      await EconomyService.grantEconomicExp(tx, characterId, ecoExpGain)
       await tx.itemInstance.update({ where: { id: itemInstanceId }, data: { status: 'DELETED', isEquipped: false } })
 
-      await tx.currencyLog.create({
-        data: {
-          characterId,
-          amount: sellPrice,
-          balanceAfter: newBalance,
-          reasonCode: 'SHOP_SELL',
-          refId: itemInstanceId,
-          refType: 'item',
-        },
-      })
       await tx.itemLog.create({
         data: {
           itemId: itemInstanceId,

@@ -3,6 +3,7 @@ import { authenticateAdmin } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
 import { withTransaction } from '../../shared/db/transaction'
 import { z } from 'zod'
+import { EconomyService } from '../economy/economy.service'
 
 const GrantMoneySchema = z.object({
   characterId: z.string().uuid(),
@@ -72,14 +73,8 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
         const char = await tx.character.findUnique({ where: { id: characterId } })
         if (!char) return reply.code(404).send({ code: 'GEN_002', message: 'Character not found' })
 
-        const newBalance = char.money + amount
-        await tx.character.update({ where: { id: characterId }, data: { money: newBalance } })
-        await tx.currencyLog.create({
-          data: {
-            characterId, amount, balanceAfter: newBalance,
-            reasonCode: 'ADMIN_GRANT',
-            note: reason ?? 'Admin grant',
-          },
+        const newBalance = await EconomyService.credit(tx, {
+          characterId, amount, reasonCode: 'ADMIN_GRANT', note: reason ?? 'Admin grant',
         })
         return reply.send({ characterId, amount, newBalance })
       })

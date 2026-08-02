@@ -34,6 +34,7 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   body?: unknown
   noAuth?: boolean
+  headers?: Record<string, string>
 }
 
 export async function request<T>(
@@ -42,7 +43,7 @@ export async function request<T>(
 ): Promise<T> {
   const { method = 'GET', body, noAuth = false } = options
 
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = { ...(options.headers ?? {}) }
 
   // Only set Content-Type when there's a body to send
   if (body !== undefined) {

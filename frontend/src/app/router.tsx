@@ -19,6 +19,7 @@ import { SkillsPage }          from '../pages/skills/skills-page'
 import { ArenaPage }           from '../pages/arena/arena-page'
 import { AdminPage }           from '../pages/admin/admin-page'
 import { StatsPage }           from '../pages/character/stats-page'
+import { ResourcesPage }       from '../pages/resources/resources-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -82,6 +83,11 @@ export function AppRouter() {
         <Route path="/inventory" element={
           <ViewportPanel title="Снаряжение" subtitle="Инвентарь и экипировка">
             <InventoryPage />
+          </ViewportPanel>} />
+
+        <Route path="/resources" element={
+          <ViewportPanel title="Resources" subtitle="Materials, parts and total weight">
+            <ResourcesPage />
           </ViewportPanel>} />
 
         <Route path="/skills" element={

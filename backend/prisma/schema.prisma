@@ -164,6 +164,13 @@ enum CurrencyLogReason {
   ADMIN_DEDUCT      // Снятие администратором
   MARKET_SELL       // Продажа на рынке (этап 2)
   MARKET_FEE        // Комиссия рынка (этап 2)
+  MARKET_BUY
+  MARKET_LISTING_TAX
+  MARKET_SELL_TAX
+  PRIVATE_SHOP_BUY
+  RESOURCE_SELL
+  UPGRADE_COST
+  ADMIN_ECONOMY_ADJUSTMENT
   WORK_SALARY       // Зарплата за работу (этап 2)
 }
 
@@ -186,6 +193,96 @@ enum AdminRole {
   SUPER_ADMIN
   MODERATOR
   SUPPORT
+}
+
+enum ProductionObjectType {
+  FACTORY
+  WORKSHOP
+  MARKET
+  WAREHOUSE
+  SCRAPYARD
+  SERVICE
+}
+
+enum ProductionObjectStatus {
+  ACTIVE
+  DISABLED
+  HIDDEN
+  DAMAGED
+}
+
+enum OwnerType {
+  SYSTEM
+  PRIVATE
+  CLAN
+}
+
+enum WorkShiftStatus {
+  ACTIVE
+  READY_TO_CLAIM
+  CLAIMED
+  CANCELLED
+  FAILED
+}
+
+enum ResourceCategory {
+  PRIMARY
+  SECONDARY
+  COMPONENT
+  REPAIR_PART
+  UPGRADE_PART
+  SERVICE_ITEM
+}
+
+enum MarketListingType {
+  ITEM
+  RESOURCE
+}
+
+enum MarketListingStatus {
+  ACTIVE
+  LOCKED
+  SOLD
+  CANCELLED
+  EXPIRED
+}
+
+enum UpgradeType {
+  DAMAGE
+  ACCURACY
+  CRIT
+  ARMOR
+  DURABILITY
+  ANTI_CRIT
+}
+
+enum StockMode {
+  INFINITE
+  LIMITED
+}
+
+enum ResourceLogReason {
+  WORK_REWARD
+  GOVERNMENT_SELL
+  MARKET_LIST
+  MARKET_BUY
+  MARKET_SELL
+  REPAIR_USE
+  UPGRADE_USE
+  ADMIN_ADJUSTMENT
+}
+
+enum ProductionLogEvent {
+  SHIFT_STARTED
+  SHIFT_READY
+  SHIFT_CLAIMED
+  SHIFT_CANCELLED
+  SHIFT_FAILED
+}
+
+enum UpgradeLogResult {
+  SUCCESS
+  FAILURE
 }
 
 // =============================================================
@@ -291,6 +388,8 @@ model Character {
   currencyLogs      CurrencyLog[]
   itemLogs          ItemLog[]
   repairLogs        RepairLog[]
+  workShifts        WorkShift[]
+  resourceStacks    ResourceStack[]
 
   @@map("characters")
 }
@@ -628,6 +727,183 @@ model WeaponSkill {
 // =============================================================
 // LOGS
 // =============================================================
+
+model ProductionObject {
+  id String @id @default(uuid())
+  code String @unique
+  name String
+  type ProductionObjectType
+  status ProductionObjectStatus @default(ACTIVE)
+  ownerType OwnerType @default(SYSTEM) @map("owner_type")
+  ownerCharacterId String? @map("owner_character_id")
+  ownerClanId String? @map("owner_clan_id")
+  locationId String? @map("location_id")
+  level Int @default(1)
+  workerSlots Int @default(10) @map("worker_slots")
+  shiftDurationMinutes Int @map("shift_duration_minutes")
+  baseSalary Int @map("base_salary")
+  baseProductionExp Int @map("base_production_exp")
+  requiredProductionLevel Int @default(0) @map("required_production_level")
+  producesResourceCode String? @map("produces_resource_code")
+  outputAmountMin Int @default(0) @map("output_amount_min")
+  outputAmountMax Int @default(0) @map("output_amount_max")
+  economicExpReward Int @default(0) @map("economic_exp_reward")
+  balance Int @default(0)
+  durabilityCurrent Int @default(100) @map("durability_current")
+  durabilityMax Int @default(100) @map("durability_max")
+  isActive Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  shifts WorkShift[]
+  logs ProductionLog[]
+  @@map("production_objects")
+}
+
+model WorkShift {
+  id String @id @default(uuid())
+  characterId String @map("character_id")
+  productionObjectId String @map("production_object_id")
+  status WorkShiftStatus @default(ACTIVE)
+  startedAt DateTime @map("started_at")
+  endsAt DateTime @map("ends_at")
+  claimedAt DateTime? @map("claimed_at")
+  baseSalary Int @map("base_salary")
+  finalSalary Int? @map("final_salary")
+  productionExpReward Int? @map("production_exp_reward")
+  resourceRewardCode String? @map("resource_reward_code")
+  resourceRewardAmount Int? @map("resource_reward_amount")
+  failureReason String? @map("failure_reason")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  productionObject ProductionObject @relation(fields: [productionObjectId], references: [id])
+  @@index([characterId, status])
+  @@index([status, endsAt])
+  @@map("work_shifts")
+}
+
+model ResourceTemplate {
+  id String @id @default(uuid())
+  code String @unique
+  name String
+  description String?
+  category ResourceCategory
+  tier Int @default(1)
+  basePrice Int @map("base_price")
+  weight Float @default(0)
+  isTradable Boolean @default(true) @map("is_tradable")
+  isRepairMaterial Boolean @default(false) @map("is_repair_material")
+  isUpgradeMaterial Boolean @default(false) @map("is_upgrade_material")
+  isActive Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  stacks ResourceStack[]
+  @@map("resource_templates")
+}
+
+model ResourceStack {
+  id String @id @default(uuid())
+  characterId String @map("character_id")
+  resourceTemplateId String @map("resource_template_id")
+  amount Int @default(0)
+  reservedAmount Int @default(0) @map("reserved_amount")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  template ResourceTemplate @relation(fields: [resourceTemplateId], references: [id])
+  @@unique([characterId, resourceTemplateId])
+  @@index([characterId])
+  @@map("resource_stacks")
+}
+
+model PrivateShopItem {
+  id String @id @default(uuid())
+  shopCode String @map("shop_code")
+  itemTemplateId String? @map("item_template_id")
+  resourceTemplateId String? @map("resource_template_id")
+  price Int
+  stockMode StockMode @default(INFINITE) @map("stock_mode")
+  stockAmount Int? @map("stock_amount")
+  minBattleLevel Int @default(0) @map("min_battle_level")
+  minEconomicLevel Int @default(0) @map("min_economic_level")
+  minProductionLevel Int @default(0) @map("min_production_level")
+  isActive Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([shopCode, isActive])
+  @@map("private_shop_items")
+}
+
+model MarketListing {
+  id String @id @default(uuid())
+  sellerCharacterId String @map("seller_character_id")
+  buyerCharacterId String? @map("buyer_character_id")
+  type MarketListingType
+  status MarketListingStatus @default(ACTIVE)
+  itemInstanceId String? @map("item_instance_id")
+  resourceTemplateId String? @map("resource_template_id")
+  resourceAmount Int? @map("resource_amount")
+  price Int
+  listingFee Int @map("listing_fee")
+  saleTax Int? @map("sale_tax")
+  expiresAt DateTime @map("expires_at")
+  soldAt DateTime? @map("sold_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([status, expiresAt])
+  @@index([sellerCharacterId, status])
+  @@map("market_listings")
+}
+
+model UpgradeLog {
+  id String @id @default(uuid())
+  characterId String @map("character_id")
+  itemInstanceId String @map("item_instance_id")
+  upgradeType UpgradeType @map("upgrade_type")
+  levelBefore Int @map("level_before")
+  levelAfter Int @map("level_after")
+  cost Int
+  successChance Float @map("success_chance")
+  result UpgradeLogResult
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([characterId, createdAt])
+  @@map("upgrade_logs")
+}
+
+model ProductionLog {
+  id String @id @default(uuid())
+  characterId String? @map("character_id")
+  productionObjectId String @map("production_object_id")
+  eventType ProductionLogEvent @map("event_type")
+  metadataJson Json? @map("metadata_json")
+  createdAt DateTime @default(now()) @map("created_at")
+  productionObject ProductionObject @relation(fields: [productionObjectId], references: [id])
+  @@index([productionObjectId, createdAt])
+  @@map("production_logs")
+}
+
+model ResourceLog {
+  id String @id @default(uuid())
+  characterId String @map("character_id")
+  resourceTemplateId String @map("resource_template_id")
+  amountDelta Int @map("amount_delta")
+  balanceAfter Int @map("balance_after")
+  reasonCode ResourceLogReason @map("reason_code")
+  refType String?
+  refId String? @map("ref_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([characterId, createdAt])
+  @@map("resource_logs")
+}
+
+model IdempotencyKey {
+  id String @id @default(uuid())
+  characterId String @map("character_id")
+  scope String
+  key String
+  responseJson Json @map("response_json")
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+  @@unique([characterId, scope, key])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
 
 model CurrencyLog {
   id            String              @id @default(uuid())

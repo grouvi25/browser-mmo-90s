@@ -45,10 +45,6 @@ export const CharactersRepository = {
     await prisma.character.update({ where: { id }, data: { hpCurrent } })
   },
 
-  async updateMoney(id: string, money: number): Promise<void> {
-    await prisma.character.update({ where: { id }, data: { money } })
-  },
-
   async updateStatus(id: string, status: string): Promise<void> {
     await prisma.character.update({
       where: { id },

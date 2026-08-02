@@ -8,6 +8,7 @@ import { calcRepairCost } from '../stats/stats.formulas'
 import { withTransaction } from '../../shared/db/transaction'
 import { audit } from '../../shared/logger/audit-logger'
 import { z } from 'zod'
+import { EconomyService } from '../economy/economy.service'
 
 const PreviewSchema = z.object({ itemInstanceId: z.string().uuid() })
 const CommitSchema = z.object({ itemInstanceId: z.string().uuid() })
@@ -93,23 +94,14 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
 
         if (char.money < cost) throw AppError.insufficientFunds(char.money, cost)
 
-        const newBalance = char.money - cost
-        await tx.character.update({ where: { id: char.id }, data: { money: newBalance } })
+        const newBalance = await EconomyService.debit(tx, {
+          characterId: char.id, amount: cost, reasonCode: 'REPAIR_COST', refType: 'repair', refId: item.id,
+        })
         await tx.itemInstance.update({
           where: { id: item.id },
           data: { durabilityCurrent: item.durabilityMax, status: 'NORMAL' },
         })
 
-        await tx.currencyLog.create({
-          data: {
-            characterId: char.id,
-            amount: -cost,
-            balanceAfter: newBalance,
-            reasonCode: 'REPAIR_COST',
-            refId: item.id,
-            refType: 'repair',
-          },
-        })
         await tx.repairLog.create({
           data: {
             characterId: char.id,

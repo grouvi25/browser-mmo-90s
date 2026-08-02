@@ -198,6 +198,31 @@ async function main() {
     console.log(`  ✓ Bot: ${bot.name}`)
   }
 
+  // --- Stage 2 resource templates ---
+  const resources = [
+    ['res_scrap_metal', 'Scrap metal', 'PRIMARY', 1, 8, 0.5, false, false],
+    ['res_fabric', 'Fabric', 'PRIMARY', 1, 6, 0.3, false, false],
+    ['res_leather', 'Leather', 'PRIMARY', 1, 12, 0.4, false, false],
+    ['res_wood', 'Wood', 'PRIMARY', 1, 5, 0.8, false, false],
+    ['res_plastic', 'Plastic', 'PRIMARY', 1, 7, 0.3, false, false],
+    ['res_chemicals', 'Chemicals', 'PRIMARY', 1, 15, 0.4, false, false],
+    ['res_spare_parts', 'Spare parts', 'PRIMARY', 1, 18, 0.6, false, false],
+    ['comp_metal_plate', 'Metal plate', 'REPAIR_PART', 2, 30, 0.7, true, false],
+    ['comp_fastener', 'Fastener', 'COMPONENT', 2, 12, 0.2, false, false],
+    ['comp_spring', 'Spring', 'UPGRADE_PART', 2, 25, 0.2, false, true],
+    ['comp_weapon_part', 'Weapon part', 'UPGRADE_PART', 2, 60, 0.5, false, true],
+    ['comp_armor_plate', 'Armor plate', 'REPAIR_PART', 2, 55, 0.8, true, true],
+    ['comp_repair_kit', 'Repair kit', 'REPAIR_PART', 2, 45, 0.5, true, false],
+  ] as const
+  for (const [code, name, category, tier, basePrice, weight, isRepairMaterial, isUpgradeMaterial] of resources) {
+    await prisma.resourceTemplate.upsert({
+      where: { code },
+      update: { name, category, tier, basePrice, weight, isRepairMaterial, isUpgradeMaterial, isActive: true },
+      create: { code, name, category, tier, basePrice, weight, isRepairMaterial, isUpgradeMaterial },
+    })
+  }
+  console.log(`  Resource templates: ${resources.length}`)
+
   // --- Admin user ---
   const adminPw = await bcrypt.hash('admin_change_me_now', 10)
   await prisma.adminUser.upsert({
