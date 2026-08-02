@@ -42,6 +42,13 @@ export interface Character {
   isPremium: boolean
   stats: CharacterStats | null
   weaponSkills?: WeaponSkill[]
+  economy?: {
+    productionLevel: number
+    productionExp: number
+    economicLevel: number
+    economicExp: number
+    activeShift: { id: string; status: string; startedAt: string; endsAt: string } | null
+  }
   createdAt: string
   lastActiveAt: string
 }

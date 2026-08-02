@@ -20,6 +20,7 @@ import { ArenaPage }           from '../pages/arena/arena-page'
 import { AdminPage }           from '../pages/admin/admin-page'
 import { StatsPage }           from '../pages/character/stats-page'
 import { ResourcesPage }       from '../pages/resources/resources-page'
+import { WorkPage }            from '../pages/work/work-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -121,8 +122,10 @@ export function AppRouter() {
           </ViewportPanel>} />
 
         <Route path="/soon/:key" element={<SoonRoute />} />
-        <Route path="/work"    element={<LockedSection title="Промзона" stage={2}
-          what="Заводы и цеха: устроиться на смену, получить зарплату и детали." />} />
+        <Route path="/work" element={
+          <ViewportPanel title="Work" subtitle="Shifts, salary and production level">
+            <WorkPage />
+          </ViewportPanel>} />
         <Route path="/station" element={<LockedSection title="Вокзал" stage={2}
           what="Логистика и перевозки между районами." />} />
         <Route path="/news"    element={<LockedSection title="Новости" stage={2}
