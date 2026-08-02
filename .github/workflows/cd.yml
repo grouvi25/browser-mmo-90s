@@ -81,6 +81,14 @@ jobs:
             docker compose -f docker-compose.prod.yml run --rm backend npx prisma migrate deploy
           EOF
 
+      - name: Run idempotent Stage 2 seed
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -euo pipefail
+            cd ${{ secrets.VPS_PROJECT_DIR }}
+            docker compose -f docker-compose.prod.yml run --rm backend npx tsx prisma/seed.ts
+          EOF
+
       - name: Restart services
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
