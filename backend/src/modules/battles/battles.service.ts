@@ -53,6 +53,7 @@ import type { ItemWithTemplate } from '../items/item-instance.repository'
 
 // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────────
 const TURN_TIMEOUT_MS = 7_000
+export const BATTLE_LOCK_TTL_MS = 15_000
 
 // ── Поле боя (движение/дистанция) ──────────────────────────────
 const START_DISTANCE = 4   // стартовая дистанция между бойцами (клеток)
@@ -673,11 +674,22 @@ export const BattleService = {
     const action = payload.action
     const targetItemId = payload.itemInstanceId
 
-    const lockToken = await BattleRedis.acquireLock(battleId, 5000)
+    const lockToken = await BattleRedis.acquireLock(battleId, BATTLE_LOCK_TTL_MS)
     if (!lockToken) throw new AppError(ErrorCode.BATTLE_LOCK_FAILED, 'Battle is processing, retry', 409)
+
+    let lockLost = false
+    const lockHeartbeat = setInterval(async () => {
+      try {
+        if (!(await BattleRedis.extendLock(battleId, lockToken, BATTLE_LOCK_TTL_MS))) lockLost = true
+      } catch {
+        lockLost = true
+      }
+    }, 5_000)
+    lockHeartbeat.unref()
 
     try {
       const state = await BattleRedis.getState<LiveBattleState>(battleId)
+      if (lockLost) throw new AppError(ErrorCode.BATTLE_LOCK_FAILED, 'Battle lock lost, retry', 409)
       if (!state) throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Battle not found in state', 404)
       if (state.status !== 'active') throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Battle is not active', 400)
 
@@ -782,6 +794,7 @@ export const BattleService = {
       return { waiting: true, roundNumber: state.roundNumber }
 
     } finally {
+      clearInterval(lockHeartbeat)
       await BattleRedis.releaseLock(battleId, lockToken)
     }
   },

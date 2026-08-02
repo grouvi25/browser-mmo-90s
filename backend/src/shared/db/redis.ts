@@ -85,6 +85,19 @@ export const BattleRedis = {
     return result === 'OK' ? token : null
   },
 
+  async extendLock(id: string, token: string, ttlMs: number): Promise<boolean> {
+    const script = `
+      if redis.call('get', KEYS[1]) == ARGV[1] then
+        return redis.call('pexpire', KEYS[1], ARGV[2])
+      end
+      return 0
+    `
+    const result = await getRedis().eval(
+      script, 1, BattleRedis.lockKey(id), token, String(ttlMs)
+    )
+    return result === 1
+  },
+
   async releaseLock(id: string, token: string): Promise<void> {
     const script = `
       if redis.call('get', KEYS[1]) == ARGV[1] then
