@@ -64,7 +64,20 @@ export const CharactersService = {
     if (!char) {
       throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
     }
-    return char
+    const activeShift = await prisma.workShift.findFirst({
+      where: { characterId: char.id, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } },
+      orderBy: { createdAt: 'desc' },
+    })
+    return {
+      ...char,
+      economy: {
+        productionLevel: char.productionLevel,
+        productionExp: char.productionExp,
+        economicLevel: char.economicLevel,
+        economicExp: char.economicExp,
+        activeShift,
+      },
+    }
   },
 
   async getBattleLoadout(userId: string) {

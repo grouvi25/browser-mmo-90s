@@ -223,6 +223,19 @@ async function main() {
   }
   console.log(`  Resource templates: ${resources.length}`)
 
+  const productionObjects = [
+    ['obj_warehouse_station','Warehouse station','WAREHOUSE',0,30,100,8,null,0,0,0],
+    ['obj_scrapyard','Scrapyard','SCRAPYARD',0,30,80,10,'res_scrap_metal',2,4,0],
+    ['obj_market_loader','Market loader','MARKET',0,45,120,8,null,0,0,15],
+    ['obj_garage_workshop','Garage workshop','WORKSHOP',1,60,160,15,'comp_fastener',1,2,0],
+    ['obj_small_factory','Small factory','FACTORY',2,60,220,20,'comp_metal_plate',1,2,0],
+    ['obj_parts_factory','Parts factory','FACTORY',3,90,300,28,'comp_weapon_part',1,1,0],
+  ] as const
+  for(const [code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward] of productionObjects){
+    await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward}})
+  }
+  console.log(`  Production objects: ${productionObjects.length}`)
+
   // --- Admin user ---
   const adminPw = await bcrypt.hash('admin_change_me_now', 10)
   await prisma.adminUser.upsert({

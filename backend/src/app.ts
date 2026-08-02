@@ -23,6 +23,7 @@ import { repairRoutes } from './modules/repair/repair.routes'
 import { adminBasicRoutes } from './modules/admin-basic/admin-basic.routes'
 import { adminAuthRoutes } from './modules/admin-auth/admin-auth.routes'
 import { resourcesRoutes } from './modules/resources/resources.routes'
+import { workRoutes } from './modules/work/work.routes'
 
 export async function buildApp() {
   const fastify = Fastify({
@@ -94,6 +95,7 @@ export async function buildApp() {
   await fastify.register(battlesRoutes,        { prefix: '/api/battles' })
   await fastify.register(repairRoutes,         { prefix: '/api/repair' })
   await fastify.register(resourcesRoutes,      { prefix: '/api/resources' })
+  await fastify.register(workRoutes,           { prefix: '/api/work' })
   await fastify.register(adminAuthRoutes,      { prefix: '/api/admin/auth' })
   await fastify.register(adminBasicRoutes,     { prefix: '/api/admin' })
 

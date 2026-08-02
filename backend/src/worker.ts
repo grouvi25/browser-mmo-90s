@@ -9,6 +9,7 @@ import { logger } from './shared/logger/logger'
 import { runBattleCleanup } from './workers/battle-cleanup.worker'
 import { runHpRecovery, TICK_MS as HP_TICK_MS } from './workers/hp-recovery.worker'
 import { runBattleTimeout, TIMER_TICK_MS } from './workers/battle-timeout.worker'
+import { runWorkShiftFinalize, WORK_SHIFT_FINALIZE_MS } from './workers/work-shift-finalize.worker'
 
 async function startWorker(): Promise<void> {
   logger.info('🔧 Starting MMO 90s BullMQ workers...')
@@ -50,11 +51,17 @@ async function startWorker(): Promise<void> {
   }, TIMER_TICK_MS)
   logger.info(`✅ Battle timeout cron started (every ${TIMER_TICK_MS / 1000}s, auto-block at 7s)`)
 
+  const workShiftTimer = setInterval(async () => {
+    try { await runWorkShiftFinalize() }
+    catch (err) { logger.error({ err }, '[Worker] Work shift finalize error') }
+  }, WORK_SHIFT_FINALIZE_MS)
+
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`[${signal}] Worker shutting down...`)
     clearInterval(cleanupTimer)
     clearInterval(hpRecoveryTimer)
     clearInterval(battleTimeoutTimer)
+    clearInterval(workShiftTimer)
     await disconnectDb()
     await disconnectRedis()
     process.exit(0)
