@@ -12,6 +12,16 @@ export const testPrisma = new PrismaClient({
 /** Clean test data in correct order (respecting FK constraints) */
 export async function cleanDatabase(): Promise<void> {
   await testPrisma.$transaction([
+    testPrisma.idempotencyKey.deleteMany(),
+    testPrisma.resourceLog.deleteMany(),
+    testPrisma.productionLog.deleteMany(),
+    testPrisma.upgradeLog.deleteMany(),
+    testPrisma.marketListing.deleteMany(),
+    testPrisma.privateShopItem.deleteMany(),
+    testPrisma.workShift.deleteMany(),
+    testPrisma.resourceStack.deleteMany(),
+    testPrisma.productionObject.deleteMany(),
+    testPrisma.resourceTemplate.deleteMany(),
     testPrisma.battleTurn.deleteMany(),
     testPrisma.battleParticipant.deleteMany(),
     testPrisma.battle.deleteMany(),

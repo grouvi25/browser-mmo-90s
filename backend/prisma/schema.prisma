@@ -455,6 +455,9 @@ model ItemTemplate {
   durabilityMax   Int             @default(100) @map("durability_max")
   qualityBase     ItemQuality     @default(COMMON) @map("quality_base")
   priceBase       Int             @default(100) @map("price_base")
+  itemTier        Int             @default(1) @map("item_tier")
+  requiredRepairParts Json?       @map("required_repair_parts")
+  requiredUpgradeParts Json?      @map("required_upgrade_parts")
 
   // Requirements
   levelReq        Int             @default(0) @map("level_req")
@@ -486,6 +489,7 @@ model ItemInstance {
   durabilityCurrent Int           @map("durability_current")
   durabilityMax   Int             @map("durability_max")
   upgradeLevel    Int             @default(0) @map("upgrade_level")
+  upgradeModifiersJson Json?      @map("upgrade_modifiers_json")
 
   status          ItemStatus      @default(NORMAL)
   isEquipped      Boolean         @default(false) @map("is_equipped")

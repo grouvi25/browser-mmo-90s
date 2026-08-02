@@ -210,8 +210,8 @@ async function main() {
     ['comp_metal_plate', 'Metal plate', 'REPAIR_PART', 2, 30, 0.7, true, false],
     ['comp_fastener', 'Fastener', 'COMPONENT', 2, 12, 0.2, false, false],
     ['comp_spring', 'Spring', 'UPGRADE_PART', 2, 25, 0.2, false, true],
-    ['comp_weapon_part', 'Weapon part', 'UPGRADE_PART', 2, 60, 0.5, false, true],
-    ['comp_armor_plate', 'Armor plate', 'REPAIR_PART', 2, 55, 0.8, true, true],
+    ['comp_weapon_part', 'Weapon part', 'UPGRADE_PART', 2, 60, 0.5, true, true],
+    ['comp_armor_plate', 'Armor plate', 'UPGRADE_PART', 2, 70, 0.9, true, true],
     ['comp_repair_kit', 'Repair kit', 'REPAIR_PART', 2, 45, 0.5, true, false],
   ] as const
   for (const [code, name, category, tier, basePrice, weight, isRepairMaterial, isUpgradeMaterial] of resources) {

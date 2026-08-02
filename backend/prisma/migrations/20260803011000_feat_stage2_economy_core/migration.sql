@@ -50,6 +50,14 @@ ALTER TYPE "CurrencyLogReason" ADD VALUE 'RESOURCE_SELL';
 ALTER TYPE "CurrencyLogReason" ADD VALUE 'UPGRADE_COST';
 ALTER TYPE "CurrencyLogReason" ADD VALUE 'ADMIN_ECONOMY_ADJUSTMENT';
 
+-- AlterTable
+ALTER TABLE "item_templates" ADD COLUMN     "item_tier" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN     "required_repair_parts" JSONB,
+ADD COLUMN     "required_upgrade_parts" JSONB;
+
+-- AlterTable
+ALTER TABLE "item_instances" ADD COLUMN     "upgrade_modifiers_json" JSONB;
+
 -- CreateTable
 CREATE TABLE "production_objects" (
     "id" TEXT NOT NULL,
