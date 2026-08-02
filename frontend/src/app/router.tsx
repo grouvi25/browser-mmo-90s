@@ -23,6 +23,7 @@ import { ResourcesPage }       from '../pages/resources/resources-page'
 import { WorkPage }            from '../pages/work/work-page'
 import { PrivateShopsPage }    from '../pages/private-shops/private-shops-page'
 import { MarketPage }          from '../pages/market/market-page'
+import { UpgradesPage }        from '../pages/upgrades/upgrades-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -86,6 +87,11 @@ export function AppRouter() {
         <Route path="/inventory" element={
           <ViewportPanel title="Снаряжение" subtitle="Инвентарь и экипировка">
             <InventoryPage />
+          </ViewportPanel>} />
+
+        <Route path="/upgrades" element={
+          <ViewportPanel title="Upgrades" subtitle="Risky permanent item improvements">
+            <UpgradesPage />
           </ViewportPanel>} />
 
         <Route path="/market" element={

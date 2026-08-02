@@ -48,7 +48,7 @@ for (let day = 1; day <= days; day++) {
       const repair = 200
       if (p.money >= repair) { p.money -= repair; p.durability = 60; burned.repair += repair }
     }
-    if (day % 5 === 0 && p.money > 700) { p.money -= 220; burned.shops += 220 }
+    if (day % 5 === 0 && p.money > 700) { p.money -= 260; burned.shops += 260 }
     if (day % 7 === 0 && p.money > 1000) { p.money -= 75; burned.upgrades += 75 }
     if (day > 7) { const arr = income.get(p.profile.key) ?? []; arr.push(p.daily); income.set(p.profile.key, arr) }
   }

@@ -52,6 +52,7 @@ import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
 import { applyBattleProgression } from '../experience/progression'
 import { EconomyService } from '../economy/economy.service'
+import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
 
 // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────────
 const TURN_TIMEOUT_MS = 7_000
@@ -205,6 +206,9 @@ async function buildAttackerSnapshotAsync(
 ): Promise<AttackerSnapshot> {
   const s = char.stats!
   const t = weapon?.template
+  const effectiveWeapon = t
+    ? applyUpgradeModifiers(t, ((weapon?.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}))
+    : null
   // Sum weight of all equipped items (weapon + armor)
   const equipmentWeight =
     (weapon?.weight ?? 0) +
@@ -213,10 +217,10 @@ async function buildAttackerSnapshotAsync(
   return {
     str: s.str, acc: s.acc, agi: s.agi, rea: s.rea, luck: s.luck, agr: s.agr, end: s.end,
     weaponSkillLevel,
-    minDamage: t?.minDamage ?? 2,
-    maxDamage: t?.maxDamage ?? 6,
-    weaponAccuracy: t?.weaponAccuracy ?? 0.7,
-    critBonus: t?.critBonus ?? 0,
+    minDamage: effectiveWeapon?.minDamage ?? 2,
+    maxDamage: effectiveWeapon?.maxDamage ?? 6,
+    weaponAccuracy: effectiveWeapon?.weaponAccuracy ?? 0.7,
+    critBonus: effectiveWeapon?.critBonus ?? 0,
     critDamageBonus: t?.critDamageBonus ?? 0,
     blockPierce: t?.blockPierce ?? 0,
     flatDamageBonus: 0,
@@ -233,8 +237,9 @@ function buildDefenderSnapshot(
   equippedWeapon?: ItemWithTemplate | null  // нужен для ответки
 ): DefenderSnapshot {
   const s = char.stats!
-  const totalArmor   = equippedArmor.reduce((sum, a) => sum + (a.template.armor ?? 0), 0)
-  const antiCrit     = equippedArmor.reduce((sum, a) => sum + (a.template.antiCrit ?? 0), 0)
+  const effectiveArmor = equippedArmor.map(a => applyUpgradeModifiers(a.template, ((a.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {})))
+  const totalArmor   = effectiveArmor.reduce((sum, a) => sum + a.armor, 0)
+  const antiCrit     = effectiveArmor.reduce((sum, a) => sum + a.antiCrit, 0)
   const blockBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.blockBonus ?? 0), 0)
   const dodgeBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.dodgeBonus ?? 0), 0)
   const armorWeight  = equippedArmor.reduce((sum, a) => sum + a.weight, 0)
@@ -256,7 +261,7 @@ function buildDefenderSnapshot(
 // Преобразуем экипированную броню в форму для расчёта брони по зоне.
 function armorListFromEquipped(equippedArmor: ItemWithTemplate[]): EquipArmorLike[] {
   return equippedArmor.map(it => ({
-    armor: it.template.armor ?? 0,
+    armor: applyUpgradeModifiers(it.template, ((it.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {})).armor,
     slot: it.armorSlot ?? it.template.armorSlot ?? null,
   }))
 }

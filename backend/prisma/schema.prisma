@@ -877,6 +877,8 @@ model UpgradeLog {
   cost Int
   successChance Float @map("success_chance")
   result UpgradeLogResult
+  resourcesSpentJson Json? @map("resources_spent_json")
+  resultCode String @map("result_code")
   createdAt DateTime @default(now()) @map("created_at")
   @@index([characterId, createdAt])
   @@map("upgrade_logs")

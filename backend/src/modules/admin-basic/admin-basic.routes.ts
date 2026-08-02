@@ -81,6 +81,21 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
     })
 
   // POST /api/admin/grant-item — выдача предмета
+  fastify.get('/economy/overview', { preHandler: authenticateAdmin }, async (_req, reply) => {
+    const [money, activeListings, activeShifts, resourceStacks, upgrades] = await Promise.all([
+      prisma.character.aggregate({ _sum: { money: true }, _count: true }),
+      prisma.marketListing.count({ where: { status: { in: ['ACTIVE', 'LOCKED'] } } }),
+      prisma.workShift.count({ where: { status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } } }),
+      prisma.resourceStack.aggregate({ _sum: { amount: true, reservedAmount: true } }),
+      prisma.upgradeLog.groupBy({ by: ['result'], _count: true }),
+    ])
+    return reply.send({ m2Total: money._sum.money ?? 0, characters: money._count, activeListings, activeShifts, resources: resourceStacks._sum, upgrades })
+  })
+
+  fastify.get('/logs/resources', { preHandler: authenticateAdmin }, async (_req, reply) => {
+    return reply.send(await prisma.resourceLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }))
+  })
+
   fastify.post<{ Params: { id: string } }>('/market/listings/:id/lock', { preHandler: authenticateAdmin }, async (req, reply) => {
     const changed = await prisma.marketListing.updateMany({ where: { id: req.params.id, status: 'ACTIVE' }, data: { status: 'LOCKED' } })
     if (changed.count !== 1) return reply.code(409).send({ code: 'MARKET_002', message: 'Listing cannot be locked' })
