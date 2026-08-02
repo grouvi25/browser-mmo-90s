@@ -1,16 +1,22 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { AppError } from '../errors/app-error'
 import { ErrorCode } from '../errors/error-codes'
-import { isSessionValid } from './jwt'
+import { isAdminSessionValid, isSessionValid } from './jwt'
 
 export interface AuthUser {
   userId: string
   jti: string
 }
 
+export interface AdminAuthUser {
+  adminId: string
+  jti: string
+}
+
 declare module 'fastify' {
   interface FastifyRequest {
     authUser: AuthUser
+    adminUser: AdminAuthUser
   }
 }
 
@@ -53,11 +59,14 @@ export async function authenticateAdmin(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const payload = await request.jwtVerify<{ sub: string; role: string; jti: string }>()
-    if (payload.role !== 'admin') {
+    const payload = await request.jwtVerify<{ role?: string; adminId?: string; jti: string }>()
+    if (payload.role !== 'admin' || !payload.adminId) {
       throw AppError.forbidden('Admin access required')
     }
-    request.authUser = { userId: payload.sub, jti: payload.jti }
+    if (!(await isAdminSessionValid(payload.jti, payload.adminId))) {
+      throw new AppError(ErrorCode.SESSION_REVOKED, 'Session has been revoked', 401)
+    }
+    request.adminUser = { adminId: payload.adminId, jti: payload.jti }
   } catch (err: unknown) {
     if (err instanceof AppError) {
       reply.code(err.statusCode).send({ code: err.code, message: err.message })

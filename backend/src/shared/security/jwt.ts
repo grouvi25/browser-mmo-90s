@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'crypto'
 import { AuthConfig } from '../../config/auth.config'
-import { SessionRedis } from '../db/redis'
+import { getRedis, SessionRedis } from '../db/redis'
 
 export interface JwtPayload {
   sub: string    // userId
@@ -33,4 +33,20 @@ export async function isSessionValid(jti: string): Promise<boolean> {
 /** Revoke a specific session */
 export async function revokeSession(jti: string): Promise<void> {
   await SessionRedis.revoke(jti)
+}
+
+const ADMIN_SESSION_PREFIX = 'admin_session:'
+const ADMIN_SESSION_TTL_SECONDS = 12 * 60 * 60
+
+export async function storeAdminSession(jti: string, adminId: string): Promise<void> {
+  await getRedis().setex(`${ADMIN_SESSION_PREFIX}${jti}`, ADMIN_SESSION_TTL_SECONDS, adminId)
+}
+
+export async function isAdminSessionValid(jti: string, adminId?: string): Promise<boolean> {
+  const storedAdminId = await getRedis().get(`${ADMIN_SESSION_PREFIX}${jti}`)
+  return storedAdminId !== null && (adminId === undefined || storedAdminId === adminId)
+}
+
+export async function revokeAdminSession(jti: string): Promise<void> {
+  await getRedis().del(`${ADMIN_SESSION_PREFIX}${jti}`)
 }
