@@ -21,13 +21,19 @@ export async function governmentShopRoutes(fastify: FastifyInstance): Promise<vo
       const redis = getRedis()
       const cached = await redis.get(SHOP_CACHE_KEY)
       if (cached) {
-        return reply
-          .header('X-Cache', 'HIT')
-          .header('Cache-Control', 'public, max-age=60')
-          .send(JSON.parse(cached))
+        const parsed = JSON.parse(cached) as unknown
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return reply
+            .header('X-Cache', 'HIT')
+            .header('Cache-Control', 'public, max-age=60')
+            .send(parsed)
+        }
+        await redis.del(SHOP_CACHE_KEY)
       }
       const items = await GovernmentShopService.listItems()
-      await redis.setex(SHOP_CACHE_KEY, SHOP_CACHE_TTL, JSON.stringify(items))
+      if (items.length > 0) {
+        await redis.setex(SHOP_CACHE_KEY, SHOP_CACHE_TTL, JSON.stringify(items))
+      }
       return reply
         .header('X-Cache', 'MISS')
         .header('Cache-Control', 'public, max-age=60')

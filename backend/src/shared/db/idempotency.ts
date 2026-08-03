@@ -15,13 +15,17 @@ export async function withIdempotency<T extends object>(params: {
     throw new AppError(ErrorCode.CONFLICT, 'Idempotency-Key must contain 8-128 characters', 400)
   }
   const where = { characterId_scope_key: { characterId: params.characterId, scope: params.scope, key: params.key } }
+  const now = new Date()
   const existing = await prisma.idempotencyKey.findUnique({ where })
-  if (existing) return { ...(existing.responseJson as T), replayed: true }
+  if (existing && existing.expiresAt > now) return { ...(existing.responseJson as T), replayed: true }
 
   try {
     return await withTransaction(async tx => {
       const inside = await tx.idempotencyKey.findUnique({ where })
-      if (inside) return { ...(inside.responseJson as T), replayed: true }
+      if (inside?.expiresAt && inside.expiresAt > new Date()) {
+        return { ...(inside.responseJson as T), replayed: true }
+      }
+      if (inside) await tx.idempotencyKey.delete({ where })
       const response = await params.execute(tx)
       await tx.idempotencyKey.create({
         data: {
@@ -41,4 +45,11 @@ export async function withIdempotency<T extends object>(params: {
     }
     throw error
   }
+}
+
+export async function cleanupExpiredIdempotencyKeys(now = new Date()): Promise<number> {
+  const deleted = await prisma.idempotencyKey.deleteMany({
+    where: { expiresAt: { lte: now } },
+  })
+  return deleted.count
 }

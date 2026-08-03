@@ -11,6 +11,7 @@ import { runHpRecovery, TICK_MS as HP_TICK_MS } from './workers/hp-recovery.work
 import { runBattleTimeout, TIMER_TICK_MS } from './workers/battle-timeout.worker'
 import { runWorkShiftFinalize, WORK_SHIFT_FINALIZE_MS } from './workers/work-shift-finalize.worker'
 import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worker'
+import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
 
 async function startWorker(): Promise<void> {
   logger.info('🔧 Starting MMO 90s BullMQ workers...')
@@ -62,6 +63,18 @@ async function startWorker(): Promise<void> {
     catch (err) { logger.error({ err }, '[Worker] Market expire error') }
   }, MARKET_EXPIRE_MS)
 
+  const IDEMPOTENCY_CLEANUP_MS = 60 * 60 * 1000
+  const runIdempotencyCleanup = async () => {
+    try {
+      const deleted = await cleanupExpiredIdempotencyKeys()
+      if (deleted > 0) logger.info({ deleted }, '[Worker] Expired idempotency keys removed')
+    } catch (err) {
+      logger.error({ err }, '[Worker] Idempotency cleanup error')
+    }
+  }
+  await runIdempotencyCleanup()
+  const idempotencyCleanupTimer = setInterval(runIdempotencyCleanup, IDEMPOTENCY_CLEANUP_MS)
+
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`[${signal}] Worker shutting down...`)
     clearInterval(cleanupTimer)
@@ -69,6 +82,7 @@ async function startWorker(): Promise<void> {
     clearInterval(battleTimeoutTimer)
     clearInterval(workShiftTimer)
     clearInterval(marketExpireTimer)
+    clearInterval(idempotencyCleanupTimer)
     await disconnectDb()
     await disconnectRedis()
     process.exit(0)

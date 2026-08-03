@@ -52,6 +52,9 @@ export const WorkService = {
       if (shift.status === 'ACTIVE' && shift.endsAt <= new Date()) shift = await tx.workShift.update({ where: { id: shift.id }, data: { status: 'READY_TO_CLAIM' }, include: { productionObject: true } })
       if (shift.status !== 'READY_TO_CLAIM') throw new AppError(ErrorCode.WORK_NOT_READY, 'Shift is not ready', 400)
       const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
+      if (!['ACTIVE', 'WORKING'].includes(character.status)) {
+        throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 409)
+      }
       const utcDayStart = new Date(shift.startedAt)
       utcDayStart.setUTCHours(0, 0, 0, 0)
       const utcDayEnd = new Date(utcDayStart)
@@ -79,7 +82,8 @@ export const WorkService = {
         const tpl = await tx.resourceTemplate.findUnique({ where: { code: shift.productionObject.producesResourceCode } })
         if (tpl) { const amount = Math.floor(Math.random()*(shift.productionObject.outputAmountMax-shift.productionObject.outputAmountMin+1))+shift.productionObject.outputAmountMin; await ResourcesService.add(tx,{characterId,resourceTemplateId:tpl.id,amount,reasonCode:'WORK_REWARD',refType:'work_shift',refId:shift.id}); resourceReward={code:tpl.code,amount} }
       }
-      await tx.character.update({ where: { id: characterId }, data: { status: 'ACTIVE', productionExp, productionLevel } })
+      await tx.character.update({ where: { id: characterId }, data: { productionExp, productionLevel } })
+      await tx.character.updateMany({ where: { id: characterId, status: 'WORKING' }, data: { status: 'ACTIVE' } })
       await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CLAIMED', metadataJson: { shiftId, salary, productionExpGain, resourceReward } } })
       return { shiftId, salary, productionExpGain, productionExp, productionLevel, resourceReward, newBalance }
     }})
