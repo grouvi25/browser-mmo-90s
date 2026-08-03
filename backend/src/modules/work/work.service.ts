@@ -52,7 +52,20 @@ export const WorkService = {
       if (shift.status === 'ACTIVE' && shift.endsAt <= new Date()) shift = await tx.workShift.update({ where: { id: shift.id }, data: { status: 'READY_TO_CLAIM' }, include: { productionObject: true } })
       if (shift.status !== 'READY_TO_CLAIM') throw new AppError(ErrorCode.WORK_NOT_READY, 'Shift is not ready', 400)
       const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
-      const salary = calcFinalSalary(shift.baseSalary, shift.productionObject.level, character.productionLevel)
+      const utcDayStart = new Date(shift.startedAt)
+      utcDayStart.setUTCHours(0, 0, 0, 0)
+      const utcDayEnd = new Date(utcDayStart)
+      utcDayEnd.setUTCDate(utcDayEnd.getUTCDate() + 1)
+      const dailyShiftNumber = await tx.workShift.count({
+        where: { characterId, startedAt: { gte: utcDayStart, lt: utcDayEnd }, createdAt: { lte: shift.createdAt } },
+      })
+      const salary = calcFinalSalary(
+        shift.baseSalary,
+        shift.productionObject.level,
+        character.productionLevel,
+        Math.random(),
+        dailyShiftNumber,
+      )
       const productionExpGain = calcProductionExp(shift.productionObject.baseProductionExp, shift.productionObject.level)
       const productionExp = character.productionExp + productionExpGain
       const productionLevel = getProductionLevelFromExp(productionExp)
