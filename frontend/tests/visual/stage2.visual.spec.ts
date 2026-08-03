@@ -1,4 +1,5 @@
 import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 
 type Account = { token: string; userId: string; login: string; nickname: string; characterId: string }
 let seller: Account
@@ -138,6 +139,27 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.getByText('Success chance:', { exact: false })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Commit upgrade' })).toBeVisible()
     await visualProof(page, testInfo, 'e5-upgrades')
+  })
+
+  test('Stage 2 pages meet automated WCAG A/AA checks and expose keyboard focus', async ({ page }, testInfo) => {
+    await authPage(page, seller)
+    const routes = ['/work', '/resources', '/shops/private', '/market', '/upgrades']
+
+    for (const route of routes) {
+      await page.goto(route)
+      await expect(page.locator('.viewport')).toBeVisible()
+      await page.keyboard.press('Tab')
+      await expect(page.locator(':focus')).not.toHaveCount(0)
+
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        .analyze()
+      await testInfo.attach(`axe-${route.replaceAll('/', '') || 'root'}-${testInfo.project.name}`, {
+        body: JSON.stringify(results, null, 2),
+        contentType: 'application/json',
+      })
+      expect(results.violations, `${route} accessibility violations`).toEqual([])
+    }
   })
 
   test('authenticated Stage 2 routes reject no unexpected page errors', async ({ page }) => {
