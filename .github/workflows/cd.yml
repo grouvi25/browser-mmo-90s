@@ -114,6 +114,18 @@ jobs:
             curl --fail --silent https://game.grouvi.online/ >/dev/null
           EOF
 
+      - name: Run authenticated Stage 2 production smoke
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -euo pipefail
+            cd ${{ secrets.VPS_PROJECT_DIR }}
+            SMOKE_PASSWORD="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"
+            docker compose -f docker-compose.prod.yml run --rm \
+              -e SMOKE_PASSWORD="$SMOKE_PASSWORD" \
+              -e SMOKE_BASE_URL="https://game.grouvi.online" \
+              backend node dist/scripts/production-auth-smoke.js
+          EOF
+
       - name: Harden VPS and enable scheduled backups
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
