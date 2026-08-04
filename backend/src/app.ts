@@ -13,6 +13,7 @@ import { AppConfig } from './config/app.config'
 import { AuthConfig } from './config/auth.config'
 import { AppError } from './shared/errors/app-error'
 import { logger } from './shared/logger/logger'
+import { checkReadiness } from './shared/health/readiness'
 
 import { authRoutes } from './modules/auth/auth.routes'
 import { charactersRoutes } from './modules/characters/characters.routes'
@@ -90,6 +91,14 @@ export async function buildApp() {
     status: 'ok',
     ts: new Date().toISOString(),
   }))
+
+  fastify.get('/ready', { config: { rateLimit: false } }, async (_req, reply) => {
+    const readiness = await checkReadiness(
+      () => prisma.$queryRaw`SELECT 1`,
+      () => getRedis().ping(),
+    )
+    return reply.code(readiness.status === 'ready' ? 200 : 503).send(readiness)
+  })
 
   await fastify.register(authRoutes,           { prefix: '/api/auth' })
   await fastify.register(charactersRoutes,     { prefix: '/api/characters' })
