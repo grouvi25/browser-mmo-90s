@@ -41,10 +41,8 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
 const SOON: Record<string, { title: string; stage: number; what: string }> = {
   farms:     { title: 'Фермы', stage: 3, what: 'Личные участки: посадка, полив и урожай для баров и аптечек.' },
   kolhoz:    { title: 'Колхозы', stage: 3, what: 'Крупное производство сельхозсырья с рабочими местами.' },
-  resources: { title: 'Сырьё', stage: 2, what: 'Металлолом, ткань, химия и детали: вес, продажа государству и на рынке.' },
   products:  { title: 'Продукты', stage: 3, what: 'Еда и напитки из баров, временные эффекты перед боем и работой.' },
   storage:   { title: 'Склад', stage: 2, what: 'Хранение ресурсов и деталей сверх носимого веса.' },
-  labour:    { title: 'Дешёвая рабочая сила', stage: 2, what: 'Рабочие смены на объектах города: зарплата и производственный опыт.' },
 }
 
 function SoonRoute() {
@@ -90,22 +88,22 @@ export function AppRouter() {
           </ViewportPanel>} />
 
         <Route path="/upgrades" element={
-          <ViewportPanel title="Upgrades" subtitle="Risky permanent item improvements">
+          <ViewportPanel title="Улучшения" subtitle="Риск: усиление вещей навсегда">
             <UpgradesPage />
           </ViewportPanel>} />
 
         <Route path="/market" element={
-          <ViewportPanel title="Market" subtitle="Player listings, items and resources">
+          <ViewportPanel title="Рынок игроков" subtitle="Объявления: вещи и сырьё">
             <MarketPage />
           </ViewportPanel>} />
 
         <Route path="/shops/private" element={
-          <ViewportPanel title="Private shops" subtitle="Tier-2 gear and repair parts">
+          <ViewportPanel title="Частные лавки" subtitle="Снаряжение 2-го уровня и детали">
             <PrivateShopsPage />
           </ViewportPanel>} />
 
         <Route path="/resources" element={
-          <ViewportPanel title="Resources" subtitle="Materials, parts and total weight">
+          <ViewportPanel title="Сырьё" subtitle="Материалы, детали и общий вес">
             <ResourcesPage />
           </ViewportPanel>} />
 
@@ -141,7 +139,7 @@ export function AppRouter() {
 
         <Route path="/soon/:key" element={<SoonRoute />} />
         <Route path="/work" element={
-          <ViewportPanel title="Work" subtitle="Shifts, salary and production level">
+          <ViewportPanel title="Работа" subtitle="Смены, зарплата и производственный уровень">
             <WorkPage />
           </ViewportPanel>} />
         <Route path="/station" element={<LockedSection title="Вокзал" stage={2}

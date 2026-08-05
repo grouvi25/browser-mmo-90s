@@ -28,7 +28,7 @@ export function HubPage() {
 
   return (
     <div className="hub">
-      <img className="hub__scene" src={SPRITES['viewport-street']} alt="Центральный район" draggable={false} />
+      <img className="hub__scene" src={SPRITES['viewport-scene']} alt="Двор" draggable={false} />
 
       <div className="hub__overlay">
         <div className="hub__place">Центр · Центральная площадь</div>

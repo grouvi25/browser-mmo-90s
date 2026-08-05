@@ -9,9 +9,9 @@ import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
-import { MENU, MENU_STAGE, PROFILE, PROFILE_STAGE } from '../../shared/lib/layout-map'
-import { FitText, Stage, useViewportScale } from '../../shared/lib/stage'
-import { PLATES, SpriteButton } from '../../shared/ui/sprite'
+import { PROFILE, PROFILE_STAGE } from '../../shared/lib/layout-map'
+import { FitText, Stage } from '../../shared/lib/stage'
+import { PLATES, Sprite, SpriteButton } from '../../shared/ui/sprite'
 import {
   ARCHETYPE_LABELS, WEAPON_TYPE_LABELS, type ItemInstance,
 } from '../../shared/types/api.types'
@@ -107,16 +107,9 @@ export function DossierPage() {
     name: 'Имя', sex: 'Кто', spouse: 'Жена', account: 'Акаунт',
   }
 
-  // Холст профиля вертикальный (A4), главного экрана — горизонтальный.
-  // Если считать масштаб независимо, профиль выходит заметно крупнее.
-  // Привязываем его к главному экрану так, чтобы портрет персонажа
-  // получался одного размера на обоих экранах.
-  const menuScale = useViewportScale(MENU_STAGE.w, MENU_STAGE.h, 'contain', 1.5)
-  const profileScale = menuScale * (MENU.card.portrait.w / PROFILE.portrait.w)
-
   return (
     <Stage width={PROFILE_STAGE.w} height={PROFILE_STAGE.h}
-      scale={profileScale} className="stage--profile">
+      fit="contain" className="stage--profile">
       <div className="stage__plate" style={{ backgroundImage: plate }} />
 
       {/* поиск игрока — работает через /api/characters/by-nickname */}
@@ -147,6 +140,8 @@ export function DossierPage() {
         name="p-portrait" box={PROFILE.portrait} className="portrait-hot"
         title="Сменить портрет можно будет позже" onClick={() => navigate('/inventory')}
       />
+      <Sprite name="p-icon-energy" box={PROFILE.energyIcon} />
+      <Sprite name="p-icon-hp" box={PROFILE.hpIcon} />
       <FitText x={PROFILE.energyText.x} y={PROFILE.energyText.y} w={PROFILE.energyText.w}
         size={20.8} className="stat-num stat-num--energy" title="Боевой уровень">
         {char?.battleLevel ?? 0}

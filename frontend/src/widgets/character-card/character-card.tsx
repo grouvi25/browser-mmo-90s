@@ -11,7 +11,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { MENU, ZONE_ARMOR_SLOTS } from '../../shared/lib/layout-map'
 import { FitText, Layer } from '../../shared/lib/stage'
-import { Hotspot, SpriteButton } from '../../shared/ui/sprite'
+import { Hotspot, Sprite, SpriteButton } from '../../shared/ui/sprite'
 import type { ItemInstance } from '../../shared/types/api.types'
 import { ARMOR_SLOT_LABELS, WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
 
@@ -101,6 +101,10 @@ export function CharacterCard() {
       />
 
       {/* ── показатели поверх портрета ───────────────────── */}
+      {/* Иконки вырезаны из подложки отдельными спрайтами, поэтому
+          рисуем их сами — иначе над цифрами будет пустое место. */}
+      <Sprite name="icon-energy" box={C.energyIcon} />
+      <Sprite name="icon-hp" box={C.hpIcon} />
       <FitText
         x={C.energyText.x} y={C.energyText.y} w={C.energyText.w}
         size={20.8} className="stat-num stat-num--energy"
