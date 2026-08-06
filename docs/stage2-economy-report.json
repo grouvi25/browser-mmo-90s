@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "generatedAt": "2026-08-06T20:21:01.835Z",
+    "days": 30,
+    "players": 300,
+    "seed": 90210,
+    "profileFilter": "all"
+  },
+  "profiles": {
+    "fighter": {
+      "grossIncomePerDay": {
+        "median": 497,
+        "p25": 420,
+        "p75": 580
+      },
+      "netIncomePerDay": {
+        "median": 252,
+        "p25": 134,
+        "p75": 342
+      }
+    },
+    "worker": {
+      "grossIncomePerDay": {
+        "median": 448,
+        "p25": 411,
+        "p75": 466
+      },
+      "netIncomePerDay": {
+        "median": 416,
+        "p25": 129,
+        "p75": 456
+      }
+    },
+    "mixed": {
+      "grossIncomePerDay": {
+        "median": 501,
+        "p25": 455,
+        "p75": 550
+      },
+      "netIncomePerDay": {
+        "median": 319,
+        "p25": 187,
+        "p75": 458
+      }
+    }
+  },
+  "parity": {
+    "grossRatio": 1.1183035714285714,
+    "netSpread": 164
+  },
+  "emission": {
+    "minted": {
+      "battles": 2181269,
+      "salaries": 1918864,
+      "govSell": 216270
+    },
+    "burned": {
+      "repair": 960000,
+      "governmentShop": 270000,
+      "privateShop": 270000,
+      "listingFee": 13500,
+      "saleTax": 21536,
+      "upgrades": 482710
+    },
+    "sinkShare": 0.46746005875725694,
+    "netEmissionShare": 0.5325399412427431
+  },
+  "m2": {
+    "start": 496831,
+    "day30": 2673657,
+    "end": 2673657,
+    "steadyGrowthPctPerDay": 0.014373013154015846
+  },
+  "market": {
+    "completedSales": 2700
+  },
+  "verdicts": {
+    "incomeCorridor": true,
+    "profileParity": true,
+    "sinkHealth": true,
+    "netEmission": true,
+    "steadyM2": true,
+    "nonNegativeMoney": true
+  }
+}
