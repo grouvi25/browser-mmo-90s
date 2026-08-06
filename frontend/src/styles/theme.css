@@ -459,7 +459,14 @@ html, body {
   font-family: var(--font-ui); font-size: 17px; color: #17130f;
   border-top: 1px solid rgba(43, 43, 43, .35); padding-top: 4px;
 }
-.card-list { font-family: var(--font-ui); font-size: 16px; color: #17130f; overflow: hidden; }
+.card-list { font-family: var(--font-ui); font-size: 16px; color: #17130f; overflow-y: auto; }
+/* Рамки слотов напечатаны на подложке карточки, поэтому вкладки со
+   списками кладём поверх листом бумаги — иначе текст ложится на них. */
+.card-list--sheet {
+  box-sizing: border-box; padding: 6px 12px 8px;
+  background: #fdefe4; border: 1px solid rgba(43, 43, 43, .5);
+  box-shadow: 0 2px 6px rgba(23, 19, 15, .25);
+}
 .card-list__title {
   font-family: var(--font-sign); text-transform: uppercase; font-weight: 700;
   font-size: 19px; border-bottom: 1px solid #2b2b2b; padding-bottom: 3px; margin-bottom: 6px;

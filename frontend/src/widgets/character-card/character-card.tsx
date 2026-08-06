@@ -179,7 +179,7 @@ export function CharacterCard() {
 
           {/* подпись выбранной зоны */}
           {zone && (
-            <Layer box={{ x: 24, y: 800, w: 340, h: 26 }} className="card-note">
+            <Layer box={C.zoneNote} className="card-note">
               {ZONE_LABELS[zone]}: броня {zoneArmor[zone] ?? 0}
             </Layer>
           )}
@@ -187,7 +187,7 @@ export function CharacterCard() {
       )}
 
       {tab === 'gear' && (
-        <Layer box={{ x: 24, y: 528, w: 340, h: 300 }} className="card-list">
+        <Layer box={C.body} className="card-list card-list--sheet">
           <div className="card-list__title">Надето</div>
           {equipped.length === 0 && <div className="card-list__empty">Ничего не надето</div>}
           {equipped.map(i => (
@@ -210,7 +210,7 @@ export function CharacterCard() {
       )}
 
       {tab === 'person' && (
-        <Layer box={{ x: 24, y: 528, w: 340, h: 300 }} className="card-list">
+        <Layer box={C.body} className="card-list card-list--sheet">
           <div className="card-list__title">Личное дело</div>
           <div className="card-list__kv"><span>Уровень</span><b>{char?.battleLevel ?? '—'}</b></div>
           <div className="card-list__kv"><span>Здоровье</span><b>{hp} / {char?.hpMax ?? '—'}</b></div>
@@ -226,7 +226,7 @@ export function CharacterCard() {
 
       {/* невидимая область: клик по бумаге карточки уводит в личное дело */}
       <Hotspot
-        box={{ x: 8, y: 160, w: 372, h: 28 }}
+        box={C.topStrip}
         title="Личное дело"
         className="card-topstrip"
         onClick={() => navigate('/profile')}
