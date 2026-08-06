@@ -2,9 +2,15 @@ name: CI
 
 on:
   push:
-    branches: ['**']
+    branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
+      - 'docs/**'
+      - 'remediation/**'
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
