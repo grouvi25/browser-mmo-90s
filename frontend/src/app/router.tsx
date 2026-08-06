@@ -8,6 +8,7 @@ import { LoginPage }           from '../pages/auth/login-page'
 import { RegisterPage }        from '../pages/auth/register-page'
 import { CreateCharacterPage } from '../pages/character/create-character-page'
 import { HubPage }             from '../pages/hub/hub-page'
+import { GaragesPage }         from '../pages/garages/garages-page'
 import { DossierPage }         from '../pages/profile/dossier-page'
 import { PublicProfilePage }   from '../pages/character/public-profile-page'
 import { InventoryPage }       from '../pages/inventory/inventory-page'
@@ -71,6 +72,7 @@ export function AppRouter() {
       {/* ── Город: оболочка постоянна, меняется только вьюпорт ── */}
       <Route element={<RequireAuth><GameShell /></RequireAuth>}>
         <Route path="/" element={<HubPage />} />
+        <Route path="/garages" element={<GaragesPage />} />
 
         <Route path="/shop" element={
           <ViewportPanel title="Рынок" subtitle="Государственные цены">

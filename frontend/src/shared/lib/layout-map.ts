@@ -37,7 +37,7 @@ export const MENU = {
     { key: 'market', label: 'рынок', x: 500, y: 96.5, w: 62, to: '/market' },
     { key: 'industrial', label: 'промзона', x: 629.5, y: 97.5, w: 96, to: '/work' },
     { key: 'station', label: 'вокзал', x: 792, y: 98, w: 66.5, to: '/station' },
-    { key: 'garages', label: 'гаражи', x: 933.5, y: 96.5, w: 69.5, to: '/repair' },
+    { key: 'garages', label: 'гаражи', x: 933.5, y: 96.5, w: 69.5, to: '/garages' },
     { key: 'suburb', label: 'спальный район', x: 1068.5, y: 95, w: 158.5, to: '/pvp' },
   ],
 

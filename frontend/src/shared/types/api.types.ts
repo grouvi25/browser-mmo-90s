@@ -253,6 +253,14 @@ export const ARMOR_SLOT_LABELS: Record<string, string> = {
   BACK: 'Спина',  POCKET: 'Карманы', ACCESSORY: 'Акс.',
 }
 
+/** Тип предмета: показывается, когда у вещи нет ни типа оружия, ни слота брони. */
+export const ITEM_TYPE_LABELS: Record<string, string> = {
+  WEAPON: 'Оружие',   ARMOR: 'Броня',
+  SHIELD: 'Щит',      ACCESSORY: 'Аксессуар',
+  CONSUMABLE: 'Расходник', RESOURCE: 'Сырьё',
+  COMPONENT: 'Деталь', UPGRADE_MODULE: 'Модуль улучшения',
+}
+
 export const QUALITY_LABELS: Record<string, string> = {
   JUNK:   'Хлам',    COMMON: 'Обычный',
   GOOD:   'Хороший', RARE:   'Редкий',

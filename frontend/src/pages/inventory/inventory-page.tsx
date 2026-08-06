@@ -4,7 +4,7 @@ import { Shield, Backpack, Swords, Pill, X, Trash2, ShoppingBag } from 'lucide-r
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { shopApi } from '../../shared/api/shop.api'
 import {
-  WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, QUALITY_LABELS, type ItemInstance
+  WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, ITEM_TYPE_LABELS, QUALITY_LABELS, type ItemInstance
 } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
@@ -139,7 +139,7 @@ export function InventoryPage() {
     const t = item.template
     const typeLabel = t.weaponType
       ? WEAPON_TYPE_LABELS[t.weaponType]
-      : t.armorSlot ? ARMOR_SLOT_LABELS[t.armorSlot] : t.type
+      : t.armorSlot ? ARMOR_SLOT_LABELS[t.armorSlot] : (ITEM_TYPE_LABELS[t.type] ?? t.type)
     const durPct  = (item.durabilityCurrent / item.durabilityMax) * 100
     const durColor = durPct > 60 ? 'var(--success)' : durPct > 25 ? 'var(--warning)' : 'var(--danger)'
     const isBroken  = item.status === 'BROKEN' || item.durabilityCurrent <= 0

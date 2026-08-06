@@ -200,19 +200,19 @@ async function main() {
 
   // --- Stage 2 resource templates ---
   const resources = [
-    ['res_scrap_metal', 'Scrap metal', 'PRIMARY', 1, 8, 0.5, false, false],
-    ['res_fabric', 'Fabric', 'PRIMARY', 1, 6, 0.3, false, false],
-    ['res_leather', 'Leather', 'PRIMARY', 1, 12, 0.4, false, false],
-    ['res_wood', 'Wood', 'PRIMARY', 1, 5, 0.8, false, false],
-    ['res_plastic', 'Plastic', 'PRIMARY', 1, 7, 0.3, false, false],
-    ['res_chemicals', 'Chemicals', 'PRIMARY', 1, 15, 0.4, false, false],
-    ['res_spare_parts', 'Spare parts', 'PRIMARY', 1, 18, 0.6, false, false],
-    ['comp_metal_plate', 'Metal plate', 'REPAIR_PART', 2, 30, 0.7, true, false],
-    ['comp_fastener', 'Fastener', 'COMPONENT', 2, 12, 0.2, false, false],
-    ['comp_spring', 'Spring', 'UPGRADE_PART', 2, 25, 0.2, false, true],
-    ['comp_weapon_part', 'Weapon part', 'UPGRADE_PART', 2, 60, 0.5, true, true],
-    ['comp_armor_plate', 'Armor plate', 'UPGRADE_PART', 2, 70, 0.9, true, true],
-    ['comp_repair_kit', 'Repair kit', 'REPAIR_PART', 2, 45, 0.5, true, false],
+    ['res_scrap_metal', 'Металлолом', 'PRIMARY', 1, 8, 0.5, false, false],
+    ['res_fabric', 'Ткань', 'PRIMARY', 1, 6, 0.3, false, false],
+    ['res_leather', 'Кожа', 'PRIMARY', 1, 12, 0.4, false, false],
+    ['res_wood', 'Древесина', 'PRIMARY', 1, 5, 0.8, false, false],
+    ['res_plastic', 'Пластик', 'PRIMARY', 1, 7, 0.3, false, false],
+    ['res_chemicals', 'Химия', 'PRIMARY', 1, 15, 0.4, false, false],
+    ['res_spare_parts', 'Запчасти', 'PRIMARY', 1, 18, 0.6, false, false],
+    ['comp_metal_plate', 'Стальная пластина', 'REPAIR_PART', 2, 30, 0.7, true, false],
+    ['comp_fastener', 'Крепёж', 'COMPONENT', 2, 12, 0.2, false, false],
+    ['comp_spring', 'Пружина', 'UPGRADE_PART', 2, 25, 0.2, false, true],
+    ['comp_weapon_part', 'Деталь оружия', 'UPGRADE_PART', 2, 60, 0.5, true, true],
+    ['comp_armor_plate', 'Бронепластина', 'UPGRADE_PART', 2, 70, 0.9, true, true],
+    ['comp_repair_kit', 'Ремкомплект', 'REPAIR_PART', 2, 45, 0.5, true, false],
   ] as const
   for (const [code, name, category, tier, basePrice, weight, isRepairMaterial, isUpgradeMaterial] of resources) {
     await prisma.resourceTemplate.upsert({
@@ -238,12 +238,12 @@ async function main() {
   console.log(`  Private shop entries: ${privateItemRows.length+privateResourceRows.length}`)
 
   const productionObjects = [
-    ['obj_warehouse_station','Warehouse station','WAREHOUSE',0,30,100,8,null,0,0,0],
-    ['obj_scrapyard','Scrapyard','SCRAPYARD',0,30,80,10,'res_scrap_metal',2,4,0],
-    ['obj_market_loader','Market loader','MARKET',0,45,120,8,null,0,0,15],
-    ['obj_garage_workshop','Garage workshop','WORKSHOP',1,60,160,15,'comp_fastener',1,2,0],
-    ['obj_small_factory','Small factory','FACTORY',2,60,220,20,'comp_metal_plate',1,2,0],
-    ['obj_parts_factory','Parts factory','FACTORY',3,90,300,28,'comp_weapon_part',1,1,0],
+    ['obj_warehouse_station','Склад на вокзале','WAREHOUSE',0,30,100,8,null,0,0,0],
+    ['obj_scrapyard','Пункт приёма металлолома','SCRAPYARD',0,30,80,10,'res_scrap_metal',2,4,0],
+    ['obj_market_loader','Грузчик на рынке','MARKET',0,45,120,8,null,0,0,15],
+    ['obj_garage_workshop','Мастерская в гаражах','WORKSHOP',1,60,160,15,'comp_fastener',1,2,0],
+    ['obj_small_factory','Цех на заводе','FACTORY',2,60,220,20,'comp_metal_plate',1,2,0],
+    ['obj_parts_factory','Завод запчастей','FACTORY',3,90,300,28,'comp_weapon_part',1,1,0],
   ] as const
   for(const [code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward] of productionObjects){
     await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward}})

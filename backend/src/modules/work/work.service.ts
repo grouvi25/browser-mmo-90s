@@ -15,7 +15,18 @@ export const WorkService = {
       prisma.productionObject.findMany({ where: { isActive: true, status: 'ACTIVE' }, orderBy: { requiredProductionLevel: 'asc' } }),
       WorkRedis.getDailyShifts(characterId),
     ])
-    return { items: objects.map(x => ({ ...x, locked: character.productionLevel < x.requiredProductionLevel })), daily: { shiftsUsedToday: used, shiftsLimit: WorkRedis.maxShifts } }
+    // Клиенту нужен не код ресурса, а его название — иначе в таблице
+    // выработки светится res_scrap_metal вместо «Металлолома».
+    const templates = await prisma.resourceTemplate.findMany({ select: { code: true, name: true } })
+    const names = new Map(templates.map(t => [t.code, t.name]))
+    return {
+      items: objects.map(x => ({
+        ...x,
+        producesResourceName: x.producesResourceCode ? names.get(x.producesResourceCode) ?? x.producesResourceCode : null,
+        locked: character.productionLevel < x.requiredProductionLevel,
+      })),
+      daily: { shiftsUsedToday: used, shiftsLimit: WorkRedis.maxShifts },
+    }
   },
   async current(characterId: string) {
     const shift = await prisma.workShift.findFirst({ where: { characterId, status: { in: ['ACTIVE','READY_TO_CLAIM'] } }, include: { productionObject: true }, orderBy: { createdAt: 'desc' } })
