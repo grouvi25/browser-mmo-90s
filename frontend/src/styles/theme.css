@@ -459,14 +459,15 @@ html, body {
   font-family: var(--font-ui); font-size: 17px; color: #17130f;
   border-top: 1px solid rgba(43, 43, 43, .35); padding-top: 4px;
 }
-.card-list { font-family: var(--font-ui); font-size: 16px; color: #17130f; overflow-y: auto; }
-/* Рамки слотов напечатаны на подложке карточки, поэтому вкладки со
-   списками кладём поверх листом бумаги — иначе текст ложится на них. */
-.card-list--sheet {
-  box-sizing: border-box; padding: 6px 12px 8px;
-  background: #fdefe4; border: 1px solid rgba(43, 43, 43, .5);
-  box-shadow: 0 2px 6px rgba(23, 19, 15, .25);
+.card-list {
+  font-family: var(--font-ui); font-size: 16px; color: #17130f;
+  overflow-y: auto;
+  /* полосу прокрутки прячем: она забирает ширину у строк и обрезает
+     значения справа, а список тут короткий и листается колесом */
+  scrollbar-width: none;
 }
+.card-list::-webkit-scrollbar { width: 0; height: 0; }
+
 .card-list__title {
   font-family: var(--font-sign); text-transform: uppercase; font-weight: 700;
   font-size: 19px; border-bottom: 1px solid #2b2b2b; padding-bottom: 3px; margin-bottom: 6px;
@@ -483,11 +484,11 @@ html, body {
 .card-list__meta { color: var(--text-dim); font-size: 14px; }
 .card-list__dur  { color: var(--durability); font-size: 14px; }
 .card-list__kv {
-  display: flex; justify-content: space-between; padding: 3px 2px;
+  display: flex; justify-content: space-between; padding: 2px 2px;
   border-bottom: 1px dotted rgba(43, 43, 43, .3);
 }
 .card-list__more {
-  margin-top: 10px; background: none; border: 0; padding: 0; cursor: pointer;
+  margin-top: 4px; background: none; border: 0; padding: 0; cursor: pointer;
   font: inherit; color: var(--red);
 }
 .card-list__more:hover { text-decoration: underline; }

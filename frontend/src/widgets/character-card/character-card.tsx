@@ -36,6 +36,9 @@ function weaponSprite(item: ItemInstance | undefined): string {
   return 'item-bat'
 }
 
+/** Строк снаряжения помещается в бумагу карточки; остальное — ссылкой. */
+const GEAR_ROWS = 5
+
 export function CharacterCard() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<CardTab>('overview')
@@ -134,7 +137,10 @@ export function CharacterCard() {
       {/* ── тело карточки: зависит от выбранной вкладки ──── */}
       {tab === 'overview' && (
         <>
-          {/* слоты снаряжения */}
+          {/* рамки слотов: вырезаны из подложки, поэтому рисуем их сами
+              и только здесь — на других вкладках карточка остаётся чистой */}
+          {C.slots.map(s => <Sprite key={s.key} name={`slot-frame-${s.key}`} box={s.frame} />)}
+
           <SpriteButton
             name={weaponSprite(weapon)}
             box={C.slots[0].box}
@@ -187,10 +193,10 @@ export function CharacterCard() {
       )}
 
       {tab === 'gear' && (
-        <Layer box={C.body} className="card-list card-list--sheet">
+        <Layer box={C.body} className="card-list">
           <div className="card-list__title">Надето</div>
           {equipped.length === 0 && <div className="card-list__empty">Ничего не надето</div>}
-          {equipped.map(i => (
+          {equipped.slice(0, GEAR_ROWS).map(i => (
             <button
               key={i.id}
               type="button"
@@ -206,11 +212,16 @@ export function CharacterCard() {
               <span className="card-list__dur">{i.durabilityCurrent}/{i.durabilityMax}</span>
             </button>
           ))}
+          {equipped.length > GEAR_ROWS && (
+            <button type="button" className="card-list__more" onClick={() => navigate('/inventory')}>
+              ещё {equipped.length - GEAR_ROWS} →
+            </button>
+          )}
         </Layer>
       )}
 
       {tab === 'person' && (
-        <Layer box={C.body} className="card-list card-list--sheet">
+        <Layer box={C.body} className="card-list">
           <div className="card-list__title">Личное дело</div>
           <div className="card-list__kv"><span>Уровень</span><b>{char?.battleLevel ?? '—'}</b></div>
           <div className="card-list__kv"><span>Здоровье</span><b>{hp} / {char?.hpMax ?? '—'}</b></div>
