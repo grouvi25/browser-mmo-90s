@@ -1,19 +1,61 @@
 {
   "meta": {
-    "generatedAt": "2026-08-07T10:10:53.853Z",
+    "generatedAt": "2026-08-07T10:12:56.079Z",
     "model": "profession-actions-v2.2",
     "professions": [
       {
         "code": "scrap_collector",
-        "name": "Сборщик металлолома"
+        "name": "Сборщик металлолома",
+        "direction": "metal",
+        "stage": 1
       },
       {
         "code": "foundry_worker",
-        "name": "Литейщик"
+        "name": "Литейщик",
+        "direction": "metal",
+        "stage": 2
       },
       {
         "code": "gunsmith",
-        "name": "Оружейник"
+        "name": "Оружейник",
+        "direction": "metal",
+        "stage": 3
+      },
+      {
+        "code": "supplier",
+        "name": "Снабженец",
+        "direction": "construction",
+        "stage": 1
+      },
+      {
+        "code": "carpenter",
+        "name": "Столяр",
+        "direction": "construction",
+        "stage": 2
+      },
+      {
+        "code": "cooperative_builder",
+        "name": "Строитель кооператива",
+        "direction": "construction",
+        "stage": 3
+      },
+      {
+        "code": "procurer",
+        "name": "Заготовитель",
+        "direction": "chemistry",
+        "stage": 1
+      },
+      {
+        "code": "pharmacist",
+        "name": "Фармацевт",
+        "direction": "chemistry",
+        "stage": 2
+      },
+      {
+        "code": "chemist",
+        "name": "Химик",
+        "direction": "chemistry",
+        "stage": 3
       }
     ],
     "transitions": [
@@ -196,6 +238,8 @@
     "realisticTopYears": 5.16,
     "realisticLevel3Days": 262,
     "baselineMatchesTz268Days": true,
+    "stage2ProfessionCountIsNine": true,
+    "threeProfessionsPerDirection": true,
     "topNotFasterThanSixMonths": true,
     "keyContentNotLockedAboveLevel3": true,
     "realisticTopIsAboutFiveYears": true
