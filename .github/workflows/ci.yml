@@ -55,6 +55,12 @@ jobs:
       - name: Run deterministic economy simulation
         working-directory: backend
         run: npx tsx ../scripts/simulate-economy.ts --days 30 --players 300 --seed 90210 --json ../docs/stage2-economy-report.json
+      - name: Run profession progression simulation
+        working-directory: backend
+        run: >-
+          npx tsx ../scripts/simulate-professions.ts --hours 2,4,8,14
+          --json ../docs/stage2-profession-progression.json
+          --text ../docs/stage2-profession-progression.txt
       - name: Run zonal balance simulation
         working-directory: backend
         run: npx tsx ../scripts/simulate-balance.ts --zonal | tee ../docs/stage2-balance-report.txt
@@ -66,6 +72,8 @@ jobs:
           path: |
             docs/stage2-economy-report.json
             docs/stage2-balance-report.txt
+            docs/stage2-profession-progression.json
+            docs/stage2-profession-progression.txt
           if-no-files-found: error
 
   backend-build:

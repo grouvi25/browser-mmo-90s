@@ -1,0 +1,822 @@
+{
+  "meta": {
+    "generatedAt": "2026-08-07T09:28:51.123Z",
+    "model": "profession-hours-v1",
+    "xpPerActiveHour": 100,
+    "professions": [
+      {
+        "code": "warehouse_worker",
+        "name": "Складской рабочий",
+        "objectCode": "obj_warehouse_station",
+        "shiftMinutes": 30
+      },
+      {
+        "code": "scrap_collector",
+        "name": "Сборщик металлолома",
+        "objectCode": "obj_scrapyard",
+        "shiftMinutes": 30
+      },
+      {
+        "code": "market_loader",
+        "name": "Грузчик",
+        "objectCode": "obj_market_loader",
+        "shiftMinutes": 45
+      },
+      {
+        "code": "mechanic",
+        "name": "Механик",
+        "objectCode": "obj_garage_workshop",
+        "shiftMinutes": 60
+      },
+      {
+        "code": "factory_worker",
+        "name": "Рабочий завода",
+        "objectCode": "obj_small_factory",
+        "shiftMinutes": 60
+      },
+      {
+        "code": "gunsmith",
+        "name": "Оружейник",
+        "objectCode": "obj_parts_factory",
+        "shiftMinutes": 90
+      }
+    ],
+    "levelHours": [
+      0,
+      20,
+      60,
+      120,
+      240,
+      480,
+      800,
+      1250,
+      1900,
+      2750,
+      3752
+    ],
+    "levelXp": [
+      0,
+      2000,
+      6000,
+      12000,
+      24000,
+      48000,
+      80000,
+      125000,
+      190000,
+      275000,
+      375200
+    ],
+    "keyContentLevel": 3
+  },
+  "results": [
+    {
+      "key": "single-2h",
+      "title": "Одна профессия, 2 ч/день",
+      "hoursPerDay": 2,
+      "focus": "single",
+      "effectiveHoursPerProfessionPerDay": 2,
+      "milestones": [
+        {
+          "level": 0,
+          "hours": 0,
+          "days": 0,
+          "months": 0,
+          "years": 0
+        },
+        {
+          "level": 1,
+          "hours": 20,
+          "days": 10,
+          "months": 0.33,
+          "years": 0.03
+        },
+        {
+          "level": 2,
+          "hours": 60,
+          "days": 30,
+          "months": 0.99,
+          "years": 0.08
+        },
+        {
+          "level": 3,
+          "hours": 120,
+          "days": 60,
+          "months": 1.97,
+          "years": 0.16
+        },
+        {
+          "level": 4,
+          "hours": 240,
+          "days": 120,
+          "months": 3.94,
+          "years": 0.33
+        },
+        {
+          "level": 5,
+          "hours": 480,
+          "days": 240,
+          "months": 7.89,
+          "years": 0.66
+        },
+        {
+          "level": 6,
+          "hours": 800,
+          "days": 400,
+          "months": 13.14,
+          "years": 1.1
+        },
+        {
+          "level": 7,
+          "hours": 1250,
+          "days": 625,
+          "months": 20.53,
+          "years": 1.71
+        },
+        {
+          "level": 8,
+          "hours": 1900,
+          "days": 950,
+          "months": 31.21,
+          "years": 2.6
+        },
+        {
+          "level": 9,
+          "hours": 2750,
+          "days": 1375,
+          "months": 45.17,
+          "years": 3.76
+        },
+        {
+          "level": 10,
+          "hours": 3752,
+          "days": 1876,
+          "months": 61.63,
+          "years": 5.14
+        }
+      ],
+      "keyContentDays": 60,
+      "maxLevelDays": 1876,
+      "verdicts": {
+        "topSixToEightMonths": true,
+        "keyContentWithinTwoMonths": true
+      }
+    },
+    {
+      "key": "balanced-2h",
+      "title": "Все профессии поровну, 2 ч/день",
+      "hoursPerDay": 2,
+      "focus": "balanced",
+      "effectiveHoursPerProfessionPerDay": 0.3333,
+      "milestones": [
+        {
+          "level": 0,
+          "hours": 0,
+          "days": 0,
+          "months": 0,
+          "years": 0
+        },
+        {
+          "level": 1,
+          "hours": 20,
+          "days": 60,
+          "months": 1.97,
+          "years": 0.16
+        },
+        {
+          "level": 2,
+          "hours": 60,
+          "days": 180,
+          "months": 5.91,
+          "years": 0.49
+        },
+        {
+          "level": 3,
+          "hours": 120,
+          "days": 360,
+          "months": 11.83,
+          "years": 0.99
+        },
+        {
+          "level": 4,
+          "hours": 240,
+          "days": 720,
+          "months": 23.66,
+          "years": 1.97
+        },
+        {
+          "level": 5,
+          "hours": 480,
+          "days": 1440,
+          "months": 47.31,
+          "years": 3.94
+        },
+        {
+          "level": 6,
+          "hours": 800,
+          "days": 2400,
+          "months": 78.85,
+          "years": 6.57
+        },
+        {
+          "level": 7,
+          "hours": 1250,
+          "days": 3750,
+          "months": 123.2,
+          "years": 10.27
+        },
+        {
+          "level": 8,
+          "hours": 1900,
+          "days": 5700,
+          "months": 187.27,
+          "years": 15.61
+        },
+        {
+          "level": 9,
+          "hours": 2750,
+          "days": 8250,
+          "months": 271.05,
+          "years": 22.59
+        },
+        {
+          "level": 10,
+          "hours": 3752,
+          "days": 11256,
+          "months": 369.81,
+          "years": 30.82
+        }
+      ],
+      "keyContentDays": 360,
+      "maxLevelDays": 11256,
+      "verdicts": {
+        "topSixToEightMonths": true,
+        "keyContentWithinTwoMonths": true
+      }
+    },
+    {
+      "key": "single-4h",
+      "title": "Одна профессия, 4 ч/день",
+      "hoursPerDay": 4,
+      "focus": "single",
+      "effectiveHoursPerProfessionPerDay": 4,
+      "milestones": [
+        {
+          "level": 0,
+          "hours": 0,
+          "days": 0,
+          "months": 0,
+          "years": 0
+        },
+        {
+          "level": 1,
+          "hours": 20,
+          "days": 5,
+          "months": 0.16,
+          "years": 0.01
+        },
+        {
+          "level": 2,
+          "hours": 60,
+          "days": 15,
+          "months": 0.49,
+          "years": 0.04
+        },
+        {
+          "level": 3,
+          "hours": 120,
+          "days": 30,
+          "months": 0.99,
+          "years": 0.08
+        },
+        {
+          "level": 4,
+          "hours": 240,
+          "days": 60,
+          "months": 1.97,
+          "years": 0.16
+        },
+        {
+          "level": 5,
+          "hours": 480,
+          "days": 120,
+          "months": 3.94,
+          "years": 0.33
+        },
+        {
+          "level": 6,
+          "hours": 800,
+          "days": 200,
+          "months": 6.57,
+          "years": 0.55
+        },
+        {
+          "level": 7,
+          "hours": 1250,
+          "days": 313,
+          "months": 10.28,
+          "years": 0.86
+        },
+        {
+          "level": 8,
+          "hours": 1900,
+          "days": 475,
+          "months": 15.61,
+          "years": 1.3
+        },
+        {
+          "level": 9,
+          "hours": 2750,
+          "days": 688,
+          "months": 22.6,
+          "years": 1.88
+        },
+        {
+          "level": 10,
+          "hours": 3752,
+          "days": 938,
+          "months": 30.82,
+          "years": 2.57
+        }
+      ],
+      "keyContentDays": 30,
+      "maxLevelDays": 938,
+      "verdicts": {
+        "topSixToEightMonths": true,
+        "keyContentWithinTwoMonths": true
+      }
+    },
+    {
+      "key": "balanced-4h",
+      "title": "Все профессии поровну, 4 ч/день",
+      "hoursPerDay": 4,
+      "focus": "balanced",
+      "effectiveHoursPerProfessionPerDay": 0.6667,
+      "milestones": [
+        {
+          "level": 0,
+          "hours": 0,
+          "days": 0,
+          "months": 0,
+          "years": 0
+        },
+        {
+          "level": 1,
+          "hours": 20,
+          "days": 30,
+          "months": 0.99,
+          "years": 0.08
+        },
+        {
+          "level": 2,
+          "hours": 60,
+          "days": 90,
+          "months": 2.96,
+          "years": 0.25
+        },
+        {
+          "level": 3,
+          "hours": 120,
+          "days": 180,
+          "months": 5.91,
+          "years": 0.49
+        },
+        {
+          "level": 4,
+          "hours": 240,
+          "days": 360,
+          "months": 11.83,
+          "years": 0.99
+        },
+        {
+          "level": 5,
+          "hours": 480,
+          "days": 720,
+          "months": 23.66,
+          "years": 1.97
+        },
+        {
+          "level": 6,
+          "hours": 800,
+          "days": 1200,
+          "months": 39.43,
+          "years": 3.29
+        },
+        {
+          "level": 7,
+          "hours": 1250,
+          "days": 1875,
+          "months": 61.6,
+          "years": 5.13
+        },
+        {
+          "level": 8,
+          "hours": 1900,
+          "days": 2850,
+          "months": 93.63,
+          "years": 7.8
+        },
+        {
+          "level": 9,
+          "hours": 2750,
+          "days": 4125,
+          "months": 135.52,
+          "years": 11.29
+        },
+        {
+          "level": 10,
+          "hours": 3752,
+          "days": 5628,
+          "months": 184.9,
+          "years": 15.41
+        }
+      ],
+      "keyContentDays": 180,
+      "maxLevelDays": 5628,
+      "verdicts": {
+        "topSixToEightMonths": true,
+        "keyContentWithinTwoMonths": true
+      }
+    },
+    {
+      "key": "single-8h",
+      "title": "Одна профессия, 8 ч/день",
+      "hoursPerDay": 8,
+      "focus": "single",
+      "effectiveHoursPerProfessionPerDay": 8,
+      "milestones": [
+        {
+          "level": 0,
+          "hours": 0,
+          "days": 0,
+          "months": 0,
+          "years": 0
+        },
+        {
+          "level": 1,
+          "hours": 20,
+          "days": 3,
+          "months": 0.1,
+          "years": 0.01
+        },
+        {
+          "level": 2,
+          "hours": 60,
+          "days": 8,
+          "months": 0.26,
+          "years": 0.02
+        },
+        {
+          "level": 3,
+          "hours": 120,
+          "days": 15,
+          "months": 0.49,
+          "years": 0.04
+        },
+        {
+          "level": 4,
+          "hours": 240,
+          "days": 30,
+          "months": 0.99,
+          "years": 0.08
+        },
+        {
+          "level": 5,
+          "hours": 480,
+          "days": 60,
+          "months": 1.97,
+          "years": 0.16
+        },
+        {
+          "level": 6,
+          "hours": 800,
+          "days": 100,
+          "months": 3.29,
+          "years": 0.27
+        },
+        {
+          "level": 7,
+          "hours": 1250,
+          "days": 157,
+          "months": 5.16,
+          "years": 0.43
+        },
+        {
+          "level": 8,
+          "hours": 1900,
+          "days": 238,
+          "months": 7.82,
+          "years": 0.65
+        },
+        {
+          "level": 9,
+          "hours": 2750,
+          "days": 344,
+          "months": 11.3,
+          "years": 0.94
+        },
+        {
+          "level": 10,
+          "hours": 3752,
+          "days": 469,
+          "months": 15.41,
+          "years": 1.28
+        }
+      ],
+      "keyContentDays": 15,
+      "maxLevelDays": 469,
+      "verdicts": {
+        "topSixToEightMonths": true,
+        "keyContentWithinTwoMonths": true
+      }
+    },
+    {
+      "key": "balanced-8h",
+      "title": "Все профессии поровну, 8 ч/день",
+      "hoursPerDay": 8,
+      "focus": "balanced",
+      "effectiveHoursPerProfessionPerDay": 1.3333,
+      "milestones": [
+        {
+          "level": 0,
+          "hours": 0,
+          "days": 0,
+          "months": 0,
+          "years": 0
+        },
+        {
+          "level": 1,
+          "hours": 20,
+          "days": 15,
+          "months": 0.49,
+          "years": 0.04
+        },
+        {
+          "level": 2,
+          "hours": 60,
+          "days": 45,
+          "months": 1.48,
+          "years": 0.12
+        },
+        {
+          "level": 3,
+          "hours": 120,
+          "days": 90,
+          "months": 2.96,
+          "years": 0.25
+        },
+        {
+          "level": 4,
+          "hours": 240,
+          "days": 180,
+          "months": 5.91,
+          "years": 0.49
+        },
+        {
+          "level": 5,
+          "hours": 480,
+          "days": 360,
+          "months": 11.83,
+          "years": 0.99
+        },
+        {
+          "level": 6,
+          "hours": 800,
+          "days": 600,
+          "months": 19.71,
+          "years": 1.64
+        },
+        {
+          "level": 7,
+          "hours": 1250,
+          "days": 938,
+          "months": 30.82,
+          "years": 2.57
+        },
+        {
+          "level": 8,
+          "hours": 1900,
+          "days": 1425,
+          "months": 46.82,
+          "years": 3.9
+        },
+        {
+          "level": 9,
+          "hours": 2750,
+          "days": 2063,
+          "months": 67.78,
+          "years": 5.65
+        },
+        {
+          "level": 10,
+          "hours": 3752,
+          "days": 2814,
+          "months": 92.45,
+          "years": 7.7
+        }
+      ],
+      "keyContentDays": 90,
+      "maxLevelDays": 2814,
+      "verdicts": {
+        "topSixToEightMonths": true,
+        "keyContentWithinTwoMonths": true
+      }
+    },
+    {
+      "key": "single-14h",
+      "title": "Одна профессия, 14 ч/день",
+      "hoursPerDay": 14,
+      "focus": "single",
+      "effectiveHoursPerProfessionPerDay": 14,
+      "milestones": [
+        {
+          "level": 0,
+          "hours": 0,
+          "days": 0,
+          "months": 0,
+          "years": 0
+        },
+        {
+          "level": 1,
+          "hours": 20,
+          "days": 2,
+          "months": 0.07,
+          "years": 0.01
+        },
+        {
+          "level": 2,
+          "hours": 60,
+          "days": 5,
+          "months": 0.16,
+          "years": 0.01
+        },
+        {
+          "level": 3,
+          "hours": 120,
+          "days": 9,
+          "months": 0.3,
+          "years": 0.02
+        },
+        {
+          "level": 4,
+          "hours": 240,
+          "days": 18,
+          "months": 0.59,
+          "years": 0.05
+        },
+        {
+          "level": 5,
+          "hours": 480,
+          "days": 35,
+          "months": 1.15,
+          "years": 0.1
+        },
+        {
+          "level": 6,
+          "hours": 800,
+          "days": 58,
+          "months": 1.91,
+          "years": 0.16
+        },
+        {
+          "level": 7,
+          "hours": 1250,
+          "days": 90,
+          "months": 2.96,
+          "years": 0.25
+        },
+        {
+          "level": 8,
+          "hours": 1900,
+          "days": 136,
+          "months": 4.47,
+          "years": 0.37
+        },
+        {
+          "level": 9,
+          "hours": 2750,
+          "days": 197,
+          "months": 6.47,
+          "years": 0.54
+        },
+        {
+          "level": 10,
+          "hours": 3752,
+          "days": 268,
+          "months": 8.8,
+          "years": 0.73
+        }
+      ],
+      "keyContentDays": 9,
+      "maxLevelDays": 268,
+      "verdicts": {
+        "topSixToEightMonths": true,
+        "keyContentWithinTwoMonths": true
+      }
+    },
+    {
+      "key": "balanced-14h",
+      "title": "Все профессии поровну, 14 ч/день",
+      "hoursPerDay": 14,
+      "focus": "balanced",
+      "effectiveHoursPerProfessionPerDay": 2.3333,
+      "milestones": [
+        {
+          "level": 0,
+          "hours": 0,
+          "days": 0,
+          "months": 0,
+          "years": 0
+        },
+        {
+          "level": 1,
+          "hours": 20,
+          "days": 9,
+          "months": 0.3,
+          "years": 0.02
+        },
+        {
+          "level": 2,
+          "hours": 60,
+          "days": 26,
+          "months": 0.85,
+          "years": 0.07
+        },
+        {
+          "level": 3,
+          "hours": 120,
+          "days": 52,
+          "months": 1.71,
+          "years": 0.14
+        },
+        {
+          "level": 4,
+          "hours": 240,
+          "days": 103,
+          "months": 3.38,
+          "years": 0.28
+        },
+        {
+          "level": 5,
+          "hours": 480,
+          "days": 206,
+          "months": 6.77,
+          "years": 0.56
+        },
+        {
+          "level": 6,
+          "hours": 800,
+          "days": 343,
+          "months": 11.27,
+          "years": 0.94
+        },
+        {
+          "level": 7,
+          "hours": 1250,
+          "days": 536,
+          "months": 17.61,
+          "years": 1.47
+        },
+        {
+          "level": 8,
+          "hours": 1900,
+          "days": 815,
+          "months": 26.78,
+          "years": 2.23
+        },
+        {
+          "level": 9,
+          "hours": 2750,
+          "days": 1179,
+          "months": 38.74,
+          "years": 3.23
+        },
+        {
+          "level": 10,
+          "hours": 3752,
+          "days": 1608,
+          "months": 52.83,
+          "years": 4.4
+        }
+      ],
+      "keyContentDays": 52,
+      "maxLevelDays": 1608,
+      "verdicts": {
+        "topSixToEightMonths": true,
+        "keyContentWithinTwoMonths": true
+      }
+    }
+  ],
+  "acceptance": {
+    "baselineTopDays": 268,
+    "realisticTopDays": 1876,
+    "realisticTopYears": 5.14,
+    "realisticKeyContentDays": 60,
+    "expectedBaselineDays": 268,
+    "baselineMatches": true,
+    "topNotFasterThanSixMonths": true,
+    "topNotSlowerThanNineMonths": true,
+    "keyContentByLevelThree": true,
+    "keyContentWithinTwoMonthsAtTwoHours": true
+  }
+}
