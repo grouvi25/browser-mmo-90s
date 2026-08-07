@@ -36,7 +36,8 @@ async function authPage(page: Page, account: Account) {
 
 async function visualProof(page: Page, testInfo: TestInfo, name: string) {
   await expect(page.locator('body')).toBeVisible()
-  await expect(page.locator('.viewport')).toBeVisible()
+  // .viewport — рабочая область большого экрана, .m-view — мобильной оболочки
+  await expect(page.locator('.viewport, .m-view').first()).toBeVisible()
   const image = await page.screenshot({ animations: 'disabled' })
   await testInfo.attach(`${name}-${testInfo.project.name}`, { body: image, contentType: 'image/png' })
   const viewport = page.viewportSize()
@@ -111,7 +112,8 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.getByRole('button', { name: 'Коммерсант' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Оружейный гараж' })).toBeVisible()
     // именно заголовок колонки: слово «Уровень» встречается и в карточке персонажа
-    await expect(page.getByRole('columnheader', { name: 'Уровень' })).toBeVisible()
+    // на узком экране заголовки таблиц скрыты (строки-карточки), поэтому проверяем наличие
+  await expect(page.getByRole('columnheader', { name: 'Уровень' })).toBeAttached()
     await visualProof(page, testInfo, 'e3-private-shops')
   })
 
@@ -147,7 +149,8 @@ test.describe('Stage 2 visual and browser flow', () => {
     await authPage(page, seller)
     for (const route of ['/work', '/resources', '/shops/private', '/market', '/upgrades']) {
       await page.goto(route)
-      await expect(page.locator('.viewport')).toBeVisible()
+      // .viewport — рабочая область большого экрана, .m-view — мобильной оболочки
+  await expect(page.locator('.viewport, .m-view').first()).toBeVisible()
     }
     expect(errors).toEqual([])
   })

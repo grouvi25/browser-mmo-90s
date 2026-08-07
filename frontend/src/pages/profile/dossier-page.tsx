@@ -11,7 +11,8 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { PROFILE, PROFILE_STAGE } from '../../shared/lib/layout-map'
 import { FitText, Stage } from '../../shared/lib/stage'
-import { PLATES, Sprite, SpriteButton } from '../../shared/ui/sprite'
+import { useIsMobile } from '../../shared/lib/use-media-query'
+import { PLATES, Sprite, SpriteButton, SPRITES } from '../../shared/ui/sprite'
 import {
   ARCHETYPE_LABELS, WEAPON_TYPE_LABELS, type ItemInstance,
 } from '../../shared/types/api.types'
@@ -40,6 +41,7 @@ function weaponSprite(item?: ItemInstance): string {
 
 export function DossierPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [search, setSearch] = useState('')
   const [notes, setNotes] = useState(() => localStorage.getItem(NOTES_KEY) ?? '')
 
@@ -105,6 +107,65 @@ export function DossierPage() {
   }
   const fieldLabels: Record<string, string> = {
     name: 'Имя', sex: 'Кто', spouse: 'Жена', account: 'Акаунт',
+  }
+
+  // На телефоне бумажный разворот участка милиции нечитаем целиком,
+  // поэтому те же данные показываем колонкой. Портрет и предметы —
+  // те же спрайты, что и на большом экране.
+  if (isMobile) {
+    return (
+      <div className="m-dossier">
+        <div className="m-dossier__bar">
+          <button type="button" onClick={() => navigate('/')}>← в город</button>
+          <span>Участок милиции</span>
+        </div>
+
+        <form onSubmit={submitSearch} className="m-dossier__search">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Найти человека —"
+            spellCheck={false}
+          />
+          <button type="submit">→</button>
+        </form>
+
+        <div className="m-dossier__head">
+          <img className="m-dossier__portrait" src={SPRITES['p-portrait']} alt="" draggable={false} />
+          <div className="m-dossier__fields">
+            <div className="m-dossier__title">Личное дело №{caseNumber(char?.id)}</div>
+            {PROFILE.fields.map(f => (
+              <div key={f.key} className="m-dossier__kv">
+                <span>{fieldLabels[f.key]}</span><b>{fieldValues[f.key]}</b>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="m-dossier__body">
+          {dossier.map((line, i) => <div key={i}>{line || ' '}</div>)}
+        </div>
+
+        <div className="m-dossier__slots">
+          <SpriteButton name={weaponSprite(weapon)} box={{ x: 0, y: 0, w: 92, h: 94 }} empty={!weapon}
+            title={weapon ? weapon.template.name : 'Оружие не надето'} onClick={() => navigate('/inventory')} />
+          <SpriteButton name="p-item-bat" box={{ x: 0, y: 0, w: 84, h: 88 }} empty={!offhand}
+            title={offhand ? offhand.template.name : 'Правая рука свободна'} onClick={() => navigate('/inventory')} />
+          <SpriteButton name="p-item-dog" box={{ x: 0, y: 0, w: 62, h: 93 }} disabled
+            title="Питомцы появятся в Этапе 3" />
+        </div>
+
+        <div className="m-dossier__notes">
+          <div className="m-dossier__title">Записная книжка</div>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Заметки для себя…"
+            spellCheck={false}
+          />
+        </div>
+      </div>
+    )
   }
 
   return (
