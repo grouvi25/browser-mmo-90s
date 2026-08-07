@@ -61,7 +61,7 @@
   font-size: 13px; color: #17130f; white-space: nowrap;
 }
 .m-strip__item.is-active { color: var(--red); background: #fff; }
-.m-strip__item.is-locked { opacity: .55; }
+.m-strip__item.is-locked { color: #554a42; background: #ead5c7; }
 
 /* ── рабочая область ────────────────────────────────────────── */
 .m-view { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
