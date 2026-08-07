@@ -149,6 +149,7 @@ jobs:
               sleep 5
             done
             curl --fail --silent https://game.grouvi.online/ >/dev/null
+            curl --fail --silent https://game.grouvi.online/ready | grep -q '"status":"ready"'
           EOF
 
       - name: Run authenticated Stage 2 production smoke
