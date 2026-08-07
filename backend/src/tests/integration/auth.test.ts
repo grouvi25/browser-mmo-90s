@@ -6,7 +6,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { testPrisma, cleanDatabase, uid } from './helpers'
 import { AuthService } from '../../modules/auth/auth.service'
-import { hashPassword } from '../../shared/security/password'
 import { AppError } from '../../shared/errors/app-error'
 
 beforeAll(async () => {

@@ -1,7 +1,6 @@
 import type { BattleAction, WeaponType as PrismaWeaponType } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { BattleRedis, AntiFarmRedis } from '../../shared/db/redis'
-import { BalanceConfig } from '../../config/balance.config'
 import { CharactersRepository } from '../characters/characters.repository'
 import { ItemsRepository } from '../items/item-instance.repository'
 import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repository'
@@ -42,11 +41,7 @@ import {
 import {
   calcBattleExp,
   calcWeaponSkillExp,
-  getLevelFromExp,
-  calcHpMax,
-  calcArmorDurabilityLoss,
   getWeaponSkillLevelFromExp,
-  calcCharacterPower,
 } from '../stats/stats.formulas'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
@@ -59,8 +54,6 @@ const TURN_TIMEOUT_MS = 7_000
 export const BATTLE_LOCK_TTL_MS = 15_000
 
 // ── Поле боя (движение/дистанция) ──────────────────────────────
-const START_DISTANCE = 4   // стартовая дистанция между бойцами (клеток)
-const MIN_GAP = 1          // ближний бой = соседние клетки (дистанция 1)
 // Радиус оружия: у ближнего = 1, у дальнего — из шаблона (maxRange)
 function weaponRangeOf(weapon: ItemWithTemplate | null | undefined): number {
   return Math.max(1, weapon?.template.maxRange ?? 1)
@@ -1139,7 +1132,7 @@ export const BattleService = {
       }
     }
 
-    const distance = syncGridDistance(state)
+    syncGridDistance(state)
     const playerWantsAttack = !playerMoved && playerTurn.attackZones.length > 0
     const doPlayerStrike = playerWantsAttack && canAttackTarget(gridPlayer, gridBot, projected, playerRange)
     const doBotStrike = !botMoved && botWantsAttack && canAttackTarget(gridBot, gridPlayer, projected, botRange)
@@ -1289,7 +1282,7 @@ export const BattleService = {
     botPart: LiveParticipant,
     winnerId: string | null,
     weapon: ItemWithTemplate | null,
-    weaponSkillLevel: number
+    _weaponSkillLevel: number
   ) {
     const playerWon = winnerId === char.id
     const result = playerWon ? 'PVE_WIN' : 'PVE_LOSS'
@@ -1547,7 +1540,7 @@ export const BattleService = {
       part2,
       turn2.moveTo,
     )
-    const distance = syncGridDistance(state)
+    syncGridDistance(state)
     const range1 = weaponRangeOf(weapon1)
     const range2 = weaponRangeOf(weapon2)
     const projected = positionedParticipants(state)
@@ -1652,8 +1645,8 @@ export const BattleService = {
     winnerId: string | null,
     weapon1: ItemWithTemplate | null,
     weapon2: ItemWithTemplate | null,
-    skill1Level: number,
-    skill2Level: number
+    _skill1Level: number,
+    _skill2Level: number
   ) {
     const levelDiff = Math.abs(char1.battleLevel - char2.battleLevel)
 

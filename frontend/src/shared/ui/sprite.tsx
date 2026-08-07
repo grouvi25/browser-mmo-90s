@@ -26,6 +26,15 @@ function toMap(src: Record<string, string>, ext: string): Record<string, string>
 export const SPRITES = toMap(pngs, '.png')
 export const PLATES = toMap(webps, '.webp')
 
+/** Иллюстрации локаций: `scene-<район>.webp`, ключ — без префикса.
+    Картинка района впечатана в подложку макета, поэтому область
+    вьюпорта вырезана из неё вместе с рамкой отдельным файлом. */
+export const SCENES: Record<string, string> = Object.fromEntries(
+  Object.entries(PLATES)
+    .filter(([name]) => name.startsWith('scene-'))
+    .map(([name, url]) => [name.slice('scene-'.length), url]),
+)
+
 export function spriteUrl(name: string): string | undefined {
   return SPRITES[name]
 }

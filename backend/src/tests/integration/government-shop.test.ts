@@ -8,7 +8,6 @@ import { AuthService } from '../../modules/auth/auth.service'
 import { CharactersService } from '../../modules/characters/characters.service'
 import { GovernmentShopService } from '../../modules/government-shop/government-shop.service'
 import { AppError } from '../../shared/errors/app-error'
-import { BalanceConfig } from '../../config/balance.config'
 
 beforeAll(async () => { await testPrisma.$connect() })
 afterAll(async () => { await testPrisma.$disconnect() })

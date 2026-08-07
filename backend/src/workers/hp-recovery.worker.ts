@@ -11,12 +11,11 @@
  */
 
 import { prisma } from '../shared/db/prisma'
-import { logger } from '../shared/logger/logger'
 
 export const TICK_MS = 10_000 // каждые 10 секунд
 const RECOVERY_SECONDS_DEFAULT = 60 // 100% HP за 1 минуту (промежуток)
 
-function getRecoverySeconds(isPremium: boolean): number {
+function getRecoverySeconds(_isPremium: boolean): number {
   // Будущая формула:
   // isPremium ? 10 * 60 : 20 * 60
   return RECOVERY_SECONDS_DEFAULT

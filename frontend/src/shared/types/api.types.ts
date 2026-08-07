@@ -251,6 +251,17 @@ export const ARMOR_SLOT_LABELS: Record<string, string> = {
   HEAD: 'Голова', CHEST: 'Тело', LEGS: 'Ноги',
   FEET: 'Обувь',  HANDS: 'Руки', BELT: 'Пояс',
   BACK: 'Спина',  POCKET: 'Карманы', ACCESSORY: 'Акс.',
+  // слоты рук: в базе они есть, а подписей не было — в списке
+  // снаряжения светились сырые LEFT_HAND / RIGHT_HAND / GLOVES
+  LEFT_HAND: 'Левая рука', RIGHT_HAND: 'Правая рука', GLOVES: 'Перчатки',
+}
+
+/** Тип предмета: показывается, когда у вещи нет ни типа оружия, ни слота брони. */
+export const ITEM_TYPE_LABELS: Record<string, string> = {
+  WEAPON: 'Оружие',   ARMOR: 'Броня',
+  SHIELD: 'Щит',      ACCESSORY: 'Аксессуар',
+  CONSUMABLE: 'Расходник', RESOURCE: 'Сырьё',
+  COMPONENT: 'Деталь', UPGRADE_MODULE: 'Модуль улучшения',
 }
 
 export const QUALITY_LABELS: Record<string, string> = {

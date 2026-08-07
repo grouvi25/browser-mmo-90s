@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { WEAPON_TYPE_LABELS, type WeaponSkill } from '../../shared/types/api.types'
-import { BalanceConfigFE } from '../../shared/constants/balance'
 import { BarChart2, BookOpen } from 'lucide-react'
 
 // Порог опыта для каждого уровня навыка (из ТЗ)
@@ -121,7 +120,7 @@ export function SkillsPage() {
                     {lv === 5  && 'Урон 112.5%, +крит, +точность'}
                     {lv === 10 && 'Урон 125%, стабильность и эффективность'}
                     {lv === 15 && 'Урон 137.5%, высокая точность и крит'}
-                    {lv === 20 && 'Урон 150%, максимум → начинается антимастерство (WRES)'}
+                    {lv === 20 && 'Урон 150%, максимум → дальше растёт антимастерство'}
                   </td>
                 </tr>
               ))}

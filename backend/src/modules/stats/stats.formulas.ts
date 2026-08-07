@@ -120,7 +120,7 @@ export function calcRepairCost(
 // ---------------------------------------------------------------
 // Weapon durability loss — from TZ section 19.1
 // ---------------------------------------------------------------
-export function calcWeaponDurabilityLoss(attackActions: number): number {
+export function calcWeaponDurabilityLoss(_attackActions: number): number {
   // MVP simplified: 1 per attack action
   return BalanceConfig.durability.weaponLossPerBattle
 }

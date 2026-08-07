@@ -9,6 +9,8 @@
 import { Outlet } from 'react-router-dom'
 
 import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
+import { useIsMobile } from '../../shared/lib/use-media-query'
+import { MobileShell } from './mobile-shell'
 import { Stage } from '../../shared/lib/stage'
 import { PLATES } from '../../shared/ui/sprite'
 import { CharacterCard } from '../../widgets/character-card/character-card'
@@ -16,6 +18,11 @@ import { BottomTabs, DistrictTabs, TopNav } from '../../widgets/city-nav/city-na
 import { CityChat, OnlineList } from '../../widgets/city-feed/city-feed'
 
 export function GameShell() {
+  // Узкий экран получает свою композицию: сцена по макету на нём
+  // ужимается до нечитаемого. Данные и графика — те же.
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileShell />
+
   const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
 
   return (

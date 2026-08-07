@@ -9,9 +9,10 @@ import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
-import { MENU, MENU_STAGE, PROFILE, PROFILE_STAGE } from '../../shared/lib/layout-map'
-import { FitText, Stage, useViewportScale } from '../../shared/lib/stage'
-import { PLATES, SpriteButton } from '../../shared/ui/sprite'
+import { PROFILE, PROFILE_STAGE } from '../../shared/lib/layout-map'
+import { FitText, Stage } from '../../shared/lib/stage'
+import { useIsMobile } from '../../shared/lib/use-media-query'
+import { PLATES, Sprite, SpriteButton, SPRITES } from '../../shared/ui/sprite'
 import {
   ARCHETYPE_LABELS, WEAPON_TYPE_LABELS, type ItemInstance,
 } from '../../shared/types/api.types'
@@ -40,6 +41,7 @@ function weaponSprite(item?: ItemInstance): string {
 
 export function DossierPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [search, setSearch] = useState('')
   const [notes, setNotes] = useState(() => localStorage.getItem(NOTES_KEY) ?? '')
 
@@ -107,16 +109,68 @@ export function DossierPage() {
     name: 'Имя', sex: 'Кто', spouse: 'Жена', account: 'Акаунт',
   }
 
-  // Холст профиля вертикальный (A4), главного экрана — горизонтальный.
-  // Если считать масштаб независимо, профиль выходит заметно крупнее.
-  // Привязываем его к главному экрану так, чтобы портрет персонажа
-  // получался одного размера на обоих экранах.
-  const menuScale = useViewportScale(MENU_STAGE.w, MENU_STAGE.h, 'contain', 1.5)
-  const profileScale = menuScale * (MENU.card.portrait.w / PROFILE.portrait.w)
+  // На телефоне бумажный разворот участка милиции нечитаем целиком,
+  // поэтому те же данные показываем колонкой. Портрет и предметы —
+  // те же спрайты, что и на большом экране.
+  if (isMobile) {
+    return (
+      <div className="m-dossier">
+        <div className="m-dossier__bar">
+          <button type="button" onClick={() => navigate('/')}>← в город</button>
+          <span>Участок милиции</span>
+        </div>
+
+        <form onSubmit={submitSearch} className="m-dossier__search">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Найти человека —"
+            spellCheck={false}
+          />
+          <button type="submit">→</button>
+        </form>
+
+        <div className="m-dossier__head">
+          <img className="m-dossier__portrait" src={SPRITES['p-portrait']} alt="" draggable={false} />
+          <div className="m-dossier__fields">
+            <div className="m-dossier__title">Личное дело №{caseNumber(char?.id)}</div>
+            {PROFILE.fields.map(f => (
+              <div key={f.key} className="m-dossier__kv">
+                <span>{fieldLabels[f.key]}</span><b>{fieldValues[f.key]}</b>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="m-dossier__body">
+          {dossier.map((line, i) => <div key={i}>{line || ' '}</div>)}
+        </div>
+
+        <div className="m-dossier__slots">
+          <SpriteButton name={weaponSprite(weapon)} box={{ x: 0, y: 0, w: 92, h: 94 }} empty={!weapon}
+            title={weapon ? weapon.template.name : 'Оружие не надето'} onClick={() => navigate('/inventory')} />
+          <SpriteButton name="p-item-bat" box={{ x: 0, y: 0, w: 84, h: 88 }} empty={!offhand}
+            title={offhand ? offhand.template.name : 'Правая рука свободна'} onClick={() => navigate('/inventory')} />
+          <SpriteButton name="p-item-dog" box={{ x: 0, y: 0, w: 62, h: 93 }} disabled
+            title="Питомцы появятся в Этапе 3" />
+        </div>
+
+        <div className="m-dossier__notes">
+          <div className="m-dossier__title">Записная книжка</div>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Заметки для себя…"
+            spellCheck={false}
+          />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <Stage width={PROFILE_STAGE.w} height={PROFILE_STAGE.h}
-      scale={profileScale} className="stage--profile">
+      fit="contain" className="stage--profile">
       <div className="stage__plate" style={{ backgroundImage: plate }} />
 
       {/* поиск игрока — работает через /api/characters/by-nickname */}
@@ -147,6 +201,8 @@ export function DossierPage() {
         name="p-portrait" box={PROFILE.portrait} className="portrait-hot"
         title="Сменить портрет можно будет позже" onClick={() => navigate('/inventory')}
       />
+      <Sprite name="p-icon-energy" box={PROFILE.energyIcon} />
+      <Sprite name="p-icon-hp" box={PROFILE.hpIcon} />
       <FitText x={PROFILE.energyText.x} y={PROFILE.energyText.y} w={PROFILE.energyText.w}
         size={20.8} className="stat-num stat-num--energy" title="Боевой уровень">
         {char?.battleLevel ?? 0}

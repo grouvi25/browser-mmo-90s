@@ -1,8 +1,3 @@
-// Increase libuv thread pool for native bcrypt + filesystem ops
-// Default is 4; with clustering each worker gets its own pool
-// Set before any async work starts
-process.env.UV_THREADPOOL_SIZE = String(Math.max(8, require('os').cpus().length * 2))
-
 // NOTE: In production (Docker), env vars are set via docker-compose env_file
 import cluster from 'cluster'
 import os from 'os'
@@ -11,6 +6,12 @@ import { connectDb, disconnectDb } from './shared/db/prisma'
 import { disconnectRedis } from './shared/db/redis'
 import { AppConfig } from './config/app.config'
 import { logger } from './shared/logger/logger'
+
+// Increase libuv thread pool for native bcrypt + filesystem ops.
+// Default is 4; with clustering each worker gets its own pool.
+// Импорты вычисляются раньше тела модуля, поэтому значение выставляется
+// до любой асинхронной работы — как и требовалось.
+process.env.UV_THREADPOOL_SIZE = String(Math.max(8, os.cpus().length * 2))
 
 const CLUSTER_MODE = process.env.NODE_CLUSTER === 'true'
 const NUM_WORKERS  = parseInt(process.env.NODE_WORKERS ?? '0') || os.cpus().length

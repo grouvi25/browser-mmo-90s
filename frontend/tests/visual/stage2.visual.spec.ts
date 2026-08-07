@@ -37,7 +37,8 @@ async function authPage(page: Page, account: Account) {
 
 async function visualProof(page: Page, testInfo: TestInfo, name: string) {
   await expect(page.locator('body')).toBeVisible()
-  await expect(page.locator('.viewport')).toBeVisible()
+  // .viewport — рабочая область большого экрана, .m-view — мобильной оболочки
+  await expect(page.locator('.viewport, .m-view').first()).toBeVisible()
   const image = await page.screenshot({ animations: 'disabled' })
   await testInfo.attach(`${name}-${testInfo.project.name}`, { body: image, contentType: 'image/png' })
   const viewport = page.viewportSize()
@@ -93,8 +94,8 @@ test.describe('Stage 2 visual and browser flow', () => {
   test('E2 work page shows shift controls and six workplaces', async ({ page }, testInfo) => {
     await authPage(page, seller)
     await page.goto('/work')
-    await expect(page.getByText('Work shift')).toBeVisible()
-    await expect(page.getByText('Production objects')).toBeVisible()
+    await expect(page.getByText('Рабочая смена')).toBeVisible()
+    await expect(page.getByText('Объекты города')).toBeVisible()
     await expect(page.locator('tbody tr')).toHaveCount(6)
     await visualProof(page, testInfo, 'e2-work')
   })
@@ -102,7 +103,7 @@ test.describe('Stage 2 visual and browser flow', () => {
   test('E1 resources page shows weight and government inventory state', async ({ page }, testInfo) => {
     await authPage(page, seller)
     await page.goto('/resources')
-    await expect(page.getByText('Total weight:', { exact: false })).toBeVisible()
+    await expect(page.getByText('Общий вес:', { exact: false })).toBeVisible()
     await visualProof(page, testInfo, 'e1-resources')
   })
 
@@ -111,7 +112,10 @@ test.describe('Stage 2 visual and browser flow', () => {
     await page.goto('/shops/private')
     await expect(page.getByRole('button', { name: 'Коммерсант' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Оружейный гараж' })).toBeVisible()
-    await expect(page.getByText('Tier', { exact: true })).toBeVisible()
+    // Именно заголовок колонки: слово «Уровень» встречается и в карточке персонажа.
+    // Ищем селектором, а не ролью: на узком экране таблица переключается на блочное
+    // отображение, и роль columnheader у ячейки пропадает вместе с табличным контекстом.
+    await expect(page.locator('.data-table thead th', { hasText: 'Уровень' })).toBeAttached()
     await visualProof(page, testInfo, 'e3-private-shops')
   })
 
@@ -120,7 +124,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     await page.goto('/market')
     await expect(page.getByRole('link', { name: seller.nickname })).toBeVisible()
     const row = page.locator('tr').filter({ has: page.getByRole('link', { name: seller.nickname }) })
-    await expect(row.getByRole('button', { name: 'Buy' })).toBeVisible()
+    await expect(row.getByRole('button', { name: 'Купить' })).toBeVisible()
     await visualProof(page, testInfo, 'e4-market')
     const bought = await apiContext.post(`/api/market/listings/${listingId}/buy`, {
       headers: { Authorization: `Bearer ${buyer.token}`, 'Idempotency-Key': `visual-market-buy-${buyer.login}` },
@@ -131,13 +135,13 @@ test.describe('Stage 2 visual and browser flow', () => {
   test('E5 upgrades shows preview controls for buyer item', async ({ page }, testInfo) => {
     await authPage(page, buyer)
     await page.goto('/upgrades')
-    await expect(page.getByText('Item upgrades')).toBeVisible()
+    await expect(page.getByText('Улучшение вещей')).toBeVisible()
     const selector = page.locator('select').first()
     await expect(selector.locator('option')).toHaveCount(3)
     await page.locator('select').nth(1).selectOption('ARMOR')
     await selector.selectOption({ index: 1 })
-    await expect(page.getByText('Success chance:', { exact: false })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Commit upgrade' })).toBeVisible()
+    await expect(page.getByText('Шанс успеха:', { exact: false })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Улучшить' })).toBeVisible()
     await visualProof(page, testInfo, 'e5-upgrades')
   })
 
@@ -168,7 +172,8 @@ test.describe('Stage 2 visual and browser flow', () => {
     await authPage(page, seller)
     for (const route of ['/work', '/resources', '/shops/private', '/market', '/upgrades']) {
       await page.goto(route)
-      await expect(page.locator('.viewport')).toBeVisible()
+      // .viewport — рабочая область большого экрана, .m-view — мобильной оболочки
+  await expect(page.locator('.viewport, .m-view').first()).toBeVisible()
     }
     expect(errors).toEqual([])
   })

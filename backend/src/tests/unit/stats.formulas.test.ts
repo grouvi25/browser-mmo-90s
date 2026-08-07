@@ -4,7 +4,6 @@ import {
   calcCarryWeight,
   calcBattleExp,
   getLevelFromExp,
-  getExpForLevel,
   calcWeaponSkillExp,
   getWeaponSkillLevelFromExp,
   calcRepairCost,
@@ -81,7 +80,8 @@ describe('calcBattleExp', () => {
   it('large level diff reduces exp', () => {
     const same    = calcBattleExp(50, 20, 100, 0, 'PVP_WIN')
     const bigDiff = calcBattleExp(50, 20, 100, 15, 'PVP_WIN')
-    expect(bigDiff).toBe(0) // diff >= 15 → 0
+    expect(same).toBeGreaterThan(0) // равные уровни — опыт начисляется
+    expect(bigDiff).toBe(0)         // diff >= 15 → 0
   })
 
   it('more damage dealt = more exp', () => {

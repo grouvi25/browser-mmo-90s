@@ -99,9 +99,9 @@ describe('E2E: Full player cycle (Stage 1 TZ razdel 11)', () => {
     expect(bought.item.durabilityCurrent).toBeGreaterThan(0)
     expect(bought.newBalance).toBe(charBefore.money - weapon!.template.priceBase)
 
-    // CurrencyLog must exist
-    const logs = (await api('GET', `/api/admin/logs/currency`, undefined, token)).data
-    // Admin route requires admin token — skip this check in E2E for now
+    // Проверка CurrencyLog живёт в админском контуре: пользовательский
+    // токен на /api/admin/logs/currency получает отказ, и запрос здесь
+    // ничего не проверял.
   })
 
   it('11.2 Equip weapon', async () => {

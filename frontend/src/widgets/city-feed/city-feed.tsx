@@ -6,7 +6,7 @@
 // сокет-канал, меняется только этот хук: разметка и вёрстка
 // остаются как есть.
 // =============================================================
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
@@ -31,7 +31,7 @@ export interface OnlinePlayer {
 }
 
 /** Демо-лента района. Точка подключения реального канала. */
-const DEMO_CHAT: ChatMessage[] = [
+export const DEMO_CHAT: ChatMessage[] = [
   { id: '1', time: '16:31', nick: 'Hitman', tone: 1, text: 'Ну что, собрались наконец? У кого катриджи свежие?' },
   { id: '2', time: '16:32', nick: 'Бездушный гном', tone: 2, text: 'У меня только «Танчики» осталось, всё остальное батя на шкаф убрал.' },
   { id: '3', time: '16:33', nick: 'Кепка СССР', tone: 3, text: 'А я вчера у соседа «Чёрного Плаща» на вечер взял, только не говните джойстик, а!' },
@@ -40,7 +40,7 @@ const DEMO_CHAT: ChatMessage[] = [
   { id: '6', time: '16:35', nick: 'Кепка СССР', tone: 3, text: 'Я «Кислый дождик» купил! Могу поделиться — но только за первый ход!' },
 ]
 
-const DEMO_ONLINE: OnlinePlayer[] = [
+export const DEMO_ONLINE: OnlinePlayer[] = [
   { nick: 'ISHkA_88', level: 15, tone: 'r' },
   { nick: 'КоSoЛапЫй', level: 15, tone: 'r' },
   { nick: 'BATYA_90', level: 30, tone: 'c' },

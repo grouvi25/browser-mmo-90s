@@ -6,30 +6,55 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
 import { calcFinalSalary, calcProductionExp, getProductionLevelFromExp } from './work.formulas'
-import { WorkRedis } from './work.redis'
+const MAX_DAILY_SHIFTS = 8
+
+function utcDayRange(now = new Date()) {
+  const start = new Date(now)
+  start.setUTCHours(0, 0, 0, 0)
+  const end = new Date(start)
+  end.setUTCDate(end.getUTCDate() + 1)
+  return { start, end }
+}
 
 export const WorkService = {
   async listObjects(characterId: string) {
+    const { start, end } = utcDayRange()
     const [character, objects, used] = await Promise.all([
       prisma.character.findUniqueOrThrow({ where: { id: characterId } }),
       prisma.productionObject.findMany({ where: { isActive: true, status: 'ACTIVE' }, orderBy: { requiredProductionLevel: 'asc' } }),
-      WorkRedis.getDailyShifts(characterId),
+      prisma.workShift.count({ where: { characterId, startedAt: { gte: start, lt: end } } }),
     ])
-    return { items: objects.map(x => ({ ...x, locked: character.productionLevel < x.requiredProductionLevel })), daily: { shiftsUsedToday: used, shiftsLimit: WorkRedis.maxShifts } }
+    // Клиенту нужен не код ресурса, а его название — иначе в таблице
+    // выработки светится res_scrap_metal вместо «Металлолома».
+    const templates = await prisma.resourceTemplate.findMany({ select: { code: true, name: true } })
+    const names = new Map(templates.map(t => [t.code, t.name]))
+    return {
+      items: objects.map(x => ({
+        ...x,
+        producesResourceName: x.producesResourceCode ? names.get(x.producesResourceCode) ?? x.producesResourceCode : null,
+        locked: character.productionLevel < x.requiredProductionLevel,
+      })),
+      daily: { shiftsUsedToday: used, shiftsLimit: MAX_DAILY_SHIFTS },
+    }
   },
   async current(characterId: string) {
-    const shift = await prisma.workShift.findFirst({ where: { characterId, status: { in: ['ACTIVE','READY_TO_CLAIM'] } }, include: { productionObject: true }, orderBy: { createdAt: 'desc' } })
-    const used = await WorkRedis.getDailyShifts(characterId)
-    return { shift: shift ? { ...shift, isReady: shift.status === 'READY_TO_CLAIM' || shift.endsAt <= new Date(), remainingSeconds: Math.max(0, Math.ceil((shift.endsAt.getTime()-Date.now())/1000)) } : null, daily: { shiftsUsedToday: used, shiftsLimit: WorkRedis.maxShifts } }
+    const { start, end } = utcDayRange()
+    const [shift, used] = await Promise.all([
+      prisma.workShift.findFirst({ where: { characterId, status: { in: ['ACTIVE','READY_TO_CLAIM'] } }, include: { productionObject: true }, orderBy: { createdAt: 'desc' } }),
+      prisma.workShift.count({ where: { characterId, startedAt: { gte: start, lt: end } } }),
+    ])
+    return { shift: shift ? { ...shift, isReady: shift.status === 'READY_TO_CLAIM' || shift.endsAt <= new Date(), remainingSeconds: Math.max(0, Math.ceil((shift.endsAt.getTime()-Date.now())/1000)) } : null, daily: { shiftsUsedToday: used, shiftsLimit: MAX_DAILY_SHIFTS } }
   },
   async start(characterId: string, productionObjectId: string) {
-    if (!(await WorkRedis.tryConsumeDailyShift(characterId))) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
-    try {
-      return await withTransaction(async tx => {
-        const [character, object] = await Promise.all([
+    return withTransaction(async tx => {
+        const now = new Date()
+        const { start, end } = utcDayRange(now)
+        const [character, object, usedToday] = await Promise.all([
           tx.character.findUniqueOrThrow({ where: { id: characterId } }),
           tx.productionObject.findUnique({ where: { id: productionObjectId } }),
+          tx.workShift.count({ where: { characterId, startedAt: { gte: start, lt: end } } }),
         ])
+        if (usedToday >= MAX_DAILY_SHIFTS) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
         if (!object?.isActive || object.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object unavailable', 400)
         if (character.productionLevel < object.requiredProductionLevel) throw new AppError(ErrorCode.WORK_LEVEL_REQUIRED, 'Production level too low', 400)
         if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 400)
@@ -38,12 +63,11 @@ export const WorkService = {
         if (slots >= object.workerSlots) throw new AppError(ErrorCode.WORK_NO_SLOTS, 'No free worker slots', 409)
         const claimed = await tx.character.updateMany({ where: { id: characterId, status: 'ACTIVE' }, data: { status: 'WORKING' } })
         if (claimed.count !== 1) throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 409)
-        const now = new Date(); const endsAt = new Date(now.getTime() + object.shiftDurationMinutes * 60_000)
+        const endsAt = new Date(now.getTime() + object.shiftDurationMinutes * 60_000)
         const shift = await tx.workShift.create({ data: { characterId, productionObjectId, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: object.baseSalary } })
         await tx.productionLog.create({ data: { characterId, productionObjectId, eventType: 'SHIFT_STARTED', metadataJson: { shiftId: shift.id, endsAt } } })
         return { shift }
       })
-    } catch (e) { await WorkRedis.refundDailyShift(characterId); throw e }
   },
   async claim(characterId: string, shiftId: string, key: string) {
     return withIdempotency({ characterId, scope: 'work.shift.claim', key, execute: async tx => {

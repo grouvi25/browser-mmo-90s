@@ -11,7 +11,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { MENU, ZONE_ARMOR_SLOTS } from '../../shared/lib/layout-map'
 import { FitText, Layer } from '../../shared/lib/stage'
-import { Hotspot, SpriteButton } from '../../shared/ui/sprite'
+import { Hotspot, Sprite, SpriteButton } from '../../shared/ui/sprite'
 import type { ItemInstance } from '../../shared/types/api.types'
 import { ARMOR_SLOT_LABELS, WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
 
@@ -35,6 +35,9 @@ function weaponSprite(item: ItemInstance | undefined): string {
   if (t && ['PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY'].includes(t)) return 'item-ak'
   return 'item-bat'
 }
+
+/** Строк снаряжения помещается в бумагу карточки; остальное — ссылкой. */
+const GEAR_ROWS = 5
 
 export function CharacterCard() {
   const navigate = useNavigate()
@@ -101,6 +104,10 @@ export function CharacterCard() {
       />
 
       {/* ── показатели поверх портрета ───────────────────── */}
+      {/* Иконки вырезаны из подложки отдельными спрайтами, поэтому
+          рисуем их сами — иначе над цифрами будет пустое место. */}
+      <Sprite name="icon-energy" box={C.energyIcon} />
+      <Sprite name="icon-hp" box={C.hpIcon} />
       <FitText
         x={C.energyText.x} y={C.energyText.y} w={C.energyText.w}
         size={20.8} className="stat-num stat-num--energy"
@@ -130,7 +137,10 @@ export function CharacterCard() {
       {/* ── тело карточки: зависит от выбранной вкладки ──── */}
       {tab === 'overview' && (
         <>
-          {/* слоты снаряжения */}
+          {/* рамки слотов: вырезаны из подложки, поэтому рисуем их сами
+              и только здесь — на других вкладках карточка остаётся чистой */}
+          {C.slots.map(s => <Sprite key={s.key} name={`slot-frame-${s.key}`} box={s.frame} />)}
+
           <SpriteButton
             name={weaponSprite(weapon)}
             box={C.slots[0].box}
@@ -175,7 +185,7 @@ export function CharacterCard() {
 
           {/* подпись выбранной зоны */}
           {zone && (
-            <Layer box={{ x: 24, y: 800, w: 340, h: 26 }} className="card-note">
+            <Layer box={C.zoneNote} className="card-note">
               {ZONE_LABELS[zone]}: броня {zoneArmor[zone] ?? 0}
             </Layer>
           )}
@@ -183,10 +193,10 @@ export function CharacterCard() {
       )}
 
       {tab === 'gear' && (
-        <Layer box={{ x: 24, y: 528, w: 340, h: 300 }} className="card-list">
+        <Layer box={C.body} className="card-list">
           <div className="card-list__title">Надето</div>
           {equipped.length === 0 && <div className="card-list__empty">Ничего не надето</div>}
-          {equipped.map(i => (
+          {equipped.slice(0, GEAR_ROWS).map(i => (
             <button
               key={i.id}
               type="button"
@@ -202,11 +212,16 @@ export function CharacterCard() {
               <span className="card-list__dur">{i.durabilityCurrent}/{i.durabilityMax}</span>
             </button>
           ))}
+          {equipped.length > GEAR_ROWS && (
+            <button type="button" className="card-list__more" onClick={() => navigate('/inventory')}>
+              ещё {equipped.length - GEAR_ROWS} →
+            </button>
+          )}
         </Layer>
       )}
 
       {tab === 'person' && (
-        <Layer box={{ x: 24, y: 528, w: 340, h: 300 }} className="card-list">
+        <Layer box={C.body} className="card-list">
           <div className="card-list__title">Личное дело</div>
           <div className="card-list__kv"><span>Уровень</span><b>{char?.battleLevel ?? '—'}</b></div>
           <div className="card-list__kv"><span>Здоровье</span><b>{hp} / {char?.hpMax ?? '—'}</b></div>
@@ -222,7 +237,7 @@ export function CharacterCard() {
 
       {/* невидимая область: клик по бумаге карточки уводит в личное дело */}
       <Hotspot
-        box={{ x: 8, y: 160, w: 372, h: 28 }}
+        box={C.topStrip}
         title="Личное дело"
         className="card-topstrip"
         onClick={() => navigate('/profile')}

@@ -83,6 +83,7 @@ export function DistrictTabs() {
 
 export function BottomTabs() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   return (
     <>
@@ -91,9 +92,11 @@ export function BottomTabs() {
           key={t.key}
           x={t.x} y={t.y} w={t.w} size={MENU.bottomFontSize} dy={MENU.bottomDy}
           as="button"
-          className="t-sign stage-link is-locked"
-          onClick={() => navigate(`/soon/${t.key}`)}
-          title={`Откроется в Этапе ${t.stage}`}
+          className={'t-sign stage-link'
+            + (t.to.startsWith('/soon/') ? ' is-locked' : '')
+            + (location.pathname === t.to ? ' is-active' : '')}
+          onClick={() => navigate(t.to)}
+          title={t.to.startsWith('/soon/') ? 'Откроется на следующих этапах' : t.label}
         >
           {t.label}
         </FitText>

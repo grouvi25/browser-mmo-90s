@@ -1,5 +1,5 @@
 import { request } from './client'
-export interface ProductionObjectView { id:string; code:string; name:string; requiredProductionLevel:number; shiftDurationMinutes:number; baseSalary:number; baseProductionExp:number; producesResourceCode:string|null; outputAmountMin:number; outputAmountMax:number; locked:boolean }
+export interface ProductionObjectView { id:string; code:string; name:string; requiredProductionLevel:number; shiftDurationMinutes:number; baseSalary:number; baseProductionExp:number; producesResourceCode:string|null; producesResourceName:string|null; outputAmountMin:number; outputAmountMax:number; locked:boolean }
 export interface WorkShiftView { id:string; status:string; startedAt:string; endsAt:string; baseSalary:number; isReady:boolean; remainingSeconds:number; productionObject:{name:string;code:string} }
 export const workApi={
  objects:()=>request<{items:ProductionObjectView[];daily:{shiftsUsedToday:number;shiftsLimit:number}}>('/api/work/objects'),

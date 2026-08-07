@@ -1,6 +1,6 @@
 import { prisma } from '../../shared/db/prisma'
 import type { WeaponSkill, WeaponType } from '@prisma/client'
-import { calcWeaponSkillExp, getWeaponSkillLevelFromExp } from '../stats/stats.formulas'
+import { getWeaponSkillLevelFromExp } from '../stats/stats.formulas'
 
 export const WeaponSkillsRepository = {
   async findOrCreate(characterId: string, weaponType: WeaponType): Promise<WeaponSkill> {
