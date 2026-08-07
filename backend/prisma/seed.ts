@@ -231,6 +231,9 @@ async function main() {
     {code:'armor_boots_army_private',name:'Армейские берцы',type:'ARMOR' as const,armorSlot:'FEET' as const,armor:9,dodgeBonus:.03,weight:1.2,durabilityMax:100,priceBase:700,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,repairResourceCode:'comp_armor_plate'},
   ]
   for(const tpl of privateTemplates){await prisma.itemTemplate.upsert({where:{code:tpl.code},update:tpl,create:tpl})}
+  await prisma.itemTemplate.updateMany({where:{type:'WEAPON'},data:{craftProfessionCode:'gunsmith'}})
+  await prisma.itemTemplate.updateMany({where:{type:'ARMOR'},data:{craftProfessionCode:'cooperative_builder'}})
+  await prisma.itemTemplate.updateMany({where:{type:'CONSUMABLE'},data:{craftProfessionCode:'pharmacist'}})
   const privateItemRows=[['kommersant','armor_leather_jacket_private',900,'INFINITE',null],['kommersant','armor_army_vest_private',5200,'LIMITED',10],['kommersant','armor_boots_army_private',700,'INFINITE',null],['armory_garage','weapon_tt_private',2400,'INFINITE',null],['armory_garage','weapon_sawnoff_private',3900,'LIMITED',15]] as const
   for(const [shopCode,code,price,stockMode,stockAmount] of privateItemRows){const t=await prisma.itemTemplate.findUniqueOrThrow({where:{code}});await prisma.privateShopItem.upsert({where:{shopCode_itemTemplateId:{shopCode,itemTemplateId:t.id}},update:{price,stockMode,stockAmount,minBattleLevel:t.levelReq,isActive:true},create:{shopCode,itemTemplateId:t.id,price,stockMode,stockAmount,minBattleLevel:t.levelReq}})}
   const privateResourceRows=[['kommersant','comp_armor_plate',105],['kommersant','comp_repair_kit',68],['armory_garage','comp_weapon_part',90],['armory_garage','comp_repair_kit',68]] as const
@@ -245,8 +248,18 @@ async function main() {
     ['obj_small_factory','Цех на заводе','FACTORY',2,60,220,20,'comp_metal_plate',1,2,0],
     ['obj_parts_factory','Завод запчастей','FACTORY',3,90,300,28,'comp_weapon_part',1,1,0],
   ] as const
+  const objectProfessions: Record<string, string> = {
+    obj_warehouse_station: 'supplier',
+    obj_scrapyard: 'scrap_collector',
+    obj_market_loader: 'procurer',
+    obj_garage_workshop: 'foundry_worker',
+    obj_small_factory: 'carpenter',
+    obj_parts_factory: 'gunsmith',
+  }
   for(const [code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward] of productionObjects){
-    await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward}})
+    const requiredProfessionCode = objectProfessions[code]
+    const requiredProfessionLevel = Math.min(requiredProductionLevel, 3)
+    await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward}})
   }
   console.log(`  Production objects: ${productionObjects.length}`)
 

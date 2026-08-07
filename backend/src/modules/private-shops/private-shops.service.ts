@@ -19,7 +19,8 @@ export const PrivateShopsService={
   return withIdempotency({characterId,scope:'private-shop.buy',key,execute:async tx=>{
    const [character,entry]=await Promise.all([tx.character.findUniqueOrThrow({where:{id:characterId}}),tx.privateShopItem.findFirst({where:{id:privateShopItemId,shopCode,isActive:true}})])
    if(!entry)throw new AppError(ErrorCode.CONFLICT,'Shop item unavailable',404)
-   if(character.battleLevel<entry.minBattleLevel||character.economicLevel<entry.minEconomicLevel||character.productionLevel<entry.minProductionLevel)throw new AppError(ErrorCode.CONFLICT,'Requirements not met',403)
+   const profession=entry.minProfessionCode?await tx.characterProfession.findUnique({where:{characterId_professionCode:{characterId,professionCode:entry.minProfessionCode}}}):null
+   if(character.battleLevel<entry.minBattleLevel||character.economicLevel<entry.minEconomicLevel||(entry.minProfessionCode&&(profession?.level??0)<entry.minProfessionLevel))throw new AppError(ErrorCode.CONFLICT,'Requirements not met',403)
    if(entry.stockMode==='LIMITED'){
     const changed=await tx.privateShopItem.updateMany({where:{id:entry.id,stockAmount:{gte:quantity}},data:{stockAmount:{decrement:quantity}}})
     if(changed.count!==1)throw new AppError(ErrorCode.CONFLICT,'Out of stock',409)

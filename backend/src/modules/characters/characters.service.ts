@@ -64,15 +64,19 @@ export const CharactersService = {
     if (!char) {
       throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
     }
-    const activeShift = await prisma.workShift.findFirst({
-      where: { characterId: char.id, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } },
-      orderBy: { createdAt: 'desc' },
-    })
+    const [activeShift, professions] = await Promise.all([
+      prisma.workShift.findFirst({
+        where: { characterId: char.id, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.characterProfession.findMany({ where: { characterId: char.id }, orderBy: { professionCode: 'asc' } }),
+    ])
     return {
       ...char,
       economy: {
         productionLevel: char.productionLevel,
         productionExp: char.productionExp,
+        professions,
         economicLevel: char.economicLevel,
         economicExp: char.economicExp,
         activeShift,

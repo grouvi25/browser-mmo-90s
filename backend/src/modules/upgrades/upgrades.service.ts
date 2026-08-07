@@ -1,13 +1,91 @@
-import type{UpgradeType}from'@prisma/client'
-import{prisma}from'../../shared/db/prisma'
-import{withIdempotency}from'../../shared/db/idempotency'
-import{AppError}from'../../shared/errors/app-error'
-import{ErrorCode}from'../../shared/errors/error-codes'
-import{EconomyService}from'../economy/economy.service'
-import{ResourcesService}from'../resources/resources.service'
-import{applyUpgradeModifiers,calcUpgradeCost,calcUpgradeSuccessChance,isUpgradeCompatible,requiredUpgradeResource,type UpgradeKind}from'./upgrades.formulas'
-export const UpgradesService={
- async items(characterId:string){return prisma.itemInstance.findMany({where:{ownerId:characterId,status:{notIn:['DELETED','CONSUMED','BROKEN','ON_MARKET']},template:{type:{in:['WEAPON','ARMOR']},upgradeAllowed:true}},include:{template:true}})},
- async preview(characterId:string,itemInstanceId:string,upgradeType:UpgradeKind){const character=await prisma.character.findUniqueOrThrow({where:{id:characterId}});const item=await prisma.itemInstance.findUnique({where:{id:itemInstanceId},include:{template:true}});if(!item||item.ownerId!==characterId)throw new AppError(ErrorCode.ITEM_NOT_OWNED,'Not your item',403);if(!item.template.upgradeAllowed||!isUpgradeCompatible(item.template.type,upgradeType))throw new AppError(ErrorCode.CONFLICT,'Upgrade type is incompatible',400);if(item.status==='BROKEN'||item.status==='ON_MARKET')throw new AppError(ErrorCode.CONFLICT,'Item cannot be upgraded',409);if(item.upgradeLevel>=5)throw new AppError(ErrorCode.CONFLICT,'Maximum upgrade level reached',400);const next=item.upgradeLevel+1;const cost=calcUpgradeCost(item.template.priceBase,next);const chance=calcUpgradeSuccessChance(item.upgradeLevel,character.productionLevel);const required=requiredUpgradeResource(item.template.type,next);const template=await prisma.resourceTemplate.findUniqueOrThrow({where:{code:required.code}});const stack=await prisma.resourceStack.findUnique({where:{characterId_resourceTemplateId:{characterId,resourceTemplateId:template.id}}});const available=(stack?.amount??0)-(stack?.reservedAmount??0);const mods=(item.upgradeModifiersJson as Partial<Record<UpgradeKind,number>>|null)??{};const nextMods={...mods,[upgradeType]:(mods[upgradeType]??0)+1};return{itemId:item.id,upgradeType,currentTotalLevel:item.upgradeLevel,nextTotalLevel:next,cost,chance,requiredResources:[{resourceCode:required.code,resourceName:template.name,amount:required.amount,available,enough:available>=required.amount}],canCommit:character.money>=cost&&available>=required.amount,effectiveStats:applyUpgradeModifiers(item.template,nextMods)}} ,
- async commit(characterId:string,itemInstanceId:string,upgradeType:UpgradeKind,key:string,rng=Math.random){return withIdempotency({characterId,scope:'upgrades.commit',key,execute:async tx=>{const character=await tx.character.findUniqueOrThrow({where:{id:characterId}});if(['IN_BATTLE','WORKING'].includes(character.status))throw new AppError(ErrorCode.CONFLICT,'Character is busy',409);const item=await tx.itemInstance.findUnique({where:{id:itemInstanceId},include:{template:true}});if(!item||item.ownerId!==characterId)throw new AppError(ErrorCode.ITEM_NOT_OWNED,'Not your item',403);if(!item.template.upgradeAllowed||!isUpgradeCompatible(item.template.type,upgradeType))throw new AppError(ErrorCode.CONFLICT,'Upgrade unavailable',400);if(item.status==='BROKEN'||item.status==='ON_MARKET')throw new AppError(ErrorCode.CONFLICT,'Item cannot be upgraded',409);if(item.upgradeLevel>=5)throw new AppError(ErrorCode.CONFLICT,'Maximum upgrade level reached',400);const next=item.upgradeLevel+1;const cost=calcUpgradeCost(item.template.priceBase,next);const chance=calcUpgradeSuccessChance(item.upgradeLevel,character.productionLevel);const required=requiredUpgradeResource(item.template.type,next);const resource=await tx.resourceTemplate.findUniqueOrThrow({where:{code:required.code}});await ResourcesService.consume(tx,{characterId,resourceTemplateId:resource.id,amount:required.amount,reasonCode:'UPGRADE_USE',refType:'upgrade',refId:item.id});const newBalance=await EconomyService.debit(tx,{characterId,amount:cost,reasonCode:'UPGRADE_COST',refType:'upgrade',refId:item.id});const success=rng()<chance;const before=item.upgradeLevel;let after=before;if(success){const mods=(item.upgradeModifiersJson as Partial<Record<UpgradeKind,number>>|null)??{};const nextMods={...mods,[upgradeType]:(mods[upgradeType]??0)+1};const stats=applyUpgradeModifiers(item.template,nextMods);const oldMax=item.durabilityMax;const nextMax=upgradeType==='DURABILITY'?stats.durabilityMax:item.durabilityMax;const nextCurrent=upgradeType==='DURABILITY'?Math.round(item.durabilityCurrent*nextMax/oldMax):item.durabilityCurrent;after=next;await tx.itemInstance.update({where:{id:item.id},data:{upgradeLevel:after,upgradeModifiersJson:nextMods,durabilityMax:nextMax,durabilityCurrent:nextCurrent}})}await tx.upgradeLog.create({data:{characterId,itemInstanceId:item.id,upgradeType:upgradeType as UpgradeType,levelBefore:before,levelAfter:after,cost,successChance:chance,result:success?'SUCCESS':'FAILURE',resourcesSpentJson:[required],resultCode:success?'SUCCESS':'FAIL'}});await tx.itemLog.create({data:{itemId:item.id,characterId,actionCode:success?'UPGRADED':'UPGRADE_FAILED',details:{upgradeType,before,after,cost,chance,resource:required}}});return{itemId:item.id,success,upgradeType,levelBefore:before,levelAfter:after,cost,chance,resourceSpent:required,newBalance}}})}
+import type { UpgradeType } from '@prisma/client'
+import { prisma } from '../../shared/db/prisma'
+import { withIdempotency } from '../../shared/db/idempotency'
+import { AppError } from '../../shared/errors/app-error'
+import { ErrorCode } from '../../shared/errors/error-codes'
+import { EconomyService } from '../economy/economy.service'
+import { ResourcesService } from '../resources/resources.service'
+import { craftProfessionForItem } from '../professions/professions'
+import { applyUpgradeModifiers, calcUpgradeCost, calcUpgradeSuccessChance, isUpgradeCompatible, requiredUpgradeResource, type UpgradeKind } from './upgrades.formulas'
+
+async function professionLevel(characterId: string, itemType: string, configuredCode?: string | null) {
+  const professionCode = configuredCode ?? craftProfessionForItem(itemType)
+  const profession = await prisma.characterProfession.findUnique({
+    where: { characterId_professionCode: { characterId, professionCode } },
+  })
+  return { professionCode, level: profession?.level ?? 0 }
+}
+
+export const UpgradesService = {
+  async items(characterId: string) {
+    return prisma.itemInstance.findMany({
+      where: { ownerId: characterId, status: { notIn: ['DELETED', 'CONSUMED', 'BROKEN', 'ON_MARKET'] }, template: { type: { in: ['WEAPON', 'ARMOR'] }, upgradeAllowed: true } },
+      include: { template: true },
+    })
+  },
+
+  async preview(characterId: string, itemInstanceId: string, upgradeType: UpgradeKind) {
+    const character = await prisma.character.findUniqueOrThrow({ where: { id: characterId } })
+    const item = await prisma.itemInstance.findUnique({ where: { id: itemInstanceId }, include: { template: true } })
+    if (!item || item.ownerId !== characterId) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
+    if (!item.template.upgradeAllowed || !isUpgradeCompatible(item.template.type, upgradeType)) throw new AppError(ErrorCode.CONFLICT, 'Upgrade type is incompatible', 400)
+    if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.CONFLICT, 'Item cannot be upgraded', 409)
+    if (item.upgradeLevel >= 5) throw new AppError(ErrorCode.CONFLICT, 'Maximum upgrade level reached', 400)
+    const next = item.upgradeLevel + 1
+    const cost = calcUpgradeCost(item.template.priceBase, next)
+    const craft = await professionLevel(characterId, item.template.type, item.template.craftProfessionCode)
+    const chance = calcUpgradeSuccessChance(item.upgradeLevel, craft.level)
+    const required = requiredUpgradeResource(item.template.type, next)
+    const template = await prisma.resourceTemplate.findUniqueOrThrow({ where: { code: required.code } })
+    const stack = await prisma.resourceStack.findUnique({ where: { characterId_resourceTemplateId: { characterId, resourceTemplateId: template.id } } })
+    const available = (stack?.amount ?? 0) - (stack?.reservedAmount ?? 0)
+    const mods = (item.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}
+    const nextMods = { ...mods, [upgradeType]: (mods[upgradeType] ?? 0) + 1 }
+    return {
+      itemId: item.id, upgradeType, currentTotalLevel: item.upgradeLevel, nextTotalLevel: next,
+      cost, chance, profession: craft,
+      requiredResources: [{ resourceCode: required.code, resourceName: template.name, amount: required.amount, available, enough: available >= required.amount }],
+      canCommit: character.money >= cost && available >= required.amount,
+      effectiveStats: applyUpgradeModifiers(item.template, nextMods),
+    }
+  },
+
+  async commit(characterId: string, itemInstanceId: string, upgradeType: UpgradeKind, key: string, rng = Math.random) {
+    return withIdempotency({ characterId, scope: 'upgrades.commit', key, execute: async tx => {
+      const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
+      if (['IN_BATTLE', 'WORKING'].includes(character.status)) throw new AppError(ErrorCode.CONFLICT, 'Character is busy', 409)
+      const item = await tx.itemInstance.findUnique({ where: { id: itemInstanceId }, include: { template: true } })
+      if (!item || item.ownerId !== characterId) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
+      if (!item.template.upgradeAllowed || !isUpgradeCompatible(item.template.type, upgradeType)) throw new AppError(ErrorCode.CONFLICT, 'Upgrade unavailable', 400)
+      if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.CONFLICT, 'Item cannot be upgraded', 409)
+      if (item.upgradeLevel >= 5) throw new AppError(ErrorCode.CONFLICT, 'Maximum upgrade level reached', 400)
+      const next = item.upgradeLevel + 1
+      const cost = calcUpgradeCost(item.template.priceBase, next)
+      const professionCode = item.template.craftProfessionCode ?? craftProfessionForItem(item.template.type)
+      const craft = await tx.characterProfession.upsert({
+        where: { characterId_professionCode: { characterId, professionCode } }, update: {}, create: { characterId, professionCode },
+      })
+      const chance = calcUpgradeSuccessChance(item.upgradeLevel, craft.level)
+      const required = requiredUpgradeResource(item.template.type, next)
+      const resource = await tx.resourceTemplate.findUniqueOrThrow({ where: { code: required.code } })
+      await ResourcesService.consume(tx, { characterId, resourceTemplateId: resource.id, amount: required.amount, reasonCode: 'UPGRADE_USE', refType: 'upgrade', refId: item.id })
+      const newBalance = await EconomyService.debit(tx, { characterId, amount: cost, reasonCode: 'UPGRADE_COST', refType: 'upgrade', refId: item.id })
+      const success = rng() < chance
+      const before = item.upgradeLevel
+      let after = before
+      if (success) {
+        const mods = (item.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}
+        const nextMods = { ...mods, [upgradeType]: (mods[upgradeType] ?? 0) + 1 }
+        const stats = applyUpgradeModifiers(item.template, nextMods)
+        const oldMax = item.durabilityMax
+        const nextMax = upgradeType === 'DURABILITY' ? stats.durabilityMax : item.durabilityMax
+        const nextCurrent = upgradeType === 'DURABILITY' && oldMax > 0 ? Math.round(item.durabilityCurrent * nextMax / oldMax) : item.durabilityCurrent
+        after = next
+        await tx.itemInstance.update({ where: { id: item.id }, data: { upgradeLevel: after, upgradeModifiersJson: nextMods, durabilityMax: nextMax, durabilityCurrent: nextCurrent } })
+      }
+      await tx.upgradeLog.create({ data: { characterId, itemInstanceId: item.id, upgradeType: upgradeType as UpgradeType, levelBefore: before, levelAfter: after, cost, successChance: chance, result: success ? 'SUCCESS' : 'FAILURE', resourcesSpentJson: [required], resultCode: success ? 'SUCCESS' : 'FAIL' } })
+      await tx.itemLog.create({ data: { itemId: item.id, characterId, actionCode: success ? 'UPGRADED' : 'UPGRADE_FAILED', details: { upgradeType, before, after, cost, chance, professionCode, professionLevel: craft.level, resource: required } } })
+      return { itemId: item.id, success, upgradeType, levelBefore: before, levelAfter: after, cost, chance, profession: { code: professionCode, level: craft.level }, resourceSpent: required, newBalance }
+    } })
+  },
 }

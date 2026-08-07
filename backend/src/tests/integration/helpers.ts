@@ -19,6 +19,7 @@ export async function cleanDatabase(): Promise<void> {
     testPrisma.marketListing.deleteMany(),
     testPrisma.privateShopItem.deleteMany(),
     testPrisma.workShift.deleteMany(),
+    testPrisma.characterProfession.deleteMany(),
     testPrisma.resourceStack.deleteMany(),
     testPrisma.productionObject.deleteMany(),
     testPrisma.resourceTemplate.deleteMany(),

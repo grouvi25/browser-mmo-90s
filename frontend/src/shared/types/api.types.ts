@@ -45,6 +45,7 @@ export interface Character {
   economy?: {
     productionLevel: number
     productionExp: number
+    professions: Array<{ id:string; professionCode:string; level:number; exp:number; unlockedAt:string; updatedAt:string }>
     economicLevel: number
     economicExp: number
     activeShift: { id: string; status: string; startedAt: string; endsAt: string } | null

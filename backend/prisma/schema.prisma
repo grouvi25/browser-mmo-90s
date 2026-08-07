@@ -36,20 +36,20 @@ enum CharacterStatus {
 }
 
 enum CharacterArchetype {
-  ATHLETE       // Спортсмен   — +STR +END
-  WORKER        // Работяга    — +STR +END
-  SHUTTLE       // Челнок      — +ACC +LUCK
-  VETERAN       // Бывший срочник — +REA +ACC
-  STREET        // Уличный     — +AGI +AGR
-  MERCHANT      // Коммерсант  — +LUCK +AUTH
-  STUDENT       // Студент     — универсальный
-  RESOLVER      // Решала      — +AUTH
+  ATHLETE // Спортсмен   — +STR +END
+  WORKER // Работяга    — +STR +END
+  SHUTTLE // Челнок      — +ACC +LUCK
+  VETERAN // Бывший срочник — +REA +ACC
+  STREET // Уличный     — +AGI +AGR
+  MERCHANT // Коммерсант  — +LUCK +AUTH
+  STUDENT // Студент     — универсальный
+  RESOLVER // Решала      — +AUTH
 }
 
 enum ItemType {
   WEAPON
   ARMOR
-  SHIELD     // щит / защитное снаряжение для правой руки
+  SHIELD // щит / защитное снаряжение для правой руки
   ACCESSORY
   CONSUMABLE
   RESOURCE
@@ -61,16 +61,16 @@ enum ItemType {
 }
 
 enum WeaponType {
-  MELEE        // Рукопашка
-  KNIFE        // Ножи
-  CLUB         // Дубинки / арматура
-  PISTOL       // Пистолеты
-  SHOTGUN      // Дробовики
-  SMG          // Пистолеты-пулемёты
-  RIFLE        // Автоматы
-  SNIPER       // Винтовки
-  HEAVY        // Тяжёлое
-  THROWN       // Метательное / взрывчатка
+  MELEE // Рукопашка
+  KNIFE // Ножи
+  CLUB // Дубинки / арматура
+  PISTOL // Пистолеты
+  SHOTGUN // Дробовики
+  SMG // Пистолеты-пулемёты
+  RIFLE // Автоматы
+  SNIPER // Винтовки
+  HEAVY // Тяжёлое
+  THROWN // Метательное / взрывчатка
 }
 
 enum ArmorSlot {
@@ -78,10 +78,10 @@ enum ArmorSlot {
   CHEST
   LEGS
   FEET
-  HANDS      // оставляем для совместимости (старые предметы → GLOVES при рефакторинге)
-  LEFT_HAND  // основное оружие (новый слот)
+  HANDS // оставляем для совместимости (старые предметы → GLOVES при рефакторинге)
+  LEFT_HAND // основное оружие (новый слот)
   RIGHT_HAND // щит или доп. оружие
-  GLOVES     // перчатки (заменяет HANDS для новых предметов)
+  GLOVES // перчатки (заменяет HANDS для новых предметов)
   BELT
   BACK
   POCKET
@@ -89,12 +89,12 @@ enum ArmorSlot {
 }
 
 enum ItemQuality {
-  JUNK    // Хлам
-  COMMON  // Обычный
-  GOOD    // Хороший
-  RARE    // Редкий
-  NAMED   // Именной
-  UNIQUE  // Уникальный
+  JUNK // Хлам
+  COMMON // Обычный
+  GOOD // Хороший
+  RARE // Редкий
+  NAMED // Именной
+  UNIQUE // Уникальный
 }
 
 enum ItemStatus {
@@ -110,31 +110,31 @@ enum ItemStatus {
 }
 
 enum ItemSourceType {
-  GOVERNMENT  // Государственный магазин
-  WORKSHOP    // Мастерская / крафт
-  DONATE      // Донатный магазин (продаётся за игровые деньги)
-  PRIVATE     // Частный магазин (этап 2)
-  PREMIUM     // Премиум-магазин (этап 4)
-  DROP        // Дроп с боя / NPC
-  CRAFTED     // Скрафчено (этап 3)
-  ADMIN       // Выдано администратором
+  GOVERNMENT // Государственный магазин
+  WORKSHOP // Мастерская / крафт
+  DONATE // Донатный магазин (продаётся за игровые деньги)
+  PRIVATE // Частный магазин (этап 2)
+  PREMIUM // Премиум-магазин (этап 4)
+  DROP // Дроп с боя / NPC
+  CRAFTED // Скрафчено (этап 3)
+  ADMIN // Выдано администратором
 }
 
 enum BattleType {
-  PVE_BOT     // Бой с ботом
-  PVP_DUEL    // Простая PvP-дуэль
-  PVP_OPEN    // Открытая заявка (этап 2+)
-  CLAN        // Клановый бой (этап 4)
-  TERRITORY   // Бой за территорию (этап 4)
+  PVE_BOT // Бой с ботом
+  PVP_DUEL // Простая PvP-дуэль
+  PVP_OPEN // Открытая заявка (этап 2+)
+  CLAN // Клановый бой (этап 4)
+  TERRITORY // Бой за территорию (этап 4)
 }
 
 enum BattleStatus {
-  CREATED           // Создан, ждём игроков
-  WAITING_PLAYERS   // Ждём принятия (PvP)
-  ACTIVE            // Идёт
-  FINISHED          // Завершён
-  CANCELLED         // Отменён
-  TECHNICAL_WIN     // Техническая победа
+  CREATED // Создан, ждём игроков
+  WAITING_PLAYERS // Ждём принятия (PvP)
+  ACTIVE // Идёт
+  FINISHED // Завершён
+  CANCELLED // Отменён
+  TECHNICAL_WIN // Техническая победа
 }
 
 enum BattleAction {
@@ -148,22 +148,22 @@ enum BattleAction {
 
 // Зоны тела для зональной боёвки (модель Апехи)
 enum BodyZone {
-  HEAD       // голова
-  CHEST      // корпус
-  LEGS       // ноги
-  RIGHT_ARM  // правая рука
-  LEFT_ARM   // левая рука
+  HEAD // голова
+  CHEST // корпус
+  LEGS // ноги
+  RIGHT_ARM // правая рука
+  LEFT_ARM // левая рука
 }
 
 enum CurrencyLogReason {
-  SHOP_PURCHASE     // Покупка в магазине
-  SHOP_SELL         // Продажа магазину
-  BATTLE_REWARD     // Награда за бой
-  REPAIR_COST       // Стоимость ремонта
-  ADMIN_GRANT       // Выдача администратором
-  ADMIN_DEDUCT      // Снятие администратором
-  MARKET_SELL       // Продажа на рынке (этап 2)
-  MARKET_FEE        // Комиссия рынка (этап 2)
+  SHOP_PURCHASE // Покупка в магазине
+  SHOP_SELL // Продажа магазину
+  BATTLE_REWARD // Награда за бой
+  REPAIR_COST // Стоимость ремонта
+  ADMIN_GRANT // Выдача администратором
+  ADMIN_DEDUCT // Снятие администратором
+  MARKET_SELL // Продажа на рынке (этап 2)
+  MARKET_FEE // Комиссия рынка (этап 2)
   MARKET_BUY
   MARKET_LISTING_TAX
   MARKET_SELL_TAX
@@ -171,7 +171,7 @@ enum CurrencyLogReason {
   RESOURCE_SELL
   UPGRADE_COST
   ADMIN_ECONOMY_ADJUSTMENT
-  WORK_SALARY       // Зарплата за работу (этап 2)
+  WORK_SALARY // Зарплата за работу (этап 2)
 }
 
 enum ItemLogAction {
@@ -297,37 +297,37 @@ enum UpgradeLogResult {
 // =============================================================
 
 model User {
-  id              String      @id @default(uuid())
-  login           String      @unique
-  email           String      @unique
-  passwordHash    String      @map("password_hash")
-  status          UserStatus  @default(ACTIVE)
-  emailVerified   Boolean     @default(false) @map("email_verified")
-  banReason       String?     @map("ban_reason")
-  mutedUntil      DateTime?   @map("muted_until")
-  lastIp          String?     @map("last_ip")
-  lastUserAgent   String?     @map("last_user_agent")
-  lastLoginAt     DateTime?   @map("last_login_at")
-  registeredAt    DateTime    @default(now()) @map("registered_at")
+  id            String     @id @default(uuid())
+  login         String     @unique
+  email         String     @unique
+  passwordHash  String     @map("password_hash")
+  status        UserStatus @default(ACTIVE)
+  emailVerified Boolean    @default(false) @map("email_verified")
+  banReason     String?    @map("ban_reason")
+  mutedUntil    DateTime?  @map("muted_until")
+  lastIp        String?    @map("last_ip")
+  lastUserAgent String?    @map("last_user_agent")
+  lastLoginAt   DateTime?  @map("last_login_at")
+  registeredAt  DateTime   @default(now()) @map("registered_at")
 
   // Relations
-  character       Character?
-  sessions        Session[]
+  character Character?
+  sessions  Session[]
 
   @@map("users")
 }
 
 model Session {
-  id          String    @id @default(uuid())
-  userId      String    @map("user_id")
-  tokenHash   String    @unique @map("token_hash")  // sha256 of the JWT jti
-  expiresAt   DateTime  @map("expires_at")
-  ip          String?
-  userAgent   String?   @map("user_agent")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  revokedAt   DateTime? @map("revoked_at")
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash") // sha256 of the JWT jti
+  expiresAt DateTime  @map("expires_at")
+  ip        String?
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
 
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -339,88 +339,104 @@ model Session {
 // =============================================================
 
 model Character {
-  id                String            @id @default(uuid())
-  userId            String            @unique @map("user_id")
-  nickname          String            @unique
-  archetype         CharacterArchetype
-  avatar            String?
+  id        String             @id @default(uuid())
+  userId    String             @unique @map("user_id")
+  nickname  String             @unique
+  archetype CharacterArchetype
+  avatar    String?
 
   // Battle progression
-  battleLevel       Int               @default(1) @map("battle_level")
-  battleExp         Int               @default(0) @map("battle_exp")
+  battleLevel Int @default(1) @map("battle_level")
+  battleExp   Int @default(0) @map("battle_exp")
 
   // Economic progression (Stage 2+, зарезервировано)
-  economicLevel     Int               @default(0) @map("economic_level")
-  economicExp       Int               @default(0) @map("economic_exp")
+  economicLevel Int @default(0) @map("economic_level")
+  economicExp   Int @default(0) @map("economic_exp")
 
   // Production progression (Stage 2+, зарезервировано)
-  productionLevel   Int               @default(0) @map("production_level")
-  productionExp     Int               @default(0) @map("production_exp")
-  battleLoadoutJson Json?             @map("battle_loadout_json")
+  productionLevel   Int   @default(0) @map("production_level")
+  productionExp     Int   @default(0) @map("production_exp")
+  battleLoadoutJson Json? @map("battle_loadout_json")
 
   // Money
-  money             Int               @default(1250) // Стартовые деньги по ТЗ
+  money Int @default(1250) // Стартовые деньги по ТЗ
 
   // HP
-  hpCurrent         Int               @map("hp_current")
-  hpMax             Int               @map("hp_max")
+  hpCurrent Int @map("hp_current")
+  hpMax     Int @map("hp_max")
 
   // Status
-  status            CharacterStatus   @default(ACTIVE)
+  status CharacterStatus @default(ACTIVE)
 
   // Future hooks (задел на этапы 3-4)
-  clanId            String?           @map("clan_id")   // этап 3
-  locationId        String?           @map("location_id") // этап 2
+  clanId     String? @map("clan_id") // этап 3
+  locationId String? @map("location_id") // этап 2
 
   // Premium (задел этап 4)
-  isPremium         Boolean           @default(false) @map("is_premium")
-  premiumExpiresAt  DateTime?         @map("premium_expires_at")
+  isPremium        Boolean   @default(false) @map("is_premium")
+  premiumExpiresAt DateTime? @map("premium_expires_at")
 
   // Profile extras
-  battlesTotal      Int               @default(0) @map("battles_total")
-  battlesWon        Int               @default(0) @map("battles_won")
-  location          String?           // Текстовое местоположение
-  isInvisible       Boolean           @default(false) @map("is_invisible")
-  lastBattleFinishedAt DateTime?      @map("last_battle_finished_at") // для HP recovery
+  battlesTotal         Int       @default(0) @map("battles_total")
+  battlesWon           Int       @default(0) @map("battles_won")
+  location             String? // Текстовое местоположение
+  isInvisible          Boolean   @default(false) @map("is_invisible")
+  lastBattleFinishedAt DateTime? @map("last_battle_finished_at") // для HP recovery
 
-  createdAt         DateTime          @default(now()) @map("created_at")
-  lastActiveAt      DateTime          @default(now()) @map("last_active_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  lastActiveAt DateTime @default(now()) @map("last_active_at")
 
   // Relations
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stats             CharacterStats?
-  items             ItemInstance[]    @relation("OwnerItems")
-  weaponSkills      WeaponSkill[]
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stats                CharacterStats?
+  items                ItemInstance[]        @relation("OwnerItems")
+  weaponSkills         WeaponSkill[]
   battlesAsParticipant BattleParticipant[]
-  currencyLogs      CurrencyLog[]
-  itemLogs          ItemLog[]
-  repairLogs        RepairLog[]
-  workShifts        WorkShift[]
-  resourceStacks    ResourceStack[]
+  currencyLogs         CurrencyLog[]
+  itemLogs             ItemLog[]
+  repairLogs           RepairLog[]
+  workShifts           WorkShift[]
+  professions          CharacterProfession[]
+  resourceStacks       ResourceStack[]
 
   @@map("characters")
 }
 
+model CharacterProfession {
+  id             String    @id @default(uuid())
+  characterId    String    @map("character_id")
+  professionCode String    @map("profession_code")
+  level          Int       @default(0)
+  exp            Int       @default(0)
+  unlockedAt     DateTime  @default(now()) @map("unlocked_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  character      Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, professionCode])
+  @@index([characterId])
+  @@map("character_professions")
+}
+
 model CharacterStats {
-  id                String    @id @default(uuid())
-  characterId       String    @unique @map("character_id")
+  id          String @id @default(uuid())
+  characterId String @unique @map("character_id")
 
   // Base stats (из ТЗ раздел 17.1)
-  str               Int       @default(3)  // Сила
-  agi               Int       @default(3)  // Ловкость
-  rea               Int       @default(2)  // Реакция
-  acc               Int       @default(3)  // Меткость
-  end               Int       @default(3)  // Выносливость
-  luck              Int       @default(1)  // Фарт
-  agr               Int       @default(1)  // Агрессия
-  auth              Int       @default(1)  // Авторитет
+  str  Int @default(3) // Сила
+  agi  Int @default(3) // Ловкость
+  rea  Int @default(2) // Реакция
+  acc  Int @default(3) // Меткость
+  end  Int @default(3) // Выносливость
+  luck Int @default(1) // Фарт
+  agr  Int @default(1) // Агрессия
+  auth Int @default(1) // Авторитет
 
   // Available points to distribute
-  pointsAvailable   Int       @default(0) @map("points_available")
+  pointsAvailable Int @default(0) @map("points_available")
 
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  character         Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
   @@map("character_stats")
 }
@@ -430,95 +446,96 @@ model CharacterStats {
 // =============================================================
 
 model ItemTemplate {
-  id              String          @id @default(uuid())
-  code            String          @unique  // e.g. "weapon_knife_basic"
-  name            String
-  description     String?
-  type            ItemType
-  weaponType      WeaponType?     @map("weapon_type")
-  armorSlot       ArmorSlot?      @map("armor_slot")
+  id                  String      @id @default(uuid())
+  code                String      @unique // e.g. "weapon_knife_basic"
+  name                String
+  description         String?
+  type                ItemType
+  craftProfessionCode String?     @map("craft_profession_code")
+  weaponType          WeaponType? @map("weapon_type")
+  armorSlot           ArmorSlot?  @map("armor_slot")
 
   // Weapon stats
-  minDamage       Int?            @map("min_damage")
-  maxDamage       Int?            @map("max_damage")
-  weaponAccuracy  Float?          @default(0.7) @map("weapon_accuracy")
-  critBonus       Float?          @default(0.0) @map("crit_bonus")
-  critDamageBonus Float?          @default(0.0) @map("crit_damage_bonus")
-  blockPierce     Float?          @default(0.0) @map("block_pierce")
+  minDamage       Int?   @map("min_damage")
+  maxDamage       Int?   @map("max_damage")
+  weaponAccuracy  Float? @default(0.7) @map("weapon_accuracy")
+  critBonus       Float? @default(0.0) @map("crit_bonus")
+  critDamageBonus Float? @default(0.0) @map("crit_damage_bonus")
+  blockPierce     Float? @default(0.0) @map("block_pierce")
 
   // Armor stats
-  armor           Int?            @default(0)
-  dodgeBonus      Float?          @default(0.0) @map("dodge_bonus")
-  antiCrit        Float?          @default(0.0) @map("anti_crit")
-  blockBonus      Float?          @default(0.0) @map("block_bonus")
-  hpBonus         Int?            @default(0) @map("hp_bonus")
+  armor      Int?   @default(0)
+  dodgeBonus Float? @default(0.0) @map("dodge_bonus")
+  antiCrit   Float? @default(0.0) @map("anti_crit")
+  blockBonus Float? @default(0.0) @map("block_bonus")
+  hpBonus    Int?   @default(0) @map("hp_bonus")
 
   // Distance (зональная боёвка): дальность оружия. Ближнее = 1 (только вплотную)
-  optimalRange    Int?            @default(1) @map("optimal_range")
-  maxRange        Int?            @default(1) @map("max_range")
+  optimalRange Int? @default(1) @map("optimal_range")
+  maxRange     Int? @default(1) @map("max_range")
 
   // Physical
-  weight          Float           @default(1.0)
-  durabilityMax   Int             @default(100) @map("durability_max")
-  qualityBase     ItemQuality     @default(COMMON) @map("quality_base")
-  priceBase       Int             @default(100) @map("price_base")
-  itemTier        Int             @default(1) @map("item_tier")
-  requiredRepairParts Json?       @map("required_repair_parts")
-  requiredUpgradeParts Json?      @map("required_upgrade_parts")
-  privateShopAllowed Boolean      @default(false) @map("private_shop_allowed")
-  upgradeAllowed     Boolean      @default(false) @map("upgrade_allowed")
-  repairResourceCode String?      @map("repair_resource_code")
+  weight               Float       @default(1.0)
+  durabilityMax        Int         @default(100) @map("durability_max")
+  qualityBase          ItemQuality @default(COMMON) @map("quality_base")
+  priceBase            Int         @default(100) @map("price_base")
+  itemTier             Int         @default(1) @map("item_tier")
+  requiredRepairParts  Json?       @map("required_repair_parts")
+  requiredUpgradeParts Json?       @map("required_upgrade_parts")
+  privateShopAllowed   Boolean     @default(false) @map("private_shop_allowed")
+  upgradeAllowed       Boolean     @default(false) @map("upgrade_allowed")
+  repairResourceCode   String?     @map("repair_resource_code")
 
   // Requirements
-  levelReq        Int             @default(0) @map("level_req")
-  skillReq        Int             @default(0) @map("skill_req")   // мин. уровень навыка
-  strReq          Int             @default(0) @map("str_req")
+  levelReq Int @default(0) @map("level_req")
+  skillReq Int @default(0) @map("skill_req") // мин. уровень навыка
+  strReq   Int @default(0) @map("str_req")
 
   // Meta
-  sourceType      ItemSourceType  @default(GOVERNMENT) @map("source_type")
-  isActive        Boolean         @default(true) @map("is_active")
-  isSellable      Boolean         @default(true) @map("is_sellable")
-  isEquippable    Boolean         @default(true) @map("is_equippable")
-  isTradeable     Boolean         @default(true) @map("is_tradeable")
+  sourceType   ItemSourceType @default(GOVERNMENT) @map("source_type")
+  isActive     Boolean        @default(true) @map("is_active")
+  isSellable   Boolean        @default(true) @map("is_sellable")
+  isEquippable Boolean        @default(true) @map("is_equippable")
+  isTradeable  Boolean        @default(true) @map("is_tradeable")
 
-  createdAt       DateTime        @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  instances       ItemInstance[]
-  shopEntries     GovernmentShopItem[]
+  instances   ItemInstance[]
+  shopEntries GovernmentShopItem[]
 
   @@map("item_templates")
 }
 
 model ItemInstance {
-  id              String          @id @default(uuid())
-  templateId      String          @map("template_id")
-  ownerId         String          @map("owner_id")
+  id         String @id @default(uuid())
+  templateId String @map("template_id")
+  ownerId    String @map("owner_id")
 
-  quality         ItemQuality     @default(COMMON)
-  durabilityCurrent Int           @map("durability_current")
-  durabilityMax   Int             @map("durability_max")
-  upgradeLevel    Int             @default(0) @map("upgrade_level")
-  upgradeModifiersJson Json?      @map("upgrade_modifiers_json")
+  quality              ItemQuality @default(COMMON)
+  durabilityCurrent    Int         @map("durability_current")
+  durabilityMax        Int         @map("durability_max")
+  upgradeLevel         Int         @default(0) @map("upgrade_level")
+  upgradeModifiersJson Json?       @map("upgrade_modifiers_json")
 
-  status          ItemStatus      @default(NORMAL)
-  isEquipped      Boolean         @default(false) @map("is_equipped")
-  armorSlot       ArmorSlot?      @map("armor_slot")  // если экипировано, какой слот
+  status     ItemStatus @default(NORMAL)
+  isEquipped Boolean    @default(false) @map("is_equipped")
+  armorSlot  ArmorSlot? @map("armor_slot") // если экипировано, какой слот
 
-  weight          Float
-  sourceType      ItemSourceType  @map("source_type")
+  weight     Float
+  sourceType ItemSourceType @map("source_type")
 
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  template        ItemTemplate    @relation(fields: [templateId], references: [id])
-  owner           Character       @relation("OwnerItems", fields: [ownerId], references: [id], onDelete: Cascade)
-  itemLogs        ItemLog[]
-  repairLogs      RepairLog[]
+  template   ItemTemplate @relation(fields: [templateId], references: [id])
+  owner      Character    @relation("OwnerItems", fields: [ownerId], references: [id], onDelete: Cascade)
+  itemLogs   ItemLog[]
+  repairLogs RepairLog[]
 
   // Battle: участник может использовать/менять оружие
-  battleTurnsWeapon BattleTurn[]   @relation("TurnWeapon")
+  battleTurnsWeapon BattleTurn[] @relation("TurnWeapon")
 
   @@index([ownerId])
   @@index([templateId])
@@ -531,13 +548,13 @@ model ItemInstance {
 // =============================================================
 
 model GovernmentShopItem {
-  id            String        @id @default(uuid())
-  templateId    String        @map("template_id")
-  isAvailable   Boolean       @default(true) @map("is_available")
-  overridePrice Int?          @map("override_price")  // если null — берём priceBase
-  sortOrder     Int           @default(0) @map("sort_order")
+  id            String  @id @default(uuid())
+  templateId    String  @map("template_id")
+  isAvailable   Boolean @default(true) @map("is_available")
+  overridePrice Int?    @map("override_price") // если null — берём priceBase
+  sortOrder     Int     @default(0) @map("sort_order")
 
-  template      ItemTemplate  @relation(fields: [templateId], references: [id])
+  template ItemTemplate @relation(fields: [templateId], references: [id])
 
   @@unique([templateId])
   @@map("shop_items_government")
@@ -548,26 +565,26 @@ model GovernmentShopItem {
 // =============================================================
 
 model Bot {
-  id              String    @id @default(uuid())
-  code            String    @unique  // e.g. "training_bandit", "basic_gangster"
-  name            String
-  battleLevel     Int       @default(1) @map("battle_level")
-  power           Int       @default(10)
-  hpMax           Int       @map("hp_max")
+  id          String @id @default(uuid())
+  code        String @unique // e.g. "training_bandit", "basic_gangster"
+  name        String
+  battleLevel Int    @default(1) @map("battle_level")
+  power       Int    @default(10)
+  hpMax       Int    @map("hp_max")
 
   // Stats as JSON (same structure as CharacterStats)
-  stats           Json      // { str, agi, rea, acc, end, luck, agr }
+  stats Json // { str, agi, rea, acc, end, luck, agr }
 
   // Equipment as JSON list of template codes
-  equipment       Json      // { mainWeapon: "code", armor: {...} }
+  equipment Json // { mainWeapon: "code", armor: {...} }
 
   // Reward config
-  expReward       Int       @default(10) @map("exp_reward")
-  moneyRewardMin  Int       @default(0) @map("money_reward_min")
-  moneyRewardMax  Int       @default(0) @map("money_reward_max")
+  expReward      Int @default(10) @map("exp_reward")
+  moneyRewardMin Int @default(0) @map("money_reward_min")
+  moneyRewardMax Int @default(0) @map("money_reward_max")
 
-  isActive        Boolean   @default(true) @map("is_active")
-  createdAt       DateTime  @default(now()) @map("created_at")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
 
   battleParticipants BattleParticipant[]
 
@@ -579,37 +596,37 @@ model Bot {
 // =============================================================
 
 model Battle {
-  id              String        @id @default(uuid())
-  type            BattleType
-  status          BattleStatus  @default(CREATED)
+  id     String       @id @default(uuid())
+  type   BattleType
+  status BattleStatus @default(CREATED)
 
-  winnerId        String?       @map("winner_id")   // legacy character_id or bot_id
-  winnerParticipantId String?   @unique @map("winner_participant_id")
+  winnerId            String? @map("winner_id") // legacy character_id or bot_id
+  winnerParticipantId String? @unique @map("winner_participant_id")
 
-  roundCount      Int           @default(0) @map("round_count")
-  maxRounds       Int           @default(30) @map("max_rounds")   // автопобеда если превышено
+  roundCount Int @default(0) @map("round_count")
+  maxRounds  Int @default(30) @map("max_rounds") // автопобеда если превышено
 
   // Anti-abuse flags
-  isSuspicious    Boolean       @default(false) @map("is_suspicious")
-  suspicionReason String?       @map("suspicion_reason")
+  isSuspicious    Boolean @default(false) @map("is_suspicious")
+  suspicionReason String? @map("suspicion_reason")
 
   // PvP level range (кто может присоединиться)
-  levelMin        Int           @default(1)  @map("level_min")
-  levelMax        Int           @default(99) @map("level_max")
+  levelMin Int @default(1) @map("level_min")
+  levelMax Int @default(99) @map("level_max")
 
   // Redis key for live state (not stored in DB during battle)
   // battle:{id}:state — in Redis
   // battle:{id}:lock  — distributed lock in Redis
 
   // Timing
-  startedAt       DateTime?     @map("started_at")
-  finishedAt      DateTime?     @map("finished_at")
-  createdAt       DateTime      @default(now()) @map("created_at")
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   // Relations
-  participants    BattleParticipant[]
-  winnerParticipant BattleParticipant? @relation("BattleWinner", fields: [winnerParticipantId], references: [id])
-  turns           BattleTurn[]
+  participants      BattleParticipant[]
+  winnerParticipant BattleParticipant?  @relation("BattleWinner", fields: [winnerParticipantId], references: [id])
+  turns             BattleTurn[]
 
   @@index([status])
   @@index([createdAt])
@@ -617,34 +634,34 @@ model Battle {
 }
 
 model BattleParticipant {
-  id              String    @id @default(uuid())
-  battleId        String    @map("battle_id")
-  characterId     String?   @map("character_id")  // null если бот
-  botId           String?   @map("bot_id")         // null если игрок
-  side            Int       @default(1)             // 1 или 2 для клановых боёв
+  id          String  @id @default(uuid())
+  battleId    String  @map("battle_id")
+  characterId String? @map("character_id") // null если бот
+  botId       String? @map("bot_id") // null если игрок
+  side        Int     @default(1) // 1 или 2 для клановых боёв
 
   // Snapshot at battle start
-  hpMax           Int       @map("hp_max")
-  hpCurrent       Int       @map("hp_current")
+  hpMax     Int @map("hp_max")
+  hpCurrent Int @map("hp_current")
 
-  isAlive         Boolean   @default(true) @map("is_alive")
-  isSurrendered   Boolean   @default(false) @map("is_surrendered")
+  isAlive       Boolean @default(true) @map("is_alive")
+  isSurrendered Boolean @default(false) @map("is_surrendered")
 
   // Stats
-  damageDealt     Int       @default(0) @map("damage_dealt")
-  damageReceived  Int       @default(0) @map("damage_received")
-  hitsLanded      Int       @default(0) @map("hits_landed")
-  hitsTaken       Int       @default(0) @map("hits_taken")
-  critLanded      Int       @default(0) @map("crit_landed")
-  expGained       Int       @default(0) @map("exp_gained")
-  moneyGained     Int       @default(0) @map("money_gained")
+  damageDealt    Int @default(0) @map("damage_dealt")
+  damageReceived Int @default(0) @map("damage_received")
+  hitsLanded     Int @default(0) @map("hits_landed")
+  hitsTaken      Int @default(0) @map("hits_taken")
+  critLanded     Int @default(0) @map("crit_landed")
+  expGained      Int @default(0) @map("exp_gained")
+  moneyGained    Int @default(0) @map("money_gained")
 
-  createdAt       DateTime  @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  battle          Battle    @relation(fields: [battleId], references: [id], onDelete: Cascade)
-  wonBattle       Battle?   @relation("BattleWinner")
-  character       Character? @relation(fields: [characterId], references: [id])
-  bot             Bot?       @relation(fields: [botId], references: [id])
+  battle    Battle     @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  wonBattle Battle?    @relation("BattleWinner")
+  character Character? @relation(fields: [characterId], references: [id])
+  bot       Bot?       @relation(fields: [botId], references: [id])
 
   @@unique([battleId, characterId])
   @@index([battleId])
@@ -653,58 +670,58 @@ model BattleParticipant {
 }
 
 model BattleTurn {
-  id              String        @id @default(uuid())
-  battleId        String        @map("battle_id")
-  roundNumber     Int           @map("round_number")
+  id          String @id @default(uuid())
+  battleId    String @map("battle_id")
+  roundNumber Int    @map("round_number")
 
   // Actor (character or bot)
-  actorCharId     String?       @map("actor_char_id")
-  actorBotId      String?       @map("actor_bot_id")
+  actorCharId String? @map("actor_char_id")
+  actorBotId  String? @map("actor_bot_id")
 
   // Target
-  targetCharId    String?       @map("target_char_id")
-  targetBotId     String?       @map("target_bot_id")
+  targetCharId String? @map("target_char_id")
+  targetBotId  String? @map("target_bot_id")
 
-  action          BattleAction
-  weaponId        String?       @map("weapon_id")   // ItemInstance used
+  action   BattleAction
+  weaponId String?      @map("weapon_id") // ItemInstance used
 
   // Tactical grid movement
-  fromX           Int?          @map("from_x")
-  fromY           Int?          @map("from_y")
-  toX             Int?          @map("to_x")
-  toY             Int?          @map("to_y")
+  fromX Int? @map("from_x")
+  fromY Int? @map("from_y")
+  toX   Int? @map("to_x")
+  toY   Int? @map("to_y")
 
   // Zonal combat
-  zone            BodyZone?                          // зона удара
-  blockPierced    Boolean       @default(false) @map("block_pierced")  // удачный удар пробил блок
+  zone         BodyZone? // зона удара
+  blockPierced Boolean   @default(false) @map("block_pierced") // удачный удар пробил блок
 
   // Results
-  hit             Boolean       @default(false)
-  dodge           Boolean       @default(false)
-  block           Boolean       @default(false)
-  crit            Boolean       @default(false)
+  hit   Boolean @default(false)
+  dodge Boolean @default(false)
+  block Boolean @default(false)
+  crit  Boolean @default(false)
 
-  rawDamage       Int           @default(0) @map("raw_damage")
-  finalDamage     Int           @default(0) @map("final_damage")
+  rawDamage   Int @default(0) @map("raw_damage")
+  finalDamage Int @default(0) @map("final_damage")
 
   // HP tracking
-  targetHpBefore  Int           @default(0) @map("target_hp_before")
-  targetHpAfter   Int           @default(0) @map("target_hp_after")
+  targetHpBefore Int @default(0) @map("target_hp_before")
+  targetHpAfter  Int @default(0) @map("target_hp_after")
 
   // Durability
-  weaponDurLoss   Int           @default(0) @map("weapon_dur_loss")
-  armorDurLoss    Int           @default(0) @map("armor_dur_loss")
+  weaponDurLoss Int @default(0) @map("weapon_dur_loss")
+  armorDurLoss  Int @default(0) @map("armor_dur_loss")
 
   // Weapon skill exp gained this turn
-  weaponSkillExp  Float         @default(0) @map("weapon_skill_exp")
+  weaponSkillExp Float @default(0) @map("weapon_skill_exp")
 
   // Human readable log line for frontend
-  logLine         String?       @map("log_line")
+  logLine String? @map("log_line")
 
-  createdAt       DateTime      @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  battle          Battle        @relation(fields: [battleId], references: [id], onDelete: Cascade)
-  weapon          ItemInstance? @relation("TurnWeapon", fields: [weaponId], references: [id])
+  battle Battle        @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  weapon ItemInstance? @relation("TurnWeapon", fields: [weaponId], references: [id])
 
   @@index([battleId, roundNumber])
   @@map("battle_turns")
@@ -715,23 +732,23 @@ model BattleTurn {
 // =============================================================
 
 model WeaponSkill {
-  id                String      @id @default(uuid())
-  characterId       String      @map("character_id")
-  weaponType        WeaponType  @map("weapon_type")
+  id          String     @id @default(uuid())
+  characterId String     @map("character_id")
+  weaponType  WeaponType @map("weapon_type")
 
-  skillLevel        Int         @default(1) @map("skill_level")
-  skillExp          Float       @default(0) @map("skill_exp")
+  skillLevel Int   @default(1) @map("skill_level")
+  skillExp   Float @default(0) @map("skill_exp")
 
   // Anti-mastery (защита от типа оружия, растёт после 20 уровня)
-  antiSkillLevel    Int         @default(0) @map("anti_skill_level")
-  antiSkillExp      Float       @default(0) @map("anti_skill_exp")
+  antiSkillLevel Int   @default(0) @map("anti_skill_level")
+  antiSkillExp   Float @default(0) @map("anti_skill_exp")
 
   // Premium multiplier (задел этап 4)
-  premiumMultiplier Float       @default(1.0) @map("premium_multiplier")
+  premiumMultiplier Float @default(1.0) @map("premium_multiplier")
 
-  updatedAt         DateTime    @updatedAt @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  character         Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
   @@unique([characterId, weaponType])
   @@index([characterId])
@@ -743,213 +760,229 @@ model WeaponSkill {
 // =============================================================
 
 model ProductionObject {
-  id String @id @default(uuid())
-  code String @unique
-  name String
-  type ProductionObjectType
-  status ProductionObjectStatus @default(ACTIVE)
-  ownerType OwnerType @default(SYSTEM) @map("owner_type")
-  ownerCharacterId String? @map("owner_character_id")
-  ownerClanId String? @map("owner_clan_id")
-  locationId String? @map("location_id")
-  level Int @default(1)
-  workerSlots Int @default(10) @map("worker_slots")
-  shiftDurationMinutes Int @map("shift_duration_minutes")
-  baseSalary Int @map("base_salary")
-  baseProductionExp Int @map("base_production_exp")
-  requiredProductionLevel Int @default(0) @map("required_production_level")
-  producesResourceCode String? @map("produces_resource_code")
-  outputAmountMin Int @default(0) @map("output_amount_min")
-  outputAmountMax Int @default(0) @map("output_amount_max")
-  economicExpReward Int @default(0) @map("economic_exp_reward")
-  balance Int @default(0)
-  durabilityCurrent Int @default(100) @map("durability_current")
-  durabilityMax Int @default(100) @map("durability_max")
-  isActive Boolean @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  shifts WorkShift[]
-  logs ProductionLog[]
+  id                      String                 @id @default(uuid())
+  code                    String                 @unique
+  name                    String
+  type                    ProductionObjectType
+  status                  ProductionObjectStatus @default(ACTIVE)
+  ownerType               OwnerType              @default(SYSTEM) @map("owner_type")
+  ownerCharacterId        String?                @map("owner_character_id")
+  ownerClanId             String?                @map("owner_clan_id")
+  locationId              String?                @map("location_id")
+  level                   Int                    @default(1)
+  workerSlots             Int                    @default(10) @map("worker_slots")
+  shiftDurationMinutes    Int                    @map("shift_duration_minutes")
+  baseSalary              Int                    @map("base_salary")
+  baseProductionExp       Int                    @map("base_production_exp")
+  requiredProductionLevel Int                    @default(0) @map("required_production_level") // legacy aggregate only
+  requiredProfessionCode  String                 @default("scrap_collector") @map("required_profession_code")
+  requiredProfessionLevel Int                    @default(0) @map("required_profession_level")
+  producesResourceCode    String?                @map("produces_resource_code")
+  outputAmountMin         Int                    @default(0) @map("output_amount_min")
+  outputAmountMax         Int                    @default(0) @map("output_amount_max")
+  economicExpReward       Int                    @default(0) @map("economic_exp_reward")
+  balance                 Int                    @default(0)
+  durabilityCurrent       Int                    @default(100) @map("durability_current")
+  durabilityMax           Int                    @default(100) @map("durability_max")
+  isActive                Boolean                @default(true) @map("is_active")
+  createdAt               DateTime               @default(now()) @map("created_at")
+  updatedAt               DateTime               @updatedAt @map("updated_at")
+  shifts                  WorkShift[]
+  logs                    ProductionLog[]
+
   @@map("production_objects")
 }
 
 model WorkShift {
-  id String @id @default(uuid())
-  characterId String @map("character_id")
-  productionObjectId String @map("production_object_id")
-  status WorkShiftStatus @default(ACTIVE)
-  startedAt DateTime @map("started_at")
-  endsAt DateTime @map("ends_at")
-  claimedAt DateTime? @map("claimed_at")
-  baseSalary Int @map("base_salary")
-  finalSalary Int? @map("final_salary")
-  productionExpReward Int? @map("production_exp_reward")
-  resourceRewardCode String? @map("resource_reward_code")
-  resourceRewardAmount Int? @map("resource_reward_amount")
-  failureReason String? @map("failure_reason")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  productionObject ProductionObject @relation(fields: [productionObjectId], references: [id])
+  id                   String           @id @default(uuid())
+  characterId          String           @map("character_id")
+  productionObjectId   String           @map("production_object_id")
+  status               WorkShiftStatus  @default(ACTIVE)
+  startedAt            DateTime         @map("started_at")
+  endsAt               DateTime         @map("ends_at")
+  claimedAt            DateTime?        @map("claimed_at")
+  baseSalary           Int              @map("base_salary")
+  finalSalary          Int?             @map("final_salary")
+  productionExpReward  Int?             @map("production_exp_reward") // legacy field
+  professionCode       String           @default("scrap_collector") @map("profession_code")
+  professionExpReward  Int?             @map("profession_exp_reward")
+  resourceRewardCode   String?          @map("resource_reward_code")
+  resourceRewardAmount Int?             @map("resource_reward_amount")
+  failureReason        String?          @map("failure_reason")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+  character            Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  productionObject     ProductionObject @relation(fields: [productionObjectId], references: [id])
+
   @@index([characterId, status])
   @@index([status, endsAt])
   @@map("work_shifts")
 }
 
 model ResourceTemplate {
-  id String @id @default(uuid())
-  code String @unique
-  name String
-  description String?
-  category ResourceCategory
-  tier Int @default(1)
-  basePrice Int @map("base_price")
-  weight Float @default(0)
-  isTradable Boolean @default(true) @map("is_tradable")
-  isRepairMaterial Boolean @default(false) @map("is_repair_material")
-  isUpgradeMaterial Boolean @default(false) @map("is_upgrade_material")
-  isActive Boolean @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  stacks ResourceStack[]
+  id                String           @id @default(uuid())
+  code              String           @unique
+  name              String
+  description       String?
+  category          ResourceCategory
+  tier              Int              @default(1)
+  basePrice         Int              @map("base_price")
+  weight            Float            @default(0)
+  isTradable        Boolean          @default(true) @map("is_tradable")
+  isRepairMaterial  Boolean          @default(false) @map("is_repair_material")
+  isUpgradeMaterial Boolean          @default(false) @map("is_upgrade_material")
+  isActive          Boolean          @default(true) @map("is_active")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  stacks            ResourceStack[]
+
   @@map("resource_templates")
 }
 
 model ResourceStack {
-  id String @id @default(uuid())
-  characterId String @map("character_id")
-  resourceTemplateId String @map("resource_template_id")
-  amount Int @default(0)
-  reservedAmount Int @default(0) @map("reserved_amount")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  template ResourceTemplate @relation(fields: [resourceTemplateId], references: [id])
+  id                 String           @id @default(uuid())
+  characterId        String           @map("character_id")
+  resourceTemplateId String           @map("resource_template_id")
+  amount             Int              @default(0)
+  reservedAmount     Int              @default(0) @map("reserved_amount")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  character          Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  template           ResourceTemplate @relation(fields: [resourceTemplateId], references: [id])
+
   @@unique([characterId, resourceTemplateId])
   @@index([characterId])
   @@map("resource_stacks")
 }
 
 model PrivateShopItem {
-  id String @id @default(uuid())
-  shopCode String @map("shop_code")
-  itemTemplateId String? @map("item_template_id")
-  resourceTemplateId String? @map("resource_template_id")
-  price Int
-  stockMode StockMode @default(INFINITE) @map("stock_mode")
-  stockAmount Int? @map("stock_amount")
-  minBattleLevel Int @default(0) @map("min_battle_level")
-  minEconomicLevel Int @default(0) @map("min_economic_level")
-  minProductionLevel Int @default(0) @map("min_production_level")
-  isActive Boolean @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  @@index([shopCode, isActive])
+  id                 String    @id @default(uuid())
+  shopCode           String    @map("shop_code")
+  itemTemplateId     String?   @map("item_template_id")
+  resourceTemplateId String?   @map("resource_template_id")
+  price              Int
+  stockMode          StockMode @default(INFINITE) @map("stock_mode")
+  stockAmount        Int?      @map("stock_amount")
+  minBattleLevel     Int       @default(0) @map("min_battle_level")
+  minEconomicLevel   Int       @default(0) @map("min_economic_level")
+  minProductionLevel Int       @default(0) @map("min_production_level") // legacy aggregate only
+  minProfessionCode  String?   @map("min_profession_code")
+  minProfessionLevel Int       @default(0) @map("min_profession_level")
+  isActive           Boolean   @default(true) @map("is_active")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
   @@unique([shopCode, itemTemplateId])
   @@unique([shopCode, resourceTemplateId])
+  @@index([shopCode, isActive])
   @@map("private_shop_items")
 }
 
 model MarketListing {
-  id String @id @default(uuid())
-  sellerCharacterId String @map("seller_character_id")
-  buyerCharacterId String? @map("buyer_character_id")
-  type MarketListingType
-  status MarketListingStatus @default(ACTIVE)
-  itemInstanceId String? @map("item_instance_id")
-  resourceTemplateId String? @map("resource_template_id")
-  resourceAmount Int? @map("resource_amount")
-  price Int
-  listingFee Int @map("listing_fee")
-  saleTax Int? @map("sale_tax")
-  expiresAt DateTime @map("expires_at")
-  soldAt DateTime? @map("sold_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  id                 String              @id @default(uuid())
+  sellerCharacterId  String              @map("seller_character_id")
+  buyerCharacterId   String?             @map("buyer_character_id")
+  type               MarketListingType
+  status             MarketListingStatus @default(ACTIVE)
+  itemInstanceId     String?             @map("item_instance_id")
+  resourceTemplateId String?             @map("resource_template_id")
+  resourceAmount     Int?                @map("resource_amount")
+  price              Int
+  listingFee         Int                 @map("listing_fee")
+  saleTax            Int?                @map("sale_tax")
+  expiresAt          DateTime            @map("expires_at")
+  soldAt             DateTime?           @map("sold_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+
   @@index([status, expiresAt])
   @@index([sellerCharacterId, status])
   @@map("market_listings")
 }
 
 model UpgradeLog {
-  id String @id @default(uuid())
-  characterId String @map("character_id")
-  itemInstanceId String @map("item_instance_id")
-  upgradeType UpgradeType @map("upgrade_type")
-  levelBefore Int @map("level_before")
-  levelAfter Int @map("level_after")
-  cost Int
-  successChance Float @map("success_chance")
-  result UpgradeLogResult
-  resourcesSpentJson Json? @map("resources_spent_json")
-  resultCode String @map("result_code")
-  createdAt DateTime @default(now()) @map("created_at")
+  id                 String           @id @default(uuid())
+  characterId        String           @map("character_id")
+  itemInstanceId     String           @map("item_instance_id")
+  upgradeType        UpgradeType      @map("upgrade_type")
+  levelBefore        Int              @map("level_before")
+  levelAfter         Int              @map("level_after")
+  cost               Int
+  successChance      Float            @map("success_chance")
+  result             UpgradeLogResult
+  resourcesSpentJson Json?            @map("resources_spent_json")
+  resultCode         String           @map("result_code")
+  createdAt          DateTime         @default(now()) @map("created_at")
+
   @@index([characterId, createdAt])
   @@map("upgrade_logs")
 }
 
 model ProductionLog {
-  id String @id @default(uuid())
-  characterId String? @map("character_id")
-  productionObjectId String @map("production_object_id")
-  eventType ProductionLogEvent @map("event_type")
-  metadataJson Json? @map("metadata_json")
-  createdAt DateTime @default(now()) @map("created_at")
-  productionObject ProductionObject @relation(fields: [productionObjectId], references: [id])
+  id                 String             @id @default(uuid())
+  characterId        String?            @map("character_id")
+  productionObjectId String             @map("production_object_id")
+  eventType          ProductionLogEvent @map("event_type")
+  metadataJson       Json?              @map("metadata_json")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  productionObject   ProductionObject   @relation(fields: [productionObjectId], references: [id])
+
   @@index([productionObjectId, createdAt])
   @@map("production_logs")
 }
 
 model ResourceLog {
-  id String @id @default(uuid())
-  characterId String @map("character_id")
-  resourceTemplateId String @map("resource_template_id")
-  amountDelta Int @map("amount_delta")
-  balanceAfter Int @map("balance_after")
-  reasonCode ResourceLogReason @map("reason_code")
-  refType String?
-  refId String? @map("ref_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  id                 String            @id @default(uuid())
+  characterId        String            @map("character_id")
+  resourceTemplateId String            @map("resource_template_id")
+  amountDelta        Int               @map("amount_delta")
+  balanceAfter       Int               @map("balance_after")
+  reasonCode         ResourceLogReason @map("reason_code")
+  refType            String?
+  refId              String?           @map("ref_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+
   @@index([characterId, createdAt])
   @@map("resource_logs")
 }
 
 model IdempotencyKey {
-  id String @id @default(uuid())
-  characterId String @map("character_id")
-  scope String
-  key String
-  responseJson Json @map("response_json")
-  createdAt DateTime @default(now()) @map("created_at")
-  expiresAt DateTime @map("expires_at")
+  id           String   @id @default(uuid())
+  characterId  String   @map("character_id")
+  scope        String
+  key          String
+  responseJson Json     @map("response_json")
+  createdAt    DateTime @default(now()) @map("created_at")
+  expiresAt    DateTime @map("expires_at")
+
   @@unique([characterId, scope, key])
   @@index([expiresAt])
   @@map("idempotency_keys")
 }
 
 model CurrencyLog {
-  id            String              @id @default(uuid())
-  characterId   String              @map("character_id")
-  amount        Int                 // положительный — приход, отрицательный — расход
-  balanceAfter  Int                 @map("balance_after")
-  reasonCode    CurrencyLogReason   @map("reason_code")
-  refId         String?             @map("ref_id")    // id связанной сущности (battle_id, item_id, etc.)
-  refType       String?             @map("ref_type")  // 'battle' | 'item' | 'repair' | 'shop'
-  note          String?
-  createdAt     DateTime            @default(now()) @map("created_at")
+  id           String            @id @default(uuid())
+  characterId  String            @map("character_id")
+  amount       Int // положительный — приход, отрицательный — расход
+  balanceAfter Int               @map("balance_after")
+  reasonCode   CurrencyLogReason @map("reason_code")
+  refId        String?           @map("ref_id") // id связанной сущности (battle_id, item_id, etc.)
+  refType      String?           @map("ref_type") // 'battle' | 'item' | 'repair' | 'shop'
+  note         String?
+  createdAt    DateTime          @default(now()) @map("created_at")
 
-  character     Character           @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
   @@index([characterId, createdAt])
   @@map("currency_logs")
 }
 
 model ItemLog {
-  id            String          @id @default(uuid())
-  itemId        String          @map("item_id")
-  characterId   String          @map("character_id")
-  actionCode    ItemLogAction   @map("action_code")
-  details       Json?           // { before: ..., after: ..., reason: ... }
-  createdAt     DateTime        @default(now()) @map("created_at")
+  id          String        @id @default(uuid())
+  itemId      String        @map("item_id")
+  characterId String        @map("character_id")
+  actionCode  ItemLogAction @map("action_code")
+  details     Json? // { before: ..., after: ..., reason: ... }
+  createdAt   DateTime      @default(now()) @map("created_at")
 
-  item          ItemInstance    @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  character     Character       @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  item      ItemInstance @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  character Character    @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
   @@index([itemId, createdAt])
   @@index([characterId, createdAt])
@@ -957,16 +990,16 @@ model ItemLog {
 }
 
 model RepairLog {
-  id                String        @id @default(uuid())
-  characterId       String        @map("character_id")
-  itemId            String        @map("item_id")
-  cost              Int
-  durabilityBefore  Int           @map("durability_before")
-  durabilityAfter   Int           @map("durability_after")
-  repairedAt        DateTime      @default(now()) @map("repaired_at")
+  id               String   @id @default(uuid())
+  characterId      String   @map("character_id")
+  itemId           String   @map("item_id")
+  cost             Int
+  durabilityBefore Int      @map("durability_before")
+  durabilityAfter  Int      @map("durability_after")
+  repairedAt       DateTime @default(now()) @map("repaired_at")
 
-  character         Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  item              ItemInstance  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  character Character    @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  item      ItemInstance @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([characterId])
   @@index([itemId])
@@ -978,13 +1011,13 @@ model RepairLog {
 // =============================================================
 
 model AdminUser {
-  id            String      @id @default(uuid())
-  username      String      @unique
-  passwordHash  String      @map("password_hash")
-  role          AdminRole   @default(SUPPORT)
-  isActive      Boolean     @default(true) @map("is_active")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  lastLoginAt   DateTime?   @map("last_login_at")
+  id           String    @id @default(uuid())
+  username     String    @unique
+  passwordHash String    @map("password_hash")
+  role         AdminRole @default(SUPPORT)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastLoginAt  DateTime? @map("last_login_at")
 
   @@map("admin_users")
 }
