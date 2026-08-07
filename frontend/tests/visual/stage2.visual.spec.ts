@@ -92,7 +92,8 @@ test.describe('Stage 2 visual and browser flow', () => {
   })
 
   test('expired session redirects instead of rendering empty Stage 2 data', async ({ page }) => {
-    await page.addInitScript(() => {
+    await page.goto('/login')
+    await page.evaluate(() => {
       localStorage.setItem('mmo_token', 'expired-token')
       localStorage.setItem('mmo_user', JSON.stringify({ userId: 'expired', login: 'expired' }))
     })
