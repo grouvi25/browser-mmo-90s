@@ -84,10 +84,13 @@ async function main(): Promise<void> {
   assert(Array.isArray(loadout.itemInstanceIds), 'Battle loadout contract is invalid')
 
   const work = await jsonRequest('/api/work/objects', { headers }) as {
-    items?: unknown[]
+    items?: Array<{ requiredProfessionCode?: string; requiredProfessionLevel?: number; profession?: { code?: string; level?: number } }>
+    professions?: unknown[]
     daily?: { shiftsLimit?: number }
   }
   assert(Array.isArray(work.items) && work.items.length >= 6, 'Production object seed is incomplete')
+  assert(work.items.every(item => typeof item.requiredProfessionCode === 'string' && typeof item.requiredProfessionLevel === 'number' && item.profession?.code === item.requiredProfessionCode), 'Profession object contract is invalid')
+  assert(Array.isArray(work.professions), 'Character professions contract is invalid')
   assert(work.daily?.shiftsLimit === 8, 'Daily shift limit contract is invalid')
 
   const currentShift = await jsonRequest('/api/work/shifts/current', { headers }) as { daily?: { shiftsLimit?: number } }
