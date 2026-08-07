@@ -151,7 +151,7 @@ test.describe('Stage 2 visual and browser flow', () => {
 
     for (const route of routes) {
       await page.goto(route)
-      await expect(page.locator('.viewport')).toBeVisible()
+      await expect(page.locator('.viewport, .m-view').first()).toBeVisible()
       await page.keyboard.press('Tab')
       await expect(page.locator(':focus')).not.toHaveCount(0)
 
