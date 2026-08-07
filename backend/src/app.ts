@@ -83,8 +83,15 @@ export async function buildApp() {
     if (err.statusCode === 429) {
       return reply.code(429).send({ code: 'GEN_004', message: 'Rate limited' })
     }
-    logger.error({ err }, 'Unhandled error')
-    return reply.code(500).send({ code: 'GEN_003', message: 'Internal server error' })
+    const databaseCode = typeof (err as { code?: unknown }).code === 'string'
+      ? (err as { code: string }).code
+      : undefined
+    logger.error({ err, databaseCode }, 'Unhandled error')
+    return reply.code(500).send({
+      code: 'GEN_003',
+      message: 'Internal server error',
+      ...(databaseCode ? { details: { databaseCode } } : {}),
+    })
   })
 
   fastify.get('/health', { config: { rateLimit: false } }, async () => ({
