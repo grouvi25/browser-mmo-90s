@@ -91,6 +91,16 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(errors).toEqual([])
   })
 
+  test('expired session redirects instead of rendering empty Stage 2 data', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('mmo_token', 'expired-token')
+      localStorage.setItem('mmo_user', JSON.stringify({ userId: 'expired', login: 'expired' }))
+    })
+    await page.goto('/work')
+    await expect(page).toHaveURL(/\/login\?reason=session-expired$/)
+    await expect(page.locator('form')).toBeVisible()
+  })
+
   test('E2 work page shows shift controls and six workplaces', async ({ page }, testInfo) => {
     await authPage(page, seller)
     await page.goto('/work')

@@ -62,6 +62,12 @@ export async function request<T>(
   })
 
   if (!res.ok) {
+    if (res.status === 401 && !noAuth) {
+      removeToken()
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login?reason=session-expired')
+      }
+    }
     let errorData: { code?: string; message?: string; details?: unknown } = {}
     try {
       errorData = await res.json()
