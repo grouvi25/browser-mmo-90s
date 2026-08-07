@@ -46,7 +46,7 @@ export const UpgradesService = {
       cost, chance, profession: craft,
       requiredResources: [{ resourceCode: required.code, resourceName: template.name, amount: required.amount, available, enough: available >= required.amount }],
       canCommit: character.money >= cost && available >= required.amount,
-      effectiveStats: applyUpgradeModifiers(item.template, nextMods),
+      effectiveStats: applyUpgradeModifiers(item.template, nextMods, item.statAllocation),
     }
   },
 
@@ -76,7 +76,7 @@ export const UpgradesService = {
       if (success) {
         const mods = (item.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}
         const nextMods = { ...mods, [upgradeType]: (mods[upgradeType] ?? 0) + 1 }
-        const stats = applyUpgradeModifiers(item.template, nextMods)
+        const stats = applyUpgradeModifiers(item.template, nextMods, item.statAllocation)
         const oldMax = item.durabilityMax
         const nextMax = upgradeType === 'DURABILITY' ? stats.durabilityMax : item.durabilityMax
         const nextCurrent = upgradeType === 'DURABILITY' && oldMax > 0 ? Math.round(item.durabilityCurrent * nextMax / oldMax) : item.durabilityCurrent

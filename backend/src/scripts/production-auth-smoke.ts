@@ -73,10 +73,11 @@ async function main(): Promise<void> {
 
   const profile = await jsonRequest('/api/characters/me', { headers }) as {
     id?: string
-    economy?: { productionLevel?: number; economicLevel?: number; activeShift?: unknown }
+    economy?: { productionLevel?: number; professions?: unknown[]; economicLevel?: number; activeShift?: unknown }
   }
   assert(profile.id, 'Character profile is missing')
-  assert(typeof profile.economy?.productionLevel === 'number', 'Profile production level is missing')
+  assert(typeof profile.economy?.productionLevel === 'number', 'Profile production aggregate is missing')
+  assert(Array.isArray(profile.economy?.professions), 'Profile professions contract is missing')
   assert(typeof profile.economy?.economicLevel === 'number', 'Profile economic level is missing')
   assert('activeShift' in (profile.economy ?? {}), 'Profile activeShift is missing')
 

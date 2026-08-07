@@ -88,18 +88,17 @@ export const WorkService = {
       ])
       if (usedToday >= MAX_DAILY_SHIFTS) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
       if (!object?.isActive || object.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object unavailable', 400)
-      const profession = await tx.characterProfession.upsert({
+      const existingProfession = await tx.characterProfession.findUnique({
         where: { characterId_professionCode: { characterId, professionCode: object.requiredProfessionCode } },
-        update: {},
-        create: { characterId, professionCode: object.requiredProfessionCode },
       })
-      if (profession.level < object.requiredProfessionLevel) throw new AppError(ErrorCode.WORK_LEVEL_REQUIRED, 'Profession level too low', 400)
+      if ((existingProfession?.level ?? 0) < object.requiredProfessionLevel) throw new AppError(ErrorCode.WORK_LEVEL_REQUIRED, 'Profession level too low', 400)
       if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 400)
       if (await tx.workShift.findFirst({ where: { characterId, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } } })) throw new AppError(ErrorCode.WORK_ACTIVE_SHIFT, 'Active shift already exists', 409)
       const slots = await tx.workShift.count({ where: { productionObjectId, status: 'ACTIVE' } })
       if (slots >= object.workerSlots) throw new AppError(ErrorCode.WORK_NO_SLOTS, 'No free worker slots', 409)
       const claimed = await tx.character.updateMany({ where: { id: characterId, status: 'ACTIVE' }, data: { status: 'WORKING' } })
       if (claimed.count !== 1) throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 409)
+      const profession = existingProfession ?? await tx.characterProfession.create({ data: { characterId, professionCode: object.requiredProfessionCode } })
       const endsAt = new Date(now.getTime() + object.shiftDurationMinutes * 60_000)
       const shift = await tx.workShift.create({
         data: { characterId, productionObjectId, professionCode: object.requiredProfessionCode, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: object.baseSalary },

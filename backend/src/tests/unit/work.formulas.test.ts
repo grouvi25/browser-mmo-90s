@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { calcFinalSalary, calcProductionExp, dailyShiftSalaryCoeff, getProductionLevelFromExp, objectLevelCoeff, workerEfficiency } from '../../modules/work/work.formulas'
 describe('work formulas',()=>{
- it('maps production exp to capped PL thresholds',()=>{expect(getProductionLevelFromExp(0)).toBe(0);expect(getProductionLevelFromExp(50)).toBe(1);expect(getProductionLevelFromExp(10999)).toBe(9);expect(getProductionLevelFromExp(11000)).toBe(10);expect(getProductionLevelFromExp(999999)).toBe(10)})
+ it('maps legacy aggregate through exact TZ 2.2 profession thresholds',()=>{expect(getProductionLevelFromExp(0)).toBe(0);expect(getProductionLevelFromExp(499)).toBe(0);expect(getProductionLevelFromExp(500)).toBe(1);expect(getProductionLevelFromExp(16000)).toBe(5);expect(getProductionLevelFromExp(30000)).toBe(6);expect(getProductionLevelFromExp(999999)).toBe(6)})
  it('uses 3% efficiency per PL',()=>{expect(workerEfficiency(0)).toBe(1);expect(workerEfficiency(3)).toBeCloseTo(1.09)})
  it('uses 25% coefficient per object level',()=>{expect(objectLevelCoeff(1)).toBe(1);expect(objectLevelCoeff(3)).toBe(1.5)})
  it('keeps the first shift full and applies bounded fatigue through shift eight',()=>{expect(dailyShiftSalaryCoeff(1)).toBe(1);expect(dailyShiftSalaryCoeff(4)).toBeCloseTo(.4);expect(dailyShiftSalaryCoeff(8)).toBeCloseTo(.2);expect(dailyShiftSalaryCoeff(99)).toBeCloseTo(.2)})

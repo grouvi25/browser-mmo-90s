@@ -7,15 +7,26 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { withTransaction } from '../../shared/db/transaction'
 import { audit } from '../../shared/logger/audit-logger'
 import { z } from 'zod'
+import { ITEM_STAT_KEYS } from '../items/item-stats.formulas'
+import { ItemStatsService } from '../items/item-stats.service'
 
 const EquipSchema = z.object({ itemInstanceId: z.string().uuid() })
 const UnequipSchema = z.object({ armorSlot: z.string().optional(), itemInstanceId: z.string().uuid().optional() })
+const AllocateSchema = z.object({ itemInstanceId: z.string().uuid(), stat: z.enum(ITEM_STAT_KEYS), points: z.number().int().min(1).max(100) })
 
 export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
     const char = await CharactersRepository.findByUserId(req.authUser.userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
     return reply.send(await ItemsRepository.findByOwner(char.id))
+  })
+
+  fastify.post('/allocate-points', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
+    const parsed = AllocateSchema.safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const char = await CharactersRepository.findByUserId(req.authUser.userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    return reply.send(await ItemStatsService.allocate(char.id, parsed.data.itemInstanceId, parsed.data.stat, parsed.data.points))
   })
 
   fastify.post('/equip', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {

@@ -4,7 +4,7 @@ import { Shield, Backpack, Swords, Pill, X, Trash2, ShoppingBag } from 'lucide-r
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { shopApi } from '../../shared/api/shop.api'
 import {
-  WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, ITEM_TYPE_LABELS, QUALITY_LABELS, type ItemInstance
+  WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, ITEM_TYPE_LABELS, QUALITY_LABELS, type ItemInstance, type ItemStatKey
 } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
@@ -111,6 +111,15 @@ export function InventoryPage() {
     onError: (err) => { showMsg('error', err instanceof ApiError ? err.message : 'Ошибка') },
   })
 
+  const allocateMut = useMutation({
+    mutationFn: ({ id, stat }: { id: string; stat: ItemStatKey }) => inventoryApi.allocatePoints(id, stat),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory'] })
+      showMsg('success', 'Очко характеристики распределено')
+    },
+    onError: (err) => showMsg('error', err instanceof ApiError ? err.message : 'Не удалось распределить очко'),
+  })
+
   const sellMut = useMutation({
     mutationFn: (id: string) => shopApi.sell(id),
     onSuccess: (data) => {
@@ -197,6 +206,14 @@ export function InventoryPage() {
               </button>
             )}
             {/* Продать / выброс — только для не надетых предметов */}
+            {item.template.allocationMode === 'PLAYER' && item.freePoints > 0 && (
+              <div style={{ width: '100%', fontSize: 10 }}>
+                <span style={{ color: 'var(--warning)', marginRight: 4 }}>Очки: {item.freePoints}</span>
+                {(item.template.type === 'WEAPON' ? ['DAMAGE','ACCURACY','CRIT','DURABILITY'] : ['ARMOR','DURABILITY','ANTI_CRIT']).map(stat => (
+                  <button key={stat} className="btn btn-sm" disabled={allocateMut.isPending || inBattle} onClick={() => allocateMut.mutate({ id: item.id, stat: stat as ItemStatKey })}>+ {stat}</button>
+                ))}
+              </div>
+            )}
             {!item.isEquipped && (
               <>
                 <button

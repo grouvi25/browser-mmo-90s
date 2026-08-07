@@ -54,6 +54,8 @@ export interface Character {
   lastActiveAt: string
 }
 
+export type ItemStatKey = 'DAMAGE' | 'ACCURACY' | 'CRIT' | 'ARMOR' | 'DURABILITY' | 'ANTI_CRIT'
+
 export interface ItemTemplate {
   id: string
   code: string
@@ -85,6 +87,9 @@ export interface ItemTemplate {
   strReq: number
   sourceType: string
   isEquippable: boolean
+  statBudget: number
+  statAllocation: Partial<Record<ItemStatKey, number>> | null
+  allocationMode: 'FIXED' | 'MASTER' | 'PLAYER'
 }
 
 export interface ItemInstance {
@@ -100,6 +105,8 @@ export interface ItemInstance {
   armorSlot: string | null
   weight: number
   template: ItemTemplate
+  statAllocation: Partial<Record<ItemStatKey, number>> | null
+  freePoints: number
 }
 
 export interface ShopItem {

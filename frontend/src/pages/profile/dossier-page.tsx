@@ -85,7 +85,9 @@ export function DossierPage() {
     'Уровни:',
     `1. Боевой — ${char.battleLevel}`,
     `2. Экономический — ${char.economicLevel}`,
-    `3. Производственный — ${char.productionLevel}`,
+    ...(char.economy?.professions?.length
+      ? ['3. Профессии:', ...char.economy.professions.map(p => `   ${p.professionCode}: ур. ${p.level}, опыт ${p.exp}`)]
+      : ['3. Профессии — не открыты']),
     '',
     'Владение оружием:',
     ...(skills.length

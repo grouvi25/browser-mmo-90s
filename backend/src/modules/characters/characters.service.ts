@@ -74,8 +74,8 @@ export const CharactersService = {
     return {
       ...char,
       economy: {
-        productionLevel: char.productionLevel,
-        productionExp: char.productionExp,
+        productionLevel: professions.reduce((max, item) => Math.max(max, item.level), 0),
+        productionExp: professions.reduce((max, item) => Math.max(max, item.exp), 0),
         professions,
         economicLevel: char.economicLevel,
         economicExp: char.economicExp,

@@ -30,7 +30,7 @@ export const PrivateShopsService={
    const itemIds:string[]=[]
    if(entry.itemTemplateId){
     const template=await tx.itemTemplate.findUniqueOrThrow({where:{id:entry.itemTemplateId}})
-    for(let i=0;i<quantity;i++){const item=await tx.itemInstance.create({data:{templateId:template.id,ownerId:characterId,quality:template.qualityBase,durabilityCurrent:template.durabilityMax,durabilityMax:template.durabilityMax,weight:template.weight,sourceType:'PRIVATE'}});itemIds.push(item.id);await tx.itemLog.create({data:{itemId:item.id,characterId,actionCode:'CREATED_FROM_PRIVATE_SHOP',details:{shopCode,price:entry.price}}})}
+    for(let i=0;i<quantity;i++){const item=await tx.itemInstance.create({data:{templateId:template.id,ownerId:characterId,quality:template.qualityBase,durabilityCurrent:template.durabilityMax,durabilityMax:template.durabilityMax,weight:template.weight,sourceType:'PRIVATE',freePoints:template.allocationMode==='PLAYER'?template.statBudget:0}});itemIds.push(item.id);await tx.itemLog.create({data:{itemId:item.id,characterId,actionCode:'CREATED_FROM_PRIVATE_SHOP',details:{shopCode,price:entry.price}}})}
    }else if(entry.resourceTemplateId){await ResourcesService.add(tx,{characterId,resourceTemplateId:entry.resourceTemplateId,amount:quantity,reasonCode:'PRIVATE_SHOP_BUY',refType:'private_shop',refId:entry.id})}
    return{privateShopItemId,quantity,total,newBalance,itemIds}
   }})

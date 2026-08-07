@@ -1,9 +1,10 @@
-export const PRODUCTION_LEVEL_THRESHOLDS = [0, 50, 150, 350, 700, 1200, 2000, 3200, 5000, 7500, 11000] as const
+export const PRODUCTION_LEVEL_THRESHOLDS = [0, 500, 1500, 3500, 8000, 16000, 30000] as const
 
+/** Legacy alias. Functional progression is stored independently per profession. */
 export function getProductionLevelFromExp(exp: number): number {
   let level = 0
   for (let i = 0; i < PRODUCTION_LEVEL_THRESHOLDS.length; i++) if (exp >= PRODUCTION_LEVEL_THRESHOLDS[i]) level = i
-  return Math.min(10, level)
+  return Math.min(6, level)
 }
 export function workerEfficiency(productionLevel: number): number { return 1 + Math.max(0, productionLevel) * 0.03 }
 export function objectLevelCoeff(level: number): number { return 1 + 0.25 * (Math.max(1, level) - 1) }
