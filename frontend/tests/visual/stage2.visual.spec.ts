@@ -111,9 +111,10 @@ test.describe('Stage 2 visual and browser flow', () => {
     await page.goto('/shops/private')
     await expect(page.getByRole('button', { name: 'Коммерсант' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Оружейный гараж' })).toBeVisible()
-    // именно заголовок колонки: слово «Уровень» встречается и в карточке персонажа
-    // на узком экране заголовки таблиц скрыты (строки-карточки), поэтому проверяем наличие
-  await expect(page.getByRole('columnheader', { name: 'Уровень' })).toBeAttached()
+    // Именно заголовок колонки: слово «Уровень» встречается и в карточке персонажа.
+    // Ищем селектором, а не ролью: на узком экране таблица переключается на блочное
+    // отображение, и роль columnheader у ячейки пропадает вместе с табличным контекстом.
+    await expect(page.locator('.data-table thead th', { hasText: 'Уровень' })).toBeAttached()
     await visualProof(page, testInfo, 'e3-private-shops')
   })
 
