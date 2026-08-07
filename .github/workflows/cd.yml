@@ -134,6 +134,17 @@ jobs:
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
           EOF
 
+      - name: Reload public nginx routing
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -euo pipefail
+            cd ${{ secrets.VPS_PROJECT_DIR }}
+            ln -sfn "${{ secrets.VPS_PROJECT_DIR }}/infra/nginx/vhost-vps.conf" /etc/nginx/sites-enabled/mmo90s-game
+            rm -f /etc/nginx/sites-enabled/mmo90s
+            nginx -t
+            systemctl reload nginx
+          EOF
+
       - name: Verify container and public health
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
