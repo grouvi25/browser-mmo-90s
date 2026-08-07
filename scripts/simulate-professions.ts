@@ -10,9 +10,15 @@ export const PROFESSION_TRANSITIONS = [
 ] as const
 
 export const STAGE2_PROFESSIONS = [
-  { code: 'scrap_collector', name: 'Сборщик металлолома' },
-  { code: 'foundry_worker', name: 'Литейщик' },
-  { code: 'gunsmith', name: 'Оружейник' },
+  { code: 'scrap_collector', name: 'Сборщик металлолома', direction: 'metal', stage: 1 },
+  { code: 'foundry_worker', name: 'Литейщик', direction: 'metal', stage: 2 },
+  { code: 'gunsmith', name: 'Оружейник', direction: 'metal', stage: 3 },
+  { code: 'supplier', name: 'Снабженец', direction: 'construction', stage: 1 },
+  { code: 'carpenter', name: 'Столяр', direction: 'construction', stage: 2 },
+  { code: 'cooperative_builder', name: 'Строитель кооператива', direction: 'construction', stage: 3 },
+  { code: 'procurer', name: 'Заготовитель', direction: 'chemistry', stage: 1 },
+  { code: 'pharmacist', name: 'Фармацевт', direction: 'chemistry', stage: 2 },
+  { code: 'chemist', name: 'Химик', direction: 'chemistry', stage: 3 },
 ] as const
 
 export const MAX_PROFESSION_LEVEL = 6
@@ -81,6 +87,10 @@ const report = {
     realisticTopYears: realistic?.maxLevelYears,
     realisticLevel3Days: realistic?.level3Days,
     baselineMatchesTz268Days: baseline?.maxLevelDays === 268,
+    stage2ProfessionCountIsNine: STAGE2_PROFESSIONS.length === 9,
+    threeProfessionsPerDirection: ['metal', 'construction', 'chemistry'].every(direction =>
+      STAGE2_PROFESSIONS.filter(profession => profession.direction === direction).length === 3,
+    ),
     topNotFasterThanSixMonths: (baseline?.maxLevelDays ?? 0) >= 183,
     keyContentNotLockedAboveLevel3: KEY_CONTENT_MAX_LEVEL <= 3,
     realisticTopIsAboutFiveYears: (realistic?.maxLevelYears ?? 0) >= 4.5 && (realistic?.maxLevelYears ?? 0) <= 5.5,
