@@ -29,6 +29,8 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npx prisma generate
+      - name: Lint
+        run: npm run lint
       - name: TypeScript typecheck
         run: npx tsc --noEmit
       - name: Build TypeScript
@@ -50,6 +52,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Lint
+        run: npm run lint
       - name: TypeScript typecheck
         run: npx tsc --noEmit
       - name: Production build
@@ -204,10 +208,16 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
-      - name: Start frontend and verify readiness
+      # Проверяем тот артефакт, который уезжает на прод: dev-сервер собирает
+      # иначе (без минификации и с другим порядком модулей).
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start frontend preview and verify readiness
         working-directory: frontend
         run: |
-          npm run dev -- --host 127.0.0.1 > /tmp/mmo90s-frontend.log 2>&1 &
+          npx vite preview --host 127.0.0.1 --port 3000 > /tmp/mmo90s-frontend.log 2>&1 &
           echo $! > /tmp/mmo90s-frontend.pid
           for i in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:3000/ >/dev/null; then

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Wrench, ClipboardList, Check, X } from 'lucide-react'
 import { repairApi } from '../../shared/api/repair.api'
-import { QUALITY_LABELS, WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, type RepairItem } from '../../shared/types/api.types'
+import { QUALITY_LABELS, WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 
 export function RepairPage() {

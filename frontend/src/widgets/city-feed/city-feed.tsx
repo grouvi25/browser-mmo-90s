@@ -6,7 +6,7 @@
 // сокет-канал, меняется только этот хук: разметка и вёрстка
 // остаются как есть.
 // =============================================================
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 

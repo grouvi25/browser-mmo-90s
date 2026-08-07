@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { WEAPON_TYPE_LABELS, type WeaponSkill } from '../../shared/types/api.types'
-import { BalanceConfigFE } from '../../shared/constants/balance'
 import { BarChart2, BookOpen } from 'lucide-react'
 
 // Порог опыта для каждого уровня навыка (из ТЗ)

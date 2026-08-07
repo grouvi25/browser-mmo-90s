@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { User, Check } from 'lucide-react'
@@ -21,12 +21,6 @@ export function CreateCharacterPage() {
     retry: false,
   })
 
-  // Redirect if already has char
-  if (existingChar) {
-    navigate('/profile')
-    return null
-  }
-
   const { mutate, isPending } = useMutation({
     mutationFn: () => charactersApi.create({ nickname, archetype }),
     onSuccess: () => navigate('/profile'),
@@ -37,6 +31,15 @@ export function CreateCharacterPage() {
       }
     },
   })
+
+  // Персонаж уже есть — уходим в профиль. Переход именно в эффекте:
+  // навигация во время отрисовки — побочный эффект, а ранний выход до
+  // остальных хуков ломал их порядок и валил компонент.
+  useEffect(() => {
+    if (existingChar) navigate('/profile', { replace: true })
+  }, [existingChar, navigate])
+
+  if (existingChar) return null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

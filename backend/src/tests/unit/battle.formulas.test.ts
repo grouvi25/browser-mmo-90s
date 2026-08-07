@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   calcHitChance, calcDodgeChance, calcBlockChance, calcCritChance,
-  calcWeaponSkillMultiplier, calcRawDamage, applyArmor, applyEndurance,
+  calcWeaponSkillMultiplier, applyArmor, applyEndurance,
   calcInitiative, resolveAttack, calcEffectiveWeaponSkill,
   calcWeaponResistanceMult,
   type AttackerSnapshot, type DefenderSnapshot,
@@ -42,8 +42,6 @@ describe('calcInitiative', () => {
   })
 
   it('higher REA gives higher base initiative', () => {
-    const low  = calcInitiative(2, 3, 1, 0) - Math.random() * 0  // deterministic-ish
-    const high = calcInitiative(8, 3, 1, 0)
     // high REA should give higher average — test statistically over many runs
     let highWins = 0
     for (let i = 0; i < 100; i++) {
@@ -53,8 +51,6 @@ describe('calcInitiative', () => {
   })
 
   it('heavy equipment reduces initiative', () => {
-    const light  = calcInitiative(5, 5, 5, 0)
-    const heavy  = calcInitiative(5, 5, 5, 50)
     // On average, heavy should be lower
     let heavierLower = 0
     for (let i = 0; i < 100; i++) {
@@ -337,6 +333,8 @@ describe('resolveAttack', () => {
     const hitRate = hits / N
     const avgDmg = hits > 0 ? totalDmg / hits : 0
 
+    // Каждая попытка укладывается ровно в один исход — сумма обязана сойтись
+    expect(hits + misses + dodges).toBe(N)
     // Hit rate should be within clamp bounds (5%-95%) with allowance for randomness
     expect(hitRate).toBeGreaterThan(0.05)
     expect(hitRate).toBeLessThan(0.95)
@@ -350,7 +348,7 @@ describe('resolveAttack', () => {
 })
 
 // ---------------------------------------------------------------
-// Anti-mastery (WRES) � TZ ������ 10, 18.7
+// Anti-mastery (WRES) — TZ раздел 10, 18.7
 // ---------------------------------------------------------------
 describe('calcEffectiveWeaponSkill (anti-mastery)', () => {
   it('no anti-mastery = full skill level', () => {

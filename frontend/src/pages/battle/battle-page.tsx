@@ -97,14 +97,13 @@ function HpBar({ hp, hpMax, name, right = false }: { hp: number; hpMax: number; 
 
 // ── Сетка поля боя ─────────────────────────────────────────
 const GRID_COLS = 9, GRID_ROWS = 5
-const PLAYER_COL = 1, ENEMY_COL = 7
+const PLAYER_COL = 1
 
 function BattleGrid({
   playerName, playerHp, playerHpMax,
   enemyName, enemyHp, enemyHpMax,
-  playerDefeated, enemyDefeated,
-  playerHit, enemyHit, lastEvent, distance,
-  playerPosition, enemyPosition, selectedMove, onSelectMove,
+  playerHit, enemyHit, lastEvent,
+  playerPosition, selectedMove, onSelectMove,
   participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget,
 }: {
   playerName: string; playerHp: number; playerHpMax: number
@@ -123,11 +122,6 @@ function BattleGrid({
   onSelectTarget?: (participantId: string) => void
 }) {
   const midRow = Math.floor(GRID_ROWS / 2)
-  // позиция врага зависит от дистанции (ближний бой = соседняя клетка)
-  const enemyCol = distance != null
-    ? Math.min(GRID_COLS - 1, Math.max(PLAYER_COL + 1, PLAYER_COL + distance))
-    : ENEMY_COL
-
   return (
     <div className="grid-arena">
       {/* HP полосы СВЕРХУ */}
@@ -144,7 +138,6 @@ function BattleGrid({
         {Array.from({ length: GRID_ROWS }).map((_, row) =>
           Array.from({ length: GRID_COLS }).map((_, col) => {
             const playerCell = playerPosition ?? { x: PLAYER_COL, y: midRow }
-            const enemyCell = enemyPosition ?? { x: enemyCol, y: midRow }
             const occupant = participants?.find(p => p.isAlive && p.position.x === col && p.position.y === row)
             const isPlayer = occupant?.participantId === playerParticipantId
             const isAlly = !!occupant && !isPlayer && occupant.side === playerSide

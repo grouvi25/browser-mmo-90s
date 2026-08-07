@@ -5,6 +5,14 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
+  # Ручной перевыкат. Внимание: запуск вручную не ждёт CI —
+  # выкатывается указанный коммит как есть.
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Коммит для выката (пусто — вершина ветки запуска)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -16,14 +24,23 @@ concurrency:
 jobs:
   deploy:
     name: Deploy verified commit to VPS
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - name: Resolve deploy commit
+        id: target
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}"
+          echo "Выкатываем $SHA"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
       - name: Checkout verified commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ steps.target.outputs.sha }}
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -50,8 +67,28 @@ jobs:
             set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
             git fetch --prune origin
-            git reset --hard "${{ github.event.workflow_run.head_sha }}"
-            test "$(git rev-parse HEAD)" = "${{ github.event.workflow_run.head_sha }}"
+            git reset --hard "${{ steps.target.outputs.sha }}"
+            test "$(git rev-parse HEAD)" = "${{ steps.target.outputs.sha }}"
+          EOF
+
+      # Сборка образов на забитом диске падает на середине и оставляет
+      # прод в разобранном виде. Кэш сборок чистится безопасно: образы,
+      # тома и данные не затрагиваются.
+      - name: Ensure free disk space on VPS
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -euo pipefail
+            used() { df --output=pcent / | tail -1 | tr -dc '0-9'; }
+            echo "Диск занят на $(used)%"
+            if [ "$(used)" -ge 80 ]; then
+              echo "Больше 80% — чистим кэш сборок Docker"
+              docker builder prune -af
+              echo "После чистки: $(used)%"
+            fi
+            if [ "$(used)" -ge 90 ]; then
+              echo "Свободного места мало даже после чистки — деплой остановлен" >&2
+              exit 1
+            fi
           EOF
 
       - name: Backup database with verified deploy code
