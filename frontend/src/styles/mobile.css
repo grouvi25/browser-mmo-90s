@@ -196,6 +196,30 @@
   .m-tabbar__btn { padding: 7px 4px; }
 }
 
+/* ── экран боя на телефоне ──────────────────────────────────
+   Разворот был в две колонки с фиксированной панелью карманов
+   в 145 px: на 390 px она съедала 40 % ширины, поле боя ужималось
+   до нечитаемого, а соты становились меньше пальца. */
+@media (max-width: 900px) {
+  .battle-page-v2 { flex-direction: column; gap: 8px; padding: 6px; }
+
+  /* карманы уходят под поле и раскладываются в ряд */
+  .battle-pockets-panel {
+    flex: 0 0 auto;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    align-items: start;
+  }
+  /* заголовок и подсказка занимают всю строку, слоты — по колонкам */
+  .battle-pockets-panel > .bp-title,
+  .battle-pockets-panel > div:last-child { grid-column: 1 / -1; }
+
+  /* зоны удара — крупнее под палец */
+  .zone-row, .battle-zone-row { min-height: 40px; }
+
+  .battle-header-v2 { flex-wrap: wrap; row-gap: 4px; }
+  .grid-hp-row { gap: 6px; }
+}
+
 /* ── личное дело на телефоне ────────────────────────────────── */
 .m-dossier {
   position: fixed; inset: 0; overflow-y: auto;

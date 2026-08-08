@@ -20,6 +20,7 @@ import { MENU } from '../../shared/lib/layout-map'
 import { CardCutout } from '../../widgets/character-card/card-cutout'
 import { MobileChat } from '../../widgets/city-feed/mobile-chat'
 import { useTableLabels } from '../../shared/lib/use-table-labels'
+import { ErrorBoundary } from '../error-boundary'
 
 type Sheet = 'card' | 'chat' | 'menu' | null
 
@@ -87,7 +88,7 @@ export function MobileShell() {
       {strip(MENU.districts, 'districts')}
 
       <main className="m-view" ref={viewRef}>
-        <Outlet />
+        <ErrorBoundary><Outlet /></ErrorBoundary>
       </main>
 
       {strip(MENU.bottomTabs, 'economy')}

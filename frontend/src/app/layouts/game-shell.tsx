@@ -8,6 +8,8 @@
 // ============================================================
 import { Outlet } from 'react-router-dom'
 
+import { ErrorBoundary } from '../error-boundary'
+
 import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useIsMobile } from '../../shared/lib/use-media-query'
 import { MobileShell } from './mobile-shell'
@@ -41,7 +43,7 @@ export function GameShell() {
           width: MENU.viewport.w, height: MENU.viewport.h,
         }}
       >
-        <Outlet />
+        <ErrorBoundary><Outlet /></ErrorBoundary>
       </div>
 
       <CityChat />

@@ -141,7 +141,10 @@ function BattleGrid({
             const cell = { x: col, y: row }
             const playerCell = playerPosition ?? { x: PLAYER_COL, y: midRow }
             const occupant = participants?.find(p => p.isAlive && p.position.x === col && p.position.y === row)
-            const isPlayer = occupant?.participantId === playerParticipantId
+            // Пустая клетка не должна считаться своей: пока участник боя
+            // не загружен, undefined === undefined давало true и всё поле
+            // подсвечивалось как занятое игроком.
+            const isPlayer = !!occupant && occupant.participantId === playerParticipantId
             const isAlly = !!occupant && !isPlayer && occupant.side === playerSide
             const isEnemy = !!occupant && occupant.side !== playerSide
             const isCenter = col === Math.floor(GRID_COLS / 2) && row === midRow

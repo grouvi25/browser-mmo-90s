@@ -87,7 +87,8 @@ export const WorkService = {
         tx.workShift.count({ where: { characterId, startedAt: { gte: start, lt: end } } }),
       ])
       if (usedToday >= MAX_DAILY_SHIFTS) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
-      if (!object?.isActive || object.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object unavailable', 400)
+      if (!object) throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object not found', 404)
+      if (!object.isActive || object.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_OBJECT_UNAVAILABLE, 'Production object unavailable', 409)
       const existingProfession = await tx.characterProfession.findUnique({
         where: { characterId_professionCode: { characterId, professionCode: object.requiredProfessionCode } },
       })
@@ -111,7 +112,7 @@ export const WorkService = {
   async claim(characterId: string, shiftId: string, key: string) {
     return withIdempotency({ characterId, scope: 'work.shift.claim', key, execute: async tx => {
       let shift = await tx.workShift.findFirst({ where: { id: shiftId, characterId }, include: { productionObject: true } })
-      if (!shift) throw new AppError(ErrorCode.CONFLICT, 'Shift not found', 404)
+      if (!shift) throw new AppError(ErrorCode.WORK_SHIFT_NOT_FOUND, 'Shift not found', 404)
       if (shift.status === 'ACTIVE' && shift.endsAt <= new Date()) shift = await tx.workShift.update({ where: { id: shift.id }, data: { status: 'READY_TO_CLAIM' }, include: { productionObject: true } })
       if (shift.status !== 'READY_TO_CLAIM') throw new AppError(ErrorCode.WORK_NOT_READY, 'Shift is not ready', 400)
       const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
@@ -149,7 +150,7 @@ export const WorkService = {
   async cancel(characterId: string, shiftId: string) {
     return withTransaction(async tx => {
       const shift = await tx.workShift.findFirst({ where: { id: shiftId, characterId, status: 'ACTIVE' } })
-      if (!shift) throw new AppError(ErrorCode.CONFLICT, 'Active shift not found', 404)
+      if (!shift) throw new AppError(ErrorCode.WORK_SHIFT_NOT_FOUND, 'Active shift not found', 404)
       await tx.workShift.update({ where: { id: shift.id }, data: { status: 'CANCELLED' } })
       await tx.character.updateMany({ where: { id: characterId, status: 'WORKING' }, data: { status: 'ACTIVE' } })
       await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CANCELLED', metadataJson: { shiftId, professionCode: shift.professionCode } } })

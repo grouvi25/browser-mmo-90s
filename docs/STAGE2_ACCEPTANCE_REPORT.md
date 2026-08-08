@@ -1,7 +1,11 @@
 # Stage 2 acceptance report
 
 Generated: 2026-08-06
-Specification: `docs/specs/stage-2/MASTER_TZ_STAGE_2_ECONOMY_CORE.md`
+Specification: `docs/specs/stage-2/MASTER_TZ_STAGE_2_ECONOMY_CORE_v2.2.docx`
+
+Внимание: отчёт составлен 06.08 по версии ТЗ 2.0, которая тогда лежала
+в репозитории. Действующая версия — 2.2, её разделы 46–47 реализованы
+позже, 07–08.08. Актуальная сверка — `docs/STAGE2_AUDIT.md`.
 
 ## Result
 
