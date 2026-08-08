@@ -6,6 +6,11 @@ import {
   WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, QUALITY_LABELS, type ShopItem
 } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
+import akImage from '../../shared/assets/ui/item-ak.png'
+import batImage from '../../shared/assets/ui/item-bat.png'
+import armorImage from '../../shared/assets/ui/zone-chest.png'
+
+function itemImage(item: ShopItem) { return item.template.type === 'ARMOR' ? armorImage : ['MELEE','KNIFE','CLUB'].includes(item.template.weaponType ?? '') ? batImage : akImage }
 
 function ItemPrice({ item }: { item: ShopItem }) {
   const price = item.overridePrice ?? item.template.priceBase
@@ -46,7 +51,7 @@ export function GovernmentShopPage() {
   const qc = useQueryClient()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [filterType, setFilterType] = useState<'ALL' | 'WEAPON' | 'ARMOR' | 'CONSUMABLE'>('ALL')
-  const [filterLevel, setFilterLevel] = useState<number>(0) // 0 = любой
+  const [filterLevel, setFilterLevel] = useState<number | 'ALL'>('ALL') // 0 = любой
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['shop', 'government'],
@@ -77,7 +82,7 @@ export function GovernmentShopPage() {
 
   const filtered = items.filter(item => {
     if (filterType !== 'ALL' && item.template.type !== filterType) return false
-    if (filterLevel > 0 && item.template.levelReq > filterLevel) return false
+    if (filterLevel !== 'ALL' && item.template.levelReq !== filterLevel) return false
     return true
   })
 
@@ -118,14 +123,14 @@ export function GovernmentShopPage() {
             ))}
             <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Макс. ур.:</span>
-              {[0, 1, 2, 3, 4].map(lv => (
+              {(['ALL', 0, 1, 2, 3, 4] as const).map(lv => (
                 <button
                   key={lv}
                   className={`btn btn-sm${filterLevel === lv ? ' btn-gold' : ''}`}
                   onClick={() => setFilterLevel(lv)}
                   style={{ minWidth: 28 }}
                 >
-                  {lv === 0 ? 'Все' : `≤${lv}`}
+                  {lv === 'ALL' ? 'Все' : `Ур. ${lv}`}
                 </button>
               ))}
             </div>
@@ -134,7 +139,7 @@ export function GovernmentShopPage() {
           <table className="data-table shop-item-row">
             <thead>
               <tr>
-                <th>Предмет</th>
+                <th>Вид</th><th>Предмет</th>
                 <th>Тип</th>
                 <th>Качество</th>
                 <th>Характеристики</th>
@@ -153,6 +158,7 @@ export function GovernmentShopPage() {
 
                 return (
                   <tr key={item.id}>
+                    <td><img src={itemImage(item)} alt="" width={58} height={42} style={{objectFit:'contain'}} /></td>
                     <td>
                       <span className={`q-${t.qualityBase}`} style={{ fontWeight: 'bold' }}>
                         {t.name}

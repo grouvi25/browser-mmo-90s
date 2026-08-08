@@ -25,6 +25,7 @@ import { WorkPage }            from '../pages/work/work-page'
 import { PrivateShopsPage }    from '../pages/private-shops/private-shops-page'
 import { MarketPage }          from '../pages/market/market-page'
 import { UpgradesPage }        from '../pages/upgrades/upgrades-page'
+import { BalanceSandboxPage }   from '../pages/balance-sandbox/balance-sandbox-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -73,6 +74,8 @@ export function AppRouter() {
       <Route element={<RequireAuth><GameShell /></RequireAuth>}>
         <Route path="/" element={<HubPage />} />
         <Route path="/garages" element={<GaragesPage />} />
+
+        <Route path="/balance-sandbox" element={<BalanceSandboxPage />} />
 
         <Route path="/shop" element={
           <ViewportPanel title="Рынок" subtitle="Государственные цены">
