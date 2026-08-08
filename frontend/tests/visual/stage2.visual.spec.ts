@@ -38,7 +38,7 @@ async function authPage(page: Page, account: Account) {
 async function visualProof(page: Page, testInfo: TestInfo, name: string) {
   await expect(page.locator('body')).toBeVisible()
   // .viewport — рабочая область большого экрана, .m-view — мобильной оболочки
-  await expect(page.locator('.viewport, .m-view').first()).toBeVisible()
+  await expect(page.locator('.viewport, .m-view, .balance-sandbox').first()).toBeVisible()
   const image = await page.screenshot({ animations: 'disabled' })
   await testInfo.attach(`${name}-${testInfo.project.name}`, { body: image, contentType: 'image/png' })
   const viewport = page.viewportSize()
@@ -204,7 +204,7 @@ test.describe('Stage 2 visual and browser flow', () => {
 
     for (const route of routes) {
       await page.goto(route)
-      await expect(page.locator('.viewport, .m-view').first()).toBeVisible()
+      await expect(page.locator('.viewport, .m-view, .balance-sandbox').first()).toBeVisible()
       await page.keyboard.press('Tab')
       await expect(page.locator(':focus')).not.toHaveCount(0)
 
@@ -226,7 +226,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     for (const route of ['/work', '/resources', '/shops/private', '/market', '/upgrades']) {
       await page.goto(route)
       // .viewport — рабочая область большого экрана, .m-view — мобильной оболочки
-  await expect(page.locator('.viewport, .m-view').first()).toBeVisible()
+  await expect(page.locator('.viewport, .m-view, .balance-sandbox').first()).toBeVisible()
     }
     expect(errors).toEqual([])
   })
