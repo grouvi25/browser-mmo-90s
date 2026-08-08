@@ -6,11 +6,9 @@ import {
   WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS, QUALITY_LABELS, type ShopItem
 } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
-import akImage from '../../shared/assets/ui/item-ak.png'
-import batImage from '../../shared/assets/ui/item-bat.png'
-import armorImage from '../../shared/assets/ui/zone-chest.png'
+import { SHOP_IMAGES } from '../../shared/assets/shop/shop-images'
 
-function itemImage(item: ShopItem) { return item.template.type === 'ARMOR' ? armorImage : ['MELEE','KNIFE','CLUB'].includes(item.template.weaponType ?? '') ? batImage : akImage }
+function itemImage(item: ShopItem) { return SHOP_IMAGES[item.template.code] ?? SHOP_IMAGES.weapon_fists }
 
 function ItemPrice({ item }: { item: ShopItem }) {
   const price = item.overridePrice ?? item.template.priceBase
