@@ -126,7 +126,7 @@ export function GovernmentShopPage() {
               {(['ALL', 0, 1, 2, 3, 4] as const).map(lv => (
                 <button
                   key={lv}
-                  className={`btn btn-sm${filterLevel === lv ? ' btn-gold' : ''}`}
+                  className={`btn btn-sm${filterLevel === lv ? ' btn-primary' : ''}`}
                   onClick={() => setFilterLevel(lv)}
                   style={{ minWidth: 28 }}
                 >

@@ -129,6 +129,30 @@ test.describe('Stage 2 visual and browser flow', () => {
     await visualProof(page, testInfo, 'e2-work')
   })
 
+  test('balance sandbox reacts to inputs and exports a report', async ({ page }, testInfo) => {
+    await authPage(page, seller)
+    await page.goto('/balance-sandbox')
+    await expect(page.locator('.sandbox-results article')).toHaveCount(3)
+    const workerBefore = await page.locator('.sandbox-results article').nth(1).innerText()
+    await page.locator('input[type="range"]').nth(2).fill('220')
+    await expect(page.locator('.sandbox-results article').nth(1)).not.toHaveText(workerBefore)
+    const download = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Скачать JSON' }).click()
+    expect((await download).suggestedFilename()).toBe('balance-sandbox.json')
+    await visualProof(page, testInfo, 'balance-sandbox')
+  })
+
+  test('government weapon shop supports exact level selection and item images', async ({ page }, testInfo) => {
+    await authPage(page, seller)
+    await page.goto('/shop')
+    await page.getByRole('button', { name: 'Оружие', exact: true }).click()
+    await page.getByRole('button', { name: 'Ур. 2', exact: true }).click()
+    const rows = page.locator('tbody tr')
+    await expect(rows).not.toHaveCount(0)
+    expect(await rows.locator('img').count()).toBe(await rows.count())
+    await visualProof(page, testInfo, 'government-weapons-level-2')
+  })
+
   test('E1 resources page shows weight and government inventory state', async ({ page }, testInfo) => {
     await authPage(page, seller)
     await page.goto('/resources')

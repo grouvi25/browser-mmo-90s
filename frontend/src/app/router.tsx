@@ -69,13 +69,13 @@ export function AppRouter() {
         element={<RequireAuth><DossierPage /></RequireAuth>} />
       <Route path="/battle/:id"
         element={<RequireAuth><BattlePage /></RequireAuth>} />
+      <Route path="/balance-sandbox"
+        element={<RequireAuth><BalanceSandboxPage /></RequireAuth>} />
 
       {/* ── Город: оболочка постоянна, меняется только вьюпорт ── */}
       <Route element={<RequireAuth><GameShell /></RequireAuth>}>
         <Route path="/" element={<HubPage />} />
         <Route path="/garages" element={<GaragesPage />} />
-
-        <Route path="/balance-sandbox" element={<BalanceSandboxPage />} />
 
         <Route path="/shop" element={
           <ViewportPanel title="Рынок" subtitle="Государственные цены">
