@@ -28,9 +28,9 @@ export const UpgradesService = {
     const character = await prisma.character.findUniqueOrThrow({ where: { id: characterId } })
     const item = await prisma.itemInstance.findUnique({ where: { id: itemInstanceId }, include: { template: true } })
     if (!item || item.ownerId !== characterId) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
-    if (!item.template.upgradeAllowed || !isUpgradeCompatible(item.template.type, upgradeType)) throw new AppError(ErrorCode.CONFLICT, 'Upgrade type is incompatible', 400)
-    if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.CONFLICT, 'Item cannot be upgraded', 409)
-    if (item.upgradeLevel >= 5) throw new AppError(ErrorCode.CONFLICT, 'Maximum upgrade level reached', 400)
+    if (!item.template.upgradeAllowed || !isUpgradeCompatible(item.template.type, upgradeType)) throw new AppError(ErrorCode.UPG_INVALID_TYPE, 'Upgrade type is incompatible', 400)
+    if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.UPG_ITEM_STATE, 'Item cannot be upgraded', 409)
+    if (item.upgradeLevel >= 5) throw new AppError(ErrorCode.UPG_MAX_LEVEL, 'Maximum upgrade level reached', 400)
     const next = item.upgradeLevel + 1
     const cost = calcUpgradeCost(item.template.priceBase, next)
     const craft = await professionLevel(characterId, item.template.type, item.template.craftProfessionCode)
@@ -53,12 +53,12 @@ export const UpgradesService = {
   async commit(characterId: string, itemInstanceId: string, upgradeType: UpgradeKind, key: string, rng = Math.random) {
     return withIdempotency({ characterId, scope: 'upgrades.commit', key, execute: async tx => {
       const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
-      if (['IN_BATTLE', 'WORKING'].includes(character.status)) throw new AppError(ErrorCode.CONFLICT, 'Character is busy', 409)
+      if (['IN_BATTLE', 'WORKING'].includes(character.status)) throw new AppError(ErrorCode.UPG_CHARACTER_BUSY, 'Character is busy', 409)
       const item = await tx.itemInstance.findUnique({ where: { id: itemInstanceId }, include: { template: true } })
       if (!item || item.ownerId !== characterId) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
-      if (!item.template.upgradeAllowed || !isUpgradeCompatible(item.template.type, upgradeType)) throw new AppError(ErrorCode.CONFLICT, 'Upgrade unavailable', 400)
-      if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.CONFLICT, 'Item cannot be upgraded', 409)
-      if (item.upgradeLevel >= 5) throw new AppError(ErrorCode.CONFLICT, 'Maximum upgrade level reached', 400)
+      if (!item.template.upgradeAllowed || !isUpgradeCompatible(item.template.type, upgradeType)) throw new AppError(ErrorCode.UPG_NOT_ALLOWED, 'Upgrade unavailable', 400)
+      if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.UPG_ITEM_STATE, 'Item cannot be upgraded', 409)
+      if (item.upgradeLevel >= 5) throw new AppError(ErrorCode.UPG_MAX_LEVEL, 'Maximum upgrade level reached', 400)
       const next = item.upgradeLevel + 1
       const cost = calcUpgradeCost(item.template.priceBase, next)
       const professionCode = item.template.craftProfessionCode ?? craftProfessionForItem(item.template.type)

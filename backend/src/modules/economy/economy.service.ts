@@ -15,7 +15,7 @@ interface MoneyOperation {
 export const EconomyService = {
   async credit(tx: Prisma.TransactionClient, operation: MoneyOperation) {
     if (!Number.isInteger(operation.amount) || operation.amount <= 0) {
-      throw new AppError(ErrorCode.CONFLICT, 'Credit amount must be a positive integer', 422)
+      throw new AppError(ErrorCode.ECON_INVALID_AMOUNT, 'Credit amount must be a positive integer', 422)
     }
     const character = await tx.character.update({
       where: { id: operation.characterId },
@@ -30,7 +30,7 @@ export const EconomyService = {
 
   async debit(tx: Prisma.TransactionClient, operation: MoneyOperation) {
     if (!Number.isInteger(operation.amount) || operation.amount <= 0) {
-      throw new AppError(ErrorCode.CONFLICT, 'Debit amount must be a positive integer', 422)
+      throw new AppError(ErrorCode.ECON_INVALID_AMOUNT, 'Debit amount must be a positive integer', 422)
     }
     const updated = await tx.character.updateMany({
       where: { id: operation.characterId, money: { gte: operation.amount } },
@@ -48,7 +48,7 @@ export const EconomyService = {
   },
 
   async grantEconomicExp(tx: Prisma.TransactionClient, characterId: string, amount: number) {
-    if (!Number.isInteger(amount) || amount < 0) throw new AppError(ErrorCode.CONFLICT, 'Invalid economic exp', 422)
+    if (!Number.isInteger(amount) || amount < 0) throw new AppError(ErrorCode.ECON_INVALID_AMOUNT, 'Invalid economic exp', 422)
     const character = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { economicExp: true } })
     const economicExp = character.economicExp + amount
     const economicLevel = getEconomicLevelFromExp(economicExp)

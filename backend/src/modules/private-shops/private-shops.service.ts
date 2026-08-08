@@ -4,6 +4,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
+import { privateShopTotal } from './private-shops.formulas'
 
 export const PrivateShopsService={
  async listShops(){return[{code:'kommersant',name:'Коммерсант'},{code:'armory_garage',name:'Оружейный гараж'}]},
@@ -18,14 +19,14 @@ export const PrivateShopsService={
  async buy(characterId:string,shopCode:string,privateShopItemId:string,quantity:number,key:string){
   return withIdempotency({characterId,scope:'private-shop.buy',key,execute:async tx=>{
    const [character,entry]=await Promise.all([tx.character.findUniqueOrThrow({where:{id:characterId}}),tx.privateShopItem.findFirst({where:{id:privateShopItemId,shopCode,isActive:true}})])
-   if(!entry)throw new AppError(ErrorCode.CONFLICT,'Shop item unavailable',404)
+   if(!entry)throw new AppError(ErrorCode.PSHOP_ITEM_NOT_FOUND,'Shop item unavailable',404)
    const profession=entry.minProfessionCode?await tx.characterProfession.findUnique({where:{characterId_professionCode:{characterId,professionCode:entry.minProfessionCode}}}):null
-   if(character.battleLevel<entry.minBattleLevel||character.economicLevel<entry.minEconomicLevel||(entry.minProfessionCode&&(profession?.level??0)<entry.minProfessionLevel))throw new AppError(ErrorCode.CONFLICT,'Requirements not met',403)
+   if(character.battleLevel<entry.minBattleLevel||character.economicLevel<entry.minEconomicLevel||(entry.minProfessionCode&&(profession?.level??0)<entry.minProfessionLevel))throw new AppError(ErrorCode.PSHOP_REQUIREMENTS,'Requirements not met',403)
    if(entry.stockMode==='LIMITED'){
     const changed=await tx.privateShopItem.updateMany({where:{id:entry.id,stockAmount:{gte:quantity}},data:{stockAmount:{decrement:quantity}}})
-    if(changed.count!==1)throw new AppError(ErrorCode.CONFLICT,'Out of stock',409)
+    if(changed.count!==1)throw new AppError(ErrorCode.PSHOP_OUT_OF_STOCK,'Out of stock',409)
    }
-   const total=entry.price*quantity
+   const total=privateShopTotal(entry.price,quantity)
    const newBalance=await EconomyService.debit(tx,{characterId,amount:total,reasonCode:'PRIVATE_SHOP_BUY',refType:'private_shop',refId:entry.id})
    const itemIds:string[]=[]
    if(entry.itemTemplateId){

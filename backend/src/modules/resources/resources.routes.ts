@@ -19,7 +19,7 @@ export async function resourcesRoutes(fastify: FastifyInstance): Promise<void> {
     const parsed = SellSchema.safeParse(req.body)
     if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten().fieldErrors })
     const key = req.headers['idempotency-key']
-    if (typeof key !== 'string') return reply.code(400).send({ code: 'ECON_001', message: 'Idempotency-Key is required' })
+    if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
     const character = await CharactersRepository.findByUserId(req.authUser.userId)
     if (!character) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
     return reply.send(await ResourcesService.sell(character.id, parsed.data.resourceCode, parsed.data.amount, key))

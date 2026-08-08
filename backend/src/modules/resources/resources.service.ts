@@ -25,7 +25,7 @@ export const ResourcesService = {
   async add(tx: Prisma.TransactionClient, params: {
     characterId: string; resourceTemplateId: string; amount: number; reasonCode: ResourceLogReason; refType?: string; refId?: string
   }) {
-    if (!Number.isInteger(params.amount) || params.amount <= 0) throw new AppError(ErrorCode.CONFLICT, 'Invalid resource amount', 422)
+    if (!Number.isInteger(params.amount) || params.amount <= 0) throw new AppError(ErrorCode.RES_INVALID_AMOUNT, 'Invalid resource amount', 422)
     const stack = await tx.resourceStack.upsert({
       where: { characterId_resourceTemplateId: { characterId: params.characterId, resourceTemplateId: params.resourceTemplateId } },
       update: { amount: { increment: params.amount } },
@@ -46,16 +46,16 @@ export const ResourcesService = {
   async consume(tx: Prisma.TransactionClient, params: {
     characterId: string; resourceTemplateId: string; amount: number; reasonCode: ResourceLogReason; refType?: string; refId?: string
   }) {
-    if (!Number.isInteger(params.amount) || params.amount <= 0) throw new AppError(ErrorCode.CONFLICT, 'Invalid resource amount', 422)
+    if (!Number.isInteger(params.amount) || params.amount <= 0) throw new AppError(ErrorCode.RES_INVALID_AMOUNT, 'Invalid resource amount', 422)
     const changed = await tx.resourceStack.updateMany({
       where: { characterId: params.characterId, resourceTemplateId: params.resourceTemplateId, amount: { gte: params.amount } },
       data: { amount: { decrement: params.amount } },
     })
-    if (changed.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Insufficient resources', 409)
+    if (changed.count !== 1) throw new AppError(ErrorCode.RES_INSUFFICIENT, 'Insufficient resources', 409)
     const stack = await tx.resourceStack.findUniqueOrThrow({
       where: { characterId_resourceTemplateId: { characterId: params.characterId, resourceTemplateId: params.resourceTemplateId } },
     })
-    if (stack.amount < stack.reservedAmount) throw new AppError(ErrorCode.CONFLICT, 'Reserved resource invariant violated', 409)
+    if (stack.amount < stack.reservedAmount) throw new AppError(ErrorCode.RES_INVARIANT, 'Reserved resource invariant violated', 409)
     await logResource(tx, {
       characterId: params.characterId,
       resourceTemplateId: params.resourceTemplateId,
@@ -71,7 +71,7 @@ export const ResourcesService = {
   async reserve(tx: Prisma.TransactionClient, characterId: string, resourceTemplateId: string, amount: number) {
     const stack = await tx.resourceStack.findUnique({ where: { characterId_resourceTemplateId: { characterId, resourceTemplateId } } })
     if (!stack || !canReserveResource(stack.amount, stack.reservedAmount, amount)) {
-      throw new AppError(ErrorCode.CONFLICT, 'Insufficient available resources', 409)
+      throw new AppError(ErrorCode.RES_RESERVED, 'Insufficient available resources', 409)
     }
     const updated = await tx.resourceStack.update({
       where: { characterId_resourceTemplateId: { characterId, resourceTemplateId } },
@@ -86,18 +86,18 @@ export const ResourcesService = {
       where: { characterId, resourceTemplateId, reservedAmount: { gte: amount } },
       data: { reservedAmount: { decrement: amount } },
     })
-    if (changed.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Invalid resource release', 409)
+    if (changed.count !== 1) throw new AppError(ErrorCode.RES_INVARIANT, 'Invalid resource release', 409)
     return tx.resourceStack.findUniqueOrThrow({ where: { characterId_resourceTemplateId: { characterId, resourceTemplateId } } })
   },
 
   async sell(characterId: string, resourceCode: string, amount: number, idempotencyKey: string) {
     return withIdempotency({ characterId, scope: 'resources.sell', key: idempotencyKey, execute: async tx => {
       const template = await tx.resourceTemplate.findUnique({ where: { code: resourceCode } })
-      if (!template?.isActive) throw new AppError(ErrorCode.CONFLICT, 'Resource is not available', 404)
+      if (!template?.isActive) throw new AppError(ErrorCode.RES_NOT_FOUND, 'Resource is not available', 404)
       const stack = await tx.resourceStack.findUnique({
         where: { characterId_resourceTemplateId: { characterId, resourceTemplateId: template.id } },
       })
-      if (!stack || stack.amount - stack.reservedAmount < amount) throw new AppError(ErrorCode.CONFLICT, 'Insufficient available resources', 409)
+      if (!stack || stack.amount - stack.reservedAmount < amount) throw new AppError(ErrorCode.RES_RESERVED, 'Insufficient available resources', 409)
       const payout = calcGovernmentResourcePayout(amount, template.basePrice)
       await this.consume(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'GOVERNMENT_SELL', refType: 'resource' })
       const newBalance = await EconomyService.credit(tx, { characterId, amount: payout, reasonCode: 'RESOURCE_SELL', refType: 'resource', refId: template.id })

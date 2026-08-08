@@ -28,6 +28,7 @@ import { workRoutes } from './modules/work/work.routes'
 import { privateShopsRoutes } from './modules/private-shops/private-shops.routes'
 import { marketRoutes } from './modules/market/market.routes'
 import { upgradesRoutes } from './modules/upgrades/upgrades.routes'
+import { productionRoutes } from './modules/production/production.routes'
 
 export async function buildApp() {
   const fastify = Fastify({
@@ -115,6 +116,7 @@ export async function buildApp() {
   await fastify.register(repairRoutes,         { prefix: '/api/repair' })
   await fastify.register(resourcesRoutes,      { prefix: '/api/resources' })
   await fastify.register(workRoutes,           { prefix: '/api/work' })
+  await fastify.register(productionRoutes,     { prefix: '/api/production' })
   await fastify.register(privateShopsRoutes,   { prefix: '/api/private-shops' })
   await fastify.register(marketRoutes,         { prefix: '/api/market' })
   await fastify.register(upgradesRoutes,       { prefix: '/api/upgrades' })

@@ -92,6 +92,26 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
     return reply.send({ m2Total: money._sum.money ?? 0, characters: money._count, activeListings, activeShifts, resources: resourceStacks._sum, upgrades })
   })
 
+  fastify.get('/work/shifts', { preHandler: authenticateAdmin }, async (req, reply) => {
+    const { status, limit } = req.query as { status?: string; limit?: string }
+    const statuses = ['ACTIVE','READY_TO_CLAIM','CLAIMED','CANCELLED','FAILED'] as const
+    const selected = statuses.find(value => value === status)
+    return reply.send({ items: await prisma.workShift.findMany({ where: selected ? { status: selected } : {}, include: { productionObject: true, character: { select: { id: true, nickname: true } } }, orderBy: { createdAt: 'desc' }, take: Math.min(100, Math.max(1, Number(limit ?? 50))) }) })
+  })
+
+  fastify.get('/market/listings', { preHandler: authenticateAdmin }, async (req, reply) => {
+    const { status, limit } = req.query as { status?: string; limit?: string }
+    const statuses = ['ACTIVE','LOCKED','SOLD','CANCELLED','EXPIRED'] as const
+    const selected = statuses.find(value => value === status)
+    return reply.send({ items: await prisma.marketListing.findMany({ where: selected ? { status: selected } : {}, orderBy: { createdAt: 'desc' }, take: Math.min(100, Math.max(1, Number(limit ?? 50))) }) })
+  })
+
+  fastify.post<{ Params: { id: string } }>('/private-shops/items/:id/deactivate', { preHandler: authenticateAdmin }, async (req, reply) => {
+    const changed = await prisma.privateShopItem.updateMany({ where: { id: req.params.id, isActive: true }, data: { isActive: false } })
+    if (changed.count !== 1) return reply.code(404).send({ code: 'PSHOP_001', message: 'Private shop item not found or inactive' })
+    return reply.send({ privateShopItemId: req.params.id, isActive: false })
+  })
+
   fastify.get('/logs/resources', { preHandler: authenticateAdmin }, async (_req, reply) => {
     return reply.send(await prisma.resourceLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }))
   })

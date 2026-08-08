@@ -23,6 +23,14 @@ Implemented on 2026-08-07.
 - Durability point allocation preserves the current durability ratio.
 - The inventory UI exposes available points and compatible allocation actions.
 
+## Compatible requirements retained from MASTER TZ 2.0
+
+- Added canonical `GET /api/production/objects` and `GET /api/production/objects/:id` without restoring the obsolete shared production level.
+- Centralized economy constants under `BalanceConfig.economy`; work, resources, market, upgrades, and private shops consume it.
+- Added repository/error boundaries for all Stage 2 economy modules.
+- Added the complete Stage 2 error-code namespaces for resources, private shops, market, upgrades, and economy; functional paths use domain codes instead of generic conflicts.
+- Added admin shift listing, market listing, and private-shop deactivation endpoints.
+
 ## Verification
 
 Coverage includes exact XP thresholds, all nine professions, first-shift unlock, profession isolation, profession-specific upgrades, item allocation validation, and effective stat calculations. Full database, API, browser, migration, security, and production checks are mandatory in CI.

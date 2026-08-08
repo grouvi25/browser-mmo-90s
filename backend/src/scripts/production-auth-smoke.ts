@@ -94,6 +94,11 @@ async function main(): Promise<void> {
   assert(Array.isArray(work.professions), 'Character professions contract is invalid')
   assert(work.daily?.shiftsLimit === 8, 'Daily shift limit contract is invalid')
 
+  const production = await jsonRequest('/api/production/objects', { headers }) as { items?: Array<{ id?: string; requiredProfessionCode?: string }> }
+  assert(Array.isArray(production.items) && production.items.length >= 6, 'Production API list contract is invalid')
+  const productionDetails = await jsonRequest(`/api/production/objects/${production.items[0].id}`, { headers }) as { id?: string; requiredProfessionCode?: string }
+  assert(productionDetails.id === production.items[0].id && typeof productionDetails.requiredProfessionCode === 'string', 'Production API detail contract is invalid')
+
   const currentShift = await jsonRequest('/api/work/shifts/current', { headers }) as { daily?: { shiftsLimit?: number } }
   assert(currentShift.daily?.shiftsLimit === 8, 'Current shift contract is invalid')
 
