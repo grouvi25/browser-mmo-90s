@@ -11,6 +11,7 @@ import { inventoryApi } from '../../shared/api/inventory.api'
 import { type BattleAction, type ItemInstance, type LiveParticipant } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
+import { cellStyle, isNeighbour, FIELD_ASPECT, GRID_COLS, GRID_ROWS } from '../../shared/lib/hex'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const LOADOUT_KEY = 'mmo_battle_loadout'
@@ -95,8 +96,7 @@ function HpBar({ hp, hpMax, name, right = false }: { hp: number; hpMax: number; 
   )
 }
 
-// ── Сетка поля боя ─────────────────────────────────────────
-const GRID_COLS = 9, GRID_ROWS = 5
+// ── Поле боя: соты ─────────────────────────────────────────
 const PLAYER_COL = 1
 
 function BattleGrid({
@@ -133,33 +133,50 @@ function BattleGrid({
         <HpBar hp={enemyHp} hpMax={enemyHpMax} name={enemyName} right />
       </div>
 
-      {/* Сетка */}
-      <div className="grid-field">
+      {/* Поле: соты «остриём вверх», нечётные ряды смещены вправо */}
+      <div className="hex-board">
+        <div className="hex-field" style={{ aspectRatio: String(FIELD_ASPECT) }}>
         {Array.from({ length: GRID_ROWS }).map((_, row) =>
           Array.from({ length: GRID_COLS }).map((_, col) => {
+            const cell = { x: col, y: row }
             const playerCell = playerPosition ?? { x: PLAYER_COL, y: midRow }
             const occupant = participants?.find(p => p.isAlive && p.position.x === col && p.position.y === row)
             const isPlayer = occupant?.participantId === playerParticipantId
             const isAlly = !!occupant && !isPlayer && occupant.side === playerSide
             const isEnemy = !!occupant && occupant.side !== playerSide
             const isCenter = col === Math.floor(GRID_COLS / 2) && row === midRow
-            const canMove = Math.max(Math.abs(col - playerCell.x), Math.abs(row - playerCell.y)) === 1 && !occupant
+            // подсветка хода — по тем же правилам соседства, что у сервера
+            const canMove = isNeighbour(playerCell, cell) && !occupant
             const isSelected = selectedMove?.x === col && selectedMove?.y === row
             const isTarget = isEnemy && occupant?.participantId === selectedTargetId
+            const clickable = canMove || (isEnemy && !!occupant)
             return (
-              <div key={`${row}-${col}`}
-                onClick={() => canMove ? onSelectMove?.({ x: col, y: row }) : isEnemy && occupant ? onSelectTarget?.(occupant.participantId) : undefined}
-                className={`grid-cell ${(isPlayer || isAlly) ? 'cell-player' : ''} ${isEnemy ? 'cell-enemy' : ''} ${isCenter ? 'cell-center' : ''} ${canMove ? 'cell-movable' : ''} ${isSelected ? 'cell-selected' : ''}`}
-                style={isTarget ? { cursor: 'pointer', boxShadow: 'inset 0 0 0 2px #c43030' } : canMove ? { cursor: 'pointer', boxShadow: isSelected ? 'inset 0 0 0 2px #d4a017' : 'inset 0 0 0 1px rgba(212,160,23,.35)' } : isEnemy ? { cursor: 'pointer' } : undefined}>
+              <div
+                key={`${row}-${col}`}
+                className={'hex-cell'
+                  + ((isPlayer || isAlly) ? ' is-player' : '')
+                  + (isEnemy ? ' is-enemy' : '')
+                  + (isCenter ? ' is-center' : '')
+                  + (canMove ? ' is-movable' : '')
+                  + (isSelected ? ' is-selected' : '')
+                  + (isTarget ? ' is-target' : '')
+                  + (clickable ? ' is-clickable' : '')}
+                style={cellStyle(cell)}
+                onClick={() => canMove
+                  ? onSelectMove?.(cell)
+                  : isEnemy && occupant ? onSelectTarget?.(occupant.participantId) : undefined}
+              >
+                <span className="hex-cell__edge" />
+                <span className="hex-cell__face" />
                 {(isPlayer || isAlly) && occupant && (
                   <div className={`fighter-token token-player ${isPlayer && playerHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
-                    {!occupant.isAlive ? <Skull size={18} /> : <User size={18} />}
+                    {!occupant.isAlive ? <Skull size={16} /> : <User size={16} />}
                     <span className="token-label">{isPlayer ? playerName.slice(0, 5) : 'Союзн.'}</span>
                   </div>
                 )}
                 {isEnemy && occupant && (
                   <div className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
-                    {!occupant.isAlive ? <Skull size={18} /> : <CircleDot size={18} />}
+                    {!occupant.isAlive ? <Skull size={16} /> : <CircleDot size={16} />}
                     <span className="token-label">{isTarget ? enemyName.slice(0, 5) : 'Враг'}</span>
                   </div>
                 )}
@@ -171,7 +188,8 @@ function BattleGrid({
               </div>
             )
           })
-        )}
+          )}
+        </div>
       </div>
 
       {/* Последнее событие */}

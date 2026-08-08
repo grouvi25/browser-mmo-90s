@@ -1,4 +1,51 @@
+// =============================================================
+// Поле боя — шестиугольные соты, как в Апехе.
+//
+// Хранение осталось прежним: координаты (x, y) — это столбец и ряд
+// смещённой сетки «odd-r»: нечётные ряды сдвинуты вправо на половину
+// клетки. Благодаря этому размеры поля, спавны, сериализация ходов и
+// формат позиций в базе не поменялись — изменилась только соседство
+// и метрика расстояния.
+//
+// Считать расстояние на смещённых координатах нельзя: переводим их в
+// кубические (q, r, s), где расстояние — половина суммы модулей.
+// =============================================================
 export const BATTLE_GRID = { width: 9, height: 5 } as const
+
+interface CubePosition { q: number; r: number; s: number }
+
+/** Смещённые координаты «odd-r» -> кубические. */
+function toCube(position: GridPosition): CubePosition {
+  const q = position.x - (position.y - (position.y & 1)) / 2
+  const r = position.y
+  return { q, r, s: -q - r }
+}
+
+function cubeToGrid(cube: CubePosition): GridPosition {
+  return { x: cube.q + (cube.r - (cube.r & 1)) / 2, y: cube.r }
+}
+
+function cubeRound(q: number, r: number, s: number): CubePosition {
+  let rq = Math.round(q), rr = Math.round(r), rs = Math.round(s)
+  const dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs - s)
+  if (dq > dr && dq > ds) rq = -rr - rs
+  else if (dr > ds) rr = -rq - rs
+  else rs = -rq - rr
+  return { q: rq, r: rr, s: rs }
+}
+
+/** Шесть соседей клетки. Набор смещений зависит от чётности ряда. */
+const NEIGHBOUR_OFFSETS = {
+  even: [[+1, 0], [0, -1], [-1, -1], [-1, 0], [-1, +1], [0, +1]],
+  odd:  [[+1, 0], [+1, -1], [0, -1], [-1, 0], [0, +1], [+1, +1]],
+} as const
+
+export function hexNeighbours(position: GridPosition): GridPosition[] {
+  const offsets = position.y & 1 ? NEIGHBOUR_OFFSETS.odd : NEIGHBOUR_OFFSETS.even
+  return offsets
+    .map(([dx, dy]) => ({ x: position.x + dx, y: position.y + dy }))
+    .filter(isInsideGrid)
+}
 
 export interface GridPosition {
   x: number
@@ -46,12 +93,12 @@ export function samePosition(a: GridPosition, b: GridPosition): boolean {
 }
 
 export function gridDistance(a: GridPosition, b: GridPosition): number {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
+  const ca = toCube(a), cb = toCube(b)
+  return (Math.abs(ca.q - cb.q) + Math.abs(ca.r - cb.r) + Math.abs(ca.s - cb.s)) / 2
 }
 
 export function isAdjacentStep(from: GridPosition, to: GridPosition): boolean {
-  return isInsideGrid(to)
-    && Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y)) === 1
+  return isInsideGrid(to) && hexNeighbours(from).some(cell => samePosition(cell, to))
 }
 
 export function participantAt(
@@ -124,7 +171,9 @@ export function isInWeaponRange(
   return gridDistance(attacker, target) <= Math.max(1, maxRange)
 }
 
-// Integer grid line. Every occupied intermediate cell protects participants behind it.
+// Луч по сотам: линейная интерполяция в кубических координатах с
+// округлением к ближайшей клетке. Любая занятая клетка на пути
+// прикрывает тех, кто стоит за ней.
 export function hasLineOfSight(
   from: GridPosition,
   to: GridPosition,
@@ -132,20 +181,24 @@ export function hasLineOfSight(
   attackerId: string,
   targetId: string,
 ): boolean {
-  const dx = Math.abs(to.x - from.x)
-  const dy = Math.abs(to.y - from.y)
-  const sx = from.x < to.x ? 1 : -1
-  const sy = from.y < to.y ? 1 : -1
-  let err = dx - dy
-  let x = from.x
-  let y = from.y
+  const steps = gridDistance(from, to)
+  if (steps <= 1) return true
 
-  while (!(x === to.x && y === to.y)) {
-    const e2 = 2 * err
-    if (e2 > -dy) { err -= dy; x += sx }
-    if (e2 < dx) { err += dx; y += sy }
-    if (x === to.x && y === to.y) break
-    const blocker = participantAt(participants, { x, y }, attackerId)
+  const a = toCube(from)
+  const b = toCube(to)
+  // Микросдвиг уводит луч с границы между двумя клетками: без него
+  // округление на ровных диагоналях зависит от порядка сравнения.
+  const nudge = 1e-6
+
+  for (let step = 1; step < steps; step++) {
+    const t = step / steps
+    const cell = cubeToGrid(cubeRound(
+      a.q + (b.q - a.q) * t + nudge,
+      a.r + (b.r - a.r) * t + nudge,
+      a.s + (b.s - a.s) * t - 2 * nudge,
+    ))
+    if (samePosition(cell, to) || samePosition(cell, from)) continue
+    const blocker = participantAt(participants, cell, attackerId)
     if (blocker && blocker.participantId !== targetId) return false
   }
   return true
@@ -168,19 +221,16 @@ export function canAttackTarget(
   )
 }
 
+/** Соседние клетки, которые сокращают дистанцию, ближайшая первой. */
 export function stepToward(from: GridPosition, to: GridPosition): GridPosition[] {
-  const candidates: GridPosition[] = []
-  const dx = Math.sign(to.x - from.x)
-  const dy = Math.sign(to.y - from.y)
-  if (dx !== 0) candidates.push({ x: from.x + dx, y: from.y })
-  if (dy !== 0) candidates.push({ x: from.x, y: from.y + dy })
-  return candidates.filter(isInsideGrid)
+  const current = gridDistance(from, to)
+  return hexNeighbours(from)
+    .filter(cell => gridDistance(cell, to) < current)
+    .sort((a, b) => gridDistance(a, to) - gridDistance(b, to))
 }
 
+/** Соседние клетки, отсортированные по удалению от угрозы. */
 export function stepAway(from: GridPosition, threat: GridPosition): GridPosition[] {
-  const candidates = [
-    { x: from.x + 1, y: from.y }, { x: from.x - 1, y: from.y },
-    { x: from.x, y: from.y + 1 }, { x: from.x, y: from.y - 1 },
-  ].filter(isInsideGrid)
-  return candidates.sort((a, b) => gridDistance(b, threat) - gridDistance(a, threat))
+  return hexNeighbours(from)
+    .sort((a, b) => gridDistance(b, threat) - gridDistance(a, threat))
 }

@@ -3,6 +3,7 @@ import {
   canAttackTarget,
   canMoveTo,
   gridDistance,
+  hexNeighbours,
   hasLineOfSight,
   isAdjacentStep,
   resolveSimultaneousMoves,
@@ -18,12 +19,35 @@ const fighter = (participantId: string, side: number, x: number, y: number): Pos
 })
 
 describe('battle grid movement', () => {
-  it('allows all eight adjacent cells and rejects jumps or staying put', () => {
+  it('allows the six neighbouring combs and rejects jumps or staying put', () => {
+    // Ряд 2 чётный — его соседи в соседних рядах смещены влево.
     expect(isAdjacentStep({ x: 1, y: 2 }, { x: 2, y: 2 })).toBe(true)
-    expect(isAdjacentStep({ x: 1, y: 2 }, { x: 2, y: 3 })).toBe(true)
     expect(isAdjacentStep({ x: 1, y: 2 }, { x: 0, y: 1 })).toBe(true)
+    expect(isAdjacentStep({ x: 1, y: 2 }, { x: 1, y: 3 })).toBe(true)
+    expect(isAdjacentStep({ x: 1, y: 2 }, { x: 2, y: 3 })).toBe(false)
     expect(isAdjacentStep({ x: 1, y: 2 }, { x: 1, y: 2 })).toBe(false)
     expect(isAdjacentStep({ x: 1, y: 2 }, { x: 3, y: 2 })).toBe(false)
+
+    // Ряд 1 нечётный — смещён вправо, поэтому соседство зеркальное.
+    expect(isAdjacentStep({ x: 1, y: 1 }, { x: 2, y: 2 })).toBe(true)
+    expect(isAdjacentStep({ x: 1, y: 1 }, { x: 0, y: 2 })).toBe(false)
+
+    expect(hexNeighbours({ x: 4, y: 2 })).toHaveLength(6)
+    // У края поля соседей меньше: за границу шагнуть нельзя. В верхнем
+    // левом углу чётного ряда их всего два — ряд смещён влево.
+    expect(hexNeighbours({ x: 0, y: 0 })).toEqual([{ x: 1, y: 0 }, { x: 0, y: 1 }])
+  })
+
+  it('measures distance across combs, not across squares', () => {
+    // Вдоль ряда шаг соты равен шагу столбца.
+    expect(gridDistance({ x: 0, y: 2 }, { x: 8, y: 2 })).toBe(8)
+    // Через ряд по вертикали — две соты, а не два «квадрата».
+    expect(gridDistance({ x: 1, y: 2 }, { x: 1, y: 4 })).toBe(2)
+    // Любой сосед — ровно единица, в отличие от прежней манхэттенской метрики,
+    // где диагональный шаг считался двойкой.
+    for (const cell of hexNeighbours({ x: 4, y: 2 })) {
+      expect(gridDistance({ x: 4, y: 2 }, cell)).toBe(1)
+    }
   })
 
   it('does not allow moving into an occupied cell', () => {

@@ -2710,34 +2710,64 @@ button { font-family: inherit; }
   border: 1px solid var(--border-accent);
 }
 
-.grid-field {
-  display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  grid-template-rows: repeat(5, 1fr);
-  gap: 0;
-  height: 200px;
+/* ── Поле боя: соты ──
+   Сота «остриём вверх»: ширина берётся из процентов, высота из
+   aspect-ratio контейнера (см. shared/lib/hex.ts). Ряды находят друг
+   на друга на четверть высоты, нечётные смещены на полсоты вправо,
+   поэтому позиции задаются инлайном в процентах, а не сеткой. */
+/* Тёмная площадка — во всю ширину арены, соты внутри ограничены
+   по ширине, иначе на большом экране они становятся неприлично крупными. */
+.hex-board {
+  padding: 8px 0 12px;
   background: #0a0c0f;
   border-bottom: 1px solid var(--border);
 }
-
-.grid-cell {
-  border-right: 1px solid #1a1e24;
-  border-bottom: 1px solid #1a1e24;
+.hex-field {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
+  width: min(100%, 760px);
+  margin: 0 auto;
 }
 
-/* Alternating tile pattern */
-.grid-cell:nth-child(even) {
-  background: rgba(255,255,255,0.012);
+.hex-cell { position: absolute; }
+
+/* Два слоя: нижний даёт контур, верхний — заливку с отступом внутрь.
+   Обычная рамка на clip-path не рисуется, поэтому кайма делается так. */
+.hex-cell__edge,
+.hex-cell__face {
+  position: absolute;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  transition: background .18s;
+}
+.hex-cell__edge { inset: 1px; background: #262c34; }
+.hex-cell__face { inset: 3px; background: #12161b; }
+
+.hex-cell.is-center .hex-cell__face { background: #171b16; }
+.hex-cell.is-player .hex-cell__edge { background: #3c6f2d; }
+.hex-cell.is-player .hex-cell__face { background: rgba(74, 138, 53, .16); }
+.hex-cell.is-enemy  .hex-cell__edge { background: #8f2626; }
+.hex-cell.is-enemy  .hex-cell__face { background: rgba(196, 48, 48, .16); }
+
+.hex-cell.is-movable .hex-cell__edge { background: rgba(212, 160, 23, .55); }
+.hex-cell.is-movable .hex-cell__face { background: rgba(212, 160, 23, .10); }
+.hex-cell.is-movable:hover .hex-cell__face { background: rgba(212, 160, 23, .22); }
+.hex-cell.is-selected .hex-cell__edge { background: #d4a017; }
+.hex-cell.is-selected .hex-cell__face { background: rgba(212, 160, 23, .30); }
+.hex-cell.is-target .hex-cell__edge { background: #e04a4a; }
+
+.hex-cell.is-clickable { cursor: pointer; }
+
+/* Содержимое соты — поверх обоих слоёв и по центру */
+.hex-cell > .fighter-token,
+.hex-cell > .grid-event-flash {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
 }
 
-.cell-player { background: rgba(74,138,53,0.08) !important; }
-.cell-enemy  { background: rgba(196,48,48,0.08) !important; }
-.cell-center { background: rgba(212,160,23,0.04) !important; }
+@media (max-width: 900px) {
+  /* На телефоне сота становится мельче, подпись под иконкой не нужна */
+  .hex-cell .token-label { display: none; }
+  .hex-cell .fighter-token { padding: 2px; border-width: 1px; }
+}
 
 /* ── Токены бойцов ── */
 .fighter-token {
