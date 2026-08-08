@@ -32,9 +32,9 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function RequireGuest({ children }: { children: React.ReactNode }) {
+function RequireGuest({ children, authenticatedTo = '/' }: { children: React.ReactNode; authenticatedTo?: string }) {
   const { isAuth } = useAuth()
-  if (isAuth) return <Navigate to="/" replace />
+  if (isAuth) return <Navigate to={authenticatedTo} replace />
   return <>{children}</>
 }
 
@@ -57,8 +57,8 @@ export function AppRouter() {
     <Routes>
       {/* ── Публичная часть ───────────────────────────────── */}
       <Route element={<PublicLayout />}>
-        <Route path="/login"    element={<RequireGuest><LoginPage /></RequireGuest>} />
-        <Route path="/register" element={<RequireGuest><RegisterPage /></RequireGuest>} />
+        <Route path="/login"    element={<RequireGuest authenticatedTo="/profile"><LoginPage /></RequireGuest>} />
+        <Route path="/register" element={<RequireGuest authenticatedTo="/character/create"><RegisterPage /></RequireGuest>} />
       </Route>
 
       {/* ── Экраны без городской оболочки ─────────────────── */}

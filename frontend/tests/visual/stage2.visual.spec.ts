@@ -91,6 +91,24 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(errors).toEqual([])
   })
 
+  test('browser registration reaches character creation and creates a playable profile', async ({ page }) => {
+    const suffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+    const login = `browser_${suffix}`.slice(0, 30)
+    const password = 'browser_pass_123'
+    await page.goto('/register')
+    const inputs = page.locator('input')
+    await inputs.nth(0).fill(login)
+    await inputs.nth(1).fill(`${login}@visual.local`)
+    await inputs.nth(2).fill(password)
+    await inputs.nth(3).fill(password)
+    await page.locator('button[type="submit"]').click()
+    await expect(page).toHaveURL(/\/character\/create$/)
+    await page.locator('input[type="text"]').fill(`Hero_${suffix}`.slice(0, 30))
+    await page.locator('button[type="submit"]').click()
+    await expect(page).toHaveURL(/\/profile$/)
+    await expect(page.locator('body')).toContainText(`Hero_${suffix}`.slice(0, 30))
+  })
+
   test('expired session redirects instead of rendering empty Stage 2 data', async ({ page }) => {
     await page.goto('/login')
     await page.evaluate(() => {
