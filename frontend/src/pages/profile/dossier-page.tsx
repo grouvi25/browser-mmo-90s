@@ -16,6 +16,7 @@ import { PLATES, Sprite, SpriteButton, SPRITES } from '../../shared/ui/sprite'
 import {
   ARCHETYPE_LABELS, WEAPON_TYPE_LABELS, type ItemInstance,
 } from '../../shared/types/api.types'
+import { itemImage } from '../../shared/assets/shop/shop-images'
 
 const NOTES_KEY = 'mmo_notepad'
 
@@ -149,7 +150,7 @@ export function DossierPage() {
         </div>
 
         <div className="m-dossier__slots">
-          <SpriteButton name={weaponSprite(weapon)} box={{ x: 0, y: 0, w: 92, h: 94 }} empty={!weapon}
+          <SpriteButton name={weaponSprite(weapon)} src={weapon ? itemImage(weapon.template.code, weapon.template.weaponType) : undefined} box={{ x: 0, y: 0, w: 92, h: 94 }} empty={!weapon}
             title={weapon ? weapon.template.name : 'Оружие не надето'} onClick={() => navigate('/inventory')} />
           <SpriteButton name="p-item-bat" box={{ x: 0, y: 0, w: 84, h: 88 }} empty={!offhand}
             title={offhand ? offhand.template.name : 'Правая рука свободна'} onClick={() => navigate('/inventory')} />
@@ -242,7 +243,7 @@ export function DossierPage() {
 
       {/* слоты снаряжения */}
       <SpriteButton
-        name={weaponSprite(weapon)} box={PROFILE.slots[0].box} empty={!weapon}
+        name={weaponSprite(weapon)} src={weapon ? itemImage(weapon.template.code, weapon.template.weaponType) : undefined} box={PROFILE.slots[0].box} empty={!weapon}
         title={weapon ? `${weapon.template.name} · ${weapon.durabilityCurrent}/${weapon.durabilityMax}`
           : 'Оружие не надето'}
         onClick={() => navigate('/inventory')}

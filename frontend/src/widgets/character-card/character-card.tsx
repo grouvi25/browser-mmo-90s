@@ -14,6 +14,7 @@ import { FitText, Layer } from '../../shared/lib/stage'
 import { Hotspot, Sprite, SpriteButton } from '../../shared/ui/sprite'
 import type { ItemInstance } from '../../shared/types/api.types'
 import { ARMOR_SLOT_LABELS, WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
+import { itemImage } from '../../shared/assets/shop/shop-images'
 
 const C = MENU.card
 
@@ -143,6 +144,7 @@ export function CharacterCard() {
 
           <SpriteButton
             name={weaponSprite(weapon)}
+            src={weapon ? itemImage(weapon.template.code, weapon.template.weaponType) : undefined}
             box={C.slots[0].box}
             empty={!weapon}
             title={weapon

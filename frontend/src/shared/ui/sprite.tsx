@@ -96,8 +96,9 @@ export function Hotspot({
 
 /** Кликабельный спрайт: картинка + область нажатия одним элементом. */
 export function SpriteButton({
-  name, box, onClick, title, active, disabled, className = '', empty,
+  name, box, onClick, title, active, disabled, className = '', empty, src,
 }: SpriteProps & {
+  src?: string
   onClick?: () => void
   title?: string
   active?: boolean
@@ -109,8 +110,8 @@ export function SpriteButton({
   return (
     <Hotspot box={box} onClick={onClick} title={title} active={active}
       disabled={disabled} className={`sprite-btn ${className}`}>
-      {!empty && url && (
-        <img src={url} alt="" draggable={false} className="sprite-btn__img" />
+      {!empty && (src ?? url) && (
+        <img src={src ?? url} alt="" draggable={false} className="sprite-btn__img" />
       )}
       {empty && <span className="sprite-btn__empty" />}
     </Hotspot>
