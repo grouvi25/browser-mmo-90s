@@ -141,7 +141,7 @@ export function AppRouter() {
 
         <Route path="/soon/:key" element={<SoonRoute />} />
         <Route path="/work" element={
-          <ViewportPanel title="Работа" subtitle="Смены, зарплата и производственный уровень">
+          <ViewportPanel title="Работа" subtitle="Смены, зарплата и профессии">
             <WorkPage />
           </ViewportPanel>} />
         <Route path="/station" element={<LockedSection title="Вокзал" stage={2}
