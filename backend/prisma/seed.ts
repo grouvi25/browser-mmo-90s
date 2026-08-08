@@ -207,10 +207,10 @@ async function main() {
     ['res_plastic', 'Пластик', 'PRIMARY', 1, 7, 0.3, false, false],
     ['res_chemicals', 'Химия', 'PRIMARY', 1, 15, 0.4, false, false],
     ['res_spare_parts', 'Запчасти', 'PRIMARY', 1, 18, 0.6, false, false],
-    ['comp_metal_plate', 'Стальная пластина', 'REPAIR_PART', 2, 30, 0.7, true, false],
+    ['comp_metal_plate', 'Металлическая пластина', 'REPAIR_PART', 2, 30, 0.7, true, false],
     ['comp_fastener', 'Крепёж', 'COMPONENT', 2, 12, 0.2, false, false],
     ['comp_spring', 'Пружина', 'UPGRADE_PART', 2, 25, 0.2, false, true],
-    ['comp_weapon_part', 'Деталь оружия', 'UPGRADE_PART', 2, 60, 0.5, true, true],
+    ['comp_weapon_part', 'Оружейная деталь', 'UPGRADE_PART', 2, 60, 0.5, true, true],
     ['comp_armor_plate', 'Бронепластина', 'UPGRADE_PART', 2, 70, 0.9, true, true],
     ['comp_repair_kit', 'Ремкомплект', 'REPAIR_PART', 2, 45, 0.5, true, false],
   ] as const
@@ -241,12 +241,12 @@ async function main() {
   console.log(`  Private shop entries: ${privateItemRows.length+privateResourceRows.length}`)
 
   const productionObjects = [
-    ['obj_warehouse_station','Склад на вокзале','WAREHOUSE',0,30,100,8,null,0,0,0],
-    ['obj_scrapyard','Пункт приёма металлолома','SCRAPYARD',0,30,80,10,'res_scrap_metal',2,4,0],
+    ['obj_warehouse_station','Склад у вокзала','WAREHOUSE',0,30,100,8,null,0,0,0],
+    ['obj_scrapyard','Пункт металлолома','SCRAPYARD',0,30,80,10,'res_scrap_metal',2,4,0],
     ['obj_market_loader','Грузчик на рынке','MARKET',0,45,120,8,null,0,0,15],
-    ['obj_garage_workshop','Мастерская в гаражах','WORKSHOP',1,60,160,15,'comp_fastener',1,2,0],
-    ['obj_small_factory','Цех на заводе','FACTORY',2,60,220,20,'comp_metal_plate',1,2,0],
-    ['obj_parts_factory','Завод запчастей','FACTORY',3,90,300,28,'comp_weapon_part',1,1,0],
+    ['obj_garage_workshop','Гаражный цех','WORKSHOP',1,60,160,15,'comp_fastener',1,2,0],
+    ['obj_small_factory','Малый завод','FACTORY',2,60,220,20,'comp_metal_plate',1,2,0],
+    ['obj_parts_factory','Фабрика деталей','FACTORY',3,90,300,28,'comp_weapon_part',1,1,0],
   ] as const
   const objectProfessions: Record<string, string> = {
     obj_warehouse_station: 'supplier',
