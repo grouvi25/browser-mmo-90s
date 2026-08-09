@@ -105,7 +105,7 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml build
+            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml build
           EOF
 
       - name: Run migrations
@@ -115,7 +115,7 @@ jobs:
             cd ${{ secrets.VPS_PROJECT_DIR }}
             # backend/.env already contains the direct PostgreSQL DATABASE_URL.
             # Do not source dotenv files as shell scripts (BOM/CRLF and special values are unsafe).
-            docker compose -f docker-compose.prod.yml run --rm backend npx prisma migrate deploy
+            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml run --rm backend npx prisma migrate deploy
           EOF
 
       - name: Run idempotent Stage 2 seed
@@ -123,7 +123,7 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml run --rm backend npx tsx prisma/seed.ts
+            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml run --rm backend npx tsx prisma/seed.ts
           EOF
 
       - name: Restart services
@@ -131,7 +131,7 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
             set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml up -d --remove-orphans
           EOF
 
       - name: Reload public nginx routing
@@ -154,13 +154,13 @@ jobs:
                 break
               fi
               if [ "$i" = 18 ]; then
-                docker compose -f ${{ secrets.VPS_PROJECT_DIR }}/docker-compose.prod.yml logs --tail=100 backend
+                docker compose -f ${{ secrets.VPS_PROJECT_DIR }}/docker-compose.prod.yml -f ${{ secrets.VPS_PROJECT_DIR }}/docker-compose.vps.yml logs --tail=100 backend
                 exit 1
               fi
               sleep 5
             done
-            curl --fail --silent https://game.grouvi.online/ >/dev/null
-            curl --fail --silent https://game.grouvi.online/ready | grep -q '"status":"ready"'
+            curl --fail --silent https://kooperativ.space/ >/dev/null
+            curl --fail --silent https://kooperativ.space/ready | grep -q '"status":"ready"'
           EOF
 
       - name: Run authenticated Stage 2 production smoke
@@ -169,9 +169,9 @@ jobs:
             set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
             SMOKE_PASSWORD="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"
-            docker compose -f docker-compose.prod.yml run --rm \
+            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml run --rm \
               -e SMOKE_PASSWORD="$SMOKE_PASSWORD" \
-              -e SMOKE_BASE_URL="https://game.grouvi.online" \
+              -e SMOKE_BASE_URL="https://kooperativ.space" \
               backend node dist/scripts/production-auth-smoke.js
           EOF
 
@@ -196,7 +196,7 @@ jobs:
               exit 1
             fi
             git reset --hard "$ROLLBACK_SHA"
-            docker compose -f docker-compose.prod.yml build
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml build
+            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml up -d --remove-orphans
             echo "Application rolled back. Database restore remains a deliberate manual operation."
           EOF

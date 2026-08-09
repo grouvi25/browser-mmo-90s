@@ -29,17 +29,19 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
-# GitHub Actions already authenticated with an SSH key before this step.
-# Keep root key login for deployment, but disable all password authentication.
-install -d -m 0755 /etc/ssh/sshd_config.d
-cat > /etc/ssh/sshd_config.d/99-mmo90s-hardening.conf <<'EOF'
+# Password login stays enabled during migration.
+# Set DISABLE_PASSWORD_SSH=true only after key access is independently verified.
+if [[ "${DISABLE_PASSWORD_SSH:-false}" == "true" ]]; then
+  install -d -m 0755 /etc/ssh/sshd_config.d
+  cat > /etc/ssh/sshd_config.d/99-mmo90s-hardening.conf <<'EOF'
 PermitRootLogin prohibit-password
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PubkeyAuthentication yes
 EOF
-sshd -t
-systemctl reload ssh
+  sshd -t
+  systemctl reload ssh
+fi
 
 systemctl --no-pager status mmo90s-backup.timer | head -20
 ufw status verbose

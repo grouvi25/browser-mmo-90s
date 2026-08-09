@@ -1,0 +1,21 @@
+services:
+  postgres:
+    mem_limit: 256m
+  pgbouncer:
+    mem_limit: 64m
+    environment:
+      MAX_CLIENT_CONN: 300
+      DEFAULT_POOL_SIZE: 15
+      MIN_POOL_SIZE: 3
+      RESERVE_POOL_SIZE: 5
+  redis:
+    mem_limit: 192m
+    command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru --appendonly yes --appendfsync everysec
+  backend:
+    mem_limit: 320m
+    environment:
+      NODE_CLUSTER: "false"
+  worker:
+    mem_limit: 256m
+  frontend:
+    mem_limit: 64m

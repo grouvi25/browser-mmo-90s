@@ -14,7 +14,7 @@ chmod 700 "$BACKUP_DIR"
 echo "==> Creating PostgreSQL backup: $FILENAME"
 # Read database identity from the already running PostgreSQL container.
 # This avoids sourcing .env files, which may contain BOM/CRLF or shell-unsafe values.
-docker compose -f docker-compose.prod.yml exec -T postgres \
+docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml exec -T postgres \
   sh -ec 'pg_dump --format=plain --no-owner --no-privileges -U "$POSTGRES_USER" "$POSTGRES_DB"' \
   | gzip -9 > "$BACKUP_DIR/$FILENAME"
 
