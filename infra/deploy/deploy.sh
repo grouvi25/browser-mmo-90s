@@ -30,16 +30,16 @@ echo "[1/6] Pulling latest code..."
 git pull origin main
 
 echo "[2/6] Building Docker images..."
-docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml build --no-cache
 
 echo "[3/6] Running database migrations..."
-docker compose -f docker-compose.prod.yml run --rm backend npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml run --rm backend npx prisma migrate deploy
 
 echo "[4/6] Seeding database (safe, uses upsert)..."
-docker compose -f docker-compose.prod.yml run --rm backend npx tsx prisma/seed.ts
+docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml run --rm backend npx tsx prisma/seed.ts
 
 echo "[5/6] Restarting services..."
-docker compose -f docker-compose.prod.yml up -d --remove-orphans
+docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml up -d --remove-orphans
 
 echo "[6/6] Linking nginx vhost..."
 if [ ! -f "$NGINX_SITES/mmo90s" ]; then
@@ -53,4 +53,4 @@ fi
 
 echo ""
 echo "✅ Deploy complete!"
-echo "   Containers: $(docker compose -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Status}}' | grep mmo90s)"
+echo "   Containers: $(docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml ps --format 'table {{.Name}}\t{{.Status}}' | grep mmo90s)"
