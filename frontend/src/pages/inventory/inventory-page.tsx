@@ -8,6 +8,7 @@ import {
 } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
+import { itemImage } from '../../shared/assets/shop/shop-images'
 
 const LOADOUT_KEY = 'mmo_battle_loadout'
 function getLoadout(): string[] {
@@ -157,6 +158,7 @@ export function InventoryPage() {
     return (
       <tr key={item.id} style={isBroken ? { opacity: 0.65 } : {}}>
         <td>
+          <img src={itemImage(t.code,t.weaponType,t.type)} alt="" width={58} height={42} style={{objectFit:'contain',float:'left',marginRight:8}} />
           <div className={`q-${item.quality}`} style={{ fontWeight: item.isEquipped ? 'bold' : 'normal' }}>
             {t.name}
             {item.isEquipped && <span style={{ color: 'var(--success)', marginLeft: 4 }}>▲ Надето</span>}

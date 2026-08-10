@@ -17,12 +17,12 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { authApi } from '../../shared/api/auth.api'
 import { useAuth } from '../providers/auth-provider'
 import { MENU } from '../../shared/lib/layout-map'
-import { CardCutout } from '../../widgets/character-card/card-cutout'
 import { MobileChat } from '../../widgets/city-feed/mobile-chat'
+import { districtKey } from '../../widgets/city-nav/city-nav'
 import { useTableLabels } from '../../shared/lib/use-table-labels'
 import { ErrorBoundary } from '../error-boundary'
 
-type Sheet = 'card' | 'chat' | 'menu' | null
+type Sheet = 'chat' | 'menu' | null
 
 export function MobileShell() {
   const navigate = useNavigate()
@@ -91,13 +91,11 @@ export function MobileShell() {
         <ErrorBoundary><Outlet /></ErrorBoundary>
       </main>
 
-      {strip(MENU.bottomTabs, 'economy')}
+      {strip(MENU.rooms[districtKey(location.pathname)] ?? MENU.bottomTabs, 'economy')}
 
       <nav className="m-tabbar">
         <button type="button" className={'m-tabbar__btn' + (location.pathname === '/' ? ' is-active' : '')}
           onClick={() => go('/')}>Город</button>
-        <button type="button" className={'m-tabbar__btn' + (sheet === 'card' ? ' is-active' : '')}
-          onClick={() => setSheet(sheet === 'card' ? null : 'card')}>Дело</button>
         <button type="button" className={'m-tabbar__btn' + (sheet === 'chat' ? ' is-active' : '')}
           onClick={() => setSheet(sheet === 'chat' ? null : 'chat')}>Чат</button>
         <button type="button" className={'m-tabbar__btn' + (sheet === 'menu' ? ' is-active' : '')}
@@ -110,7 +108,6 @@ export function MobileShell() {
           <div className="m-sheet__body">
             <button type="button" className="m-sheet__close" onClick={() => setSheet(null)}>закрыть ✕</button>
 
-            {sheet === 'card' && <CardCutout width={Math.min(360, window.innerWidth - 32)} />}
             {sheet === 'chat' && <MobileChat />}
             {sheet === 'menu' && (
               <div className="m-menu">

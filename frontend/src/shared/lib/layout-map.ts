@@ -33,23 +33,36 @@ export const MENU = {
 
   /** районы города — переключают содержимое центрального вьюпорта */
   districts: [
-    { key: 'center', label: 'центр', x: 372, y: 98, w: 56.5, to: '/' },
-    { key: 'market', label: 'рынок', x: 500, y: 96.5, w: 62, to: '/market' },
-    { key: 'industrial', label: 'промзона', x: 629.5, y: 97.5, w: 96, to: '/work' },
-    { key: 'station', label: 'вокзал', x: 792, y: 98, w: 66.5, to: '/station' },
-    { key: 'garages', label: 'гаражи', x: 933.5, y: 96.5, w: 69.5, to: '/garages' },
-    { key: 'suburb', label: 'спальный район', x: 1068.5, y: 95, w: 158.5, to: '/pvp' },
+    { key: 'center', label: 'Центр', x: 350, y: 98, w: 62, to: '/' },
+    { key: 'market', label: 'Рынок', x: 468, y: 98, w: 66, to: '/market' },
+    { key: 'industrial', label: 'Промзона', x: 588, y: 98, w: 100, to: '/industrial' },
+    { key: 'agriculture', label: 'Фермы и колхозы', x: 724, y: 98, w: 162, to: '/agriculture' },
+    { key: 'station', label: 'Вокзал', x: 914, y: 98, w: 70, to: '/station' },
+    { key: 'garages', label: 'Гаражи', x: 1020, y: 98, w: 74, to: '/garages' },
+    { key: 'suburb', label: 'Спальный район', x: 1124, y: 98, w: 160, to: '/pvp' },
   ],
 
   /** нижняя полоса — экономика Этапов 2–3 */
   bottomTabs: [
-    { key: 'farms', label: 'фермы', x: 382.5, y: 629.5, w: 49, to: '/soon/farms' },
-    { key: 'kolhoz', label: 'колхозы', x: 508, y: 630.5, w: 56, to: '/soon/kolhoz' },
-    { key: 'resources', label: 'сырьё', x: 670, y: 628.5, w: 42.5, to: '/resources' },
-    { key: 'products', label: 'продукты', x: 816.5, y: 630.5, w: 63.5, to: '/soon/products' },
-    { key: 'storage', label: 'склад', x: 983, y: 631, w: 39.5, to: '/soon/storage' },
-    { key: 'labour', label: 'дешёвая рабочая сила', x: 1118, y: 629.5, w: 153.5, to: '/work' },
+    { key: 'shop', label: 'Магазин', x: 382.5, y: 630, w: 72, to: '/shop' },
+    { key: 'private', label: 'Частные лавки', x: 500, y: 630, w: 110, to: '/shops/private' },
+    { key: 'inventory', label: 'Снаряжение', x: 660, y: 630, w: 95, to: '/inventory' },
   ],
+  rooms: {
+    industrial: [
+      { key: 'work', label: 'Работа', to: '/work' }, { key: 'resources', label: 'Запчасти', to: '/resources' },
+      { key: 'make', label: 'Делают шмот', to: '/soon/equipment-production' }, { key: 'upgrades', label: 'Улучшают шмот', to: '/upgrades' },
+      { key: 'repair', label: 'Ремонт', to: '/repair' }, { key: 'storage', label: 'Склад', to: '/soon/storage' },
+    ],
+    agriculture: [
+      { key: 'farms', label: 'Фермы', to: '/soon/farms' }, { key: 'kolhoz', label: 'Колхозы', to: '/soon/kolhoz' },
+      { key: 'plants', label: 'Растения', to: '/soon/plants' }, { key: 'products', label: 'Продукты', to: '/soon/products' },
+    ],
+    market: [
+      { key: 'market', label: 'Рынок игроков', to: '/market' }, { key: 'shop', label: 'Госмагазин', to: '/shop' },
+      { key: 'private', label: 'Частные лавки', to: '/shops/private' },
+    ],
+  } as Record<string, readonly { key:string;label:string;to:string }[]>,
   bottomFontSize: 15.1,
   bottomDy: -1,
 

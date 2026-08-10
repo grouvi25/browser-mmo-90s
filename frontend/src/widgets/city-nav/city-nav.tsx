@@ -56,6 +56,8 @@ export function TopNav() {
   )
 }
 
+export function districtKey(path:string){if(['/industrial','/work','/resources','/upgrades','/repair'].some(x=>path.startsWith(x))||path.includes('equipment-production'))return'industrial';if(path.startsWith('/agriculture')||['farms','kolhoz','plants','products'].some(x=>path.includes(x)))return'agriculture';if(['/market','/shop','/shops/private'].some(x=>path.startsWith(x)))return'market';return''}
+
 export function DistrictTabs() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -63,7 +65,7 @@ export function DistrictTabs() {
   return (
     <>
       {MENU.districts.map(d => {
-        const active = location.pathname === d.to
+        const active = location.pathname === d.to || districtKey(location.pathname) === d.key
         return (
           <FitText
             key={d.key}
@@ -84,23 +86,13 @@ export function DistrictTabs() {
 export function BottomTabs() {
   const navigate = useNavigate()
   const location = useLocation()
-
-  return (
-    <>
-      {MENU.bottomTabs.map(t => (
-        <FitText
-          key={t.key}
-          x={t.x} y={t.y} w={t.w} size={MENU.bottomFontSize} dy={MENU.bottomDy}
-          as="button"
-          className={'t-sign stage-link'
-            + (t.to.startsWith('/soon/') ? ' is-locked' : '')
-            + (location.pathname === t.to ? ' is-active' : '')}
-          onClick={() => navigate(t.to)}
-          title={t.to.startsWith('/soon/') ? 'Откроется на следующих этапах' : t.label}
-        >
-          {t.label}
-        </FitText>
-      ))}
-    </>
-  )
+  const key = districtKey(location.pathname)
+  const tabs = MENU.rooms[key] ?? MENU.bottomTabs
+  const startX = 382.5
+  const step = Math.min(155, 870 / Math.max(1, tabs.length))
+  return <>{tabs.map((t, index) => (
+    <FitText key={t.key} x={startX + index * step} y={630} w={Math.max(85, step - 18)} size={MENU.bottomFontSize} dy={MENU.bottomDy}
+      as="button" className={'t-sign stage-link' + (t.to.startsWith('/soon/') ? ' is-locked' : '') + (location.pathname === t.to ? ' is-active' : '')}
+      onClick={() => navigate(t.to)} title={t.label}>{t.label}</FitText>
+  ))}</>
 }

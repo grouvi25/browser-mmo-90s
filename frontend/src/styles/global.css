@@ -442,6 +442,20 @@ button { font-family: inherit; }
 .btn-lg   { padding: 6px 16px; font-size: 12px; }
 .btn-block { display: block; width: 100%; text-align: center; }
 
+.market-create, .market-filters, .location-room-list {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.market-filters { margin-bottom: 12px; }
+.market-filters label { display: flex; gap: 6px; align-items: center; color: var(--text-dim); }
+.location-room-list { margin-top: 16px; align-items: stretch; }
+.location-room-list .btn { min-height: 44px; display: inline-flex; align-items: center; }
+.data-table img { object-fit: contain; display: block; }
+@media (max-width: 720px) {
+  .market-create > *, .market-filters > * { min-height: 44px; }
+  .market-filters label { width: 100%; justify-content: space-between; }
+  .location-room-list { display: grid; grid-template-columns: 1fr 1fr; }
+}
+
 /* ═══════════════════════════════════════════════════
    FORMS
 ═══════════════════════════════════════════════════ */

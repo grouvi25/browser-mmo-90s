@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate, useParams } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom'
 import { useAuth } from './providers/auth-provider'
 import { PublicLayout } from './layouts/public-layout'
 import { GameShell } from './layouts/game-shell'
@@ -26,6 +27,7 @@ import { PrivateShopsPage }    from '../pages/private-shops/private-shops-page'
 import { MarketPage }          from '../pages/market/market-page'
 import { UpgradesPage }        from '../pages/upgrades/upgrades-page'
 import { BalanceSandboxPage }   from '../pages/balance-sandbox/balance-sandbox-page'
+import { LocationHubPage }      from '../pages/locations/location-hub-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -45,6 +47,8 @@ const SOON: Record<string, { title: string; stage: number; what: string }> = {
   kolhoz:    { title: 'Колхозы', stage: 3, what: 'Крупное производство сельхозсырья с рабочими местами.' },
   products:  { title: 'Продукты', stage: 3, what: 'Еда и напитки из баров, временные эффекты перед боем и работой.' },
   storage:   { title: 'Склад', stage: 2, what: 'Хранение ресурсов и деталей сверх носимого веса.' },
+  plants:    { title: 'Растения', stage: 3, what: 'Посадки, уход и сбор урожая.' },
+  'equipment-production': { title: 'Производство шмота', stage: 3, what: 'Изготовление снаряжения в отдельной комнате Промзоны.' },
 }
 
 function SoonRoute() {
@@ -53,8 +57,21 @@ function SoonRoute() {
   return <LockedSection title={cfg.title} stage={cfg.stage} what={cfg.what} />
 }
 
+function MetrikaTracker() {
+  const location = useLocation()
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) { first.current = false; return }
+    const ym = (window as typeof window & { ym?: (id:number, action:string, url:string, options:Record<string,string>) => void }).ym
+    ym?.(111441325, 'hit', location.pathname + location.search, { title: document.title, referer: document.referrer })
+  }, [location.pathname, location.search])
+  return null
+}
+
 export function AppRouter() {
   return (
+    <>
+    <MetrikaTracker />
     <Routes>
       {/* ── Публичная часть ───────────────────────────────── */}
       <Route element={<PublicLayout />}>
@@ -76,6 +93,8 @@ export function AppRouter() {
       <Route element={<RequireAuth><GameShell /></RequireAuth>}>
         <Route path="/" element={<HubPage />} />
         <Route path="/garages" element={<GaragesPage />} />
+        <Route path="/industrial" element={<LocationHubPage kind="industrial" />} />
+        <Route path="/agriculture" element={<LocationHubPage kind="agriculture" />} />
 
         <Route path="/shop" element={
           <ViewportPanel title="Рынок" subtitle="Государственные цены">
@@ -159,5 +178,6 @@ export function AppRouter() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }

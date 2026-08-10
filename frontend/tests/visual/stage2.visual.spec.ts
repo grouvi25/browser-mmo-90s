@@ -153,6 +153,18 @@ test.describe('Stage 2 visual and browser flow', () => {
     await visualProof(page, testInfo, 'government-weapons-level-2')
   })
 
+  test('location navigation exposes districts first and contextual rooms second', async ({ page }) => {
+    await authPage(page, seller)
+    await page.goto('/industrial')
+    await expect(page.getByRole('button', { name: 'Промзона', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Работа', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Улучшают шмот', exact: true })).toBeVisible()
+    await page.goto('/agriculture')
+    await expect(page.getByRole('button', { name: 'Фермы и колхозы', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Растения', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Дело', exact: true })).toHaveCount(0)
+  })
+
   test('E1 resources page shows weight and government inventory state', async ({ page }, testInfo) => {
     await authPage(page, seller)
     await page.goto('/resources')
@@ -175,7 +187,12 @@ test.describe('Stage 2 visual and browser flow', () => {
   test('E4 market shows seller profile and buyer can purchase listing', async ({ page }, testInfo) => {
     await authPage(page, buyer)
     await page.goto('/market')
+    await expect(page.getByRole('button', { name: 'Ближний бой', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Дальний бой', exact: true })).toBeVisible()
+    await expect(page.getByLabel('Уровень предмета')).toHaveValue('1')
+    await page.getByLabel('Уровень предмета').selectOption('ALL')
     await expect(page.getByRole('link', { name: seller.nickname })).toBeVisible()
+    await expect(page.locator('tbody img')).not.toHaveCount(0)
     const row = page.locator('tr').filter({ has: page.getByRole('link', { name: seller.nickname }) })
     await expect(row.getByRole('button', { name: 'Купить' })).toBeVisible()
     await visualProof(page, testInfo, 'e4-market')
