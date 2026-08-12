@@ -92,6 +92,12 @@ services:
     restart: unless-stopped
     ports:
       - '127.0.0.1:3080:80'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/ >/dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks: [mmo90s_internal]
 
   worker:
@@ -109,6 +115,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'test -f /tmp/mmo90s-worker-heartbeat && test $(($(date +%s) - $(stat -c %Y /tmp/mmo90s-worker-heartbeat))) -lt 60']
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks: [mmo90s_internal]
 
 volumes:

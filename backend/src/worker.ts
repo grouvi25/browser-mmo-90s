@@ -13,6 +13,7 @@ import { runWorkShiftFinalize, WORK_SHIFT_FINALIZE_MS } from './workers/work-shi
 import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worker'
 import { startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
 import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
+import { writeFileSync } from 'node:fs'
 
 async function startWorker(): Promise<void> {
   logger.info('🔧 Starting MMO 90s BullMQ workers...')
@@ -79,7 +80,12 @@ async function startWorker(): Promise<void> {
   const stopEconomyMetrics = startEconomyMetricsDaily(3)
   logger.info('Economy metrics daily collector scheduled for 03:00 UTC')
 
-  const shutdown = async (signal: string): Promise<void> => {
+  const heartbeatPath = process.env.WORKER_HEARTBEAT_PATH ?? '/tmp/mmo90s-worker-heartbeat'
+  const writeHeartbeat = () => writeFileSync(heartbeatPath, new Date().toISOString())
+  writeHeartbeat()
+  const heartbeatTimer = setInterval(writeHeartbeat, 10_000)
+
+const shutdown = async (signal: string): Promise<void> => {
     logger.info(`[${signal}] Worker shutting down...`)
     clearInterval(cleanupTimer)
     clearInterval(hpRecoveryTimer)
@@ -88,6 +94,7 @@ async function startWorker(): Promise<void> {
     clearInterval(marketExpireTimer)
     clearInterval(idempotencyCleanupTimer)
     stopEconomyMetrics()
+    clearInterval(heartbeatTimer)
     await disconnectDb()
     await disconnectRedis()
     process.exit(0)
