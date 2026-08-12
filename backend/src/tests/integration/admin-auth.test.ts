@@ -85,4 +85,41 @@ describe('admin authentication', () => {
     })
     expect(denied.statusCode).toBe(401)
   })
+  it('allows support to read but forbids privileged mutations', async () => {
+    const username = (globalThis as { adminUsername: string }).adminUsername
+    await testPrisma.adminUser.update({ where: { username }, data: { role: 'SUPPORT' } })
+    const login = await app.inject({
+      method: 'POST', url: '/api/admin/auth/login', payload: { login: username, password: 'correct-password' },
+    })
+    expect(login.statusCode).toBe(200)
+    const token = login.json<{ token: string }>().token
+
+    const stats = await app.inject({
+      method: 'GET', url: '/api/admin/stats', headers: { authorization: `Bearer ${token}` },
+    })
+    expect(stats.statusCode).toBe(200)
+
+    const grant = await app.inject({
+      method: 'POST', url: '/api/admin/grant-money',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { characterId: '00000000-0000-4000-8000-000000000000', amount: 1, reason: 'test grant' },
+    })
+    expect(grant.statusCode).toBe(403)
+    expect(grant.json()).toMatchObject({ code: 'AUTH_006' })
+  })
+
+  it('revokes access immediately when the admin account is disabled', async () => {
+    const username = (globalThis as { adminUsername: string }).adminUsername
+    const login = await app.inject({
+      method: 'POST', url: '/api/admin/auth/login', payload: { login: username, password: 'correct-password' },
+    })
+    const token = login.json<{ token: string }>().token
+    await testPrisma.adminUser.update({ where: { username }, data: { isActive: false } })
+
+    const denied = await app.inject({
+      method: 'GET', url: '/api/admin/stats', headers: { authorization: `Bearer ${token}` },
+    })
+    expect(denied.statusCode).toBe(401)
+    expect(denied.json()).toMatchObject({ code: 'AUTH_004' })
+  })
 })

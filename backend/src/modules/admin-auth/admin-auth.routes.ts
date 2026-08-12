@@ -7,9 +7,10 @@ import { generateJti, revokeAdminSession, storeAdminSession } from '../../shared
 import { verifyPassword } from '../../shared/security/password'
 
 const AdminLoginSchema = z.object({
-  username: z.string().trim().min(1).max(64),
+  username: z.string().trim().min(1).max(64).optional(),
+  login: z.string().trim().min(1).max(64).optional(),
   password: z.string().min(1).max(256),
-})
+}).refine(data => Boolean(data.username || data.login), { message: 'login is required', path: ['login'] })
 
 const ADMIN_AUTH_RATE_LIMIT = {
   config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
@@ -22,13 +23,14 @@ export async function adminAuthRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     }
 
-    const admin = await prisma.adminUser.findUnique({ where: { username: parsed.data.username } })
+    const username = parsed.data.login ?? parsed.data.username!
+    const admin = await prisma.adminUser.findUnique({ where: { username } })
     const passwordValid = admin
       ? await verifyPassword(parsed.data.password, admin.passwordHash)
       : false
 
     if (!admin || !admin.isActive || !passwordValid) {
-      audit('admin.action', { action: 'login_failed', username: parsed.data.username, ip: req.ip })
+      audit('admin.action', { action: 'login_failed', login: username, ip: req.ip })
       return reply.code(401).send({ code: 'AUTH_001', message: 'Invalid credentials' })
     }
 
@@ -37,7 +39,7 @@ export async function adminAuthRoutes(fastify: FastifyInstance): Promise<void> {
     await prisma.adminUser.update({ where: { id: admin.id }, data: { lastLoginAt: new Date() } })
 
     const token = fastify.jwt.sign(
-      { role: 'admin', adminId: admin.id, jti },
+      { role: 'admin', adminRole: admin.role, adminId: admin.id, jti },
       { expiresIn: process.env.ADMIN_JWT_EXPIRES_IN ?? '12h' },
     )
 

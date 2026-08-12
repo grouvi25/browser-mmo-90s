@@ -1,6 +1,8 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
+import type { AdminRole } from '@prisma/client'
 import { AppError } from '../errors/app-error'
 import { ErrorCode } from '../errors/error-codes'
+import { prisma } from '../db/prisma'
 import { isAdminSessionValid, isSessionValid } from './jwt'
 
 export interface AuthUser {
@@ -11,6 +13,7 @@ export interface AuthUser {
 export interface AdminAuthUser {
   adminId: string
   jti: string
+  role: AdminRole
 }
 
 declare module 'fastify' {
@@ -66,12 +69,29 @@ export async function authenticateAdmin(
     if (!(await isAdminSessionValid(payload.jti, payload.adminId))) {
       throw new AppError(ErrorCode.SESSION_REVOKED, 'Session has been revoked', 401)
     }
-    request.adminUser = { adminId: payload.adminId, jti: payload.jti }
+    const admin = await prisma.adminUser.findUnique({
+      where: { id: payload.adminId },
+      select: { role: true, isActive: true },
+    })
+    if (!admin?.isActive) {
+      throw new AppError(ErrorCode.SESSION_REVOKED, 'Admin account is inactive', 401)
+    }
+    request.adminUser = { adminId: payload.adminId, jti: payload.jti, role: admin.role }
   } catch (err: unknown) {
     if (err instanceof AppError) {
       reply.code(err.statusCode).send({ code: err.code, message: err.message })
       return
     }
     reply.code(401).send({ code: ErrorCode.UNAUTHORIZED, message: 'Unauthorized' })
+  }
+}
+
+export function requireAdminRole(...roles: AdminRole[]) {
+  return async function authorizeAdminRole(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await authenticateAdmin(request, reply)
+    if (reply.sent) return
+    if (!roles.includes(request.adminUser.role)) {
+      reply.code(403).send({ code: ErrorCode.FORBIDDEN, message: 'Insufficient admin role' })
+    }
   }
 }
