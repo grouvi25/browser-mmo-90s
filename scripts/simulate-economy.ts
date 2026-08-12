@@ -30,7 +30,10 @@ const profiles = [
 ].filter(profile => profileFilter === 'all' || profile.key === profileFilter)
 if (!profiles.length || days < 8 || playersCount < 1) throw new Error('Invalid simulation arguments')
 
-const shiftFatigue = (number: number) => Math.max(0.20, 1 - (Math.max(1, number) - 1) * 0.20)
+const shiftFatigue = (number: number) => {
+  const work = BalanceConfig.economy.work
+  return Math.max(work.salaryFatigueFloor, 1 - (Math.max(1, number) - 1) * work.salaryFatigueStep)
+}
 const upgradeCosts = simulation.upgradeCosts
 const upgradeChances = simulation.upgradeChances
 

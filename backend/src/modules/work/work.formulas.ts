@@ -24,7 +24,7 @@ export function objectLevelCoeff(level: number): number { return 1 + WORK_BALANC
  */
 export function dailyShiftSalaryCoeff(shiftNumber: number): number {
   const normalized = Math.max(1, Math.min(8, Math.floor(shiftNumber)))
-  return Math.max(0.20, 1 - (normalized - 1) * 0.20)
+  return Math.max(WORK_BALANCE.salaryFatigueFloor, 1 - (normalized - 1) * WORK_BALANCE.salaryFatigueStep)
 }
 
 export function calcFinalSalary(
