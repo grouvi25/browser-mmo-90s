@@ -9,17 +9,33 @@ import{calcListingFee,calcMarketSellerEcoExp,calcSaleTax,calcSellerPayout,market
 import{auditSuspiciousPrice,recordMarketCancel,recordPairTrade}from'./market-abuse'
 const MELEE=['MELEE','KNIFE','CLUB'] as const
 export const MarketService={
- async list(params:{page:number;limit:number;type?:'ITEM'|'RESOURCE';sellerCharacterId?:string;combat?:'MELEE'|'RANGED';level?:number}){
-  const where={status:'ACTIVE' as const,...(params.type?{type:params.type}:{}),...(params.sellerCharacterId?{sellerCharacterId:params.sellerCharacterId}:{})}
-  let items=await prisma.marketListing.findMany({where,orderBy:{createdAt:'desc'}})
-  const itemIds=items.flatMap(x=>x.itemInstanceId?[x.itemInstanceId]:[])
-  const instances=await prisma.itemInstance.findMany({where:{id:{in:itemIds}},include:{template:true}})
+ async list(params:{page:number;limit:number;type?:'ITEM'|'RESOURCE';sellerCharacterId?:string;combat?:'MELEE'|'RANGED';level?:number;search?:string;priceMin?:number;priceMax?:number;sort?:'NEWEST'|'PRICE_ASC'|'PRICE_DESC'}){
+  const where={status:'ACTIVE' as const,...(params.type?{type:params.type}:{}),...(params.sellerCharacterId?{sellerCharacterId:params.sellerCharacterId}:{}),...(params.priceMin!==undefined||params.priceMax!==undefined?{price:{...(params.priceMin!==undefined?{gte:params.priceMin}:{}),...(params.priceMax!==undefined?{lte:params.priceMax}:{})}}:{})}
+  let listings=await prisma.marketListing.findMany({where,orderBy:[{createdAt:'desc'},{id:'asc'}]})
+  const itemIds=listings.flatMap(x=>x.itemInstanceId?[x.itemInstanceId]:[])
+  const resourceIds=listings.flatMap(x=>x.resourceTemplateId?[x.resourceTemplateId]:[])
+  const [instances,resources]=await Promise.all([
+   prisma.itemInstance.findMany({where:{id:{in:itemIds}},include:{template:true}}),
+   prisma.resourceTemplate.findMany({where:{id:{in:resourceIds}}}),
+  ])
   const byId=new Map(instances.map(x=>[x.id,x]))
-  if(params.combat||params.level!==undefined)items=items.filter(x=>{if(!x.itemInstanceId)return false;const t=byId.get(x.itemInstanceId)?.template;if(!t)return false;if(params.level!==undefined&&t.levelReq!==params.level)return false;if(params.combat){if(t.type!=='WEAPON')return false;const melee=MELEE.includes(t.weaponType as typeof MELEE[number]);if(params.combat==='MELEE'?!melee:melee)return false}return true})
-  const total=items.length;items=items.slice((params.page-1)*params.limit,params.page*params.limit)
-  const sellers=await prisma.character.findMany({where:{id:{in:[...new Set(items.map(x=>x.sellerCharacterId))]}},select:{id:true,nickname:true}})
+  const resourcesById=new Map(resources.map(x=>[x.id,x]))
+  const search=params.search?.trim().toLocaleLowerCase('ru')
+  if(params.combat||params.level!==undefined||search)listings=listings.filter(x=>{
+   const item=x.itemInstanceId?byId.get(x.itemInstanceId):undefined
+   const resource=x.resourceTemplateId?resourcesById.get(x.resourceTemplateId):undefined
+   if(params.level!==undefined&&item?.template.levelReq!==params.level)return false
+   if(params.combat){if(!item||item.template.type!=='WEAPON')return false;const melee=MELEE.includes(item.template.weaponType as typeof MELEE[number]);if(params.combat==='MELEE'?!melee:melee)return false}
+   if(search){const haystack=[item?.template.name,item?.template.code,resource?.name,resource?.code].filter(Boolean).join(' ').toLocaleLowerCase('ru');if(!haystack.includes(search))return false}
+   return true
+  })
+  if(params.sort==='PRICE_ASC')listings.sort((a,b)=>a.price-b.price||a.id.localeCompare(b.id))
+  else if(params.sort==='PRICE_DESC')listings.sort((a,b)=>b.price-a.price||a.id.localeCompare(b.id))
+  const total=listings.length
+  listings=listings.slice((params.page-1)*params.limit,params.page*params.limit)
+  const sellers=await prisma.character.findMany({where:{id:{in:[...new Set(listings.map(x=>x.sellerCharacterId))]}},select:{id:true,nickname:true}})
   const names=new Map(sellers.map(x=>[x.id,x.nickname]))
-  return{items:items.map(x=>{const instance=x.itemInstanceId?byId.get(x.itemInstanceId):undefined;return{...x,sellerNickname:names.get(x.sellerCharacterId),sellerUrl:`/u/${names.get(x.sellerCharacterId)}`,item:instance?{name:instance.template.name,code:instance.template.code,type:instance.template.type,weaponType:instance.template.weaponType,levelReq:instance.template.levelReq,quality:instance.quality}:null}}),total,page:params.page,limit:params.limit,totalPages:Math.ceil(total/params.limit)}
+  return{items:listings.map(x=>{const instance=x.itemInstanceId?byId.get(x.itemInstanceId):undefined;const resource=x.resourceTemplateId?resourcesById.get(x.resourceTemplateId):undefined;return{...x,sellerNickname:names.get(x.sellerCharacterId),sellerUrl:`/u/${names.get(x.sellerCharacterId)}`,item:instance?{name:instance.template.name,code:instance.template.code,type:instance.template.type,weaponType:instance.template.weaponType,levelReq:instance.template.levelReq,quality:instance.quality}:null,resource:resource?{name:resource.name,code:resource.code,tier:resource.tier}:null}}),total,page:params.page,limit:params.limit,totalPages:Math.ceil(total/params.limit)}
  },
  async createItem(characterId:string,itemInstanceId:string,price:number,key:string){return withIdempotency({characterId,scope:'market.listings.create',key,execute:async tx=>{if(await tx.marketListing.count({where:{sellerCharacterId:characterId,status:{in:['ACTIVE','LOCKED']}}})>=10)throw new AppError(ErrorCode.MARKET_LIMIT,'Maximum 10 active listings',409);const item=await tx.itemInstance.findUnique({where:{id:itemInstanceId},include:{template:true}});if(!item||item.ownerId!==characterId)throw new AppError(ErrorCode.ITEM_NOT_OWNED,'Not your item',403);if(item.isEquipped||item.status!=='NORMAL'||!item.template.isTradeable)throw new AppError(ErrorCode.MARKET_ITEM_INVALID,'Item cannot be listed',409);const fee=calcListingFee(price);const newBalance=await EconomyService.debit(tx,{characterId,amount:fee,reasonCode:'MARKET_LISTING_TAX',refType:'market_listing'});const listing=await tx.marketListing.create({data:{sellerCharacterId:characterId,type:'ITEM',itemInstanceId,price,listingFee:fee,expiresAt:marketListingExpiresAt()}});await tx.itemInstance.update({where:{id:item.id},data:{status:'ON_MARKET'}});await tx.itemLog.create({data:{itemId:item.id,characterId,actionCode:'LISTED_ON_MARKET',details:{listingId:listing.id,price,fee}}});auditSuspiciousPrice({characterId,listingId:listing.id,price,referencePrice:item.template.priceBase});return{listing,newBalance}}})},
  async createResource(characterId:string,resourceTemplateId:string,amount:number,price:number,key:string){return withIdempotency({characterId,scope:'market.listings.create',key,execute:async tx=>{if(await tx.marketListing.count({where:{sellerCharacterId:characterId,status:{in:['ACTIVE','LOCKED']}}})>=10)throw new AppError(ErrorCode.MARKET_LIMIT,'Maximum 10 active listings',409);const resource=await tx.resourceTemplate.findUnique({where:{id:resourceTemplateId}});if(!resource?.isTradable||!resource.isActive)throw new AppError(ErrorCode.MARKET_RESOURCE_INVALID,'Resource cannot be listed',409);await ResourcesService.reserve(tx,characterId,resourceTemplateId,amount);const fee=calcListingFee(price);const newBalance=await EconomyService.debit(tx,{characterId,amount:fee,reasonCode:'MARKET_LISTING_TAX',refType:'market_listing'});const listing=await tx.marketListing.create({data:{sellerCharacterId:characterId,type:'RESOURCE',resourceTemplateId,resourceAmount:amount,price,listingFee:fee,expiresAt:marketListingExpiresAt()}});await tx.resourceLog.create({data:{characterId,resourceTemplateId,amountDelta:0,balanceAfter:(await tx.resourceStack.findUniqueOrThrow({where:{characterId_resourceTemplateId:{characterId,resourceTemplateId}}})).amount,reasonCode:'MARKET_LIST',refType:'market_listing',refId:listing.id}});auditSuspiciousPrice({characterId,listingId:listing.id,price,referencePrice:resource.basePrice*amount});return{listing,newBalance}}})},

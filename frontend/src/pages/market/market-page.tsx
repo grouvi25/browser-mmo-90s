@@ -1,7 +1,106 @@
-import{useState}from'react'
-import{useMutation,useQuery,useQueryClient}from'@tanstack/react-query'
-import{marketApi,type MarketFilters}from'../../shared/api/market.api'
-import{inventoryApi}from'../../shared/api/inventory.api'
-import{resourcesApi}from'../../shared/api/resources.api'
-import{itemImage}from'../../shared/assets/shop/shop-images'
-export function MarketPage(){const qc=useQueryClient();const[mine,setMine]=useState(false),[type,setType]=useState<'ITEM'|'RESOURCE'|undefined>(),[combat,setCombat]=useState<'MELEE'|'RANGED'|undefined>(),[level,setLevel]=useState<number|undefined>(1),[price,setPrice]=useState(100),[itemId,setItemId]=useState(''),[resourceId,setResourceId]=useState(''),[amount,setAmount]=useState(1),[msg,setMsg]=useState('');const filters:MarketFilters={mine,type,combat,level};const listings=useQuery({queryKey:['market',filters],queryFn:()=>marketApi.list(filters)}),inventory=useQuery({queryKey:['inventory'],queryFn:inventoryApi.getItems}),resources=useQuery({queryKey:['resources'],queryFn:resourcesApi.list});const refresh=()=>{qc.invalidateQueries({queryKey:['market']});qc.invalidateQueries({queryKey:['inventory']});qc.invalidateQueries({queryKey:['resources']});qc.invalidateQueries({queryKey:['character']})};const buy=useMutation({mutationFn:marketApi.buy,onSuccess:()=>{setMsg('Куплено');refresh()},onError:(e:Error)=>setMsg(e.message)}),cancel=useMutation({mutationFn:marketApi.cancel,onSuccess:()=>{setMsg('Объявление снято');refresh()},onError:(e:Error)=>setMsg(e.message)}),create=useMutation({mutationFn:()=>type==='RESOURCE'?marketApi.createResource(resourceId,amount,price):marketApi.createItem(itemId,price),onSuccess:()=>{setMsg(`Выставлено. Сбор: ${Math.max(5,Math.round(price*.02))} ₽`);refresh()},onError:(e:Error)=>setMsg(e.message)});return <div>{msg&&<div className="alert mb8">{msg}</div>}<div className="panel"><div className="panel-header"><span className="panel-title">Выставить на продажу</span></div><div className="panel-body market-create"><select aria-label="Тип объявления" value={type??'ITEM'} onChange={e=>setType(e.target.value as'ITEM'|'RESOURCE')}><option value="ITEM">Вещь</option><option value="RESOURCE">Сырьё</option></select>{type==='RESOURCE'?<><select aria-label="Сырьё" value={resourceId} onChange={e=>setResourceId(e.target.value)}><option value="">Выберите сырьё</option>{resources.data?.items.map(x=><option key={x.template.id} value={x.template.id}>{x.template.name} ({x.availableAmount})</option>)}</select><input aria-label="Количество" type="number" min={1} value={amount} onChange={e=>setAmount(Number(e.target.value))}/></>:<select aria-label="Вещь" value={itemId} onChange={e=>setItemId(e.target.value)}><option value="">Выберите вещь</option>{inventory.data?.filter(x=>!x.isEquipped&&x.status==='NORMAL').map(x=><option key={x.id} value={x.id}>{x.template.name}</option>)}</select>}<input aria-label="Цена" type="number" min={1} max={1e6} value={price} onChange={e=>setPrice(Number(e.target.value))}/><button className="btn btn-primary" disabled={create.isPending||(!itemId&&type!=='RESOURCE')||(!resourceId&&type==='RESOURCE')} onClick={()=>create.mutate()}>Выставить</button></div></div><div className="market-filters" aria-label="Фильтры рынка"><button className={`btn ${!mine?'btn-primary':''}`} onClick={()=>setMine(false)}>Рынок</button><button className={`btn ${mine?'btn-primary':''}`} onClick={()=>setMine(true)}>Мои</button><button className={`btn ${combat==='MELEE'?'btn-primary':''}`} onClick={()=>{setType('ITEM');setCombat(combat==='MELEE'?undefined:'MELEE')}}>Ближний бой</button><button className={`btn ${combat==='RANGED'?'btn-primary':''}`} onClick={()=>{setType('ITEM');setCombat(combat==='RANGED'?undefined:'RANGED')}}>Дальний бой</button><label>Уровень <select aria-label="Уровень предмета" value={level??'ALL'} onChange={e=>setLevel(e.target.value==='ALL'?undefined:Number(e.target.value))}><option value="ALL">Все</option>{[0,1,2,3,4,5,6].map(x=><option key={x} value={x}>{x}</option>)}</select></label><button className="btn" onClick={()=>{setType(undefined);setCombat(undefined);setLevel(undefined)}}>Сбросить</button></div><div className="panel"><div className="panel-body"><table className="data-table"><thead><tr><th>Вид</th><th>Товар</th><th>Продавец</th><th>Ур.</th><th>Цена</th><th/></tr></thead><tbody>{listings.data?.items.map(x=><tr key={x.id}><td>{x.item?<img src={itemImage(x.item.code,x.item.weaponType,x.item.type)} alt="" width={58} height={42}/>:x.type==='RESOURCE'?'Сырьё':'Вещь'}</td><td>{x.item?.name??(x.type==='RESOURCE'?'Сырьё':'Вещь')}</td><td><a href={x.sellerUrl}>{x.sellerNickname}</a></td><td>{x.item?.levelReq??'—'}</td><td>{x.price.toLocaleString()} ₽</td><td>{mine?<button className="btn btn-sm" onClick={()=>cancel.mutate(x.id)}>Снять</button>:<button className="btn btn-sm btn-gold" onClick={()=>buy.mutate(x.id)}>Купить</button>}</td></tr>)}</tbody></table>{listings.data?.items.length===0&&<div className="text-dim" style={{padding:16,textAlign:'center'}}>По этим фильтрам ничего нет</div>}</div></div></div>}
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { marketApi, type MarketFilters } from '../../shared/api/market.api'
+import { inventoryApi } from '../../shared/api/inventory.api'
+import { resourcesApi } from '../../shared/api/resources.api'
+
+export function MarketPage() {
+  const qc = useQueryClient()
+  const [mine, setMine] = useState(false)
+  const [type, setType] = useState<'ITEM' | 'RESOURCE' | undefined>()
+  const [price, setPrice] = useState(100)
+  const [itemId, setItemId] = useState('')
+  const [resourceId, setResourceId] = useState('')
+  const [amount, setAmount] = useState(1)
+  const [message, setMessage] = useState('')
+  const [search, setSearch] = useState('')
+  const [priceMin, setPriceMin] = useState<number | undefined>()
+  const [priceMax, setPriceMax] = useState<number | undefined>()
+  const [sort, setSort] = useState<MarketFilters['sort']>('NEWEST')
+  const [page, setPage] = useState(1)
+
+  const filters: MarketFilters = {
+    mine, type, page, limit: 20, sort, priceMin, priceMax,
+    ...(search.trim().length >= 2 ? { search: search.trim() } : {}),
+  }
+  const listings = useQuery({ queryKey: ['market', filters], queryFn: () => marketApi.list(filters) })
+  const inventory = useQuery({ queryKey: ['inventory'], queryFn: inventoryApi.getItems })
+  const resources = useQuery({ queryKey: ['resources'], queryFn: resourcesApi.list })
+
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: ['market'] })
+    void qc.invalidateQueries({ queryKey: ['inventory'] })
+    void qc.invalidateQueries({ queryKey: ['resources'] })
+    void qc.invalidateQueries({ queryKey: ['character'] })
+  }
+  const buy = useMutation({ mutationFn: marketApi.buy, onSuccess: () => { setMessage('Покупка завершена'); refresh() }, onError: (error: Error) => setMessage(error.message) })
+  const cancel = useMutation({ mutationFn: marketApi.cancel, onSuccess: () => { setMessage('Объявление снято, сбор не возвращается'); refresh() }, onError: (error: Error) => setMessage(error.message) })
+  const create = useMutation({
+    mutationFn: () => type === 'RESOURCE' ? marketApi.createResource(resourceId, amount, price) : marketApi.createItem(itemId, price),
+    onSuccess: () => { setMessage(`Выставлено. Сбор: ${Math.max(5, Math.round(price * 0.02))} ₽`); refresh() },
+    onError: (error: Error) => setMessage(error.message),
+  })
+
+  const changeFilter = (apply: () => void) => { apply(); setPage(1) }
+  const totalPages = listings.data?.totalPages ?? 1
+
+  return <div>
+    {message && <div className="alert mb8">{message}</div>}
+    <div className="panel">
+      <div className="panel-header"><span className="panel-title">Выставить на продажу</span></div>
+      <div className="panel-body" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select aria-label="Тип объявления" value={type ?? 'ITEM'} onChange={event => setType(event.target.value as 'ITEM' | 'RESOURCE')}>
+          <option value="ITEM">Вещь</option><option value="RESOURCE">Ресурс</option>
+        </select>
+        {type === 'RESOURCE' ? <>
+          <select aria-label="Ресурс для продажи" value={resourceId} onChange={event => setResourceId(event.target.value)}>
+            <option value="">Выберите ресурс</option>
+            {resources.data?.items.map(stack => <option key={stack.template.id} value={stack.template.id}>{stack.template.name} ({stack.availableAmount})</option>)}
+          </select>
+          <input aria-label="Количество ресурса" type="number" min={1} value={amount} onChange={event => setAmount(Number(event.target.value))} />
+        </> : <select aria-label="Вещь для продажи" value={itemId} onChange={event => setItemId(event.target.value)}>
+          <option value="">Выберите вещь</option>
+          {inventory.data?.filter(item => !item.isEquipped && item.status === 'NORMAL').map(item => <option key={item.id} value={item.id}>{item.template.name}</option>)}
+        </select>}
+        <input aria-label="Цена объявления" type="number" min={1} max={1_000_000} value={price} onChange={event => setPrice(Number(event.target.value))} />
+        <span>Сбор {Math.max(5, Math.round(price * 0.02))} ₽</span>
+        <button className="btn btn-primary" disabled={create.isPending || (!itemId && type !== 'RESOURCE') || (!resourceId && type === 'RESOURCE')} onClick={() => create.mutate()}>Выставить</button>
+      </div>
+    </div>
+
+    <div className="panel mb8">
+      <div className="panel-header"><span className="panel-title">Фильтры рынка</span></div>
+      <div className="panel-body" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <input aria-label="Поиск на рынке" placeholder="Название или код" value={search} onChange={event => changeFilter(() => setSearch(event.target.value))} />
+        <input aria-label="Цена от" placeholder="Цена от" type="number" min={1} value={priceMin ?? ''} onChange={event => changeFilter(() => setPriceMin(event.target.value ? Number(event.target.value) : undefined))} />
+        <input aria-label="Цена до" placeholder="Цена до" type="number" min={1} value={priceMax ?? ''} onChange={event => changeFilter(() => setPriceMax(event.target.value ? Number(event.target.value) : undefined))} />
+        <select aria-label="Сортировка рынка" value={sort} onChange={event => changeFilter(() => setSort(event.target.value as MarketFilters['sort']))}>
+          <option value="NEWEST">Сначала новые</option><option value="PRICE_ASC">Сначала дешёвые</option><option value="PRICE_DESC">Сначала дорогие</option>
+        </select>
+        <button className={`btn ${!mine ? 'btn-primary' : ''}`} onClick={() => changeFilter(() => setMine(false))}>Рынок</button>
+        <button className={`btn ${mine ? 'btn-primary' : ''}`} onClick={() => changeFilter(() => setMine(true))}>Мои объявления</button>
+        <button className="btn" onClick={() => changeFilter(() => setType(undefined))}>Все</button>
+        <button className="btn" onClick={() => changeFilter(() => setType('ITEM'))}>Вещи</button>
+        <button className="btn" onClick={() => changeFilter(() => setType('RESOURCE'))}>Ресурсы</button>
+      </div>
+    </div>
+
+    <div className="panel"><div className="panel-body">
+      <table className="data-table"><thead><tr><th>Тип</th><th>Название</th><th>Продавец</th><th>Кол-во</th><th>Цена</th><th>Истекает</th><th /></tr></thead>
+        <tbody>{listings.data?.items.map(listing => <tr key={listing.id}>
+          <td>{listing.type === 'ITEM' ? 'Вещь' : 'Ресурс'}</td>
+          <td>{listing.item?.name ?? listing.resource?.name ?? 'Неизвестно'}</td>
+          <td><a href={listing.sellerUrl}>{listing.sellerNickname}</a></td>
+          <td>{listing.resourceAmount ?? 1}</td><td>{listing.price.toLocaleString()} ₽</td><td>{new Date(listing.expiresAt).toLocaleString()}</td>
+          <td>{mine ? <button className="btn btn-sm" onClick={() => cancel.mutate(listing.id)}>Снять</button> : <button className="btn btn-sm btn-gold" onClick={() => buy.mutate(listing.id)}>Купить</button>}</td>
+        </tr>)}</tbody>
+      </table>
+      {!listings.data?.items.length && <div className="text-dim">Подходящих объявлений нет.</div>}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 10 }}>
+        <button className="btn btn-sm" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>Назад</button>
+        <span>Страница {page} из {totalPages}, всего {listings.data?.total ?? 0}</span>
+        <button className="btn btn-sm" disabled={page >= totalPages} onClick={() => setPage(value => value + 1)}>Далее</button>
+      </div>
+    </div></div>
+  </div>
+}
