@@ -11,7 +11,7 @@ import { runHpRecovery, TICK_MS as HP_TICK_MS } from './workers/hp-recovery.work
 import { runBattleTimeout, TIMER_TICK_MS } from './workers/battle-timeout.worker'
 import { runWorkShiftFinalize, WORK_SHIFT_FINALIZE_MS } from './workers/work-shift-finalize.worker'
 import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worker'
-import { startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
+import { collectEconomyMetrics, startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
 import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
 import { writeFileSync } from 'node:fs'
 
@@ -77,8 +77,10 @@ async function startWorker(): Promise<void> {
   await runIdempotencyCleanup()
   const idempotencyCleanupTimer = setInterval(runIdempotencyCleanup, IDEMPOTENCY_CLEANUP_MS)
 
-  const stopEconomyMetrics = startEconomyMetricsDaily(3)
-  logger.info('Economy metrics daily collector scheduled for 03:00 UTC')
+  try { await collectEconomyMetrics() }
+  catch (err) { logger.error({ err }, '[EconomyMetrics] Initial collection failed') }
+  const stopEconomyMetrics = startEconomyMetricsDaily(4)
+  logger.info('Economy metrics daily collector scheduled for 04:00 UTC')
 
   const heartbeatPath = process.env.WORKER_HEARTBEAT_PATH ?? '/tmp/mmo90s-worker-heartbeat'
   const writeHeartbeat = () => writeFileSync(heartbeatPath, new Date().toISOString())

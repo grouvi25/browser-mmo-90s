@@ -2,6 +2,8 @@
 
 This file records deliberate deviations and clarifications for MASTER TZ 2.2. Runtime behavior and tests are the implementation evidence.
 
+Production economy metrics are collected once on worker startup and daily at 04:00 UTC, after the scheduled database backup window. Snapshots stay in Redis for 40 days and are exposed through the admin economy overview.
+
 ## Salary fatigue
 
 Accepted as a Stage 2 anti-farm rule. The first shift pays the calculated rate; each subsequent shift in the same UTC day reduces the multiplier by 0.20 down to a floor of 0.20. The coefficients live in `BalanceConfig.economy.work.salaryFatigueStep` and `salaryFatigueFloor`; runtime and the economy simulator use the same values.
