@@ -11,6 +11,7 @@ import { runHpRecovery, TICK_MS as HP_TICK_MS } from './workers/hp-recovery.work
 import { runBattleTimeout, TIMER_TICK_MS } from './workers/battle-timeout.worker'
 import { runWorkShiftFinalize, WORK_SHIFT_FINALIZE_MS } from './workers/work-shift-finalize.worker'
 import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worker'
+import { startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
 import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
 
 async function startWorker(): Promise<void> {
@@ -75,6 +76,9 @@ async function startWorker(): Promise<void> {
   await runIdempotencyCleanup()
   const idempotencyCleanupTimer = setInterval(runIdempotencyCleanup, IDEMPOTENCY_CLEANUP_MS)
 
+  const stopEconomyMetrics = startEconomyMetricsDaily(3)
+  logger.info('Economy metrics daily collector scheduled for 03:00 UTC')
+
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`[${signal}] Worker shutting down...`)
     clearInterval(cleanupTimer)
@@ -83,6 +87,7 @@ async function startWorker(): Promise<void> {
     clearInterval(workShiftTimer)
     clearInterval(marketExpireTimer)
     clearInterval(idempotencyCleanupTimer)
+    stopEconomyMetrics()
     await disconnectDb()
     await disconnectRedis()
     process.exit(0)

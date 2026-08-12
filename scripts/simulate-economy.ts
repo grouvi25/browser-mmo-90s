@@ -1,4 +1,5 @@
 import { writeFileSync } from 'fs'
+import { BalanceConfig } from '../backend/src/config/balance.config'
 
 const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`)
@@ -21,16 +22,17 @@ const int = (min: number, max: number) => Math.floor(rnd() * (max - min + 1)) + 
 const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0
 const percentile = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.floor((xs.length - 1) * p)] ?? 0
 
+const simulation = BalanceConfig.economy.simulation
 const profiles = [
-  { key: 'fighter', battles: 15, shifts: 0, marketEvery: 4 },
-  { key: 'worker', battles: 1, shifts: 8, marketEvery: 3 },
-  { key: 'mixed', battles: 6, shifts: 4, marketEvery: 3 },
+  { key: 'fighter', battles: simulation.profiles.fighter.battles, shifts: simulation.profiles.fighter.shifts, marketEvery: simulation.profiles.fighter.marketEveryDays },
+  { key: 'worker', battles: simulation.profiles.worker.battles, shifts: simulation.profiles.worker.shifts, marketEvery: simulation.profiles.worker.marketEveryDays },
+  { key: 'mixed', battles: simulation.profiles.mixed.battles, shifts: simulation.profiles.mixed.shifts, marketEvery: simulation.profiles.mixed.marketEveryDays },
 ].filter(profile => profileFilter === 'all' || profile.key === profileFilter)
 if (!profiles.length || days < 8 || playersCount < 1) throw new Error('Invalid simulation arguments')
 
 const shiftFatigue = (number: number) => Math.max(0.20, 1 - (Math.max(1, number) - 1) * 0.20)
-const upgradeCosts = [360, 950, 1676, 2507, 3427]
-const upgradeChances = [0.90, 0.78, 0.66, 0.54, 0.42]
+const upgradeCosts = simulation.upgradeCosts
+const upgradeChances = simulation.upgradeChances
 
 type Profile = typeof profiles[number]
 type Player = {
@@ -44,7 +46,7 @@ type Player = {
 }
 const players: Player[] = Array.from({ length: playersCount }, (_, i) => ({
   profile: profiles[i % profiles.length],
-  money: 1250,
+  money: BalanceConfig.character.startMoney,
   durability: 60,
   grossToday: 0,
   netToday: 0,
@@ -75,23 +77,24 @@ for (let day = 1; day <= days; day++) {
     player.grossToday = 0
 
     for (let battle = 0; battle < player.profile.battles; battle++) {
-      if (rnd() < 0.60) credit(player, int(35, 75), 'battles')
-      player.durability -= 3
+      if (rnd() < simulation.battleWinRate) credit(player, int(simulation.battleRewardMin, simulation.battleRewardMax), 'battles')
+      player.durability -= simulation.weaponDurabilityLossPerFight
     }
 
     for (let shift = 1; shift <= player.profile.shifts; shift++) {
-      const salary = Math.round(100 * (0.9 + rnd() * 0.2) * shiftFatigue(shift))
+      const work = BalanceConfig.economy.work
+      const salary = Math.round(100 * (work.salaryRandomMin + rnd() * (work.salaryRandomMax - work.salaryRandomMin)) * shiftFatigue(shift))
       credit(player, salary, 'salaries')
       credit(player, int(2, 4) * 2, 'govSell')
     }
 
-    if (player.durability <= 30 && burn(player, 200, 'repair')) player.durability = 60
+    if (player.durability <= simulation.repairTriggerDurability && burn(player, simulation.repairCost, 'repair')) player.durability = simulation.repairedDurability
 
     // Consumables and baseline government gear maintenance.
-    if (day % 5 === 0) burn(player, 150, 'governmentShop')
+    if (day % 5 === 0) burn(player, simulation.governmentMaintenanceCost, 'governmentShop')
 
     // Stage 2 item lifecycle: active players replace or diversify tier-2 gear roughly every 20 days.
-    if (day % 20 === 1 && day > 1 && burn(player, 900, 'privateShop')) player.upgradeLevel = 0
+    if (day % 20 === 1 && day > 1 && burn(player, simulation.privateShopLifecycleCost, 'privateShop')) player.upgradeLevel = 0
 
     // One deliberate upgrade attempt every 10 days. Failure still burns money and parts.
     if (day % 10 === 5 && player.upgradeLevel < 5) {
@@ -102,8 +105,9 @@ for (let day = 1; day <= days; day++) {
     // Market transfers are M2-neutral; only listing fee and sale tax are sinks.
     if (day % player.profile.marketEvery === 0) {
       const price = int(80, 240)
-      const fee = Math.max(5, Math.round(price * 0.02))
-      const tax = Math.round(price * 0.05)
+      const market = BalanceConfig.economy.market
+      const fee = Math.max(market.listingFeeMin, Math.round(price * market.listingFeeRate))
+      const tax = Math.round(price * market.saleTaxRate)
       if (burn(player, fee + tax, 'listingFee')) {
         burned.listingFee -= tax
         burned.saleTax += tax

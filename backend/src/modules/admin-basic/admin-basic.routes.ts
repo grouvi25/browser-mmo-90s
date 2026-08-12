@@ -4,6 +4,7 @@ import { prisma } from '../../shared/db/prisma'
 import { withTransaction } from '../../shared/db/transaction'
 import { z } from 'zod'
 import { EconomyService } from '../economy/economy.service'
+import { getLatestEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
 
 const GrantMoneySchema = z.object({
   characterId: z.string().uuid(),
@@ -89,7 +90,8 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
       prisma.resourceStack.aggregate({ _sum: { amount: true, reservedAmount: true } }),
       prisma.upgradeLog.groupBy({ by: ['result'], _count: true }),
     ])
-    return reply.send({ m2Total: money._sum.money ?? 0, characters: money._count, activeListings, activeShifts, resources: resourceStacks._sum, upgrades })
+    const latestMetrics = await getLatestEconomyMetrics()
+    return reply.send({ m2Total: money._sum.money ?? 0, characters: money._count, activeListings, activeShifts, resources: resourceStacks._sum, upgrades, latestMetrics })
   })
 
   fastify.get('/work/shifts', { preHandler: authenticateAdmin }, async (req, reply) => {

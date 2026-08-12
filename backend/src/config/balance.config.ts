@@ -9,6 +9,32 @@ export const BalanceConfig = {
     resources: { governmentPayoutRate: 0.25, governmentEcoExpRate: 0.01 },
     market: { listingFeeRate: 0.02, listingFeeMin: 5, saleTaxRate: 0.05, sellerEcoExpRate: 0.03, listingDurationHours: 72, maxActiveListings: 10 },
     upgrades: { costRate: 0.15, costPower: 1.4, baseChance: 0.9, chanceLossPerLevel: 0.12, professionBonusPerLevel: 0.01, minChance: 0.15, maxChance: 0.95 },
+    simulation: {
+      profiles: {
+        fighter: { battles: 15, shifts: 0, marketEveryDays: 4 },
+        worker: { battles: 1, shifts: 8, marketEveryDays: 3 },
+        mixed: { battles: 6, shifts: 4, marketEveryDays: 3 },
+      },
+      battleWinRate: 0.60,
+      battleRewardMin: 35,
+      battleRewardMax: 75,
+      weaponDurabilityLossPerFight: 3,
+      repairTriggerDurability: 30,
+      repairedDurability: 60,
+      repairCost: 200,
+      governmentMaintenanceCost: 150,
+      privateShopLifecycleCost: 900,
+      upgradeCosts: [360, 950, 1676, 2507, 3427],
+      upgradeChances: [0.90, 0.78, 0.66, 0.54, 0.42],
+    },
+    alerts: {
+      minSinkShare: 0.40,
+      maxDailyM2Growth: 0.05,
+      maxGini: 0.75,
+      minUpgradeSample: 20,
+      minUpgradeSuccessRate: 0.45,
+      maxUpgradeSuccessRate: 0.85,
+    },
   },
 
   // --- Character base values ---
