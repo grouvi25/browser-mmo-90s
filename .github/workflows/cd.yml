@@ -161,6 +161,8 @@ jobs:
             done
             curl --fail --silent https://kooperativ.space/ >/dev/null
             curl --fail --silent https://kooperativ.space/ready | grep -q '"status":"ready"'
+            test "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' mmo90s-frontend-1)" = healthy
+            test "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' mmo90s-worker-1)" = healthy
           EOF
 
       - name: Run authenticated Stage 2 production smoke

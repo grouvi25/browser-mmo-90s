@@ -120,11 +120,21 @@ async function main(): Promise<void> {
   assert(Array.isArray(market.items) && typeof market.total === 'number', 'Market contract is invalid')
   assert(typeof market.totalPages === 'number', 'Market pagination contract is invalid')
 
+  const filteredMarket = await jsonRequest('/api/market/listings?page=1&limit=5&sort=PRICE_ASC&priceMin=1&priceMax=1000000', { headers }) as {
+    items?: Array<{ price?: number }>
+    page?: number
+    limit?: number
+  }
+  assert(Array.isArray(filteredMarket.items), 'Market filters contract is invalid')
+  assert(filteredMarket.page === 1 && filteredMarket.limit === 5, 'Market filtered pagination is invalid')
+  const prices = filteredMarket.items.map(item => item.price ?? 0)
+  assert(prices.every((price, index) => index === 0 || prices[index - 1] <= price), 'Market price sorting is invalid')
+
   const upgrades = await jsonRequest('/api/upgrades/items', { headers })
   assert(Array.isArray(upgrades), 'Upgrades items contract is invalid')
 
   await jsonRequest('/api/auth/logout', { method: 'POST', headers }, 200)
-  console.log(JSON.stringify({ ok: true, baseUrl: BASE_URL, checks: 11 }))
+  console.log(JSON.stringify({ ok: true, baseUrl: BASE_URL, checks: 12 }))
 }
 
 main()
