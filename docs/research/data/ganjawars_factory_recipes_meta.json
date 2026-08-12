@@ -1,0 +1,45 @@
+{
+  "source": "https://www.ganjawiki.ru/%D0%97%D0%B0%D0%B2%D0%BE%D0%B4",
+  "retrieved": "2026-08-13",
+  "tables": [
+    {
+      "island": "ganja_island",
+      "rows": 219,
+      "columns": [
+        "factory",
+        "output_resource",
+        "work_hours",
+        "power",
+        "output_per_hour",
+        "aluminum",
+        "batteries",
+        "ganjium",
+        "poppy_straw",
+        "plastic",
+        "steel",
+        "grass",
+        "uranium"
+      ]
+    },
+    {
+      "island": "z_lands",
+      "rows": 145,
+      "columns": [
+        "factory",
+        "output_resource",
+        "work_hours",
+        "power",
+        "output_per_hour",
+        "aluminum",
+        "batteries",
+        "seaweed",
+        "ganjium",
+        "oil",
+        "plastic",
+        "steel",
+        "grass",
+        "uranium"
+      ]
+    }
+  ]
+}
