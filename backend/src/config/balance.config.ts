@@ -35,6 +35,13 @@ export const BalanceConfig = {
       minUpgradeSuccessRate: 0.45,
       maxUpgradeSuccessRate: 0.85,
     },
+    suspicious: {
+      priceRatioMin: 0.20,
+      priceRatioMax: 5.0,
+      pairTradesPerDayMax: 5,
+      cancelsPerDayMax: 10,
+      idempotencyReplaysPerHourMax: 10,
+    },
   },
 
   // --- Character base values ---

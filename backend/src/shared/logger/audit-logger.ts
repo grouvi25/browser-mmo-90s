@@ -18,6 +18,8 @@ type AuditEvent =
   | 'battle.cleanup.orphaned'
   | 'money.changed'
   | 'admin.action'
+  | 'economy.suspicious'
+  | 'idempotency.replayed'
 
 export function audit(
   event: AuditEvent,
