@@ -1,4 +1,4 @@
-import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
+﻿import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 
 type Account = { token: string; userId: string; login: string; nickname: string; characterId: string }
@@ -187,7 +187,7 @@ test.describe('Stage 2 visual and browser flow', () => {
   test('E4 market shows seller profile and buyer can purchase listing', async ({ page }, testInfo) => {
     await authPage(page, buyer)
     await page.goto('/market')
-    await expect(page.getByRole('button', { name: 'Рынок', exact: true })).toBeVisible()
+    await expect(page.getByRole('main').getByRole('button', { name: 'Рынок', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Мои объявления', exact: true })).toBeVisible()
     await expect(page.getByLabel('Поиск по рынку')).toBeVisible()
     await expect(page.getByLabel('Сортировка рынка')).toHaveValue('NEWEST')
@@ -247,3 +247,4 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(errors).toEqual([])
   })
 })
+
