@@ -1184,10 +1184,8 @@ export const BattleService = {
       playerPart.rightWeaponInstanceId ? ItemsRepository.findInstanceById(playerPart.rightWeaponInstanceId) : Promise.resolve(null),
     ])
     const weapon = leftWeapon
-    const [leftSkill, rightSkill] = await Promise.all([
-      WeaponSkillsRepository.findOrCreate(char.id, (leftWeapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
-      WeaponSkillsRepository.findOrCreate(char.id, (rightWeapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
-    ])
+    const leftSkill = await WeaponSkillsRepository.findOrCreate(char.id, (leftWeapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1])
+    const rightSkill = await WeaponSkillsRepository.findOrCreate(char.id, (rightWeapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1])
     const skillRecord = leftSkill
 
     const equippedItems = await ItemsRepository.findEquipped(char.id)
@@ -1588,20 +1586,16 @@ export const BattleService = {
 
     const wtype1 = (weapon1Left?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
     const wtype2 = (weapon2Left?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
-    const [skill1, skill1Right, skill2, skill2Right] = await Promise.all([
-      WeaponSkillsRepository.findOrCreate(char1.id, wtype1),
-      WeaponSkillsRepository.findOrCreate(char1.id, (weapon1Right?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
-      WeaponSkillsRepository.findOrCreate(char2.id, wtype2),
-      WeaponSkillsRepository.findOrCreate(char2.id, (weapon2Right?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
-    ])
+    const skill1 = await WeaponSkillsRepository.findOrCreate(char1.id, wtype1)
+    const skill1Right = await WeaponSkillsRepository.findOrCreate(char1.id, (weapon1Right?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1])
+    const skill2 = await WeaponSkillsRepository.findOrCreate(char2.id, wtype2)
+    const skill2Right = await WeaponSkillsRepository.findOrCreate(char2.id, (weapon2Right?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1])
     const wtype1Right = (weapon1Right?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
     const wtype2Right = (weapon2Right?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
-    const [antiSkill1vs2, antiSkill1vs2Right, antiSkill2vs1, antiSkill2vs1Right] = await Promise.all([
-      WeaponSkillsRepository.findOrCreate(char1.id, wtype2),
-      WeaponSkillsRepository.findOrCreate(char1.id, wtype2Right),
-      WeaponSkillsRepository.findOrCreate(char2.id, wtype1),
-      WeaponSkillsRepository.findOrCreate(char2.id, wtype1Right),
-    ])
+    const antiSkill1vs2 = await WeaponSkillsRepository.findOrCreate(char1.id, wtype2)
+    const antiSkill1vs2Right = await WeaponSkillsRepository.findOrCreate(char1.id, wtype2Right)
+    const antiSkill2vs1 = await WeaponSkillsRepository.findOrCreate(char2.id, wtype1)
+    const antiSkill2vs1Right = await WeaponSkillsRepository.findOrCreate(char2.id, wtype1Right)
 
     const [snap1Atk, snap1RightAtk, snap2Atk, snap2RightAtk] = await Promise.all([
       buildAttackerSnapshotAsync(char1, weapon1Left, skill1.skillLevel, armor1),
