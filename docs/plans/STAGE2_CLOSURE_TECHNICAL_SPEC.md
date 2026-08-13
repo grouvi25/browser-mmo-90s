@@ -201,8 +201,8 @@ Cancellation unlocks the reserved tool and grants no reward.
 
 - [x] Add tool replacement cost to economy simulation.
 - [x] Run profession simulation for 2, 4, 8 and 14 hours.
-- [ ] Add metrics for missing-tool blocks and consumed uses.
-- [ ] Complete integration and API E2E coverage for work with tools.
+- [x] Add metrics for missing-tool blocks and consumed uses.
+- [x] Complete integration and API E2E coverage for work with tools.
 - [ ] Add browser work flow: missing tool, purchase, shift, claim.
 - [ ] Produce acceptance and Stage 3 handoff reports.
 - [ ] Merge only after all CI jobs pass.

@@ -2,7 +2,7 @@ import { BalanceConfig } from '../config/balance.config'
 import { prisma } from '../shared/db/prisma'
 import { getRedis } from '../shared/db/redis'
 import { logger } from '../shared/logger/logger'
-import { gini, median, msUntilNextUtcHour } from './economy-metrics.formulas'
+import { gini, median, msUntilNextUtcHour, workToolBlockedKey } from './economy-metrics.formulas'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const SNAPSHOT_TTL_SECONDS = 40 * 24 * 60 * 60
@@ -21,6 +21,7 @@ export type EconomyMetricsSnapshot = {
   activeListings: number
   medianListingPrice: number
   completedShifts: number
+  tools: { usesConsumed: number; missingToolBlocks: number }
   upgrades: { total: number; successful: number; successRate: number }
   alerts: string[]
 }
@@ -39,13 +40,15 @@ export async function collectEconomyMetrics(now = new Date()): Promise<EconomyMe
   const date = utcDate(end)
   const previousDate = utcDate(new Date(end.getTime() - DAY_MS))
 
-  const [characters, currency, listings, completedShifts, upgrades, previousRaw] = await Promise.all([
+  const [characters, currency, listings, completedShifts, toolUsesConsumed, upgrades, previousRaw, missingToolBlocksRaw] = await Promise.all([
     prisma.character.findMany({ select: { money: true } }),
     prisma.currencyLog.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { amount: true } }),
     prisma.marketListing.findMany({ where: { status: 'ACTIVE' }, select: { price: true } }),
     prisma.workShift.count({ where: { status: 'CLAIMED', claimedAt: { gte: start, lt: end } } }),
+    prisma.itemLog.count({ where: { actionCode: 'TOOL_USE', createdAt: { gte: start, lt: end } } }),
     prisma.upgradeLog.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { result: true } }),
     getRedis().get(economyMetricsKey(previousDate)),
+    getRedis().get(workToolBlockedKey(date)),
   ])
 
   const m2 = characters.reduce((sum, character) => sum + character.money, 0)
@@ -77,6 +80,7 @@ export async function collectEconomyMetrics(now = new Date()): Promise<EconomyMe
     activeListings: listings.length,
     medianListingPrice: median(listings.map(listing => listing.price)),
     completedShifts,
+    tools: { usesConsumed: toolUsesConsumed, missingToolBlocks: Number(missingToolBlocksRaw ?? 0) },
     upgrades: { total: upgrades.length, successful, successRate },
     alerts,
   }

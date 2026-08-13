@@ -1,4 +1,7 @@
 import { prisma } from '../../shared/db/prisma'
+import { getRedis } from '../../shared/db/redis'
+import { logger } from '../../shared/logger/logger'
+import { workToolBlockedKey } from '../../workers/economy-metrics.formulas'
 import { withTransaction } from '../../shared/db/transaction'
 import { withIdempotency } from '../../shared/db/idempotency'
 import { AppError } from '../../shared/errors/app-error'
@@ -10,6 +13,17 @@ import { BalanceConfig } from '../../config/balance.config'
 import { PROFESSION_NAMES, professionLevelFromExp, type ProfessionCode } from '../professions/professions'
 
 const MAX_DAILY_SHIFTS = BalanceConfig.economy.work.dailyShiftLimit
+
+async function recordMissingToolBlock(now: Date): Promise<void> {
+  try {
+    const key = workToolBlockedKey(now.toISOString().slice(0, 10))
+    const redis = getRedis()
+    await redis.incr(key)
+    await redis.expire(key, 40 * 24 * 60 * 60)
+  } catch (err) {
+    logger.warn({ err }, '[WorkMetrics] Failed to record missing-tool block')
+  }
+}
 
 function utcDayRange(now = new Date()) {
   const start = new Date(now)
@@ -115,7 +129,10 @@ export const WorkService = {
           const locked = await tx.itemInstance.updateMany({ where: { id: candidate.id, ownerId: characterId, status: 'NORMAL', usesLeft: { gt: 0 } }, data: { status: 'LOCKED' } })
           if (locked.count === 1) { toolInstanceId = candidate.id; break }
         }
-        if (!toolInstanceId) throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, `Tool tier ${object.equipment.requiredToolTier} with remaining uses is required`, 400)
+        if (!toolInstanceId) {
+          await recordMissingToolBlock(now)
+          throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, `Tool tier ${object.equipment.requiredToolTier} with remaining uses is required`, 400)
+        }
       }
       const endsAt = new Date(now.getTime() + object.shiftDurationMinutes * 60_000)
       const shift = await tx.workShift.create({

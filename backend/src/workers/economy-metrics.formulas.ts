@@ -20,3 +20,7 @@ export function msUntilNextUtcHour(now: Date, hour: number): number {
   if (next <= now) next.setUTCDate(next.getUTCDate() + 1)
   return next.getTime() - now.getTime()
 }
+
+export function workToolBlockedKey(date: string): string {
+  return `economy:work:tool-blocked:${date}`
+}
