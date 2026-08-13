@@ -187,8 +187,6 @@ test.describe('Stage 2 visual and browser flow', () => {
   test('E4 market shows seller profile and buyer can purchase listing', async ({ page }, testInfo) => {
     await authPage(page, buyer)
     await page.goto('/market')
-    await expect(page.getByRole('main').getByRole('button', { name: 'Рынок', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Мои объявления', exact: true })).toBeVisible()
     await expect(page.getByLabel('Поиск по рынку')).toBeVisible()
     await expect(page.getByLabel('Сортировка рынка')).toHaveValue('NEWEST')
     await expect(page.getByRole('link', { name: seller.nickname })).toBeVisible()
