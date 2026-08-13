@@ -668,7 +668,45 @@ export const BattleService = {
     }
 
     const liveState = await BattleRedis.getState<LiveBattleState>(battleId)
-    return { battle, liveState }
+    const participantProfiles = await Promise.all(battle.participants.map(async participant => {
+      if (participant.characterId) {
+        const character = await prisma.character.findUnique({
+          where: { id: participant.characterId },
+          select: {
+            nickname: true,
+            battleLevel: true,
+            items: {
+              where: { isEquipped: true, status: { not: 'DELETED' }, template: { type: 'WEAPON' } },
+              select: { template: { select: { name: true } } },
+              take: 1,
+            },
+          },
+        })
+        return {
+          participantId: participant.id,
+          name: character?.nickname ?? 'Боец',
+          level: character?.battleLevel ?? 0,
+          primaryHand: character?.items[0]?.template.name ?? null,
+          secondaryHand: null,
+        }
+      }
+      const bot = participant.botId ? await prisma.bot.findUnique({
+        where: { id: participant.botId }, select: { name: true, battleLevel: true, equipment: true },
+      }) : null
+      const equipment = bot?.equipment && typeof bot.equipment === 'object' && !Array.isArray(bot.equipment)
+        ? bot.equipment as Record<string, unknown> : {}
+      const mainWeapon = typeof equipment.mainWeapon === 'string' ? equipment.mainWeapon
+        : typeof equipment.weaponName === 'string' ? equipment.weaponName
+        : equipment.weapon && typeof equipment.weapon === 'object' ? 'Оружие' : null
+      return {
+        participantId: participant.id,
+        name: bot?.name ?? 'Противник',
+        level: bot?.battleLevel ?? 0,
+        primaryHand: mainWeapon,
+        secondaryHand: null,
+      }
+    }))
+    return { battle, liveState, participantProfiles }
   },
 
   // -------------------------------------------------------

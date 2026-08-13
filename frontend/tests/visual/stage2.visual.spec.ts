@@ -326,7 +326,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     await visualProof(page, testInfo, 'e5-upgrades')
   })
 
-  test('Phase A battle planner submits one attack and two blocks', async ({ page }, testInfo) => {
+  test('battle v3 fits one screen and submits one attack with two blocks', async ({ page }, testInfo) => {
     const started = await apiContext.post('/api/battles/pve/start', {
       headers: { Authorization: `Bearer ${fighter.token}` },
       data: { botCode: 'training_bandit' },
@@ -336,24 +336,35 @@ test.describe('Stage 2 visual and browser flow', () => {
 
     await authPage(page, fighter)
     await page.goto(`/battle/${battleId}`)
-    await expect(page.locator('.battle-command')).toBeVisible()
+    await expect(page.locator('.battle-page-v3')).toBeVisible()
+    await expect(page.locator('.battle-fighter-panel')).toHaveCount(2)
+    await expect(page.locator('.battle-command-dock')).toBeVisible()
 
-    if (testInfo.project.name.startsWith('mobile')) {
-      await page.getByRole('button', { name: /Настроить/ }).click()
-      await expect(page.locator('.battle-plan-dialog')).toHaveAttribute('open', '')
-    }
+    const geometry = await page.locator('.battle-page-v3').evaluate(element => {
+      const root = element.getBoundingClientRect()
+      return {
+        rootWidth: root.width,
+        rootHeight: root.height,
+        scrollWidth: element.scrollWidth,
+        scrollHeight: element.scrollHeight,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        documentWidth: document.documentElement.scrollWidth,
+        documentHeight: document.documentElement.scrollHeight,
+      }
+    })
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.rootWidth + 1)
+    expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.rootHeight + 1)
+    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1)
+    expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1)
 
-    await page.getByRole('radio', { name: /1 удар \+ 2 блока/ }).click()
-    await page.locator('.body-selector--attack .body-zone').nth(0).click()
-    await page.locator('.body-selector--block .body-zone').nth(1).click()
-    await page.locator('.body-selector--block .body-zone').nth(4).click()
-
-    if (testInfo.project.name.startsWith('mobile')) {
-      await page.getByRole('button', { name: 'Готово' }).click()
-    }
+    await page.locator('.battle-command-dock__stances button').nth(1).click()
+    await page.locator('.battle-fighter-panel.is-enemy .battle-fighter-zone').nth(0).click()
+    await page.locator('.battle-fighter-panel.is-self .battle-fighter-zone').nth(1).click()
+    await page.locator('.battle-fighter-panel.is-self .battle-fighter-zone').nth(4).click()
 
     const actionRequest = page.waitForRequest(request => request.url().endsWith(`/api/battles/${battleId}/action`))
-    await page.getByRole('button', { name: 'Сделать ход' }).last().click()
+    await page.locator('.battle-submit-turn').click()
     const payload = (await actionRequest).postDataJSON() as {
       action: string; stance: string; attackZones: string[]; blockZones: string[]; targetParticipantId: string
     }
@@ -361,14 +372,13 @@ test.describe('Stage 2 visual and browser flow', () => {
       action: 'attack', stance: 'mixed', attackZones: ['HEAD'], blockZones: ['CHEST', 'LEGS'],
     })
     expect(payload.targetParticipantId).toBeTruthy()
-    expect(await page.locator('.battle-pockets-panel').count()).toBe(0)
 
     const axe = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze()
     expect(axe.violations).toEqual([])
     const image = await page.screenshot({ animations: 'disabled' })
-    await testInfo.attach(`phase-a-battle-${testInfo.project.name}`, { body: image, contentType: 'image/png' })
+    await testInfo.attach(`battle-v3-${testInfo.project.name}`, { body: image, contentType: 'image/png' })
 
     await apiContext.post(`/api/battles/${battleId}/action`, {
       headers: { Authorization: `Bearer ${fighter.token}` }, data: { action: 'surrender' },

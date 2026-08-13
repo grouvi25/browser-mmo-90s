@@ -11,6 +11,14 @@ export type Stance = 'attack2' | 'mixed' | 'defense4'
 
 export interface GridPosition { x: number; y: number }
 
+export interface BattleParticipantProfile {
+  participantId: string
+  name: string
+  level: number
+  primaryHand: string | null
+  secondaryHand: string | null
+}
+
 export interface SubmitActionOpts {
   itemInstanceId?: string
   stance?: Stance
@@ -105,5 +113,5 @@ export const battlesApi = {
     }),
 
   getBattle: (battleId: string) =>
-    api.get<{ battle: Battle; liveState: LiveBattleState | null }>(`/api/battles/${battleId}`),
+    api.get<{ battle: Battle; liveState: LiveBattleState | null; participantProfiles: BattleParticipantProfile[] }>(`/api/battles/${battleId}`),
 }

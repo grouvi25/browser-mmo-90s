@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { getActionBudget, getTurnPlanText, toggleZone, validateTurnPlan } from '../../src/pages/battle/battle-view-model'
+import { appendAttackZone, getActionBudget, getTurnPlanText, removeAttackZone, toggleZone, validateTurnPlan } from '../../src/pages/battle/battle-view-model'
 
 test.describe('battle phase A view model', () => {
   for (const [stance, attacks, blocks] of [
@@ -16,6 +16,13 @@ test.describe('battle phase A view model', () => {
     expect(toggleZone([], 'HEAD', 1)).toEqual(['HEAD'])
     expect(toggleZone(['HEAD'], 'CHEST', 1)).toEqual(['HEAD'])
     expect(toggleZone(['HEAD'], 'HEAD', 1)).toEqual([])
+  })
+
+  test('keeps attacks ordered and allows duplicate target zones', () => {
+    expect(appendAttackZone([], 'RIGHT_ARM', 2)).toEqual(['RIGHT_ARM'])
+    expect(appendAttackZone(['RIGHT_ARM'], 'RIGHT_ARM', 2)).toEqual(['RIGHT_ARM', 'RIGHT_ARM'])
+    expect(appendAttackZone(['RIGHT_ARM', 'RIGHT_ARM'], 'HEAD', 2)).toEqual(['RIGHT_ARM', 'RIGHT_ARM'])
+    expect(removeAttackZone(['RIGHT_ARM', 'LEFT_ARM'], 0)).toEqual(['LEFT_ARM'])
   })
 
   test('describes complete mixed plan', () => {

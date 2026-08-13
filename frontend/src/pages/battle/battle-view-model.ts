@@ -32,6 +32,15 @@ export function toggleZone(selected: BodyZone[], zone: BodyZone, limit: number):
   return [...selected, zone]
 }
 
+export function appendAttackZone(selected: BodyZone[], zone: BodyZone, limit: number): BodyZone[] {
+  if (selected.length >= limit) return selected
+  return [...selected, zone]
+}
+
+export function removeAttackZone(selected: BodyZone[], index: number): BodyZone[] {
+  return selected.filter((_, itemIndex) => itemIndex !== index)
+}
+
 export function getTurnPlanText(input: {
   stance: Stance
   attackZones: BodyZone[]

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef } from 'react'
 import {
   Sword, Shield, Heart, Zap, ArrowRight,
-  RotateCcw, ChevronDown, ChevronUp, Skull,
+  RotateCcw, ChevronDown, Skull,
   CircleDot, User, Trophy, AlertTriangle,
 } from 'lucide-react'
 import { battlesApi, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
@@ -12,10 +12,10 @@ import { type BattleAction, type ItemInstance, type LiveParticipant } from '../.
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { cellStyle, isNeighbour, FIELD_ASPECT, GRID_COLS, GRID_ROWS } from '../../shared/lib/hex'
-import { useIsMobile } from '../../shared/lib/use-media-query'
-import { BattlePlanner } from './components/battle-planner'
+import { BattleFighterPanel } from './components/battle-fighter-panel'
+import { BattleCommandDock } from './components/battle-command-dock'
 import { BattlePockets } from './components/battle-pockets'
-import { ZONE_LABEL, getActionBudget, toggleZone } from './battle-view-model'
+import { ZONE_LABEL, appendAttackZone, getActionBudget, removeAttackZone, toggleZone } from './battle-view-model'
 import './battle-phase-a.css'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -68,33 +68,17 @@ function getEvent(t: TurnEvent) {
   return                        { type: 'hit',     label: 'Удар' + z,     color: '#c43030' }
 }
 
-// ── HP-полоска ─────────────────────────────────────────────
-function HpBar({ hp, hpMax, name, right = false }: { hp: number; hpMax: number; name: string; right?: boolean }) {
-  const pct = hpMax > 0 ? Math.max(0, Math.min(100, hp / hpMax * 100)) : 0
-  const color = pct > 60 ? '#285e24' : pct > 25 ? '#774a05' : '#8d1c24'
-  return (
-    <div className="grid-hp-block" style={right ? { alignItems: 'flex-end' } : {}}>
-      <div className="grid-hp-name">{name}</div>
-      <div className="grid-hp-bar-bg" style={{ width: '100%' }}>
-        <div className="grid-hp-fill" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      <div className="grid-hp-num" style={{ color }}>{hp} / {hpMax}</div>
-    </div>
-  )
-}
-
-// ── Поле боя: соты ─────────────────────────────────────────
+// Tactical field
 const PLAYER_COL = 1
 
 function BattleGrid({
-  playerName, playerHp, playerHpMax,
-  enemyName, enemyHp, enemyHpMax,
+  playerName, enemyName,
   playerHit, enemyHit, lastEvent,
   playerPosition, selectedMove, onSelectMove,
   participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget,
 }: {
-  playerName: string; playerHp: number; playerHpMax: number
-  enemyName: string;  enemyHp: number;  enemyHpMax: number
+  playerName: string
+  enemyName: string
   playerDefeated: boolean; enemyDefeated: boolean
   playerHit: boolean; enemyHit: boolean; lastEvent: TurnEvent | null
   distance?: number
@@ -111,14 +95,6 @@ function BattleGrid({
   const midRow = Math.floor(GRID_ROWS / 2)
   return (
     <div className="grid-arena">
-      {/* HP полосы СВЕРХУ */}
-      <div className="grid-hp-row">
-        <HpBar hp={playerHp} hpMax={playerHpMax} name={playerName} />
-        <div className="grid-round-info">
-          <Sword size={13} style={{ color: 'var(--gold-dim)' }} />
-        </div>
-        <HpBar hp={enemyHp} hpMax={enemyHpMax} name={enemyName} right />
-      </div>
 
       {/* Поле: соты «остриём вверх», нечётные ряды смещены вправо */}
       <div className="hex-board">
@@ -219,20 +195,17 @@ function BattleGrid({
 export function BattlePage() {
   const { id: battleId } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const isMobile = useIsMobile()
   const qc = useQueryClient()
 
   const [rounds, setRounds]             = useState<RoundRecord[]>([])
   const [playerHp, setPlayerHp]         = useState<number | null>(null)
   const [enemyHp, setEnemyHp]           = useState<number | null>(null)
-  const [playerDmg, setPlayerDmg]       = useState(0)
   const [currentRound, setCurrentRound] = useState(1)
   const [battleOver, setBattleOver]     = useState(false)
   const [finishResult, setFinishResult] = useState<RoundResult | null>(null)
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
   const [pocketsOpen, setPocketsOpen]   = useState(false)
-  const [plannerOpen, setPlannerOpen]   = useState(false)
   const actionPendingRef = useRef(false)
   const [playerHit, setPlayerHit]       = useState(false)
   const [enemyHit, setEnemyHit]         = useState(false)
@@ -278,7 +251,9 @@ export function BattlePage() {
   const eHp       = enemyHp ?? ePart?.hpCurrent ?? dbEPart?.hpCurrent ?? 0
   const eHpMax    = ePart?.hpMax ?? dbEPart?.hpMax ?? 0  // 0 показывает полный бар до загрузки
   const weapon    = items.find(i => i.isEquipped && i.template.type === 'WEAPON')
-  const enemyName = 'Противник'
+  const profiles = battleData?.participantProfiles ?? []
+  const enemyProfile = profiles.find(profile => profile.participantId === ePart?.participantId)
+  const enemyName = enemyProfile?.name ?? 'Противник'
 
   // Только расходники из loadout (взятые до боя)
   const pocketSlots: (ItemInstance | null)[] = [0, 1, 2, 3].map(idx => {
@@ -312,15 +287,12 @@ export function BattlePage() {
         crit: t.crit, lucky: t.lucky, counterDamage: t.counterDamage,
         rawDamage: t.rawDamage, finalDamage: t.finalDamage, logParts: t.logParts,
       })) ?? []
-
-      let pd = 0
       events.forEach(t => {
         if (t.hit && !t.dodge) {
-          if (t.actor === 'player') { setEnemyHit(true); setTimeout(() => setEnemyHit(false), 500); pd += t.finalDamage }
+          if (t.actor === 'player') { setEnemyHit(true); setTimeout(() => setEnemyHit(false), 500) }
           else                      { setPlayerHit(true); setTimeout(() => setPlayerHit(false), 500) }
         }
       })
-      setPlayerDmg(p => p + pd)
       if (events.length > 0) setLastEvent(events[events.length - 1])
 
       setRounds(prev => [...prev, {
@@ -359,7 +331,8 @@ export function BattlePage() {
   const changeStance = (next: Stance) => {
     setStance(next); setAttackZones([]); setBlockZones([]); setSelectedMove(null)
   }
-  const toggleAttack = (zone: BodyZone) => setAttackZones(prev => toggleZone(prev, zone, budget.attacks))
+  const toggleAttack = (zone: BodyZone) => setAttackZones(prev => appendAttackZone(prev, zone, budget.attacks))
+  const removeAttack = (index: number) => setAttackZones(prev => removeAttackZone(prev, index))
   const toggleBlock = (zone: BodyZone) => setBlockZones(prev => toggleZone(prev, zone, budget.blocks))
   const selectMove = (position: { x: number; y: number }) => {
     setSelectedMove(position); setAttackZones([]); setBlockZones([])
@@ -474,104 +447,71 @@ export function BattlePage() {
   }
 
   return (
-    <div className="battle-page-v2">
+    <div className="battle-page-v3">
+      <header className="battle-header-v3">
+        <div><Sword size={13} /><b>Бой</b></div>
+        <strong>Раунд {currentRound} / 30</strong>
+        <span className={actionMut.isPending ? 'is-pending' : 'is-ready'}>
+          {actionMut.isPending ? <><RotateCcw size={11} className="spin" /> Ход отправляется</> : <><CircleDot size={9} /> Ваш ход</>}
+        </span>
+      </header>
 
-      {/* ══ ОСНОВНАЯ КОЛОНКА ══ */}
-      <div className="battle-main-col">
+      <main className="battle-duel-stage">
+        <BattleFighterPanel side="self" name={playerName} level={char?.battleLevel}
+          hp={pHp} hpMax={pHpMax} mode="block" selected={blockZones} limit={budget.blocks}
+          disabled={!canAct} primaryHand={weapon?.template.name} secondaryHand={null}
+          onZone={toggleBlock} />
 
-        {/* Шапка */}
-        <div className="battle-header-v2">
-          <div className="bh-left">
-            <Sword size={13} style={{ color: 'var(--gold-dim)' }} />
-            <span>АРЕНА</span>
-          </div>
-          <div className="bh-center">Раунд {currentRound} / 30</div>
-          <div className="bh-right">
-            {actionMut.isPending
-              ? <><RotateCcw size={11} className="spin" /> Ход...</>
-              : <><CircleDot size={9} style={{ color: 'var(--success)' }} /> Идёт бой</>}
+        <div className="battle-field-v3">
+          <BattleGrid playerName={playerName} enemyName={enemyName}
+            playerDefeated={false} enemyDefeated={false}
+            playerHit={playerHit} enemyHit={enemyHit} lastEvent={lastEvent}
+            distance={distance ?? live?.distance ?? undefined} playerPosition={pPart?.position}
+            enemyPosition={ePart?.position} selectedMove={selectedMove} onSelectMove={selectMove}
+            participants={live?.participants} playerParticipantId={pPart?.participantId}
+            playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
+            onSelectTarget={setSelectedTargetId} />
+          <div className="battle-field-v3__meta">
+            <span>Дистанция: <b>{currentDistance}</b></span><span>Дальность: <b>{playerRange ?? '—'}</b></span>
           </div>
         </div>
 
-        {/* Поле боя */}
-        <BattleGrid
-          playerName={playerName} playerHp={pHp} playerHpMax={pHpMax}
-          enemyName={enemyName}   enemyHp={eHp}  enemyHpMax={eHpMax}
-          playerDefeated={false} enemyDefeated={false}
-          playerHit={playerHit} enemyHit={enemyHit}
-          lastEvent={lastEvent}
-          distance={distance ?? live?.distance ?? undefined}
-          playerPosition={pPart?.position}
-          enemyPosition={ePart?.position}
-          selectedMove={selectedMove}
-          onSelectMove={selectMove}
-          participants={live?.participants}
-          playerParticipantId={pPart?.participantId}
-          playerSide={pPart?.side}
-          selectedTargetId={ePart?.participantId}
-          onSelectTarget={setSelectedTargetId}
-        />
+        <BattleFighterPanel side="enemy" name={enemyName} level={enemyProfile?.level}
+          hp={eHp} hpMax={eHpMax} mode="attack" selected={attackZones} limit={budget.attacks}
+          disabled={!canAct || !ePart?.participantId || !targetInRange}
+          disabledReason={!targetInRange ? 'Цель вне дальности' : undefined}
+          primaryHand={enemyProfile?.primaryHand} secondaryHand={enemyProfile?.secondaryHand}
+          onZone={toggleAttack} />
+      </main>
 
-        <section className="battle-command">
-          {actionError && <div className="battle-error-v2" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
-          {!battleOver && <div className="battle-turn-timer" aria-label={`?? ?????????????? ?????? ${timeLeft} ??????`}>
-            <i style={{ transform: `scaleX(${timeLeft / 7})` }} />
-            <span>{actionMut.isPending ? '?????????' : `??? ??? ? ${timeLeft}?`}</span>
-          </div>}
-          <BattlePlanner stance={stance} attackZones={attackZones} blockZones={blockZones}
-            selectedMove={selectedMove} targetId={ePart?.participantId} targetName={enemyName}
-            playerName={playerName} targetInRange={targetInRange} canAct={canAct}
-            pending={actionMut.isPending} mobile={isMobile} open={plannerOpen}
-            onOpenChange={setPlannerOpen} onStanceChange={changeStance}
-            onAttackToggle={toggleAttack} onBlockToggle={toggleBlock}
-            onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
-            onSurrender={() => act('surrender')} />
-          <div className="battle-weapon-line"><Sword size={12} /><span>{weapon?.template.name ?? '??????'}</span><span>????????: {playerDmg}</span></div>
+      {actionError && <div className="battle-error-v3" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
+      <BattleCommandDock stance={stance} attackZones={attackZones} blockZones={blockZones}
+        selectedMove={selectedMove} targetId={ePart?.participantId} targetInRange={targetInRange}
+        canAct={canAct} pending={actionMut.isPending} timeLeft={timeLeft}
+        roundsCount={rounds.length} pocketCount={pocketSlots.filter(Boolean).length}
+        onStanceChange={changeStance} onRemoveAttack={removeAttack}
+        onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
+        onToggleLog={() => setShowLog(value => !value)} onTogglePockets={() => setPocketsOpen(value => !value)}
+        onSurrender={() => act('surrender')} />
+
+      {(showLog || pocketsOpen) && <aside className="battle-drawer" aria-label={showLog ? 'Лог боя' : 'Боевой карман'}>
+        <button type="button" className="battle-drawer__scrim" aria-label="Закрыть" onClick={() => { setShowLog(false); setPocketsOpen(false) }} />
+        <section>
+          <header><b>{showLog ? 'Лог боя' : 'Боевой карман'}</b><button type="button" onClick={() => { setShowLog(false); setPocketsOpen(false) }}>Закрыть</button></header>
+          {showLog ? <div className="log-body-v2">
+            {rounds.length === 0 && <p className="battle-drawer__empty">Событий пока нет.</p>}
+            {rounds.slice().reverse().map(r => <div key={r.round} className="log-round-v2">
+              <div className="log-round-header">Раунд {r.round}</div>
+              {r.events.map((t, i) => { const event = getEvent(t); const isPlayer = t.actor === 'player'; return <div key={i} className={`log-event-line ${isPlayer ? 'log-ev-player' : 'log-ev-enemy'}`}>
+                <span className="log-ev-actor">{isPlayer ? playerName : enemyName}</span>
+                <span className="log-ev-icon" style={{ color: event.color }}><EventIcon type={event.type} /></span>
+                <span className="log-ev-label" style={{ color: event.color }}>{event.label}</span>
+                {t.finalDamage > 0 && <span className="log-ev-dmg">-{t.finalDamage} HP</span>}
+              </div> })}
+            </div>)}
+          </div> : <BattlePockets slots={pocketSlots} canAct={canAct} open
+            onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />}
         </section>
-
-        {/* Лог */}
-        <div className="battle-log-v2">
-          <button className="log-toggle-v2" onClick={() => setShowLog(v => !v)}>
-            {showLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            <span>Лог боя</span>
-            <span style={{ marginLeft: 'auto', color: 'var(--text-dim)', fontSize: 10 }}>
-              {rounds.length} раундов
-            </span>
-          </button>
-          {showLog && (
-            <div className="log-body-v2">
-              {rounds.slice().reverse().map(r => (
-                <div key={r.round} className="log-round-v2">
-                  <div className="log-round-header">Раунд {r.round}</div>
-                  {r.events.map((t, i) => {
-                    const e = getEvent(t)
-                    const isPlayer = t.actor === 'player'
-                    return (
-                      <div key={i} className={`log-event-line ${isPlayer ? 'log-ev-player' : 'log-ev-enemy'}`}>
-                        <span className="log-ev-actor">{isPlayer ? playerName : enemyName}</span>
-                        <span className="log-ev-arrow">→</span>
-                        <span className="log-ev-icon" style={{ color: e.color }}><EventIcon type={e.type} /></span>
-                        <span className="log-ev-label" style={{ color: e.color }}>{e.label}</span>
-                        {t.finalDamage > 0 && (
-                          <>
-                            <span className="log-ev-arrow">→</span>
-                            <span className="log-ev-dmg" style={{ color: e.type === 'crit' ? 'var(--gold)' : 'var(--danger)' }}>
-                              -{t.finalDamage} HP
-                            </span>
-                            {t.crit && <span className="log-ev-crit">КРИТ!</span>}
-                          </>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <BattlePockets slots={pocketSlots} canAct={canAct} open={pocketsOpen}
-          onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />
-      </div>
+      </aside>}
     </div>
-  )
-}
+  )}
