@@ -229,3 +229,14 @@
   .battle-command-tools { overflow: hidden; }
   .battle-command-tools button { padding-inline: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+.battle-field-v3 .grid-last-event > span {
+  color: oklch(88% .035 75) !important;
+}
+@media (max-width: 900px) {
+  .battle-duel-stage,
+  .battle-command-dock { overflow: hidden; }
+  .battle-field-v3,
+  .battle-field-v3 .grid-arena,
+  .battle-field-v3 .hex-board,
+  .battle-field-v3 .hex-field { min-width: 0; max-width: 100%; }
+}
