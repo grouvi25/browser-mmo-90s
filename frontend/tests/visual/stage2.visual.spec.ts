@@ -5,6 +5,7 @@ type Account = { token: string; userId: string; login: string; nickname: string;
 let seller: Account
 let buyer: Account
 let worker: Account
+let fighter: Account
 let listingId = ''
 let apiContext: APIRequestContext
 const API = process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:4000'
@@ -69,6 +70,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     seller = await createAccount(apiContext, `seller_${testInfo.project.name}`)
     buyer = await createAccount(apiContext, `buyer_${testInfo.project.name}`)
     worker = await createAccount(apiContext, `worker_${testInfo.project.name}`)
+    fighter = await createAccount(apiContext, `fighter_${testInfo.project.name}`)
     const sellerItem = await buyPrivateItem(apiContext, seller, 'armor_boots_army_private')
     await buyPrivateItem(apiContext, buyer, 'armor_leather_jacket_private')
     const listed = await apiContext.post('/api/market/listings', {
@@ -175,8 +177,8 @@ test.describe('Stage 2 visual and browser flow', () => {
     await authPage(page, seller)
     await page.goto('/work')
     await expect(page.getByText('Рабочая смена')).toBeVisible()
-    await expect(page.getByText('Объекты города')).toBeVisible()
-    await expect(page.locator('tbody tr')).toHaveCount(6)
+    await expect(page.getByText('Вакансии', { exact: true })).toBeVisible()
+    await expect(page.locator('#vacancies tbody tr')).toHaveCount(6)
     await visualProof(page, testInfo, 'e2-work')
   })
 
@@ -321,6 +323,55 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.getByText('Шанс успеха:', { exact: false })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Улучшить' })).toBeVisible()
     await visualProof(page, testInfo, 'e5-upgrades')
+  })
+
+  test('Phase A battle planner submits one attack and two blocks', async ({ page }, testInfo) => {
+    const started = await apiContext.post('/api/battles/pve/start', {
+      headers: { Authorization: `Bearer ${fighter.token}` },
+      data: { botCode: 'training_bandit' },
+    })
+    expect(started.status()).toBe(201)
+    const battleId = (await started.json() as { battleId: string }).battleId
+
+    await authPage(page, fighter)
+    await page.goto(`/battle/${battleId}`)
+    await expect(page.locator('.battle-command')).toBeVisible()
+
+    if (testInfo.project.name.startsWith('mobile')) {
+      await page.getByRole('button', { name: /Настроить/ }).click()
+      await expect(page.locator('.battle-plan-dialog')).toHaveAttribute('open', '')
+    }
+
+    await page.getByRole('radio', { name: /1 удар \+ 2 блока/ }).click()
+    await page.locator('.body-selector--attack .body-zone').nth(0).click()
+    await page.locator('.body-selector--block .body-zone').nth(1).click()
+    await page.locator('.body-selector--block .body-zone').nth(4).click()
+
+    if (testInfo.project.name.startsWith('mobile')) {
+      await page.getByRole('button', { name: 'Готово' }).click()
+    }
+
+    const actionRequest = page.waitForRequest(request => request.url().endsWith(`/api/battles/${battleId}/action`))
+    await page.getByRole('button', { name: 'Сделать ход' }).last().click()
+    const payload = (await actionRequest).postDataJSON() as {
+      action: string; stance: string; attackZones: string[]; blockZones: string[]; targetParticipantId: string
+    }
+    expect(payload).toMatchObject({
+      action: 'attack', stance: 'mixed', attackZones: ['HEAD'], blockZones: ['CHEST', 'LEGS'],
+    })
+    expect(payload.targetParticipantId).toBeTruthy()
+    expect(await page.locator('.battle-pockets-panel').count()).toBe(0)
+
+    const axe = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+    expect(axe.violations).toEqual([])
+    const image = await page.screenshot({ animations: 'disabled' })
+    await testInfo.attach(`phase-a-battle-${testInfo.project.name}`, { body: image, contentType: 'image/png' })
+
+    await apiContext.post(`/api/battles/${battleId}/action`, {
+      headers: { Authorization: `Bearer ${fighter.token}` }, data: { action: 'surrender' },
+    })
   })
 
   test('Stage 2 pages meet automated WCAG A/AA checks and expose keyboard focus', async ({ page }, testInfo) => {

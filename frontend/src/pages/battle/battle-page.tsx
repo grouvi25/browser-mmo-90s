@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Sword, Shield, Heart, Zap, ArrowRight,
-  RotateCcw, Flag, ChevronDown, ChevronUp, Skull,
-  CircleDot, User, Trophy, AlertTriangle, Pill,
+  RotateCcw, ChevronDown, ChevronUp, Skull,
+  CircleDot, User, Trophy, AlertTriangle,
 } from 'lucide-react'
 import { battlesApi, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
@@ -12,26 +12,14 @@ import { type BattleAction, type ItemInstance, type LiveParticipant } from '../.
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { cellStyle, isNeighbour, FIELD_ASPECT, GRID_COLS, GRID_ROWS } from '../../shared/lib/hex'
+import { useIsMobile } from '../../shared/lib/use-media-query'
+import { BattlePlanner } from './components/battle-planner'
+import { BattlePockets } from './components/battle-pockets'
+import { ZONE_LABEL, getActionBudget, toggleZone } from './battle-view-model'
+import './battle-phase-a.css'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const LOADOUT_KEY = 'mmo_battle_loadout'
-
-// ── Зоны и стойки (модель Апехи) ───────────────────────────
-const ZONES: { key: BodyZone; label: string; short: string }[] = [
-  { key: 'HEAD',      label: 'Голова',    short: 'Гол' },
-  { key: 'CHEST',     label: 'Корпус',    short: 'Корп' },
-  { key: 'RIGHT_ARM', label: 'Пр. рука',  short: 'Пр.р' },
-  { key: 'LEFT_ARM',  label: 'Лев. рука', short: 'Лв.р' },
-  { key: 'LEGS',      label: 'Ноги',      short: 'Ноги' },
-]
-const ZONE_LABEL: Record<BodyZone, string> = {
-  HEAD: 'голова', CHEST: 'корпус', LEGS: 'ноги', RIGHT_ARM: 'правая рука', LEFT_ARM: 'левая рука',
-}
-const STANCES: { key: Stance; label: string; attacks: number; blocks: number; hint: string }[] = [
-  { key: 'attack2',  label: '2 удара',      attacks: 2, blocks: 0, hint: 'Максимум урона, ты открыт' },
-  { key: 'mixed',    label: '1 удар + 2 блока', attacks: 1, blocks: 2, hint: 'Сбалансированная стойка' },
-  { key: 'defense4', label: '4 блока',      attacks: 0, blocks: 4, hint: 'Глухая защита: закрыто 4 из 5 зон' },
-]
 
 function getLoadout(): string[] {
   try { return JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '[]') } catch { return [] }
@@ -79,12 +67,11 @@ function getEvent(t: TurnEvent) {
   if (t.crit)            return { type: 'crit',    label: 'КРИТ' + z,     color: '#d4a017' }
   return                        { type: 'hit',     label: 'Удар' + z,     color: '#c43030' }
 }
-function zoneText(z?: BodyZone): string { return z ? ZONE_LABEL[z] : '' }
 
 // ── HP-полоска ─────────────────────────────────────────────
 function HpBar({ hp, hpMax, name, right = false }: { hp: number; hpMax: number; name: string; right?: boolean }) {
   const pct = hpMax > 0 ? Math.max(0, Math.min(100, hp / hpMax * 100)) : 0
-  const color = pct > 60 ? '#4a8a35' : pct > 25 ? '#c4802a' : '#c43030'
+  const color = pct > 60 ? '#285e24' : pct > 25 ? '#774a05' : '#8d1c24'
   return (
     <div className="grid-hp-block" style={right ? { alignItems: 'flex-end' } : {}}>
       <div className="grid-hp-name">{name}</div>
@@ -165,9 +152,19 @@ function BattleGrid({
                   + (isTarget ? ' is-target' : '')
                   + (clickable ? ' is-clickable' : '')}
                 style={cellStyle(cell)}
+                role={clickable ? 'button' : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                aria-label={canMove ? `Перейти в клетку ${col}:${row}`
+                  : isEnemy && occupant ? `Выбрать противника в клетке ${col}:${row}` : undefined}
                 onClick={() => canMove
                   ? onSelectMove?.(cell)
                   : isEnemy && occupant ? onSelectTarget?.(occupant.participantId) : undefined}
+                onKeyDown={event => {
+                  if (!clickable || (event.key !== 'Enter' && event.key !== ' ')) return
+                  event.preventDefault()
+                  if (canMove) onSelectMove?.(cell)
+                  else if (isEnemy && occupant) onSelectTarget?.(occupant.participantId)
+                }}
               >
                 <span className="hex-cell__edge" />
                 <span className="hex-cell__face" />
@@ -181,6 +178,7 @@ function BattleGrid({
                   <div className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
                     {!occupant.isAlive ? <Skull size={16} /> : <CircleDot size={16} />}
                     <span className="token-label">{isTarget ? enemyName.slice(0, 5) : 'Враг'}</span>
+                    {isTarget && <span className="token-target-label">ЦЕЛЬ</span>}
                   </div>
                 )}
                 {isCenter && lastEvent && (
@@ -217,53 +215,11 @@ function BattleGrid({
   )
 }
 
-// ── Карманы в бою (правая панель) ──────────────────────────
-function PocketsPanel({
-  slots, canAct, onUse,
-}: {
-  slots: (ItemInstance | null)[]
-  canAct: boolean
-  onUse: (id: string) => void
-}) {
-  return (
-    <div className="battle-pockets-panel">
-      <div className="bp-title">
-        <Pill size={9} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-        Карманы
-      </div>
-      {slots.map((item, i) => (
-        <div key={i} className={`bp-slot ${item ? 'bp-filled' : 'bp-empty'}`}>
-          <div className="bp-slot-num">#{i + 1}</div>
-          {item ? (
-            <>
-              <div className="bp-slot-name">{item.template.name}</div>
-              {(item.template.hpBonus ?? 0) > 0 && (
-                <div className="bp-slot-hp">+{item.template.hpBonus} HP</div>
-              )}
-              <button
-                className="btn btn-sm btn-success bp-use-btn"
-                disabled={!canAct}
-                onClick={() => onUse(item.id)}
-              >
-                Применить
-              </button>
-            </>
-          ) : (
-            <div className="bp-slot-empty-text">— пусто —</div>
-          )}
-        </div>
-      ))}
-      <div style={{ fontSize: 9, color: 'var(--text-dim)', padding: '4px 0', lineHeight: 1.5 }}>
-        Снаряди расходники до боя на странице Профиля
-      </div>
-    </div>
-  )
-}
-
 // ══ ГЛАВНЫЙ КОМПОНЕНТ ═════════════════════════════════════════
 export function BattlePage() {
   const { id: battleId } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const qc = useQueryClient()
 
   const [rounds, setRounds]             = useState<RoundRecord[]>([])
@@ -275,6 +231,9 @@ export function BattlePage() {
   const [finishResult, setFinishResult] = useState<RoundResult | null>(null)
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
+  const [pocketsOpen, setPocketsOpen]   = useState(false)
+  const [plannerOpen, setPlannerOpen]   = useState(false)
+  const actionPendingRef = useRef(false)
   const [playerHit, setPlayerHit]       = useState(false)
   const [enemyHit, setEnemyHit]         = useState(false)
   const [lastEvent, setLastEvent]       = useState<TurnEvent | null>(null)
@@ -285,7 +244,6 @@ export function BattlePage() {
   const [stance, setStance]             = useState<Stance>('attack2')
   const [attackZones, setAttackZones]   = useState<BodyZone[]>([])
   const [blockZones, setBlockZones]     = useState<BodyZone[]>([])
-  const [enemyStance, setEnemyStance]   = useState<{ stance: Stance; attackZones: BodyZone[]; blockZones: BodyZone[] } | null>(null)
   const [distance, setDistance]         = useState<number | null>(null)
   const [playerRange, setPlayerRange]   = useState<number | null>(null)
   const [selectedMove, setSelectedMove] = useState<{ x: number; y: number } | null>(null)
@@ -333,17 +291,13 @@ export function BattlePage() {
     mutationFn: ({ action, opts }: { action: BattleAction; opts?: SubmitActionOpts }) =>
       battlesApi.submitAction(battleId!, action, opts) as unknown as Promise<RoundResult>,
     onSuccess: (data, variables) => {
+      if (variables.action === 'attack' || variables.action === 'block' || variables.action === 'move') {
+        setAttackZones([]); setBlockZones([]); setSelectedMove(null)
+      }
       const rn = data.roundNumber ?? currentRound
       setCurrentRound(rn)
       if (data.playerHp != null) setPlayerHp(data.playerHp)
       if (data.botHp    != null) setEnemyHp(data.botHp)
-      if (data.botStance) {
-        setEnemyStance({
-          stance: data.botStance,
-          attackZones: data.botAttackZones ?? [],
-          blockZones: data.botBlockZones ?? [],
-        })
-      }
       if (data.distance != null) setDistance(data.distance)
       if (data.playerRange != null) setPlayerRange(data.playerRange)
 
@@ -386,31 +340,38 @@ export function BattlePage() {
       setActionError(err instanceof ApiError ? err.message : 'Ошибка')
       setTimeout(() => setActionError(''), 4000)
     },
+    onSettled: () => { actionPendingRef.current = false },
   })
 
   const canAct = !battleOver && !actionMut.isPending
+  const currentDistance = distance ?? live?.distance ?? 0
+  const targetInRange = playerRange == null || currentDistance <= playerRange
   const act = (action: BattleAction, opts?: SubmitActionOpts) => {
-    setTimeLeft(7) // сброс таймера при действии
+    if (actionPendingRef.current) return
+    actionPendingRef.current = true
+    setTimeLeft(7)
     actionMut.mutate({ action, opts })
   }
   const playerName = char?.nickname ?? 'Игрок'
 
   // ── Зональный ход: стойки и выбор зон ──────────────────
-  const budget = STANCES.find(s => s.key === stance)!
-  const changeStance = (s: Stance) => { setStance(s); setAttackZones([]); setBlockZones([]) }
-  const toggleAttack = (z: BodyZone) => setAttackZones(prev =>
-    prev.includes(z) ? prev.filter(x => x !== z) : prev.length < budget.attacks ? [...prev, z] : prev)
-  const toggleBlock = (z: BodyZone) => setBlockZones(prev =>
-    prev.includes(z) ? prev.filter(x => x !== z) : prev.length < budget.blocks ? [...prev, z] : prev)
+  const budget = getActionBudget(stance)
+  const changeStance = (next: Stance) => {
+    setStance(next); setAttackZones([]); setBlockZones([]); setSelectedMove(null)
+  }
+  const toggleAttack = (zone: BodyZone) => setAttackZones(prev => toggleZone(prev, zone, budget.attacks))
+  const toggleBlock = (zone: BodyZone) => setBlockZones(prev => toggleZone(prev, zone, budget.blocks))
+  const selectMove = (position: { x: number; y: number }) => {
+    setSelectedMove(position); setAttackZones([]); setBlockZones([])
+  }
+  const resetPlan = () => { setAttackZones([]); setBlockZones([]); setSelectedMove(null) }
   const submitTurn = () => {
     const action: BattleAction = stance === 'defense4' ? 'block' : 'attack'
     act(action, { stance, attackZones, blockZones, targetParticipantId: ePart?.participantId })
-    setAttackZones([]); setBlockZones([]); setSelectedMove(null)
   }
   const submitMove = () => {
     if (!selectedMove) return
     act('move', { moveTo: selectedMove })
-    setSelectedMove(null); setAttackZones([]); setBlockZones([])
   }
 
   // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────
@@ -423,7 +384,8 @@ export function BattlePage() {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(interval)
-          if (!battleOver && !actionMut.isPending) {
+          if (!battleOver && !actionPendingRef.current) {
+            actionPendingRef.current = true
             actionMut.mutate({ action: 'block', opts: { stance: 'defense4' } })
           }
           return 0
@@ -542,7 +504,7 @@ export function BattlePage() {
           playerPosition={pPart?.position}
           enemyPosition={ePart?.position}
           selectedMove={selectedMove}
-          onSelectMove={setSelectedMove}
+          onSelectMove={selectMove}
           participants={live?.participants}
           playerParticipantId={pPart?.participantId}
           playerSide={pPart?.side}
@@ -550,145 +512,22 @@ export function BattlePage() {
           onSelectTarget={setSelectedTargetId}
         />
 
-        {/* HUD */}
-        <div className="battle-hud-v2">
-          {actionError && (
-            <div className="battle-error-v2">
-              <AlertTriangle size={13} /> {actionError}
-            </div>
-          )}
-
-          {/* Таймер хода */}
-          {!battleOver && !actionMut.isPending && (
-            <div className="hud-timer" style={{
-              color: timeLeft <= 2 ? 'var(--danger)' : timeLeft <= 4 ? 'var(--warning)' : 'var(--text-dim)',
-            }}>
-              <div
-                className="hud-timer-bar"
-                style={{
-                  width: `${(timeLeft / 7) * 100}%`,
-                  background: timeLeft <= 2 ? 'var(--red)' : timeLeft <= 4 ? 'var(--warning)' : 'var(--accent)',
-                }}
-              />
-              <span className="hud-timer-num">{timeLeft}с</span>
-            </div>
-          )}
-
-          {/* ── Зональный ход: стойка + зоны ── */}
-          <div className="hud-zonal">
-            {(distance ?? live?.distance) != null && (() => {
-              const d = (distance ?? live?.distance) as number
-              const far = playerRange != null && d > playerRange
-              return (
-                <div style={{ fontSize: 11, textAlign: 'center', marginBottom: 5, color: far ? 'var(--warning, #c4802a)' : 'var(--text-dim)' }}>
-                  Дистанция: {d}{playerRange != null && ` · оружие бьёт с ${playerRange}`}
-                  {far && ' — далеко: при атаке сближаешься (без удара)'}
-                </div>
-              )
-            })()}
-            <div className="hz-stances" style={{ display: 'flex', gap: 4 }}>
-              {STANCES.map(s => (
-                <button key={s.key} onClick={() => changeStance(s.key)} disabled={!canAct} title={s.hint}
-                  style={{
-                    flex: 1, padding: '6px 4px', fontSize: 11, fontWeight: 'bold', cursor: canAct ? 'pointer' : 'default',
-                    border: `1px solid ${stance === s.key ? 'var(--gold, #d4a017)' : 'var(--border, #444)'}`,
-                    background: stance === s.key ? 'rgba(212,160,23,0.15)' : 'transparent',
-                    color: stance === s.key ? 'var(--gold, #d4a017)' : 'var(--text-dim, #999)',
-                    borderRadius: 4,
-                  }}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            <div style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'center', margin: '3px 0' }}>{budget.hint}</div>
-
-            {enemyParts.length > 1 && (
-              <div style={{ margin: '6px 0' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 4 }}>Цель атаки</div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  {enemyParts.map((enemy: LiveParticipant, index: number) => (
-                    <button key={enemy.participantId} disabled={!canAct} onClick={() => setSelectedTargetId(enemy.participantId)}
-                      style={{ border: `1px solid ${ePart?.participantId === enemy.participantId ? '#c43030' : 'var(--border,#444)'}`, background: ePart?.participantId === enemy.participantId ? 'rgba(196,48,48,.2)' : 'transparent', color: 'var(--text)', padding: '4px 7px', borderRadius: 4 }}>
-                      Враг {index + 1} · {enemy.hpCurrent}/{enemy.hpMax} HP
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="hz-zones" style={{ display: 'flex', flexDirection: 'column', gap: 3, margin: '4px 0' }}>
-              {ZONES.map(z => {
-                const atk = attackZones.includes(z.key)
-                const blk = blockZones.includes(z.key)
-                const atkFull = !atk && attackZones.length >= budget.attacks
-                const blkFull = !blk && blockZones.length >= budget.blocks
-                return (
-                  <div key={z.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                    <span style={{ flex: 1, color: 'var(--text)' }}>{z.label}</span>
-                    {budget.attacks > 0 && (
-                      <button disabled={!canAct || atkFull} onClick={() => toggleAttack(z.key)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 4,
-                          cursor: (!canAct || atkFull) ? 'default' : 'pointer',
-                          border: `1px solid ${atk ? '#c43030' : 'var(--border,#444)'}`,
-                          background: atk ? 'rgba(196,48,48,0.2)' : 'transparent',
-                          color: atk ? '#e06060' : 'var(--text-dim,#888)',
-                          opacity: atkFull ? 0.35 : 1,
-                        }}>
-                        <Sword size={12} /> Удар
-                      </button>
-                    )}
-                    {budget.blocks > 0 && (
-                      <button disabled={!canAct || blkFull} onClick={() => toggleBlock(z.key)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 4,
-                          cursor: (!canAct || blkFull) ? 'default' : 'pointer',
-                          border: `1px solid ${blk ? '#4a8a35' : 'var(--border,#444)'}`,
-                          background: blk ? 'rgba(74,138,53,0.2)' : 'transparent',
-                          color: blk ? '#88c060' : 'var(--text-dim,#888)',
-                          opacity: blkFull ? 0.35 : 1,
-                        }}>
-                        <Shield size={12} /> Блок
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-
-            {selectedMove && (
-              <button className="btn btn-gold" disabled={!canAct} onClick={submitMove} style={{ width: '100%', marginBottom: 6, fontWeight: 'bold' }}>
-                Перейти в клетку ({selectedMove.x}, {selectedMove.y})
-              </button>
-            )}
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button className="btn btn-danger" disabled={!canAct || !!selectedMove} onClick={submitTurn} style={{ flex: 1, fontWeight: 'bold' }}>
-                <Sword size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-                Ходить
-                <span style={{ fontSize: 10, opacity: 0.8, marginLeft: 6 }}>
-                  ({attackZones.length}/{budget.attacks} уд · {blockZones.length}/{budget.blocks} бл)
-                </span>
-              </button>
-              <button className="btn" disabled={!canAct} onClick={() => act('surrender')} title="Сдаться" style={{ padding: '0 12px' }}>
-                <Flag size={14} />
-              </button>
-            </div>
-
-            {enemyStance && (
-              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 5, textAlign: 'center' }}>
-                Противник: {STANCES.find(s => s.key === enemyStance.stance)?.label}
-                {enemyStance.blockZones.length > 0 && ` · блок: ${enemyStance.blockZones.map(zoneText).join(', ')}`}
-              </div>
-            )}
-          </div>
-
-          <div className="hud-v2-weapon">
-            <Sword size={10} style={{ color: 'var(--text-dim)' }} />
-            <span>{weapon?.template.name ?? 'Кулаки'}</span>
-            <span style={{ color: 'var(--text-dim)', marginLeft: 'auto' }}>
-              Нанесено: {playerDmg}
-            </span>
-          </div>
-        </div>
+        <section className="battle-command">
+          {actionError && <div className="battle-error-v2" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
+          {!battleOver && <div className="battle-turn-timer" aria-label={`?? ?????????????? ?????? ${timeLeft} ??????`}>
+            <i style={{ transform: `scaleX(${timeLeft / 7})` }} />
+            <span>{actionMut.isPending ? '?????????' : `??? ??? ? ${timeLeft}?`}</span>
+          </div>}
+          <BattlePlanner stance={stance} attackZones={attackZones} blockZones={blockZones}
+            selectedMove={selectedMove} targetId={ePart?.participantId} targetName={enemyName}
+            playerName={playerName} targetInRange={targetInRange} canAct={canAct}
+            pending={actionMut.isPending} mobile={isMobile} open={plannerOpen}
+            onOpenChange={setPlannerOpen} onStanceChange={changeStance}
+            onAttackToggle={toggleAttack} onBlockToggle={toggleBlock}
+            onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
+            onSurrender={() => act('surrender')} />
+          <div className="battle-weapon-line"><Sword size={12} /><span>{weapon?.template.name ?? '??????'}</span><span>????????: {playerDmg}</span></div>
+        </section>
 
         {/* Лог */}
         <div className="battle-log-v2">
@@ -730,15 +569,9 @@ export function BattlePage() {
             </div>
           )}
         </div>
+        <BattlePockets slots={pocketSlots} canAct={canAct} open={pocketsOpen}
+          onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />
       </div>
-
-      {/* ══ ПРАВАЯ ПАНЕЛЬ — КАРМАНЫ ══ */}
-      <PocketsPanel
-        slots={pocketSlots}
-        canAct={canAct}
-        onUse={(id) => act('use_item', { itemInstanceId: id })}
-      />
-
     </div>
   )
 }
