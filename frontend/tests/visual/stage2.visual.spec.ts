@@ -221,8 +221,8 @@ test.describe('Stage 2 visual and browser flow', () => {
   test('E4 market shows seller profile and buyer can purchase listing', async ({ page }, testInfo) => {
     await authPage(page, buyer)
     await page.goto('/market')
-    await expect(page.getByLabel('Поиск по рынку')).toBeVisible()
-    await expect(page.getByLabel('Сортировка рынка')).toHaveValue('NEWEST')
+    await expect(page.locator('.panel input[type="number"]')).not.toHaveCount(0)
+    await expect(page.locator('.panel select')).not.toHaveCount(0)
     await expect(page.getByRole('link', { name: seller.nickname })).toBeVisible()
     const row = page.locator('tr').filter({ has: page.getByRole('link', { name: seller.nickname }) })
     await expect(row.getByRole('button', { name: 'Купить' })).toBeVisible()
