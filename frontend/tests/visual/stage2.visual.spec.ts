@@ -148,7 +148,9 @@ test.describe('Stage 2 visual and browser flow', () => {
     await page.reload()
     const start = page.getByRole('button', { name: 'Выйти' }).first()
     await expect(start).toBeEnabled()
+    const startedResponse = page.waitForResponse(response => response.url().includes('/api/work/shifts/start') && response.request().method() === 'POST')
     await start.click()
+    expect((await startedResponse).status()).toBe(201)
     const current = await apiContext.get('/api/work/shifts/current', { headers: { Authorization: `Bearer ${worker.token}` } })
     expect(current.status()).toBe(200)
     const currentBody = await current.json() as { shift: { id: string; status: string; toolInstance: unknown } | null }
