@@ -2,8 +2,8 @@
 
 Date: 2026-08-13
 Authority: `docs/specs/stage-2/MASTER_TZ_STAGE_2_ECONOMY_CORE_v2.2.docx`
-Candidate commit: `90f9527` or verified successor
-Status: PENDING VERIFIED CI/CD
+Accepted commit: `60df6e202848a908ab1a109e6f8251d8463a3dbe`
+Status: ACCEPTED
 
 ## Acceptance rule
 
@@ -30,8 +30,8 @@ Stage 2 is accepted only after the exact final commit passes every CI job and th
 | Combat foundation | PASS | one zonal resolver, mixed 1+2, wards, incoming-force counters | 178 unit tests and 40-case matrix |
 | Migration safety | PASS | additive migrations | additivity gate, 12 migrations |
 | Local quality | PASS | backend/frontend clean builds | lint, typecheck, build, unit and simulations on 2026-08-13 |
-| CI candidate | PENDING | GitHub Actions | final exact SHA must be green |
-| CD candidate | PENDING | workflow-run gated CD | deploy and smoke must pass |
+| CI candidate | PASS | GitHub Actions run 31679785708 | all seven jobs green |
+| CD candidate | PASS | GitHub Actions run 31680018063 | migration, seed, health and authenticated smoke passed |
 
 ## Simulation evidence
 
@@ -51,9 +51,9 @@ Stage 2 is accepted only after the exact final commit passes every CI job and th
 
 ## Final sign-off
 
-- [ ] CI green for final SHA.
-- [ ] CD deployed the same SHA.
-- [ ] Migration and idempotent seed completed.
-- [ ] Backend, frontend and worker health passed.
-- [ ] Authenticated Stage 2 smoke passed.
-- [ ] No row remains PENDING or FAIL.
+- [x] CI green for accepted SHA.
+- [x] CD deployed the same SHA.
+- [x] Migration and idempotent seed completed.
+- [x] Backend, frontend and worker health passed.
+- [x] Authenticated Stage 2 smoke passed.
+- [x] No row remains PENDING or FAIL.

@@ -204,8 +204,8 @@ Cancellation unlocks the reserved tool and grants no reward.
 - [x] Add metrics for missing-tool blocks and consumed uses.
 - [x] Complete integration and API E2E coverage for work with tools.
 - [x] Add browser work flow: missing tool, purchase, shift and cancellation; claim is covered by API E2E.
-- [ ] Produce acceptance and Stage 3 handoff reports.
-- [ ] Merge only after all CI jobs pass.
+- [x] Produce acceptance and Stage 3 handoff reports.
+- [x] Merge only after all CI jobs pass.
 
 ## 8. CI/CD acceptance
 
