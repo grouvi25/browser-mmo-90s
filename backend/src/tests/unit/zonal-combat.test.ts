@@ -31,7 +31,7 @@ function defender(overrides: Partial<DefenderSnapshot> = {}): DefenderSnapshot {
   return {
     agi: 0, rea: 0, end: 5, luck: 0,
     armor: 0, dodgeBonus: 0, antiCrit: 0, blockBonus: 0, armorWeight: 0,
-    antiSkillLevel: 0, antiCounterDefense: 0,
+    antiSkillLevel: 0, antiCounterDefense: 0, antiLuck: 0,
     minDamage: 5, maxDamage: 5,
     ...overrides,
   }
@@ -136,7 +136,7 @@ describe('zones: botChooseTurn соблюдает бюджет', () => {
 describe('resolveZonalAttack: блок гасит зону в 0', () => {
   it('заблокированная зона без удачи → block, 0 урона', () => {
     // seq: dodge(0.99 нет), lucky(0.99 нет), crit(0.99 нет), weaponRoll(0.5)
-    mockRandom([0.99, 0.99, 0.99, 0.5])
+    mockRandom([0.0, 0.99, 0.5])
     const r = resolveZonalAttack(attacker({ luck: 0 }), defender({ rea: 0 }), {
       zone: 'HEAD', blockedZones: ['HEAD', 'CHEST'], zoneArmor: 0,
     })
@@ -149,7 +149,7 @@ describe('resolveZonalAttack: блок гасит зону в 0', () => {
 describe('resolveZonalAttack: удачный удар пробивает блок, но не броню', () => {
   it('lucky → blockPierced, но броня продолжает снижать урон', () => {
     // dodge нет (0.99); lucky да (0.0 < luckyChance); crit нет (0.99); weaponRoll(0.5)
-    mockRandom([0.99, 0.0, 0.99, 0.5])
+    mockRandom([0.0, 0.0, 0.5, 0.99])
     const atk = attacker({ luck: 25, minDamage: 40, maxDamage: 40, str: 0, weaponSkillLevel: 0 })
     expect(calcLuckyPierceChance(atk.luck)).toBeGreaterThan(0)
     const r = resolveZonalAttack(atk, defender({ armor: 1000, end: 1, rea: 0 }), {
@@ -165,7 +165,7 @@ describe('resolveZonalAttack: удачный удар пробивает бло�
 
 describe('resolveZonalAttack: незаблокированная зона получает урон, броня зоны снижает', () => {
   it('высокая броня зоны снижает урон сильнее нулевой', () => {
-    const seq = [0.99, 0.99, 0.99, 0.5] // no dodge, no lucky, no crit, weaponRoll mid
+    const seq = [0.0, 0.99, 0.5, 0.99] // no dodge, no lucky, no crit, weaponRoll mid
     mockRandom(seq)
     const noArmor = resolveZonalAttack(attacker({ luck: 0 }), defender({ end: 1 }), {
       zone: 'CHEST', blockedZones: [], zoneArmor: 0,
@@ -177,5 +177,20 @@ describe('resolveZonalAttack: незаблокированная зона пол
     expect(noArmor.hit).toBe(true)
     expect(noArmor.block).toBe(false)
     expect(highArmor.finalDamage).toBeLessThan(noArmor.finalDamage)
+  })
+})
+
+describe('canonical combat resolver wards and deterministic RNG', () => {
+  it('anti-luck can stop block piercing', () => {
+    const r = resolveZonalAttack(attacker({ luck: 25 }), defender({ antiLuck: 0.50 }), {
+      zone: 'HEAD', blockedZones: ['HEAD'], zoneArmor: 0, rng: (() => { const q = [0, 0, 0.5]; return () => q.shift() ?? 0 })(),
+    })
+    expect(r.block).toBe(true)
+    expect(r.blockPierced).toBe(false)
+  })
+
+  it('replays exactly with the same injected sequence', () => {
+    const run = () => { const q = [0, 0.99, 0.5, 0.99]; return resolveZonalAttack(attacker(), defender(), { zone: 'CHEST', blockedZones: [], zoneArmor: 5, rng: () => q.shift() ?? 0 }) }
+    expect(run()).toEqual(run())
   })
 })

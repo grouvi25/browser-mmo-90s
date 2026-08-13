@@ -64,6 +64,10 @@ jobs:
       - name: Run zonal balance simulation
         working-directory: backend
         run: npx tsx ../scripts/simulate-balance.ts --zonal | tee ../docs/stage2-balance-report.txt
+      - name: Run Apeha combat experiment matrix
+        working-directory: backend
+        run: npx tsx ../scripts/simulate-apeha-matrix.ts --json ../docs/apeha-combat-experiment-report.json --text ../docs/apeha-combat-experiment-report.txt
+
       - name: Upload Stage 2 simulation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,6 +78,8 @@ jobs:
             docs/stage2-balance-report.txt
             docs/stage2-profession-progression.json
             docs/stage2-profession-progression.txt
+            docs/apeha-combat-experiment-report.json
+            docs/apeha-combat-experiment-report.txt
           if-no-files-found: error
 
   backend-build:

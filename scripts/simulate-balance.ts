@@ -20,7 +20,7 @@ if (process.argv.includes('--zonal')) {
   const defender = {
     agi: 3, rea: 2, end: 3, luck: 1, armor: 5,
     dodgeBonus: 0, antiCrit: 0, blockBonus: 0, armorWeight: 0,
-    antiSkillLevel: 0, antiCounterDefense: 0, minDamage: 3, maxDamage: 8,
+    antiSkillLevel: 0, antiCounterDefense: 0, antiLuck: 0, minDamage: 3, maxDamage: 8,
   } as DefenderSnapshot
   const zones = ['HEAD', 'CHEST', 'LEGS', 'RIGHT_ARM', 'LEFT_ARM'] as const
   let hits = 0, damage = 0, blockPierced = 0

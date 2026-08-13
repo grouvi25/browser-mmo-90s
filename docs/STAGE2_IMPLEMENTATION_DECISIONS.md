@@ -31,3 +31,7 @@ This does not activate Stage 3 ownership or production chains. Players cannot bu
 ## Combat compatibility corrections before Stage 3
 
 The Apeha action budget is canonical: the mixed stance is one attack plus two blocked zones. A lucky hit pierces a selected block but does not bypass armor. The older behavior that let Luck ignore armor was removed because official Apeha material only supports block piercing and pressure against evasion.
+
+## Canonical combat resolver
+
+PvE and PvP now resolve through one zonal pipeline with injected RNG support. Accuracy and evasion are one contest; attacker Luck and anti-dodge pressure help that contest. Lucky hits pierce selected blocks but never armor. Anti-luck reduces block piercing, anti-counter reduces counter chance, and counter damage is a bounded fraction of incoming force. The compatibility resolveAttack entry point delegates to this resolver rather than maintaining a second formula.

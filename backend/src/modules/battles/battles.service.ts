@@ -218,8 +218,8 @@ async function buildAttackerSnapshotAsync(
     blockPierce: t?.blockPierce ?? 0,
     flatDamageBonus: 0,
     equipmentWeight,   // Real equipment weight for initiative calc
-    antiDodgeBonus: 0,    // TODO: load from item modifiers when upgrade system is implemented
-    antiCounterBonus: 0,  // TODO: load from item modifiers
+    antiDodgeBonus: t?.antiDodge ?? 0,
+    antiCounterBonus: t?.antiCounter ?? 0
   }
 }
 
@@ -236,6 +236,7 @@ function buildDefenderSnapshot(
   const blockBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.blockBonus ?? 0), 0)
   const dodgeBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.dodgeBonus ?? 0), 0)
   const armorWeight  = equippedArmor.reduce((sum, a) => sum + a.weight, 0)
+  const antiLuck     = equippedArmor.reduce((sum, a) => sum + (a.template.antiLuck ?? 0), 0)
   // Базовый урон для ответки (оружие защитника или кулаки)
   const wMin = equippedWeapon?.template.minDamage ?? 2
   const wMax = equippedWeapon?.template.maxDamage ?? 5
@@ -243,7 +244,7 @@ function buildDefenderSnapshot(
     agi: s.agi, rea: s.rea, end: s.end, luck: s.luck,
     armor: totalArmor, dodgeBonus, antiCrit, blockBonus, armorWeight,
     antiSkillLevel,
-    antiCounterDefense: 0,
+    antiCounterDefense: 0, antiLuck,
     minDamage: wMin, maxDamage: wMax,
   }
 }
@@ -343,7 +344,7 @@ function buildBotDefenderSnapshot(botStats: Record<string, number>): DefenderSna
     armor: botStats.armor ?? 2,
     dodgeBonus: 0, antiCrit: 0, blockBonus: 0, armorWeight: 0,
     antiSkillLevel: 0,
-    antiCounterDefense: 0,
+    antiCounterDefense: 0, antiLuck: botStats.antiLuck ?? 0,
     minDamage: botStats.minDamage ?? 3, maxDamage: botStats.maxDamage ?? 8,
   }
 }

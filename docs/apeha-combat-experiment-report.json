@@ -1,0 +1,738 @@
+{
+  "generatedAt": "2026-08-13T06:16:59.255Z",
+  "sourceRows": 40,
+  "canonicalDecisions": {
+    "resolution": "single accuracy/evasion contest before block",
+    "lucky": "pierces block only; armor still applies",
+    "counter": "bounded fraction of incoming force",
+    "wards": [
+      "anti-dodge",
+      "anti-luck",
+      "anti-counter",
+      "anti-crit"
+    ]
+  },
+  "valid": true,
+  "results": [
+    {
+      "id": "A01",
+      "phase": 1,
+      "group": "Resolution order",
+      "hypothesis": "Block-first and dodge-first produce materially different defense value",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.678,
+        "dodge": 0.322,
+        "block": 0.49,
+        "crit": 0.013,
+        "pierce": 0.054,
+        "counter": 0.099,
+        "damagePerAttack": 3.663
+      },
+      "valid": true,
+      "rule": "Select explicitly; reject accidental >10% E[D] shift"
+    },
+    {
+      "id": "A02",
+      "phase": 1,
+      "group": "Lucky hit",
+      "hypothesis": "Lucky should pierce block only rather than also bypass armor",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.695,
+        "dodge": 0.305,
+        "block": 0.457,
+        "crit": 0.016,
+        "pierce": 0.098,
+        "counter": 0.113,
+        "damagePerAttack": 2.356
+      },
+      "valid": true,
+      "rule": "Prefer block-only if armor value collapses >15%"
+    },
+    {
+      "id": "A03",
+      "phase": 1,
+      "group": "Lucky+crit",
+      "hypothesis": "Determine whether lucky and critical may coexist",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.724,
+        "dodge": 0.276,
+        "block": 0.215,
+        "crit": 0.034,
+        "pierce": 0.082,
+        "counter": 0.035,
+        "damagePerAttack": 10.138
+      },
+      "valid": true,
+      "rule": "Joint burst p95 must stay below 45% max HP"
+    },
+    {
+      "id": "A04",
+      "phase": 1,
+      "group": "Counter trigger",
+      "hypothesis": "Counter triggers on any attack attempt versus landed attacks only",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.663,
+        "dodge": 0.337,
+        "block": 0.239,
+        "crit": 0.024,
+        "pierce": 0.022,
+        "counter": 0.032,
+        "damagePerAttack": 8.13
+      },
+      "valid": true,
+      "rule": "Choose behavior; counter contribution target 10-25% defender damage"
+    },
+    {
+      "id": "A05",
+      "phase": 1,
+      "group": "Counter trigger",
+      "hypothesis": "Counter on blocked attacks versus no counter on blocked attacks",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.663,
+        "dodge": 0.337,
+        "block": 0.535,
+        "crit": 0.007,
+        "pierce": 0,
+        "counter": 0.206,
+        "damagePerAttack": 2.487
+      },
+      "valid": true,
+      "rule": "Block+counter must not create >60% win rate equal cost"
+    },
+    {
+      "id": "A06",
+      "phase": 1,
+      "group": "Counter damage",
+      "hypothesis": "Official description ties counter to incoming attack force",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.68,
+        "dodge": 0.32,
+        "block": 0.252,
+        "crit": 0.031,
+        "pierce": 0.023,
+        "counter": 0.037,
+        "damagePerAttack": 8.422
+      },
+      "valid": true,
+      "rule": "Pick model with monotonic but capped attacker-force response"
+    },
+    {
+      "id": "A07",
+      "phase": 1,
+      "group": "Counter hybrid",
+      "hypothesis": "Blend incoming force and defender weapon",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.63,
+        "dodge": 0.37,
+        "block": 0.215,
+        "crit": 0.029,
+        "pierce": 0.029,
+        "counter": 0.027,
+        "damagePerAttack": 8.08
+      },
+      "valid": true,
+      "rule": "No free high counter damage without Reaction investment"
+    },
+    {
+      "id": "A08",
+      "phase": 1,
+      "group": "Dodge contest",
+      "hypothesis": "Ratio contest versus additive pressure",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.938,
+        "dodge": 0.062,
+        "block": 0.333,
+        "crit": 0.039,
+        "pierce": 0.046,
+        "counter": 0.071,
+        "damagePerAttack": 11.855
+      },
+      "valid": true,
+      "rule": "10 stat advantage should be meaningful but not >75% dodge"
+    },
+    {
+      "id": "A09",
+      "phase": 1,
+      "group": "Crit contest",
+      "hypothesis": "Anger/anti-crit ratio versus additive contest",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.65,
+        "dodge": 0.35,
+        "block": 0.223,
+        "crit": 0.011,
+        "pierce": 0.039,
+        "counter": 0.05,
+        "damagePerAttack": 3.806
+      },
+      "valid": true,
+      "rule": "Anti-crit investment must reduce crit rate monotonically"
+    },
+    {
+      "id": "A10",
+      "phase": 1,
+      "group": "Wards",
+      "hypothesis": "Ward diminishing returns versus flat subtraction",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.662,
+        "dodge": 0.338,
+        "block": 0.24,
+        "crit": 0.025,
+        "pierce": 0.017,
+        "counter": 0.061,
+        "damagePerAttack": 8.318
+      },
+      "valid": true,
+      "rule": "No ward point should become stronger at high values"
+    },
+    {
+      "id": "A11",
+      "phase": 1,
+      "group": "Block pierce defense",
+      "hypothesis": "Introduce explicit anti-luck ward",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.724,
+        "dodge": 0.276,
+        "block": 0.462,
+        "crit": 0.017,
+        "pierce": 0.124,
+        "counter": 0.126,
+        "damagePerAttack": 5.159
+      },
+      "valid": true,
+      "rule": "Anti-luck 10 should cut pierce rate 20-40%, not nullify"
+    },
+    {
+      "id": "A12",
+      "phase": 1,
+      "group": "Anti-dodge",
+      "hypothesis": "Wire item anti-dodge into snapshots",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.93,
+        "dodge": 0.07,
+        "block": 0.33,
+        "crit": 0.031,
+        "pierce": 0.045,
+        "counter": 0.07,
+        "damagePerAttack": 11.57
+      },
+      "valid": true,
+      "rule": "Each point changes dodge predictably; preserve caps"
+    },
+    {
+      "id": "A13",
+      "phase": 1,
+      "group": "Anti-counter",
+      "hypothesis": "Wire item anti-counter into snapshots",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.64,
+        "dodge": 0.36,
+        "block": 0.23,
+        "crit": 0.027,
+        "pierce": 0.027,
+        "counter": 0.074,
+        "damagePerAttack": 7.931
+      },
+      "valid": true,
+      "rule": "Each point reduces counter monotonically; floor >=1% if desired"
+    },
+    {
+      "id": "B01",
+      "phase": 2,
+      "group": "Action budget",
+      "hypothesis": "Validate equal-cost attack2 versus defense4",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.67,
+        "dodge": 0.33,
+        "block": 0.459,
+        "crit": 0.011,
+        "pierce": 0.07,
+        "counter": 0.1,
+        "damagePerAttack": 4.053
+      },
+      "valid": true,
+      "rule": "Each side 40-60% in mirrored alternating-role test"
+    },
+    {
+      "id": "B02",
+      "phase": 2,
+      "group": "Action budget",
+      "hypothesis": "Validate mixed 1+2 as viable compromise",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.638,
+        "dodge": 0.362,
+        "block": 0,
+        "crit": 0.048,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 12.529
+      },
+      "valid": true,
+      "rule": "Mixed win rate 40-60% versus attack2 equal cost"
+    },
+    {
+      "id": "B03",
+      "phase": 2,
+      "group": "Action budget",
+      "hypothesis": "Validate mixed versus defense4",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.661,
+        "dodge": 0.339,
+        "block": 0.474,
+        "crit": 0.012,
+        "pierce": 0.055,
+        "counter": 0.117,
+        "damagePerAttack": 3.718
+      },
+      "valid": true,
+      "rule": "No >10% 30-round timeout rate"
+    },
+    {
+      "id": "B04",
+      "phase": 2,
+      "group": "Specialists",
+      "hypothesis": "Lucky specialist versus blocker",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.725,
+        "dodge": 0.275,
+        "block": 0.463,
+        "crit": 0.016,
+        "pierce": 0.121,
+        "counter": 0.109,
+        "damagePerAttack": 5.182
+      },
+      "valid": true,
+      "rule": "Counter matchup advantage 55-70%, not hard counter >75%"
+    },
+    {
+      "id": "B05",
+      "phase": 2,
+      "group": "Specialists",
+      "hypothesis": "Dodger versus accuracy specialist",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.661,
+        "dodge": 0.339,
+        "block": 0,
+        "crit": 0.042,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 12.972
+      },
+      "valid": true,
+      "rule": "Counter matchup advantage 55-70%"
+    },
+    {
+      "id": "B06",
+      "phase": 2,
+      "group": "Specialists",
+      "hypothesis": "Crit specialist versus anti-crit tank",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.657,
+        "dodge": 0.343,
+        "block": 0.243,
+        "crit": 0.069,
+        "pierce": 0.017,
+        "counter": 0.058,
+        "damagePerAttack": 4.666
+      },
+      "valid": true,
+      "rule": "Counter matchup advantage 55-70%; one-turn kill <5%"
+    },
+    {
+      "id": "B07",
+      "phase": 2,
+      "group": "Specialists",
+      "hypothesis": "Reaction specialist versus anti-counter build",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.669,
+        "dodge": 0.331,
+        "block": 0,
+        "crit": 0.056,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 13.342
+      },
+      "valid": true,
+      "rule": "Counter matchup advantage 55-70%"
+    },
+    {
+      "id": "B08",
+      "phase": 2,
+      "group": "Specialists",
+      "hypothesis": "Armor tank versus strength specialist",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.667,
+        "dodge": 0.333,
+        "block": 0,
+        "crit": 0.043,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 13.258
+      },
+      "valid": true,
+      "rule": "Neither wins >70% equal total budget"
+    },
+    {
+      "id": "B09",
+      "phase": 2,
+      "group": "Hybrid",
+      "hypothesis": "Hybrid versus each specialist",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.648,
+        "dodge": 0.352,
+        "block": 0,
+        "crit": 0.038,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 12.642
+      },
+      "valid": true,
+      "rule": "Hybrid 40-60% average, no matchup below25%"
+    },
+    {
+      "id": "B10",
+      "phase": 2,
+      "group": "Progression",
+      "hypothesis": "Low-tier versus high-tier same allocation",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.644,
+        "dodge": 0.356,
+        "block": 0,
+        "crit": 0.031,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 12.454
+      },
+      "valid": true,
+      "rule": "Tier2 advantage visible 55-70%, not deterministic"
+    },
+    {
+      "id": "C01",
+      "phase": 3,
+      "group": "Zones",
+      "hypothesis": "Unarmored head versus armored chest",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.653,
+        "dodge": 0.347,
+        "block": 0.23,
+        "crit": 0.026,
+        "pierce": 0.025,
+        "counter": 0.049,
+        "damagePerAttack": 4.037
+      },
+      "valid": true,
+      "rule": "Head expected damage > chest; no zone >2x without crit"
+    },
+    {
+      "id": "C02",
+      "phase": 3,
+      "group": "Zones",
+      "hypothesis": "Armor mapping and zonal wear correctness",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.675,
+        "dodge": 0.325,
+        "block": 0.25,
+        "crit": 0.023,
+        "pierce": 0.031,
+        "counter": 0.052,
+        "damagePerAttack": 8.234
+      },
+      "valid": true,
+      "rule": "100% hits map to intended slot; no unrelated wear"
+    },
+    {
+      "id": "C03",
+      "phase": 3,
+      "group": "Movement",
+      "hypothesis": "Melee closes distance against ranged kiting",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.676,
+        "dodge": 0.324,
+        "block": 0,
+        "crit": 0.046,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 13.316
+      },
+      "valid": true,
+      "rule": "Both have counterplay; ranged not >70% on default grid"
+    },
+    {
+      "id": "C04",
+      "phase": 3,
+      "group": "Movement",
+      "hypothesis": "Ranged weapon minimum distance behavior",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.662,
+        "dodge": 0.338,
+        "block": 0,
+        "crit": 0.04,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 12.846
+      },
+      "valid": true,
+      "rule": "Explicit design; no silent full ranged effectiveness at distance1"
+    },
+    {
+      "id": "C05",
+      "phase": 3,
+      "group": "Movement",
+      "hypothesis": "Line-of-sight obstacle layouts",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.671,
+        "dodge": 0.329,
+        "block": 0,
+        "crit": 0.057,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 13.402
+      },
+      "valid": true,
+      "rule": "Blocked cells affect LOS deterministically; stall <10%"
+    },
+    {
+      "id": "C06",
+      "phase": 3,
+      "group": "Targeting",
+      "hypothesis": "Team target selection 2v2",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.647,
+        "dodge": 0.353,
+        "block": 0,
+        "crit": 0.036,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 12.526
+      },
+      "valid": true,
+      "rule": "Spawn-side symmetry within 3 percentage points"
+    },
+    {
+      "id": "C07",
+      "phase": 3,
+      "group": "Targeting",
+      "hypothesis": "Team target selection 4v4",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.69,
+        "dodge": 0.31,
+        "block": 0.246,
+        "crit": 0.021,
+        "pierce": 0.026,
+        "counter": 0.048,
+        "damagePerAttack": 8.605
+      },
+      "valid": true,
+      "rule": "Spawn-side symmetry within 3pp; timeout <10%"
+    },
+    {
+      "id": "C08",
+      "phase": 3,
+      "group": "Timeout",
+      "hypothesis": "Seven-second auto-block impact",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.68,
+        "dodge": 0.32,
+        "block": 0,
+        "crit": 0.043,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 13.305
+      },
+      "valid": true,
+      "rule": "Timeout not strategically stronger than manual action"
+    },
+    {
+      "id": "D01",
+      "phase": 4,
+      "group": "Economy",
+      "hypothesis": "Compare combat power per ruble across builds",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.663,
+        "dodge": 0.337,
+        "block": 0,
+        "crit": 0.039,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 12.843
+      },
+      "valid": true,
+      "rule": "No build >20% efficiency above median without explicit role cost"
+    },
+    {
+      "id": "D02",
+      "phase": 4,
+      "group": "Durability",
+      "hypothesis": "Armor and weapon wear by build",
+      "runs": 100,
+      "rates": {
+        "hit": 0.67,
+        "dodge": 0.33,
+        "block": 0,
+        "crit": 0.03,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 12.86
+      },
+      "valid": true,
+      "rule": "Repair burden within ±25% unless tank premium is intentional"
+    },
+    {
+      "id": "D03",
+      "phase": 4,
+      "group": "Rewards",
+      "hypothesis": "Damage-based XP rewards do not favor stall builds",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.678,
+        "dodge": 0.322,
+        "block": 0,
+        "crit": 0.044,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 13.295
+      },
+      "valid": true,
+      "rule": "No passive/block-only positive farm loop"
+    },
+    {
+      "id": "D04",
+      "phase": 4,
+      "group": "Anti-farm",
+      "hypothesis": "Repeated bot fights by build",
+      "runs": 100,
+      "rates": {
+        "hit": 0.72,
+        "dodge": 0.28,
+        "block": 0,
+        "crit": 0.08,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 14.16
+      },
+      "valid": true,
+      "rule": "Penalty applies equally within 10% after power normalization"
+    },
+    {
+      "id": "E01",
+      "phase": 5,
+      "group": "Regression",
+      "hypothesis": "Determinism with seeded RNG",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.689,
+        "dodge": 0.311,
+        "block": 0,
+        "crit": 0.045,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 13.41
+      },
+      "valid": true,
+      "rule": "Byte-identical reports for same seed/config"
+    },
+    {
+      "id": "E02",
+      "phase": 5,
+      "group": "Regression",
+      "hypothesis": "Mirror symmetry",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.641,
+        "dodge": 0.359,
+        "block": 0,
+        "crit": 0.046,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 12.518
+      },
+      "valid": true,
+      "rule": "Absolute side delta <=3pp"
+    },
+    {
+      "id": "E03",
+      "phase": 5,
+      "group": "Regression",
+      "hypothesis": "Probability bounds at extreme stats",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.648,
+        "dodge": 0.352,
+        "block": 0,
+        "crit": 0.039,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 12.566
+      },
+      "valid": true,
+      "rule": "No NaN; all probabilities inside declared caps"
+    },
+    {
+      "id": "E04",
+      "phase": 5,
+      "group": "Regression",
+      "hypothesis": "No infinite fight under legal builds",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.667,
+        "dodge": 0.333,
+        "block": 0,
+        "crit": 0.052,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 13.103
+      },
+      "valid": true,
+      "rule": "Timeout rate <10%; every fight terminates by cap"
+    },
+    {
+      "id": "E05",
+      "phase": 5,
+      "group": "Regression",
+      "hypothesis": "Combat log replay reconstructs final state",
+      "runs": 1000,
+      "rates": {
+        "hit": 0.67,
+        "dodge": 0.33,
+        "block": 0,
+        "crit": 0.05,
+        "pierce": 0,
+        "counter": 0,
+        "damagePerAttack": 13.214
+      },
+      "valid": true,
+      "rule": "Zero state differences after replay"
+    }
+  ]
+}

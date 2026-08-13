@@ -1,7 +1,7 @@
 import type { BodyZone } from '@prisma/client'
 import { BalanceConfig } from '../../config/balance.config'
 import { clamp } from '../../shared/utils/clamp'
-import { randomFloat, randomInt, rollChance } from '../../shared/utils/random'
+import { randomFloat } from '../../shared/utils/random'
 
 // Types for battle formula inputs
 export interface AttackerSnapshot {
@@ -27,6 +27,7 @@ export interface DefenderSnapshot {
   weaponTypeResistance?: number
   antiSkillLevel: number
   antiCounterDefense: number
+  antiLuck: number
   // Базовый урон защитника (для ответки)
   minDamage: number; maxDamage: number
 }
@@ -90,14 +91,14 @@ export function calcInitiative(
 // Hit chance (ТЗ раздел 17.4)
 // ---------------------------------------------------------------
 export function calcHitChance(
-  attacker: Pick<AttackerSnapshot, 'acc' | 'weaponAccuracy' | 'weaponSkillLevel'>,
+  attacker: Pick<AttackerSnapshot, 'acc' | 'weaponAccuracy' | 'weaponSkillLevel' | 'luck' | 'antiDodgeBonus'>,
   defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'>
 ): number {
   const C = B.hitChance
   const accuracyFactor = Math.log(attacker.acc + 1) / Math.log(16)
   const dodgePressure = defender.agi * C.agiDodgePressure + defender.dodgeBonus
   const raw = attacker.weaponAccuracy * accuracyFactor +
-    attacker.weaponSkillLevel * C.wskBonus - dodgePressure
+    attacker.weaponSkillLevel * C.wskBonus + (attacker.luck ?? 0) * C.luckEvasionPressure + (attacker.antiDodgeBonus ?? 0) - dodgePressure
   return clamp(raw, C.min, C.max)
 }
 
@@ -126,19 +127,16 @@ export function calcDodgeChance(
 // Ответка при блоке: 50% от базовой атаки защитника (ответ заказчика вопрос 1)
 // Срабатывает если REA защитника >= порога
 export function calcCounterAttack(
-  defender: Pick<DefenderSnapshot, 'rea' | 'minDamage' | 'maxDamage'>,
-  attacker: Pick<AttackerSnapshot, 'rea' | 'luck' | 'antiCounterBonus'>
+  defender: Pick<DefenderSnapshot, 'rea'>,
+  attacker: Pick<AttackerSnapshot, 'rea' | 'luck' | 'antiCounterBonus'>,
+  incomingForce: number,
+  rng: () => number = Math.random,
 ): CounterAttackResult {
-  const REA_THRESHOLD = 5 // минимальный REA для ответки
-  if (defender.rea < REA_THRESHOLD) return { triggered: false, damage: 0, logParts: [] }
-
-  if (!rollChance(calcCounterAttackChance(defender, attacker))) {
-    return { triggered: false, damage: 0, logParts: [] }
-  }
-
-  const defBaseAttack = randomInt(defender.minDamage, defender.maxDamage)
-  const damage = Math.max(1, Math.round(defBaseAttack * 0.5))
-  return { triggered: true, damage, logParts: [`Ответка: −${damage} HP`] }
+  const C = B.counter
+  if (defender.rea < C.minReaction || rng() >= calcCounterAttackChance(defender, attacker)) return { triggered: false, damage: 0, logParts: [] }
+  const ratio = clamp(C.incomingBase + defender.rea * C.reactionDamageBonus, C.incomingBase, C.incomingDamageCap)
+  const damage = Math.max(1, Math.round(incomingForce * ratio))
+  return { triggered: true, damage, logParts: [`Ответный удар: −${damage} HP`] }
 }
 
 export function calcCounterAttackChance(
@@ -146,34 +144,13 @@ export function calcCounterAttackChance(
   attacker: Pick<AttackerSnapshot, 'rea' | 'luck' | 'antiCounterBonus'>
 ): number {
   const reactionRatio = defender.rea / Math.max(attacker.rea + attacker.luck, 1)
-  const raw = 0.05 + reactionRatio * 0.30 - (attacker.antiCounterBonus ?? 0)
-  return clamp(raw, 0, 0.40) // max 40% counter chance
+  const raw = B.counter.baseChance + reactionRatio * B.counter.reactionRatioMult - (attacker.antiCounterBonus ?? 0)
+  return clamp(raw, 0, B.counter.maxChance) // max 40% counter chance
 }
 
 // ---------------------------------------------------------------
 // Resolve counter-attack (ответка без крита и без рекурсии)
 // ---------------------------------------------------------------
-export function resolveCounterAttack(
-  defender: DefenderSnapshot,  // defender hits back
-  attacker: AttackerSnapshot,  // attacker receives counter
-  defenderWeapon: { minDamage: number; maxDamage: number }
-): CounterAttackResult {
-  if (!rollChance(calcCounterAttackChance(defender, attacker))) {
-    return { triggered: false, damage: 0, logParts: [] }
-  }
-
-  const weaponRoll = randomInt(defenderWeapon.minDamage, defenderWeapon.maxDamage)
-  const wskMult = calcWeaponSkillMultiplier(0) // ответка без навыка (базовая)
-  const rawDmg = weaponRoll * wskMult + defender.rea * 0.3 // REA как источник урона ответки
-  const dmgAfterArmor = applyArmor(rawDmg, attacker.end, false) // используем END как защиту
-  const finalDmg = Math.max(1, Math.round(dmgAfterArmor))
-
-  return {
-    triggered: true,
-    damage: finalDmg,
-    logParts: [`Ответный удар: −${finalDmg} HP`],
-  }
-}
 
 // ---------------------------------------------------------------
 // Block chance (ТЗ раздел 17.6)
@@ -234,10 +211,11 @@ export function calcWeaponResistanceMult(defenderAntiSkillLevel: number): number
 // ---------------------------------------------------------------
 export function calcRawDamage(
   attacker: Pick<AttackerSnapshot, 'str' | 'minDamage' | 'maxDamage' | 'weaponSkillLevel' | 'flatDamageBonus'>,
-  defenderAntiSkillLevel = 0
+  defenderAntiSkillLevel = 0,
+  rng: () => number = Math.random,
 ): number {
   const C = B.damage
-  const weaponRoll = randomInt(attacker.minDamage, attacker.maxDamage)
+  const weaponRoll = Math.floor(rng() * (attacker.maxDamage - attacker.minDamage + 1)) + attacker.minDamage
 
   // Apply anti-mastery to effective weapon skill for damage multiplier
   const effectiveSkill = calcEffectiveWeaponSkill(attacker.weaponSkillLevel, defenderAntiSkillLevel)
@@ -277,64 +255,16 @@ export function applyEndurance(damage: number, end: number): number {
 export function resolveAttack(
   attacker: AttackerSnapshot,
   defender: DefenderSnapshot,
-  defenderIsBlocking: boolean
+  defenderIsBlocking: boolean,
+  rng: () => number = Math.random,
 ): AttackResult {
-  const log: string[] = []
-  let hit = true, dodge = false, block = false, crit = false, lucky = false
-  let rawDamage = 0, finalDamage = 0, counterDamage = 0
-
-  // 1. Dodge check — заменяет «Промах»: либо уворачивается, либо попадает
-  const dodgeChance = calcDodgeChance(defender, attacker)
-  dodge = rollChance(dodgeChance)
-  if (dodge) {
-    hit = false
-    log.push('Уворот')
-    return { hit, dodge, block, crit, lucky, rawDamage, finalDamage, counterDamage, logParts: log }
+  const result = resolveZonalAttack(attacker, defender, {
+    zone: 'CHEST', blockedZones: defenderIsBlocking ? ['CHEST'] : [], zoneArmor: defender.armor, rng,
+  })
+  return {
+    hit: result.hit, dodge: result.dodge, block: result.block, crit: result.crit, lucky: result.lucky,
+    rawDamage: result.rawDamage, finalDamage: result.finalDamage, counterDamage: result.counterDamage, logParts: result.logParts,
   }
-
-  // 2. Block check (только если защитник выбрал "block")
-  if (defenderIsBlocking) {
-    const blockChance = calcBlockChance(defender, attacker)
-    block = rollChance(blockChance)
-    if (block) {
-      // Ответка: если REA защитника достаточно — контратака 50% его атаки
-      const counter = calcCounterAttack(defender, attacker)
-      if (counter.triggered) {
-        counterDamage = counter.damage
-        log.push(`Блок + ответка ${counterDamage}`)
-      } else {
-        log.push('Блок')
-      }
-      return { hit, dodge, block, crit, lucky, rawDamage, finalDamage, counterDamage, logParts: log }
-    }
-  }
-
-  // 3. Удачный удар (пробитие брони — LUCK-check)
-  const luckyChance = calcLuckyPierceChance(attacker.luck) // до 25%
-  lucky = rollChance(luckyChance)
-
-  // 4. Crit check
-  const critChance = calcCritChance(attacker, defender)
-  crit = rollChance(critChance)
-  const critMult = crit
-    ? clamp(B.crit.multiplierBase + attacker.critDamageBonus, B.crit.multiplierMin, B.crit.multiplierMax)
-    : 1
-
-  // 5. Raw damage
-  rawDamage = calcRawDamage(attacker, defender.antiSkillLevel) * critMult
-  if (crit)  log.push('КРИТ!')
-  if (lucky) log.push('Удачный!')
-
-  // 6. Armor (lucky удар пробивает броню)
-  let dmg = applyArmor(rawDamage, defender.armor, crit)
-
-  // 7. Endurance
-  dmg = applyEndurance(dmg, defender.end)
-
-  finalDamage = Math.max(1, Math.round(dmg))
-  log.push(`Урон: ${finalDamage}`)
-
-  return { hit, dodge, block, crit, lucky, rawDamage: Math.round(rawDamage), finalDamage, counterDamage, logParts: log }
 }
 
 // ---------------------------------------------------------------
@@ -361,16 +291,17 @@ const ZONE_LABEL: Record<BodyZone, string> = {
 }
 
 // Шанс «удачного удара» (пробитие блока/брони) — зависит от УДАЧИ атакующего.
-export function calcLuckyPierceChance(attackerLuck: number): number {
-  return clamp((attackerLuck ?? 0) * 0.02, 0, 0.25) // до 25%
+export function calcLuckyPierceChance(attackerLuck: number, antiLuck = 0): number {
+  return clamp((attackerLuck ?? 0) * 0.02 - antiLuck, 0, 0.25) // до 25%
 }
 
 export function resolveZonalAttack(
   attacker: AttackerSnapshot,
   defender: DefenderSnapshot,
-  opts: { zone: BodyZone; blockedZones: BodyZone[]; zoneArmor: number }
+  opts: { zone: BodyZone; blockedZones: BodyZone[]; zoneArmor: number; rng?: () => number }
 ): ZonalAttackResult {
   const { zone, blockedZones, zoneArmor } = opts
+  const rng = opts.rng ?? Math.random
   const zoneName = ZONE_LABEL[zone]
   const log: string[] = []
   let hit = true, dodge = false, block = false, crit = false, lucky = false, blockPierced = false
@@ -382,8 +313,8 @@ export function resolveZonalAttack(
   })
 
   // 1. Уворот (заменяет «промах»)
-  const dodgeChance = calcDodgeChance(defender, attacker)
-  dodge = rollChance(dodgeChance)
+  const hitChance = calcHitChance(attacker, defender)
+  dodge = rng() >= hitChance
   if (dodge) {
     hit = false
     log.push(`Уворот (${zoneName})`)
@@ -391,13 +322,16 @@ export function resolveZonalAttack(
   }
 
   // 2. «Удачный удар» — определяем заранее: он пробивает и блок, и броню.
-  lucky = rollChance(calcLuckyPierceChance(attacker.luck))
+  lucky = rng() < calcLuckyPierceChance(attacker.luck, defender.antiLuck)
+
+  // Incoming force is rolled once and also defines bounded counterattack damage.
+  const incomingForce = calcRawDamage(attacker, defender.antiSkillLevel, rng)
 
   // 3. Блок зоны: если зона заблокирована и удар НЕ удачный — урон 0 + ответка.
   const zoneBlocked = blockedZones.includes(zone)
   if (zoneBlocked && !lucky) {
     block = true
-    const counter = calcCounterAttack(defender, attacker)
+    const counter = calcCounterAttack(defender, attacker, incomingForce, rng)
     if (counter.triggered) {
       counterDamage = counter.damage
       log.push(`Блок (${zoneName}) + ответка ${counterDamage}`)
@@ -413,13 +347,13 @@ export function resolveZonalAttack(
 
   // 4. Крит
   const critChance = calcCritChance(attacker, defender)
-  crit = rollChance(critChance)
+  crit = rng() < critChance
   const critMult = crit
     ? clamp(BalanceConfig.crit.multiplierBase + attacker.critDamageBonus, BalanceConfig.crit.multiplierMin, BalanceConfig.crit.multiplierMax)
     : 1
 
   // 5. Сырой урон
-  rawDamage = calcRawDamage(attacker, defender.antiSkillLevel) * critMult
+  rawDamage = incomingForce * critMult
   if (crit) log.push('КРИТ!')
 
   // 6. Броня зоны (lucky пробивает броню)
@@ -432,4 +366,3 @@ export function resolveZonalAttack(
   log.push(`Удар в ${zoneName}: ${finalDamage}`)
   return base()
 }
-

@@ -394,7 +394,7 @@ describe('Anti-mastery integration: high defender WRES reduces damage', () => {
     const defenderNoWres: DefenderSnapshot = {
       agi: 1, rea: 1, end: 1, luck: 0,
       armor: 0, dodgeBonus: 0, antiCrit: 0, blockBonus: 0, armorWeight: 0,
-      antiSkillLevel: 0,
+      antiSkillLevel: 0, antiCounterDefense: 0, antiLuck: 0, minDamage: 2, maxDamage: 5,
     }
     const defenderHighWres: DefenderSnapshot = {
       ...defenderNoWres,

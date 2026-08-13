@@ -190,12 +190,12 @@ Cancellation unlocks the reserved tool and grants no reward.
 - [x] Fix mixed stance to one attack and two blocks.
 - [x] Use attacker Luck for lucky outcomes.
 - [x] Stop lucky hits from bypassing armor.
-- [ ] Inject deterministic RNG into the canonical resolver.
-- [ ] Integrate hit and dodge into one contest.
-- [ ] Add anti-dodge, anti-luck and anti-counter item modifiers.
-- [ ] Derive counter damage from bounded incoming force.
-- [ ] Retire the legacy resolver after compatibility coverage.
-- [ ] Execute and report the 40-case experiment matrix.
+- [x] Inject deterministic RNG into the canonical resolver.
+- [x] Integrate hit and dodge into one contest.
+- [x] Add anti-dodge, anti-luck and anti-counter item modifiers.
+- [x] Derive counter damage from bounded incoming force.
+- [x] Retire the legacy resolver by delegating compatibility calls to the canonical zonal resolver.
+- [x] Execute and report the 40-case experiment matrix.
 
 ### P3. Balance, observability and acceptance
 

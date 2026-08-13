@@ -100,6 +100,7 @@ export const BalanceConfig = {
     max:              0.95,
     agiDodgePressure: 0.003,
     wskBonus:         0.005,
+    luckEvasionPressure: 0.005,
   },
 
   // --- Dodge chance ---
@@ -118,6 +119,8 @@ export const BalanceConfig = {
     max:              0.80,
     luckPierceMult:   0.003,
   },
+
+  counter: { baseChance: 0.05, reactionRatioMult: 0.30, maxChance: 0.40, minReaction: 5, incomingBase: 0.25, reactionDamageBonus: 0.01, incomingDamageCap: 0.60 },
 
   // --- Crit ---
   crit: {

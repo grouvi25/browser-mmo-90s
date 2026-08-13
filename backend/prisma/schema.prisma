@@ -473,6 +473,9 @@ model ItemTemplate {
   critBonus       Float? @default(0.0) @map("crit_bonus")
   critDamageBonus Float? @default(0.0) @map("crit_damage_bonus")
   blockPierce     Float? @default(0.0) @map("block_pierce")
+  antiDodge       Float? @default(0.0) @map("anti_dodge")
+  antiLuck        Float? @default(0.0) @map("anti_luck")
+  antiCounter     Float? @default(0.0) @map("anti_counter")
 
   // Armor stats
   armor      Int?   @default(0)
