@@ -120,6 +120,6 @@ describe('admin authentication', () => {
       method: 'GET', url: '/api/admin/stats', headers: { authorization: `Bearer ${token}` },
     })
     expect(denied.statusCode).toBe(401)
-    expect(denied.json()).toMatchObject({ code: 'AUTH_004' })
+    expect(denied.json()).toMatchObject({ code: 'AUTH_005' })
   })
 })
