@@ -4,12 +4,10 @@ import { getWeaponSkillLevelFromExp } from '../stats/stats.formulas'
 
 export const WeaponSkillsRepository = {
   async findOrCreate(characterId: string, weaponType: WeaponType): Promise<WeaponSkill> {
-    const existing = await prisma.weaponSkill.findUnique({
+    return prisma.weaponSkill.upsert({
       where: { characterId_weaponType: { characterId, weaponType } },
-    })
-    if (existing) return existing
-    return prisma.weaponSkill.create({
-      data: { characterId, weaponType, skillLevel: 1, skillExp: 0 },
+      update: {},
+      create: { characterId, weaponType, skillLevel: 1, skillExp: 0 },
     })
   },
 
