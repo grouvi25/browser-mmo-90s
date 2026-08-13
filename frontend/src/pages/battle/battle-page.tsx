@@ -4,14 +4,21 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Sword, Shield, Heart, Zap, ArrowRight,
   RotateCcw, ChevronDown, Skull,
-  CircleDot, User, Trophy, AlertTriangle,
+  CircleDot, Trophy, AlertTriangle,
 } from 'lucide-react'
 import { battlesApi, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { type BattleAction, type ItemInstance, type LiveParticipant } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
-import { cellStyle, isNeighbour, FIELD_ASPECT, GRID_COLS, GRID_ROWS } from '../../shared/lib/hex'
+import { isNeighbour, GRID_COLS, GRID_ROWS } from '../../shared/lib/hex'
+import { DESIGNER_BATTLE_CELLS } from '../../shared/lib/designer-battle-grid'
+import battleField from '../../shared/assets/battle/battle-field.webp'
+import battleField2x from '../../shared/assets/battle/battle-field@2x.webp'
+import fighterBlue from '../../shared/assets/battle/fighter-blue.webp'
+import fighterBlue2x from '../../shared/assets/battle/fighter-blue@2x.webp'
+import fighterRed from '../../shared/assets/battle/fighter-red.webp'
+import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
 import { BattleFighterPanel } from './components/battle-fighter-panel'
 import { BattleCommandDock } from './components/battle-command-dock'
 import { BattlePockets } from './components/battle-pockets'
@@ -98,9 +105,10 @@ function BattleGrid({
 
       {/* Поле: соты «остриём вверх», нечётные ряды смещены вправо */}
       <div className="hex-board">
-        <div className="hex-field" style={{ aspectRatio: String(FIELD_ASPECT) }}>
-        {Array.from({ length: GRID_ROWS }).map((_, row) =>
-          Array.from({ length: GRID_COLS }).map((_, col) => {
+        <div className="hex-field designer-battle-field" style={{ backgroundImage: `image-set(url("${battleField2x}") 2x, url("${battleField}") 1x)` }}>
+        {DESIGNER_BATTLE_CELLS.map(designerCell => {
+            const col = designerCell.x
+            const row = designerCell.y
             const cell = { x: col, y: row }
             const playerCell = playerPosition ?? { x: PLAYER_COL, y: midRow }
             const occupant = participants?.find(p => p.isAlive && p.position.x === col && p.position.y === row)
@@ -127,7 +135,7 @@ function BattleGrid({
                   + (isSelected ? ' is-selected' : '')
                   + (isTarget ? ' is-target' : '')
                   + (clickable ? ' is-clickable' : '')}
-                style={cellStyle(cell)}
+                style={{ left: `${designerCell.left}%`, top: `${designerCell.top}%`, width: `${designerCell.width}%`, height: `${designerCell.height}%` }}
                 role={clickable ? 'button' : undefined}
                 tabIndex={clickable ? 0 : undefined}
                 aria-label={canMove ? `Перейти в клетку ${col}:${row}`
@@ -142,17 +150,16 @@ function BattleGrid({
                   else if (isEnemy && occupant) onSelectTarget?.(occupant.participantId)
                 }}
               >
-                <span className="hex-cell__edge" />
-                <span className="hex-cell__face" />
+                <span className="designer-cell-hit" style={{ clipPath: designerCell.polygon }} />
                 {(isPlayer || isAlly) && occupant && (
                   <div className={`fighter-token token-player ${isPlayer && playerHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
-                    {!occupant.isAlive ? <Skull size={16} /> : <User size={16} />}
+                    {!occupant.isAlive ? <Skull size={16} /> : <img src={fighterBlue} srcSet={`${fighterBlue2x} 2x`} alt="" />}
                     <span className="token-label">{isPlayer ? playerName.slice(0, 5) : 'Союзн.'}</span>
                   </div>
                 )}
                 {isEnemy && occupant && (
                   <div className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
-                    {!occupant.isAlive ? <Skull size={16} /> : <CircleDot size={16} />}
+                    {!occupant.isAlive ? <Skull size={16} /> : <img src={fighterRed} srcSet={`${fighterRed2x} 2x`} alt="" />}
                     <span className="token-label">{isTarget ? enemyName.slice(0, 5) : 'Враг'}</span>
                     {isTarget && <span className="token-target-label">ЦЕЛЬ</span>}
                   </div>
@@ -164,8 +171,7 @@ function BattleGrid({
                 )}
               </div>
             )
-          })
-          )}
+          })}
         </div>
       </div>
 

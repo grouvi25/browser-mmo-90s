@@ -339,6 +339,9 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.locator('.battle-page-v3')).toBeVisible()
     await expect(page.locator('.battle-fighter-panel')).toHaveCount(2)
     await expect(page.locator('.battle-command-dock')).toBeVisible()
+    await expect(page.locator('.designer-battle-field')).toBeVisible()
+    await expect(page.locator('.hex-cell')).toHaveCount(81)
+    expect(await page.locator('.designer-battle-field').evaluate(element => getComputedStyle(element).backgroundImage)).not.toBe('none')
 
     const geometry = await page.locator('.battle-page-v3').evaluate(element => {
       const root = element.getBoundingClientRect()

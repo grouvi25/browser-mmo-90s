@@ -10,7 +10,7 @@
 // вправо на половину соты.
 // =============================================================
 export const GRID_COLS = 9
-export const GRID_ROWS = 5
+export const GRID_ROWS = 9
 
 export interface Cell { x: number; y: number }
 

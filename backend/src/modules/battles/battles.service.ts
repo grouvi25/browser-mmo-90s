@@ -104,7 +104,7 @@ function ensureGridState(state: LiveBattleState): void {
     sideOffsets.set(part.side, offset + 1)
     part.position = {
       x: part.side === 1 ? 1 : BATTLE_GRID.width - 2,
-      y: Math.min(BATTLE_GRID.height - 1, 2 + Math.ceil(offset / 2) * (offset % 2 === 0 ? 1 : -1)),
+      y: Math.min(BATTLE_GRID.height - 1, Math.floor(BATTLE_GRID.height / 2) + Math.ceil(offset / 2) * (offset % 2 === 0 ? 1 : -1)),
     }
   }
 }
@@ -481,7 +481,7 @@ export const BattleService = {
             pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 1, y: 2 },
+            position: { x: 1, y: 4 },
           },
           {
             participantId: botPart.id,
@@ -494,7 +494,7 @@ export const BattleService = {
             hasActedThisRound: false,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 7, y: 2 },
+            position: { x: 7, y: 4 },
           },
         ],
       }
@@ -627,7 +627,7 @@ export const BattleService = {
             pocketItemIds: opponentPocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 1, y: 2 },
+            position: { x: 1, y: 4 },
           },
           {
             participantId: newParticipant.id, // FIX: use actual ID
@@ -642,7 +642,7 @@ export const BattleService = {
             pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 7, y: 2 },
+            position: { x: 7, y: 4 },
           },
         ],
       }

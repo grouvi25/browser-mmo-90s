@@ -6,6 +6,7 @@ import {
   hexNeighbours,
   hasLineOfSight,
   isAdjacentStep,
+  isInsideGrid,
   resolveSimultaneousMoves,
   selectEnemyTarget,
   stepAway,
@@ -113,11 +114,17 @@ describe('battle grid attacks and protection', () => {
 describe('battle grid teams and target selection', () => {
   it('places both teams in deterministic center-out spawn rows', () => {
     expect(teamSpawnPositions(1, 3)).toEqual([
-      { x: 1, y: 2 }, { x: 1, y: 1 }, { x: 1, y: 3 },
+      { x: 1, y: 4 }, { x: 1, y: 3 }, { x: 1, y: 5 },
     ])
     expect(teamSpawnPositions(2, 3)).toEqual([
-      { x: 7, y: 2 }, { x: 7, y: 1 }, { x: 7, y: 3 },
+      { x: 7, y: 4 }, { x: 7, y: 3 }, { x: 7, y: 5 },
     ])
+  })
+
+  it('supports all nine authored rows', () => {
+    expect(teamSpawnPositions(1, 9).map(position => position.y)).toEqual([4, 3, 5, 2, 6, 1, 7, 0, 8])
+    expect(isInsideGrid({ x: 8, y: 8 })).toBe(true)
+    expect(isInsideGrid({ x: 8, y: 9 })).toBe(false)
   })
 
   it('requires an explicit living enemy target when several enemies exist', () => {

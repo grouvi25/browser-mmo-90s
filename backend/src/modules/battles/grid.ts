@@ -4,13 +4,13 @@
 // Хранение осталось прежним: координаты (x, y) — это столбец и ряд
 // смещённой сетки «odd-r»: нечётные ряды сдвинуты вправо на половину
 // клетки. Благодаря этому размеры поля, спавны, сериализация ходов и
-// формат позиций в базе не поменялись — изменилась только соседство
+// формат позиций остаются совместимыми; поле расширено до 9×9, соседство
 // и метрика расстояния.
 //
 // Считать расстояние на смещённых координатах нельзя: переводим их в
 // кубические (q, r, s), где расстояние — половина суммы модулей.
 // =============================================================
-export const BATTLE_GRID = { width: 9, height: 5 } as const
+export const BATTLE_GRID = { width: 9, height: 9 } as const
 
 interface CubePosition { q: number; r: number; s: number }
 
@@ -59,7 +59,7 @@ export interface PositionedParticipant {
   position: GridPosition
 }
 
-const SPAWN_ROWS = [2, 1, 3, 0, 4] as const
+const SPAWN_ROWS = [4, 3, 5, 2, 6, 1, 7, 0, 8] as const
 
 export function teamSpawnPositions(side: number, count: number): GridPosition[] {
   if (!Number.isInteger(count) || count < 1 || count > BATTLE_GRID.height) {

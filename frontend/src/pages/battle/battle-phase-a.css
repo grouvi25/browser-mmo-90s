@@ -240,3 +240,55 @@
   .battle-field-v3 .hex-board,
   .battle-field-v3 .hex-field { min-width: 0; max-width: 100%; }
 }
+/* Authored battlefield from ПБ основа.psd. The board is a size container so the
+   3280:1798 plate always fits without distortion. */
+.battle-field-v3 .hex-board {
+  container-type: size;
+  padding: 0 0 22px;
+  background: oklch(18% .02 245);
+}
+.battle-field-v3 .designer-battle-field {
+  width: min(100cqw, calc(100cqh * 1.824249));
+  height: auto;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: 3280 / 1798;
+  margin: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+.battle-field-v3 .hex-cell {
+  overflow: visible;
+  background: transparent;
+  clip-path: none;
+  border: 0;
+}
+.designer-cell-hit {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: transform 120ms cubic-bezier(.25,1,.5,1), background 120ms;
+}
+.hex-cell.is-movable .designer-cell-hit { background: oklch(78% .12 80 / .34); }
+.hex-cell.is-selected .designer-cell-hit { background: oklch(72% .15 80 / .52); }
+.hex-cell.is-target .designer-cell-hit { background: oklch(62% .17 25 / .42); }
+.hex-cell.is-clickable:hover .designer-cell-hit { transform: scale(.94); background: oklch(84% .12 80 / .42); }
+.battle-field-v3 .fighter-token {
+  width: clamp(22px, 70%, 52px);
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.battle-field-v3 .fighter-token > img { width: 100%; height: auto; display: block; filter: drop-shadow(0 2px 2px oklch(12% .02 245 / .55)); }
+.battle-field-v3 .fighter-token .token-label { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); }
+.battle-field-v3 .token-target-label { top: calc(100% + 12px); }
+@media (max-width: 900px) {
+  .battle-field-v3 .hex-board { padding-bottom: 22px; }
+  .battle-field-v3 .fighter-token { width: clamp(14px, 72%, 34px); }
+}
