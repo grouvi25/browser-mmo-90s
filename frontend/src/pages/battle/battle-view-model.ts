@@ -1,4 +1,4 @@
-import type { BodyZone, GridPosition, Stance } from '../../shared/api/battles.api'
+import type { AttackHand, BodyZone, GridPosition, Stance } from '../../shared/api/battles.api'
 
 export const BATTLE_ZONES: readonly { key: BodyZone; label: string; short: string }[] = [
   { key: 'HEAD', label: 'Голова', short: 'голова' },
@@ -41,6 +41,54 @@ export function removeAttackZone(selected: BodyZone[], index: number): BodyZone[
   return selected.filter((_, itemIndex) => itemIndex !== index)
 }
 
+
+export interface AutomaticTurnPlan {
+  stance: Stance
+  attackZones: BodyZone[]
+  attackHands: AttackHand[]
+  blockZones: BodyZone[]
+}
+
+const HAND_ORDER: readonly AttackHand[] = ['LEFT_HAND', 'RIGHT_HAND']
+
+/** One attack cell per hand and body zone. Selecting the second hand switches
+ * automatically to 2 attacks; selecting blocks switches to the mixed/defence budget. */
+export function selectAutomaticAttack(plan: AutomaticTurnPlan, hand: AttackHand, zone: BodyZone): AutomaticTurnPlan {
+  const choices = new Map<AttackHand, BodyZone>(plan.attackHands.map((value, index) => [value, plan.attackZones[index]]))
+  if (choices.get(hand) === zone) choices.delete(hand)
+  else choices.set(hand, zone)
+  const ordered = HAND_ORDER.flatMap(value => choices.has(value) ? [{ hand: value, zone: choices.get(value)! }] : [])
+  if (ordered.length === 2) {
+    return { stance: 'attack2', attackHands: ordered.map(item => item.hand), attackZones: ordered.map(item => item.zone), blockZones: [] }
+  }
+  return {
+    stance: 'mixed',
+    attackHands: ordered.map(item => item.hand),
+    attackZones: ordered.map(item => item.zone),
+    blockZones: plan.blockZones.slice(0, 2),
+  }
+}
+
+export function toggleAutomaticBlock(plan: AutomaticTurnPlan, zone: BodyZone): AutomaticTurnPlan {
+  const attacks = plan.attackHands.length > 1
+    ? { attackHands: plan.attackHands.slice(0, 1), attackZones: plan.attackZones.slice(0, 1) }
+    : { attackHands: plan.attackHands, attackZones: plan.attackZones }
+  const blocks = plan.blockZones.includes(zone)
+    ? plan.blockZones.filter(value => value !== zone)
+    : [...plan.blockZones, zone]
+  if (blocks.length >= 3) return { stance: 'defense4', attackHands: [], attackZones: [], blockZones: blocks.slice(0, 4) }
+  return { stance: 'mixed', ...attacks, blockZones: blocks.slice(0, 2) }
+}
+
+export function removeAutomaticAttack(plan: AutomaticTurnPlan, index: number): AutomaticTurnPlan {
+  return {
+    stance: 'mixed',
+    attackZones: removeAttackZone(plan.attackZones, index),
+    attackHands: plan.attackHands.filter((_, itemIndex) => itemIndex !== index),
+    blockZones: plan.blockZones.slice(0, 2),
+  }
+}
+
 export function getTurnPlanText(input: {
   stance: Stance
   attackZones: BodyZone[]
@@ -67,6 +115,7 @@ export type TurnPlanValidation = {
 export function validateTurnPlan(input: {
   stance: Stance
   attackZones: BodyZone[]
+  attackHands?: AttackHand[]
   blockZones: BodyZone[]
   targetParticipantId?: string | null
   targetInRange: boolean
@@ -80,6 +129,9 @@ export function validateTurnPlan(input: {
     const left = budget.attacks - input.attackZones.length
     return { valid: false, reason: `Выберите ещё ${left} ${left === 1 ? 'зону удара' : 'зоны удара'}` }
   }
+  const hands = input.attackHands ?? []
+  if (budget.attacks > 0 && hands.length < budget.attacks) return { valid: false, reason: 'Выберите руку для каждого удара' }
+  if (input.stance === 'attack2' && new Set(hands).size !== 2) return { valid: false, reason: 'Для двух ударов нужны обе руки' }
   if (input.blockZones.length < budget.blocks) {
     const left = budget.blocks - input.blockZones.length
     return { valid: false, reason: `Выберите ещё ${left} ${left === 1 ? 'зону блока' : 'зоны блока'}` }

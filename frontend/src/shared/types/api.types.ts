@@ -136,6 +136,7 @@ export interface BattleTurn {
   actorCharId: string | null
   actorBotId: string | null
   action: string
+  sourceHand: string | null
   fromX: number | null
   fromY: number | null
   toX: number | null
@@ -175,6 +176,8 @@ export interface LiveParticipant {
   isSurrendered: boolean
   hasActedThisRound: boolean
   weaponInstanceId?: string
+  leftWeaponInstanceId?: string
+  rightWeaponInstanceId?: string
   damageDealt: number
   damageReceived: number
   position: { x: number; y: number }

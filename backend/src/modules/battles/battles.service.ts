@@ -23,6 +23,7 @@ import {
   normalizeTurn,
   botChooseTurn,
   type ZonalTurnInput,
+  type AttackHand,
   type EquipArmorLike,
 } from './zones'
 import type { BodyZone } from '@prisma/client'
@@ -59,6 +60,21 @@ function weaponRangeOf(weapon: ItemWithTemplate | null | undefined): number {
   return Math.max(1, weapon?.template.maxRange ?? 1)
 }
 
+function recordWeaponDamage(part: LiveParticipant, weapon: ItemWithTemplate | null | undefined, damage: number): void {
+  if (damage <= 0) return
+  const weaponType = (weapon?.template.weaponType ?? 'MELEE') as PrismaWeaponType
+  part.weaponDamage ??= {}
+  part.weaponDamage[weaponType] = (part.weaponDamage[weaponType] ?? 0) + damage
+}
+
+function weaponExpByType(part: LiveParticipant, fallbackWeapon: ItemWithTemplate | null, targetHpMax: number, won: boolean, levelDiff: number): Array<{ weaponType: PrismaWeaponType; exp: number }> {
+  const tracked = Object.entries(part.weaponDamage ?? {}) as Array<[PrismaWeaponType, number]>
+  const damageEntries = tracked.length > 0 ? tracked : [[(fallbackWeapon?.template.weaponType ?? 'MELEE') as PrismaWeaponType, part.damageDealt] as [PrismaWeaponType, number]]
+  return damageEntries
+    .map(([weaponType, damage]) => ({ weaponType, exp: calcWeaponSkillExp(damage, targetHpMax, won ? 1 : 0, levelDiff) }))
+    .filter(entry => entry.exp > 0)
+}
+
 // ---------------------------------------------------------------
 // Live battle state stored in Redis
 // ---------------------------------------------------------------
@@ -72,14 +88,17 @@ export interface LiveParticipant {
   isAlive: boolean
   isSurrendered: boolean
   hasActedThisRound: boolean
-  pendingAction?: string   // 'attack' | 'block' | 'surrender' | 'change_weapon:{id}' | 'use_item:{id}'
+  pendingAction?: string   // 'attack' | 'block' | 'surrender' | 'change_weapon:{hand}:{id}' | 'use_item:{id}'
   pendingTurn?: ZonalTurnInput   // зональный ход (стойка + зоны атаки/блока)
-  weaponInstanceId?: string
+  weaponInstanceId?: string // legacy fallback
+  leftWeaponInstanceId?: string
+  rightWeaponInstanceId?: string
   pocketItemIds?: string[]
   damageDealt: number
   damageReceived: number
   hitsTaken: number
   hitsLanded: number
+  weaponDamage?: Partial<Record<PrismaWeaponType, number>>
   skippedTurns: number   // tracks AFK/passive turns for anti-abuse
   position: GridPosition
 }
@@ -262,33 +281,39 @@ function armorListFromEquipped(equippedArmor: ItemWithTemplate[]): EquipArmorLik
 
 // Обмен ударами: attacker бьёт по своим зонам, defender блокирует свои зоны.
 // Возвращает результаты ударов, суммарный урон защитнику и суммарную ответку атакующему.
-function executeStrikes(params: {
+export type HandStrikeResult = ZonalAttackResult & { sourceHand: AttackHand; weaponId: string | null }
+
+export function executeStrikes(params: {
   attackerSnap: AttackerSnapshot
+  attackerSnaps?: Partial<Record<AttackHand, AttackerSnapshot>>
+  weaponIds?: Partial<Record<AttackHand, string | null>>
   defenderSnap: DefenderSnapshot
+  defenderSnaps?: Partial<Record<AttackHand, DefenderSnapshot>>
   zoneArmorFor: (zone: BodyZone) => number
   attackZones: BodyZone[]
+  attackHands?: AttackHand[]
   blockedZones: BodyZone[]
-  defenderHp: number   // текущее HP защитника — прекращаем бить, если умер
-}): { results: ZonalAttackResult[]; damageToDefender: number; counterToAttacker: number } {
-  const results: ZonalAttackResult[] = []
+  defenderHp: number
+}): { results: HandStrikeResult[]; damageToDefender: number; counterToAttacker: number } {
+  const results: HandStrikeResult[] = []
   let damageToDefender = 0
   let counterToAttacker = 0
   let hpLeft = params.defenderHp
-
-  for (const zone of params.attackZones) {
+  for (let index = 0; index < params.attackZones.length; index++) {
     if (hpLeft <= 0) break
-    const zoneArmor = params.zoneArmorFor(zone)
-    const r = resolveZonalAttack(params.attackerSnap, params.defenderSnap, {
-      zone,
-      blockedZones: params.blockedZones,
-      zoneArmor,
+    const zone = params.attackZones[index]
+    const sourceHand = params.attackHands?.[index] ?? (index === 1 ? 'RIGHT_HAND' : 'LEFT_HAND')
+    const attackerSnap = params.attackerSnaps?.[sourceHand] ?? params.attackerSnap
+    const defenderSnap = params.defenderSnaps?.[sourceHand] ?? params.defenderSnap
+    const r = resolveZonalAttack(attackerSnap, defenderSnap, {
+      zone, blockedZones: params.blockedZones, zoneArmor: params.zoneArmorFor(zone),
     })
     if (r.hit && !r.dodge && !r.block) {
       damageToDefender += r.finalDamage
       hpLeft = Math.max(0, hpLeft - r.finalDamage)
     }
     if (r.counterDamage > 0) counterToAttacker += r.counterDamage
-    results.push(r)
+    results.push({ ...r, sourceHand, weaponId: params.weaponIds?.[sourceHand] ?? null })
   }
   return { results, damageToDefender, counterToAttacker }
 }
@@ -417,7 +442,8 @@ export const BattleService = {
     const bot = await prisma.bot.findUnique({ where: { code: botCode, isActive: true } })
     if (!bot) throw AppError.notFound('Bot', botCode)
 
-    const weapon = await ItemsRepository.findEquippedWeapon(char.id)
+    const weapons = await ItemsRepository.findEquippedWeapons(char.id)
+    const weapon = weapons.LEFT_HAND
 
     return withTransaction(async (tx) => {
       const claimed = await tx.character.updateMany({
@@ -478,6 +504,8 @@ export const BattleService = {
             isSurrendered: false,
             hasActedThisRound: false,
             weaponInstanceId: weapon?.id,
+            leftWeaponInstanceId: weapons.LEFT_HAND?.id,
+            rightWeaponInstanceId: weapons.RIGHT_HAND?.id,
             pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
@@ -570,7 +598,8 @@ export const BattleService = {
       throw new AppError(ErrorCode.CONFLICT, `Требуется уровень ${battle.levelMin}–${battle.levelMax}`, 400)
     }
 
-    const weapon = await ItemsRepository.findEquippedWeapon(char.id)
+    const weapons = await ItemsRepository.findEquippedWeapons(char.id)
+    const weapon = weapons.LEFT_HAND
     const opponentPart = battle.participants[0]
 
     return withTransaction(async (tx) => {
@@ -601,7 +630,8 @@ export const BattleService = {
         },
       })
       const opponentChar = await CharactersRepository.findById(opponentPart.characterId!)
-      const oppWeapon = opponentChar ? await ItemsRepository.findEquippedWeapon(opponentChar.id) : null
+      const oppWeapons = opponentChar ? await ItemsRepository.findEquippedWeapons(opponentChar.id) : { LEFT_HAND: null, RIGHT_HAND: null }
+      const oppWeapon = oppWeapons.LEFT_HAND
       const opponentPocketItemIds = opponentChar ? await loadBattlePocket(opponentChar) : []
       const pocketItemIds = await loadBattlePocket(char)
 
@@ -624,6 +654,8 @@ export const BattleService = {
             isSurrendered: false,
             hasActedThisRound: false,
             weaponInstanceId: oppWeapon?.id,
+            leftWeaponInstanceId: oppWeapons.LEFT_HAND?.id,
+            rightWeaponInstanceId: oppWeapons.RIGHT_HAND?.id,
             pocketItemIds: opponentPocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
@@ -639,6 +671,8 @@ export const BattleService = {
             isSurrendered: false,
             hasActedThisRound: false,
             weaponInstanceId: weapon?.id,
+            leftWeaponInstanceId: weapons.LEFT_HAND?.id,
+            rightWeaponInstanceId: weapons.RIGHT_HAND?.id,
             pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
@@ -677,8 +711,7 @@ export const BattleService = {
             battleLevel: true,
             items: {
               where: { isEquipped: true, status: { not: 'DELETED' }, template: { type: 'WEAPON' } },
-              select: { template: { select: { name: true } } },
-              take: 1,
+              select: { armorSlot: true, template: { select: { name: true, maxRange: true } } },
             },
           },
         })
@@ -686,8 +719,10 @@ export const BattleService = {
           participantId: participant.id,
           name: character?.nickname ?? 'Боец',
           level: character?.battleLevel ?? 0,
-          primaryHand: character?.items[0]?.template.name ?? null,
-          secondaryHand: null,
+          primaryHand: character?.items.find(item => item.armorSlot === 'LEFT_HAND')?.template.name ?? character?.items.find(item => item.armorSlot == null)?.template.name ?? null,
+          secondaryHand: character?.items.find(item => item.armorSlot === 'RIGHT_HAND')?.template.name ?? null,
+          primaryRange: character?.items.find(item => item.armorSlot === 'LEFT_HAND')?.template.maxRange ?? character?.items.find(item => item.armorSlot == null)?.template.maxRange ?? 1,
+          secondaryRange: character?.items.find(item => item.armorSlot === 'RIGHT_HAND')?.template.maxRange ?? 1,
         }
       }
       const bot = participant.botId ? await prisma.bot.findUnique({
@@ -704,6 +739,8 @@ export const BattleService = {
         level: bot?.battleLevel ?? 0,
         primaryHand: mainWeapon,
         secondaryHand: null,
+        primaryRange: typeof (equipment.weapon as Record<string, unknown> | undefined)?.maxRange === 'number' ? Number((equipment.weapon as Record<string, unknown>).maxRange) : 1,
+        secondaryRange: 1,
       }
     }))
     return { battle, liveState, participantProfiles }
@@ -718,8 +755,10 @@ export const BattleService = {
     input: {
       action: string
       itemInstanceId?: string
+      weaponHand?: AttackHand
       stance?: string
       attackZones?: string[]
+      attackHands?: string[]
       blockZones?: string[]
       moveTo?: GridPosition
       targetParticipantId?: string
@@ -732,6 +771,7 @@ export const BattleService = {
       : input
     const action = payload.action
     const targetItemId = payload.itemInstanceId
+    const weaponHand: AttackHand = payload.weaponHand ?? 'LEFT_HAND'
 
     const lockToken = await BattleRedis.acquireLock(battleId, BATTLE_LOCK_TTL_MS)
     if (!lockToken) throw new AppError(ErrorCode.BATTLE_LOCK_FAILED, 'Battle is processing, retry', 409)
@@ -820,7 +860,9 @@ export const BattleService = {
         } else if (!playerPart.pocketItemIds?.includes(targetItemId) || item.template.type !== 'CONSUMABLE') {
           throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Item is not in battle loadout', 400)
         }
-        playerPart.pendingAction = `${action}:${targetItemId}`
+        playerPart.pendingAction = action === 'change_weapon'
+          ? `${action}:${weaponHand}:${targetItemId}`
+          : `${action}:${targetItemId}`
         playerPart.pendingTurn = undefined
         playerPart.hasActedThisRound = true
         await BattleRedis.setState(battleId, state)
@@ -839,12 +881,21 @@ export const BattleService = {
         if (newWeapon.template.type !== 'WEAPON')
           throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Not a weapon', 400)
 
-        // Equip new weapon, unequip old
-        if (playerPart.weaponInstanceId && playerPart.weaponInstanceId !== targetItemId) {
-          await ItemsRepository.unequip(playerPart.weaponInstanceId)
+        // Replace only the selected hand. A shield and a weapon share RIGHT_HAND.
+        const occupied = await ItemsRepository.findEquippedBySlot(char.id, weaponHand)
+        if (occupied && occupied.id !== targetItemId) await ItemsRepository.unequip(occupied.id)
+        await ItemsRepository.equip(targetItemId, weaponHand)
+        if (weaponHand === 'LEFT_HAND') {
+          if (playerPart.rightWeaponInstanceId === targetItemId) playerPart.rightWeaponInstanceId = undefined
+          playerPart.leftWeaponInstanceId = targetItemId
+          playerPart.weaponInstanceId = targetItemId
+        } else {
+          if (playerPart.leftWeaponInstanceId === targetItemId || playerPart.weaponInstanceId === targetItemId) {
+            playerPart.leftWeaponInstanceId = undefined
+            playerPart.weaponInstanceId = undefined
+          }
+          playerPart.rightWeaponInstanceId = targetItemId
         }
-        await ItemsRepository.equip(targetItemId, null)
-        playerPart.weaponInstanceId = targetItemId
         state.roundNumber++
       state.roundDeadline = Date.now() + TURN_TIMEOUT_MS
 
@@ -855,7 +906,7 @@ export const BattleService = {
             weaponId: targetItemId,
             hit: false, dodge: false, block: false, crit: false,
             rawDamage: 0, finalDamage: 0,
-            logLine: `Сменил оружие на: ${newWeapon.template.name}`,
+            logLine: `${weaponHand === 'LEFT_HAND' ? 'Left hand' : 'Right hand'}: changed weapon to ${newWeapon.template.name}`,
           },
         })
 
@@ -864,6 +915,7 @@ export const BattleService = {
           roundNumber: state.roundNumber - 1,
           weaponChanged: true,
           newWeaponName: newWeapon.template.name,
+          weaponHand,
           turns: [{ actor: 'player', action: 'change_weapon', hit: false, dodge: false, block: false, crit: false, rawDamage: 0, finalDamage: 0, logParts: [`Сменил оружие: ${newWeapon.template.name}`] }],
           playerHp: playerPart.hpCurrent,
           botHp: state.participants.find(p => p.botId)?.hpCurrent ?? 0,
@@ -882,6 +934,7 @@ export const BattleService = {
         ? normalizeTurn({
             stance: payload.stance as ZonalTurnInput['stance'],
             attackZones: (payload.attackZones ?? []) as BodyZone[],
+            attackHands: (payload.attackHands ?? []) as AttackHand[],
             blockZones: (payload.blockZones ?? []) as BodyZone[],
             moveTo: payload.moveTo,
             targetParticipantId: payload.targetParticipantId,
@@ -1126,17 +1179,29 @@ export const BattleService = {
     const botStats = bot.stats as Record<string, number>
     const botEquip = bot.equipment as Record<string, unknown>
 
-    const weapon = playerPart.weaponInstanceId
-      ? await ItemsRepository.findInstanceById(playerPart.weaponInstanceId)
-      : null
-    const weaponType = (weapon?.template.weaponType ?? 'MELEE') as string
-    const skillRecord = await WeaponSkillsRepository.findOrCreate(char.id, weaponType as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1])
+    const [leftWeapon, rightWeapon] = await Promise.all([
+      playerPart.leftWeaponInstanceId || playerPart.weaponInstanceId ? ItemsRepository.findInstanceById(playerPart.leftWeaponInstanceId ?? playerPart.weaponInstanceId!) : Promise.resolve(null),
+      playerPart.rightWeaponInstanceId ? ItemsRepository.findInstanceById(playerPart.rightWeaponInstanceId) : Promise.resolve(null),
+    ])
+    const weapon = leftWeapon
+    const [leftSkill, rightSkill] = await Promise.all([
+      WeaponSkillsRepository.findOrCreate(char.id, (leftWeapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
+      WeaponSkillsRepository.findOrCreate(char.id, (rightWeapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
+    ])
+    const skillRecord = leftSkill
 
     const equippedItems = await ItemsRepository.findEquipped(char.id)
     const equippedArmor = equippedItems.filter(i => i.template.type === 'ARMOR')
     const playerArmorList = armorListFromEquipped(equippedArmor)
 
-    const attackerSnap = await buildAttackerSnapshotAsync(char, weapon, skillRecord.skillLevel, equippedArmor)
+    const [leftAttackerSnap, rightAttackerSnap] = await Promise.all([
+      buildAttackerSnapshotAsync(char, leftWeapon, leftSkill.skillLevel, equippedArmor),
+      buildAttackerSnapshotAsync(char, rightWeapon, rightSkill.skillLevel, equippedArmor),
+    ])
+    const totalEquipmentWeight = equippedArmor.reduce((sum, item) => sum + item.weight, 0) + (leftWeapon?.weight ?? 0) + (rightWeapon?.weight ?? 0)
+    leftAttackerSnap.equipmentWeight = totalEquipmentWeight
+    rightAttackerSnap.equipmentWeight = totalEquipmentWeight
+    const attackerSnap = leftAttackerSnap
     const defenderSnap = buildBotDefenderSnapshot(botStats)   // бот как защитник
     const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
     const playerDefSnap = buildDefenderSnapshot(char, equippedArmor)
@@ -1145,7 +1210,7 @@ export const BattleService = {
     const botTurn = botChooseTurn()
 
     // ── Движение / дистанция ──────────────────────────────
-    const playerRange = weaponRangeOf(weapon)
+    const playerRange = Math.max(weaponRangeOf(leftWeapon), weaponRangeOf(rightWeapon))
     const botWeapon = botEquip.weapon as Record<string, number> | undefined
     const botRange = Math.max(1, botWeapon?.maxRange ?? 1)
     const playerFrom = { ...playerPart.position }
@@ -1173,7 +1238,8 @@ export const BattleService = {
 
     syncGridDistance(state)
     const playerWantsAttack = !playerMoved && playerTurn.attackZones.length > 0
-    const doPlayerStrike = playerWantsAttack && canAttackTarget(gridPlayer, gridBot, projected, playerRange)
+    const playerAttackRanges = playerTurn.attackHands.map(hand => weaponRangeOf(hand === 'RIGHT_HAND' ? rightWeapon : leftWeapon))
+    const doPlayerStrike = playerWantsAttack && playerAttackRanges.every(range => canAttackTarget(gridPlayer, gridBot, projected, range))
     const doBotStrike = !botMoved && botWantsAttack && canAttackTarget(gridBot, gridPlayer, projected, botRange)
 
     const playerInit = calcInitiative(char.stats!.rea, char.stats!.agi, skillRecord.skillLevel, attackerSnap.equipmentWeight)
@@ -1183,20 +1249,26 @@ export const BattleService = {
     let playerHp = playerPart.hpCurrent
     let botHp = botPart.hpCurrent
 
-    type TurnRec = { actor: 'player' | 'bot'; r: ZonalAttackResult }
+    type TurnRec = { actor: 'player' | 'bot'; r: HandStrikeResult }
     const turns: TurnRec[] = []
     const botHitZonesOnPlayer: BodyZone[] = []
 
     const playerStrike = () => {
       const res = executeStrikes({
-        attackerSnap, defenderSnap,
+        attackerSnap, attackerSnaps: { LEFT_HAND: leftAttackerSnap, RIGHT_HAND: rightAttackerSnap },
+        weaponIds: { LEFT_HAND: leftWeapon?.id ?? null, RIGHT_HAND: rightWeapon?.id ?? null },
+        defenderSnap,
         zoneArmorFor: (zone) => botArmorOfZone(botEquip, zone, defenderSnap.armor),
         attackZones: playerTurn.attackZones,
+        attackHands: playerTurn.attackHands,
         blockedZones: botTurn.blockZones,
         defenderHp: botHp,
       })
       for (const r of res.results) {
-        if (r.hit && !r.dodge && !r.block) { botHp = Math.max(0, botHp - r.finalDamage); playerPart.hitsLanded++; botPart.hitsTaken++ }
+        if (r.hit && !r.dodge && !r.block) {
+          botHp = Math.max(0, botHp - r.finalDamage); playerPart.hitsLanded++; botPart.hitsTaken++
+          recordWeaponDamage(playerPart, r.sourceHand === 'RIGHT_HAND' ? rightWeapon : leftWeapon, r.finalDamage)
+        }
         turns.push({ actor: 'player', r })
       }
       playerPart.damageDealt += res.damageToDefender
@@ -1254,8 +1326,10 @@ export const BattleService = {
     const roundNumber = state.roundNumber
 
     // Износ оружия — если игрок нанёс хоть один реальный удар
-    if (weapon && turns.some(t => t.actor === 'player' && t.r.hit && !t.r.dodge && !t.r.block)) {
-      await ItemsRepository.updateDurability(weapon.id, Math.max(0, weapon.durabilityCurrent - 1))
+    for (const handWeapon of [leftWeapon, rightWeapon]) {
+      if (handWeapon && turns.some(t => t.actor === 'player' && t.r.weaponId === handWeapon.id && t.r.hit && !t.r.dodge && !t.r.block)) {
+        await ItemsRepository.updateDurability(handWeapon.id, Math.max(0, handWeapon.durabilityCurrent - 1))
+      }
     }
     // Зональный износ брони — ломается то, во что бьют
     await applyZonalArmorWear(equippedArmor, botHitZonesOnPlayer)
@@ -1269,7 +1343,8 @@ export const BattleService = {
       targetCharId: t.actor === 'bot' ? char.id : null,
       targetBotId:  t.actor === 'player' ? botPart.botId : null,
       action: 'ATTACK' as BattleAction,
-      weaponId: t.actor === 'player' ? weapon?.id ?? null : null,
+      weaponId: t.actor === 'player' ? t.r.weaponId : null,
+      sourceHand: t.actor === 'player' ? t.r.sourceHand : null,
       zone: t.r.zone,
       blockPierced: t.r.blockPierced,
       hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit,
@@ -1354,12 +1429,8 @@ export const BattleService = {
       antiFarmCoeff   // Apply daily anti-farm
     )
 
-    const weaponExpGain = calcWeaponSkillExp(
-      playerPart.damageDealt,
-      bot.hpMax,
-      playerWon ? 1 : 0,
-      levelDiff
-    )
+    const weaponExpEntries = weaponExpByType(playerPart, weapon, bot.hpMax, playerWon, levelDiff)
+    const weaponExpGain = weaponExpEntries.reduce((sum, entry) => sum + entry.exp, 0)
 
     return withTransaction(async (tx) => {
       // Update character HP, exp, level + stat points for level-up
@@ -1381,11 +1452,10 @@ export const BattleService = {
         }
       }
 
-      // FIX: Use shared getWeaponSkillLevelFromExp instead of inline duplicate
-      // Weapon skill exp — save even for MELEE (no weapon equipped = fists)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const weaponTypeForSkill: any = weapon?.template.weaponType ?? 'MELEE'
-      await saveWeaponSkillExp(tx as typeof prisma, char.id, weaponTypeForSkill, weaponExpGain)
+      // Award each weapon family only for damage actually dealt with that hand.
+      for (const entry of weaponExpEntries) {
+        await saveWeaponSkillExp(tx as typeof prisma, char.id, entry.weaponType, entry.exp)
+      }
 
       // Update battle record
       await tx.battle.update({
@@ -1458,12 +1528,27 @@ export const BattleService = {
     const applyUtility = async (part: LiveParticipant, char: CharacterWithStats): Promise<boolean> => {
       const pending = part.pendingAction ?? ''
       if (pending.startsWith('change_weapon:')) {
-        const itemId = pending.slice('change_weapon:'.length)
+        const changeParts = pending.split(':')
+        const hand: AttackHand = changeParts.length >= 3 && (changeParts[1] === 'LEFT_HAND' || changeParts[1] === 'RIGHT_HAND')
+          ? changeParts[1]
+          : 'LEFT_HAND'
+        const itemId = changeParts.length >= 3 ? changeParts.slice(2).join(':') : changeParts[1]
         const item = await ItemsRepository.findInstanceById(itemId)
         if (item && item.ownerId === char.id && item.template.type === 'WEAPON' && item.status !== 'BROKEN') {
-          if (part.weaponInstanceId && part.weaponInstanceId !== itemId) await ItemsRepository.unequip(part.weaponInstanceId)
-          await ItemsRepository.equip(itemId, null)
-          part.weaponInstanceId = itemId
+          const occupied = await ItemsRepository.findEquippedBySlot(char.id, hand)
+          if (occupied && occupied.id !== itemId) await ItemsRepository.unequip(occupied.id)
+          await ItemsRepository.equip(itemId, hand)
+          if (hand === 'LEFT_HAND') {
+            if (part.rightWeaponInstanceId === itemId) part.rightWeaponInstanceId = undefined
+            part.leftWeaponInstanceId = itemId
+            part.weaponInstanceId = itemId
+          } else {
+            if (part.leftWeaponInstanceId === itemId || part.weaponInstanceId === itemId) {
+              part.leftWeaponInstanceId = undefined
+              part.weaponInstanceId = undefined
+            }
+            part.rightWeaponInstanceId = itemId
+          }
         }
         return true
       }
@@ -1483,10 +1568,14 @@ export const BattleService = {
     const utility1 = await applyUtility(part1, char1)
     const utility2 = await applyUtility(part2, char2)
 
-    const [weapon1, weapon2] = await Promise.all([
-      part1.weaponInstanceId ? ItemsRepository.findInstanceById(part1.weaponInstanceId) : Promise.resolve(null),
-      part2.weaponInstanceId ? ItemsRepository.findInstanceById(part2.weaponInstanceId) : Promise.resolve(null),
+    const [weapon1Left, weapon1Right, weapon2Left, weapon2Right] = await Promise.all([
+      part1.leftWeaponInstanceId || part1.weaponInstanceId ? ItemsRepository.findInstanceById(part1.leftWeaponInstanceId ?? part1.weaponInstanceId!) : Promise.resolve(null),
+      part1.rightWeaponInstanceId ? ItemsRepository.findInstanceById(part1.rightWeaponInstanceId) : Promise.resolve(null),
+      part2.leftWeaponInstanceId || part2.weaponInstanceId ? ItemsRepository.findInstanceById(part2.leftWeaponInstanceId ?? part2.weaponInstanceId!) : Promise.resolve(null),
+      part2.rightWeaponInstanceId ? ItemsRepository.findInstanceById(part2.rightWeaponInstanceId) : Promise.resolve(null),
     ])
+    const weapon1 = weapon1Left
+    const weapon2 = weapon2Left
 
     const [equippedItems1, equippedItems2] = await Promise.all([
       ItemsRepository.findEquipped(char1.id),
@@ -1497,21 +1586,37 @@ export const BattleService = {
     const armorList1 = armorListFromEquipped(armor1)
     const armorList2 = armorListFromEquipped(armor2)
 
-    const wtype1 = (weapon1?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
-    const wtype2 = (weapon2?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
-    const [skill1, skill2] = await Promise.all([
+    const wtype1 = (weapon1Left?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+    const wtype2 = (weapon2Left?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+    const [skill1, skill1Right, skill2, skill2Right] = await Promise.all([
       WeaponSkillsRepository.findOrCreate(char1.id, wtype1),
+      WeaponSkillsRepository.findOrCreate(char1.id, (weapon1Right?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
       WeaponSkillsRepository.findOrCreate(char2.id, wtype2),
+      WeaponSkillsRepository.findOrCreate(char2.id, (weapon2Right?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
     ])
-    const [antiSkill1vs2, antiSkill2vs1] = await Promise.all([
+    const wtype1Right = (weapon1Right?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+    const wtype2Right = (weapon2Right?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+    const [antiSkill1vs2, antiSkill1vs2Right, antiSkill2vs1, antiSkill2vs1Right] = await Promise.all([
       WeaponSkillsRepository.findOrCreate(char1.id, wtype2),
+      WeaponSkillsRepository.findOrCreate(char1.id, wtype2Right),
       WeaponSkillsRepository.findOrCreate(char2.id, wtype1),
+      WeaponSkillsRepository.findOrCreate(char2.id, wtype1Right),
     ])
 
-    const snap1Atk = await buildAttackerSnapshotAsync(char1, weapon1, skill1.skillLevel, armor1)
-    const snap2Atk = await buildAttackerSnapshotAsync(char2, weapon2, skill2.skillLevel, armor2)
+    const [snap1Atk, snap1RightAtk, snap2Atk, snap2RightAtk] = await Promise.all([
+      buildAttackerSnapshotAsync(char1, weapon1Left, skill1.skillLevel, armor1),
+      buildAttackerSnapshotAsync(char1, weapon1Right, skill1Right.skillLevel, armor1),
+      buildAttackerSnapshotAsync(char2, weapon2Left, skill2.skillLevel, armor2),
+      buildAttackerSnapshotAsync(char2, weapon2Right, skill2Right.skillLevel, armor2),
+    ])
+    const weight1 = armor1.reduce((sum, item) => sum + item.weight, 0) + (weapon1Left?.weight ?? 0) + (weapon1Right?.weight ?? 0)
+    const weight2 = armor2.reduce((sum, item) => sum + item.weight, 0) + (weapon2Left?.weight ?? 0) + (weapon2Right?.weight ?? 0)
+    snap1Atk.equipmentWeight = weight1; snap1RightAtk.equipmentWeight = weight1
+    snap2Atk.equipmentWeight = weight2; snap2RightAtk.equipmentWeight = weight2
     const snap1Def = buildDefenderSnapshot(char1, armor1, antiSkill1vs2.antiSkillLevel, weapon1)
+    const snap1DefRight = buildDefenderSnapshot(char1, armor1, antiSkill1vs2Right.antiSkillLevel, weapon1)
     const snap2Def = buildDefenderSnapshot(char2, armor2, antiSkill2vs1.antiSkillLevel, weapon2)
+    const snap2DefRight = buildDefenderSnapshot(char2, armor2, antiSkill2vs1Right.antiSkillLevel, weapon2)
 
     const init1 = calcInitiative(char1.stats!.rea, char1.stats!.agi, skill1.skillLevel, snap1Atk.equipmentWeight)
     const init2 = calcInitiative(char2.stats!.rea, char2.stats!.agi, skill2.skillLevel, snap2Atk.equipmentWeight)
@@ -1532,20 +1637,21 @@ export const BattleService = {
     let hp1 = part1.hpCurrent
     let hp2 = part2.hpCurrent
 
-    type TurnRec = { actorPart: LiveParticipant; defenderPart: LiveParticipant; r: ZonalAttackResult }
+    type TurnRec = { actorPart: LiveParticipant; defenderPart: LiveParticipant; r: HandStrikeResult }
     const roundTurns: TurnRec[] = []
     const hitZonesOn1: BodyZone[] = []
     const hitZonesOn2: BodyZone[] = []
 
     const doStrike = (
-      atkPart: LiveParticipant, atkSnap: AttackerSnapshot, atkTurn: ZonalTurnInput,
-      defPart: LiveParticipant, defSnap: DefenderSnapshot, defArmorList: EquipArmorLike[], defTurn: ZonalTurnInput
+      atkPart: LiveParticipant, atkSnap: AttackerSnapshot, atkSnaps: Record<AttackHand, AttackerSnapshot>, weaponIds: Record<AttackHand, string | null>, atkTurn: ZonalTurnInput,
+      defPart: LiveParticipant, defSnap: DefenderSnapshot, defSnaps: Record<AttackHand, DefenderSnapshot>, defArmorList: EquipArmorLike[], defTurn: ZonalTurnInput
     ) => {
       const defHp = defPart === part1 ? hp1 : hp2
       const res = executeStrikes({
-        attackerSnap: atkSnap, defenderSnap: defSnap,
+        attackerSnap: atkSnap, attackerSnaps: atkSnaps, weaponIds, defenderSnap: defSnap, defenderSnaps: defSnaps,
         zoneArmorFor: (z) => armorOfZone(defArmorList, z),
         attackZones: atkTurn.attackZones,
+        attackHands: atkTurn.attackHands,
         blockedZones: defTurn.blockZones,
         defenderHp: defHp,
       })
@@ -1554,6 +1660,10 @@ export const BattleService = {
           if (defPart === part1) { hp1 = Math.max(0, hp1 - r.finalDamage); hitZonesOn1.push(r.zone) }
           else { hp2 = Math.max(0, hp2 - r.finalDamage); hitZonesOn2.push(r.zone) }
           atkPart.hitsLanded++; defPart.hitsTaken++
+          const strikeWeapon = r.sourceHand === 'RIGHT_HAND'
+            ? (atkPart === part1 ? weapon1Right : weapon2Right)
+            : (atkPart === part1 ? weapon1Left : weapon2Left)
+          recordWeaponDamage(atkPart, strikeWeapon, r.finalDamage)
         }
         roundTurns.push({ actorPart: atkPart, defenderPart: defPart, r })
       }
@@ -1580,22 +1690,20 @@ export const BattleService = {
       turn2.moveTo,
     )
     syncGridDistance(state)
-    const range1 = weaponRangeOf(weapon1)
-    const range2 = weaponRangeOf(weapon2)
     const projected = positionedParticipants(state)
     const gridPart1 = projected.find(p => p.participantId === part1.participantId)!
     const gridPart2 = projected.find(p => p.participantId === part2.participantId)!
     const doStrike1 = !moved1 && turn1.attackZones.length > 0
-      && canAttackTarget(gridPart1, gridPart2, projected, range1)
+      && turn1.attackHands.every(hand => canAttackTarget(gridPart1, gridPart2, projected, weaponRangeOf(hand === 'RIGHT_HAND' ? weapon1Right : weapon1Left)))
     const doStrike2 = !moved2 && turn2.attackZones.length > 0
-      && canAttackTarget(gridPart2, gridPart1, projected, range2)
+      && turn2.attackHands.every(hand => canAttackTarget(gridPart2, gridPart1, projected, weaponRangeOf(hand === 'RIGHT_HAND' ? weapon2Right : weapon2Left)))
 
     if (p1First) {
-      if (doStrike1) doStrike(part1, snap1Atk, turn1, part2, snap2Def, armorList2, turn2)
-      if (doStrike2 && hp1 > 0 && hp2 > 0) doStrike(part2, snap2Atk, turn2, part1, snap1Def, armorList1, turn1)
+      if (doStrike1) doStrike(part1, snap1Atk, { LEFT_HAND: snap1Atk, RIGHT_HAND: snap1RightAtk }, { LEFT_HAND: weapon1Left?.id ?? null, RIGHT_HAND: weapon1Right?.id ?? null }, turn1, part2, snap2Def, { LEFT_HAND: snap2Def, RIGHT_HAND: snap2DefRight }, armorList2, turn2)
+      if (doStrike2 && hp1 > 0 && hp2 > 0) doStrike(part2, snap2Atk, { LEFT_HAND: snap2Atk, RIGHT_HAND: snap2RightAtk }, { LEFT_HAND: weapon2Left?.id ?? null, RIGHT_HAND: weapon2Right?.id ?? null }, turn2, part1, snap1Def, { LEFT_HAND: snap1Def, RIGHT_HAND: snap1DefRight }, armorList1, turn1)
     } else {
-      if (doStrike2) doStrike(part2, snap2Atk, turn2, part1, snap1Def, armorList1, turn1)
-      if (doStrike1 && hp1 > 0 && hp2 > 0) doStrike(part1, snap1Atk, turn1, part2, snap2Def, armorList2, turn2)
+      if (doStrike2) doStrike(part2, snap2Atk, { LEFT_HAND: snap2Atk, RIGHT_HAND: snap2RightAtk }, { LEFT_HAND: weapon2Left?.id ?? null, RIGHT_HAND: weapon2Right?.id ?? null }, turn2, part1, snap1Def, { LEFT_HAND: snap1Def, RIGHT_HAND: snap1DefRight }, armorList1, turn1)
+      if (doStrike1 && hp1 > 0 && hp2 > 0) doStrike(part1, snap1Atk, { LEFT_HAND: snap1Atk, RIGHT_HAND: snap1RightAtk }, { LEFT_HAND: weapon1Left?.id ?? null, RIGHT_HAND: weapon1Right?.id ?? null }, turn1, part2, snap2Def, { LEFT_HAND: snap2Def, RIGHT_HAND: snap2DefRight }, armorList2, turn2)
     }
 
     const moveEvents = [
@@ -1611,11 +1719,10 @@ export const BattleService = {
     const roundNumber = state.roundNumber
 
     // Износ оружия
-    if (weapon1 && roundTurns.some(t => t.actorPart === part1 && t.r.hit && !t.r.dodge && !t.r.block)) {
-      await ItemsRepository.updateDurability(weapon1.id, Math.max(0, weapon1.durabilityCurrent - 1))
-    }
-    if (weapon2 && roundTurns.some(t => t.actorPart === part2 && t.r.hit && !t.r.dodge && !t.r.block)) {
-      await ItemsRepository.updateDurability(weapon2.id, Math.max(0, weapon2.durabilityCurrent - 1))
+    for (const handWeapon of [weapon1Left, weapon1Right, weapon2Left, weapon2Right]) {
+      if (handWeapon && roundTurns.some(t => t.r.weaponId === handWeapon.id && t.r.hit && !t.r.dodge && !t.r.block)) {
+        await ItemsRepository.updateDurability(handWeapon.id, Math.max(0, handWeapon.durabilityCurrent - 1))
+      }
     }
     // Зональный износ брони — ломается то, во что бьют
     await applyZonalArmorWear(armor1, hitZonesOn1)
@@ -1626,7 +1733,8 @@ export const BattleService = {
       actorCharId: t.actorPart.characterId ?? null,
       targetCharId: t.defenderPart.characterId ?? null,
       action: 'ATTACK' as BattleAction,
-      weaponId: t.actorPart === part1 ? weapon1?.id ?? null : weapon2?.id ?? null,
+      weaponId: t.r.weaponId,
+      sourceHand: t.r.sourceHand,
       zone: t.r.zone,
       blockPierced: t.r.blockPierced,
       hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit,
@@ -1695,8 +1803,10 @@ export const BattleService = {
     const exp1 = calcBattleExp(part1.damageDealt, char2.battleLevel * 5, char2.hpMax, levelDiff, result1 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW')
     const exp2 = calcBattleExp(part2.damageDealt, char1.battleLevel * 5, char1.hpMax, levelDiff, result2 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW')
 
-    const wskExp1 = calcWeaponSkillExp(part1.damageDealt, char2.hpMax, winnerId === char1.id ? 1 : 0, levelDiff)
-    const wskExp2 = calcWeaponSkillExp(part2.damageDealt, char1.hpMax, winnerId === char2.id ? 1 : 0, levelDiff)
+    const wskEntries1 = weaponExpByType(part1, weapon1, char2.hpMax, winnerId === char1.id, levelDiff)
+    const wskEntries2 = weaponExpByType(part2, weapon2, char1.hpMax, winnerId === char2.id, levelDiff)
+    const wskExp1 = wskEntries1.reduce((sum, entry) => sum + entry.exp, 0)
+    const wskExp2 = wskEntries2.reduce((sum, entry) => sum + entry.exp, 0)
 
     return withTransaction(async (tx) => {
       const progression1 = await applyBattleProgression(tx, char1, {
@@ -1711,11 +1821,9 @@ export const BattleService = {
         won: winnerId === char2.id,
       })
 
-      // Weapon skill exp
-      const wtype1 = weapon1?.template.weaponType ?? 'MELEE'
-      const wtype2 = weapon2?.template.weaponType ?? 'MELEE'
-      await saveWeaponSkillExp(tx as typeof prisma, char1.id, wtype1, wskExp1)
-      await saveWeaponSkillExp(tx as typeof prisma, char2.id, wtype2, wskExp2)
+      // Weapon skill exp follows the hand and weapon family that produced damage.
+      for (const entry of wskEntries1) await saveWeaponSkillExp(tx as typeof prisma, char1.id, entry.weaponType, entry.exp)
+      for (const entry of wskEntries2) await saveWeaponSkillExp(tx as typeof prisma, char2.id, entry.weaponType, entry.exp)
 
       // Update battle
       await tx.battle.update({

@@ -1,10 +1,11 @@
 ﻿import { Flag, RotateCcw, Shield, Sword, X } from 'lucide-react'
-import type { BodyZone, GridPosition, Stance } from '../../../shared/api/battles.api'
+import type { AttackHand, BodyZone, GridPosition, Stance } from '../../../shared/api/battles.api'
 import { BATTLE_STANCES, ZONE_LABEL, getActionBudget, validateTurnPlan } from '../battle-view-model'
 
 interface BattleCommandDockProps {
   stance: Stance
   attackZones: BodyZone[]
+  attackHands: AttackHand[]
   blockZones: BodyZone[]
   selectedMove: GridPosition | null
   targetId?: string | null
@@ -14,7 +15,6 @@ interface BattleCommandDockProps {
   timeLeft: number
   roundsCount: number
   pocketCount: number
-  onStanceChange: (stance: Stance) => void
   onRemoveAttack: (index: number) => void
   onSubmitTurn: () => void
   onSubmitMove: () => void
@@ -31,12 +31,10 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
   const missing = props.selectedMove ? 'Перемещение выбрано' : validation.valid ? 'План готов' : validation.reason
   return (
     <section className="battle-command-dock" aria-label="План хода">
-      <div className="battle-command-dock__stances" role="radiogroup" aria-label="Стойка">
-        {BATTLE_STANCES.map(item => <button key={item.key} type="button" role="radio"
-          aria-checked={props.stance === item.key} className={props.stance === item.key ? 'is-selected' : ''}
-          disabled={!props.canAct} onClick={() => props.onStanceChange(item.key)}>
-          <span>{item.label}</span><small>{item.attacks}/{item.blocks}</small>
-        </button>)}
+      <div className="battle-command-dock__stances" aria-label="Режим хода определяется автоматически">
+        {BATTLE_STANCES.map(item => <span key={item.key} className={props.stance === item.key ? 'is-selected' : ''}>
+          <b>{item.label}</b><small>{item.attacks}/{item.blocks}</small>
+        </span>)}
       </div>
       <div className="battle-command-dock__plan">
         <div className="battle-command-dock__meta"><b>План хода</b><span>00:0{props.timeLeft}</span></div>
@@ -45,8 +43,9 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
             <div><span><Sword size={11} /> Удары</span><div className="battle-plan-chips">
               {budget.attacks === 0 ? <i>нет</i> : Array.from({ length: budget.attacks }).map((_, index) => {
                 const zone = props.attackZones[index]
+                const hand = props.attackHands[index]
                 return zone ? <button key={index} type="button" onClick={() => props.onRemoveAttack(index)} title="Убрать удар">
-                  {index + 1}. {ZONE_LABEL[zone]} <X size={10} />
+                  {hand === 'RIGHT_HAND' ? 'П' : 'Л'}: {ZONE_LABEL[zone]} <X size={10} />
                 </button> : <i key={index}>{index + 1}. выбрать</i>
               })}
             </div></div>

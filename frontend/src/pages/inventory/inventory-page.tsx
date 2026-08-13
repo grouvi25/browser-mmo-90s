@@ -72,7 +72,7 @@ export function InventoryPage() {
   const inBattle = char?.status === 'IN_BATTLE'
 
   const equipMut = useMutation({
-    mutationFn: (id: string) => inventoryApi.equip(id),
+    mutationFn: ({ id, hand }: { id: string; hand?: 'LEFT_HAND' | 'RIGHT_HAND' }) => inventoryApi.equip(id, hand),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory'] })
       qc.invalidateQueries({ queryKey: ['character'] })
@@ -199,11 +199,18 @@ export function InventoryPage() {
                 onClick={() => unequipMut.mutate(item.id)}>
                 Снять
               </button>
+            ) : t.type === 'WEAPON' ? (
+              <>
+                <button className="btn btn-sm btn-primary" disabled={isBroken || tooLow || equipMut.isPending || inBattle}
+                  onClick={() => equipMut.mutate({ id: item.id, hand: 'LEFT_HAND' })}>В левую</button>
+                <button className="btn btn-sm btn-primary" disabled={isBroken || tooLow || equipMut.isPending || inBattle}
+                  onClick={() => equipMut.mutate({ id: item.id, hand: 'RIGHT_HAND' })}>В правую</button>
+              </>
             ) : (
               <button className="btn btn-sm btn-primary"
                 disabled={isBroken || tooLow || equipMut.isPending || inBattle}
                 title={inBattle ? 'Нельзя надеть во время боя' : isBroken ? 'Сломан — нужен ремонт' : tooLow ? `Нужен уровень ${t.levelReq}` : ''}
-                onClick={() => equipMut.mutate(item.id)}>
+                onClick={() => equipMut.mutate({ id: item.id })}>
                 Надеть
               </button>
             )}

@@ -5,8 +5,8 @@ export const inventoryApi = {
   getItems: () =>
     api.get<ItemInstance[]>('/api/inventory'),
 
-  equip: (itemInstanceId: string) =>
-    api.post<{ message: string; itemId: string }>('/api/inventory/equip', { itemInstanceId }),
+  equip: (itemInstanceId: string, hand?: 'LEFT_HAND' | 'RIGHT_HAND') =>
+    api.post<{ message: string; itemId: string }>('/api/inventory/equip', { itemInstanceId, hand }),
 
   unequip: (itemInstanceId: string) =>
     api.post<{ message: string; itemId: string }>('/api/inventory/unequip', { itemInstanceId }),

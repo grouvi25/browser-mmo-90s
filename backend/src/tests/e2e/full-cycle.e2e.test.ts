@@ -36,6 +36,7 @@ async function api(
 describe('E2E: Full player cycle (Stage 1 TZ razdel 11)', () => {
   let token = ''
   let itemInstanceId = ''
+  let rightHandItemId = ''
   let battleId = ''
   const login = uid('e2e')
   const email = `${login}@e2e.com`
@@ -93,26 +94,32 @@ describe('E2E: Full player cycle (Stage 1 TZ razdel 11)', () => {
     const charBefore = (await api('GET', '/api/characters/me', undefined, token)).data as { money: number }
     const r = await api('POST', '/api/shops/government/buy', { templateId: weapon!.templateId }, token)
     expect(r.status).toBe(201)
+    const second = await api('POST', '/api/shops/government/buy', { templateId: weapon!.templateId }, token)
+    expect(second.status).toBe(201)
 
     const bought = r.data as { item: { id: string; durabilityCurrent: number }; newBalance: number }
+    const boughtRight = second.data as { item: { id: string; durabilityCurrent: number }; newBalance: number }
     itemInstanceId = bought.item.id
+    rightHandItemId = boughtRight.item.id
     expect(bought.item.durabilityCurrent).toBeGreaterThan(0)
-    expect(bought.newBalance).toBe(charBefore.money - weapon!.template.priceBase)
+    expect(boughtRight.item.durabilityCurrent).toBeGreaterThan(0)
+    expect(boughtRight.newBalance).toBe(charBefore.money - weapon!.template.priceBase * 2)
 
     // Проверка CurrencyLog живёт в админском контуре: пользовательский
     // токен на /api/admin/logs/currency получает отказ, и запрос здесь
     // ничего не проверял.
   })
 
-  it('11.2 Equip weapon', async () => {
-    const r = await api('POST', '/api/inventory/equip', { itemInstanceId }, token)
-    expect(r.status).toBe(200)
+  it('11.2 Equip independent left and right weapons', async () => {
+    const left = await api('POST', '/api/inventory/equip', { itemInstanceId, hand: 'LEFT_HAND' }, token)
+    const right = await api('POST', '/api/inventory/equip', { itemInstanceId: rightHandItemId, hand: 'RIGHT_HAND' }, token)
+    expect(left.status).toBe(200)
+    expect(right.status).toBe(200)
 
-    // Verify it's equipped in inventory
     const inv = await api('GET', '/api/inventory', undefined, token)
-    const items = inv.data as Array<{ id: string; isEquipped: boolean }>
-    const equipped = items.find(i => i.id === itemInstanceId)
-    expect(equipped?.isEquipped).toBe(true)
+    const items = inv.data as Array<{ id: string; isEquipped: boolean; armorSlot: string | null }>
+    expect(items.find(i => i.id === itemInstanceId)).toMatchObject({ isEquipped: true, armorSlot: 'LEFT_HAND' })
+    expect(items.find(i => i.id === rightHandItemId)).toMatchObject({ isEquipped: true, armorSlot: 'RIGHT_HAND' })
   })
 
   it('11.3 Start PvE battle with training bot', async () => {
@@ -137,7 +144,10 @@ describe('E2E: Full player cycle (Stage 1 TZ razdel 11)', () => {
     let finalResult: Record<string, unknown> = {}
 
     while (!over && rounds < 35) {
-      const r = await api('POST', `/api/battles/${battleId}/action`, { action: 'attack' }, token)
+      const r = await api('POST', `/api/battles/${battleId}/action`, {
+        action: 'attack', stance: 'attack2',
+        attackZones: ['CHEST', 'HEAD'], attackHands: ['LEFT_HAND', 'RIGHT_HAND'],
+      }, token)
       expect(r.status).toBe(200)
       const data = r.data as Record<string, unknown>
       rounds++

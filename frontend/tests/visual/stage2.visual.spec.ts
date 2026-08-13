@@ -361,18 +361,17 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1)
     expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1)
 
-    await page.locator('.battle-command-dock__stances button').nth(1).click()
-    await page.locator('.battle-fighter-panel.is-enemy .battle-fighter-zone').nth(0).click()
+    await page.getByRole('button', { name: /Правая рука: удар в голову/ }).click()
     await page.locator('.battle-fighter-panel.is-self .battle-fighter-zone').nth(1).click()
     await page.locator('.battle-fighter-panel.is-self .battle-fighter-zone').nth(4).click()
 
     const actionRequest = page.waitForRequest(request => request.url().endsWith(`/api/battles/${battleId}/action`))
     await page.locator('.battle-submit-turn').click()
     const payload = (await actionRequest).postDataJSON() as {
-      action: string; stance: string; attackZones: string[]; blockZones: string[]; targetParticipantId: string
+      action: string; stance: string; attackZones: string[]; attackHands: string[]; blockZones: string[]; targetParticipantId: string
     }
     expect(payload).toMatchObject({
-      action: 'attack', stance: 'mixed', attackZones: ['HEAD'], blockZones: ['CHEST', 'LEGS'],
+      action: 'attack', stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEGS'],
     })
     expect(payload.targetParticipantId).toBeTruthy()
 

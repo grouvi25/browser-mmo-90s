@@ -161,6 +161,11 @@ enum BodyZone {
   LEFT_ARM // левая рука
 }
 
+enum AttackHand {
+  LEFT_HAND
+  RIGHT_HAND
+}
+
 enum CurrencyLogReason {
   SHOP_PURCHASE // Покупка в магазине
   SHOP_SELL // Продажа магазину
@@ -703,7 +708,8 @@ model BattleTurn {
   targetBotId  String? @map("target_bot_id")
 
   action   BattleAction
-  weaponId String?      @map("weapon_id") // ItemInstance used
+  weaponId   String?     @map("weapon_id") // ItemInstance used
+  sourceHand AttackHand? @map("source_hand")
 
   // Tactical grid movement
   fromX Int? @map("from_x")

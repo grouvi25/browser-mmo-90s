@@ -292,3 +292,20 @@
   .battle-field-v3 .hex-board { padding-bottom: 22px; }
   .battle-field-v3 .fighter-token { width: clamp(14px, 72%, 34px); }
 }
+
+.battle-hand-zone { display:grid; grid-template-rows:auto 1fr; padding:2px 3px; cursor:default; }
+.battle-hand-zone > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.battle-hand-zone > div { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:2px; }
+.battle-hand-zone button { min-width:0; min-height:18px; padding:0; border:1px solid oklch(55% .04 55); background:oklch(94% .02 75); color:oklch(30% .03 55); font:700 8px/1 var(--font-mono); cursor:pointer; }
+.battle-hand-zone button.is-selected { border-color:oklch(42% .14 25); background:oklch(45% .14 25); color:oklch(97% .01 70); }
+.battle-hand-zone button:disabled { opacity:.35; cursor:not-allowed; }
+@media (max-width:900px) { .battle-hand-zone { font-size:0; } .battle-hand-zone > div { height:100%; margin:0; align-items:center; } .battle-hand-zone button { min-height:30px; font-size:8px; } }
+
+.battle-command-dock__stances > span {
+  min-width: 0; display: grid; place-items: center; align-content: center;
+  border: 1px solid oklch(65% .03 60); background: oklch(93% .018 75);
+  color: oklch(45% .025 55); text-align: center; opacity: .55;
+}
+.battle-command-dock__stances > span b { font: 700 9px/1.1 var(--font-sign); text-transform: uppercase; }
+.battle-command-dock__stances > span small { margin-top: 3px; font: 700 8px/1 var(--font-mono); }
+.battle-command-dock__stances > span.is-selected { opacity: 1; border: 2px solid oklch(47% .09 80); background: oklch(90% .055 80); color: oklch(28% .04 55); }

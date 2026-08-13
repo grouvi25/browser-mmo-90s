@@ -18,6 +18,7 @@ export const ZONE_ARMOR_SLOTS: Record<BodyZone, ArmorSlot[]> = {
 
 // Стойки хода: сколько ударов и блоков допускается (фидбэк заказчика).
 export type Stance = 'attack2' | 'mixed' | 'defense4'
+export type AttackHand = 'LEFT_HAND' | 'RIGHT_HAND'
 
 export const STANCE_BUDGET: Record<Stance, { attacks: number; blocks: number }> = {
   attack2: { attacks: 2, blocks: 0 },
@@ -28,6 +29,7 @@ export const STANCE_BUDGET: Record<Stance, { attacks: number; blocks: number }> 
 export interface ZonalTurnInput {
   stance: Stance
   attackZones: BodyZone[]
+  attackHands: AttackHand[]
   blockZones: BodyZone[]
   moveTo?: { x: number; y: number }
   targetParticipantId?: string
@@ -70,14 +72,18 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
   const budget = input?.moveTo ? { attacks: 0, blocks: 0 } : STANCE_BUDGET[stance]
 
   const rawAttack = (input?.attackZones ?? []).filter(isBodyZone)
+  const rawHands = (input?.attackHands ?? []).filter(isAttackHand)
   const rawBlock = (input?.blockZones ?? []).filter(isBodyZone)
 
   const attackZones = rawAttack.slice(0, budget.attacks)
+  const attackHands = rawHands.slice(0, budget.attacks)
   // блоки — уникальные зоны
   const blockZones = dedupe(rawBlock).slice(0, budget.blocks)
 
   // Если атак не хватает до бюджета — добиваем корпусом (дефолтная зона).
   while (attackZones.length < budget.attacks) attackZones.push('CHEST')
+  const defaultHands: AttackHand[] = stance === 'attack2' ? ['LEFT_HAND', 'RIGHT_HAND'] : ['LEFT_HAND']
+  while (attackHands.length < budget.attacks) attackHands.push(defaultHands[attackHands.length] ?? 'LEFT_HAND')
   // Если блоков не хватает — добиваем приоритетными зонами.
   if (blockZones.length < budget.blocks) {
     for (const z of DEFAULT_BLOCK_PRIORITY) {
@@ -89,6 +95,7 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
   return {
     stance,
     attackZones,
+    attackHands,
     blockZones,
     moveTo: input?.moveTo,
     targetParticipantId: input?.targetParticipantId,
@@ -133,6 +140,9 @@ export function randomZone(rng: () => number = Math.random): BodyZone {
 }
 
 // helpers
+function isAttackHand(hand: unknown): hand is AttackHand {
+  return hand === 'LEFT_HAND' || hand === 'RIGHT_HAND'
+}
 function isBodyZone(z: unknown): z is BodyZone {
   return typeof z === 'string' && (BODY_ZONES as string[]).includes(z)
 }

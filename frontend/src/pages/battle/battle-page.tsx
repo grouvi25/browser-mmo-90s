@@ -6,7 +6,7 @@ import {
   RotateCcw, ChevronDown, Skull,
   CircleDot, Trophy, AlertTriangle,
 } from 'lucide-react'
-import { battlesApi, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
+import { battlesApi, type AttackHand, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { type BattleAction, type ItemInstance, type LiveParticipant } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
@@ -22,7 +22,7 @@ import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
 import { BattleFighterPanel } from './components/battle-fighter-panel'
 import { BattleCommandDock } from './components/battle-command-dock'
 import { BattlePockets } from './components/battle-pockets'
-import { ZONE_LABEL, appendAttackZone, getActionBudget, removeAttackZone, toggleZone } from './battle-view-model'
+import { ZONE_LABEL, getActionBudget, removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlock } from './battle-view-model'
 import './battle-phase-a.css'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -36,7 +36,7 @@ interface TurnEvent {
   actor: 'player' | 'enemy' | string
   action: string; hit: boolean; dodge: boolean; block: boolean
   crit: boolean; lucky?: boolean; blockPierced?: boolean; zone?: BodyZone
-  counterDamage?: number
+  counterDamage?: number; sourceHand?: AttackHand
   rawDamage: number; finalDamage: number; logParts: string[]
 }
 interface RoundRecord {
@@ -64,15 +64,16 @@ function EventIcon({ type }: { type: string }) {
 }
 
 function getEvent(t: TurnEvent) {
+  const hand = t.sourceHand ? (t.sourceHand === 'LEFT_HAND' ? 'Л: ' : 'П: ') : ''
   const z = t.zone ? ` (${ZONE_LABEL[t.zone]})` : ''
   if (t.action === 'move') return { type: 'move', label: 'Сближение', color: '#365d91' }
-  if (!t.hit && t.dodge) return { type: 'dodge',   label: 'Уворот' + z,   color: '#88b048' }
-  if (!t.hit)            return { type: 'dodge',   label: 'Уворот' + z,   color: '#88b048' } // нет промаха
+  if (!t.hit && t.dodge) return { type: 'dodge',   label: hand + 'Уворот' + z,   color: '#88b048' }
+  if (!t.hit)            return { type: 'dodge',   label: hand + 'Уворот' + z,   color: '#88b048' } // нет промаха
   if (t.block)           return { type: 'block',   label: ((t.counterDamage ?? 0) > 0 ? 'Блок + ответка' : 'Блок') + z, color: '#6a9a3a' }
-  if (t.blockPierced)    return { type: 'lucky',   label: 'Пробил блок' + z, color: '#9a60c0' }
-  if (t.lucky)           return { type: 'lucky',   label: 'Пробитие' + z, color: '#9a60c0' }
+  if (t.blockPierced)    return { type: 'lucky',   label: hand + 'Пробил блок' + z, color: '#9a60c0' }
+  if (t.lucky)           return { type: 'lucky',   label: hand + 'Пробитие' + z, color: '#9a60c0' }
   if (t.crit)            return { type: 'crit',    label: 'КРИТ' + z,     color: '#d4a017' }
-  return                        { type: 'hit',     label: 'Удар' + z,     color: '#c43030' }
+  return                        { type: 'hit',     label: hand + 'Удар' + z,     color: '#c43030' }
 }
 
 // Tactical field
@@ -220,8 +221,9 @@ export function BattlePage() {
   const [loadoutIds] = useState<string[]>(() => getLoadout())
 
   // ── Зональный ход ──────────────────────────────────────
-  const [stance, setStance]             = useState<Stance>('attack2')
+  const [stance, setStance]             = useState<Stance>('mixed')
   const [attackZones, setAttackZones]   = useState<BodyZone[]>([])
+  const [attackHands, setAttackHands]   = useState<AttackHand[]>([])
   const [blockZones, setBlockZones]     = useState<BodyZone[]>([])
   const [distance, setDistance]         = useState<number | null>(null)
   const [playerRange, setPlayerRange]   = useState<number | null>(null)
@@ -258,6 +260,7 @@ export function BattlePage() {
   const eHpMax    = ePart?.hpMax ?? dbEPart?.hpMax ?? 0  // 0 показывает полный бар до загрузки
   const weapon    = items.find(i => i.isEquipped && i.template.type === 'WEAPON')
   const profiles = battleData?.participantProfiles ?? []
+  const playerProfile = profiles.find(profile => profile.participantId === pPart?.participantId)
   const enemyProfile = profiles.find(profile => profile.participantId === ePart?.participantId)
   const enemyName = enemyProfile?.name ?? 'Противник'
 
@@ -273,7 +276,7 @@ export function BattlePage() {
       battlesApi.submitAction(battleId!, action, opts) as unknown as Promise<RoundResult>,
     onSuccess: (data, variables) => {
       if (variables.action === 'attack' || variables.action === 'block' || variables.action === 'move') {
-        setAttackZones([]); setBlockZones([]); setSelectedMove(null)
+        setAttackZones([]); setAttackHands([]); setBlockZones([]); setSelectedMove(null)
       }
       const rn = data.roundNumber ?? currentRound
       setCurrentRound(rn)
@@ -290,7 +293,7 @@ export function BattlePage() {
       const events: TurnEvent[] = data.turns?.map(t => ({
         actor: t.actor === 'player' ? 'player' : 'enemy',
         action: t.action, hit: t.hit, dodge: t.dodge, block: t.block,
-        crit: t.crit, lucky: t.lucky, counterDamage: t.counterDamage,
+        crit: t.crit, lucky: t.lucky, counterDamage: t.counterDamage, sourceHand: t.sourceHand, zone: t.zone,
         rawDamage: t.rawDamage, finalDamage: t.finalDamage, logParts: t.logParts,
       })) ?? []
       events.forEach(t => {
@@ -324,6 +327,8 @@ export function BattlePage() {
   const canAct = !battleOver && !actionMut.isPending
   const currentDistance = distance ?? live?.distance ?? 0
   const targetInRange = playerRange == null || currentDistance <= playerRange
+  const disabledAttackHands: AttackHand[] = ([['LEFT_HAND', playerProfile?.primaryRange ?? playerRange ?? 1], ['RIGHT_HAND', playerProfile?.secondaryRange ?? 1]] as const)
+    .filter(([, range]) => currentDistance > range).map(([hand]) => hand)
   const act = (action: BattleAction, opts?: SubmitActionOpts) => {
     if (actionPendingRef.current) return
     actionPendingRef.current = true
@@ -334,19 +339,20 @@ export function BattlePage() {
 
   // ── Зональный ход: стойки и выбор зон ──────────────────
   const budget = getActionBudget(stance)
-  const changeStance = (next: Stance) => {
-    setStance(next); setAttackZones([]); setBlockZones([]); setSelectedMove(null)
+  const applyAutomaticPlan = (plan: { stance: Stance; attackZones: BodyZone[]; attackHands: AttackHand[]; blockZones: BodyZone[] }) => {
+    setStance(plan.stance); setAttackZones(plan.attackZones); setAttackHands(plan.attackHands); setBlockZones(plan.blockZones); setSelectedMove(null)
   }
-  const toggleAttack = (zone: BodyZone) => setAttackZones(prev => appendAttackZone(prev, zone, budget.attacks))
-  const removeAttack = (index: number) => setAttackZones(prev => removeAttackZone(prev, index))
-  const toggleBlock = (zone: BodyZone) => setBlockZones(prev => toggleZone(prev, zone, budget.blocks))
+  const currentPlan = () => ({ stance, attackZones, attackHands, blockZones })
+  const toggleAttackHand = (hand: AttackHand, zone: BodyZone) => applyAutomaticPlan(selectAutomaticAttack(currentPlan(), hand, zone))
+  const removeAttack = (index: number) => applyAutomaticPlan(removeAutomaticAttack(currentPlan(), index))
+  const toggleBlock = (zone: BodyZone) => applyAutomaticPlan(toggleAutomaticBlock(currentPlan(), zone))
   const selectMove = (position: { x: number; y: number }) => {
-    setSelectedMove(position); setAttackZones([]); setBlockZones([])
+    setSelectedMove(position); setAttackZones([]); setAttackHands([]); setBlockZones([])
   }
-  const resetPlan = () => { setAttackZones([]); setBlockZones([]); setSelectedMove(null) }
+  const resetPlan = () => { setAttackZones([]); setAttackHands([]); setBlockZones([]); setSelectedMove(null) }
   const submitTurn = () => {
     const action: BattleAction = stance === 'defense4' ? 'block' : 'attack'
-    act(action, { stance, attackZones, blockZones, targetParticipantId: ePart?.participantId })
+    act(action, { stance, attackZones, attackHands, blockZones, targetParticipantId: ePart?.participantId })
   }
   const submitMove = () => {
     if (!selectedMove) return
@@ -465,7 +471,7 @@ export function BattlePage() {
       <main className="battle-duel-stage">
         <BattleFighterPanel side="self" name={playerName} level={char?.battleLevel}
           hp={pHp} hpMax={pHpMax} mode="block" selected={blockZones} limit={budget.blocks}
-          disabled={!canAct} primaryHand={weapon?.template.name} secondaryHand={null}
+          disabled={!canAct} primaryHand={playerProfile?.primaryHand ?? weapon?.template.name} secondaryHand={playerProfile?.secondaryHand}
           onZone={toggleBlock} />
 
         <div className="battle-field-v3">
@@ -483,19 +489,20 @@ export function BattlePage() {
         </div>
 
         <BattleFighterPanel side="enemy" name={enemyName} level={enemyProfile?.level}
-          hp={eHp} hpMax={eHpMax} mode="attack" selected={attackZones} limit={budget.attacks}
-          disabled={!canAct || !ePart?.participantId || !targetInRange}
-          disabledReason={!targetInRange ? 'Цель вне дальности' : undefined}
+          hp={eHp} hpMax={eHpMax} mode="attack" selected={attackZones} selectedHands={attackHands} limit={budget.attacks}
+          disabled={!canAct || !ePart?.participantId}
+          disabledHands={disabledAttackHands}
+          disabledReason={disabledAttackHands.length === 2 ? 'Цель вне дальности' : undefined}
           primaryHand={enemyProfile?.primaryHand} secondaryHand={enemyProfile?.secondaryHand}
-          onZone={toggleAttack} />
+          onZone={() => undefined} onHandZone={toggleAttackHand} />
       </main>
 
       {actionError && <div className="battle-error-v3" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
-      <BattleCommandDock stance={stance} attackZones={attackZones} blockZones={blockZones}
+      <BattleCommandDock stance={stance} attackZones={attackZones} attackHands={attackHands} blockZones={blockZones}
         selectedMove={selectedMove} targetId={ePart?.participantId} targetInRange={targetInRange}
         canAct={canAct} pending={actionMut.isPending} timeLeft={timeLeft}
         roundsCount={rounds.length} pocketCount={pocketSlots.filter(Boolean).length}
-        onStanceChange={changeStance} onRemoveAttack={removeAttack}
+        onRemoveAttack={removeAttack}
         onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
         onToggleLog={() => setShowLog(value => !value)} onTogglePockets={() => setPocketsOpen(value => !value)}
         onSurrender={() => act('surrender')} />

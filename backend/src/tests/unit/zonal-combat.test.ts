@@ -83,6 +83,14 @@ describe('zones: normalizeTurn / stances', () => {
     expect(t.attackZones).toEqual(['HEAD'])
     expect(t.blockZones).toEqual(['CHEST', 'HEAD'])
   })
+  it('binds attack slots to independent weapon hands', () => {
+    const attack = normalizeTurn({ stance: 'attack2', attackZones: ['HEAD', 'CHEST'], attackHands: ['RIGHT_HAND', 'LEFT_HAND'] })
+    expect(attack.attackHands).toEqual(['RIGHT_HAND', 'LEFT_HAND'])
+    const legacy = normalizeTurn({ stance: 'attack2', attackZones: ['HEAD', 'CHEST'] })
+    expect(legacy.attackHands).toEqual(['LEFT_HAND', 'RIGHT_HAND'])
+    const mixed = normalizeTurn({ stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEGS'] })
+    expect(mixed.attackHands).toEqual(['RIGHT_HAND'])
+  })
   it('defense4 = 4 уникальных блока', () => {
     const t = normalizeTurn({ stance: 'defense4', blockZones: ['HEAD', 'HEAD', 'CHEST'] })
     expect(t.blockZones).toHaveLength(4)

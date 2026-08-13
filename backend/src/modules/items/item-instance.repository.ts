@@ -34,6 +34,19 @@ export const ItemsRepository = {
     })
   },
 
+  async findEquippedWeapons(ownerId: string): Promise<{ LEFT_HAND: ItemWithTemplate | null; RIGHT_HAND: ItemWithTemplate | null }> {
+    const weapons = await prisma.itemInstance.findMany({
+      where: { ownerId, isEquipped: true, template: { type: 'WEAPON' }, status: { not: 'DELETED' } },
+      include: { template: true },
+      orderBy: { createdAt: 'asc' },
+    })
+    const legacy = weapons.find(item => item.armorSlot == null) ?? null
+    return {
+      LEFT_HAND: weapons.find(item => item.armorSlot === 'LEFT_HAND') ?? legacy,
+      RIGHT_HAND: weapons.find(item => item.armorSlot === 'RIGHT_HAND') ?? null,
+    }
+  },
+
   async findEquippedWeapon(ownerId: string): Promise<ItemWithTemplate | null> {
     // Ищем оружие: тип WEAPON, в слоте LEFT_HAND (новый) или без слота (старый стиль)
     return prisma.itemInstance.findFirst({

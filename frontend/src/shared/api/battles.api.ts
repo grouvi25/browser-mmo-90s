@@ -7,6 +7,7 @@ interface StartPveResponse {
 }
 
 export type BodyZone = 'HEAD' | 'CHEST' | 'LEGS' | 'RIGHT_ARM' | 'LEFT_ARM'
+export type AttackHand = 'LEFT_HAND' | 'RIGHT_HAND'
 export type Stance = 'attack2' | 'mixed' | 'defense4'
 
 export interface GridPosition { x: number; y: number }
@@ -17,12 +18,16 @@ export interface BattleParticipantProfile {
   level: number
   primaryHand: string | null
   secondaryHand: string | null
+  primaryRange: number
+  secondaryRange: number
 }
 
 export interface SubmitActionOpts {
   itemInstanceId?: string
+  weaponHand?: AttackHand
   stance?: Stance
   attackZones?: BodyZone[]
+  attackHands?: AttackHand[]
   blockZones?: BodyZone[]
   moveTo?: GridPosition
   targetParticipantId?: string
@@ -49,6 +54,7 @@ interface ActionResponse {
     action: string; hit: boolean; dodge: boolean; block: boolean
     crit: boolean; lucky?: boolean; blockPierced?: boolean; zone?: BodyZone
     counterDamage?: number
+    sourceHand?: AttackHand
     rawDamage: number; finalDamage: number; logParts: string[]
   }>
 }
@@ -105,8 +111,10 @@ export const battlesApi = {
     api.post<ActionResponse>(`/api/battles/${battleId}/action`, {
       action,
       itemInstanceId: opts?.itemInstanceId,
+      weaponHand: opts?.weaponHand,
       stance: opts?.stance,
       attackZones: opts?.attackZones,
+      attackHands: opts?.attackHands,
       blockZones: opts?.blockZones,
       moveTo: opts?.moveTo,
       targetParticipantId: opts?.targetParticipantId,

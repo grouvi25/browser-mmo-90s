@@ -10,7 +10,7 @@ import { z } from 'zod'
 import { ITEM_STAT_KEYS } from '../items/item-stats.formulas'
 import { ItemStatsService } from '../items/item-stats.service'
 
-const EquipSchema = z.object({ itemInstanceId: z.string().uuid() })
+const EquipSchema = z.object({ itemInstanceId: z.string().uuid(), hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional() })
 const UnequipSchema = z.object({ armorSlot: z.string().optional(), itemInstanceId: z.string().uuid().optional() })
 const AllocateSchema = z.object({ itemInstanceId: z.string().uuid(), stat: z.enum(ITEM_STAT_KEYS), points: z.number().int().min(1).max(100) })
 
@@ -70,17 +70,17 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         }
       }
 
-      const slot = item.template.type === 'ARMOR' || item.template.type === 'SHIELD'
-        ? item.template.armorSlot
-        : null
+      const slot = item.template.type === 'WEAPON'
+        ? (parsed.data.hand ?? 'LEFT_HAND')
+        : item.template.type === 'ARMOR' || item.template.type === 'SHIELD'
+          ? item.template.armorSlot
+          : null
       const existing = await tx.itemInstance.findMany({
         where: {
           ownerId: char.id,
           isEquipped: true,
           status: { not: 'DELETED' },
-          ...(item.template.type === 'WEAPON'
-            ? { template: { type: 'WEAPON' } }
-            : { armorSlot: slot }),
+          armorSlot: slot,
         },
         select: { id: true },
       })
