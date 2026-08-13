@@ -29,7 +29,7 @@ const ZONE_LABEL: Record<BodyZone, string> = {
 }
 const STANCES: { key: Stance; label: string; attacks: number; blocks: number; hint: string }[] = [
   { key: 'attack2',  label: '2 удара',      attacks: 2, blocks: 0, hint: 'Максимум урона, ты открыт' },
-  { key: 'mixed',    label: '1 удар + блок', attacks: 1, blocks: 1, hint: 'Размен' },
+  { key: 'mixed',    label: '1 удар + 2 блока', attacks: 1, blocks: 2, hint: 'Сбалансированная стойка' },
   { key: 'defense4', label: '4 блока',      attacks: 0, blocks: 4, hint: 'Глухая защита: закрыто 4 из 5 зон' },
 ]
 

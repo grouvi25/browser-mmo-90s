@@ -7,7 +7,7 @@ import { LocationView, type LocationAction } from '../../widgets/location-view/l
 const ACTIONS: LocationAction[] = [
   { key: 'repair', label: 'Мастерская', to: '/repair', hint: 'Починить снаряжение' },
   { key: 'upgrades', label: 'Улучшения', to: '/upgrades', hint: 'Усилить вещь навсегда, с риском' },
-  { key: 'shops', label: 'Частные лавки', to: '/private-shops', hint: 'Снаряжение 2-го уровня и детали' },
+  { key: 'shops', label: 'Частные лавки', to: '/shops/private', hint: 'Снаряжение 2-го уровня и детали' },
 ]
 
 export function GaragesPage() {

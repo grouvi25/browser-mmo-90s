@@ -31,6 +31,7 @@ export function MobileShell() {
   const { signOut } = useAuth()
   const [sheet, setSheet] = useState<Sheet>(null)
   const viewRef = useRef<HTMLElement>(null)
+  const sheetCloseRef = useRef<HTMLButtonElement>(null)
 
   const { data: char } = useQuery({
     queryKey: ['character', 'me'],
@@ -40,6 +41,16 @@ export function MobileShell() {
 
   // переход между разделами закрывает открытую шторку
   useEffect(() => setSheet(null), [location.pathname])
+
+  useEffect(() => {
+    if (!sheet) return
+    sheetCloseRef.current?.focus()
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSheet(null)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [sheet])
 
   // подписи колонок для таблиц, свёрнутых в карточки
   useTableLabels(viewRef, true)
@@ -103,10 +114,15 @@ export function MobileShell() {
       </nav>
 
       {sheet && (
-        <div className="m-sheet" role="dialog">
+        <div
+          className="m-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label={sheet === 'chat' ? 'Чат и игроки онлайн' : 'Главное меню'}
+        >
           <button type="button" className="m-sheet__scrim" aria-label="Закрыть" onClick={() => setSheet(null)} />
           <div className="m-sheet__body">
-            <button type="button" className="m-sheet__close" onClick={() => setSheet(null)}>закрыть ✕</button>
+            <button ref={sheetCloseRef} type="button" className="m-sheet__close" onClick={() => setSheet(null)}>закрыть ✕</button>
 
             {sheet === 'chat' && <MobileChat />}
             {sheet === 'menu' && (
@@ -119,7 +135,7 @@ export function MobileShell() {
                 <button type="button" className="m-menu__item" onClick={() => go('/inventory')}>снаряжение</button>
                 <button type="button" className="m-menu__item" onClick={() => go('/skills')}>владение оружием</button>
                 <button type="button" className="m-menu__item" onClick={() => go('/stats')}>характеристики</button>
-                <button type="button" className="m-menu__item" onClick={() => go('/battles')}>история боёв</button>
+                <button type="button" className="m-menu__item" onClick={() => go('/battles/history')}>история боёв</button>
                 <button type="button" className="m-menu__item m-menu__item--exit" onClick={logout}>выход</button>
               </div>
             )}

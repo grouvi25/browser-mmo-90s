@@ -248,7 +248,7 @@ html, body {
 }
 .stage-nav__button:hover,
 .stage-nav__button.is-active { color: var(--red); }
-.stage-nav__button.is-locked { color: #6f6f6f; cursor: not-allowed; }
+.stage-nav__button.is-locked { color: #6f6f6f; cursor: help; }
 .stage-nav__button.is-locked:hover { color: #6f6f6f; }
 .stage-nav__button:focus-visible {
   outline: 2px solid var(--red);
@@ -347,7 +347,21 @@ html, body {
   font-family: var(--font-sign); text-transform: uppercase; font-weight: 700;
   font-size: 20px; margin-bottom: 8px;
 }
-.locked-note__text { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+.locked-note__text { font-size: 12px; color: #3f352f; line-height: 1.5; }
+.locked-note__meta { margin-top: 10px; color: #4b3d35; }
+
+/* Legacy dark alerts were unreadable on the paper scene. */
+.alert {
+  border: 1px solid #8a7563;
+  background: #f3e5d2;
+  color: #241c17;
+}
+.alert-error { border-color: #9b3038; background: #f0d6d4; color: #68141b; }
+.alert-success { border-color: #47723d; background: #dce8d5; color: #274b21; }
+.alert-warning { border-color: #8a6818; background: #eee0b9; color: #59420d; }
+.alert-info { border-color: #6f6258; background: #e9ddd0; color: #241c17; }
+.alert .linklike { color: #68141b; font-weight: 700; }
+.alert a { color: #68141b; font-weight: 700; }
 
 /* =============================================================
    ПЕРЕКРАСКА СТАРЫХ КОМПОНЕНТОВ ВНУТРИ ВЬЮПОРТА
@@ -429,7 +443,9 @@ html, body {
 
 /* Создание персонажа живёт вне вьюпорта — та же перекраска */
 .archetype-grid .arch-card {
+  width: 100%; min-height: 68px;
   background: rgba(255, 252, 245, .7); border: 1px solid #8a7563; color: #1e1a17;
+  font: inherit;
 }
 .archetype-grid .arch-card:hover { background: #fff; border-color: var(--red); }
 .archetype-grid .arch-card.selected { border-color: var(--red); background: #fff3e6; }

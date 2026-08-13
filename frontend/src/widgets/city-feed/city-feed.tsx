@@ -118,7 +118,7 @@ export function CityChat() {
           }}
           value={draft}
           onChange={e => setDraft(e.target.value)}
-          placeholder="Написать в чат района…"
+          placeholder="Демо-сообщение (только у вас)…"
           maxLength={200}
           spellCheck={false}
         />

@@ -43,7 +43,7 @@ export function BattleHistoryPage() {
         <div className="panel-body" style={{ padding: 0 }}>
           {!data || data.items.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '20px 12px', color: 'var(--text-dim)', fontSize: 11 }}>
-              Боёв ещё не было. <a href="#" onClick={e => { e.preventDefault(); navigate('/profile') }}>В бой →</a>
+              Боёв ещё не было. <a href="#" onClick={e => { e.preventDefault(); navigate('/pvp') }}>В бой →</a>
             </div>
           ) : (
             <>

@@ -69,7 +69,7 @@
 
 /* ── нижняя панель вкладок ──────────────────────────────────── */
 .m-tabbar {
-  flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, 1fr);
+  flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, 1fr);
   padding-bottom: env(safe-area-inset-bottom);
   background: rgba(250, 234, 221, .96); border-top: 1px solid #2b2b2b;
 }
@@ -81,6 +81,32 @@
 }
 .m-tabbar__btn:last-child { border-right: 0; }
 .m-tabbar__btn.is-active { color: var(--red); background: rgba(255, 255, 255, .5); }
+
+/* One predictable touch contract across the mobile shell. */
+.m-top__who,
+.m-top__exit,
+.m-strip__item,
+.m-tabbar__btn,
+.m-sheet__close,
+.m-menu__item,
+.m-chat__tabs button,
+.m-chat__form button,
+.m-chat__player,
+.hub__action { min-height: 44px; }
+
+@media (max-width: 900px) {
+  .panel-body .btn,
+  .panel-body button,
+  .panel-body input,
+  .panel-body select,
+  .panel-body textarea { min-height: 44px; }
+}
+
+/* Demo nick colours must remain readable on the light chat sheet. */
+.m-chat .city-chat__nick--1 { color: #8a3100; }
+.m-chat .city-chat__nick--2 { color: #243d91; }
+.m-chat .city-chat__nick--3 { color: #8b1830; }
+.m-chat .city-chat__nick--4 { color: #74401f; }
 
 /* ── шторка ─────────────────────────────────────────────────── */
 .m-sheet { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; }

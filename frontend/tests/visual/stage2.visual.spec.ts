@@ -105,6 +105,9 @@ test.describe('Stage 2 visual and browser flow', () => {
     await inputs.nth(3).fill(password)
     await page.locator('button[type="submit"]').click()
     await expect(page).toHaveURL(/\/character\/create$/)
+    await expect(page.locator('.arch-card')).toHaveCount(8)
+    await page.locator('.arch-card').nth(1).click()
+    await expect(page.locator('.arch-card').nth(1)).toHaveAttribute('aria-pressed', 'true')
     await page.locator('input[type="text"]').fill(`Hero_${suffix}`.slice(0, 30))
     await page.locator('button[type="submit"]').click()
     await expect(page).toHaveURL(/\/profile$/)
@@ -222,6 +225,24 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.getByRole('button', { name: 'Дело', exact: true })).toHaveCount(0)
   })
 
+  test('human-facing navigation reaches the destination promised by its label', async ({ page }, testInfo) => {
+    await authPage(page, seller)
+    await page.goto('/garages')
+    await page.locator('.hub__action', { hasText: 'Частные лавки' }).click()
+    await expect(page).toHaveURL(/\/shops\/private$/)
+
+    if (testInfo.project.name.startsWith('mobile')) {
+      await page.goto('/')
+      await page.locator('.m-tabbar__btn').nth(2).click()
+      const sheet = page.locator('.m-sheet')
+      await expect(sheet).toHaveAttribute('aria-modal', 'true')
+      await expect(sheet).toHaveAttribute('aria-label', 'Главное меню')
+      await expect(sheet.locator(':focus')).toHaveCount(1)
+      await sheet.getByRole('button', { name: 'история боёв' }).click()
+      await expect(page).toHaveURL(/\/battles\/history$/)
+    }
+  })
+
   test('E1 resources page shows weight and government inventory state', async ({ page }, testInfo) => {
     await authPage(page, seller)
     await page.goto('/resources')
@@ -271,7 +292,10 @@ test.describe('Stage 2 visual and browser flow', () => {
 
   test('Stage 2 pages meet automated WCAG A/AA checks and expose keyboard focus', async ({ page }, testInfo) => {
     await authPage(page, seller)
-    const routes = ['/work', '/resources', '/shops/private', '/market', '/upgrades']
+    const routes = [
+      '/work', '/resources', '/shops/private', '/market', '/upgrades',
+      '/shop', '/repair', '/stats', '/pvp', '/soon/farms',
+    ]
 
     for (const route of routes) {
       await page.goto(route)

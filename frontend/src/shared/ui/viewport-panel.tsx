@@ -42,7 +42,7 @@ export function LockedSection({ title, stage, what }: {
       <div className="locked-note">
         <div className="locked-note__title">Пока закрыто</div>
         <p className="locked-note__text">{what}</p>
-        <p className="locked-note__text" style={{ marginTop: 10, opacity: .8 }}>
+        <p className="locked-note__text locked-note__meta">
           Раздел появится в Этапе {stage}. Место в интерфейсе уже отведено.
         </p>
       </div>

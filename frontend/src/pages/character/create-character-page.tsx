@@ -83,14 +83,16 @@ export function CreateCharacterPage() {
               <label className="form-label">Архетип</label>
               <div className="archetype-grid">
                 {ARCHETYPES.map(arch => (
-                  <div
+                  <button
                     key={arch}
-                    className={`archetype-card${archetype === arch ? ' selected' : ''}`}
+                    type="button"
+                    className={`arch-card${archetype === arch ? ' selected' : ''}`}
+                    aria-pressed={archetype === arch}
                     onClick={() => setArchetype(arch)}
                   >
-                    <div className="arch-name">{ARCHETYPE_LABELS[arch]}</div>
-                    <div className="arch-bonus">{ARCHETYPE_BONUS[arch]}</div>
-                  </div>
+                    <span className="name">{ARCHETYPE_LABELS[arch]}</span>
+                    <span className="bonus">{ARCHETYPE_BONUS[arch]}</span>
+                  </button>
                 ))}
               </div>
             </div>

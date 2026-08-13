@@ -70,13 +70,13 @@ export function MobileChat() {
             <input
               value={draft}
               onChange={e => setDraft(e.target.value)}
-              placeholder="Написать в чат района…"
+              placeholder="Демо-сообщение (только у вас)…"
               maxLength={200}
               spellCheck={false}
             />
             <button type="submit">→</button>
           </form>
-          <p className="m-chat__note">Транспорт чата подключается в Этапе 3 — лента демонстрационная.</p>
+          <p className="m-chat__note">Демо: сообщение видно только вам и исчезнет после обновления страницы. Общий чат появится в Этапе 3.</p>
         </>
       ) : (
         <div className="m-chat__online">
