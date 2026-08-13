@@ -198,7 +198,14 @@
   .data-table td:empty { display: none; }
 
   /* формы и кнопки внутри разделов: пальцем, а не мышью */
-  .panel-body select, .panel-body input, .btn { min-height: 38px; }
+  .panel-body select, .panel-body input, .btn { min-height: 44px; }
+  .viewport__content a,
+  .viewport__content button,
+  .m-dossier__bar button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
   .panel-body input[type='number'] { max-width: 110px; }
 
   /* локация: картинка и действия под ней, а не поверх */

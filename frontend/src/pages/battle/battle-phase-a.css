@@ -38,7 +38,7 @@
 .battle-fighter-panel__hp { position: relative; height: 13px; margin-top: 5px; overflow: hidden; border: 1px solid oklch(48% .04 52); background: oklch(79% .025 60); font: 700 8px/11px var(--font-mono); text-align: center; font-variant-numeric: tabular-nums; }
 .battle-fighter-panel__hp i { position: absolute; inset: 0; transform-origin: left; background: oklch(55% .10 135); transition: transform 300ms cubic-bezier(.22,1,.36,1); }
 .is-enemy .battle-fighter-panel__hp i { background: oklch(52% .13 25); }
-.battle-fighter-panel__hp span { position: relative; color: oklch(96% .01 70); text-shadow: 0 1px oklch(25% .02 55); }
+.battle-fighter-panel__hp span { position: relative; color: oklch(15% .018 48); text-shadow: 0 1px oklch(96% .01 70); }
 .battle-fighter-panel__mode { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; background: oklch(91% .025 70); border-bottom: 1px solid oklch(68% .025 60); font-size: 8px; text-transform: uppercase; letter-spacing: .07em; color: oklch(43% .026 55); }
 .battle-fighter-panel__mode b { font: 700 9px/1 var(--font-mono); }
 .is-self .battle-fighter-panel__mode b { color: oklch(38% .09 135); }
@@ -296,16 +296,48 @@
 .battle-hand-zone { display:grid; grid-template-rows:auto 1fr; padding:2px 3px; cursor:default; }
 .battle-hand-zone > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .battle-hand-zone > div { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:2px; }
-.battle-hand-zone button { min-width:0; min-height:18px; padding:0; border:1px solid oklch(55% .04 55); background:oklch(94% .02 75); color:oklch(30% .03 55); font:700 8px/1 var(--font-mono); cursor:pointer; }
+.battle-hand-zone button { min-width:24px; min-height:28px; padding:0; border:1px solid oklch(55% .04 55); background:oklch(94% .02 75); color:oklch(30% .03 55); font:700 8px/1 var(--font-mono); cursor:pointer; }
 .battle-hand-zone button.is-selected { border-color:oklch(42% .14 25); background:oklch(45% .14 25); color:oklch(97% .01 70); }
 .battle-hand-zone button:disabled { opacity:.35; cursor:not-allowed; }
 @media (max-width:900px) { .battle-hand-zone { font-size:0; } .battle-hand-zone > div { height:100%; margin:0; align-items:center; } .battle-hand-zone button { min-height:30px; font-size:8px; } }
 
 .battle-command-dock__stances > span {
   min-width: 0; display: grid; place-items: center; align-content: center;
-  border: 1px solid oklch(65% .03 60); background: oklch(93% .018 75);
-  color: oklch(45% .025 55); text-align: center; opacity: .55;
+  border: 1px solid oklch(60% .03 60); background: oklch(90% .018 75);
+  color: oklch(35% .025 55); text-align: center; opacity: 1;
 }
 .battle-command-dock__stances > span b { font: 700 9px/1.1 var(--font-sign); text-transform: uppercase; }
 .battle-command-dock__stances > span small { margin-top: 3px; font: 700 8px/1 var(--font-mono); }
 .battle-command-dock__stances > span.is-selected { opacity: 1; border: 2px solid oklch(47% .09 80); background: oklch(90% .055 80); color: oklch(28% .04 55); }
+
+
+/* Portrait phones need composition, not a squeezed desktop duel. The field gets
+   the full width, then both readable fighter controls share the second row. */
+@media (max-width: 600px) and (min-height: 521px) {
+  .battle-duel-stage {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: minmax(210px, 38%) minmax(0, 1fr);
+    grid-template-areas:
+      'field field'
+      'self enemy';
+  }
+  .battle-fighter-panel.is-self { grid-area: self; border-right: 1px solid oklch(51% .035 55); border-top: 1px solid oklch(51% .035 55); }
+  .battle-fighter-panel.is-enemy { grid-area: enemy; border-left: 0; border-top: 1px solid oklch(51% .035 55); }
+  .battle-field-v3 { grid-area: field; }
+  .battle-fighter-panel__head b { font-size: 10px; }
+  .battle-fighter-panel__head small { font-size: 8px; }
+  .battle-fighter-panel__mode { font-size: 8px; }
+  .battle-fighter-panel__hands span { font-size: 7px; }
+  .battle-fighter-panel__hands b { font-size: 8px; }
+  .battle-fighter-panel__body { width: 96px; height: 132px; }
+  .battle-hand-zone { width: 92px !important; min-width: 92px; }
+  .battle-hand-zone.is-head,.battle-hand-zone.is-chest,.battle-hand-zone.is-legs { left: calc(50% - 46px); }
+  .battle-hand-zone > div { grid-template-columns: repeat(2, minmax(40px, 1fr)); gap: 3px; }
+  .battle-hand-zone button { min-width: 40px; min-height: 44px; font-size: 10px; }
+  .battle-field-v3 .designer-battle-field { width: min(100cqw, calc(100cqh * 1.824249)); }
+}
+
+.battle-command-dock__stances > span:not(.is-selected) {
+  color: oklch(25% .025 55);
+  background: oklch(88% .018 75);
+}

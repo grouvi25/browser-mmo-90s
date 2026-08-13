@@ -31,7 +31,7 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
           <span>{zone.label}</span><div>
             {(['LEFT_HAND','RIGHT_HAND'] as const).map(hand => <button key={hand} type="button"
               className={handSelected(hand, zone.key) ? 'is-selected' : ''}
-              aria-label={`${hand === 'LEFT_HAND' ? 'Левая' : 'Правая'} рука: удар в ${zone.label.toLocaleLowerCase('ru')}`}
+              aria-label={`???? ${hand === 'LEFT_HAND' ? '?????' : '??????'} ?????, ????: ${zone.label.toLocaleLowerCase('ru')}`}
               aria-pressed={handSelected(hand, zone.key)}
               disabled={props.disabled || props.disabledHands?.includes(hand) || props.limit === 0 || (handUsed(hand) && !handSelected(hand, zone.key)) || (!handSelected(hand, zone.key) && props.selected.length >= props.limit)}
               onClick={() => props.onHandZone?.(hand, zone.key)}>{hand === 'LEFT_HAND' ? 'Л' : 'П'}</button>)}
