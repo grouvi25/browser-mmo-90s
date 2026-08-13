@@ -212,3 +212,20 @@
 @media (prefers-reduced-motion: reduce) {
   .battle-fighter-zone,.battle-fighter-panel__hp i { transition: none; }
 }
+.battle-page-v3 .fighter-token .token-label {
+  color: oklch(97% .01 70);
+  background: oklch(24% .025 245);
+  padding: 1px 3px;
+  text-shadow: none;
+}
+.battle-page-v3 .token-player,
+.battle-page-v3 .token-enemy { color: oklch(97% .01 70); }
+@media (max-width: 900px) {
+  .battle-command-dock__actions,
+  .battle-submit-turn,
+  .battle-command-tools,
+  .battle-command-tools button { min-width: 0; max-width: 100%; }
+  .battle-submit-turn { width: 100%; padding-inline: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .battle-command-tools { overflow: hidden; }
+  .battle-command-tools button { padding-inline: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
