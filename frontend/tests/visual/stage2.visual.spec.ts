@@ -4,6 +4,7 @@ import AxeBuilder from '@axe-core/playwright'
 type Account = { token: string; userId: string; login: string; nickname: string; characterId: string }
 let seller: Account
 let buyer: Account
+let worker: Account
 let listingId = ''
 let apiContext: APIRequestContext
 const API = process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:4000'
@@ -67,6 +68,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     apiContext = await playwrightRequest.newContext({ baseURL: API })
     seller = await createAccount(apiContext, `seller_${testInfo.project.name}`)
     buyer = await createAccount(apiContext, `buyer_${testInfo.project.name}`)
+    worker = await createAccount(apiContext, `worker_${testInfo.project.name}`)
     const sellerItem = await buyPrivateItem(apiContext, seller, 'armor_boots_army_private')
     await buyPrivateItem(apiContext, buyer, 'armor_leather_jacket_private')
     const listed = await apiContext.post('/api/market/listings', {
@@ -127,6 +129,34 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.getByText('Объекты города')).toBeVisible()
     await expect(page.locator('tbody tr')).toHaveCount(6)
     await visualProof(page, testInfo, 'e2-work')
+  })
+
+  test('work browser flow requires a tool, buys it and starts a shift', async ({ page }, testInfo) => {
+    await authPage(page, worker)
+    await page.goto('/work')
+    await expect(page.getByRole('button', { name: 'Нужен инструмент' }).first()).toBeVisible()
+
+    const shop = await apiContext.get('/api/shops/government/items', { headers: { Authorization: `Bearer ${worker.token}` } })
+    expect(shop.status()).toBe(200)
+    const tool = (await shop.json() as Array<{ templateId: string; template: { type: string; toolTier: number | null } }>).find(item => item.template.type === 'TOOL' && item.template.toolTier === 1)
+    expect(tool).toBeTruthy()
+    const purchase = await apiContext.post('/api/shops/government/buy', {
+      headers: { Authorization: `Bearer ${worker.token}` }, data: { templateId: tool!.templateId },
+    })
+    expect(purchase.status()).toBe(201)
+
+    await page.reload()
+    const start = page.getByRole('button', { name: 'Выйти' }).first()
+    await expect(start).toBeEnabled()
+    await start.click()
+    await expect(page.getByText('В процессе')).toBeVisible()
+    await expect(page.getByText('Инструмент:', { exact: false })).toBeVisible()
+    await visualProof(page, testInfo, 'e2-work-tool-shift')
+
+    const current = await apiContext.get('/api/work/shifts/current', { headers: { Authorization: `Bearer ${worker.token}` } })
+    const shiftId = (await current.json() as { shift: { id: string } }).shift.id
+    const cancelled = await apiContext.post(`/api/work/shifts/${shiftId}/cancel`, { headers: { Authorization: `Bearer ${worker.token}` } })
+    expect(cancelled.status()).toBe(200)
   })
 
   test('balance sandbox reacts to inputs and exports a report', async ({ page }, testInfo) => {

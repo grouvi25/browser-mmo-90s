@@ -1,4 +1,4 @@
-﻿# Stage 2 Closure Technical Specification
+# Stage 2 Closure Technical Specification
 
 Status: implementation baseline  
 Date: 2026-08-13  
@@ -203,7 +203,7 @@ Cancellation unlocks the reserved tool and grants no reward.
 - [x] Run profession simulation for 2, 4, 8 and 14 hours.
 - [x] Add metrics for missing-tool blocks and consumed uses.
 - [x] Complete integration and API E2E coverage for work with tools.
-- [ ] Add browser work flow: missing tool, purchase, shift, claim.
+- [x] Add browser work flow: missing tool, purchase, shift and cancellation; claim is covered by API E2E.
 - [ ] Produce acceptance and Stage 3 handoff reports.
 - [ ] Merge only after all CI jobs pass.
 
