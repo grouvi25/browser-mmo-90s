@@ -122,6 +122,29 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.locator('form')).toBeVisible()
   })
 
+  test('illustrated navigation labels stay centred in their frames', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Illustrated stage navigation is desktop-only')
+    await authPage(page, seller)
+    await page.goto('/industrial')
+    await expect(page.locator('.stage-nav')).toHaveCount(2)
+    await expect(page.locator('.stage-nav').nth(0).locator('.stage-nav__button')).toHaveCount(7)
+    await expect(page.locator('.stage-nav').nth(1).locator('.stage-nav__button')).toHaveCount(6)
+
+    const offsets = await page.locator('.stage-nav__button').evaluateAll(buttons => buttons.map(button => {
+      const frame = button.querySelector<HTMLElement>('.stage-nav__frame')!.getBoundingClientRect()
+      const label = button.querySelector<HTMLElement>('.stage-nav__label-text')!.getBoundingClientRect()
+      return {
+        dx: Math.abs((label.left + label.right - frame.left - frame.right) / 2),
+        inside: label.left >= frame.left - 0.1 && label.right <= frame.right + 0.1,
+      }
+    }))
+
+    for (const offset of offsets) {
+      expect(offset.dx).toBeLessThan(0.25)
+      expect(offset.inside).toBe(true)
+    }
+  })
+
   test('E2 work page shows shift controls and six workplaces', async ({ page }, testInfo) => {
     await authPage(page, seller)
     await page.goto('/work')

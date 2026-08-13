@@ -32,21 +32,25 @@ export const MENU = {
   navDy: -2,
 
   /** районы города — переключают содержимое центрального вьюпорта */
+  districtStrip: box(340.5, 91.5, 976.5, 27),
+  districtGap: 8,
   districts: [
-    { key: 'center', label: 'Центр', x: 350, y: 98, w: 62, to: '/' },
-    { key: 'market', label: 'Рынок', x: 468, y: 98, w: 66, to: '/market' },
-    { key: 'industrial', label: 'Промзона', x: 588, y: 98, w: 100, to: '/industrial' },
-    { key: 'agriculture', label: 'Фермы и колхозы', x: 724, y: 98, w: 162, to: '/agriculture' },
-    { key: 'station', label: 'Вокзал', x: 914, y: 98, w: 70, to: '/station' },
-    { key: 'garages', label: 'Гаражи', x: 1020, y: 98, w: 74, to: '/garages' },
-    { key: 'suburb', label: 'Спальный район', x: 1124, y: 98, w: 160, to: '/pvp' },
+    { key: 'center', label: 'Центр', to: '/' },
+    { key: 'market', label: 'Рынок', to: '/market' },
+    { key: 'industrial', label: 'Промзона', to: '/industrial' },
+    { key: 'agriculture', label: 'Фермы и колхозы', to: '/agriculture' },
+    { key: 'station', label: 'Вокзал', to: '/station' },
+    { key: 'garages', label: 'Гаражи', to: '/garages' },
+    { key: 'suburb', label: 'Спальный район', to: '/pvp' },
   ],
 
   /** нижняя полоса — экономика Этапов 2–3 */
+  bottomStrip: box(356, 623, 961, 28),
+  bottomGap: 10,
   bottomTabs: [
-    { key: 'shop', label: 'Магазин', x: 382.5, y: 630, w: 72, to: '/shop' },
-    { key: 'private', label: 'Частные лавки', x: 500, y: 630, w: 110, to: '/shops/private' },
-    { key: 'inventory', label: 'Снаряжение', x: 660, y: 630, w: 95, to: '/inventory' },
+    { key: 'shop', label: 'Магазин', to: '/shop' },
+    { key: 'private', label: 'Частные лавки', to: '/shops/private' },
+    { key: 'inventory', label: 'Снаряжение', to: '/inventory' },
   ],
   rooms: {
     industrial: [
