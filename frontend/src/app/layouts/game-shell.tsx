@@ -28,7 +28,7 @@ export function GameShell() {
   const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
 
   return (
-    <Stage width={MENU_STAGE.w} height={MENU_STAGE.h} fit="contain" className="stage--menu">
+    <Stage width={MENU_STAGE.w} height={MENU_STAGE.h} fit="contain" backdrop={plate} className="stage--menu">
       <div className="stage__plate" style={{ backgroundImage: plate }} />
 
       <TopNav />

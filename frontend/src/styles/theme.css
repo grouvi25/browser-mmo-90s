@@ -100,9 +100,24 @@ html, body {
   position: relative;
   width: 100%;
   overflow: hidden;
+  isolation: isolate;
+  background: #b0a2b0;
+}
+.stage-backdrop {
+  position: absolute;
+  z-index: 0;
+  inset: -24px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: blur(18px) saturate(.82) contrast(.92);
+  opacity: .72;
+  transform: scale(1.035);
+  pointer-events: none;
 }
 .stage {
   position: absolute;
+  z-index: 1;
   left: 50%;
   top: 0;
   transform-origin: top left;
@@ -486,6 +501,29 @@ html, body {
    ГОРОД ВО ВЬЮПОРТЕ
    ============================================================= */
 
+.location-overview {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  padding: 28px;
+  text-align: center;
+  color: #241c17;
+}
+.location-overview h1 {
+  margin: 0;
+  font: 700 30px/1 var(--font-sign);
+  text-transform: uppercase;
+}
+.location-overview p {
+  max-width: 52ch;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #4b3d35;
+}
+
 .hub { position: absolute; inset: 0; }
 .hub__scene { width: 100%; height: 100%; object-fit: cover; display: block; }
 .hub__overlay {
@@ -559,7 +597,6 @@ html, body {
   font: inherit; color: var(--red);
 }
 .card-list__more:hover { text-decoration: underline; }
-.card-topstrip { opacity: 0; }
 
 /* =============================================================
    ЧАТ: ЦВЕТА НИКОВ ИЗ МАКЕТА

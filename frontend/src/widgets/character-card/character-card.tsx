@@ -11,7 +11,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { MENU, ZONE_ARMOR_SLOTS } from '../../shared/lib/layout-map'
 import { FitText, Layer } from '../../shared/lib/stage'
-import { Hotspot, Sprite, SpriteButton } from '../../shared/ui/sprite'
+import { Sprite, SpriteButton } from '../../shared/ui/sprite'
 import type { ItemInstance } from '../../shared/types/api.types'
 import { ARMOR_SLOT_LABELS, WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
 import { itemImage } from '../../shared/assets/shop/shop-images'
@@ -179,7 +179,7 @@ export function CharacterCard() {
                 box={z.box}
                 className="zone-hot"
                 active={zone === key}
-                title={`${ZONE_LABELS[key]} · броня ${armor}`}
+                title={`${z.label} · броня ${armor}`}
                 onClick={() => setZone(zone === key ? null : key)}
               />
             )
@@ -237,13 +237,6 @@ export function CharacterCard() {
         </Layer>
       )}
 
-      {/* невидимая область: клик по бумаге карточки уводит в личное дело */}
-      <Hotspot
-        box={C.topStrip}
-        title="Личное дело"
-        className="card-topstrip"
-        onClick={() => navigate('/profile')}
-      />
     </>
   )
 }

@@ -102,7 +102,9 @@ export function MobileShell() {
         <ErrorBoundary><Outlet /></ErrorBoundary>
       </main>
 
-      {strip(MENU.rooms[districtKey(location.pathname)] ?? MENU.bottomTabs, 'economy')}
+      {MENU.rooms[districtKey(location.pathname)]
+        ? strip(MENU.rooms[districtKey(location.pathname)], 'economy')
+        : null}
 
       <nav className="m-tabbar">
         <button type="button" className={'m-tabbar__btn' + (location.pathname === '/' ? ' is-active' : '')}

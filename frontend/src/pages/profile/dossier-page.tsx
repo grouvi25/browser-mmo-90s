@@ -173,7 +173,7 @@ export function DossierPage() {
 
   return (
     <Stage width={PROFILE_STAGE.w} height={PROFILE_STAGE.h}
-      fit="contain" className="stage--profile">
+      fit="contain" backdrop={plate} className="stage--profile">
       <div className="stage__plate" style={{ backgroundImage: plate }} />
 
       {/* поиск игрока — работает через /api/characters/by-nickname */}

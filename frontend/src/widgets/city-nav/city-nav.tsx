@@ -144,11 +144,15 @@ export function TopNav() {
 }
 
 export function districtKey(path: string) {
-  if (['/industrial', '/work', '/resources', '/upgrades', '/repair'].some(x => path.startsWith(x))
-    || path.includes('equipment-production')) return 'industrial'
+  if (path === '/' || ['/inventory', '/skills', '/stats', '/battles/history'].some(x => path.startsWith(x))) return 'center'
+  if (['/industrial', '/work', '/resources'].some(x => path.startsWith(x))
+    || path.includes('equipment-production') || path.includes('/soon/storage')) return 'industrial'
   if (path.startsWith('/agriculture')
-    || ['farms', 'kolhoz', 'plants', 'products'].some(x => path.includes(x))) return 'agriculture'
+    || ['farms', 'kolhoz', 'plants', 'products', 'crop-storage'].some(x => path.includes(x))) return 'agriculture'
+  if (['/garages', '/upgrades', '/repair'].some(x => path.startsWith(x))) return 'garages'
   if (['/market', '/shop', '/shops/private'].some(x => path.startsWith(x))) return 'market'
+  if (path.startsWith('/pvp')) return 'suburb'
+  if (path.startsWith('/station')) return 'station'
   return ''
 }
 
@@ -174,7 +178,8 @@ export function BottomTabs() {
   const navigate = useNavigate()
   const location = useLocation()
   const key = districtKey(location.pathname)
-  const tabs = MENU.rooms[key] ?? MENU.bottomTabs
+  const tabs = MENU.rooms[key]
+  if (!tabs?.length) return null
   const activeKey = tabs.find(tab => tab.to === location.pathname)?.key ?? ''
 
   return (

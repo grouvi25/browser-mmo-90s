@@ -1,3 +1,20 @@
-import{Link}from'react-router-dom'
-const LOCATIONS={industrial:{title:'Промзона',note:'Запчасти, производство и обслуживание снаряжения',rooms:[['Работа','/work'],['Сырьё и детали','/resources'],['Производство шмота','/soon/equipment-production'],['Улучшение шмота','/upgrades'],['Ремонт','/repair'],['Склад','/soon/storage']]},agriculture:{title:'Фермы и колхозы',note:'Растения, урожай и сельское производство',rooms:[['Фермы','/soon/farms'],['Колхозы','/soon/kolhoz'],['Растения','/soon/plants'],['Продукты','/soon/products'],['Склад урожая','/soon/storage']]}} as const
-export function LocationHubPage({kind}:{kind:keyof typeof LOCATIONS}){const x=LOCATIONS[kind];return <div className="panel"><div className="panel-header"><span className="panel-title">{x.title}</span></div><div className="panel-body"><p className="text-dim">{x.note}</p><nav className="location-room-list">{x.rooms.map(([label,to])=><Link className="btn" key={to} to={to}>{label}</Link>)}</nav></div></div>}
+const LOCATIONS = {
+  industrial: {
+    title: 'Промзона',
+    note: 'Работа, запчасти, производство и склад находятся в нижней полосе района.',
+  },
+  agriculture: {
+    title: 'Фермы и колхозы',
+    note: 'Фермы, колхозы, растения, продукты и склад урожая находятся в нижней полосе района.',
+  },
+} as const
+
+export function LocationHubPage({ kind }: { kind: keyof typeof LOCATIONS }) {
+  const location = LOCATIONS[kind]
+  return (
+    <div className="location-overview">
+      <h1>{location.title}</h1>
+      <p>{location.note}</p>
+    </div>
+  )
+}

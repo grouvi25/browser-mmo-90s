@@ -63,6 +63,8 @@ interface StageProps {
   maxScale?: number
   /** Готовый масштаб: сцена не считает его сама (нужно для привязки экранов) */
   scale?: number
+  /** Размытая полноэкранная подложка. Точная сцена поверх неё не растягивается. */
+  backdrop?: string
   className?: string
   children: ReactNode
 }
@@ -73,7 +75,7 @@ interface StageProps {
  */
 export function Stage({
   width, height, fit = 'contain', maxScale = 1.5,
-  scale: scaleOverride, className = '', children,
+  scale: scaleOverride, backdrop, className = '', children,
 }: StageProps) {
   const auto = useViewportScale(width, height, fit, maxScale)
   const scale = scaleOverride ?? auto
@@ -90,6 +92,13 @@ export function Stage({
   return (
     <StageContext.Provider value={{ scale }}>
       <div className="stage-holder" ref={holderRef} style={holderStyle}>
+        {backdrop && (
+          <div
+            className="stage-backdrop"
+            aria-hidden="true"
+            style={{ backgroundImage: backdrop }}
+          />
+        )}
         <div className={`stage ${className}`} style={stageStyle}>{children}</div>
       </div>
     </StageContext.Provider>

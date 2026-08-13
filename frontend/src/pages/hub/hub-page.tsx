@@ -1,18 +1,12 @@
 // =============================================================
-// Центр — стартовый вид вьюпорта.
+// Центр: сама сцена остаётся визуальной, переходы живут в единой
+// нижней полосе. Так одни и те же кнопки не повторяются дважды.
 // =============================================================
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
-import { LocationView, type LocationAction } from '../../widgets/location-view/location-view'
-
-const ACTIONS: LocationAction[] = [
-  { key: 'pve', label: 'В бой', to: '/pvp', hint: 'Арена: бой с ботом или дуэль' },
-  { key: 'shop', label: 'Магазин', to: '/shop', hint: 'Госцены, базовое снаряжение' },
-  { key: 'repair', label: 'Мастерская', to: '/repair', hint: 'Починить снаряжение' },
-  { key: 'inventory', label: 'Снаряжение', to: '/inventory', hint: 'Надеть и снять' },
-]
+import { LocationView } from '../../widgets/location-view/location-view'
 
 export function HubPage() {
   const navigate = useNavigate()
@@ -30,7 +24,7 @@ export function HubPage() {
       scene="center"
       alt="Центральная площадь"
       place="Центр · Центральная площадь"
-      actions={ACTIONS}
+      actions={[]}
     >
       {inBattle && battleId && (
         <button type="button" className="hub__resume" onClick={() => navigate(`/battle/${battleId}`)}>

@@ -131,7 +131,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     await page.goto('/industrial')
     await expect(page.locator('.stage-nav')).toHaveCount(2)
     await expect(page.locator('.stage-nav').nth(0).locator('.stage-nav__button')).toHaveCount(7)
-    await expect(page.locator('.stage-nav').nth(1).locator('.stage-nav__button')).toHaveCount(6)
+    await expect(page.locator('.stage-nav').nth(1).locator('.stage-nav__button')).toHaveCount(4)
 
     const offsets = await page.locator('.stage-nav__button').evaluateAll(buttons => buttons.map(button => {
       const frame = button.querySelector<HTMLElement>('.stage-nav__frame')!.getBoundingClientRect()
@@ -145,6 +145,29 @@ test.describe('Stage 2 visual and browser flow', () => {
     for (const offset of offsets) {
       expect(offset.dx).toBeLessThan(0.25)
       expect(offset.inside).toBe(true)
+    }
+  })
+
+  test('desktop scene fills side bands without distorting the authored plate', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop stage only')
+    await authPage(page, seller)
+
+    for (const route of ['/', '/profile']) {
+      await page.goto(route)
+      const geometry = await page.evaluate(() => {
+        const stage = document.querySelector<HTMLElement>('.stage')!.getBoundingClientRect()
+        const backdrop = document.querySelector<HTMLElement>('.stage-backdrop')!.getBoundingClientRect()
+        return {
+          ratio: stage.width / stage.height,
+          backdropLeft: backdrop.left,
+          backdropRight: backdrop.right,
+          viewportWidth: window.innerWidth,
+        }
+      })
+      const expectedRatio = route === '/' ? 1550 / 900 : 1600 / 900
+      expect(Math.abs(geometry.ratio - expectedRatio)).toBeLessThan(0.001)
+      expect(geometry.backdropLeft).toBeLessThanOrEqual(0)
+      expect(geometry.backdropRight).toBeGreaterThanOrEqual(geometry.viewportWidth)
     }
   })
 
@@ -225,10 +248,20 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.getByRole('button', { name: 'Дело', exact: true })).toHaveCount(0)
   })
 
-  test('human-facing navigation reaches the destination promised by its label', async ({ page }, testInfo) => {
+  test('visual navigation has one visible control per destination', async ({ page }, testInfo) => {
     await authPage(page, seller)
-    await page.goto('/garages')
-    await page.locator('.hub__action', { hasText: 'Частные лавки' }).click()
+
+    for (const route of ['/', '/industrial', '/agriculture', '/garages']) {
+      await page.goto(route)
+      const labels = await page.locator('button:visible, a[href]:visible').evaluateAll(elements =>
+        elements.map(element => (element.textContent ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru'))
+          .filter(Boolean),
+      )
+      expect(new Set(labels).size, `duplicate visible controls on ${route}`).toBe(labels.length)
+    }
+
+    await page.goto('/market')
+    await page.getByRole('button', { name: 'Частные лавки', exact: true }).click()
     await expect(page).toHaveURL(/\/shops\/private$/)
 
     if (testInfo.project.name.startsWith('mobile')) {

@@ -48,6 +48,7 @@ const SOON: Record<string, { title: string; stage: number; what: string }> = {
   products:  { title: 'Продукты', stage: 3, what: 'Еда и напитки из баров, временные эффекты перед боем и работой.' },
   storage:   { title: 'Склад', stage: 2, what: 'Хранение ресурсов и деталей сверх носимого веса.' },
   plants:    { title: 'Растения', stage: 3, what: 'Посадки, уход и сбор урожая.' },
+  'crop-storage': { title: 'Склад урожая', stage: 3, what: 'Хранение растений и готовой сельхозпродукции.' },
   'equipment-production': { title: 'Производство шмота', stage: 3, what: 'Изготовление снаряжения в отдельной комнате Промзоны.' },
 }
 

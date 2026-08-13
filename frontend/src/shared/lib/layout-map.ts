@@ -44,27 +44,36 @@ export const MENU = {
     { key: 'suburb', label: 'Спальный район', to: '/pvp' },
   ],
 
-  /** нижняя полоса — экономика Этапов 2–3 */
+  /** Нижняя полоса показывает комнаты выбранного района, без повторов из самой сцены. */
   bottomStrip: box(356, 623, 961, 28),
   bottomGap: 10,
-  bottomTabs: [
-    { key: 'shop', label: 'Магазин', to: '/shop' },
-    { key: 'private', label: 'Частные лавки', to: '/shops/private' },
-    { key: 'inventory', label: 'Снаряжение', to: '/inventory' },
-  ],
   rooms: {
-    industrial: [
-      { key: 'work', label: 'Работа', to: '/work' }, { key: 'resources', label: 'Запчасти', to: '/resources' },
-      { key: 'make', label: 'Делают шмот', to: '/soon/equipment-production' }, { key: 'upgrades', label: 'Улучшают шмот', to: '/upgrades' },
-      { key: 'repair', label: 'Ремонт', to: '/repair' }, { key: 'storage', label: 'Склад', to: '/soon/storage' },
-    ],
-    agriculture: [
-      { key: 'farms', label: 'Фермы', to: '/soon/farms' }, { key: 'kolhoz', label: 'Колхозы', to: '/soon/kolhoz' },
-      { key: 'plants', label: 'Растения', to: '/soon/plants' }, { key: 'products', label: 'Продукты', to: '/soon/products' },
+    center: [
+      { key: 'inventory', label: 'Снаряжение', to: '/inventory' },
+      { key: 'skills', label: 'Оружейные навыки', to: '/skills' },
+      { key: 'stats', label: 'Характеристики', to: '/stats' },
+      { key: 'history', label: 'История боёв', to: '/battles/history' },
     ],
     market: [
-      { key: 'market', label: 'Рынок игроков', to: '/market' }, { key: 'shop', label: 'Госмагазин', to: '/shop' },
+      { key: 'shop', label: 'Госмагазин', to: '/shop' },
       { key: 'private', label: 'Частные лавки', to: '/shops/private' },
+    ],
+    industrial: [
+      { key: 'work', label: 'Работа', to: '/work' },
+      { key: 'resources', label: 'Запчасти', to: '/resources' },
+      { key: 'make', label: 'Делают шмот', to: '/soon/equipment-production' },
+      { key: 'storage', label: 'Склад', to: '/soon/storage' },
+    ],
+    agriculture: [
+      { key: 'farms', label: 'Фермы', to: '/soon/farms' },
+      { key: 'kolhoz', label: 'Колхозы', to: '/soon/kolhoz' },
+      { key: 'plants', label: 'Растения', to: '/soon/plants' },
+      { key: 'products', label: 'Продукты', to: '/soon/products' },
+      { key: 'storage', label: 'Склад урожая', to: '/soon/crop-storage' },
+    ],
+    garages: [
+      { key: 'repair', label: 'Мастерская', to: '/repair' },
+      { key: 'upgrades', label: 'Улучшения', to: '/upgrades' },
     ],
   } as Record<string, readonly { key:string;label:string;to:string }[]>,
   bottomFontSize: 15.1,
@@ -104,16 +113,14 @@ export const MENU = {
     body: box(36, 406, 282, 236),
     /** подпись выбранной зоны — под слотами, ещё внутри бумаги */
     zoneNote: box(36, 620, 282, 24),
-    /** полоска над портретом: клик по ней уводит в личное дело */
-    topStrip: box(8, 100, 328, 30),
     /** зоны тела — те же пять, что в боевой системе */
     zones: [
       { key: 'HEAD', sprite: 'zone-head', box: box(172, 407, 15, 19), label: 'Голова' },
       { key: 'CHEST', sprite: 'zone-chest', box: box(165, 426.5, 27.5, 39), label: 'Корпус' },
       { key: 'LEFT_ARM', sprite: 'zone-left-arm', box: box(151.5, 432, 13.5, 41.5), label: 'Левая рука' },
       { key: 'RIGHT_ARM', sprite: 'zone-right-arm', box: box(192.5, 432, 14.5, 41.5), label: 'Правая рука' },
-      { key: 'LEGS', sprite: 'zone-left-leg', box: box(165, 465, 14, 54.5), label: 'Ноги' },
-      { key: 'LEGS_R', sprite: 'zone-right-leg', box: box(180, 465, 13.5, 54.5), label: 'Ноги' },
+      { key: 'LEGS', sprite: 'zone-left-leg', box: box(165, 465, 14, 54.5), label: 'Левая нога' },
+      { key: 'LEGS_R', sprite: 'zone-right-leg', box: box(180, 465, 13.5, 54.5), label: 'Правая нога' },
     ],
   },
 
