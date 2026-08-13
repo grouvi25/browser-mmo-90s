@@ -185,7 +185,7 @@ test.describe('Stage 2 visual and browser flow', () => {
   test('work browser flow requires a tool, buys it and starts a shift', async ({ page }, testInfo) => {
     await authPage(page, worker)
     await page.goto('/work')
-    await expect(page.getByRole('button', { name: 'Нужен инструмент' }).first()).toBeVisible()
+    await expect(page.getByText(/Нужен инструмент T1/).first()).toBeVisible()
 
     const shop = await apiContext.get('/api/shops/government/items', { headers: { Authorization: `Bearer ${worker.token}` } })
     expect(shop.status()).toBe(200)
@@ -197,7 +197,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(purchase.status()).toBe(201)
 
     await page.reload()
-    const start = page.getByRole('button', { name: 'Выйти' }).first()
+    const start = page.locator('#vacancies').getByRole('button', { name: 'Выйти' }).first()
     await expect(start).toBeEnabled()
     const startedResponse = page.waitForResponse(response => response.url().includes('/api/work/shifts/start') && response.request().method() === 'POST')
     await start.click()
