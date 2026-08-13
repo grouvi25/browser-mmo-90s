@@ -2,9 +2,11 @@
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { BalanceConfig } from '../src/config/balance.config'
 
 const prisma = new PrismaClient()
+
+// Must match BalanceConfig.economy.tools; kept inside prisma because the production image runs seed.ts without src/.
+const STAGE2_TOOL_TIERS = { 1: { price: 500, uses: 50 }, 2: { price: 1250, uses: 50 }, 3: { price: 1800, uses: 50 } } as const
 
 async function main() {
   console.log('🌱 Seeding database...')
@@ -118,9 +120,9 @@ async function main() {
   ]
 
   const toolTemplates = [
-    { code: 'tool_work_basic', name: 'Рабочий набор', description: 'Расходная оснастка для базовых производственных площадок.', type: 'TOOL' as const, toolTier: 1, usesMax: BalanceConfig.economy.tools.tiers[1].uses, weight: 1.0, durabilityMax: 1, priceBase: BalanceConfig.economy.tools.tiers[1].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
-    { code: 'tool_work_advanced', name: 'Профессиональная оснастка', description: 'Оснастка для оборудования второго тира.', type: 'TOOL' as const, toolTier: 2, usesMax: BalanceConfig.economy.tools.tiers[2].uses, weight: 1.5, durabilityMax: 1, priceBase: BalanceConfig.economy.tools.tiers[2].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
-    { code: 'tool_work_precision', name: 'Точная оснастка', description: 'Расходный инструмент для сложного производства.', type: 'TOOL' as const, toolTier: 3, usesMax: BalanceConfig.economy.tools.tiers[3].uses, weight: 2.0, durabilityMax: 1, priceBase: BalanceConfig.economy.tools.tiers[3].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
+    { code: 'tool_work_basic', name: 'Рабочий набор', description: 'Расходная оснастка для базовых производственных площадок.', type: 'TOOL' as const, toolTier: 1, usesMax: STAGE2_TOOL_TIERS[1].uses, weight: 1.0, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[1].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
+    { code: 'tool_work_advanced', name: 'Профессиональная оснастка', description: 'Оснастка для оборудования второго тира.', type: 'TOOL' as const, toolTier: 2, usesMax: STAGE2_TOOL_TIERS[2].uses, weight: 1.5, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[2].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
+    { code: 'tool_work_precision', name: 'Точная оснастка', description: 'Расходный инструмент для сложного производства.', type: 'TOOL' as const, toolTier: 3, usesMax: STAGE2_TOOL_TIERS[3].uses, weight: 2.0, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[3].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
   ]
 
   // Upsert templates
