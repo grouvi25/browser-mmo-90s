@@ -38,7 +38,7 @@ function ItemStats({ item }: { item: ShopItem }) {
     <div>
       <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{parts.join(' | ')}</span>
       {reqs.length > 0 && <span style={{ fontSize: 10, color: 'var(--warning)', marginLeft: 6 }}>({reqs.join(', ')})</span>}
-      <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 6, opacity: 0.7 }}>
+      <span className="shop-resale">
         продажа: <span className="money" style={{ fontSize: 10 }}>{sellPrice}</span>
       </span>
     </div>

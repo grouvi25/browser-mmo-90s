@@ -388,6 +388,9 @@ html, body {
 .viewport__content .btn:disabled { opacity: .45; }
 .viewport__content .btn-primary { background: #d9c19a; border-color: #8a6a10; }
 .viewport__content .btn-danger  { background: #e8c4c4; border-color: #b81e2c; color: #7d1119; }
+.viewport__content .money { color: #4f3700; }
+.shop-resale { margin-left: 6px; font-size: 10px; color: #4b3d35; }
+.shop-resale .money { font-size: 10px; }
 .viewport__content table { background: transparent; }
 .viewport__content th {
   background: rgba(226, 205, 178, .95); color: #17130f;
