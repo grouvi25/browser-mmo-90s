@@ -3287,5 +3287,7 @@ button { font-family: inherit; }
 .work-reason { display:block; margin-top:3px; color:var(--danger); font-size:9px; }
 .work-award .panel-header { border-bottom-style:double; border-bottom-width:3px; }
 .work-award tbody tr:last-child td { border-top:2px solid var(--border); font-weight:700; }
-.is-muted { opacity:.62; }
+.is-muted { background: rgba(96, 76, 60, .08); }
+.is-muted td { color: #3f3733; }
+.is-muted .work-reason { color: #761c28; font-weight: 700; }
 @media(max-width:900px){.work-actions{justify-content:flex-start;flex-wrap:wrap}.work-xp{min-width:0}.work-empty-line{flex-direction:column}.work-shift-line>strong{font-size:17px}}

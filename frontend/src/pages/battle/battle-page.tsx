@@ -58,7 +58,7 @@ function EventIcon({ type }: { type: string }) {
 
 function getEvent(t: TurnEvent) {
   const z = t.zone ? ` (${ZONE_LABEL[t.zone]})` : ''
-  if (t.action === 'move') return { type: 'move', label: 'Сближение', color: '#7a9bd0' }
+  if (t.action === 'move') return { type: 'move', label: 'Сближение', color: '#365d91' }
   if (!t.hit && t.dodge) return { type: 'dodge',   label: 'Уворот' + z,   color: '#88b048' }
   if (!t.hit)            return { type: 'dodge',   label: 'Уворот' + z,   color: '#88b048' } // нет промаха
   if (t.block)           return { type: 'block',   label: ((t.counterDamage ?? 0) > 0 ? 'Блок + ответка' : 'Блок') + z, color: '#6a9a3a' }
