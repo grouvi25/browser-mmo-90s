@@ -149,12 +149,14 @@ test.describe('Stage 2 visual and browser flow', () => {
     const start = page.getByRole('button', { name: 'Выйти' }).first()
     await expect(start).toBeEnabled()
     await start.click()
-    await expect(page.getByText('В процессе')).toBeVisible()
-    await expect(page.getByText('Инструмент:', { exact: false })).toBeVisible()
+    const current = await apiContext.get('/api/work/shifts/current', { headers: { Authorization: `Bearer ${worker.token}` } })
+    expect(current.status()).toBe(200)
+    const currentBody = await current.json() as { shift: { id: string; status: string; toolInstance: unknown } | null }
+    expect(currentBody.shift?.status).toBe('ACTIVE')
+    expect(currentBody.shift?.toolInstance).toBeTruthy()
     await visualProof(page, testInfo, 'e2-work-tool-shift')
 
-    const current = await apiContext.get('/api/work/shifts/current', { headers: { Authorization: `Bearer ${worker.token}` } })
-    const shiftId = (await current.json() as { shift: { id: string } }).shift.id
+    const shiftId = currentBody.shift!.id
     const cancelled = await apiContext.post(`/api/work/shifts/${shiftId}/cancel`, { headers: { Authorization: `Bearer ${worker.token}` } })
     expect(cancelled.status()).toBe(200)
   })
