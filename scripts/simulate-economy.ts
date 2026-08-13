@@ -46,6 +46,7 @@ type Player = {
   netToday: number
   upgradeLevel: number
   marketSales: number
+  toolUsesLeft: number
 }
 const players: Player[] = Array.from({ length: playersCount }, (_, i) => ({
   profile: profiles[i % profiles.length],
@@ -55,9 +56,10 @@ const players: Player[] = Array.from({ length: playersCount }, (_, i) => ({
   netToday: 0,
   upgradeLevel: 0,
   marketSales: 0,
+  toolUsesLeft: 0,
 }))
 const minted = { battles: 0, salaries: 0, govSell: 0 }
-const burned = { repair: 0, governmentShop: 0, privateShop: 0, listingFee: 0, saleTax: 0, upgrades: 0 }
+const burned = { repair: 0, governmentShop: 0, tools: 0, privateShop: 0, listingFee: 0, saleTax: 0, upgrades: 0 }
 const grossByProfile = new Map<string, number[]>()
 const netByProfile = new Map<string, number[]>()
 const m2ByDay: number[] = []
@@ -85,10 +87,16 @@ for (let day = 1; day <= days; day++) {
     }
 
     for (let shift = 1; shift <= player.profile.shifts; shift++) {
+      if (player.toolUsesLeft <= 0) {
+        const basicTool = BalanceConfig.economy.tools.tiers[1]
+        if (!burn(player, basicTool.price, 'tools')) break
+        player.toolUsesLeft = basicTool.uses
+      }
       const work = BalanceConfig.economy.work
       const salary = Math.round(100 * (work.salaryRandomMin + rnd() * (work.salaryRandomMax - work.salaryRandomMin)) * shiftFatigue(shift))
       credit(player, salary, 'salaries')
       credit(player, int(2, 4) * 2, 'govSell')
+      player.toolUsesLeft--
     }
 
     if (player.durability <= simulation.repairTriggerDurability && burn(player, simulation.repairCost, 'repair')) player.durability = simulation.repairedDurability

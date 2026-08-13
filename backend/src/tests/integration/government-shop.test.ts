@@ -100,6 +100,19 @@ describe('GovernmentShopService.buy', () => {
     expect(updated!.money).toBe(moneyBefore - template.priceBase)
   })
 
+  it('initializes consumable tool uses from the template', async () => {
+    const { char } = await createCharacterWithTemplate()
+    const tool = await testPrisma.itemTemplate.create({
+      data: { code: uid('tool'), name: 'Work tool', type: 'TOOL', toolTier: 2, usesMax: 50, weight: 1, durabilityMax: 1, priceBase: 200, isEquippable: false },
+    })
+    await testPrisma.governmentShopItem.create({ data: { templateId: tool.id, isAvailable: true } })
+
+    const bought = await GovernmentShopService.buy(char.id, tool.id)
+
+    expect(bought.item.usesLeft).toBe(50)
+    expect(bought.item.status).toBe('NORMAL')
+  })
+
   it('writes currency log on purchase', async () => {
     const { char, template } = await createCharacterWithTemplate()
     await GovernmentShopService.buy(char.id, template.id)

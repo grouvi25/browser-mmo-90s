@@ -21,7 +21,7 @@ export type Stance = 'attack2' | 'mixed' | 'defense4'
 
 export const STANCE_BUDGET: Record<Stance, { attacks: number; blocks: number }> = {
   attack2: { attacks: 2, blocks: 0 },
-  mixed: { attacks: 1, blocks: 1 },
+  mixed: { attacks: 1, blocks: 2 },
   defense4: { attacks: 0, blocks: 4 },
 }
 

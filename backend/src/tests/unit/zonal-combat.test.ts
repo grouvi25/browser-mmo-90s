@@ -78,10 +78,10 @@ describe('zones: normalizeTurn / stances', () => {
     expect(t.attackZones).toHaveLength(2)
     expect(t.blockZones).toHaveLength(0)
   })
-  it('mixed = 1 удар + 1 блок', () => {
+  it('mixed = 1 удар + 2 блока', () => {
     const t = normalizeTurn({ stance: 'mixed', attackZones: ['HEAD'], blockZones: ['CHEST'] })
     expect(t.attackZones).toEqual(['HEAD'])
-    expect(t.blockZones).toEqual(['CHEST'])
+    expect(t.blockZones).toEqual(['CHEST', 'HEAD'])
   })
   it('defense4 = 4 уникальных блока', () => {
     const t = normalizeTurn({ stance: 'defense4', blockZones: ['HEAD', 'HEAD', 'CHEST'] })
@@ -146,8 +146,8 @@ describe('resolveZonalAttack: блок гасит зону в 0', () => {
   })
 })
 
-describe('resolveZonalAttack: удачный удар пробивает блок и броню', () => {
-  it('lucky → blockPierced, урон проходит мимо брони', () => {
+describe('resolveZonalAttack: удачный удар пробивает блок, но не броню', () => {
+  it('lucky → blockPierced, но броня продолжает снижать урон', () => {
     // dodge нет (0.99); lucky да (0.0 < luckyChance); crit нет (0.99); weaponRoll(0.5)
     mockRandom([0.99, 0.0, 0.99, 0.5])
     const atk = attacker({ luck: 25, minDamage: 40, maxDamage: 40, str: 0, weaponSkillLevel: 0 })
@@ -158,7 +158,8 @@ describe('resolveZonalAttack: удачный удар пробивает бло�
     expect(r.blockPierced).toBe(true)
     expect(r.block).toBe(false)
     // огромная броня зоны проигнорирована lucky-ударом → урон существенный
-    expect(r.finalDamage).toBeGreaterThan(20)
+    expect(r.finalDamage).toBeLessThan(20)
+    expect(r.finalDamage).toBeGreaterThanOrEqual(1)
   })
 })
 

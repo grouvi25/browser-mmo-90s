@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generatedAt": "2026-08-06T20:21:01.835Z",
+    "generatedAt": "2026-08-13T05:32:59.481Z",
     "days": 30,
     "players": 300,
     "seed": 90210,
@@ -26,9 +26,9 @@
         "p75": 466
       },
       "netIncomePerDay": {
-        "median": 416,
-        "p25": 129,
-        "p75": 456
+        "median": 403,
+        "p25": -21,
+        "p75": 451
       }
     },
     "mixed": {
@@ -38,15 +38,15 @@
         "p75": 550
       },
       "netIncomePerDay": {
-        "median": 319,
-        "p25": 187,
-        "p75": 458
+        "median": 290,
+        "p25": 103,
+        "p75": 434
       }
     }
   },
   "parity": {
     "grossRatio": 1.1183035714285714,
-    "netSpread": 164
+    "netSpread": 151
   },
   "emission": {
     "minted": {
@@ -57,19 +57,20 @@
     "burned": {
       "repair": 960000,
       "governmentShop": 270000,
+      "tools": 400000,
       "privateShop": 270000,
       "listingFee": 13500,
       "saleTax": 21536,
       "upgrades": 482710
     },
-    "sinkShare": 0.46746005875725694,
-    "netEmissionShare": 0.5325399412427431
+    "sinkShare": 0.5601298117900483,
+    "netEmissionShare": 0.43987018820995166
   },
   "m2": {
-    "start": 496831,
-    "day30": 2673657,
-    "end": 2673657,
-    "steadyGrowthPctPerDay": 0.014373013154015846
+    "start": 396831,
+    "day30": 2273657,
+    "end": 2273657,
+    "steadyGrowthPctPerDay": 0.01694447513231445
   },
   "market": {
     "completedSales": 2700

@@ -200,6 +200,7 @@ enum ItemLogAction {
   DELETED_BY_ADMIN
   STATUS_CHANGED
   POINTS_ALLOCATED
+  TOOL_USE
 }
 
 enum AdminRole {
@@ -492,6 +493,8 @@ model ItemTemplate {
   itemTier             Int         @default(1) @map("item_tier")
   requiredRepairParts  Json?       @map("required_repair_parts")
   requiredUpgradeParts Json?       @map("required_upgrade_parts")
+  toolTier             Int?        @map("tool_tier")
+  usesMax              Int?        @map("uses_max")
   privateShopAllowed   Boolean     @default(false) @map("private_shop_allowed")
   upgradeAllowed       Boolean     @default(false) @map("upgrade_allowed")
   repairResourceCode   String?     @map("repair_resource_code")
@@ -529,6 +532,7 @@ model ItemInstance {
   upgradeModifiersJson Json?       @map("upgrade_modifiers_json")
   statAllocation       Json?       @map("stat_allocation")
   freePoints           Int         @default(0) @map("free_points")
+  usesLeft             Int?        @map("uses_left")
 
   status     ItemStatus @default(NORMAL)
   isEquipped Boolean    @default(false) @map("is_equipped")
@@ -541,10 +545,11 @@ model ItemInstance {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  template   ItemTemplate @relation(fields: [templateId], references: [id])
-  owner      Character    @relation("OwnerItems", fields: [ownerId], references: [id], onDelete: Cascade)
-  itemLogs   ItemLog[]
-  repairLogs RepairLog[]
+  template         ItemTemplate @relation(fields: [templateId], references: [id])
+  owner            Character    @relation("OwnerItems", fields: [ownerId], references: [id], onDelete: Cascade)
+  itemLogs         ItemLog[]
+  repairLogs       RepairLog[]
+  workShiftsAsTool WorkShift[]  @relation("WorkShiftTool")
 
   // Battle: участник может использовать/менять оружие
   battleTurnsWeapon BattleTurn[] @relation("TurnWeapon")
@@ -801,8 +806,27 @@ model ProductionObject {
   updatedAt               DateTime               @updatedAt @map("updated_at")
   shifts                  WorkShift[]
   logs                    ProductionLog[]
+  equipment               ProductionEquipment?
 
   @@map("production_objects")
+}
+
+model ProductionEquipment {
+  id                   String           @id @default(uuid())
+  productionObjectId   String           @unique @map("production_object_id")
+  code                 String           @unique
+  name                 String
+  tier                 Int              @default(1)
+  requiredToolTier     Int              @default(1) @map("required_tool_tier")
+  producesResourceCode String?          @map("produces_resource_code")
+  isActive             Boolean          @default(true) @map("is_active")
+  ownerType            OwnerType        @default(SYSTEM) @map("owner_type")
+  ownerCharacterId     String?          @map("owner_character_id")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+  productionObject     ProductionObject @relation(fields: [productionObjectId], references: [id], onDelete: Cascade)
+
+  @@map("production_equipment")
 }
 
 model WorkShift {
@@ -816,6 +840,7 @@ model WorkShift {
   baseSalary           Int              @map("base_salary")
   finalSalary          Int?             @map("final_salary")
   productionExpReward  Int?             @map("production_exp_reward") // legacy field
+  toolInstanceId       String?          @map("tool_instance_id")
   professionCode       String           @default("scrap_collector") @map("profession_code")
   professionExpReward  Int?             @map("profession_exp_reward")
   resourceRewardCode   String?          @map("resource_reward_code")
@@ -825,9 +850,11 @@ model WorkShift {
   updatedAt            DateTime         @updatedAt @map("updated_at")
   character            Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
   productionObject     ProductionObject @relation(fields: [productionObjectId], references: [id])
+  toolInstance         ItemInstance?    @relation("WorkShiftTool", fields: [toolInstanceId], references: [id])
 
   @@index([characterId, status])
   @@index([status, endsAt])
+  @@index([toolInstanceId])
   @@map("work_shifts")
 }
 

@@ -2,6 +2,7 @@
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
+import { BalanceConfig } from '../src/config/balance.config'
 
 const prisma = new PrismaClient()
 
@@ -116,8 +117,14 @@ async function main() {
     },
   ]
 
+  const toolTemplates = [
+    { code: 'tool_work_basic', name: 'Рабочий набор', description: 'Расходная оснастка для базовых производственных площадок.', type: 'TOOL' as const, toolTier: 1, usesMax: BalanceConfig.economy.tools.tiers[1].uses, weight: 1.0, durabilityMax: 1, priceBase: BalanceConfig.economy.tools.tiers[1].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
+    { code: 'tool_work_advanced', name: 'Профессиональная оснастка', description: 'Оснастка для оборудования второго тира.', type: 'TOOL' as const, toolTier: 2, usesMax: BalanceConfig.economy.tools.tiers[2].uses, weight: 1.5, durabilityMax: 1, priceBase: BalanceConfig.economy.tools.tiers[2].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
+    { code: 'tool_work_precision', name: 'Точная оснастка', description: 'Расходный инструмент для сложного производства.', type: 'TOOL' as const, toolTier: 3, usesMax: BalanceConfig.economy.tools.tiers[3].uses, weight: 2.0, durabilityMax: 1, priceBase: BalanceConfig.economy.tools.tiers[3].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
+  ]
+
   // Upsert templates
-  for (const tpl of [...weaponTemplates, ...armorTemplates, ...consumableTemplates]) {
+  for (const tpl of [...weaponTemplates, ...armorTemplates, ...consumableTemplates, ...toolTemplates]) {
     const { code, ...data } = tpl
     await prisma.itemTemplate.upsert({
       where: { code },
@@ -261,7 +268,23 @@ async function main() {
     const requiredProfessionLevel = Math.min(requiredProductionLevel, 3)
     await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward}})
   }
-  console.log(`  Production objects: ${productionObjects.length}`)
+  const equipmentByObject: Record<string, { code: string; name: string; tier: number; requiredToolTier: number }> = {
+    obj_warehouse_station: { code: 'equipment_warehouse_terminal', name: 'Складской терминал', tier: 1, requiredToolTier: 1 },
+    obj_scrapyard: { code: 'equipment_scrap_sorter', name: 'Сортировочная линия', tier: 1, requiredToolTier: 1 },
+    obj_market_loader: { code: 'equipment_market_loader', name: 'Погрузочный комплект', tier: 1, requiredToolTier: 1 },
+    obj_garage_workshop: { code: 'equipment_garage_press', name: 'Гаражный пресс', tier: 2, requiredToolTier: 2 },
+    obj_small_factory: { code: 'equipment_small_factory_line', name: 'Производственная линия', tier: 2, requiredToolTier: 2 },
+    obj_parts_factory: { code: 'equipment_parts_precision', name: 'Точный станок', tier: 3, requiredToolTier: 3 },
+  }
+  for (const [objectCode, equipment] of Object.entries(equipmentByObject)) {
+    const object = await prisma.productionObject.findUniqueOrThrow({ where: { code: objectCode } })
+    await prisma.productionEquipment.upsert({
+      where: { productionObjectId: object.id },
+      update: { ...equipment, producesResourceCode: object.producesResourceCode, ownerType: 'SYSTEM', ownerCharacterId: null, isActive: true },
+      create: { productionObjectId: object.id, ...equipment, producesResourceCode: object.producesResourceCode, ownerType: 'SYSTEM' },
+    })
+  }
+  console.log(`  Production objects: ${productionObjects.length}; equipment: ${Object.keys(equipmentByObject).length}`)
 
   // --- Admin user ---
   const adminPw = await bcrypt.hash('admin_change_me_now', 10)

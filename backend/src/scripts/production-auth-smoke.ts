@@ -85,17 +85,19 @@ async function main(): Promise<void> {
   assert(Array.isArray(loadout.itemInstanceIds), 'Battle loadout contract is invalid')
 
   const work = await jsonRequest('/api/work/objects', { headers }) as {
-    items?: Array<{ requiredProfessionCode?: string; requiredProfessionLevel?: number; profession?: { code?: string; level?: number } }>
+    items?: Array<{ requiredProfessionCode?: string; requiredProfessionLevel?: number; profession?: { code?: string; level?: number }; equipment?: { requiredToolTier?: number }; toolAvailable?: boolean }>
     professions?: unknown[]
     daily?: { shiftsLimit?: number }
   }
   assert(Array.isArray(work.items) && work.items.length >= 6, 'Production object seed is incomplete')
   assert(work.items.every(item => typeof item.requiredProfessionCode === 'string' && typeof item.requiredProfessionLevel === 'number' && item.profession?.code === item.requiredProfessionCode), 'Profession object contract is invalid')
+  assert(work.items.every(item => typeof item.equipment?.requiredToolTier === 'number' && typeof item.toolAvailable === 'boolean'), 'Production equipment/tool contract is invalid')
   assert(Array.isArray(work.professions), 'Character professions contract is invalid')
   assert(work.daily?.shiftsLimit === 8, 'Daily shift limit contract is invalid')
 
-  const production = await jsonRequest('/api/production/objects', { headers }) as { items?: Array<{ id?: string; requiredProfessionCode?: string }> }
+  const production = await jsonRequest('/api/production/objects', { headers }) as { items?: Array<{ id?: string; requiredProfessionCode?: string; equipment?: { code?: string } }> }
   assert(Array.isArray(production.items) && production.items.length >= 6, 'Production API list contract is invalid')
+  assert(production.items.every(item => typeof item.equipment?.code === 'string'), 'Production equipment seed is incomplete')
   const productionDetails = await jsonRequest(`/api/production/objects/${production.items[0].id}`, { headers }) as { id?: string; requiredProfessionCode?: string }
   assert(productionDetails.id === production.items[0].id && typeof productionDetails.requiredProfessionCode === 'string', 'Production API detail contract is invalid')
 
@@ -104,6 +106,10 @@ async function main(): Promise<void> {
 
   const resources = await jsonRequest('/api/resources', { headers }) as { items?: unknown[]; totalWeight?: number }
   assert(Array.isArray(resources.items) && typeof resources.totalWeight === 'number', 'Resources contract is invalid')
+
+  const governmentItems = await jsonRequest('/api/shops/government/items', { headers }) as Array<{ template?: { code?: string; type?: string; toolTier?: number; usesMax?: number } }>
+  assert(governmentItems.filter(item => item.template?.type === 'TOOL').length >= 3, 'Government tool seed is incomplete')
+  assert(governmentItems.filter(item => item.template?.type === 'TOOL').every(item => typeof item.template?.toolTier === 'number' && typeof item.template?.usesMax === 'number'), 'Government tool contract is invalid')
 
   const shops = await jsonRequest('/api/private-shops', { headers }) as Array<{ code?: string }>
   assert(Array.isArray(shops) && shops.some(shop => shop.code === 'kommersant'), 'Kommersant shop is missing')

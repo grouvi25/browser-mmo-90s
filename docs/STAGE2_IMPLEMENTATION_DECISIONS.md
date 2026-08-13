@@ -21,3 +21,13 @@ Stage 2 implements the production foundation: professions, production objects, s
 ## Source of truth
 
 `docs/specs/stage-2/MASTER_TZ_STAGE_2_ECONOMY_CORE_v2.2.docx` is authoritative. Version 2.0 files are historical and must not be used for new implementation decisions.
+
+## Revision 2.1 minimum implemented in Stage 2
+
+Stage 2 includes the minimal `ProductionObject -> ProductionEquipment -> consumable Tool` contract required by MASTER v2.2. Every seeded system production object has one system-owned equipment record. Its `requiredToolTier` is enforced when a shift starts; the chosen tool is reserved on the shift and exactly one use is consumed atomically on successful claim. Cancellation releases the tool without consuming a use, and idempotent claim replay cannot consume twice.
+
+This does not activate Stage 3 ownership or production chains. Players cannot buy production objects/equipment, equipment does not wear, objects have no input/output inventories, and recipes do not consume upstream resources yet.
+
+## Combat compatibility corrections before Stage 3
+
+The Apeha action budget is canonical: the mixed stance is one attack plus two blocked zones. A lucky hit pierces a selected block but does not bypass armor. The older behavior that let Luck ignore armor was removed because official Apeha material only supports block piercing and pressure against evasion.

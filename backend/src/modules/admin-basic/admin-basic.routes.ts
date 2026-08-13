@@ -166,6 +166,7 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
             durabilityMax: template.durabilityMax,
             weight: template.weight,
             sourceType: 'ADMIN',
+            usesLeft: template.type === 'TOOL' ? template.usesMax : null,
           },
         })
         await tx.itemLog.create({

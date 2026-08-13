@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generatedAt": "2026-08-07T10:12:56.079Z",
+    "generatedAt": "2026-08-13T05:33:01.435Z",
     "model": "profession-actions-v2.2",
     "professions": [
       {
@@ -164,6 +164,138 @@
       "maxLevelDays": 1886,
       "maxLevelMonths": 62.87,
       "maxLevelYears": 5.16
+    },
+    {
+      "hoursPerDay": 4,
+      "transitions": [
+        {
+          "from": 0,
+          "to": 1,
+          "xp": 500,
+          "actionsAt14h": 84,
+          "dailyActions": 24,
+          "days": 21,
+          "cumulativeDays": 21
+        },
+        {
+          "from": 1,
+          "to": 2,
+          "xp": 1000,
+          "actionsAt14h": 91,
+          "dailyActions": 26,
+          "days": 38,
+          "cumulativeDays": 59
+        },
+        {
+          "from": 2,
+          "to": 3,
+          "xp": 2000,
+          "actionsAt14h": 98,
+          "dailyActions": 28,
+          "days": 71,
+          "cumulativeDays": 130
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "xp": 4500,
+          "actionsAt14h": 105,
+          "dailyActions": 30,
+          "days": 150,
+          "cumulativeDays": 280
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "xp": 8000,
+          "actionsAt14h": 112,
+          "dailyActions": 32,
+          "days": 250,
+          "cumulativeDays": 530
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "xp": 14000,
+          "actionsAt14h": 120,
+          "dailyActions": 34,
+          "days": 412,
+          "cumulativeDays": 942
+        }
+      ],
+      "levelAt30Days": 1,
+      "levelAt90Days": 2,
+      "levelAt180Days": 3,
+      "level3Days": 130,
+      "maxLevelDays": 942,
+      "maxLevelMonths": 31.4,
+      "maxLevelYears": 2.58
+    },
+    {
+      "hoursPerDay": 8,
+      "transitions": [
+        {
+          "from": 0,
+          "to": 1,
+          "xp": 500,
+          "actionsAt14h": 84,
+          "dailyActions": 48,
+          "days": 10,
+          "cumulativeDays": 10
+        },
+        {
+          "from": 1,
+          "to": 2,
+          "xp": 1000,
+          "actionsAt14h": 91,
+          "dailyActions": 52,
+          "days": 19,
+          "cumulativeDays": 29
+        },
+        {
+          "from": 2,
+          "to": 3,
+          "xp": 2000,
+          "actionsAt14h": 98,
+          "dailyActions": 56,
+          "days": 36,
+          "cumulativeDays": 65
+        },
+        {
+          "from": 3,
+          "to": 4,
+          "xp": 4500,
+          "actionsAt14h": 105,
+          "dailyActions": 60,
+          "days": 75,
+          "cumulativeDays": 140
+        },
+        {
+          "from": 4,
+          "to": 5,
+          "xp": 8000,
+          "actionsAt14h": 112,
+          "dailyActions": 64,
+          "days": 125,
+          "cumulativeDays": 265
+        },
+        {
+          "from": 5,
+          "to": 6,
+          "xp": 14000,
+          "actionsAt14h": 120,
+          "dailyActions": 69,
+          "days": 203,
+          "cumulativeDays": 468
+        }
+      ],
+      "levelAt30Days": 2,
+      "levelAt90Days": 3,
+      "levelAt180Days": 4,
+      "level3Days": 65,
+      "maxLevelDays": 468,
+      "maxLevelMonths": 15.6,
+      "maxLevelYears": 1.28
     },
     {
       "hoursPerDay": 14,

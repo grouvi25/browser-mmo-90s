@@ -55,6 +55,7 @@ export const GovernmentShopService = {
           durabilityMax: t.durabilityMax,
           weight: t.weight,
           sourceType: 'GOVERNMENT',
+          usesLeft: t.type === 'TOOL' ? t.usesMax : null,
         },
       })
 

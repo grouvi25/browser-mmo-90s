@@ -310,7 +310,7 @@ export function resolveAttack(
   }
 
   // 3. Удачный удар (пробитие брони — LUCK-check)
-  const luckyChance = clamp((defender.luck ?? 0) * 0.02, 0, 0.25) // до 25%
+  const luckyChance = calcLuckyPierceChance(attacker.luck) // до 25%
   lucky = rollChance(luckyChance)
 
   // 4. Crit check
@@ -326,7 +326,7 @@ export function resolveAttack(
   if (lucky) log.push('Удачный!')
 
   // 6. Armor (lucky удар пробивает броню)
-  let dmg = lucky ? rawDamage : applyArmor(rawDamage, defender.armor, crit)
+  let dmg = applyArmor(rawDamage, defender.armor, crit)
 
   // 7. Endurance
   dmg = applyEndurance(dmg, defender.end)
@@ -423,7 +423,7 @@ export function resolveZonalAttack(
   if (crit) log.push('КРИТ!')
 
   // 6. Броня зоны (lucky пробивает броню)
-  let dmg = lucky ? rawDamage : applyArmor(rawDamage, zoneArmor, crit)
+  let dmg = applyArmor(rawDamage, zoneArmor, crit)
 
   // 7. Выносливость
   dmg = applyEndurance(dmg, defender.end)

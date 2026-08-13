@@ -53,6 +53,8 @@ export enum ErrorCode {
   WORK_SHIFT_NOT_FOUND    = 'WORK_008',
   WORK_NOT_READY          = 'WORK_009',
   WORK_ALREADY_CLAIMED    = 'WORK_010',
+  WORK_TOOL_REQUIRED      = 'WORK_011',
+  WORK_TOOL_UNAVAILABLE   = 'WORK_012',
 
   // Stage 2 resources / shops / market / upgrades / economy
   RES_INVALID_AMOUNT       = 'RES_001',
