@@ -361,7 +361,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1)
     expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1)
 
-    await page.getByRole('button', { name: /Правая рука: удар в голову/ }).click()
+    await page.locator('.battle-fighter-panel.is-enemy .battle-hand-zone.is-head button').nth(1).click()
     await page.locator('.battle-fighter-panel.is-self .battle-fighter-zone').nth(1).click()
     await page.locator('.battle-fighter-panel.is-self .battle-fighter-zone').nth(4).click()
 
