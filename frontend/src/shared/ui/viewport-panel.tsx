@@ -1,4 +1,4 @@
-// =============================================================
+﻿// =============================================================
 // Содержимое центрального вьюпорта: «бумажная» подложка,
 // заголовок раздела и кнопка возврата в город.
 // Все игровые экраны рендерятся через этот компонент.
@@ -16,7 +16,7 @@ export function ViewportPanel({
 }) {
   const navigate = useNavigate()
   return (
-    <div className="viewport__content">
+    <div className="viewport__content" tabIndex={0} role="region" aria-label={title}>
       <div className="viewport__head">
         <h1 className="viewport__title">{title}</h1>
         {subtitle && <span className="viewport__subtitle">{subtitle}</span>}
@@ -49,3 +49,4 @@ export function LockedSection({ title, stage, what }: {
     </ViewportPanel>
   )
 }
+
