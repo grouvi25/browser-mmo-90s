@@ -42,7 +42,7 @@ const TEAM_SPAWNS: Readonly<Record<1 | 2, readonly GridPosition[]>> = {
     { x: 4, y: 2 }, { x: 0, y: 2 }, { x: 2, y: 1 },
   ],
   2: [
-    { x: 5, y: 1 }, { x: 4, y: 1 }, { x: 6, y: 0 },
+    { x: 6, y: 4 }, { x: 4, y: 1 }, { x: 6, y: 0 },
     { x: 4, y: 3 }, { x: 5, y: 3 }, { x: 6, y: 3 },
     { x: 7, y: 1 }, { x: 7, y: 0 }, { x: 6, y: 1 },
   ],

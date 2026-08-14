@@ -58,26 +58,29 @@ describe('battle grid movement', () => {
   })
 
   it('allows two fighters to swap adjacent cells simultaneously', () => {
-    const first = fighter('p1', 1, 1, 1)
-    const second = fighter('p2', 2, 2, 2)
+    const first = fighter('p1', 1, 2, 2)
+    const adjacent = hexNeighbours(first.position)[0]
+    const second = fighter('p2', 2, adjacent.x, adjacent.y)
     const resolved = resolveSimultaneousMoves([first, second], [
-      { participantId: 'p1', destination: { x: 2, y: 2 } },
-      { participantId: 'p2', destination: { x: 1, y: 1 } },
+      { participantId: 'p1', destination: adjacent },
+      { participantId: 'p2', destination: first.position },
     ])
-    expect(resolved.find(p => p.participantId === 'p1')?.position).toEqual({ x: 2, y: 2 })
-    expect(resolved.find(p => p.participantId === 'p2')?.position).toEqual({ x: 1, y: 1 })
+    expect(resolved.find(p => p.participantId === 'p1')?.position).toEqual(adjacent)
+    expect(resolved.find(p => p.participantId === 'p2')?.position).toEqual(first.position)
   })
 
   it('rejects collisions and movement into a stationary occupied cell', () => {
-    const first = fighter('p1', 1, 3, 3)
-    const second = fighter('p2', 2, 2, 3)
-    const blocker = fighter('p3', 2, 2, 2)
+    const destination = { x: 2, y: 2 }
+    const [firstCell, secondCell] = hexNeighbours(destination)
+    const first = fighter('p1', 1, firstCell.x, firstCell.y)
+    const second = fighter('p2', 2, secondCell.x, secondCell.y)
+    const blocker = fighter('p3', 2, destination.x, destination.y)
     expect(() => resolveSimultaneousMoves([first, second], [
-      { participantId: 'p1', destination: { x: 2, y: 2 } },
-      { participantId: 'p2', destination: { x: 2, y: 2 } },
+      { participantId: 'p1', destination },
+      { participantId: 'p2', destination },
     ])).toThrow('Multiple fighters')
     expect(() => resolveSimultaneousMoves([first, blocker], [
-      { participantId: 'p1', destination: { x: 2, y: 2 } },
+      { participantId: 'p1', destination },
     ])).toThrow('occupied')
   })
 })
@@ -110,7 +113,7 @@ describe('battle grid teams and target selection', () => {
       { x: 2, y: 2 }, { x: 1, y: 2 }, { x: 1, y: 1 },
     ])
     expect(teamSpawnPositions(2, 3)).toEqual([
-      { x: 5, y: 1 }, { x: 4, y: 1 }, { x: 6, y: 0 },
+      { x: 6, y: 4 }, { x: 4, y: 1 }, { x: 6, y: 0 },
     ])
     expect(hexNeighbours(teamSpawnPositions(1, 1)[0])).toHaveLength(6)
     expect(hexNeighbours(teamSpawnPositions(2, 1)[0])).toHaveLength(6)
