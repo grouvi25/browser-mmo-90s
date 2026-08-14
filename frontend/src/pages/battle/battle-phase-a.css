@@ -261,45 +261,31 @@
   clip-path: none;
   border: 0;
 }
-/* Контур клетки — отдельный слой, а не border: рамка на элементе
-   с clip-path обрезается вместе с ним и вырождается в боковые штрихи.
-   Здесь сам слой красит кайму, а ::after даёт заливку с отступом внутрь
-   и наследует ту же обрезку, поэтому кайма выходит шестиугольной.
+/* Подсветка клетки — одна заливка, без рамки.
+   Контур здесь не нужен: решётка уже нарисована на арте, а border на
+   элементе с clip-path всё равно обрезается и вырождается в боковые
+   штрихи. Форму даёт сам clip-path, проставленный разметкой.
 
-   Незанятая клетка не рисуется вовсе: решётка уже есть на арте, и
-   поверх неё вторая сетка только мешает. */
+   Состояния: наведение подбирает клетку и делает заливку плотнее,
+   нажатие — ещё плотнее и глубже, выбранная клетка держит плотность
+   постоянно. Незанятая клетка не рисуется вовсе. */
 .designer-cell-hit {
   position: absolute;
   inset: 0;
   display: block;
   background: transparent;
-  transition: transform 120ms cubic-bezier(.25,1,.5,1), background 120ms;
-}
-.designer-cell-hit::after {
-  content: '';
-  position: absolute;
-  inset: 1.5px;
-  clip-path: inherit;
-  background: transparent;
-  transition: background 120ms;
+  transition: transform 120ms cubic-bezier(.25, 1, .5, 1), background 120ms;
 }
 
-.hex-cell.is-movable .designer-cell-hit { background: oklch(72% .13 82 / .85); }
-.hex-cell.is-movable .designer-cell-hit::after { background: oklch(80% .12 84 / .20); }
-.hex-cell.is-movable::after {
-  content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px;
-  border-radius: 50%; background: oklch(84% .12 84 / .8);
-  transform: translate(-50%, -50%); pointer-events: none; z-index: 2;
-}
+.hex-cell.is-movable .designer-cell-hit { background: oklch(68% .13 76 / .38); }
+.hex-cell.is-target  .designer-cell-hit { background: oklch(58% .17 25 / .40); }
 
-.hex-cell.is-selected .designer-cell-hit { background: oklch(78% .16 86); }
-.hex-cell.is-selected .designer-cell-hit::after { inset: 2.5px; background: oklch(80% .15 86 / .38); }
+.hex-cell.is-clickable:hover .designer-cell-hit { transform: scale(.94); background: oklch(64% .14 74 / .52); }
+.hex-cell.is-clickable:active .designer-cell-hit { transform: scale(.90); background: oklch(56% .15 72 / .64); }
+.hex-cell.is-clickable:focus-visible .designer-cell-hit { transform: scale(.94); background: oklch(64% .14 74 / .52); }
 
-.hex-cell.is-target .designer-cell-hit { background: oklch(56% .18 25 / .9); }
-.hex-cell.is-target .designer-cell-hit::after { inset: 2px; background: oklch(62% .17 25 / .22); }
-
-.hex-cell.is-clickable:hover .designer-cell-hit { transform: scale(.96); }
-.hex-cell.is-clickable:hover .designer-cell-hit::after { background: oklch(82% .12 82 / .30); }
+.hex-cell.is-selected .designer-cell-hit { background: oklch(60% .15 74 / .58); }
+.hex-cell.is-target.is-clickable:hover .designer-cell-hit { background: oklch(54% .18 25 / .52); }
 
 .battle-field-v3 .fighter-token {
   top: auto;
