@@ -1,4 +1,4 @@
-﻿import { DESIGNER_CELL_CENTERS, DESIGNER_CELL_NEIGHBOURS } from './designer-grid-adjacency'
+import { DESIGNER_CELL_CENTERS, DESIGNER_CELL_NEIGHBOURS } from './designer-grid-adjacency'
 
 // =============================================================
 // РџРѕР»Рµ Р±РѕСЏ вЂ” С€РµСЃС‚РёСѓРіРѕР»СЊРЅС‹Рµ СЃРѕС‚С‹, РєР°Рє РІ РђРїРµС…Рµ.
@@ -34,17 +34,15 @@ export interface PositionedParticipant {
 }
 
 const TEAM_SPAWNS: Readonly<Record<1 | 2, readonly GridPosition[]>> = {
-  // The battlefield is painted in perspective, not as a rectangular honeycomb.
-  // The lead fighters start on authored cells with all six physical neighbours.
   1: [
-    { x: 1, y: 1 }, { x: 1, y: 2 }, { x: 2, y: 1 },
-    { x: 2, y: 3 }, { x: 3, y: 3 }, { x: 3, y: 0 },
-    { x: 4, y: 2 }, { x: 0, y: 2 }, { x: 2, y: 2 },
+    { x: 7, y: 2 }, { x: 7, y: 1 }, { x: 7, y: 3 },
+    { x: 8, y: 2 }, { x: 6, y: 3 }, { x: 8, y: 3 },
+    { x: 8, y: 0 }, { x: 7, y: 4 }, { x: 7, y: 6 },
   ],
   2: [
-    { x: 7, y: 6 }, { x: 6, y: 6 }, { x: 7, y: 5 },
-    { x: 4, y: 3 }, { x: 5, y: 3 }, { x: 6, y: 3 },
-    { x: 7, y: 1 }, { x: 7, y: 0 }, { x: 6, y: 1 },
+    { x: 1, y: 6 }, { x: 0, y: 6 }, { x: 1, y: 5 },
+    { x: 2, y: 6 }, { x: 1, y: 7 }, { x: 2, y: 7 },
+    { x: 0, y: 7 }, { x: 2, y: 5 }, { x: 0, y: 5 },
   ],
 }
 
