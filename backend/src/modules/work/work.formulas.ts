@@ -1,3 +1,4 @@
+import { isProfessionCode, previousProfession } from '../professions/professions'
 import { BalanceConfig } from '../../config/balance.config'
 const WORK_BALANCE=BalanceConfig.economy.work
 export const PRODUCTION_LEVEL_THRESHOLDS = [0, 500, 1500, 3500, 8000, 16000, 30000] as const
@@ -40,3 +41,38 @@ export function calcFinalSalary(
   return Math.max(1, Math.min(raw, baseSalary * WORK_BALANCE.salaryCapMultiplier))
 }
 export function calcProductionExp(baseExp: number, objectLevel: number): number { return Math.max(0, Math.round(baseExp * objectLevelCoeff(objectLevel))) }
+
+/**
+ * Что нужно, чтобы встать на объект: уровень предыдущего передела в том же
+ * направлении. У объектов первого передела требования нет — с них и начинают.
+ *
+ * Требовать уровень профессии самого объекта нельзя: её опыт начисляется
+ * только за смены на нём, и объект оказывается заперт сам собой.
+ */
+export function admissionRequirement(object: { requiredProfessionCode: string; requiredProfessionLevel: number }) {
+  if (object.requiredProfessionLevel <= 0) return null
+  const previous = isProfessionCode(object.requiredProfessionCode)
+    ? previousProfession(object.requiredProfessionCode)
+    : null
+  if (!previous) return null
+  return { professionCode: previous, level: object.requiredProfessionLevel }
+}
+
+/** Сколько минут смен персонаж уже отработал за UTC-сутки. */
+export function shiftMinutes(shifts: readonly { startedAt: Date; endsAt: Date }[]): number {
+  return shifts.reduce((sum, shift) => sum + Math.round((shift.endsAt.getTime() - shift.startedAt.getTime()) / 60_000), 0)
+}
+
+/**
+ * Влезает ли ещё одна смена в суточный бюджет.
+ *
+ * Потолок двойной — по числу смен и по минутам. Только по числу нельзя:
+ * на объекте с девяностоминутной сменой за день выходит вдвое больше
+ * времени, чем на получасовом, и верхний передел растёт быстрее задуманного.
+ */
+export function fitsDailyBudget(
+  shiftsToday: number, minutesToday: number, nextShiftMinutes: number,
+  limits = { shifts: WORK_BALANCE.dailyShiftLimit, minutes: WORK_BALANCE.dailyShiftMinutes },
+): boolean {
+  return shiftsToday < limits.shifts && minutesToday + nextShiftMinutes <= limits.minutes
+}

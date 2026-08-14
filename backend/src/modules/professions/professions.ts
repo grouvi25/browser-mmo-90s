@@ -17,6 +17,34 @@ export const PROFESSION_NAMES: Record<ProfessionCode, string> = {
   chemist: 'Химик',
 }
 
+/**
+ * Три направления по три передела — модель ТЗ 2.2 и симулятора прогрессии.
+ * Порядок внутри направления и есть лестница: второй передел открывается
+ * уровнем первого, третий — уровнем второго.
+ */
+export const PROFESSION_CHAINS: Readonly<Record<'metal' | 'construction' | 'chemistry', readonly ProfessionCode[]>> = {
+  metal: ['scrap_collector', 'foundry_worker', 'gunsmith'],
+  construction: ['supplier', 'carpenter', 'cooperative_builder'],
+  chemistry: ['procurer', 'pharmacist', 'chemist'],
+}
+
+/**
+ * Профессия предыдущего передела в том же направлении.
+ *
+ * Допуск на объект проверяется именно по ней. Требовать уровень той же
+ * профессии, которую объект и качает, нельзя: опыт профессии начисляется
+ * только за смены на её объектах, и объект второго передела оказывался
+ * заперт собственным требованием — открыть его было нечем.
+ */
+export function previousProfession(code: ProfessionCode): ProfessionCode | null {
+  for (const chain of Object.values(PROFESSION_CHAINS)) {
+    const index = chain.indexOf(code)
+    if (index > 0) return chain[index - 1]
+    if (index === 0) return null
+  }
+  return null
+}
+
 export const PROFESSION_CUMULATIVE_XP = [0, 500, 1_500, 3_500, 8_000, 16_000, 30_000] as const
 
 export function professionLevelFromExp(exp: number): number {

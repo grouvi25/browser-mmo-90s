@@ -8,11 +8,12 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
-import { calcFinalSalary, calcProductionExp } from './work.formulas'
+import { admissionRequirement, calcFinalSalary, calcProductionExp, fitsDailyBudget, shiftMinutes } from './work.formulas'
 import { BalanceConfig } from '../../config/balance.config'
 import { PROFESSION_NAMES, professionLevelFromExp, type ProfessionCode } from '../professions/professions'
 
 const MAX_DAILY_SHIFTS = BalanceConfig.economy.work.dailyShiftLimit
+const MAX_DAILY_MINUTES = BalanceConfig.economy.work.dailyShiftMinutes
 
 async function recordMissingToolBlock(now: Date): Promise<void> {
   try {
@@ -44,7 +45,7 @@ export const WorkService = {
     const { start, end } = utcDayRange()
     const [objects, used, professions, templates, tools] = await Promise.all([
       prisma.productionObject.findMany({ where: { isActive: true, status: 'ACTIVE' }, include: { equipment: true }, orderBy: [{ requiredProfessionLevel: 'asc' }, { code: 'asc' }] }),
-      prisma.workShift.count({ where: { characterId, startedAt: { gte: start, lt: end } } }),
+      prisma.workShift.findMany({ where: { characterId, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
       prisma.characterProfession.findMany({ where: { characterId } }),
       prisma.resourceTemplate.findMany({ select: { code: true, name: true } }),
       prisma.itemInstance.findMany({ where: { ownerId: characterId, status: 'NORMAL', usesLeft: { gt: 0 }, template: { type: 'TOOL' } }, include: { template: true } }),
@@ -55,6 +56,11 @@ export const WorkService = {
       items: objects.map(object => {
         const profession = professionByCode.get(object.requiredProfessionCode)
         const level = profession?.level ?? 0
+        // Замок считается по предыдущему переделу — по нему же строится
+        // подпись, иначе игрок видит требование к профессии, которой у него
+        // ещё нет и взять её негде.
+        const admission = admissionRequirement(object)
+        const gateLevel = admission ? professionByCode.get(admission.professionCode)?.level ?? 0 : 0
         return {
           ...object,
           producesResourceName: object.producesResourceCode ? resourceNames.get(object.producesResourceCode) ?? object.producesResourceCode : null,
@@ -64,7 +70,13 @@ export const WorkService = {
             level,
             exp: profession?.exp ?? 0,
           },
-          locked: level < object.requiredProfessionLevel,
+          admission: admission ? {
+            professionCode: admission.professionCode,
+            professionName: PROFESSION_NAMES[admission.professionCode] ?? admission.professionCode,
+            requiredLevel: admission.level,
+            currentLevel: gateLevel,
+          } : null,
+          locked: admission ? gateLevel < admission.level : false,
           equipment: object.equipment,
           toolAvailable: !object.equipment || tools.some(tool => (tool.template.toolTier ?? 0) >= object.equipment!.requiredToolTier),
         }
@@ -73,7 +85,7 @@ export const WorkService = {
         ...item,
         name: PROFESSION_NAMES[item.professionCode as ProfessionCode] ?? item.professionCode,
       })),
-      daily: { shiftsUsedToday: used, shiftsLimit: MAX_DAILY_SHIFTS },
+      daily: { shiftsUsedToday: used.length, shiftsLimit: MAX_DAILY_SHIFTS, minutesUsedToday: shiftMinutes(used), minutesLimit: MAX_DAILY_MINUTES },
     }
   },
 
@@ -81,7 +93,7 @@ export const WorkService = {
     const { start, end } = utcDayRange()
     const [shift, used] = await Promise.all([
       prisma.workShift.findFirst({ where: { characterId, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } }, include: { productionObject: { include: { equipment: true } }, toolInstance: { include: { template: true } } }, orderBy: { createdAt: 'desc' } }),
-      prisma.workShift.count({ where: { characterId, startedAt: { gte: start, lt: end } } }),
+      prisma.workShift.findMany({ where: { characterId, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
     ])
     const profession = shift ? await professionState(characterId, shift.professionCode) : null
     return {
@@ -91,7 +103,7 @@ export const WorkService = {
         isReady: shift.status === 'READY_TO_CLAIM' || shift.endsAt <= new Date(),
         remainingSeconds: Math.max(0, Math.ceil((shift.endsAt.getTime() - Date.now()) / 1000)),
       } : null,
-      daily: { shiftsUsedToday: used, shiftsLimit: MAX_DAILY_SHIFTS },
+      daily: { shiftsUsedToday: used.length, shiftsLimit: MAX_DAILY_SHIFTS, minutesUsedToday: shiftMinutes(used), minutesLimit: MAX_DAILY_MINUTES },
     }
   },
 
@@ -99,18 +111,29 @@ export const WorkService = {
     return withTransaction(async tx => {
       const now = new Date()
       const { start, end } = utcDayRange(now)
-      const [character, object, usedToday] = await Promise.all([
+      const [character, object, todayShifts] = await Promise.all([
         tx.character.findUniqueOrThrow({ where: { id: characterId } }),
         tx.productionObject.findUnique({ where: { id: productionObjectId }, include: { equipment: true } }),
-        tx.workShift.count({ where: { characterId, startedAt: { gte: start, lt: end } } }),
+        tx.workShift.findMany({ where: { characterId, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
       ])
-      if (usedToday >= MAX_DAILY_SHIFTS) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
+      if (todayShifts.length >= MAX_DAILY_SHIFTS) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
       if (!object) throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object not found', 404)
+      if (!fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), object.shiftDurationMinutes)) {
+        throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift budget reached', 400)
+      }
       if (!object.isActive || object.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_OBJECT_UNAVAILABLE, 'Production object unavailable', 409)
       const existingProfession = await tx.characterProfession.findUnique({
         where: { characterId_professionCode: { characterId, professionCode: object.requiredProfessionCode } },
       })
-      if ((existingProfession?.level ?? 0) < object.requiredProfessionLevel) throw new AppError(ErrorCode.WORK_LEVEL_REQUIRED, 'Profession level too low', 400)
+      // Допуск — по предыдущему переделу направления, а не по профессии
+      // самого объекта: её опыт нигде, кроме этого объекта, не начисляется.
+      const admission = admissionRequirement(object)
+      if (admission) {
+        const gate = await tx.characterProfession.findUnique({
+          where: { characterId_professionCode: { characterId, professionCode: admission.professionCode } },
+        })
+        if ((gate?.level ?? 0) < admission.level) throw new AppError(ErrorCode.WORK_LEVEL_REQUIRED, 'Profession level too low', 400)
+      }
       if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 400)
       if (await tx.workShift.findFirst({ where: { characterId, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } } })) throw new AppError(ErrorCode.WORK_ACTIVE_SHIFT, 'Active shift already exists', 409)
       const slots = await tx.workShift.count({ where: { productionObjectId, status: 'ACTIVE' } })

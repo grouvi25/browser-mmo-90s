@@ -2,6 +2,7 @@
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
+import { RESOURCES, PRODUCTION_OBJECTS, OBJECT_PROFESSIONS, PRIVATE_SHOP_RESOURCES } from './economy-data'
 
 const prisma = new PrismaClient()
 
@@ -208,21 +209,7 @@ async function main() {
   }
 
   // --- Stage 2 resource templates ---
-  const resources = [
-    ['res_scrap_metal', 'Металлолом', 'PRIMARY', 1, 8, 0.5, false, false],
-    ['res_fabric', 'Ткань', 'PRIMARY', 1, 6, 0.3, false, false],
-    ['res_leather', 'Кожа', 'PRIMARY', 1, 12, 0.4, false, false],
-    ['res_wood', 'Древесина', 'PRIMARY', 1, 5, 0.8, false, false],
-    ['res_plastic', 'Пластик', 'PRIMARY', 1, 7, 0.3, false, false],
-    ['res_chemicals', 'Химия', 'PRIMARY', 1, 15, 0.4, false, false],
-    ['res_spare_parts', 'Запчасти', 'PRIMARY', 1, 18, 0.6, false, false],
-    ['comp_metal_plate', 'Металлическая пластина', 'REPAIR_PART', 2, 30, 0.7, true, false],
-    ['comp_fastener', 'Крепёж', 'COMPONENT', 2, 12, 0.2, false, false],
-    ['comp_spring', 'Пружина', 'UPGRADE_PART', 2, 25, 0.2, false, true],
-    ['comp_weapon_part', 'Оружейная деталь', 'UPGRADE_PART', 2, 60, 0.5, true, true],
-    ['comp_armor_plate', 'Бронепластина', 'UPGRADE_PART', 2, 70, 0.9, true, true],
-    ['comp_repair_kit', 'Ремкомплект', 'REPAIR_PART', 2, 45, 0.5, true, false],
-  ] as const
+  const resources = RESOURCES
   for (const [code, name, category, tier, basePrice, weight, isRepairMaterial, isUpgradeMaterial] of resources) {
     await prisma.resourceTemplate.upsert({
       where: { code },
@@ -245,27 +232,13 @@ async function main() {
   await prisma.itemTemplate.updateMany({where:{type:'CONSUMABLE'},data:{craftProfessionCode:'pharmacist'}})
   const privateItemRows=[['kommersant','armor_leather_jacket_private',900,'INFINITE',null],['kommersant','armor_army_vest_private',5200,'LIMITED',10],['kommersant','armor_boots_army_private',700,'INFINITE',null],['armory_garage','weapon_tt_private',2400,'INFINITE',null],['armory_garage','weapon_sawnoff_private',3900,'LIMITED',15]] as const
   for(const [shopCode,code,price,stockMode,stockAmount] of privateItemRows){const t=await prisma.itemTemplate.findUniqueOrThrow({where:{code}});await prisma.privateShopItem.upsert({where:{shopCode_itemTemplateId:{shopCode,itemTemplateId:t.id}},update:{price,stockMode,stockAmount,minBattleLevel:t.levelReq,isActive:true},create:{shopCode,itemTemplateId:t.id,price,stockMode,stockAmount,minBattleLevel:t.levelReq}})}
-  const privateResourceRows=[['kommersant','comp_armor_plate',105],['kommersant','comp_repair_kit',68],['armory_garage','comp_weapon_part',90],['armory_garage','comp_repair_kit',68]] as const
-  for(const [shopCode,code,price] of privateResourceRows){const r=await prisma.resourceTemplate.findUniqueOrThrow({where:{code}});await prisma.privateShopItem.upsert({where:{shopCode_resourceTemplateId:{shopCode,resourceTemplateId:r.id}},update:{price,isActive:true},create:{shopCode,resourceTemplateId:r.id,price}})}
+  const privateResourceRows=PRIVATE_SHOP_RESOURCES
+  for(const {shopCode,resourceCode:code,price} of privateResourceRows){const r=await prisma.resourceTemplate.findUniqueOrThrow({where:{code}});await prisma.privateShopItem.upsert({where:{shopCode_resourceTemplateId:{shopCode,resourceTemplateId:r.id}},update:{price,isActive:true},create:{shopCode,resourceTemplateId:r.id,price}})}
   console.log(`  Private shop entries: ${privateItemRows.length+privateResourceRows.length}`)
 
-  const productionObjects = [
-    ['obj_warehouse_station','Склад у вокзала','WAREHOUSE',0,30,100,8,null,0,0,0],
-    ['obj_scrapyard','Пункт металлолома','SCRAPYARD',0,30,80,10,'res_scrap_metal',2,4,0],
-    ['obj_market_loader','Грузчик на рынке','MARKET',0,45,120,8,null,0,0,15],
-    ['obj_garage_workshop','Гаражный цех','WORKSHOP',1,60,160,15,'comp_fastener',1,2,0],
-    ['obj_small_factory','Малый завод','FACTORY',2,60,220,20,'comp_metal_plate',1,2,0],
-    ['obj_parts_factory','Фабрика деталей','FACTORY',3,90,300,28,'comp_weapon_part',1,1,0],
-  ] as const
-  const objectProfessions: Record<string, string> = {
-    obj_warehouse_station: 'supplier',
-    obj_scrapyard: 'scrap_collector',
-    obj_market_loader: 'procurer',
-    obj_garage_workshop: 'foundry_worker',
-    obj_small_factory: 'carpenter',
-    obj_parts_factory: 'gunsmith',
-  }
-  for(const [code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward] of productionObjects){
+  const productionObjects = PRODUCTION_OBJECTS
+  const objectProfessions = OBJECT_PROFESSIONS
+  for(const {code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward} of productionObjects){
     const requiredProfessionCode = objectProfessions[code]
     const requiredProfessionLevel = Math.min(requiredProductionLevel, 3)
     await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward}})
@@ -277,6 +250,7 @@ async function main() {
     obj_garage_workshop: { code: 'equipment_garage_press', name: 'Гаражный пресс', tier: 2, requiredToolTier: 2 },
     obj_small_factory: { code: 'equipment_small_factory_line', name: 'Производственная линия', tier: 2, requiredToolTier: 2 },
     obj_parts_factory: { code: 'equipment_parts_precision', name: 'Точный станок', tier: 3, requiredToolTier: 3 },
+    obj_cooperative_site: { code: 'equipment_site_press', name: 'Листогиб', tier: 3, requiredToolTier: 3 },
   }
   for (const [objectCode, equipment] of Object.entries(equipmentByObject)) {
     const object = await prisma.productionObject.findUniqueOrThrow({ where: { code: objectCode } })

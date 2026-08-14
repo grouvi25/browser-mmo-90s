@@ -1,0 +1,18 @@
+ПРОХОДИМОСТЬ ЭКОНОМИКИ
+
+Объекты:
+  открыт   obj_warehouse_station (Снабженец) — без требований
+  открыт   obj_scrapyard (Сборщик металлолома) — без требований
+  открыт   obj_market_loader (Заготовитель) — без требований
+  открыт   obj_garage_workshop (Литейщик) — нужен Сборщик металлолома ур. 1
+  открыт   obj_small_factory (Столяр) — нужен Снабженец ур. 2
+  открыт   obj_parts_factory (Оружейник) — нужен Литейщик ур. 3
+
+Ресурсы, добываемые трудом: comp_fastener, comp_metal_plate, comp_weapon_part, res_scrap_metal
+Ресурсы, продаваемые в лавках: comp_armor_plate, comp_repair_kit, comp_weapon_part
+Нужны ремонту и улучшениям: comp_armor_plate, comp_repair_kit, comp_weapon_part
+Из них взять негде: нет таких
+Заведены в сиде, но недоступны: comp_spring, res_chemicals, res_fabric, res_leather, res_plastic, res_spare_parts, res_wood
+Профессии без единого объекта: cooperative_builder, pharmacist, chemist
+
+ACCEPTANCE: PASS

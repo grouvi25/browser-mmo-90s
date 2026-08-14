@@ -61,6 +61,12 @@ jobs:
           npx tsx ../scripts/simulate-professions.ts --hours 2,4,8,14
           --json ../docs/stage2-profession-progression.json
           --text ../docs/stage2-profession-progression.txt
+      - name: Check economy reachability
+        working-directory: backend
+        run: >-
+          npx tsx ../scripts/check-economy-reachability.ts
+          --json ../docs/stage2-economy-reachability.json
+          --text ../docs/stage2-economy-reachability.txt
       - name: Run zonal balance simulation
         working-directory: backend
         run: npx tsx ../scripts/simulate-balance.ts --zonal | tee ../docs/stage2-balance-report.txt

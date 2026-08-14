@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "generatedAt": "2026-08-14T18:14:08.152Z",
+    "model": "economy-reachability-v1"
+  },
+  "objects": [
+    {
+      "code": "obj_warehouse_station",
+      "profession": "supplier",
+      "admission": null,
+      "reachable": true
+    },
+    {
+      "code": "obj_scrapyard",
+      "profession": "scrap_collector",
+      "admission": null,
+      "reachable": true
+    },
+    {
+      "code": "obj_market_loader",
+      "profession": "procurer",
+      "admission": null,
+      "reachable": true
+    },
+    {
+      "code": "obj_garage_workshop",
+      "profession": "foundry_worker",
+      "admission": {
+        "profession": "scrap_collector",
+        "level": 1
+      },
+      "reachable": true
+    },
+    {
+      "code": "obj_small_factory",
+      "profession": "carpenter",
+      "admission": {
+        "profession": "supplier",
+        "level": 2
+      },
+      "reachable": true
+    },
+    {
+      "code": "obj_parts_factory",
+      "profession": "gunsmith",
+      "admission": {
+        "profession": "foundry_worker",
+        "level": 3
+      },
+      "reachable": true
+    }
+  ],
+  "resources": {
+    "produced": [
+      "comp_fastener",
+      "comp_metal_plate",
+      "comp_weapon_part",
+      "res_scrap_metal"
+    ],
+    "purchasable": [
+      "comp_armor_plate",
+      "comp_repair_kit",
+      "comp_weapon_part"
+    ],
+    "neededByRepairOrUpgrade": [
+      "comp_armor_plate",
+      "comp_repair_kit",
+      "comp_weapon_part"
+    ],
+    "neededButUnobtainable": [],
+    "declaredButUnobtainable": [
+      "comp_spring",
+      "res_chemicals",
+      "res_fabric",
+      "res_leather",
+      "res_plastic",
+      "res_spare_parts",
+      "res_wood"
+    ]
+  },
+  "professionsWithoutObject": [
+    "cooperative_builder",
+    "pharmacist",
+    "chemist"
+  ],
+  "acceptance": {
+    "everyObjectReachable": true,
+    "everyNeededResourceObtainable": true,
+    "noDeadEndChainStart": true
+  }
+}
