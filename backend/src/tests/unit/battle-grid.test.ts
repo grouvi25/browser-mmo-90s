@@ -69,15 +69,15 @@ describe('battle grid movement', () => {
   })
 
   it('rejects collisions and movement into a stationary occupied cell', () => {
-    const first = fighter('p1', 1, 2, 2)
-    const second = fighter('p2', 2, 4, 2)
-    const blocker = fighter('p3', 2, 3, 2)
+    const first = fighter('p1', 1, 3, 3)
+    const second = fighter('p2', 2, 2, 3)
+    const blocker = fighter('p3', 2, 2, 2)
     expect(() => resolveSimultaneousMoves([first, second], [
-      { participantId: 'p1', destination: { x: 3, y: 2 } },
-      { participantId: 'p2', destination: { x: 3, y: 2 } },
+      { participantId: 'p1', destination: { x: 2, y: 2 } },
+      { participantId: 'p2', destination: { x: 2, y: 2 } },
     ])).toThrow('Multiple fighters')
     expect(() => resolveSimultaneousMoves([first, blocker], [
-      { participantId: 'p1', destination: { x: 3, y: 2 } },
+      { participantId: 'p1', destination: { x: 2, y: 2 } },
     ])).toThrow('occupied')
   })
 })
@@ -107,10 +107,10 @@ describe('battle grid attacks and protection', () => {
 describe('battle grid teams and target selection', () => {
   it('places both teams in deterministic center-out spawn rows', () => {
     expect(teamSpawnPositions(1, 3)).toEqual([
-      { x: 2, y: 6 }, { x: 1, y: 6 }, { x: 0, y: 5 },
+      { x: 2, y: 2 }, { x: 1, y: 2 }, { x: 1, y: 1 },
     ])
     expect(teamSpawnPositions(2, 3)).toEqual([
-      { x: 6, y: 7 }, { x: 6, y: 6 }, { x: 6, y: 5 },
+      { x: 5, y: 1 }, { x: 4, y: 1 }, { x: 6, y: 0 },
     ])
     expect(hexNeighbours(teamSpawnPositions(1, 1)[0])).toHaveLength(6)
     expect(hexNeighbours(teamSpawnPositions(2, 1)[0])).toHaveLength(6)

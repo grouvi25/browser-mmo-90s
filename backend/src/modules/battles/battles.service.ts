@@ -509,7 +509,7 @@ export const BattleService = {
             pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 2, y: 6 },
+            position: { x: 2, y: 2 },
           },
           {
             participantId: botPart.id,
@@ -522,7 +522,7 @@ export const BattleService = {
             hasActedThisRound: false,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 6, y: 7 },
+            position: { x: 5, y: 1 },
           },
         ],
       }
@@ -659,7 +659,7 @@ export const BattleService = {
             pocketItemIds: opponentPocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 2, y: 6 },
+            position: { x: 2, y: 2 },
           },
           {
             participantId: newParticipant.id, // FIX: use actual ID
@@ -676,7 +676,7 @@ export const BattleService = {
             pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 6, y: 7 },
+            position: { x: 5, y: 1 },
           },
         ],
       }
