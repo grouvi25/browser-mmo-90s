@@ -441,3 +441,15 @@
   .battle-profile-weapon > span { font-size: 6px; }
   .battle-profile-weapon > b { font-size: 7px; }
 }
+
+/* The legacy grid rule set top:50%; keeping top and bottom together stretched
+   the fighter across the cell. Anchor only the feet to the authored centre. */
+.battle-field-v3 .hex-cell .fighter-token {
+  top: auto;
+  bottom: 50%;
+  height: calc(72px * var(--fighter-depth, 1));
+  transform: translate(-50%, 0);
+}
+@media (max-width: 900px) {
+  .battle-field-v3 .hex-cell .fighter-token { height: calc(52px * var(--fighter-depth, 1)); }
+}

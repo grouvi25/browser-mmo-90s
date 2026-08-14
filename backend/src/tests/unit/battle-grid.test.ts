@@ -107,10 +107,10 @@ describe('battle grid attacks and protection', () => {
 describe('battle grid teams and target selection', () => {
   it('places both teams in deterministic center-out spawn rows', () => {
     expect(teamSpawnPositions(1, 3)).toEqual([
-      { x: 1, y: 1 }, { x: 1, y: 0 }, { x: 2, y: 2 },
+      { x: 2, y: 6 }, { x: 1, y: 6 }, { x: 0, y: 5 },
     ])
     expect(teamSpawnPositions(2, 3)).toEqual([
-      { x: 7, y: 1 }, { x: 7, y: 0 }, { x: 8, y: 2 },
+      { x: 6, y: 7 }, { x: 6, y: 6 }, { x: 6, y: 5 },
     ])
     expect(hexNeighbours(teamSpawnPositions(1, 1)[0])).toHaveLength(6)
     expect(hexNeighbours(teamSpawnPositions(2, 1)[0])).toHaveLength(6)
