@@ -476,7 +476,7 @@ export function BattlePage() {
 
       <main className="battle-duel-stage">
         <BattleFighterPanel side="self" name={playerName} level={char?.battleLevel}
-          hp={pHp} hpMax={pHpMax} mode="block" selected={blockZones} limit={budget.blocks}
+          hp={pHp} hpMax={pHpMax} mode="block" selected={blockZones} limit={attackHands.length > 0 ? 2 : 4}
           disabled={!canAct || attackHands.length === 2} primaryHand={playerProfile?.primaryHand ?? weapon?.template.name} secondaryHand={playerProfile?.secondaryHand}
           stats={playerProfile?.stats ?? char?.stats}
           onZone={toggleBlock} />
@@ -496,7 +496,7 @@ export function BattlePage() {
         </div>
 
         <BattleFighterPanel side="enemy" name={enemyName} level={enemyProfile?.level}
-          hp={eHp} hpMax={eHpMax} mode="attack" selected={attackZones} selectedHands={attackHands} limit={budget.attacks}
+          hp={eHp} hpMax={eHpMax} mode="attack" selected={attackZones} selectedHands={attackHands} limit={blockZones.length > 0 ? 1 : 2}
           disabled={!canAct || !ePart?.participantId}
           disabledHands={disabledAttackHands}
           disabledReason={disabledAttackHands.length === 2 ? 'Цель вне дальности' : undefined}
