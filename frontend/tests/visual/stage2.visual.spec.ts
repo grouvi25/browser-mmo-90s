@@ -1,6 +1,6 @@
 import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { hexNeighbours } from '../../src/shared/lib/hex'
+import { hexDistance, hexNeighbours } from '../../src/shared/lib/hex'
 
 type Account = { token: string; userId: string; login: string; nickname: string; characterId: string }
 let seller: Account
@@ -351,7 +351,7 @@ test.describe('Stage 2 visual and browser flow', () => {
       const occupied = new Set(snapshot.liveState.participants.filter(participant => participant.isAlive).map(participant => `${participant.position.x}:${participant.position.y}`))
       const moveTo = hexNeighbours(actor.position)
         .filter(position => !occupied.has(`${position.x}:${position.y}`))
-        .sort((a, b) => distance(a, enemy.position) - distance(b, enemy.position))[0]
+        .sort((a, b) => hexDistance(a, enemy.position) - hexDistance(b, enemy.position))[0]
       expect(moveTo).toBeTruthy()
       const moved = await apiContext.post(`/api/battles/${battleId}/action`, {
         headers: { Authorization: `Bearer ${fighter.token}` },
