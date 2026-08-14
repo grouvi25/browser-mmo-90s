@@ -35,14 +35,14 @@ export interface PositionedParticipant {
 
 const TEAM_SPAWNS: Readonly<Record<1 | 2, readonly GridPosition[]>> = {
   1: [
-    { x: 7, y: 2 }, { x: 7, y: 1 }, { x: 7, y: 3 },
-    { x: 8, y: 2 }, { x: 6, y: 3 }, { x: 8, y: 3 },
-    { x: 8, y: 0 }, { x: 7, y: 4 }, { x: 7, y: 6 },
+    { x: 3, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 3 },
+    { x: 3, y: 5 }, { x: 2, y: 3 }, { x: 2, y: 5 },
+    { x: 1, y: 4 }, { x: 1, y: 3 }, { x: 1, y: 5 },
   ],
   2: [
-    { x: 1, y: 6 }, { x: 0, y: 6 }, { x: 1, y: 5 },
-    { x: 2, y: 6 }, { x: 1, y: 7 }, { x: 2, y: 7 },
-    { x: 0, y: 7 }, { x: 2, y: 5 }, { x: 0, y: 5 },
+    { x: 5, y: 4 }, { x: 6, y: 4 }, { x: 5, y: 3 },
+    { x: 5, y: 5 }, { x: 6, y: 3 }, { x: 6, y: 5 },
+    { x: 7, y: 4 }, { x: 7, y: 3 }, { x: 7, y: 5 },
   ],
 }
 

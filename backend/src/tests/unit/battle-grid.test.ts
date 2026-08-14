@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   canAttackTarget,
   canMoveTo,
@@ -100,9 +100,9 @@ describe('battle grid attacks and protection', () => {
   })
 
   it('lets a front fighter shield an ally from ranged fire', () => {
-    const attacker = fighter('a', 1, 5, 4)
-    const protector = fighter('p', 2, 5, 3)
-    const target = fighter('t', 2, 7, 4)
+    const attacker = fighter('a', 1, 3, 4)
+    const protector = fighter('p', 2, 4, 4)
+    const target = fighter('t', 2, 5, 4)
     const all = [attacker, protector, target]
     expect(hasLineOfSight(attacker.position, target.position, all, 'a', 't')).toBe(false)
     expect(canAttackTarget(attacker, target, all, 5)).toBe(false)
@@ -112,12 +112,12 @@ describe('battle grid attacks and protection', () => {
 
 
 describe('battle grid teams and target selection', () => {
-  it('places both teams in deterministic PSB regions', () => {
+  it('places both teams in deterministic interior hex regions', () => {
     expect(teamSpawnPositions(1, 3)).toEqual([
-      { x: 7, y: 2 }, { x: 7, y: 1 }, { x: 7, y: 3 },
+      { x: 3, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 3 },
     ])
     expect(teamSpawnPositions(2, 3)).toEqual([
-      { x: 1, y: 6 }, { x: 0, y: 6 }, { x: 1, y: 5 },
+      { x: 5, y: 4 }, { x: 6, y: 4 }, { x: 5, y: 3 },
     ])
     expect(hexNeighbours(teamSpawnPositions(1, 1)[0])).toHaveLength(6)
     expect(hexNeighbours(teamSpawnPositions(2, 1)[0])).toHaveLength(6)
@@ -150,4 +150,3 @@ describe('battle grid teams and target selection', () => {
     expect(selectEnemyTarget(actor, [actor, target])).toBe(target)
   })
 })
-
