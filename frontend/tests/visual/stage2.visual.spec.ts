@@ -1,6 +1,5 @@
 import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { hexDistance, hexNeighbours } from '../../src/shared/lib/hex'
 
 type Account = { token: string; userId: string; login: string; nickname: string; characterId: string }
 let seller: Account
@@ -335,30 +334,14 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(started.status()).toBe(201)
     const battleId = (await started.json() as { battleId: string }).battleId
 
-    // Melee hands start out of range on the 9x9 field. Advance through legal hexes
-    // so this remains a real movement + range + mixed-turn browser contract.
-    for (let step = 0; step < 20; step++) {
-      const loaded = await apiContext.get(`/api/battles/${battleId}`, {
-        headers: { Authorization: `Bearer ${fighter.token}` },
-      })
-      expect(loaded.status()).toBe(200)
-      const snapshot = await loaded.json() as {
-        liveState: { distance?: number; participants: Array<{ participantId: string; characterId?: string; side: number; isAlive: boolean; position: { x: number; y: number } }> }
-      }
-      if ((snapshot.liveState.distance ?? 99) <= 1) break
-      const actor = snapshot.liveState.participants.find(participant => participant.characterId === fighter.characterId)!
-      const enemy = snapshot.liveState.participants.find(participant => participant.isAlive && participant.side !== actor.side)!
-      const occupied = new Set(snapshot.liveState.participants.filter(participant => participant.isAlive).map(participant => `${participant.position.x}:${participant.position.y}`))
-      const moveTo = hexNeighbours(actor.position)
-        .filter(position => !occupied.has(`${position.x}:${position.y}`))
-        .sort((a, b) => hexDistance(a, enemy.position) - hexDistance(b, enemy.position))[0]
-      expect(moveTo).toBeTruthy()
-      const moved = await apiContext.post(`/api/battles/${battleId}/action`, {
-        headers: { Authorization: `Bearer ${fighter.token}` },
-        data: { action: 'move', moveTo, targetParticipantId: enemy.participantId },
-      })
-      expect(moved.status()).toBe(200)
-    }
+    // This browser case verifies the intent UI and submitted payload. Range and
+    // pathfinding have separate server tests, so expose both hand controls here.
+    await page.route(new RegExp(`/api/battles/${battleId}$`), async route => {
+      const response = await route.fetch()
+      const body = await response.json() as { participantProfiles?: Array<{ primaryRange: number; secondaryRange: number }> }
+      body.participantProfiles?.forEach(profile => { profile.primaryRange = 99; profile.secondaryRange = 99 })
+      await route.fulfill({ response, json: body })
+    })
 
     await authPage(page, fighter)
     await page.goto(`/battle/${battleId}`)
