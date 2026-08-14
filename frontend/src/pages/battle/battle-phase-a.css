@@ -268,8 +268,19 @@
   background: transparent;
   transition: transform 120ms cubic-bezier(.25,1,.5,1), background 120ms;
 }
-.hex-cell.is-movable .designer-cell-hit { border-color: oklch(78% .14 80); background: oklch(78% .12 80 / .18); }
-.hex-cell.is-selected .designer-cell-hit { border: 2px solid oklch(72% .17 80); background: oklch(72% .15 80 / .36); }
+.hex-cell.is-movable .designer-cell-hit {
+  border: 3px solid oklch(88% .19 92);
+  background: oklch(78% .18 92 / .48);
+  box-shadow: 0 0 0 2px oklch(24% .05 80 / .72), 0 0 16px 5px oklch(82% .18 92 / .70);
+  filter: saturate(1.25) brightness(1.08);
+}
+.hex-cell.is-movable::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
+  border-radius: 50%; background: oklch(94% .15 96);
+  box-shadow: 0 0 8px 3px oklch(85% .18 92); transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 2;
+}
+.hex-cell.is-selected .designer-cell-hit { border: 4px solid oklch(94% .20 96); background: oklch(82% .20 92 / .62); box-shadow: 0 0 0 2px oklch(25% .05 80), 0 0 20px 7px oklch(86% .20 92 / .82); }
 .hex-cell.is-target .designer-cell-hit { border: 2px solid oklch(58% .18 25); background: oklch(62% .17 25 / .24); }
 .hex-cell.is-clickable:hover .designer-cell-hit { transform: scale(.94); background: oklch(84% .12 80 / .42); }
 .battle-field-v3 .fighter-token {
