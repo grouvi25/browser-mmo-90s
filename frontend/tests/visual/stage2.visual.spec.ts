@@ -337,7 +337,7 @@ test.describe('Stage 2 visual and browser flow', () => {
 
     // Melee hands start out of range on the 9x9 field. Advance through legal hexes
     // so this remains a real movement + range + mixed-turn browser contract.
-    for (let step = 0; step < 8; step++) {
+    for (let step = 0; step < 20; step++) {
       const loaded = await apiContext.get(`/api/battles/${battleId}`, {
         headers: { Authorization: `Bearer ${fighter.token}` },
       })

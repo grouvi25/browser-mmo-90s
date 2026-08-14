@@ -34,9 +34,24 @@ export function isNeighbour(from: Cell, to: Cell): boolean {
 
 /** Расстояние в сотах: смещённые координаты переводим в кубические. */
 export function hexDistance(a: Cell, b: Cell): number {
-  const aq = a.x - (a.y - (a.y & 1)) / 2
-  const bq = b.x - (b.y - (b.y & 1)) / 2
-  return (Math.abs(aq - bq) + Math.abs(a.y - b.y) + Math.abs(-aq - a.y + bq + b.y)) / 2
+  if (a.x === b.x && a.y === b.y) return 0
+  const target = `${b.x}:${b.y}`
+  const visited = new Set([`${a.x}:${a.y}`])
+  let frontier = [a]
+  for (let distance = 1; frontier.length > 0; distance++) {
+    const next: Cell[] = []
+    for (const cell of frontier) {
+      for (const neighbour of hexNeighbours(cell)) {
+        const key = `${neighbour.x}:${neighbour.y}`
+        if (visited.has(key)) continue
+        if (key === target) return distance
+        visited.add(key)
+        next.push(neighbour)
+      }
+    }
+    frontier = next
+  }
+  return Number.POSITIVE_INFINITY
 }
 
 // ── Раскладка на экране ──────────────────────────────────────
