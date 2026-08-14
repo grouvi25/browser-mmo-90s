@@ -26,18 +26,27 @@ for row in rows:
 deltas = [centres_y[i + 1] - centres_y[i] for i in range(ROWS - 1)]
 deltas.append(deltas[-1] + (deltas[-1] - deltas[-2]))
 
+# Центр каждой соты берём фактический — решётка рисованная, ровного шага
+# в ней нет. Исключение: соты, обрезанные краем слоя (их площадь заметно
+# меньше соседей) — у таких центр смещён, поэтому считаем его по шагу.
 cells = {}
 for y, row in enumerate(rows):
     w = steps[y]
     h = deltas[y] / 0.75
     x0 = row[0]["cx"]
+    typical = sorted(c["area"] for c in row)[len(row) // 2]
     for x in range(COLS):
-        cx = x0 + w * x
-        cy = centres_y[y]
+        found = row[x]
+        clipped = found["area"] < typical * 0.72
+        cx = x0 + w * x if clipped else found["cx"]
+        cy = centres_y[y] if clipped else found["cy"]
         cells[(x, y)] = {
             "cx": cx, "cy": cy, "w": w, "h": h,
             "left": cx - w / 2, "top": cy - h / 2,
+            "clipped": clipped,
         }
+print("клеток, восстановленных по шагу (обрезаны краем слоя): %d"
+      % sum(1 for c in cells.values() if c["clipped"]))
 
 print("сетка %dx%d, всего клеток %d" % (COLS, ROWS, len(cells)))
 print("ширина клетки: %.0f…%.0f px, высота: %.0f…%.0f px"
