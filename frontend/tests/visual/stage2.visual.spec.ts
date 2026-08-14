@@ -374,8 +374,11 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1)
 
     await page.locator('.battle-fighter-panel.is-enemy .battle-hand-zone.is-head button').nth(1).click()
-    await page.locator('.battle-fighter-panel.is-self .battle-fighter-zone').nth(1).click()
-    await page.locator('.battle-fighter-panel.is-self .battle-fighter-zone').nth(4).click()
+    // На своём силуэте столько же ячеек, сколько на чужом: пять зон по две.
+    // Ставим по одному блоку в разные зоны — на второй слот проверка отдельная.
+    await expect(page.locator('.battle-fighter-panel.is-self .battle-hand-zone button')).toHaveCount(10)
+    await page.locator('.battle-fighter-panel.is-self .battle-hand-zone.is-chest button').first().click()
+    await page.locator('.battle-fighter-panel.is-self .battle-hand-zone.is-legs button').first().click()
 
     const actionRequest = page.waitForRequest(request => request.url().endsWith(`/api/battles/${battleId}/action`))
     await page.locator('.battle-submit-turn').click()

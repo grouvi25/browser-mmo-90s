@@ -90,7 +90,6 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
       </div>
 
       {BATTLE_ZONES.map(zone => {
-        const active = props.selected.includes(zone.key)
         const full = props.mode === 'block' && props.selected.length >= props.limit
         if (props.mode === 'block') {
           // Две ячейки на зону — как две руки для удара. Второй блок

@@ -2,8 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import {
-  Sword, Shield, Heart, Zap, ArrowRight,
-  RotateCcw, ChevronDown, Skull,
+  Sword, Heart, RotateCcw, ChevronDown, Skull,
   CircleDot, Trophy, AlertTriangle,
 } from 'lucide-react'
 import { battlesApi, type AttackHand, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
@@ -21,8 +20,10 @@ import fighterRed from '../../shared/assets/battle/fighter-red.webp'
 import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
 import { BattleFighterPanel } from './components/battle-fighter-panel'
 import { BattleCommandDock } from './components/battle-command-dock'
+import { BattleChronicle } from './components/battle-chronicle'
+import { EventIcon, getEvent, type RoundRecord, type TurnEvent } from './components/battle-events'
 import { BattlePockets } from './components/battle-pockets'
-import { ZONE_LABEL, removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
+import { removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
 import './battle-phase-a.css'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -32,48 +33,12 @@ function getLoadout(): string[] {
   try { return JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '[]') } catch { return [] }
 }
 
-interface TurnEvent {
-  actor: 'player' | 'enemy' | string
-  action: string; hit: boolean; dodge: boolean; block: boolean
-  crit: boolean; lucky?: boolean; blockPierced?: boolean; zone?: BodyZone
-  counterDamage?: number; sourceHand?: AttackHand
-  rawDamage: number; finalDamage: number; logParts: string[]
-}
-interface RoundRecord {
-  round: number; events: TurnEvent[]; type: 'normal' | 'win' | 'lose'
-  expGain?: number; weaponExpGain?: number; moneyReward?: number; newLevel?: number
-}
 interface RoundResult {
   roundNumber?: number; playerHp?: number; botHp?: number; battleOver?: boolean
   result?: string; expGain?: number; weaponExpGain?: number; moneyReward?: number
   newLevel?: number; waiting?: boolean; turns?: TurnEvent[]
   botStance?: Stance; botAttackZones?: BodyZone[]; botBlockZones?: BodyZone[]
   distance?: number; playerRange?: number
-}
-
-// ── Иконки событий ─────────────────────────────────────────
-function EventIcon({ type }: { type: string }) {
-  const sz = 13
-  if (type === 'dodge')   return <ArrowRight size={sz} />
-  if (type === 'block')   return <Shield size={sz} />
-  if (type === 'counter') return <RotateCcw size={sz} />
-  if (type === 'crit')    return <Zap size={sz} />
-  if (type === 'lucky')   return <Zap size={sz} />
-  if (type === 'move')    return <ArrowRight size={sz} />
-  return <Sword size={sz} />
-}
-
-function getEvent(t: TurnEvent) {
-  const hand = t.sourceHand ? (t.sourceHand === 'LEFT_HAND' ? 'Л: ' : 'П: ') : ''
-  const z = t.zone ? ` (${ZONE_LABEL[t.zone]})` : ''
-  if (t.action === 'move') return { type: 'move', label: 'Сближение', color: '#365d91' }
-  if (!t.hit && t.dodge) return { type: 'dodge',   label: hand + 'Уворот' + z,   color: '#88b048' }
-  if (!t.hit)            return { type: 'dodge',   label: hand + 'Уворот' + z,   color: '#88b048' } // нет промаха
-  if (t.block)           return { type: 'block',   label: ((t.counterDamage ?? 0) > 0 ? 'Блок + ответка' : 'Блок') + z, color: '#6a9a3a' }
-  if (t.blockPierced)    return { type: 'lucky',   label: hand + 'Пробил блок' + z, color: '#9a60c0' }
-  if (t.lucky)           return { type: 'lucky',   label: hand + 'Пробитие' + z, color: '#9a60c0' }
-  if (t.crit)            return { type: 'crit',    label: 'КРИТ' + z,     color: '#d4a017' }
-  return                        { type: 'hit',     label: hand + 'Удар' + z,     color: '#c43030' }
 }
 
 // Tactical field
@@ -489,6 +454,7 @@ export function BattlePage() {
             participants={live?.participants} playerParticipantId={pPart?.participantId}
             playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
             onSelectTarget={setSelectedTargetId} />
+          <BattleChronicle rounds={rounds} playerName={playerName} enemyName={enemyName} onOpenLog={() => setShowLog(true)} />
           <div className="battle-field-v3__meta">
             <span>Дистанция: <b>{currentDistance}</b></span><span>Дальность: <b>{playerRange ?? '—'}</b></span>
           </div>

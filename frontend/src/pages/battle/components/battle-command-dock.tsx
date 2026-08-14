@@ -47,7 +47,8 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
               })}
             </div></div>
             <div><span><Shield size={11} /> Блоки</span><div className="battle-plan-chips">
-              {budget.blocks === 0 ? <i>нет</i> : props.blockZones.length ? props.blockZones.map(zone => <b key={zone}>{ZONE_LABEL[zone]}</b>) : <i>выберите {budget.blocks}</i>}
+              {/* Ключ по зоне не годится: две ячейки одной зоны дают два блока подряд. */}
+              {budget.blocks === 0 ? <i>нет</i> : props.blockZones.length ? props.blockZones.map((zone, index) => <b key={`${zone}-${index}`}>{ZONE_LABEL[zone]}</b>) : <i>выберите {budget.blocks}</i>}
             </div></div>
           </div>
         )}
