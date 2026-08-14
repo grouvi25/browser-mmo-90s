@@ -27,7 +27,7 @@ interface BattleFighterPanelProps {
   secondaryWeaponCode?: string | null
   primaryWeaponType?: string | null
   secondaryWeaponType?: string | null
-  onZone: (zone: BodyZone) => void
+  onZone: (zone: BodyZone, slot?: number) => void
   onHandZone?: (hand: AttackHand, zone: BodyZone) => void
 }
 
@@ -91,16 +91,24 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
 
       {BATTLE_ZONES.map(zone => {
         const active = props.selected.includes(zone.key)
-        const full = props.mode === 'block' && !active && props.selected.length >= props.limit
+        const full = props.mode === 'block' && props.selected.length >= props.limit
         if (props.mode === 'block') {
-          return <button key={zone.key} type="button"
-            className={`battle-fighter-zone battle-block-zone is-${ZONE_CLASS[zone.key]}${active ? ' is-selected' : ''}`}
-            aria-label={`Защитить: ${zone.label.toLocaleLowerCase('ru')}`}
-            aria-pressed={active}
-            disabled={props.disabled || props.limit === 0 || full}
-            onClick={() => props.onZone(zone.key)}>
-            <span>{zone.label}</span><em aria-hidden="true"><i /><i /></em>
-          </button>
+          // Две ячейки на зону — как две руки для удара. Второй блок
+          // держит удачный удар, который одиночный пропускает.
+          const placed = props.selected.filter(value => value === zone.key).length
+          return <div key={zone.key} className={`battle-fighter-zone battle-hand-zone is-${ZONE_CLASS[zone.key]}`}>
+            <span>{zone.label}</span><div>
+              {[0, 1].map(slot => {
+                const taken = placed > slot
+                return <button key={slot} type="button"
+                  className={taken ? 'is-selected' : ''}
+                  aria-label={`${taken ? 'Снять блок' : 'Поставить блок'}: ${zone.label.toLocaleLowerCase('ru')}${slot ? ', второй' : ''}`}
+                  aria-pressed={taken}
+                  disabled={props.disabled || props.limit === 0 || (!taken && (full || placed < slot))}
+                  onClick={() => props.onZone(zone.key, slot)}>{taken ? '●' : '·'}</button>
+              })}
+            </div>
+          </div>
         }
         return <div key={zone.key} className={`battle-fighter-zone battle-hand-zone is-${ZONE_CLASS[zone.key]}`}>
           <span>{zone.label}</span><div>

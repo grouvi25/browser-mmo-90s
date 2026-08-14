@@ -27,11 +27,17 @@
 .battle-header-v3 .is-ready { color: oklch(39% 0.09 135); }
 .battle-header-v3 .is-pending { color: oklch(45% 0.09 75); }
 
-.battle-duel-stage { min-height: 0; display: grid; grid-template-columns: 190px minmax(0,1fr) 190px; }
-.battle-fighter-panel { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto 22px auto minmax(0,1fr) auto; background: oklch(96% .017 75); }
+.battle-duel-stage { min-height: 0; display: grid; grid-template-columns: 176px minmax(0,1fr) 176px; }
+.battle-fighter-panel {
+  position: relative; min-width: 0; min-height: 0;
+  display: grid; grid-template-rows: auto 22px auto minmax(0,1fr) auto;
+  /* Та же бумага, что под карточкой персонажа на главном экране:
+     боевой экран не должен выглядеть чужим разделом. */
+  background: oklch(96% .017 75) url('../../shared/assets/battle/panel-paper.webp') center / cover;
+}
 .battle-fighter-panel.is-self { border-right: 1px solid oklch(51% .035 55); }
 .battle-fighter-panel.is-enemy { border-left: 1px solid oklch(51% .035 55); }
-.battle-fighter-panel__head { padding: 6px 8px 5px; border-bottom: 1px solid oklch(68% .025 60); }
+.battle-fighter-panel__head { padding: 6px 8px 5px; border-bottom: 1px solid oklch(68% .025 60); background: oklch(96% .017 75 / .72); }
 .battle-fighter-panel__head > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; }
 .battle-fighter-panel__head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12px/1 var(--font-sign); text-transform: uppercase; }
 .battle-fighter-panel__head small { color: oklch(43% .026 55); font-size: 9px; white-space: nowrap; }
@@ -80,13 +86,13 @@
 .battle-fighter-panel__hands span { font-size: 7px; text-transform: uppercase; letter-spacing: .06em; color: oklch(45% .025 55); }
 .battle-fighter-panel__hands b { margin-top: 2px; font-size: 8px; }
 
-.battle-field-v3 { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: oklch(20% .022 245); }
-.battle-field-v3 .grid-arena { height: 100%; display: flex; flex-direction: column; border: 0; background: oklch(20% .022 245); }
-.battle-field-v3 .hex-board { flex: 1; min-height: 0; display: grid; place-items: center; padding: 3px 4px 22px; border: 0; background: radial-gradient(circle at center, oklch(32% .035 245), oklch(18% .02 245)); }
+.battle-field-v3 { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: oklch(90% .028 70); }
+.battle-field-v3 .grid-arena { height: 100%; display: flex; flex-direction: column; border: 0; background: transparent; }
+.battle-field-v3 .hex-board { flex: 1; min-height: 0; display: grid; place-items: center; padding: 6px 8px 24px; border: 0; background: transparent; }
 .battle-field-v3 .hex-field { width: min(92%, 900px); max-height: 100%; margin: 0; }
-.battle-field-v3 .grid-last-event { position: absolute; z-index: 5; left: 8px; right: 8px; bottom: 21px; min-height: 22px; padding: 3px 6px; border: 1px solid oklch(60% .04 55); background: oklch(19% .025 245); color: oklch(92% .015 70); }
-.battle-field-v3__meta { position: absolute; z-index: 4; left: 0; right: 0; bottom: 0; height: 22px; display: flex; align-items: center; justify-content: space-between; padding: 0 7px; background: oklch(16% .02 245); color: oklch(82% .018 75); font-size: 8px; }
-.battle-field-v3__meta b { color: oklch(86% .09 78); font-variant-numeric: tabular-nums; }
+.battle-field-v3 .grid-last-event { position: absolute; z-index: 5; left: 8px; right: 8px; bottom: 21px; min-height: 22px; padding: 3px 6px; border: 1px solid oklch(60% .04 55); background: oklch(93% .022 70 / .94); color: oklch(28% .03 55); }
+.battle-field-v3__meta { position: absolute; z-index: 4; left: 0; right: 0; bottom: 0; height: 22px; display: flex; align-items: center; justify-content: space-between; padding: 0 7px; background: oklch(88% .03 70); color: oklch(34% .03 55); border-top: 1px solid oklch(62% .04 55); font-size: 8px; }
+.battle-field-v3__meta b { color: oklch(40% .12 40); font-variant-numeric: tabular-nums; }
 
 .battle-command-dock { min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 190px; border-top: 1px solid oklch(51% .035 55); background: oklch(89% .03 70); }
 .battle-command-dock__plan { min-width: 0; display: grid; grid-template-rows: 16px 1fr 14px; gap: 2px; padding: 7px 9px; }
@@ -240,11 +246,13 @@
    3280:1798 plate always fits without distortion. */
 .battle-field-v3 .hex-board {
   container-type: size;
-  padding: 0 0 22px;
-  background: oklch(18% .02 245);
+  display: grid;
+  place-items: center;
+  padding: 6px 8px 24px;
+  background: transparent;
 }
 .battle-field-v3 .designer-battle-field {
-  width: min(100cqw, calc(100cqh * 1.824249));
+  width: min(100cqw, calc((100vh - 210px) * 1.824249));
   height: auto;
   max-width: none;
   max-height: none;
@@ -253,6 +261,8 @@
   background-position: center;
   background-repeat: no-repeat;
   background-size: 100% 100%;
+  border: 1px solid oklch(46% .04 55);
+  box-shadow: 0 3px 14px oklch(30% .03 55 / .30);
 }
 
 .battle-field-v3 .hex-cell {
@@ -320,6 +330,11 @@
 .battle-hand-zone > div { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:2px; }
 .battle-hand-zone button { min-width:24px; min-height:28px; padding:0; border:1px solid oklch(55% .04 55); background:oklch(94% .02 75); color:oklch(30% .03 55); font:700 8px/1 var(--font-mono); cursor:pointer; }
 .battle-hand-zone button.is-selected { border-color:oklch(42% .14 25); background:oklch(45% .14 25); color:oklch(97% .01 70); }
+/* Свой силуэт — защита, поэтому занятая ячейка зелёная, а не красная. */
+.battle-fighter-panel.is-self .battle-hand-zone button.is-selected {
+  border-color: oklch(38% .10 135); background: oklch(44% .11 135);
+}
+.battle-hand-zone button { background: oklch(94% .02 75 / .82); }
 .battle-hand-zone button:disabled { opacity:.35; cursor:not-allowed; }
 @media (max-width:900px) { .battle-hand-zone { font-size:0; } .battle-hand-zone > div { height:100%; margin:0; align-items:center; } .battle-hand-zone button { min-height:30px; font-size:8px; } }
 
@@ -348,7 +363,7 @@
   .battle-hand-zone.is-head,.battle-hand-zone.is-chest,.battle-hand-zone.is-legs { left: calc(50% - 46px); }
   .battle-hand-zone > div { grid-template-columns: repeat(2, minmax(40px, 1fr)); gap: 3px; }
   .battle-hand-zone button { min-width: 40px; min-height: 44px; font-size: 10px; }
-  .battle-field-v3 .designer-battle-field { width: min(100cqw, calc(100cqh * 1.824249)); }
+  .battle-field-v3 .designer-battle-field { width: min(100cqw, calc((100vh - 210px) * 1.824249)); }
 }
 
 

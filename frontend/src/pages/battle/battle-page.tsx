@@ -22,7 +22,7 @@ import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
 import { BattleFighterPanel } from './components/battle-fighter-panel'
 import { BattleCommandDock } from './components/battle-command-dock'
 import { BattlePockets } from './components/battle-pockets'
-import { ZONE_LABEL, removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlock } from './battle-view-model'
+import { ZONE_LABEL, removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
 import './battle-phase-a.css'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -352,7 +352,7 @@ export function BattlePage() {
   const currentPlan = () => ({ stance, attackZones, attackHands, blockZones })
   const toggleAttackHand = (hand: AttackHand, zone: BodyZone) => applyAutomaticPlan(selectAutomaticAttack(currentPlan(), hand, zone))
   const removeAttack = (index: number) => applyAutomaticPlan(removeAutomaticAttack(currentPlan(), index))
-  const toggleBlock = (zone: BodyZone) => applyAutomaticPlan(toggleAutomaticBlock(currentPlan(), zone))
+  const toggleBlock = (zone: BodyZone, slot = 0) => applyAutomaticPlan(toggleAutomaticBlockSlot(currentPlan(), zone, slot))
   const selectMove = (position: { x: number; y: number }) => {
     setSelectedMove(position); setAttackZones([]); setAttackHands([]); setBlockZones([])
   }

@@ -327,16 +327,19 @@ export function resolveZonalAttack(
   // Incoming force is rolled once and also defines bounded counterattack damage.
   const incomingForce = calcRawDamage(attacker, defender.antiSkillLevel, rng)
 
-  // 3. Блок зоны: если зона заблокирована и удар НЕ удачный — урон 0 + ответка.
-  const zoneBlocked = blockedZones.includes(zone)
-  if (zoneBlocked && !lucky) {
+  // 3. Блок зоны: одиночный блок гасит обычный удар, но удачный его пробивает.
+  //    Двойной блок на одной зоне держит и удачный — за это платят вторым
+  //    блоком из бюджета стойки, то есть открытой остаётся ещё одна зона.
+  const blockLayers = blockedZones.filter(blocked => blocked === zone).length
+  const zoneBlocked = blockLayers > 0
+  if (zoneBlocked && (!lucky || blockLayers > 1)) {
     block = true
     const counter = calcCounterAttack(defender, attacker, incomingForce, rng)
     if (counter.triggered) {
       counterDamage = counter.damage
-      log.push(`Блок (${zoneName}) + ответка ${counterDamage}`)
+      log.push(`${blockLayers > 1 ? 'Двойной блок' : 'Блок'} (${zoneName}) + ответка ${counterDamage}`)
     } else {
-      log.push(`Блок (${zoneName})`)
+      log.push(`${blockLayers > 1 ? 'Двойной блок' : 'Блок'} (${zoneName})`)
     }
     return base()
   }

@@ -91,11 +91,18 @@ describe('zones: normalizeTurn / stances', () => {
     const mixed = normalizeTurn({ stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEGS'] })
     expect(mixed.attackHands).toEqual(['RIGHT_HAND'])
   })
-  it('defense4 = 4 уникальных блока', () => {
+  it('defense4 = 4 блока, на зону не больше двух', () => {
     const t = normalizeTurn({ stance: 'defense4', blockZones: ['HEAD', 'HEAD', 'CHEST'] })
     expect(t.blockZones).toHaveLength(4)
-    expect(new Set(t.blockZones).size).toBe(4)
+    expect(t.blockZones.filter(zone => zone === 'HEAD')).toHaveLength(2)
   })
+
+  it('третий блок в одну зону отбрасывается', () => {
+    const t = normalizeTurn({ stance: 'defense4', blockZones: ['HEAD', 'HEAD', 'HEAD', 'CHEST'] })
+    expect(t.blockZones.filter(zone => zone === 'HEAD')).toHaveLength(2)
+    expect(t.blockZones).toHaveLength(4)
+  })
+
   it('добивает атаки корпусом до бюджета', () => {
     const t = normalizeTurn({ stance: 'attack2', attackZones: [] })
     expect(t.attackZones).toEqual(['CHEST', 'CHEST'])
@@ -168,6 +175,23 @@ describe('resolveZonalAttack: удачный удар пробивает бло�
     // огромная броня зоны проигнорирована lucky-ударом → урон существенный
     expect(r.finalDamage).toBeLessThan(20)
     expect(r.finalDamage).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('resolveZonalAttack: двойной блок держит удачный удар', () => {
+  it('одиночный блок удачный удар пробивает, двойной — нет', () => {
+    const atk = attacker({ luck: 25, minDamage: 40, maxDamage: 40, str: 0, weaponSkillLevel: 0 })
+    const def = defender({ armor: 0, end: 1, rea: 0 })
+    // dodge нет, lucky да, дальше добор
+    mockRandom([0.0, 0.0, 0.5, 0.99])
+    const single = resolveZonalAttack(atk, def, { zone: 'HEAD', blockedZones: ['HEAD'], zoneArmor: 0 })
+    mockRandom([0.0, 0.0, 0.5, 0.99])
+    const double = resolveZonalAttack(atk, def, { zone: 'HEAD', blockedZones: ['HEAD', 'HEAD'], zoneArmor: 0 })
+
+    expect(single.block).toBe(false)
+    expect(single.blockPierced).toBe(true)
+    expect(double.block).toBe(true)
+    expect(double.finalDamage).toBe(0)
   })
 })
 

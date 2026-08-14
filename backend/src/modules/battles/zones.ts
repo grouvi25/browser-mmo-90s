@@ -20,6 +20,9 @@ export const ZONE_ARMOR_SLOTS: Record<BodyZone, ArmorSlot[]> = {
 export type Stance = 'attack2' | 'mixed' | 'defense4'
 export type AttackHand = 'LEFT_HAND' | 'RIGHT_HAND'
 
+/** Сколько блоков принимает одна зона. Второй держит удачный удар. */
+export const MAX_BLOCKS_PER_ZONE = 2
+
 export const STANCE_BUDGET: Record<Stance, { attacks: number; blocks: number }> = {
   attack2: { attacks: 2, blocks: 0 },
   mixed: { attacks: 1, blocks: 2 },
@@ -63,9 +66,11 @@ export function botArmorOfZone(
     : Math.max(0, fallbackArmor)
 }
 
-// Валидируем и нормализуем ход. Обрезаем зоны под бюджет стойки,
-// убираем дубли блоков (по одной зоне блок ставится один раз),
-// для атаки дубли разрешены (можно бить дважды в одну зону).
+// Валидируем и нормализуем ход. Обрезаем зоны под бюджет стойки.
+// Дубли разрешены с обеих сторон: бить дважды в одну зону можно, и
+// закрыть одну зону двумя блоками тоже — второй блок держит удачный
+// удар, который одиночный блок пробивает. Больше двух на зону смысла
+// не имеет, поэтому третий отбрасывается.
 export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): ZonalTurnInput {
   const stance: Stance =
     input?.stance && STANCE_BUDGET[input.stance] ? input.stance : 'attack2'
@@ -77,8 +82,16 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
 
   const attackZones = rawAttack.slice(0, budget.attacks)
   const attackHands = rawHands.slice(0, budget.attacks)
-  // блоки — уникальные зоны
-  const blockZones = dedupe(rawBlock).slice(0, budget.blocks)
+  // блоки: одна зона принимает не больше двух
+  const blockCount = new Map<BodyZone, number>()
+  const blockZones: BodyZone[] = []
+  for (const zone of rawBlock) {
+    if (blockZones.length >= budget.blocks) break
+    const used = blockCount.get(zone) ?? 0
+    if (used >= MAX_BLOCKS_PER_ZONE) continue
+    blockCount.set(zone, used + 1)
+    blockZones.push(zone)
+  }
 
   // Если атак не хватает до бюджета — добиваем корпусом (дефолтная зона).
   while (attackZones.length < budget.attacks) attackZones.push('CHEST')
@@ -86,9 +99,13 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
   while (attackHands.length < budget.attacks) attackHands.push(defaultHands[attackHands.length] ?? 'LEFT_HAND')
   // Если блоков не хватает — добиваем приоритетными зонами.
   if (blockZones.length < budget.blocks) {
-    for (const z of DEFAULT_BLOCK_PRIORITY) {
-      if (blockZones.length >= budget.blocks) break
-      if (!blockZones.includes(z)) blockZones.push(z)
+    for (let layer = 0; layer < MAX_BLOCKS_PER_ZONE; layer++) {
+      for (const z of DEFAULT_BLOCK_PRIORITY) {
+        if (blockZones.length >= budget.blocks) break
+        if ((blockCount.get(z) ?? 0) > layer) continue
+        blockCount.set(z, (blockCount.get(z) ?? 0) + 1)
+        blockZones.push(z)
+      }
     }
   }
 

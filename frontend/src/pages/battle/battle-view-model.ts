@@ -73,12 +73,33 @@ export function selectAutomaticAttack(plan: AutomaticTurnPlan, hand: AttackHand,
   return deriveAutomaticPlan(ordered.map(item => item.hand), ordered.map(item => item.zone), plan.blockZones)
 }
 
-export function toggleAutomaticBlock(plan: AutomaticTurnPlan, zone: BodyZone): AutomaticTurnPlan {
+/** Сколько блоков принимает одна зона — зеркало MAX_BLOCKS_PER_ZONE сервера. */
+export const MAX_BLOCKS_PER_ZONE = 2
+
+export function blocksOnZone(plan: AutomaticTurnPlan, zone: BodyZone): number {
+  return plan.blockZones.filter(value => value === zone).length
+}
+
+/**
+ * Блок ставится в одну из двух ячеек зоны — как удар ставится в одну из
+ * двух рук. Повторный клик по занятой ячейке снимает блок. Второй блок
+ * на зоне держит удачный удар, который одиночный пропускает.
+ */
+export function toggleAutomaticBlockSlot(
+  plan: AutomaticTurnPlan, zone: BodyZone, slot: number,
+): AutomaticTurnPlan {
   if (plan.attackHands.length >= 2) return plan
-  const selected = plan.blockZones.includes(zone)
   const limit = plan.attackHands.length === 1 ? 2 : 4
-  if (!selected && plan.blockZones.length >= limit) return plan
-  const blockZones = selected ? plan.blockZones.filter(value => value !== zone) : [...plan.blockZones, zone]
+  const count = blocksOnZone(plan, zone)
+
+  let blockZones: BodyZone[]
+  if (count > slot) {
+    const last = plan.blockZones.lastIndexOf(zone)
+    blockZones = plan.blockZones.filter((_, index) => index !== last)
+  } else {
+    if (plan.blockZones.length >= limit || count >= MAX_BLOCKS_PER_ZONE) return plan
+    blockZones = [...plan.blockZones, zone]
+  }
   return deriveAutomaticPlan(plan.attackHands, plan.attackZones, blockZones)
 }
 
