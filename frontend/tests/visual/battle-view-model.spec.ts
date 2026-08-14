@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { appendAttackZone, getActionBudget, getTurnPlanText, removeAttackZone, selectAutomaticAttack, toggleAutomaticBlock, toggleZone, validateTurnPlan } from '../../src/pages/battle/battle-view-model'
+import { appendAttackZone, getActionBudget, getTurnPlanText, removeAttackZone, selectAutomaticAttack, toggleAutomaticBlockSlot, toggleZone, validateTurnPlan } from '../../src/pages/battle/battle-view-model'
 
 test.describe('battle phase A view model', () => {
   for (const [stance, attacks, blocks] of [
@@ -29,25 +29,44 @@ test.describe('battle phase A view model', () => {
     const first = selectAutomaticAttack({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] }, 'RIGHT_HAND', 'HEAD')
     const attack2 = selectAutomaticAttack(first, 'LEFT_HAND', 'CHEST')
     expect(attack2).toEqual({ stance: 'attack2', attackHands: ['LEFT_HAND', 'RIGHT_HAND'], attackZones: ['CHEST', 'HEAD'], blockZones: [] })
-    expect(toggleAutomaticBlock(attack2, 'LEGS')).toEqual(attack2)
+    expect(toggleAutomaticBlockSlot(attack2, 'LEGS', 0)).toEqual(attack2)
   })
 
   test('locks the second attack after defence starts and never deletes prior choices', () => {
-    let plan = toggleAutomaticBlock({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] }, 'HEAD')
-    plan = toggleAutomaticBlock(plan, 'CHEST')
+    let plan = toggleAutomaticBlockSlot({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] }, 'HEAD', 0)
+    plan = toggleAutomaticBlockSlot(plan, 'CHEST', 0)
     plan = selectAutomaticAttack(plan, 'LEFT_HAND', 'LEGS')
     expect(plan).toEqual({ stance: 'mixed', attackHands: ['LEFT_HAND'], attackZones: ['LEGS'], blockZones: ['HEAD', 'CHEST'] })
     expect(selectAutomaticAttack(plan, 'RIGHT_HAND', 'CHEST')).toEqual(plan)
-    expect(toggleAutomaticBlock(plan, 'LEGS')).toEqual(plan)
+    expect(toggleAutomaticBlockSlot(plan, 'LEGS', 0)).toEqual(plan)
   })
 
   test('allows four blocks when no attack is selected', () => {
     const plan = { stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] } as const
-    let next = toggleAutomaticBlock(plan, 'HEAD')
-    next = toggleAutomaticBlock(next, 'CHEST')
-    next = toggleAutomaticBlock(next, 'LEFT_ARM')
-    next = toggleAutomaticBlock(next, 'LEGS')
+    let next = toggleAutomaticBlockSlot(plan, 'HEAD', 0)
+    next = toggleAutomaticBlockSlot(next, 'CHEST', 0)
+    next = toggleAutomaticBlockSlot(next, 'LEFT_ARM', 0)
+    next = toggleAutomaticBlockSlot(next, 'LEGS', 0)
     expect(next).toEqual({ stance: 'defense4', attackHands: [], attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'LEGS'] })
+  })
+
+  test('принимает два блока на одну зону и отбрасывает третий', () => {
+    const empty = { stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] } as const
+    let plan = toggleAutomaticBlockSlot(empty, 'CHEST', 0)
+    plan = toggleAutomaticBlockSlot(plan, 'CHEST', 1)
+    expect(plan.blockZones).toEqual(['CHEST', 'CHEST'])
+    // третьей ячейки на зоне нет, но проверяем и саму границу
+    expect(toggleAutomaticBlockSlot(plan, 'CHEST', 2).blockZones).toEqual(['CHEST', 'CHEST'])
+    // повторный клик по занятой ячейке снимает блок
+    expect(toggleAutomaticBlockSlot(plan, 'CHEST', 1).blockZones).toEqual(['CHEST'])
+  })
+
+  test('клик по второй ячейке пустой зоны кладёт блок в первую', () => {
+    // Модель считает не ячейки, а количество блоков на зоне: номер слота
+    // нужен ей только чтобы отличить постановку от снятия. Пустую вторую
+    // ячейку гасит панель, а модель на всякий случай не создаёт дырок.
+    const empty = { stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] } as const
+    expect(toggleAutomaticBlockSlot(empty, 'LEGS', 1).blockZones).toEqual(['LEGS'])
   })
 
   test('describes complete mixed plan', () => {
