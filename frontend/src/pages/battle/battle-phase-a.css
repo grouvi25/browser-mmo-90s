@@ -327,3 +327,117 @@
   .battle-hand-zone button { min-width: 40px; min-height: 44px; font-size: 10px; }
   .battle-field-v3 .designer-battle-field { width: min(100cqw, calc(100cqh * 1.824249)); }
 }
+
+
+/* Battle profile and perspective pass, 2026-08-14. */
+.battle-fighter-panel {
+  grid-template-rows: auto 108px 22px minmax(0, 1fr);
+}
+.battle-profile-summary {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 6px;
+  padding: 6px;
+  border-bottom: 1px solid oklch(68% .025 60);
+  background: oklch(93% .018 75);
+}
+.battle-profile-portrait {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid oklch(46% .035 55);
+  background: oklch(82% .025 68);
+}
+.battle-profile-portrait img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 50% 20%;
+}
+.is-enemy .battle-profile-portrait { border-color: oklch(45% .11 25); }
+.battle-profile-weapons {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+}
+.battle-profile-weapon {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-rows: 11px 1fr;
+  column-gap: 5px;
+  align-items: center;
+  padding: 3px 4px;
+  border: 1px solid oklch(65% .03 60);
+  background: oklch(97% .012 75);
+}
+.battle-profile-weapon > span {
+  grid-column: 2;
+  color: oklch(45% .025 55);
+  font-size: 7px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.battle-profile-weapon > img {
+  grid-row: 1 / 3;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+.battle-profile-weapon > b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+}
+.battle-block-zone em {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 3px;
+  vertical-align: middle;
+}
+.battle-block-zone em i {
+  width: 5px;
+  height: 5px;
+  display: block;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: .65;
+}
+.battle-block-zone.is-selected em i {
+  background: currentColor;
+  opacity: 1;
+}
+
+/* Feet sit on the authored cell centre. Depth follows the painted perspective. */
+.battle-field-v3 .fighter-token {
+  bottom: 50%;
+  height: calc(72px * var(--fighter-depth, 1));
+  transform: translate(-50%, 0);
+  transform-origin: 50% 100%;
+}
+.battle-field-v3 .fighter-token > img {
+  object-fit: contain;
+  object-position: 50% 100%;
+}
+
+@media (max-width: 900px) {
+  .battle-fighter-panel { grid-template-rows: auto 74px 18px minmax(0, 1fr); }
+  .battle-profile-summary { grid-template-columns: 44px minmax(0, 1fr); gap: 3px; padding: 3px; }
+  .battle-profile-weapon { grid-template-columns: 22px minmax(0, 1fr); column-gap: 2px; padding: 2px; }
+  .battle-profile-weapon > img { width: 22px; height: 22px; }
+  .battle-profile-weapon > span { font-size: 5px; }
+  .battle-profile-weapon > b { font-size: 6px; }
+  .battle-field-v3 .fighter-token { height: calc(52px * var(--fighter-depth, 1)); }
+}
+
+@media (max-width: 600px) and (min-height: 521px) {
+  .battle-fighter-panel { grid-template-rows: auto 82px 20px minmax(0, 1fr); }
+  .battle-profile-summary { grid-template-columns: 54px minmax(0, 1fr); }
+  .battle-profile-weapon > span { font-size: 6px; }
+  .battle-profile-weapon > b { font-size: 7px; }
+}

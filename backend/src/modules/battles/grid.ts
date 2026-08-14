@@ -33,14 +33,26 @@ export interface PositionedParticipant {
   position: GridPosition
 }
 
-const SPAWN_ROWS = [4, 3, 5, 2, 6, 1, 7, 0, 8] as const
+const TEAM_SPAWNS: Readonly<Record<1 | 2, readonly GridPosition[]>> = {
+  // The battlefield is painted in perspective, not as a rectangular honeycomb.
+  // The lead fighters start on authored cells with all six physical neighbours.
+  1: [
+    { x: 1, y: 1 }, { x: 1, y: 0 }, { x: 2, y: 2 },
+    { x: 0, y: 1 }, { x: 2, y: 1 }, { x: 0, y: 0 },
+    { x: 2, y: 0 }, { x: 0, y: 2 }, { x: 1, y: 2 },
+  ],
+  2: [
+    { x: 7, y: 1 }, { x: 7, y: 0 }, { x: 8, y: 2 },
+    { x: 6, y: 1 }, { x: 8, y: 1 }, { x: 6, y: 0 },
+    { x: 8, y: 0 }, { x: 6, y: 2 }, { x: 7, y: 2 },
+  ],
+}
 
 export function teamSpawnPositions(side: number, count: number): GridPosition[] {
   if (!Number.isInteger(count) || count < 1 || count > BATTLE_GRID.height) {
     throw new Error(`Team size must be between 1 and ${BATTLE_GRID.height}`)
   }
-  const x = side === 1 ? 1 : BATTLE_GRID.width - 2
-  return SPAWN_ROWS.slice(0, count).map(y => ({ x, y }))
+  return TEAM_SPAWNS[side === 1 ? 1 : 2].slice(0, count).map(position => ({ ...position }))
 }
 
 export function selectEnemyTarget<T extends PositionedParticipant>(

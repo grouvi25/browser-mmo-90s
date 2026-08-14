@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import {
   Sword, Shield, Heart, Zap, ArrowRight,
   RotateCcw, ChevronDown, Skull,
@@ -111,6 +111,8 @@ function BattleGrid({
             const col = designerCell.x
             const row = designerCell.y
             const cell = { x: col, y: row }
+            const fighterDepth = 0.58 + designerCell.centerY / 100 * 0.72
+            const fighterStyle = { '--fighter-depth': fighterDepth } as CSSProperties
             const playerCell = playerPosition ?? { x: PLAYER_COL, y: midRow }
             const occupant = participants?.find(p => p.isAlive && p.position.x === col && p.position.y === row)
             // Пустая клетка не должна считаться своей: пока участник боя
@@ -153,13 +155,13 @@ function BattleGrid({
               >
                 <span className="designer-cell-hit" style={{ clipPath: designerCell.polygon }} />
                 {(isPlayer || isAlly) && occupant && (
-                  <div className={`fighter-token token-player ${isPlayer && playerHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
+                  <div style={fighterStyle} className={`fighter-token token-player ${isPlayer && playerHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
                     {!occupant.isAlive ? <Skull size={16} /> : <img src={fighterBlue} srcSet={`${fighterBlue2x} 2x`} alt="" />}
                     <span className="token-label">{isPlayer ? playerName.slice(0, 5) : 'Союзн.'}</span>
                   </div>
                 )}
                 {isEnemy && occupant && (
-                  <div className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
+                  <div style={fighterStyle} className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
                     {!occupant.isAlive ? <Skull size={16} /> : <img src={fighterRed} srcSet={`${fighterRed2x} 2x`} alt="" />}
                     <span className="token-label">{isTarget ? enemyName.slice(0, 5) : 'Враг'}</span>
                     {isTarget && <span className="token-target-label">ЦЕЛЬ</span>}
@@ -338,7 +340,7 @@ export function BattlePage() {
   const act = (action: BattleAction, opts?: SubmitActionOpts) => {
     if (actionPendingRef.current) return
     actionPendingRef.current = true
-    setTimeLeft(7)
+    setTimeLeft(60)
     actionMut.mutate({ action, opts })
   }
   const playerName = char?.nickname ?? 'Игрок'
@@ -364,28 +366,21 @@ export function BattlePage() {
     act('move', { moveTo: selectedMove })
   }
 
-  // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────
-  const [timeLeft, setTimeLeft] = useState(7)
+  // Сервер хранит минутный deadline и сам применяет auto-defense по таймауту.
+  // Клиент только показывает авторитетное время, не отправляя конкурирующий ход.
+  const [timeLeft, setTimeLeft] = useState(60)
 
   useEffect(() => {
-    if (battleOver || actionMut.isPending) return
-    setTimeLeft(7)
-    const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(interval)
-          if (!battleOver && !actionPendingRef.current) {
-            actionPendingRef.current = true
-            actionMut.mutate({ action: 'block', opts: { stance: 'defense4' } })
-          }
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
+    if (battleOver) return
+    const fallbackDeadline = Date.now() + 60_000
+    const update = () => {
+      const deadline = live?.roundDeadline ?? fallbackDeadline
+      setTimeLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)))
+    }
+    update()
+    const interval = setInterval(update, 250)
     return () => clearInterval(interval)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentRound, battleOver])
+  }, [currentRound, battleOver, live?.roundDeadline])
 
   if (!isValid) return null
 
@@ -475,9 +470,14 @@ export function BattlePage() {
 
       <main className="battle-duel-stage">
         <BattleFighterPanel side="self" name={playerName} level={char?.battleLevel}
+          avatar={playerProfile?.avatar ?? char?.avatar}
           hp={pHp} hpMax={pHpMax} mode="block" selected={blockZones} limit={attackHands.length > 0 ? 2 : 4}
-          disabled={!canAct || attackHands.length === 2} primaryHand={playerProfile?.primaryHand ?? weapon?.template.name} secondaryHand={playerProfile?.secondaryHand}
-          stats={playerProfile?.stats ?? char?.stats}
+          disabled={!canAct || attackHands.length === 2}
+          primaryHand={playerProfile?.primaryHand ?? weapon?.template.name} secondaryHand={playerProfile?.secondaryHand}
+          primaryWeaponCode={playerProfile?.primaryWeaponCode ?? weapon?.template.code}
+          secondaryWeaponCode={playerProfile?.secondaryWeaponCode}
+          primaryWeaponType={playerProfile?.primaryWeaponType ?? weapon?.template.weaponType}
+          secondaryWeaponType={playerProfile?.secondaryWeaponType}
           onZone={toggleBlock} />
 
         <div className="battle-field-v3">
@@ -495,12 +495,14 @@ export function BattlePage() {
         </div>
 
         <BattleFighterPanel side="enemy" name={enemyName} level={enemyProfile?.level}
+          avatar={enemyProfile?.avatar}
           hp={eHp} hpMax={eHpMax} mode="attack" selected={attackZones} selectedHands={attackHands} limit={blockZones.length > 0 ? 1 : 2}
           disabled={!canAct || !ePart?.participantId}
           disabledHands={disabledAttackHands}
           disabledReason={disabledAttackHands.length === 2 ? 'Цель вне дальности' : undefined}
           primaryHand={enemyProfile?.primaryHand} secondaryHand={enemyProfile?.secondaryHand}
-          stats={enemyProfile?.stats}
+          primaryWeaponCode={enemyProfile?.primaryWeaponCode} secondaryWeaponCode={enemyProfile?.secondaryWeaponCode}
+          primaryWeaponType={enemyProfile?.primaryWeaponType} secondaryWeaponType={enemyProfile?.secondaryWeaponType}
           onZone={() => undefined} onHandZone={toggleAttackHand} />
       </main>
 

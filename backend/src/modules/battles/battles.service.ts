@@ -51,7 +51,7 @@ import { EconomyService } from '../economy/economy.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
 
 // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────────
-const TURN_TIMEOUT_MS = 7_000
+const TURN_TIMEOUT_MS = 60_000
 export const BATTLE_LOCK_TTL_MS = 15_000
 
 // ── Поле боя (движение/дистанция) ──────────────────────────────
@@ -509,7 +509,7 @@ export const BattleService = {
             pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 1, y: 4 },
+            position: { x: 1, y: 1 },
           },
           {
             participantId: botPart.id,
@@ -659,7 +659,7 @@ export const BattleService = {
             pocketItemIds: opponentPocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 1, y: 4 },
+            position: { x: 1, y: 1 },
           },
           {
             participantId: newParticipant.id, // FIX: use actual ID
@@ -708,22 +708,30 @@ export const BattleService = {
           where: { id: participant.characterId },
           select: {
             nickname: true,
+            avatar: true,
             battleLevel: true,
             stats: { select: { str: true, agi: true, rea: true, acc: true, end: true, luck: true, agr: true } },
             items: {
               where: { isEquipped: true, status: { not: 'DELETED' }, template: { type: 'WEAPON' } },
-              select: { armorSlot: true, template: { select: { name: true, maxRange: true } } },
+              select: { armorSlot: true, template: { select: { name: true, code: true, weaponType: true, maxRange: true } } },
             },
           },
         })
+        const primary = character?.items.find(item => item.armorSlot === 'LEFT_HAND') ?? character?.items.find(item => item.armorSlot == null)
+        const secondary = character?.items.find(item => item.armorSlot === 'RIGHT_HAND')
         return {
           participantId: participant.id,
           name: character?.nickname ?? 'Боец',
           level: character?.battleLevel ?? 0,
-          primaryHand: character?.items.find(item => item.armorSlot === 'LEFT_HAND')?.template.name ?? character?.items.find(item => item.armorSlot == null)?.template.name ?? null,
-          secondaryHand: character?.items.find(item => item.armorSlot === 'RIGHT_HAND')?.template.name ?? null,
-          primaryRange: character?.items.find(item => item.armorSlot === 'LEFT_HAND')?.template.maxRange ?? character?.items.find(item => item.armorSlot == null)?.template.maxRange ?? 1,
-          secondaryRange: character?.items.find(item => item.armorSlot === 'RIGHT_HAND')?.template.maxRange ?? 1,
+          avatar: character?.avatar ?? null,
+          primaryHand: primary?.template.name ?? null,
+          secondaryHand: secondary?.template.name ?? null,
+          primaryWeaponCode: primary?.template.code ?? null,
+          secondaryWeaponCode: secondary?.template.code ?? null,
+          primaryWeaponType: primary?.template.weaponType ?? null,
+          secondaryWeaponType: secondary?.template.weaponType ?? null,
+          primaryRange: primary?.template.maxRange ?? 1,
+          secondaryRange: secondary?.template.maxRange ?? 1,
           stats: character?.stats ?? null,
         }
       }
@@ -735,13 +743,20 @@ export const BattleService = {
       const mainWeapon = typeof equipment.mainWeapon === 'string' ? equipment.mainWeapon
         : typeof equipment.weaponName === 'string' ? equipment.weaponName
         : equipment.weapon && typeof equipment.weapon === 'object' ? 'Оружие' : null
+      const botWeapon = equipment.weapon && typeof equipment.weapon === 'object'
+        ? equipment.weapon as Record<string, unknown> : {}
       return {
         participantId: participant.id,
         name: bot?.name ?? 'Противник',
         level: bot?.battleLevel ?? 0,
+        avatar: typeof equipment.avatar === 'string' ? equipment.avatar : null,
         primaryHand: mainWeapon,
         secondaryHand: null,
-        primaryRange: typeof (equipment.weapon as Record<string, unknown> | undefined)?.maxRange === 'number' ? Number((equipment.weapon as Record<string, unknown>).maxRange) : 1,
+        primaryWeaponCode: typeof botWeapon.code === 'string' ? botWeapon.code : null,
+        secondaryWeaponCode: null,
+        primaryWeaponType: typeof botWeapon.weaponType === 'string' ? botWeapon.weaponType : null,
+        secondaryWeaponType: null,
+        primaryRange: typeof botWeapon.maxRange === 'number' ? Number(botWeapon.maxRange) : 1,
         secondaryRange: 1,
         stats: bot?.stats && typeof bot.stats === 'object' && !Array.isArray(bot.stats) ? bot.stats as Record<string, number> : null,
       }

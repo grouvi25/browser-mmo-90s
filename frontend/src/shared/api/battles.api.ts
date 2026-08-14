@@ -16,8 +16,13 @@ export interface BattleParticipantProfile {
   participantId: string
   name: string
   level: number
+  avatar: string | null
   primaryHand: string | null
   secondaryHand: string | null
+  primaryWeaponCode: string | null
+  secondaryWeaponCode: string | null
+  primaryWeaponType: string | null
+  secondaryWeaponType: string | null
   primaryRange: number
   secondaryRange: number
   stats: { str: number; agi: number; rea: number; acc: number; end: number; luck: number; agr: number } | null

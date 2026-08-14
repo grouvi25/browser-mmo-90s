@@ -24,6 +24,7 @@ export interface Character {
   id: string
   userId: string
   nickname: string
+  avatar?: string | null
   archetype: string
   battleLevel: number
   battleExp: number
@@ -189,6 +190,7 @@ export interface LiveBattleState {
   roundNumber: number
   status: string
   participants: LiveParticipant[]
+  roundDeadline?: number
   distance?: number
 }
 

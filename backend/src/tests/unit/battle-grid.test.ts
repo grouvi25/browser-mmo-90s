@@ -107,15 +107,18 @@ describe('battle grid attacks and protection', () => {
 describe('battle grid teams and target selection', () => {
   it('places both teams in deterministic center-out spawn rows', () => {
     expect(teamSpawnPositions(1, 3)).toEqual([
-      { x: 1, y: 4 }, { x: 1, y: 3 }, { x: 1, y: 5 },
+      { x: 1, y: 1 }, { x: 1, y: 0 }, { x: 2, y: 2 },
     ])
     expect(teamSpawnPositions(2, 3)).toEqual([
-      { x: 7, y: 4 }, { x: 7, y: 3 }, { x: 7, y: 5 },
+      { x: 7, y: 1 }, { x: 7, y: 0 }, { x: 8, y: 2 },
     ])
+    expect(hexNeighbours(teamSpawnPositions(1, 1)[0])).toHaveLength(6)
+    expect(hexNeighbours(teamSpawnPositions(2, 1)[0])).toHaveLength(6)
   })
 
   it('supports all nine authored rows', () => {
-    expect(teamSpawnPositions(1, 9).map(position => position.y)).toEqual([4, 3, 5, 2, 6, 1, 7, 0, 8])
+    expect(teamSpawnPositions(1, 9)).toHaveLength(9)
+    expect(new Set(teamSpawnPositions(1, 9).map(position => `${position.x}:${position.y}`)).size).toBe(9)
     expect(isInsideGrid({ x: 8, y: 8 })).toBe(true)
     expect(isInsideGrid({ x: 8, y: 9 })).toBe(false)
   })

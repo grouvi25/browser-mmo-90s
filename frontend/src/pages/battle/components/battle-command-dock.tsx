@@ -29,10 +29,12 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
   const validation = validateTurnPlan({ ...props, targetParticipantId: props.targetId })
   const ready = props.selectedMove || validation.valid
   const missing = props.selectedMove ? 'Перемещение выбрано' : validation.valid ? 'План готов' : validation.reason
+  const minutes = Math.floor(props.timeLeft / 60)
+  const seconds = String(props.timeLeft % 60).padStart(2, '0')
   return (
     <section className="battle-command-dock" aria-label="План хода">
       <div className="battle-command-dock__plan">
-        <div className="battle-command-dock__meta"><b>План хода</b><span>00:0{props.timeLeft}</span></div>
+        <div className="battle-command-dock__meta"><b>План хода</b><span>{minutes}:{seconds}</span></div>
         {props.selectedMove ? <div className="battle-plan-move">Клетка {props.selectedMove.x}:{props.selectedMove.y}</div> : (
           <div className="battle-plan-slots">
             <div><span><Sword size={11} /> Удары</span><div className="battle-plan-chips">

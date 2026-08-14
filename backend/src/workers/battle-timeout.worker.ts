@@ -2,7 +2,7 @@
  * Battle Timeout Worker — Этап 1.5
  *
  * Каждые 2 секунды проверяет активные бои.
- * Если игрок не сделал ход за 7 секунд (roundDeadline) → авто-блок.
+ * Если игрок не сделал ход за 60 секунд (roundDeadline) → авто-блок.
  *
  * Используется BattleRedis (Redis) + прямой вызов BattleService.submitAction
  * от имени «системы».
