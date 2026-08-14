@@ -43,19 +43,23 @@ export function calcFinalSalary(
 export function calcProductionExp(baseExp: number, objectLevel: number): number { return Math.max(0, Math.round(baseExp * objectLevelCoeff(objectLevel))) }
 
 /**
- * Что нужно, чтобы встать на объект: уровень предыдущего передела в том же
- * направлении. У объектов первого передела требования нет — с них и начинают.
+ * Что нужно, чтобы встать на объект.
  *
- * Требовать уровень профессии самого объекта нельзя: её опыт начисляется
- * только за смены на нём, и объект оказывается заперт сам собой.
+ * Для второго и третьего передела — уровень предыдущего передела своего
+ * направления. Требовать уровень профессии самого объекта там нельзя: её опыт
+ * начисляется только за смены на нём, и объект оказывается заперт сам собой.
+ *
+ * Для первого передела предыдущего нет, и требование остаётся к своей же
+ * профессии — это рабочий случай: площадка побольше при входной площадке
+ * того же ремесла. Что входная площадка существует, стережёт проверка
+ * проходимости (scripts/check-economy-reachability.ts).
  */
 export function admissionRequirement(object: { requiredProfessionCode: string; requiredProfessionLevel: number }) {
   if (object.requiredProfessionLevel <= 0) return null
   const previous = isProfessionCode(object.requiredProfessionCode)
     ? previousProfession(object.requiredProfessionCode)
     : null
-  if (!previous) return null
-  return { professionCode: previous, level: object.requiredProfessionLevel }
+  return { professionCode: previous ?? object.requiredProfessionCode, level: object.requiredProfessionLevel }
 }
 
 /** Сколько минут смен персонаж уже отработал за UTC-сутки. */

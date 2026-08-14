@@ -72,7 +72,7 @@ export const WorkService = {
           },
           admission: admission ? {
             professionCode: admission.professionCode,
-            professionName: PROFESSION_NAMES[admission.professionCode] ?? admission.professionCode,
+            professionName: PROFESSION_NAMES[admission.professionCode as ProfessionCode] ?? admission.professionCode,
             requiredLevel: admission.level,
             currentLevel: gateLevel,
           } : null,

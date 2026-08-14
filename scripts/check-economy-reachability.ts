@@ -28,21 +28,30 @@ const objects = PRODUCTION_OBJECTS.map(object => ({
   requiredLevel: Math.min(object.requiredProductionLevel, 3),
 }))
 
-/** Профессии, на объекты которых можно встать, начав с нуля. */
+/** Профессия, уровень которой открывает объект: см. admissionRequirement. */
+function gateOf(object: { professionCode: ProfessionCode; requiredLevel: number }) {
+  if (object.requiredLevel === 0) return null
+  return previousProfession(object.professionCode) ?? object.professionCode
+}
+
+/**
+ * Профессии, до которых можно добраться с нуля.
+ *
+ * Профессия открыта, если есть её объект без требований, либо объект,
+ * чей замок стоит на уже открытой профессии. Замок на самой себе не в счёт:
+ * опыт этой профессии начисляется только на её объектах, и если все они
+ * заперты — открыть нечем.
+ */
 function reachableProfessions() {
   const open = new Set<ProfessionCode>()
-  // объект без требования открыт сразу
-  for (const object of objects) if (object.requiredLevel === 0) open.add(object.professionCode)
-  // объект с требованием открывается уровнем предыдущего передела, а тот
-  // качается только на своих объектах — значит достаточно, чтобы предыдущая
-  // профессия была открыта: уровень набирается сменами
   let grew = true
   while (grew) {
     grew = false
     for (const object of objects) {
       if (open.has(object.professionCode)) continue
-      const previous = previousProfession(object.professionCode)
-      if (previous && open.has(previous)) { open.add(object.professionCode); grew = true }
+      const gate = gateOf(object)
+      const passable = gate === null || (gate !== object.professionCode && open.has(gate))
+      if (passable) { open.add(object.professionCode); grew = true }
     }
   }
   return open
@@ -68,7 +77,7 @@ const report = {
     code: object.code,
     profession: object.professionCode,
     admission: object.requiredLevel > 0
-      ? { profession: previousProfession(object.professionCode), level: object.requiredLevel }
+      ? { profession: gateOf(object), level: object.requiredLevel }
       : null,
     reachable: open.has(object.professionCode),
   })),
@@ -85,6 +94,10 @@ const report = {
     everyNeededResourceObtainable: missingNeeded.length === 0,
     noDeadEndChainStart: Object.values(PROFESSION_CHAINS)
       .every(chain => objects.some(object => object.professionCode === chain[0] && object.requiredLevel === 0)),
+    // объект, запертый уровнем собственной профессии, нужен только рядом
+    // со входной площадкой того же ремесла — иначе он не откроется никогда
+    noObjectLockedByItself: objects.every(object => gateOf(object) !== object.professionCode
+      || objects.some(other => other.professionCode === object.professionCode && other.requiredLevel === 0)),
   },
 }
 

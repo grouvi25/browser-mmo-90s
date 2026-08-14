@@ -174,12 +174,12 @@ test.describe('Stage 2 visual and browser flow', () => {
     }
   })
 
-  test('E2 work page shows shift controls and six workplaces', async ({ page }, testInfo) => {
+  test('E2 work page shows shift controls and seven workplaces', async ({ page }, testInfo) => {
     await authPage(page, seller)
     await page.goto('/work')
     await expect(page.getByText('Рабочая смена')).toBeVisible()
     await expect(page.getByText('Вакансии', { exact: true })).toBeVisible()
-    await expect(page.locator('#vacancies tbody tr')).toHaveCount(6)
+    await expect(page.locator('#vacancies tbody tr')).toHaveCount(7)
     await visualProof(page, testInfo, 'e2-work')
   })
 
