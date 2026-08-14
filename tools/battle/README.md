@@ -11,7 +11,12 @@
 2. `psd-index-rows.py` — раскладывает соты по рядам.
 3. `psd-build-grid.py` — считает размеры из шага сетки и выводит
    соседство геометрически: кто реально касается, тот и сосед.
-4. `psd-emit-files.py` — пишет три файла проекта:
+4. `psd-trace-polygons.py` — обводит каждую соту её собственным
+   контуром: нарисованы они от руки и слегка кривые, правильный
+   шестиугольник садится с зазорами. Контур снимается по внутренней
+   стороне линий, поэтому заливка ложится внутрь клетки и не
+   перекрывает решётку.
+5. `psd-emit-files.py` — пишет три файла проекта:
    - `frontend/src/shared/lib/designer-battle-grid.ts`
    - `frontend/src/shared/lib/designer-battle-adjacency.ts`
    - `backend/src/modules/battles/designer-grid-adjacency.ts`

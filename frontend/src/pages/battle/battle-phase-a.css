@@ -277,6 +277,13 @@
   transition: transform 120ms cubic-bezier(.25, 1, .5, 1), background 120ms;
 }
 
+/* Ловит нажатие только сота, а не её прямоугольник.
+   Рамки соседних клеток перекрываются — по углам клик уходил не в ту
+   клетку. Событие принимает обрезанный слой и всплывает к обработчику
+   на .hex-cell, поэтому и наведение считается правильно. */
+.hex-cell { pointer-events: none; }
+.hex-cell.is-clickable .designer-cell-hit { pointer-events: auto; }
+
 .hex-cell.is-movable .designer-cell-hit { background: oklch(68% .13 76 / .38); }
 .hex-cell.is-target  .designer-cell-hit { background: oklch(58% .17 25 / .40); }
 

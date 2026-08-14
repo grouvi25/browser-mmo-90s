@@ -10,8 +10,19 @@ cells = g["cells"]
 adj = g["adjacency"]
 COLS, ROWS = g["cols"], g["rows"]
 
-# соты «остриём вверх»
-POLY = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)"
+# У каждой соты свой контур, обведённый по рисунку: нарисованы они
+# от руки и слегка кривые, правильный шестиугольник садится с зазорами.
+# Контур снят по внутренней стороне линий, поэтому заливка ложится
+# внутрь клетки и не перекрывает саму решётку.
+polygons = json.load(open("cell-polygons.json"))
+REGULAR = "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)"
+
+
+def polygon_of(x, y):
+    pts = polygons.get("%d:%d" % (x, y))
+    if not pts:
+        return REGULAR
+    return "polygon(%s)" % ", ".join("%.2f%% %.2f%%" % (a, b) for a, b in pts)
 
 HEAD = ("// Сетка снята с решётки слоя «Клетки» файла «ПБ основа.psd»:\n"
         "// центры и шаг посчитаны по самому рисунку, а не подобраны на глаз.\n"
@@ -39,7 +50,7 @@ for c in cells:
     lines.append("  { x: %d, y: %d, left: %.4f, top: %.4f, width: %.4f, height: %.4f,"
                  " polygon: '%s', centerX: %.4f, centerY: %.4f },\n"
                  % (c["x"], c["y"], c["left"], c["top"], c["width"], c["height"],
-                    POLY, c["centerX"], c["centerY"]))
+                    polygon_of(c["x"], c["y"]), c["centerX"], c["centerY"]))
 lines.append("] as const\n")
 open(REPO + "frontend/src/shared/lib/designer-battle-grid.ts", "w",
      encoding="utf-8", newline="").write("".join(lines))
