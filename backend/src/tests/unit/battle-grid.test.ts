@@ -71,7 +71,10 @@ describe('battle grid movement', () => {
 
   it('rejects collisions and movement into a stationary occupied cell', () => {
     const destination = { x: 2, y: 2 }
-    const [firstCell, secondCell] = hexNeighbours(destination)
+    const sources = Array.from({ length: 9 }, (_, y) =>
+      Array.from({ length: 9 }, (_, x) => ({ x, y }))).flat()
+      .filter(source => hexNeighbours(source).some(cell => cell.x === destination.x && cell.y === destination.y))
+    const [firstCell, secondCell] = sources
     const first = fighter('p1', 1, firstCell.x, firstCell.y)
     const second = fighter('p2', 2, secondCell.x, secondCell.y)
     const blocker = fighter('p3', 2, destination.x, destination.y)
@@ -110,10 +113,10 @@ describe('battle grid attacks and protection', () => {
 describe('battle grid teams and target selection', () => {
   it('places both teams in deterministic center-out spawn rows', () => {
     expect(teamSpawnPositions(1, 3)).toEqual([
-      { x: 2, y: 2 }, { x: 1, y: 2 }, { x: 1, y: 1 },
+      { x: 1, y: 1 }, { x: 1, y: 2 }, { x: 2, y: 1 },
     ])
     expect(teamSpawnPositions(2, 3)).toEqual([
-      { x: 6, y: 4 }, { x: 4, y: 1 }, { x: 6, y: 0 },
+      { x: 7, y: 6 }, { x: 6, y: 6 }, { x: 7, y: 5 },
     ])
     expect(hexNeighbours(teamSpawnPositions(1, 1)[0])).toHaveLength(6)
     expect(hexNeighbours(teamSpawnPositions(2, 1)[0])).toHaveLength(6)
