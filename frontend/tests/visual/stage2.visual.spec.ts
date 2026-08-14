@@ -1,5 +1,6 @@
 import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { DESIGNER_BATTLE_COLUMNS, DESIGNER_BATTLE_ROWS } from '../../src/shared/lib/designer-battle-grid'
 
 type Account = { token: string; userId: string; login: string; nickname: string; characterId: string }
 let seller: Account
@@ -349,7 +350,9 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.locator('.battle-fighter-panel')).toHaveCount(2)
     await expect(page.locator('.battle-command-dock')).toBeVisible()
     await expect(page.locator('.designer-battle-field')).toBeVisible()
-    await expect(page.locator('.hex-cell')).toHaveCount(81)
+    // размер поля берём из таблицы, снятой с PSD: числом здесь его
+    // фиксировать нельзя — решётка меняется вместе с артом
+    await expect(page.locator('.hex-cell')).toHaveCount(DESIGNER_BATTLE_COLUMNS * DESIGNER_BATTLE_ROWS)
     expect(await page.locator('.designer-battle-field').evaluate(element => getComputedStyle(element).backgroundImage)).not.toBe('none')
 
     const geometry = await page.locator('.battle-page-v3').evaluate(element => {
