@@ -1,3 +1,5 @@
+import { DESIGNER_CELL_NEIGHBOURS, type BattleCellKey } from './designer-battle-adjacency'
+
 // =============================================================
 // Геометрия поля боя на клиенте.
 //
@@ -14,20 +16,16 @@ export const GRID_ROWS = 9
 
 export interface Cell { x: number; y: number }
 
-const NEIGHBOUR_OFFSETS = {
-  even: [[+1, 0], [0, -1], [-1, -1], [-1, 0], [-1, +1], [0, +1]],
-  odd: [[+1, 0], [+1, -1], [0, -1], [-1, 0], [0, +1], [+1, +1]],
-} as const
-
 export function isInsideGrid(cell: Cell): boolean {
   return cell.x >= 0 && cell.x < GRID_COLS && cell.y >= 0 && cell.y < GRID_ROWS
 }
 
 export function hexNeighbours(cell: Cell): Cell[] {
-  const offsets = cell.y & 1 ? NEIGHBOUR_OFFSETS.odd : NEIGHBOUR_OFFSETS.even
-  return offsets
-    .map(([dx, dy]) => ({ x: cell.x + dx, y: cell.y + dy }))
-    .filter(isInsideGrid)
+  const key = `${cell.x}:${cell.y}` as BattleCellKey
+  return (DESIGNER_CELL_NEIGHBOURS[key] ?? []).map(value => {
+    const [x, y] = value.split(':').map(Number)
+    return { x, y }
+  })
 }
 
 export function isNeighbour(from: Cell, to: Cell): boolean {

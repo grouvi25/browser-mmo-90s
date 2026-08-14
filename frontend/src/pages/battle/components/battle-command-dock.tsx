@@ -1,6 +1,6 @@
-﻿import { Flag, RotateCcw, Shield, Sword, X } from 'lucide-react'
+import { Flag, RotateCcw, Shield, Sword, X } from 'lucide-react'
 import type { AttackHand, BodyZone, GridPosition, Stance } from '../../../shared/api/battles.api'
-import { BATTLE_STANCES, ZONE_LABEL, getActionBudget, validateTurnPlan } from '../battle-view-model'
+import { ZONE_LABEL, getActionBudget, validateTurnPlan } from '../battle-view-model'
 
 interface BattleCommandDockProps {
   stance: Stance
@@ -31,11 +31,6 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
   const missing = props.selectedMove ? 'Перемещение выбрано' : validation.valid ? 'План готов' : validation.reason
   return (
     <section className="battle-command-dock" aria-label="План хода">
-      <div className="battle-command-dock__stances" aria-label="Режим хода определяется автоматически">
-        {BATTLE_STANCES.map(item => <span key={item.key} className={props.stance === item.key ? 'is-selected' : ''}>
-          <b>{item.label}</b><small>{item.attacks}/{item.blocks}</small>
-        </span>)}
-      </div>
       <div className="battle-command-dock__plan">
         <div className="battle-command-dock__meta"><b>План хода</b><span>00:0{props.timeLeft}</span></div>
         {props.selectedMove ? <div className="battle-plan-move">Клетка {props.selectedMove.x}:{props.selectedMove.y}</div> : (

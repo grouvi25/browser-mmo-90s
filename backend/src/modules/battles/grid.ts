@@ -1,3 +1,5 @@
+import { DESIGNER_CELL_CENTERS, DESIGNER_CELL_NEIGHBOURS } from './designer-grid-adjacency'
+
 // =============================================================
 // Поле боя — шестиугольные соты, как в Апехе.
 //
@@ -12,39 +14,11 @@
 // =============================================================
 export const BATTLE_GRID = { width: 9, height: 9 } as const
 
-interface CubePosition { q: number; r: number; s: number }
-
-/** Смещённые координаты «odd-r» -> кубические. */
-function toCube(position: GridPosition): CubePosition {
-  const q = position.x - (position.y - (position.y & 1)) / 2
-  const r = position.y
-  return { q, r, s: -q - r }
-}
-
-function cubeToGrid(cube: CubePosition): GridPosition {
-  return { x: cube.q + (cube.r - (cube.r & 1)) / 2, y: cube.r }
-}
-
-function cubeRound(q: number, r: number, s: number): CubePosition {
-  let rq = Math.round(q), rr = Math.round(r), rs = Math.round(s)
-  const dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs - s)
-  if (dq > dr && dq > ds) rq = -rr - rs
-  else if (dr > ds) rr = -rq - rs
-  else rs = -rq - rr
-  return { q: rq, r: rr, s: rs }
-}
-
-/** Шесть соседей клетки. Набор смещений зависит от чётности ряда. */
-const NEIGHBOUR_OFFSETS = {
-  even: [[+1, 0], [0, -1], [-1, -1], [-1, 0], [-1, +1], [0, +1]],
-  odd:  [[+1, 0], [+1, -1], [0, -1], [-1, 0], [0, +1], [+1, +1]],
-} as const
-
 export function hexNeighbours(position: GridPosition): GridPosition[] {
-  const offsets = position.y & 1 ? NEIGHBOUR_OFFSETS.odd : NEIGHBOUR_OFFSETS.even
-  return offsets
-    .map(([dx, dy]) => ({ x: position.x + dx, y: position.y + dy }))
-    .filter(isInsideGrid)
+  return (DESIGNER_CELL_NEIGHBOURS[`${position.x}:${position.y}`] ?? []).map(value => {
+    const [x, y] = value.split(':').map(Number)
+    return { x, y }
+  })
 }
 
 export interface GridPosition {
@@ -93,8 +67,24 @@ export function samePosition(a: GridPosition, b: GridPosition): boolean {
 }
 
 export function gridDistance(a: GridPosition, b: GridPosition): number {
-  const ca = toCube(a), cb = toCube(b)
-  return (Math.abs(ca.q - cb.q) + Math.abs(ca.r - cb.r) + Math.abs(ca.s - cb.s)) / 2
+  if (samePosition(a, b)) return 0
+  const target = `${b.x}:${b.y}`
+  const visited = new Set([`${a.x}:${a.y}`])
+  let frontier = [a]
+  for (let distance = 1; frontier.length > 0; distance++) {
+    const next: GridPosition[] = []
+    for (const cell of frontier) {
+      for (const neighbour of hexNeighbours(cell)) {
+        const key = `${neighbour.x}:${neighbour.y}`
+        if (visited.has(key)) continue
+        if (key === target) return distance
+        visited.add(key)
+        next.push(neighbour)
+      }
+    }
+    frontier = next
+  }
+  return Number.POSITIVE_INFINITY
 }
 
 export function isAdjacentStep(from: GridPosition, to: GridPosition): boolean {
@@ -181,27 +171,22 @@ export function hasLineOfSight(
   attackerId: string,
   targetId: string,
 ): boolean {
-  const steps = gridDistance(from, to)
-  if (steps <= 1) return true
-
-  const a = toCube(from)
-  const b = toCube(to)
-  // Микросдвиг уводит луч с границы между двумя клетками: без него
-  // округление на ровных диагоналях зависит от порядка сравнения.
-  const nudge = 1e-6
-
-  for (let step = 1; step < steps; step++) {
-    const t = step / steps
-    const cell = cubeToGrid(cubeRound(
-      a.q + (b.q - a.q) * t + nudge,
-      a.r + (b.r - a.r) * t + nudge,
-      a.s + (b.s - a.s) * t - 2 * nudge,
-    ))
-    if (samePosition(cell, to) || samePosition(cell, from)) continue
-    const blocker = participantAt(participants, cell, attackerId)
-    if (blocker && blocker.participantId !== targetId) return false
-  }
-  return true
+  if (gridDistance(from, to) <= 1) return true
+  const start = DESIGNER_CELL_CENTERS[`${from.x}:${from.y}`]
+  const end = DESIGNER_CELL_CENTERS[`${to.x}:${to.y}`]
+  if (!start || !end) return false
+  const dx = end[0] - start[0], dy = end[1] - start[1]
+  const lengthSquared = dx * dx + dy * dy
+  return !participants.some(participant => {
+    if (!participant.isAlive || participant.participantId === attackerId || participant.participantId === targetId) return false
+    const point = DESIGNER_CELL_CENTERS[`${participant.position.x}:${participant.position.y}`]
+    if (!point) return false
+    const projection = ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared
+    if (projection <= 0.05 || projection >= 0.95) return false
+    const nearestX = start[0] + projection * dx
+    const nearestY = start[1] + projection * dy
+    return Math.hypot(point[0] - nearestX, point[1] - nearestY) < 4
+  })
 }
 
 export function canAttackTarget(

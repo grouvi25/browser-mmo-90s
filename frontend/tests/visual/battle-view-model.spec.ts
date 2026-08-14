@@ -25,21 +25,29 @@ test.describe('battle phase A view model', () => {
     expect(removeAttackZone(['RIGHT_ARM', 'LEFT_ARM'], 0)).toEqual(['LEFT_ARM'])
   })
 
-  test('derives attack2 automatically when both weapon hands are assigned', () => {
-    const mixed = selectAutomaticAttack({ stance: 'mixed', attackZones: [], attackHands: [], blockZones: ['CHEST', 'LEGS'] }, 'RIGHT_HAND', 'HEAD')
-    expect(mixed).toMatchObject({ stance: 'mixed', attackHands: ['RIGHT_HAND'], attackZones: ['HEAD'], blockZones: ['CHEST', 'LEGS'] })
-    const attack2 = selectAutomaticAttack(mixed, 'LEFT_HAND', 'CHEST')
+  test('derives attack2 only when no defence choice would be erased', () => {
+    const first = selectAutomaticAttack({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] }, 'RIGHT_HAND', 'HEAD')
+    const attack2 = selectAutomaticAttack(first, 'LEFT_HAND', 'CHEST')
     expect(attack2).toEqual({ stance: 'attack2', attackHands: ['LEFT_HAND', 'RIGHT_HAND'], attackZones: ['CHEST', 'HEAD'], blockZones: [] })
+    expect(toggleAutomaticBlock(attack2, 'LEGS')).toEqual(attack2)
   })
 
-  test('moves one hand between zones and derives mixed/defence plans from blocks', () => {
-    const moved = selectAutomaticAttack({ stance: 'mixed', attackZones: ['HEAD'], attackHands: ['LEFT_HAND'], blockZones: [] }, 'LEFT_HAND', 'LEGS')
-    expect(moved.attackZones).toEqual(['LEGS'])
-    let plan = toggleAutomaticBlock(moved, 'HEAD')
+  test('locks the second attack after defence starts and never deletes prior choices', () => {
+    let plan = toggleAutomaticBlock({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] }, 'HEAD')
     plan = toggleAutomaticBlock(plan, 'CHEST')
-    expect(plan.stance).toBe('mixed')
-    plan = toggleAutomaticBlock(plan, 'LEGS')
-    expect(plan).toMatchObject({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: ['HEAD', 'CHEST', 'LEGS'] })
+    plan = selectAutomaticAttack(plan, 'LEFT_HAND', 'LEGS')
+    expect(plan).toEqual({ stance: 'mixed', attackHands: ['LEFT_HAND'], attackZones: ['LEGS'], blockZones: ['HEAD', 'CHEST'] })
+    expect(selectAutomaticAttack(plan, 'RIGHT_HAND', 'CHEST')).toEqual(plan)
+    expect(toggleAutomaticBlock(plan, 'LEGS')).toEqual(plan)
+  })
+
+  test('allows four blocks when no attack is selected', () => {
+    const plan = { stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] } as const
+    let next = toggleAutomaticBlock(plan, 'HEAD')
+    next = toggleAutomaticBlock(next, 'CHEST')
+    next = toggleAutomaticBlock(next, 'LEFT_ARM')
+    next = toggleAutomaticBlock(next, 'LEGS')
+    expect(next).toEqual({ stance: 'defense4', attackHands: [], attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'LEGS'] })
   })
 
   test('describes complete mixed plan', () => {

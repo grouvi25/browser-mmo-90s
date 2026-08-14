@@ -1,4 +1,4 @@
-﻿.battle-page-v3 {
+.battle-page-v3 {
   position: absolute;
   inset: 0;
   min-width: 0;
@@ -28,7 +28,7 @@
 .battle-header-v3 .is-pending { color: oklch(45% 0.09 75); }
 
 .battle-duel-stage { min-height: 0; display: grid; grid-template-columns: 190px minmax(0,1fr) 190px; }
-.battle-fighter-panel { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto 22px minmax(0,1fr) auto; background: oklch(96% .017 75); }
+.battle-fighter-panel { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto 22px auto minmax(0,1fr) auto; background: oklch(96% .017 75); }
 .battle-fighter-panel.is-self { border-right: 1px solid oklch(51% .035 55); }
 .battle-fighter-panel.is-enemy { border-left: 1px solid oklch(51% .035 55); }
 .battle-fighter-panel__head { padding: 6px 8px 5px; border-bottom: 1px solid oklch(68% .025 60); }
@@ -41,6 +41,11 @@
 .battle-fighter-panel__hp span { position: relative; color: oklch(15% .018 48); text-shadow: 0 1px oklch(96% .01 70); }
 .battle-fighter-panel__mode { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; background: oklch(91% .025 70); border-bottom: 1px solid oklch(68% .025 60); font-size: 8px; text-transform: uppercase; letter-spacing: .07em; color: oklch(43% .026 55); }
 .battle-fighter-panel__mode b { font: 700 9px/1 var(--font-mono); }
+
+.battle-fighter-panel__stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; margin: 0; padding: 5px 6px; border-bottom: 1px solid oklch(68% .025 60); background: oklch(93% .018 75); }
+.battle-fighter-panel__stats > div { min-width: 0; display: flex; align-items: baseline; justify-content: center; gap: 3px; }
+.battle-fighter-panel__stats dt { color: oklch(43% .026 55); font: 700 7px/1 var(--font-mono); }
+.battle-fighter-panel__stats dd { margin: 0; color: oklch(24% .025 55); font: 700 10px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
 .is-self .battle-fighter-panel__mode b { color: oklch(38% .09 135); }
 .is-enemy .battle-fighter-panel__mode b { color: oklch(42% .14 25); }
 
@@ -83,14 +88,7 @@
 .battle-field-v3__meta { position: absolute; z-index: 4; left: 0; right: 0; bottom: 0; height: 22px; display: flex; align-items: center; justify-content: space-between; padding: 0 7px; background: oklch(16% .02 245); color: oklch(82% .018 75); font-size: 8px; }
 .battle-field-v3__meta b { color: oklch(86% .09 78); font-variant-numeric: tabular-nums; }
 
-.battle-command-dock { min-height: 0; display: grid; grid-template-columns: 220px minmax(0,1fr) 190px; border-top: 1px solid oklch(51% .035 55); background: oklch(89% .03 70); }
-.battle-command-dock__stances { display: grid; grid-template-columns: repeat(3,1fr); gap: 4px; padding: 8px; border-right: 1px solid oklch(58% .035 55); }
-.battle-command-dock__stances button { min-width: 0; border: 1px solid oklch(58% .035 55); background: oklch(96% .017 75); color: oklch(25% .02 50); cursor: pointer; padding: 4px 2px; }
-.battle-command-dock__stances button span,.battle-command-dock__stances button small { display: block; }
-.battle-command-dock__stances button span { font: 700 9px/1.1 var(--font-sign); text-transform: uppercase; }
-.battle-command-dock__stances button small { margin-top: 4px; color: oklch(45% .025 55); font: 700 8px/1 var(--font-mono); }
-.battle-command-dock__stances button.is-selected { border: 2px solid oklch(47% .09 80); background: oklch(90% .055 80); }
-.battle-command-dock__stances button:disabled { opacity: .45; }
+.battle-command-dock { min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 190px; border-top: 1px solid oklch(51% .035 55); background: oklch(89% .03 70); }
 .battle-command-dock__plan { min-width: 0; display: grid; grid-template-rows: 16px 1fr 14px; gap: 2px; padding: 7px 9px; }
 .battle-command-dock__meta { display: flex; justify-content: space-between; text-transform: uppercase; letter-spacing: .07em; font-size: 8px; color: oklch(45% .025 55); }
 .battle-command-dock__meta span { color: oklch(42% .14 25); font: 700 10px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -128,7 +126,7 @@
 .token-target-label { position: absolute; top: calc(100% + 2px); left: 50%; transform: translateX(-50%); padding: 1px 3px; background: oklch(42% .14 25); color: oklch(96% .01 70); font: 700 7px/1 var(--font-mono); letter-spacing: .06em; }
 
 @media (max-width: 900px) {
-  .battle-page-v3 { position: fixed; z-index: 50; grid-template-rows: 32px minmax(0,1fr) 174px; }
+  .battle-page-v3 { position: fixed; z-index: 50; grid-template-rows: 32px minmax(0,1fr) 118px; }
   .battle-header-v3 { padding: 0 6px; }
   .battle-header-v3 > div b { font-size: 9px; }
   .battle-header-v3 > strong { font-size: 9px; }
@@ -139,6 +137,9 @@
   .battle-fighter-panel__head b { font-size: 9px; }
   .battle-fighter-panel__head small { font-size: 7px; }
   .battle-fighter-panel__mode { padding: 0 4px; font-size: 7px; }
+  .battle-fighter-panel__stats { grid-template-columns: repeat(4,1fr); padding: 4px 3px; }
+  .battle-fighter-panel__stats dt { font-size: 6px; }
+  .battle-fighter-panel__stats dd { font-size: 9px; }
   .battle-fighter-panel__figure { margin: 2px; }
   .battle-fighter-panel__body { left: 50%; top: 50%; width: 80px; height: 120px; transform: translate(-50%,-50%); }
   .battle-body-part.is-head { width: 20px; height: 20px; left: calc(50% - 10px); }
@@ -169,21 +170,19 @@
   .battle-fighter-panel__hands b { font-size: 7px; }
   .battle-field-v3 .hex-board { padding-inline: 1px; }
   .battle-field-v3 .hex-cell .fighter-token { padding: 2px; }
-  .battle-command-dock { grid-template-columns: minmax(0,1fr) 126px; grid-template-rows: 58px minmax(0,1fr); }
-  .battle-command-dock__stances { grid-column: 1/-1; padding: 5px; border-right: 0; border-bottom: 1px solid oklch(58% .035 55); }
-  .battle-command-dock__stances button { min-height: 44px; }
+  .battle-command-dock { grid-template-columns: minmax(0,1fr) 126px; grid-template-rows: minmax(0,1fr); }
   .battle-command-dock__plan { padding: 5px; }
   .battle-command-dock__actions { padding: 5px; }
   .battle-plan-slots { gap: 3px; }
   .battle-plan-slots > div { padding: 3px; }
   .battle-plan-chips { flex-wrap: wrap; }
   .battle-command-tools button { min-height: 34px; }
-  .battle-drawer { inset: 32px 0 174px; }
+  .battle-drawer { inset: 32px 0 118px; }
   .battle-drawer .battle-pocket-list { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 900px) and (max-height: 520px) {
-  .battle-page-v3 { grid-template-rows: 30px minmax(0,1fr) 132px; }
+  .battle-page-v3 { grid-template-rows: 30px minmax(0,1fr) 108px; }
   .battle-header-v3 { min-height: 30px; }
   .battle-fighter-panel { grid-template-rows: auto minmax(0,1fr) auto; }
   .battle-fighter-panel__mode { display: none; }
@@ -196,18 +195,15 @@
   .battle-fighter-zone.is-chest { top: calc(50% - 20px); }
   .battle-fighter-zone.is-left-arm,.battle-fighter-zone.is-right-arm { top: calc(50% - 20px); }
   .battle-fighter-zone.is-legs { top: calc(50% + 33px); }
-  .battle-command-dock { grid-template-rows: 48px minmax(0,1fr); }
-  .battle-command-dock__stances { padding: 3px 5px; }
-  .battle-command-dock__stances button { min-height: 40px; }
   .battle-command-dock__plan { grid-template-rows: 13px 1fr 11px; padding-block: 3px; }
   .battle-command-dock__actions { grid-template-rows: 1fr 30px; padding-block: 4px; }
   .battle-submit-turn { min-height: 40px; }
-  .battle-drawer { inset: 30px 0 132px; }
+  .battle-drawer { inset: 30px 0 108px; }
 }
 @media (max-height: 560px) and (min-width: 901px) {
   .battle-page-v3 { grid-template-rows: 30px minmax(0,1fr) 108px; }
   .battle-fighter-panel__head { padding-block: 4px; }
-  .battle-command-dock { grid-template-columns: 200px minmax(0,1fr) 180px; }
+  .battle-command-dock { grid-template-columns: minmax(0,1fr) 180px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .battle-fighter-zone,.battle-fighter-panel__hp i { transition: none; }
@@ -272,11 +268,14 @@
   background: transparent;
   transition: transform 120ms cubic-bezier(.25,1,.5,1), background 120ms;
 }
-.hex-cell.is-movable .designer-cell-hit { background: oklch(78% .12 80 / .34); }
-.hex-cell.is-selected .designer-cell-hit { background: oklch(72% .15 80 / .52); }
-.hex-cell.is-target .designer-cell-hit { background: oklch(62% .17 25 / .42); }
+.hex-cell.is-movable .designer-cell-hit { border-color: oklch(78% .14 80); background: oklch(78% .12 80 / .18); }
+.hex-cell.is-selected .designer-cell-hit { border: 2px solid oklch(72% .17 80); background: oklch(72% .15 80 / .36); }
+.hex-cell.is-target .designer-cell-hit { border: 2px solid oklch(58% .18 25); background: oklch(62% .17 25 / .24); }
 .hex-cell.is-clickable:hover .designer-cell-hit { transform: scale(.94); background: oklch(84% .12 80 / .42); }
 .battle-field-v3 .fighter-token {
+  top: auto;
+  bottom: 46%;
+  transform: translate(-50%, 0);
   width: clamp(22px, 70%, 52px);
   height: auto;
   padding: 0;
@@ -301,14 +300,6 @@
 .battle-hand-zone button:disabled { opacity:.35; cursor:not-allowed; }
 @media (max-width:900px) { .battle-hand-zone { font-size:0; } .battle-hand-zone > div { height:100%; margin:0; align-items:center; } .battle-hand-zone button { min-height:30px; font-size:8px; } }
 
-.battle-command-dock__stances > span {
-  min-width: 0; display: grid; place-items: center; align-content: center;
-  border: 1px solid oklch(60% .03 60); background: oklch(90% .018 75);
-  color: oklch(35% .025 55); text-align: center; opacity: 1;
-}
-.battle-command-dock__stances > span b { font: 700 9px/1.1 var(--font-sign); text-transform: uppercase; }
-.battle-command-dock__stances > span small { margin-top: 3px; font: 700 8px/1 var(--font-mono); }
-.battle-command-dock__stances > span.is-selected { opacity: 1; border: 2px solid oklch(47% .09 80); background: oklch(90% .055 80); color: oklch(28% .04 55); }
 
 
 /* Portrait phones need composition, not a squeezed desktop duel. The field gets
@@ -335,9 +326,4 @@
   .battle-hand-zone > div { grid-template-columns: repeat(2, minmax(40px, 1fr)); gap: 3px; }
   .battle-hand-zone button { min-width: 40px; min-height: 44px; font-size: 10px; }
   .battle-field-v3 .designer-battle-field { width: min(100cqw, calc(100cqh * 1.824249)); }
-}
-
-.battle-command-dock__stances > span:not(.is-selected) {
-  color: oklch(25% .025 55);
-  background: oklch(88% .018 75);
 }

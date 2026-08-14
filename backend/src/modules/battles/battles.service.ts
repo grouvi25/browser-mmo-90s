@@ -709,6 +709,7 @@ export const BattleService = {
           select: {
             nickname: true,
             battleLevel: true,
+            stats: { select: { str: true, agi: true, rea: true, acc: true, end: true, luck: true, agr: true } },
             items: {
               where: { isEquipped: true, status: { not: 'DELETED' }, template: { type: 'WEAPON' } },
               select: { armorSlot: true, template: { select: { name: true, maxRange: true } } },
@@ -723,10 +724,11 @@ export const BattleService = {
           secondaryHand: character?.items.find(item => item.armorSlot === 'RIGHT_HAND')?.template.name ?? null,
           primaryRange: character?.items.find(item => item.armorSlot === 'LEFT_HAND')?.template.maxRange ?? character?.items.find(item => item.armorSlot == null)?.template.maxRange ?? 1,
           secondaryRange: character?.items.find(item => item.armorSlot === 'RIGHT_HAND')?.template.maxRange ?? 1,
+          stats: character?.stats ?? null,
         }
       }
       const bot = participant.botId ? await prisma.bot.findUnique({
-        where: { id: participant.botId }, select: { name: true, battleLevel: true, equipment: true },
+        where: { id: participant.botId }, select: { name: true, battleLevel: true, equipment: true, stats: true },
       }) : null
       const equipment = bot?.equipment && typeof bot.equipment === 'object' && !Array.isArray(bot.equipment)
         ? bot.equipment as Record<string, unknown> : {}
@@ -741,6 +743,7 @@ export const BattleService = {
         secondaryHand: null,
         primaryRange: typeof (equipment.weapon as Record<string, unknown> | undefined)?.maxRange === 'number' ? Number((equipment.weapon as Record<string, unknown>).maxRange) : 1,
         secondaryRange: 1,
+        stats: bot?.stats && typeof bot.stats === 'object' && !Array.isArray(bot.stats) ? bot.stats as Record<string, number> : null,
       }
     }))
     return { battle, liveState, participantProfiles }

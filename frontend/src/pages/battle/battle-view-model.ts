@@ -51,42 +51,43 @@ export interface AutomaticTurnPlan {
 
 const HAND_ORDER: readonly AttackHand[] = ['LEFT_HAND', 'RIGHT_HAND']
 
-/** One attack cell per hand and body zone. Selecting the second hand switches
- * automatically to 2 attacks; selecting blocks switches to the mixed/defence budget. */
+function deriveAutomaticPlan(attackHands: AttackHand[], attackZones: BodyZone[], blockZones: BodyZone[]): AutomaticTurnPlan {
+  if (attackHands.length >= 2) return { stance: 'attack2', attackHands: attackHands.slice(0, 2), attackZones: attackZones.slice(0, 2), blockZones: [] }
+  if (attackHands.length === 1) return { stance: 'mixed', attackHands, attackZones, blockZones: blockZones.slice(0, 2) }
+  return { stance: 'defense4', attackHands: [], attackZones: [], blockZones: blockZones.slice(0, 4) }
+}
+
+/** The player selects intent on the two silhouettes. The stance is derived and
+ * never chosen separately. Conflicting clicks are ignored instead of erasing a
+ * choice the player already made. */
 export function selectAutomaticAttack(plan: AutomaticTurnPlan, hand: AttackHand, zone: BodyZone): AutomaticTurnPlan {
   const choices = new Map<AttackHand, BodyZone>(plan.attackHands.map((value, index) => [value, plan.attackZones[index]]))
   if (choices.get(hand) === zone) choices.delete(hand)
-  else choices.set(hand, zone)
+  else if (choices.has(hand)) choices.set(hand, zone)
+  else {
+    if (plan.blockZones.length >= 3 || plan.attackHands.length >= 2) return plan
+    if (plan.blockZones.length > 0 && plan.attackHands.length >= 1) return plan
+    choices.set(hand, zone)
+  }
   const ordered = HAND_ORDER.flatMap(value => choices.has(value) ? [{ hand: value, zone: choices.get(value)! }] : [])
-  if (ordered.length === 2) {
-    return { stance: 'attack2', attackHands: ordered.map(item => item.hand), attackZones: ordered.map(item => item.zone), blockZones: [] }
-  }
-  return {
-    stance: 'mixed',
-    attackHands: ordered.map(item => item.hand),
-    attackZones: ordered.map(item => item.zone),
-    blockZones: plan.blockZones.slice(0, 2),
-  }
+  return deriveAutomaticPlan(ordered.map(item => item.hand), ordered.map(item => item.zone), plan.blockZones)
 }
 
 export function toggleAutomaticBlock(plan: AutomaticTurnPlan, zone: BodyZone): AutomaticTurnPlan {
-  const attacks = plan.attackHands.length > 1
-    ? { attackHands: plan.attackHands.slice(0, 1), attackZones: plan.attackZones.slice(0, 1) }
-    : { attackHands: plan.attackHands, attackZones: plan.attackZones }
-  const blocks = plan.blockZones.includes(zone)
-    ? plan.blockZones.filter(value => value !== zone)
-    : [...plan.blockZones, zone]
-  if (blocks.length >= 3) return { stance: 'defense4', attackHands: [], attackZones: [], blockZones: blocks.slice(0, 4) }
-  return { stance: 'mixed', ...attacks, blockZones: blocks.slice(0, 2) }
+  if (plan.attackHands.length >= 2) return plan
+  const selected = plan.blockZones.includes(zone)
+  const limit = plan.attackHands.length === 1 ? 2 : 4
+  if (!selected && plan.blockZones.length >= limit) return plan
+  const blockZones = selected ? plan.blockZones.filter(value => value !== zone) : [...plan.blockZones, zone]
+  return deriveAutomaticPlan(plan.attackHands, plan.attackZones, blockZones)
 }
 
 export function removeAutomaticAttack(plan: AutomaticTurnPlan, index: number): AutomaticTurnPlan {
-  return {
-    stance: 'mixed',
-    attackZones: removeAttackZone(plan.attackZones, index),
-    attackHands: plan.attackHands.filter((_, itemIndex) => itemIndex !== index),
-    blockZones: plan.blockZones.slice(0, 2),
-  }
+  return deriveAutomaticPlan(
+    plan.attackHands.filter((_, itemIndex) => itemIndex !== index),
+    removeAttackZone(plan.attackZones, index),
+    plan.blockZones,
+  )
 }
 
 export function getTurnPlanText(input: {

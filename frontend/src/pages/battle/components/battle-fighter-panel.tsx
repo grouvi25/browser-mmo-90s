@@ -1,4 +1,4 @@
-﻿import type { AttackHand, BodyZone } from '../../../shared/api/battles.api'
+import type { AttackHand, BodyZone } from '../../../shared/api/battles.api'
 import { BATTLE_ZONES } from '../battle-view-model'
 
 const ZONE_CLASS: Record<BodyZone, string> = {
@@ -8,6 +8,7 @@ interface BattleFighterPanelProps {
   side: 'self' | 'enemy'; name: string; level?: number; hp: number; hpMax: number
   mode: 'attack' | 'block'; selected: BodyZone[]; selectedHands?: AttackHand[]; limit: number
   disabled?: boolean; disabledHands?: AttackHand[]; disabledReason?: string; primaryHand?: string | null; secondaryHand?: string | null
+  stats?: { str: number; agi: number; rea: number; acc: number; end: number; luck: number; agr: number } | null
   onZone: (zone: BodyZone) => void; onHandZone?: (hand: AttackHand, zone: BodyZone) => void
 }
 export function BattleFighterPanel(props: BattleFighterPanelProps) {
@@ -20,6 +21,9 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
       <div className="battle-fighter-panel__hp" aria-label={`Здоровье ${props.hp} из ${props.hpMax}`}><i style={{ transform:`scaleX(${pct / 100})` }}/><span>{props.hp} / {props.hpMax}</span></div>
     </header>
     <div className="battle-fighter-panel__mode"><span>{instruction}</span><b>{props.selected.length} / {props.limit}</b></div>
+    {props.stats && <dl className="battle-fighter-panel__stats" aria-label="?????? ??????????????">
+      {([['???', props.stats.str], ['???', props.stats.agi], ['???', props.stats.rea], ['???', props.stats.acc], ['???', props.stats.end], ['???', props.stats.luck], ['???', props.stats.agr]] as const).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+    </dl>}
     <div className="battle-fighter-panel__figure">
       <div className="battle-fighter-panel__body" aria-hidden="true"><i className="battle-body-part is-head"/><i className="battle-body-part is-chest"/><i className="battle-body-part is-left-arm"/><i className="battle-body-part is-right-arm"/><i className="battle-body-part is-left-leg"/><i className="battle-body-part is-right-leg"/></div>
       {BATTLE_ZONES.map(zone => {

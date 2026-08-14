@@ -1,5 +1,6 @@
-﻿import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
+import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { hexNeighbours } from '../../src/shared/lib/hex'
 
 type Account = { token: string; userId: string; login: string; nickname: string; characterId: string }
 let seller: Account
@@ -347,21 +348,9 @@ test.describe('Stage 2 visual and browser flow', () => {
       if ((snapshot.liveState.distance ?? 99) <= 1) break
       const actor = snapshot.liveState.participants.find(participant => participant.characterId === fighter.characterId)!
       const enemy = snapshot.liveState.participants.find(participant => participant.isAlive && participant.side !== actor.side)!
-      const offsets = actor.position.y & 1
-        ? [[1, 0], [1, -1], [0, -1], [-1, 0], [0, 1], [1, 1]]
-        : [[1, 0], [0, -1], [-1, -1], [-1, 0], [-1, 1], [0, 1]]
-      const cube = (position: { x: number; y: number }) => {
-        const q = position.x - (position.y - (position.y & 1)) / 2
-        return { q, r: position.y, s: -q - position.y }
-      }
-      const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => {
-        const ca = cube(a), cb = cube(b)
-        return (Math.abs(ca.q - cb.q) + Math.abs(ca.r - cb.r) + Math.abs(ca.s - cb.s)) / 2
-      }
       const occupied = new Set(snapshot.liveState.participants.filter(participant => participant.isAlive).map(participant => `${participant.position.x}:${participant.position.y}`))
-      const moveTo = offsets
-        .map(([dx, dy]) => ({ x: actor.position.x + dx, y: actor.position.y + dy }))
-        .filter(position => position.x >= 0 && position.x < 9 && position.y >= 0 && position.y < 9 && !occupied.has(`${position.x}:${position.y}`))
+      const moveTo = hexNeighbours(actor.position)
+        .filter(position => !occupied.has(`${position.x}:${position.y}`))
         .sort((a, b) => distance(a, enemy.position) - distance(b, enemy.position))[0]
       expect(moveTo).toBeTruthy()
       const moved = await apiContext.post(`/api/battles/${battleId}/action`, {

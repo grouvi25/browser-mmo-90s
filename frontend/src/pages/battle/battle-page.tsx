@@ -221,7 +221,7 @@ export function BattlePage() {
   const [loadoutIds] = useState<string[]>(() => getLoadout())
 
   // ── Зональный ход ──────────────────────────────────────
-  const [stance, setStance]             = useState<Stance>('mixed')
+  const [stance, setStance]             = useState<Stance>('defense4')
   const [attackZones, setAttackZones]   = useState<BodyZone[]>([])
   const [attackHands, setAttackHands]   = useState<AttackHand[]>([])
   const [blockZones, setBlockZones]     = useState<BodyZone[]>([])
@@ -276,7 +276,7 @@ export function BattlePage() {
       battlesApi.submitAction(battleId!, action, opts) as unknown as Promise<RoundResult>,
     onSuccess: (data, variables) => {
       if (variables.action === 'attack' || variables.action === 'block' || variables.action === 'move') {
-        setAttackZones([]); setAttackHands([]); setBlockZones([]); setSelectedMove(null)
+        setStance('defense4'); setAttackZones([]); setAttackHands([]); setBlockZones([]); setSelectedMove(null)
       }
       const rn = data.roundNumber ?? currentRound
       setCurrentRound(rn)
@@ -327,8 +327,14 @@ export function BattlePage() {
   const canAct = !battleOver && !actionMut.isPending
   const currentDistance = distance ?? live?.distance ?? 0
   const targetInRange = playerRange == null || currentDistance <= playerRange
-  const disabledAttackHands: AttackHand[] = ([['LEFT_HAND', playerProfile?.primaryRange ?? playerRange ?? 1], ['RIGHT_HAND', playerProfile?.secondaryRange ?? 1]] as const)
+  const outOfRangeHands = ([['LEFT_HAND', playerProfile?.primaryRange ?? playerRange ?? 1], ['RIGHT_HAND', playerProfile?.secondaryRange ?? 1]] as const)
     .filter(([, range]) => currentDistance > range).map(([hand]) => hand)
+  const incompatibleHands: AttackHand[] = blockZones.length >= 3
+    ? ['LEFT_HAND', 'RIGHT_HAND']
+    : blockZones.length > 0 && attackHands.length === 1
+      ? (['LEFT_HAND', 'RIGHT_HAND'] as AttackHand[]).filter(hand => hand !== attackHands[0])
+      : []
+  const disabledAttackHands = [...new Set<AttackHand>([...outOfRangeHands, ...incompatibleHands])]
   const act = (action: BattleAction, opts?: SubmitActionOpts) => {
     if (actionPendingRef.current) return
     actionPendingRef.current = true
@@ -349,7 +355,7 @@ export function BattlePage() {
   const selectMove = (position: { x: number; y: number }) => {
     setSelectedMove(position); setAttackZones([]); setAttackHands([]); setBlockZones([])
   }
-  const resetPlan = () => { setAttackZones([]); setAttackHands([]); setBlockZones([]); setSelectedMove(null) }
+  const resetPlan = () => { setStance('defense4'); setAttackZones([]); setAttackHands([]); setBlockZones([]); setSelectedMove(null) }
   const submitTurn = () => {
     const action: BattleAction = stance === 'defense4' ? 'block' : 'attack'
     act(action, { stance, attackZones, attackHands, blockZones, targetParticipantId: ePart?.participantId })
@@ -471,7 +477,8 @@ export function BattlePage() {
       <main className="battle-duel-stage">
         <BattleFighterPanel side="self" name={playerName} level={char?.battleLevel}
           hp={pHp} hpMax={pHpMax} mode="block" selected={blockZones} limit={budget.blocks}
-          disabled={!canAct} primaryHand={playerProfile?.primaryHand ?? weapon?.template.name} secondaryHand={playerProfile?.secondaryHand}
+          disabled={!canAct || attackHands.length === 2} primaryHand={playerProfile?.primaryHand ?? weapon?.template.name} secondaryHand={playerProfile?.secondaryHand}
+          stats={playerProfile?.stats ?? char?.stats}
           onZone={toggleBlock} />
 
         <div className="battle-field-v3">
@@ -494,6 +501,7 @@ export function BattlePage() {
           disabledHands={disabledAttackHands}
           disabledReason={disabledAttackHands.length === 2 ? 'Цель вне дальности' : undefined}
           primaryHand={enemyProfile?.primaryHand} secondaryHand={enemyProfile?.secondaryHand}
+          stats={enemyProfile?.stats}
           onZone={() => undefined} onHandZone={toggleAttackHand} />
       </main>
 

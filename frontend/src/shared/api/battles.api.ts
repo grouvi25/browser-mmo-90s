@@ -20,6 +20,7 @@ export interface BattleParticipantProfile {
   secondaryHand: string | null
   primaryRange: number
   secondaryRange: number
+  stats: { str: number; agi: number; rea: number; acc: number; end: number; luck: number; agr: number } | null
 }
 
 export interface SubmitActionOpts {
