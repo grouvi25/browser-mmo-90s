@@ -263,20 +263,34 @@
   clip-path: none;
   border: 0;
 }
+/* Контур клетки рисуем вторым слоем, а не рамкой.
+   border на элементе с clip-path обрезается вместе с ним: от прямоугольной
+   рамки выживали только боковые куски, и поле было усыпано вертикальными
+   штрихами. Теперь сам слой — это контур, а ::after даёт заливку с отступом
+   внутрь и наследует ту же обрезку, поэтому кайма выходит шестиугольной. */
 .designer-cell-hit {
   position: absolute;
   inset: 0;
   display: block;
-  border: 1px solid oklch(68% .055 92 / .62);
-  background: oklch(48% .045 92 / .10);
-  box-shadow: inset 0 0 0 1px oklch(18% .02 245 / .48);
+  background: oklch(68% .055 92 / .34);
   transition: transform 120ms cubic-bezier(.25,1,.5,1), background 120ms;
 }
+.designer-cell-hit::after {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: inherit;
+  background: oklch(48% .045 92 / .08);
+  transition: background 120ms;
+}
+
 .hex-cell.is-movable .designer-cell-hit {
-  border: 3px solid oklch(88% .19 92);
-  background: oklch(78% .18 92 / .48);
-  box-shadow: 0 0 0 2px oklch(24% .05 80 / .72), 0 0 16px 5px oklch(82% .18 92 / .70);
-  filter: saturate(1.25) brightness(1.08);
+  background: oklch(88% .19 92);
+  filter: drop-shadow(0 0 10px oklch(82% .18 92 / .65));
+}
+.hex-cell.is-movable .designer-cell-hit::after {
+  inset: 3px;
+  background: oklch(78% .18 92 / .42);
 }
 .hex-cell.is-movable::after {
   content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
@@ -284,9 +298,19 @@
   box-shadow: 0 0 8px 3px oklch(85% .18 92); transform: translate(-50%, -50%);
   pointer-events: none; z-index: 2;
 }
-.hex-cell.is-selected .designer-cell-hit { border: 4px solid oklch(94% .20 96); background: oklch(82% .20 92 / .62); box-shadow: 0 0 0 2px oklch(25% .05 80), 0 0 20px 7px oklch(86% .20 92 / .82); }
-.hex-cell.is-target .designer-cell-hit { border: 2px solid oklch(58% .18 25); background: oklch(62% .17 25 / .24); }
-.hex-cell.is-clickable:hover .designer-cell-hit { transform: scale(.94); background: oklch(84% .12 80 / .42); }
+
+.hex-cell.is-selected .designer-cell-hit {
+  background: oklch(94% .20 96);
+  filter: drop-shadow(0 0 14px oklch(86% .20 92 / .8));
+}
+.hex-cell.is-selected .designer-cell-hit::after { inset: 4px; background: oklch(82% .20 92 / .58); }
+
+.hex-cell.is-target .designer-cell-hit { background: oklch(58% .18 25); }
+.hex-cell.is-target .designer-cell-hit::after { inset: 2.5px; background: oklch(62% .17 25 / .22); }
+
+.hex-cell.is-clickable:hover .designer-cell-hit { transform: scale(.94); }
+.hex-cell.is-clickable:hover .designer-cell-hit::after { background: oklch(84% .12 80 / .40); }
+
 .battle-field-v3 .fighter-token {
   top: auto;
   bottom: 46%;

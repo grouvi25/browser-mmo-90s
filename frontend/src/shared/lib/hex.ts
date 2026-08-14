@@ -1,3 +1,4 @@
+import { DESIGNER_BATTLE_COLUMNS, DESIGNER_BATTLE_ROWS } from './designer-battle-grid'
 import { DESIGNER_CELL_NEIGHBOURS, type BattleCellKey } from './designer-battle-adjacency'
 
 // =============================================================
@@ -8,11 +9,11 @@ import { DESIGNER_CELL_NEIGHBOURS, type BattleCellKey } from './designer-battle-
 // совпадать с его правилами, иначе игрок жмёт туда, куда ход
 // не примут.
 //
-// Координаты — смещённая сетка «odd-r»: нечётные ряды сдвинуты
-// вправо на половину соты.
+// Размер и соседство берутся из таблицы, снятой с решётки PSD, —
+// размножать здесь константы нельзя, иначе они разъедутся с рисунком.
 // =============================================================
-export const GRID_COLS = 9
-export const GRID_ROWS = 9
+export const GRID_COLS = DESIGNER_BATTLE_COLUMNS
+export const GRID_ROWS = DESIGNER_BATTLE_ROWS
 
 export interface Cell { x: number; y: number }
 
@@ -52,26 +53,4 @@ export function hexDistance(a: Cell, b: Cell): number {
     frontier = next
   }
   return Number.POSITIVE_INFINITY
-}
-
-// ── Раскладка на экране ──────────────────────────────────────
-// Сота «остриём вверх»: высота = ширина × 2/√3, ряды находят друг
-// на друга на четверть высоты, нечётные сдвинуты на полсоты вправо.
-// Поэтому по ширине помещается 9.5 сот, по высоте — 1 + 0.75×4.
-const HEX_RATIO = 2 / Math.sqrt(3)
-export const FIELD_COLUMNS_SPAN = GRID_COLS + 0.5
-export const FIELD_ROWS_SPAN = 1 + 0.75 * (GRID_ROWS - 1)
-/** Соотношение сторон всего поля — им задаётся aspect-ratio контейнера. */
-export const FIELD_ASPECT = FIELD_COLUMNS_SPAN / (FIELD_ROWS_SPAN * HEX_RATIO)
-
-/** Положение и размер соты в процентах от поля. */
-export function cellStyle(cell: Cell): { left: string; top: string; width: string; height: string } {
-  const width = 100 / FIELD_COLUMNS_SPAN
-  const height = 100 / FIELD_ROWS_SPAN
-  return {
-    left: `${(cell.x + (cell.y & 1) * 0.5) * width}%`,
-    top: `${cell.y * 0.75 * height}%`,
-    width: `${width}%`,
-    height: `${height}%`,
-  }
 }

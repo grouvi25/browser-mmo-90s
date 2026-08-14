@@ -114,20 +114,27 @@ describe('battle grid attacks and protection', () => {
 describe('battle grid teams and target selection', () => {
   it('places both teams in deterministic interior hex regions', () => {
     expect(teamSpawnPositions(1, 3)).toEqual([
-      { x: 3, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 3 },
+      { x: 2, y: 5 }, { x: 1, y: 4 }, { x: 2, y: 4 },
     ])
     expect(teamSpawnPositions(2, 3)).toEqual([
-      { x: 5, y: 4 }, { x: 6, y: 4 }, { x: 5, y: 3 },
+      { x: 7, y: 5 }, { x: 6, y: 4 }, { x: 7, y: 4 },
     ])
+    // отряд встаёт связным кольцом: каждый второй и третий боец — сосед якоря
+    for (const side of [1, 2]) {
+      const [anchor, ...rest] = teamSpawnPositions(side, 3)
+      const ring = hexNeighbours(anchor).map(cell => `${cell.x}:${cell.y}`)
+      for (const mate of rest) expect(ring).toContain(`${mate.x}:${mate.y}`)
+    }
     expect(hexNeighbours(teamSpawnPositions(1, 1)[0])).toHaveLength(6)
     expect(hexNeighbours(teamSpawnPositions(2, 1)[0])).toHaveLength(6)
   })
 
-  it('supports all nine authored rows', () => {
+  it('covers the ten authored rows and columns of the PSD lattice', () => {
     expect(teamSpawnPositions(1, 9)).toHaveLength(9)
     expect(new Set(teamSpawnPositions(1, 9).map(position => `${position.x}:${position.y}`)).size).toBe(9)
-    expect(isInsideGrid({ x: 8, y: 8 })).toBe(true)
-    expect(isInsideGrid({ x: 8, y: 9 })).toBe(false)
+    expect(isInsideGrid({ x: 9, y: 9 })).toBe(true)
+    expect(isInsideGrid({ x: 10, y: 9 })).toBe(false)
+    expect(isInsideGrid({ x: 9, y: 10 })).toBe(false)
   })
 
   it('requires an explicit living enemy target when several enemies exist', () => {
