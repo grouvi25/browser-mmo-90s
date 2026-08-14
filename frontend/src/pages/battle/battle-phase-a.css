@@ -30,6 +30,10 @@
 .battle-duel-stage { min-height: 0; display: grid; grid-template-columns: 206px minmax(0,1fr) 206px; }
 .battle-fighter-panel {
   position: relative; min-width: 0; min-height: 0;
+  /* Контейнер по обеим осям: от ширины считается размер бумажной карточки,
+     от высоты — её потолок, иначе на невысокой панели карточка съедала
+     манекен и зоны налезали друг на друга. */
+  container-type: size;
   /* Ряды идут по разметке: шапка, карточка, режим, манекен, причина отказа. */
   display: grid; grid-template-rows: auto auto 22px minmax(0,1fr) auto;
   /* Та же бумага, что под карточкой персонажа на главном экране:
@@ -403,33 +407,24 @@
   .battle-fighter-panel__mode { font-size: 8px; }
   .battle-fighter-panel__hands span { font-size: 7px; }
   .battle-fighter-panel__hands b { font-size: 8px; }
-  /* На телефоне вместо силуэта список зон. Две ячейки на зону требуют
-     ширины, которой у панели в пол-экрана нет: коробки рук налезали на
-     корпус и перехватывали нажатия — попасть по корпусу было нельзя.
-     Список даёт полные подписи и ячейки под палец. */
-  .battle-fighter-panel__body { display: none; }
-  .battle-fighter-panel__figure {
-    height: auto; width: calc(100% - 8px); margin: 4px;
-    display: grid; grid-template-rows: repeat(5, minmax(38px, 1fr)); gap: 3px;
-  }
-  .battle-fighter-zone { min-width: 0; font-size: 8px; }
-  /* Ширины зон в компактном блоке заданы через .is-*, и по специфичности
-     они сильнее одиночного класса — снимаем их таким же селектором. */
-  .battle-fighter-zone.is-head,.battle-fighter-zone.is-chest,.battle-fighter-zone.is-legs,
-  .battle-fighter-zone.is-left-arm,.battle-fighter-zone.is-right-arm {
-    position: static; width: auto; left: auto; right: auto; top: auto;
-  }
-  /* Короткие подписи «Гол.», «Корп.» нужны были силуэту; в списке видна
-     полная, и сокращение печаталось второй раз следом. */
+  /* Манекен на телефоне остаётся: панель занимает половину экрана, и
+     трёх коробок в ряд хватает, если не раздувать их. Ширины задаются
+     тем же селектором с .is-*, что и в компактном блоке, иначе те
+     побеждают по специфичности и руки налезают на корпус. */
+  .battle-fighter-panel__figure { width: calc(100% - 8px); margin: 4px 0; }
+  .battle-fighter-zone { min-width: 0; padding: 2px; }
+  .battle-fighter-zone.is-head { width: 66px; left: calc(50% - 33px); top: 1%; }
+  .battle-fighter-zone.is-chest { width: 66px; left: calc(50% - 33px); top: 26%; }
+  .battle-fighter-zone.is-legs { width: 66px; left: calc(50% - 33px); top: 68%; }
+  .battle-fighter-zone.is-left-arm { width: 60px; left: 0; right: auto; top: 26%; }
+  .battle-fighter-zone.is-right-arm { width: 60px; right: 0; left: auto; top: 26%; }
+  /* Полная подпись вместо «Гол.»: место под неё здесь есть. */
+  .battle-fighter-zone { font-size: 7px; }
   .battle-fighter-zone.is-head span::after,.battle-fighter-zone.is-chest span::after,
   .battle-fighter-zone.is-legs span::after,.battle-fighter-zone.is-left-arm span::after,
   .battle-fighter-zone.is-right-arm span::after { content: none; }
-  .battle-hand-zone {
-    grid-template-rows: none; grid-template-columns: minmax(0, 1fr) 94px;
-    align-items: center; gap: 5px;
-  }
-  .battle-hand-zone > div { grid-template-columns: repeat(2, minmax(40px, 1fr)); gap: 3px; margin: 0; }
-  .battle-hand-zone button { min-width: 40px; min-height: 36px; font-size: 10px; }
+  .battle-hand-zone > div { grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 1px; }
+  .battle-hand-zone button { min-width: 0; min-height: 32px; font-size: 9px; }
 }
 
 
@@ -443,25 +438,35 @@
   border-bottom: 1px solid oklch(68% .025 60);
   background: oklch(93% .018 75);
 }
+/* Портрет лежит в той же карточке, что на главном экране: рваная бумага,
+   фотография приклеена скотчем по углам. Скотч и белое поле снимка —
+   часть рисунка, поэтому портрет кладём ровно в окно, а не поверх.
+   Высоту считаем от ширины панели: aspect-ratio не даёт высоты
+   родителю, когда ширина колонки определяется позже. */
 .battle-profile-portrait {
+  position: relative;
   min-width: 0;
-  /* Высота явная: aspect-ratio здесь не даёт её родителю, ширина колонки
-     определяется позже, и карточка распирала панель. Привязка к высоте окна
-     нужна для ландшафтных телефонов шире 900 px — они не попадают
-     ни под один из мобильных блоков ниже. */
-  height: clamp(76px, 26vh, 232px);
-  overflow: hidden;
-  border: 1px solid oklch(46% .035 55);
-  background: oklch(82% .025 68);
+  width: auto;
+  aspect-ratio: 674 / 620;
+  height: min(calc(min(100cqw - 12px, 252px) / 1.0871), 32cqh);
+  justify-self: center;
+  background: url('../../shared/assets/battle/photo-card.webp') center / 100% 100% no-repeat;
+  /* Вторая строка — для экранов с двойной плотностью; если браузер не знает
+     image-set, объявление отбрасывается и остаётся однократная картинка. */
+  background-image: image-set(
+    url('../../shared/assets/battle/photo-card@2x.webp') 2x,
+    url('../../shared/assets/battle/photo-card.webp') 1x);
 }
 .battle-profile-portrait img {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  left: 15.88%;
+  top: 10%;
+  width: 69.88%;
+  height: 76.61%;
   display: block;
   object-fit: cover;
   object-position: 50% 12%;
 }
-.is-enemy .battle-profile-portrait { border-color: oklch(45% .11 25); }
 .battle-profile-weapons {
   min-width: 0;
   display: grid;
@@ -544,10 +549,18 @@
   .battle-field-v3 .fighter-token { height: calc(52px * var(--fighter-depth, 1)); }
 }
 
-@media (max-width: 600px) and (min-height: 521px) {
-  .battle-fighter-panel { grid-template-rows: auto 82px 20px minmax(0, 1fr) auto; }
-  .battle-profile-summary { grid-template-columns: 54px minmax(0, 1fr); }
-  .battle-profile-portrait { height: 76px; }
+/* Вертикальный экран: панель занимает половину ширины, и бумажная
+   карточка с фотографией на скотче помещается целиком — как на главном.
+   Блок идёт последним намеренно: выше та же высота портрета задана
+   для узких и низких окон, где карточке не хватает места. */
+@media (max-width: 600px) and (min-height: 521px),
+       (max-aspect-ratio: 4 / 5) and (min-height: 521px) {
+  .battle-fighter-panel { grid-template-rows: auto auto 20px minmax(0, 1fr) auto; }
+  .battle-profile-summary { grid-template-columns: minmax(0, 1fr); gap: 5px; padding: 6px; }
+  .battle-profile-portrait { height: min(calc(min(100cqw - 12px, 252px) / 1.0871), 32cqh); }
+  .battle-profile-weapons { grid-template-columns: 1fr 1fr; grid-template-rows: none; }
+  .battle-profile-weapon { grid-template-columns: 26px minmax(0, 1fr); column-gap: 4px; padding: 3px; }
+  .battle-profile-weapon > img { width: 26px; height: 26px; }
   .battle-profile-weapon > span { font-size: 6px; }
   .battle-profile-weapon > b { font-size: 7px; }
 }
