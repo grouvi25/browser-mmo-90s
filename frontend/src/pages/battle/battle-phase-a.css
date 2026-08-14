@@ -107,10 +107,10 @@
 .battle-fighter-zone:disabled { opacity: .38; cursor: not-allowed; }
 /* Зоны стоят там же, где части тела: доли высоты фигуры. */
 .battle-fighter-zone.is-head { left: calc(50% - 30px); top: 1%; width: 60px; }
-.battle-fighter-zone.is-chest { left: calc(50% - 36px); top: 26%; width: 72px; }
-.battle-fighter-zone.is-left-arm { left: 0; top: 26%; width: 62px; }
-.battle-fighter-zone.is-right-arm { right: 0; top: 26%; width: 62px; }
-.battle-fighter-zone.is-legs { left: calc(50% - 36px); top: 68%; width: 72px; }
+.battle-fighter-zone.is-chest { left: calc(50% - 35px); top: 26%; width: 70px; }
+.battle-fighter-zone.is-left-arm { left: 0; top: 26%; width: 58px; }
+.battle-fighter-zone.is-right-arm { right: 0; top: 26%; width: 58px; }
+.battle-fighter-zone.is-legs { left: calc(50% - 35px); top: 68%; width: 70px; }
 .battle-fighter-zone em { margin-left: 2px; padding: 0 3px; border-radius: 8px; background: oklch(42% .14 25); color: oklch(97% .01 70); font-style: normal; }
 .is-self .battle-fighter-zone.is-selected { border-style: solid; border-color: oklch(41% .10 135); background: oklch(87% .065 135); color: oklch(29% .08 135); }
 .is-enemy .battle-fighter-zone.is-selected { border-style: solid; border-color: oklch(42% .14 25); background: oklch(86% .07 25); color: oklch(30% .12 25); }
@@ -178,7 +178,7 @@
   .battle-header-v3 > span { font-size: 0; }
   .battle-header-v3 > span svg { width: 10px; height: 10px; }
   /* Колонка не уже суммы зон: при 108 px «Л.рук.» налезала на «Корп.». */
-  .battle-duel-stage { grid-template-columns: clamp(140px, 19vw, 168px) minmax(0,1fr) clamp(140px, 19vw, 168px); }
+  .battle-duel-stage { grid-template-columns: clamp(150px, 19vw, 168px) minmax(0,1fr) clamp(150px, 19vw, 168px); }
   .battle-fighter-panel__head { padding: 4px; }
   .battle-fighter-panel__head b { font-size: 9px; }
   .battle-fighter-panel__head small { font-size: 7px; }
@@ -366,7 +366,9 @@
 }
 
 .battle-hand-zone { display:grid; grid-template-rows:auto 1fr; padding:2px 3px; cursor:default; }
-.battle-hand-zone > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* «Правая рука» в одну строку не влезает в коробку зоны и обрывалась
+   многоточием — пусть переносится. */
+.battle-hand-zone > span { overflow:hidden; line-height:1.05; }
 .battle-hand-zone > div { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:2px; }
 .battle-hand-zone button { min-width:24px; min-height:28px; padding:0; border:1px solid oklch(55% .04 55); background:oklch(94% .02 75); color:oklch(30% .03 55); font:700 8px/1 var(--font-mono); cursor:pointer; }
 .battle-hand-zone button.is-selected { border-color:oklch(42% .14 25); background:oklch(45% .14 25); color:oklch(97% .01 70); }
@@ -401,12 +403,33 @@
   .battle-fighter-panel__mode { font-size: 8px; }
   .battle-fighter-panel__hands span { font-size: 7px; }
   .battle-fighter-panel__hands b { font-size: 8px; }
-  .battle-fighter-panel__body { width: 96px; height: 132px; }
-  .battle-hand-zone { width: 92px !important; min-width: 92px; }
-  .battle-hand-zone.is-head,.battle-hand-zone.is-chest,.battle-hand-zone.is-legs { left: calc(50% - 46px); }
-  .battle-hand-zone > div { grid-template-columns: repeat(2, minmax(40px, 1fr)); gap: 3px; }
-  .battle-hand-zone button { min-width: 40px; min-height: 44px; font-size: 10px; }
-  .battle-field-v3 .designer-battle-field { width: min(100cqw, calc((100vh - 210px) * 1.824249)); }
+  /* На телефоне вместо силуэта список зон. Две ячейки на зону требуют
+     ширины, которой у панели в пол-экрана нет: коробки рук налезали на
+     корпус и перехватывали нажатия — попасть по корпусу было нельзя.
+     Список даёт полные подписи и ячейки под палец. */
+  .battle-fighter-panel__body { display: none; }
+  .battle-fighter-panel__figure {
+    height: auto; width: calc(100% - 8px); margin: 4px;
+    display: grid; grid-template-rows: repeat(5, minmax(38px, 1fr)); gap: 3px;
+  }
+  .battle-fighter-zone { min-width: 0; font-size: 8px; }
+  /* Ширины зон в компактном блоке заданы через .is-*, и по специфичности
+     они сильнее одиночного класса — снимаем их таким же селектором. */
+  .battle-fighter-zone.is-head,.battle-fighter-zone.is-chest,.battle-fighter-zone.is-legs,
+  .battle-fighter-zone.is-left-arm,.battle-fighter-zone.is-right-arm {
+    position: static; width: auto; left: auto; right: auto; top: auto;
+  }
+  /* Короткие подписи «Гол.», «Корп.» нужны были силуэту; в списке видна
+     полная, и сокращение печаталось второй раз следом. */
+  .battle-fighter-zone.is-head span::after,.battle-fighter-zone.is-chest span::after,
+  .battle-fighter-zone.is-legs span::after,.battle-fighter-zone.is-left-arm span::after,
+  .battle-fighter-zone.is-right-arm span::after { content: none; }
+  .battle-hand-zone {
+    grid-template-rows: none; grid-template-columns: minmax(0, 1fr) 94px;
+    align-items: center; gap: 5px;
+  }
+  .battle-hand-zone > div { grid-template-columns: repeat(2, minmax(40px, 1fr)); gap: 3px; margin: 0; }
+  .battle-hand-zone button { min-width: 40px; min-height: 36px; font-size: 10px; }
 }
 
 
