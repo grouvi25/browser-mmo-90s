@@ -58,14 +58,14 @@ describe('battle grid movement', () => {
   })
 
   it('allows two fighters to swap adjacent cells simultaneously', () => {
-    const first = fighter('p1', 1, 3, 2)
-    const second = fighter('p2', 2, 4, 2)
+    const first = fighter('p1', 1, 1, 1)
+    const second = fighter('p2', 2, 2, 2)
     const resolved = resolveSimultaneousMoves([first, second], [
-      { participantId: 'p1', destination: { x: 4, y: 2 } },
-      { participantId: 'p2', destination: { x: 3, y: 2 } },
+      { participantId: 'p1', destination: { x: 2, y: 2 } },
+      { participantId: 'p2', destination: { x: 1, y: 1 } },
     ])
-    expect(resolved.find(p => p.participantId === 'p1')?.position).toEqual({ x: 4, y: 2 })
-    expect(resolved.find(p => p.participantId === 'p2')?.position).toEqual({ x: 3, y: 2 })
+    expect(resolved.find(p => p.participantId === 'p1')?.position).toEqual({ x: 2, y: 2 })
+    expect(resolved.find(p => p.participantId === 'p2')?.position).toEqual({ x: 1, y: 1 })
   })
 
   it('rejects collisions and movement into a stationary occupied cell', () => {
@@ -93,13 +93,13 @@ describe('battle grid attacks and protection', () => {
   })
 
   it('lets a front fighter shield an ally from ranged fire', () => {
-    const attacker = fighter('a', 1, 4, 0)
-    const protector = fighter('p', 2, 5, 0)
-    const target = fighter('t', 2, 6, 0)
+    const attacker = fighter('a', 1, 5, 4)
+    const protector = fighter('p', 2, 5, 3)
+    const target = fighter('t', 2, 7, 4)
     const all = [attacker, protector, target]
     expect(hasLineOfSight(attacker.position, target.position, all, 'a', 't')).toBe(false)
-    expect(canAttackTarget(attacker, target, all, 3)).toBe(false)
-    expect(canAttackTarget(attacker, protector, all, 3)).toBe(true)
+    expect(canAttackTarget(attacker, target, all, 5)).toBe(false)
+    expect(canAttackTarget(attacker, protector, all, 5)).toBe(true)
   })
 })
 
