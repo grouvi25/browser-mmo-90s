@@ -22,7 +22,7 @@ import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
 import { BattleFighterPanel } from './components/battle-fighter-panel'
 import { BattleCommandDock } from './components/battle-command-dock'
 import { BattlePockets } from './components/battle-pockets'
-import { ZONE_LABEL, getActionBudget, removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlock } from './battle-view-model'
+import { ZONE_LABEL, removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlock } from './battle-view-model'
 import './battle-phase-a.css'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -344,7 +344,6 @@ export function BattlePage() {
   const playerName = char?.nickname ?? 'Игрок'
 
   // ── Зональный ход: стойки и выбор зон ──────────────────
-  const budget = getActionBudget(stance)
   const applyAutomaticPlan = (plan: { stance: Stance; attackZones: BodyZone[]; attackHands: AttackHand[]; blockZones: BodyZone[] }) => {
     setStance(plan.stance); setAttackZones(plan.attackZones); setAttackHands(plan.attackHands); setBlockZones(plan.blockZones); setSelectedMove(null)
   }
