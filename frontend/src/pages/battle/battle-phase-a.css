@@ -276,20 +276,20 @@
   top: auto;
   bottom: 46%;
   transform: translate(-50%, 0);
-  width: clamp(22px, 70%, 52px);
-  height: auto;
+  width: auto;
+  height: clamp(42px, 180%, 110px);
   padding: 0;
   border: 0;
   background: transparent;
   box-shadow: none;
   overflow: visible;
 }
-.battle-field-v3 .fighter-token > img { width: 100%; height: auto; display: block; filter: drop-shadow(0 2px 2px oklch(12% .02 245 / .55)); }
+.battle-field-v3 .fighter-token > img { width: auto; height: 100%; display: block; filter: drop-shadow(0 2px 2px oklch(12% .02 245 / .55)); }
 .battle-field-v3 .fighter-token .token-label { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); }
 .battle-field-v3 .token-target-label { top: calc(100% + 12px); }
 @media (max-width: 900px) {
   .battle-field-v3 .hex-board { padding-bottom: 22px; }
-  .battle-field-v3 .fighter-token { width: clamp(14px, 72%, 34px); }
+  .battle-field-v3 .fighter-token { width: auto; height: clamp(34px, 180%, 66px); }
 }
 
 .battle-hand-zone { display:grid; grid-template-rows:auto 1fr; padding:2px 3px; cursor:default; }
