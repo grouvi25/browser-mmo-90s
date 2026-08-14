@@ -5,6 +5,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { testPrisma, uid } from './helpers'
+import { gridDistance, stepToward } from '../../modules/battles/grid'
 
 const BASE = process.env.E2E_API_URL ?? 'http://localhost:4000'
 
@@ -144,10 +145,22 @@ describe('E2E: Full player cycle (Stage 1 TZ razdel 11)', () => {
     let finalResult: Record<string, unknown> = {}
 
     while (!over && rounds < 35) {
-      const r = await api('POST', `/api/battles/${battleId}/action`, {
-        action: 'attack', stance: 'attack2',
-        attackZones: ['CHEST', 'HEAD'], attackHands: ['LEFT_HAND', 'RIGHT_HAND'],
-      }, token)
+      const snapshot = (await api('GET', `/api/battles/${battleId}`, undefined, token)).data as {
+        liveState?: { participants: Array<{ characterId?: string; side: number; isAlive: boolean; position: { x: number; y: number } }> }
+      }
+      const participants = snapshot.liveState?.participants ?? []
+      const player = participants.find(participant => participant.characterId)
+      const target = participants.find(participant => participant.isAlive && participant.side !== player?.side)
+      const moveTo = player && target && gridDistance(player.position, target.position) > 1
+        ? stepToward(player.position, target.position)[0]
+        : undefined
+      const action = moveTo
+        ? { action: 'move', moveTo }
+        : {
+            action: 'attack', stance: 'attack2',
+            attackZones: ['CHEST', 'HEAD'], attackHands: ['LEFT_HAND', 'RIGHT_HAND'],
+          }
+      const r = await api('POST', `/api/battles/${battleId}/action`, action, token)
       expect(r.status).toBe(200)
       const data = r.data as Record<string, unknown>
       rounds++
