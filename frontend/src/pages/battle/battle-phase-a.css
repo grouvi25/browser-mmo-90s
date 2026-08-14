@@ -266,15 +266,16 @@
    элементе с clip-path всё равно обрезается и вырождается в боковые
    штрихи. Форму даёт сам clip-path, проставленный разметкой.
 
-   Состояния: наведение подбирает клетку и делает заливку плотнее,
-   нажатие — ещё плотнее и глубже, выбранная клетка держит плотность
-   постоянно. Незанятая клетка не рисуется вовсе. */
+   Состояния различаются только плотностью заливки: наведение плотнее,
+   нажатие ещё плотнее, выбранная держит плотность постоянно. Клетка
+   при этом не дёргается — размер остаётся её собственным, снятым
+   с рисунка. Незанятая клетка не рисуется вовсе. */
 .designer-cell-hit {
   position: absolute;
   inset: 0;
   display: block;
   background: transparent;
-  transition: transform 120ms cubic-bezier(.25, 1, .5, 1), background 120ms;
+  transition: background 120ms;
 }
 
 /* Ловит нажатие только сота, а не её прямоугольник.
@@ -287,9 +288,9 @@
 .hex-cell.is-movable .designer-cell-hit { background: oklch(68% .13 76 / .38); }
 .hex-cell.is-target  .designer-cell-hit { background: oklch(58% .17 25 / .40); }
 
-.hex-cell.is-clickable:hover .designer-cell-hit { transform: scale(.94); background: oklch(64% .14 74 / .52); }
-.hex-cell.is-clickable:active .designer-cell-hit { transform: scale(.90); background: oklch(56% .15 72 / .64); }
-.hex-cell.is-clickable:focus-visible .designer-cell-hit { transform: scale(.94); background: oklch(64% .14 74 / .52); }
+.hex-cell.is-clickable:hover .designer-cell-hit { background: oklch(64% .14 74 / .52); }
+.hex-cell.is-clickable:active .designer-cell-hit { background: oklch(56% .15 72 / .64); }
+.hex-cell.is-clickable:focus-visible .designer-cell-hit { background: oklch(64% .14 74 / .52); }
 
 .hex-cell.is-selected .designer-cell-hit { background: oklch(60% .15 74 / .58); }
 .hex-cell.is-target.is-clickable:hover .designer-cell-hit { background: oklch(54% .18 25 / .52); }
