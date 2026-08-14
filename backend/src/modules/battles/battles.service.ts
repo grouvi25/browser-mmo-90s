@@ -36,6 +36,7 @@ import {
   selectEnemyTarget,
   stepAway,
   stepToward,
+  teamSpawnPositions,
   type GridPosition,
   type PositionedParticipant,
 } from './grid'
@@ -509,7 +510,7 @@ export const BattleService = {
             pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 2, y: 2 },
+            position: teamSpawnPositions(1, 1)[0],
           },
           {
             participantId: botPart.id,
@@ -522,7 +523,7 @@ export const BattleService = {
             hasActedThisRound: false,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 5, y: 1 },
+            position: teamSpawnPositions(2, 1)[0],
           },
         ],
       }
@@ -659,7 +660,7 @@ export const BattleService = {
             pocketItemIds: opponentPocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 2, y: 2 },
+            position: teamSpawnPositions(1, 1)[0],
           },
           {
             participantId: newParticipant.id, // FIX: use actual ID
@@ -676,7 +677,7 @@ export const BattleService = {
             pocketItemIds,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
-            position: { x: 5, y: 1 },
+            position: teamSpawnPositions(2, 1)[0],
           },
         ],
       }
