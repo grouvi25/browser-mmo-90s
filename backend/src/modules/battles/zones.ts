@@ -163,9 +163,6 @@ function isAttackHand(hand: unknown): hand is AttackHand {
 function isBodyZone(z: unknown): z is BodyZone {
   return typeof z === 'string' && (BODY_ZONES as string[]).includes(z)
 }
-function dedupe<T>(arr: T[]): T[] {
-  return Array.from(new Set(arr))
-}
 function shuffle<T>(arr: T[], rng: () => number): T[] {
   const a = arr.slice()
   for (let i = a.length - 1; i > 0; i--) {
