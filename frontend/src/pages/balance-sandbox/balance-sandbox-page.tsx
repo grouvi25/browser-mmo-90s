@@ -120,7 +120,7 @@ function Metric({ label, value, tone, note }: { label: string; value: string; to
 }
 
 function Control({ label, value, min, max, step = 1, suffix = '', set }: { label: string; value: number; min: number; max: number; step?: number; suffix?: string; set: (value: number) => void }) {
-  return <label><span>{label}</span><output>{value.toLocaleString('ru')}{suffix}</output><input aria-label={label} type="range" value={value} min={min} max={max} step={step} onChange={event => set(Number(event.target.value))} /></label>
+  return <label><span>{label}</span><output aria-hidden="true">{value.toLocaleString('ru')}{suffix}</output><input aria-label={label} type="range" value={value} min={min} max={max} step={step} onChange={event => set(Number(event.target.value))} /></label>
 }
 
 function Sparkline({ row }: { row: SandboxRow }) {
