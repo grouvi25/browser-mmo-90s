@@ -219,7 +219,9 @@
   .battle-fighter-panel__hands span { font-size: 6px; }
   .battle-fighter-panel__hands b { font-size: 7px; }
   .battle-field-v3 .hex-board { padding-inline: 1px; }
-  .battle-field-v3 .hex-cell .fighter-token { padding: 2px; }
+  /* Рост задан долей клетки, а при border-box отступ вычитался из него:
+     на телефоне сота высотой ~16 px теряла 4 px и боец сжимался до 57 %. */
+  .battle-field-v3 .hex-cell .fighter-token { padding: 0; }
   .battle-command-dock { grid-template-columns: minmax(0,1fr) 126px; grid-template-rows: minmax(0,1fr); }
   .battle-command-dock__plan { padding: 5px; }
   .battle-command-dock__actions { padding: 5px; }
@@ -565,14 +567,21 @@
   .battle-profile-weapon > b { font-size: 7px; }
 }
 
-/* The legacy grid rule set top:50%; keeping top and bottom together stretched
-   the fighter across the cell. Anchor only the feet to the authored centre. */
+/* Фигура живёт внутри своей соты и не налезает на соседние.
+   
+   Раньше рост задавался в пикселях и умножался на --fighter-depth, а ноги стояли
+   в центре клетки. Замер на проде: при высоте соты 56–77 px боец выходил
+   за верхнюю кромку на 31–40 px, то есть был выше своей клетки.
+   
+   Теперь рост — доля высоты самой соты. Перспектива соблюдена без отдельного
+   коэффициента: дальние ряды на арте нарисованы мельче, и боец мельчает
+   вместе с ними. Поэтому мобильный переопределённый рост больше не нужен.
+   
+   9 % снизу и 82 % роста оставляют воздушный зазор сверху и снизу, чтобы
+   граница соты читалась даже на занятой клетке. */
 .battle-field-v3 .hex-cell .fighter-token {
   top: auto;
-  bottom: 50%;
-  height: calc(72px * var(--fighter-depth, 1));
+  bottom: 9%;
+  height: 82%;
   transform: translate(-50%, 0);
-}
-@media (max-width: 900px) {
-  .battle-field-v3 .hex-cell .fighter-token { height: calc(52px * var(--fighter-depth, 1)); }
 }
