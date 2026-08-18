@@ -14,6 +14,8 @@ Reason: eight full-rate shifts made work a flat money faucet and broke the sink/
 
 `SHIFT_READY` is the canonical event emitted when `work-shift-finalize` moves a shift from `ACTIVE` to `READY_TO_CLAIM`. It is intentionally distinct from `SHIFT_CLAIMED`: readiness releases the character from `WORKING`, while claim awards salary, profession XP and resources.
 
+The daily economy snapshot records the median delay between `WorkShift.endsAt` and the corresponding `SHIFT_READY` log over the previous 24 hours. No samples produce `null`; a median strictly above 120 seconds emits `SHIFT_READY_LAG_HIGH`. The work page shows the next-shift salary percentage so the accepted fatigue rule is visible before the player starts a shift.
+
 ## Revision 2.1 production chains
 
 Stage 2 implements the production foundation: professions, production objects, shifts, resource outputs, repair parts, private shops and market demand. Multi-step processing chains, installed equipment and tool wear are deferred to Stage 3. The current schema preserves `ownerType`, object durability, resource categories and profession requirements so this extension remains additive.
