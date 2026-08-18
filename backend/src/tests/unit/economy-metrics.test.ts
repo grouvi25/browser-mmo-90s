@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gini, median, msUntilNextUtcHour } from '../../workers/economy-metrics.formulas'
+import { gini, isShiftReadyLagging, median, msUntilNextUtcHour } from '../../workers/economy-metrics.formulas'
 
 describe('economy metrics helpers', () => {
   it('calculates gini for equal and unequal balances', () => {
@@ -12,6 +12,12 @@ describe('economy metrics helpers', () => {
     expect(median([9, 1, 5])).toBe(5)
     expect(median([10, 2, 6, 4])).toBe(5)
     expect(median([])).toBe(0)
+  })
+
+  it('alerts only when SHIFT_READY median lag exceeds 120 seconds', () => {
+    expect(isShiftReadyLagging(null)).toBe(false)
+    expect(isShiftReadyLagging(120)).toBe(false)
+    expect(isShiftReadyLagging(120.01)).toBe(true)
   })
 
   it('schedules the next 03:00 UTC run', () => {

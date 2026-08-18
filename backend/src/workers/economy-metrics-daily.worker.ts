@@ -2,7 +2,7 @@ import { BalanceConfig } from '../config/balance.config'
 import { prisma } from '../shared/db/prisma'
 import { getRedis } from '../shared/db/redis'
 import { logger } from '../shared/logger/logger'
-import { gini, median, msUntilNextUtcHour, workToolBlockedKey } from './economy-metrics.formulas'
+import { gini, isShiftReadyLagging, median, msUntilNextUtcHour, workToolBlockedKey } from './economy-metrics.formulas'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const SNAPSHOT_TTL_SECONDS = 40 * 24 * 60 * 60
@@ -21,6 +21,7 @@ export type EconomyMetricsSnapshot = {
   activeListings: number
   medianListingPrice: number
   completedShifts: number
+  shiftReadyLagMedianSeconds: number | null
   tools: { usesConsumed: number; missingToolBlocks: number }
   upgrades: { total: number; successful: number; successRate: number }
   alerts: string[]
@@ -40,7 +41,7 @@ export async function collectEconomyMetrics(now = new Date()): Promise<EconomyMe
   const date = utcDate(end)
   const previousDate = utcDate(new Date(end.getTime() - DAY_MS))
 
-  const [characters, currency, listings, completedShifts, toolUsesConsumed, upgrades, previousRaw, missingToolBlocksRaw] = await Promise.all([
+  const [characters, currency, listings, completedShifts, toolUsesConsumed, upgrades, previousRaw, missingToolBlocksRaw, readyLagRows] = await Promise.all([
     prisma.character.findMany({ select: { money: true } }),
     prisma.currencyLog.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { amount: true } }),
     prisma.marketListing.findMany({ where: { status: 'ACTIVE' }, select: { price: true } }),
@@ -49,6 +50,16 @@ export async function collectEconomyMetrics(now = new Date()): Promise<EconomyMe
     prisma.upgradeLog.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { result: true } }),
     getRedis().get(economyMetricsKey(previousDate)),
     getRedis().get(workToolBlockedKey(date)),
+    prisma.$queryRaw<Array<{ median_seconds: number | null }>>`
+      SELECT percentile_cont(0.5) WITHIN GROUP (
+               ORDER BY EXTRACT(EPOCH FROM (pl.created_at - ws.ends_at))
+             ) AS median_seconds
+        FROM production_logs pl
+        JOIN work_shifts ws ON ws.id = (pl.metadata_json ->> 'shiftId')::uuid
+       WHERE pl.event_type = 'SHIFT_READY'
+         AND pl.created_at >= ${start}
+         AND pl.created_at < ${end}
+    `,
   ])
 
   const m2 = characters.reduce((sum, character) => sum + character.money, 0)
@@ -59,12 +70,16 @@ export async function collectEconomyMetrics(now = new Date()): Promise<EconomyMe
   const m2Growth = previous && previous.m2 > 0 ? (m2 - previous.m2) / previous.m2 : null
   const sinkShare = sinks / Math.max(1, faucets)
   const successRate = successful / Math.max(1, upgrades.length)
+  const shiftReadyLagMedianSeconds = readyLagRows[0]?.median_seconds === null || readyLagRows[0]?.median_seconds === undefined
+    ? null
+    : Number(readyLagRows[0].median_seconds)
   const cfg = BalanceConfig.economy.alerts
   const alerts: string[] = []
   if (sinkShare < cfg.minSinkShare) alerts.push('LOW_SINK_SHARE')
   if (m2Growth !== null && m2Growth > cfg.maxDailyM2Growth) alerts.push('HIGH_M2_GROWTH')
   if (gini(characters.map(character => character.money)) > cfg.maxGini) alerts.push('HIGH_MONEY_GINI')
   if (upgrades.length >= cfg.minUpgradeSample && (successRate < cfg.minUpgradeSuccessRate || successRate > cfg.maxUpgradeSuccessRate)) alerts.push('UPGRADE_SUCCESS_OUT_OF_RANGE')
+  if (isShiftReadyLagging(shiftReadyLagMedianSeconds)) alerts.push('SHIFT_READY_LAG_HIGH')
 
   const snapshot: EconomyMetricsSnapshot = {
     date,
@@ -80,6 +95,7 @@ export async function collectEconomyMetrics(now = new Date()): Promise<EconomyMe
     activeListings: listings.length,
     medianListingPrice: median(listings.map(listing => listing.price)),
     completedShifts,
+    shiftReadyLagMedianSeconds,
     tools: { usesConsumed: toolUsesConsumed, missingToolBlocks: Number(missingToolBlocksRaw ?? 0) },
     upgrades: { total: upgrades.length, successful, successRate },
     alerts,

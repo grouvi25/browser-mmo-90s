@@ -21,6 +21,10 @@ export function msUntilNextUtcHour(now: Date, hour: number): number {
   return next.getTime() - now.getTime()
 }
 
+export function isShiftReadyLagging(medianSeconds: number | null, thresholdSeconds = 120): boolean {
+  return medianSeconds !== null && medianSeconds > thresholdSeconds
+}
+
 export function workToolBlockedKey(date: string): string {
   return `economy:work:tool-blocked:${date}`
 }

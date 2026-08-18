@@ -39,7 +39,8 @@ export function WorkPage(){
   const total=shift?Math.max(1,Math.ceil((new Date(shift.endsAt).getTime()-new Date(shift.startedAt).getTime())/1000)):1
   const done=shift?Math.max(0,Math.min(100,((total-remaining)/total)*100)):0
   const used=current.data?.daily.shiftsUsedToday??objects.data?.daily.shiftsUsedToday??0
-  const limit=current.data?.daily.shiftsLimit??objects.data?.daily.shiftsLimit??8
+  const limit=current.data?.daily.shiftsLimit??objects.data?.daily.shiftsLimit??12
+  const nextShiftRate=Math.round(Math.max(0.20,1-0.20*used)*100)
 
   return <div className="work-sheet">
     {message&&<div className={`alert ${message.type==='error'?'alert-error':'alert-success'} mb8`}>{message.text}</div>}
@@ -56,7 +57,7 @@ export function WorkPage(){
       </tbody></table><div className="work-actions"><button className="btn" onClick={()=>setReceipt(null)}>Закрыть</button><button className="btn btn-primary" onClick={()=>{setReceipt(null);document.querySelector('#vacancies')?.scrollIntoView()}}>Выбрать новую смену</button></div></div>
     </div>}
 
-    <div className="panel mb8"><div className="panel-header"><span className="panel-title">Рабочая смена</span><span>{used} / {limit} за сутки</span></div><div className="panel-body">
+    <div className="panel mb8"><div className="panel-header"><span className="panel-title">Рабочая смена</span><span>{used} / {limit} за сутки · следующая смена: {nextShiftRate}% ставки</span></div><div className="panel-body">
       {shift?<><div className="work-shift-line"><div><b>{shift.productionObject.name}</b><small>{shift.profession?.name??shift.professionCode}, ур. {shift.profession?.level??0}</small></div><strong>{remaining?time(remaining):'ГОТОВО'}</strong></div>
         <div className="work-shift-progress"><i style={{transform:`scaleX(${done/100})`}}/></div>
         {shift.toolInstance&&<div className="text-dim mt8">Инструмент: {shift.toolInstance.template.name}, осталось {shift.toolInstance.usesLeft??0} использований</div>}
