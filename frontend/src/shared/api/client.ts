@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 // =============================================================
-// API Client — typed fetch wrapper
+// API Client вЂ” typed fetch wrapper
 // =============================================================
 
 const BASE = (import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_API_BASE_URL || ''
@@ -95,6 +95,9 @@ export const api = {
 
   put:    <T>(path: string, body?: unknown, opts?: Omit<RequestOptions, 'method'>) =>
     request<T>(path, { ...opts, method: 'PUT', body }),
+
+  patch:  <T>(path: string, body?: unknown, opts?: Omit<RequestOptions, 'method'>) =>
+    request<T>(path, { ...opts, method: 'PATCH', body }),
 
   delete: <T>(path: string, opts?: Omit<RequestOptions, 'method' | 'body'>) =>
     request<T>(path, { ...opts, method: 'DELETE' }),

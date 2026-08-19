@@ -28,6 +28,7 @@ import { MarketPage }          from '../pages/market/market-page'
 import { UpgradesPage }        from '../pages/upgrades/upgrades-page'
 import { BalanceSandboxPage }   from '../pages/balance-sandbox/balance-sandbox-page'
 import { LocationHubPage }      from '../pages/locations/location-hub-page'
+import { Stage3Page }           from '../pages/stage3/stage3-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -96,6 +97,10 @@ export function AppRouter() {
         <Route path="/garages" element={<GaragesPage />} />
         <Route path="/industrial" element={<LocationHubPage kind="industrial" />} />
         <Route path="/agriculture" element={<LocationHubPage kind="agriculture" />} />
+        <Route path="/farm" element={<Stage3Page section="farm" />} />
+        <Route path="/bars" element={<Stage3Page section="bars" />} />
+        <Route path="/objects" element={<Stage3Page section="objects" />} />
+        <Route path="/clans" element={<Stage3Page section="clans" />} />
 
         <Route path="/shop" element={
           <ViewportPanel title="Рынок" subtitle="Государственные цены">
