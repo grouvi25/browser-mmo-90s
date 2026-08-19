@@ -191,6 +191,7 @@ enum CurrencyLogReason {
   OBJECT_REPAIR
   FARM_PLOT_PURCHASE
   FARM_SEED_PURCHASE
+  FARM_BUILDING_PURCHASE
   SALARY_FROM_OBJECT
   WORK_SALARY // Зарплата за работу (этап 2)
 }
@@ -222,6 +223,13 @@ enum AdminRole {
   SUPER_ADMIN
   MODERATOR
   SUPPORT
+}
+
+enum FarmBuildingType {
+  BARREL
+  CANOPY
+  CELLAR
+  DOG
 }
 
 enum ProductionObjectType {
@@ -846,11 +854,23 @@ model FarmPlot {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   character       Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  building        FarmBuilding?
 
   @@unique([characterId, slot])
   @@index([characterId])
   @@index([readyAt])
   @@map("farm_plots")
+}
+
+model FarmBuilding {
+  id        String           @id @default(uuid())
+  plotId    String           @unique @map("plot_id")
+  type      FarmBuildingType
+  createdAt DateTime         @default(now()) @map("created_at")
+  plot      FarmPlot         @relation(fields: [plotId], references: [id], onDelete: Cascade)
+
+  @@index([type])
+  @@map("farm_buildings")
 }
 
 model ProductionObject {

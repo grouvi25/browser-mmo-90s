@@ -103,6 +103,8 @@ export enum ErrorCode {
   FARM_WATER_LIMIT        = 'FARM_006',
   FARM_WATER_COOLDOWN     = 'FARM_007',
   FARM_CROP_INVALID       = 'FARM_008',
+  FARM_BUILDING_EXISTS    = 'FARM_009',
+  FARM_BUILDING_INVALID   = 'FARM_010',
 
   // Stage 3 production
   PROD_ALREADY_SOLD       = 'PROD_001',

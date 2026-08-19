@@ -14,6 +14,8 @@ export async function cleanDatabase(): Promise<void> {
   await testPrisma.$transaction([
     testPrisma.idempotencyKey.deleteMany(),
     testPrisma.resourceLog.deleteMany(),
+    testPrisma.farmBuilding.deleteMany(),
+    testPrisma.farmPlot.deleteMany(),
     testPrisma.productionLog.deleteMany(),
     testPrisma.cycleInputReservation.deleteMany(),
     testPrisma.cycleLaborContribution.deleteMany(),

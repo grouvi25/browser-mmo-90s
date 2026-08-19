@@ -243,6 +243,7 @@ async function main() {
     obj_small_factory: 32000,
     obj_parts_factory: 55000,
     obj_cooperative_site: 55000,
+    obj_kolhoz_zarya: 45000,
   }
   const objectProfessions = OBJECT_PROFESSIONS
   for(const {code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward} of productionObjects){
@@ -277,6 +278,7 @@ async function main() {
     obj_garage_workshop: { code: 'equipment_garage_press', name: 'Гаражный пресс', tier: 2, requiredToolTier: 2 },
     obj_small_factory: { code: 'equipment_small_factory_line', name: 'Производственная линия', tier: 2, requiredToolTier: 2 },
     obj_parts_factory: { code: 'equipment_parts_precision', name: 'Точный станок', tier: 3, requiredToolTier: 3 },
+    obj_kolhoz_zarya: { code: 'equipment_kolhoz_tractor', name: '????????? ???????', tier: 2, requiredToolTier: 1 },
     obj_cooperative_site: { code: 'equipment_site_press', name: 'Листогиб', tier: 3, requiredToolTier: 3 },
   }
   for (const [objectCode, equipment] of Object.entries(equipmentByObject)) {

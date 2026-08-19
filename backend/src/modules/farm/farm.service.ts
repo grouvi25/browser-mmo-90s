@@ -4,7 +4,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
-import { CROPS, FARM_MAX_PLOTS, FARM_MAX_WATERS, FARM_WATER_COOLDOWN_MINUTES, type CropCode, harvestAmount, initialFarmTimers, plotPrice, wateredReadyAt } from './farm.formulas'
+import { CROPS, FARM_BUILDINGS, FARM_MAX_PLOTS, FARM_MAX_WATERS, FARM_WATER_COOLDOWN_MINUTES, adjacentSlots, applyBuildingBonuses, type CropCode, type FarmBuildingCode, harvestAmount, initialFarmTimers, plotPrice, wateredReadyAt } from './farm.formulas'
 
 async function professionLevel(characterId: string): Promise<number> {
   const row = await prisma.characterProfession.findUnique({
@@ -20,7 +20,7 @@ export const FarmService = {
       update: {}, create: { characterId, slot: 1 },
     })
     const [plots, level] = await Promise.all([
-      prisma.farmPlot.findMany({ where: { characterId }, orderBy: { slot: 'asc' } }),
+      prisma.farmPlot.findMany({ where: { characterId }, include: { building: true }, orderBy: { slot: 'asc' } }),
       professionLevel(characterId),
     ])
     const now = new Date()
@@ -31,6 +31,8 @@ export const FarmService = {
       })),
       crops: Object.entries(CROPS).map(([code, crop]) => ({ code, ...crop, available: level >= crop.requiredLevel })),
       professionLevel: level,
+      buildings: FARM_BUILDINGS,
+      cellarSaleBonus: plots.some(plot => plot.building?.type === 'CELLAR') ? 0.10 : 0,
       nextPlotPrice: plots.length < FARM_MAX_PLOTS ? plotPrice(plots.length + 1) : null,
     }
   },
@@ -60,7 +62,27 @@ export const FarmService = {
       if (level < crop.requiredLevel) throw new AppError(ErrorCode.FARM_CROP_INVALID, 'Profession level is too low', 403, { requiredLevel: crop.requiredLevel })
       const newBalance = await EconomyService.debit(tx, { characterId, amount: crop.seedPrice, reasonCode: 'FARM_SEED_PURCHASE', refType: 'farm_plot', refId: plotId })
       const timers = initialFarmTimers(cropCode, level)
-      const updated = await tx.farmPlot.update({ where: { id: plotId }, data: { cropCode, ...timers, waterCount: 0, lastWateredAt: null } })
+      const neighborBuildings = await tx.farmBuilding.findMany({
+        where: { plot: { characterId, slot: { in: adjacentSlots(plot.slot) } } },
+      })
+      const bonuses = applyBuildingBonuses(
+        timers.readyAt,
+        timers.plantedAt,
+        neighborBuildings.some(item => item.type === 'BARREL'),
+        neighborBuildings.some(item => item.type === 'CANOPY'),
+      )
+      const witherGrace = timers.withersAt.getTime() - timers.readyAt.getTime()
+      const updated = await tx.farmPlot.update({
+        where: { id: plotId },
+        data: {
+          cropCode,
+          plantedAt: timers.plantedAt,
+          readyAt: bonuses.readyAt,
+          withersAt: new Date(bonuses.readyAt.getTime() + witherGrace),
+          waterCount: bonuses.waterCount,
+          lastWateredAt: null,
+        },
+      })
       return { plot: updated, newBalance }
     })
   },
@@ -97,4 +119,20 @@ export const FarmService = {
       return { cropCode, resourceCode: crop.resourceCode, amount }
     })
   },
+
+  async buyBuilding(characterId: string, plotId: string, type: FarmBuildingCode) {
+    const building = FARM_BUILDINGS[type]
+    if (!building) throw new AppError(ErrorCode.FARM_BUILDING_INVALID, 'Unknown farm building', 422)
+    return withTransaction(async tx => {
+      const plot = await tx.farmPlot.findFirst({ where: { id: plotId, characterId }, include: { building: true } })
+      if (!plot) throw new AppError(ErrorCode.FARM_PLOT_EMPTY, 'Farm plot not found', 404)
+      if (plot.building) throw new AppError(ErrorCode.FARM_BUILDING_EXISTS, 'Plot already has a building', 409)
+      const newBalance = await EconomyService.debit(tx, {
+        characterId, amount: building.price, reasonCode: 'FARM_BUILDING_PURCHASE', refType: 'farm_plot', refId: plotId,
+      })
+      const created = await tx.farmBuilding.create({ data: { plotId, type } })
+      return { building: created, newBalance }
+    })
+  },
+
 }

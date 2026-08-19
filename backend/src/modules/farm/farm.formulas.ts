@@ -13,6 +13,30 @@ export const CROPS = {
 
 export type CropCode = keyof typeof CROPS
 
+export const FARM_BUILDINGS = {
+  BARREL: { name: '?????', price: 2500 },
+  CANOPY: { name: '?????', price: 5000 },
+  CELLAR: { name: '??????', price: 8000 },
+  DOG: { name: '??????', price: 15000 },
+} as const
+
+export type FarmBuildingCode = keyof typeof FARM_BUILDINGS
+
+export function adjacentSlots(slot: number): number[] {
+  const result: number[] = []
+  if ((slot - 1) % 4 !== 0) result.push(slot - 1)
+  if (slot % 4 !== 0) result.push(slot + 1)
+  return result.filter(value => value >= 1 && value <= FARM_MAX_PLOTS)
+}
+
+export function applyBuildingBonuses(readyAt: Date, now: Date, hasBarrel: boolean, hasCanopy: boolean) {
+  let result = readyAt
+  let waterCount = 0
+  if (hasBarrel) { result = wateredReadyAt(result, now); waterCount = 1 }
+  if (hasCanopy) result = wateredReadyAt(result, now)
+  return { readyAt: result, waterCount }
+}
+
 export function plotPrice(slot: number): number {
   if (slot === 1) return 0
   if (slot <= 3) return 1500

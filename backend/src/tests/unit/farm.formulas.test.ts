@@ -1,5 +1,5 @@
 ﻿import { describe, expect, it } from 'vitest'
-import { harvestAmount, initialFarmTimers, plotPrice, wateredReadyAt } from '../../modules/farm/farm.formulas'
+import { adjacentSlots, applyBuildingBonuses, harvestAmount, initialFarmTimers, plotPrice, wateredReadyAt } from '../../modules/farm/farm.formulas'
 
 describe('farm formulas', () => {
   it('prices all twelve plots to 96000 total', () => {
@@ -21,5 +21,13 @@ describe('farm formulas', () => {
   it('keeps harvest inside configured range', () => {
     expect(harvestAmount('potato', 0)).toBe(3)
     expect(harvestAmount('potato', 0.999)).toBe(5)
+  })
+  it('applies barrel and canopy only to horizontal neighbours', () => {
+    expect(adjacentSlots(4)).toEqual([3])
+    expect(adjacentSlots(5)).toEqual([6])
+    const now = new Date('2026-08-20T00:00:00Z')
+    const result = applyBuildingBonuses(new Date('2026-08-20T01:40:00Z'), now, true, true)
+    expect(result.readyAt.toISOString()).toBe('2026-08-20T01:21:00.000Z')
+    expect(result.waterCount).toBe(1)
   })
 })
