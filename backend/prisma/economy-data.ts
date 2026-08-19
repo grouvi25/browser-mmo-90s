@@ -19,6 +19,11 @@ export const RESOURCES = [
   ['comp_weapon_part', 'Оружейная деталь', 'UPGRADE_PART', 2, 60, 0.5, true, true],
   ['comp_armor_plate', 'Бронепластина', 'UPGRADE_PART', 2, 70, 0.9, true, true],
   ['comp_repair_kit', 'Ремкомплект', 'REPAIR_PART', 2, 45, 0.5, true, false],
+  ['res_greens', '??????', 'PRIMARY', 1, 20, 0.1, false, false],
+  ['res_vegetables', '?????', 'PRIMARY', 1, 25, 0.4, false, false],
+  ['res_hops', '?????', 'PRIMARY', 1, 55, 0.1, false, false],
+  ['res_seeds', '???????', 'PRIMARY', 1, 100, 0.1, false, false],
+  ['res_tobacco', '?????', 'PRIMARY', 1, 190, 0.1, false, false],
 ] as const
 
 export const RESOURCE_CODES = RESOURCES.map(row => row[0])

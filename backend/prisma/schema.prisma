@@ -189,6 +189,8 @@ enum CurrencyLogReason {
   OBJECT_WITHDRAW_TAX
   OBJECT_PROFILE_SWITCH
   OBJECT_REPAIR
+  FARM_PLOT_PURCHASE
+  FARM_SEED_PURCHASE
   SALARY_FROM_OBJECT
   WORK_SALARY // Зарплата за работу (этап 2)
 }
@@ -304,6 +306,7 @@ enum ResourceLogReason {
   CYCLE_OUTPUT
   OBJECT_STOCK_PUT
   OBJECT_STOCK_TAKE
+  FARM_HARVEST
 }
 
 enum ProductionLogEvent {
@@ -439,6 +442,7 @@ model Character {
   location             String? // Текстовое местоположение
   isInvisible          Boolean   @default(false) @map("is_invisible")
   lastBattleFinishedAt DateTime? @map("last_battle_finished_at") // для HP recovery
+  farmPlots             FarmPlot[]
 
   createdAt    DateTime @default(now()) @map("created_at")
   lastActiveAt DateTime @default(now()) @map("last_active_at")
@@ -828,6 +832,26 @@ model WeaponSkill {
 // =============================================================
 // LOGS
 // =============================================================
+
+model FarmPlot {
+  id              String    @id @default(uuid())
+  characterId     String    @map("character_id")
+  slot            Int
+  cropCode        String?   @map("crop_code")
+  plantedAt       DateTime? @map("planted_at")
+  readyAt         DateTime? @map("ready_at")
+  withersAt       DateTime? @map("withers_at")
+  waterCount      Int       @default(0) @map("water_count")
+  lastWateredAt   DateTime? @map("last_watered_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  character       Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, slot])
+  @@index([characterId])
+  @@index([readyAt])
+  @@map("farm_plots")
+}
 
 model ProductionObject {
   id                      String                      @id @default(uuid())

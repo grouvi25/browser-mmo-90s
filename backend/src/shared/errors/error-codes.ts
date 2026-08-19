@@ -94,6 +94,16 @@ export enum ErrorCode {
   ECON_INSUFFICIENT_FUNDS  = 'ECON_002',
   ECON_IDEMPOTENCY_REQUIRED = 'ECON_003',
 
+  // Stage 3 farm
+  FARM_PLOT_LIMIT         = 'FARM_001',
+  FARM_PLOT_BUSY          = 'FARM_002',
+  FARM_PLOT_EMPTY         = 'FARM_003',
+  FARM_NOT_READY          = 'FARM_004',
+  FARM_CROP_WITHERED      = 'FARM_005',
+  FARM_WATER_LIMIT        = 'FARM_006',
+  FARM_WATER_COOLDOWN     = 'FARM_007',
+  FARM_CROP_INVALID       = 'FARM_008',
+
   // Stage 3 production
   PROD_ALREADY_SOLD       = 'PROD_001',
   PROD_OBJECT_LIMIT       = 'PROD_002',
