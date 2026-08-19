@@ -106,6 +106,15 @@ export enum ErrorCode {
   FARM_BUILDING_EXISTS    = 'FARM_009',
   FARM_BUILDING_INVALID   = 'FARM_010',
 
+  // Stage 3 bars
+  BAR_NOT_FOUND           = 'BAR_001',
+  BAR_OFFER_NOT_FOUND     = 'BAR_002',
+  BAR_OUT_OF_STOCK        = 'BAR_003',
+  BAR_PRICE_INVALID       = 'BAR_004',
+  BAR_HANGOVER            = 'BAR_005',
+  BAR_BUFF_COOLDOWN       = 'BAR_006',
+  BAR_TOO_DRUNK           = 'BAR_007',
+
   // Stage 3 production
   PROD_ALREADY_SOLD       = 'PROD_001',
   PROD_OBJECT_LIMIT       = 'PROD_002',

@@ -1,0 +1,7 @@
+ALTER TYPE "CurrencyLogReason" ADD VALUE IF NOT EXISTS 'BAR_PURCHASE';
+ALTER TYPE "ResourceLogReason" ADD VALUE IF NOT EXISTS 'BAR_SALE';
+ALTER TABLE "characters" ADD COLUMN "alcohol_level" INTEGER NOT NULL DEFAULT 0, ADD COLUMN "alcohol_updated_at" TIMESTAMP(3), ADD COLUMN "hangover_until" TIMESTAMP(3), ADD COLUMN "bar_buff_accuracy" DOUBLE PRECISION NOT NULL DEFAULT 0, ADD COLUMN "bar_buff_damage" DOUBLE PRECISION NOT NULL DEFAULT 0, ADD COLUMN "bar_buff_expires_at" TIMESTAMP(3), ADD COLUMN "last_bar_buff_at" TIMESTAMP(3);
+CREATE TABLE "bar_offers" ("id" TEXT NOT NULL, "production_object_id" TEXT NOT NULL, "code" TEXT NOT NULL, "name" TEXT NOT NULL, "resource_code" TEXT NOT NULL, "price" INTEGER NOT NULL, "base_cost" INTEGER NOT NULL, "hp_restore" INTEGER NOT NULL DEFAULT 0, "alcohol_degrees" INTEGER NOT NULL DEFAULT 0, "accuracy_buff" DOUBLE PRECISION NOT NULL DEFAULT 0, "damage_buff" DOUBLE PRECISION NOT NULL DEFAULT 0, "buff_minutes" INTEGER NOT NULL DEFAULT 0, "is_active" BOOLEAN NOT NULL DEFAULT true, CONSTRAINT "bar_offers_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "bar_offers_code_key" ON "bar_offers"("code");
+CREATE INDEX "bar_offers_production_object_id_is_active_idx" ON "bar_offers"("production_object_id", "is_active");
+ALTER TABLE "bar_offers" ADD CONSTRAINT "bar_offers_production_object_id_fkey" FOREIGN KEY ("production_object_id") REFERENCES "production_objects"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -30,6 +30,7 @@ import { marketRoutes } from './modules/market/market.routes'
 import { upgradesRoutes } from './modules/upgrades/upgrades.routes'
 import { productionRoutes } from './modules/production/production.routes'
 import { farmRoutes } from './modules/farm/farm.routes'
+import { barsRoutes } from './modules/bars/bars.routes'
 import { balanceSandboxRoutes } from './modules/balance-sandbox/balance-sandbox.routes'
 
 export async function buildApp() {
@@ -120,6 +121,7 @@ export async function buildApp() {
   await fastify.register(workRoutes,           { prefix: '/api/work' })
   await fastify.register(productionRoutes,     { prefix: '/api/production' })
   await fastify.register(farmRoutes,           { prefix: '/api/farm' })
+  await fastify.register(barsRoutes,           { prefix: '/api/bars' })
   await fastify.register(balanceSandboxRoutes, { prefix: '/api/balance-sandbox' })
   await fastify.register(privateShopsRoutes,   { prefix: '/api/private-shops' })
   await fastify.register(marketRoutes,         { prefix: '/api/market' })

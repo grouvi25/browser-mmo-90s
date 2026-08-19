@@ -192,6 +192,7 @@ enum CurrencyLogReason {
   FARM_PLOT_PURCHASE
   FARM_SEED_PURCHASE
   FARM_BUILDING_PURCHASE
+  BAR_PURCHASE
   SALARY_FROM_OBJECT
   WORK_SALARY // Зарплата за работу (этап 2)
 }
@@ -315,6 +316,7 @@ enum ResourceLogReason {
   OBJECT_STOCK_PUT
   OBJECT_STOCK_TAKE
   FARM_HARVEST
+  BAR_SALE
 }
 
 enum ProductionLogEvent {
@@ -449,7 +451,14 @@ model Character {
   battlesWon           Int       @default(0) @map("battles_won")
   location             String? // Текстовое местоположение
   isInvisible          Boolean   @default(false) @map("is_invisible")
-  lastBattleFinishedAt DateTime? @map("last_battle_finished_at") // для HP recovery
+  lastBattleFinishedAt DateTime? @map("last_battle_finished_at")
+  alcoholLevel         Int       @default(0) @map("alcohol_level")
+  alcoholUpdatedAt     DateTime? @map("alcohol_updated_at")
+  hangoverUntil        DateTime? @map("hangover_until")
+  barBuffAccuracy      Float     @default(0) @map("bar_buff_accuracy")
+  barBuffDamage        Float     @default(0) @map("bar_buff_damage")
+  barBuffExpiresAt     DateTime? @map("bar_buff_expires_at")
+  lastBarBuffAt        DateTime? @map("last_bar_buff_at") // для HP recovery
   farmPlots             FarmPlot[]
 
   createdAt    DateTime @default(now()) @map("created_at")
@@ -914,6 +923,7 @@ model ProductionObject {
   profileSwitchEndsAt     DateTime?                   @map("profile_switch_ends_at")
   inventory               ProductionObjectInventory[]
   cycles                  ProductionCycle[]
+  barOffers               BarOffer[]
 
   @@map("production_objects")
 }
@@ -1038,6 +1048,26 @@ model ProductionEquipment {
   productionObject     ProductionObject @relation(fields: [productionObjectId], references: [id], onDelete: Cascade)
 
   @@map("production_equipment")
+}
+
+model BarOffer {
+  id                 String           @id @default(uuid())
+  productionObjectId String           @map("production_object_id")
+  code               String           @unique
+  name               String
+  resourceCode       String           @map("resource_code")
+  price              Int
+  baseCost           Int              @map("base_cost")
+  hpRestore          Int              @default(0) @map("hp_restore")
+  alcoholDegrees     Int              @default(0) @map("alcohol_degrees")
+  accuracyBuff       Float            @default(0) @map("accuracy_buff")
+  damageBuff         Float            @default(0) @map("damage_buff")
+  buffMinutes        Int              @default(0) @map("buff_minutes")
+  isActive           Boolean          @default(true) @map("is_active")
+  productionObject   ProductionObject @relation(fields: [productionObjectId], references: [id], onDelete: Cascade)
+
+  @@index([productionObjectId, isActive])
+  @@map("bar_offers")
 }
 
 model WorkShift {

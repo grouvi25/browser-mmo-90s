@@ -3,6 +3,7 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, PRIVATE_SHOP_RESOURCES } from './economy-data'
+import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
 
 const prisma = new PrismaClient()
 
@@ -290,6 +291,42 @@ async function main() {
     })
   }
   console.log(`  Production objects: ${productionObjects.length}; equipment: ${Object.keys(equipmentByObject).length}`)
+
+
+  for (const [code, name, basePrice, weight] of BAR_RESOURCES) {
+    await prisma.resourceTemplate.upsert({
+      where: { code }, update: { name, basePrice, weight, isActive: true },
+      create: { code, name, category: 'PRIMARY', tier: 1, basePrice, weight },
+    })
+  }
+  const bar = await prisma.productionObject.upsert({
+    where: { code: 'obj_bar_station' },
+    update: { name: '?????? ?? ????????', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, isActive: true },
+    create: { code: 'obj_bar_station', name: '?????? ?? ????????', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000 },
+  })
+  let firstBarRecipeId: string | null = null
+  for (const row of BAR_RECIPES) {
+    const recipe = await prisma.productionRecipe.upsert({
+      where: { code: row.code },
+      update: { name: row.name, outputResourceCode: row.output, outputAmount: row.amount, cycleMinutes: row.minutes, laborRequired: row.labor },
+      create: { code: row.code, name: row.name, productionObjectCode: bar.code, outputResourceCode: row.output, outputAmount: row.amount, cycleMinutes: row.minutes, laborRequired: row.labor, requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, requiredToolTier: 1 },
+    })
+    firstBarRecipeId ??= recipe.id
+    await prisma.productionRecipeInput.deleteMany({ where: { recipeId: recipe.id } })
+    await prisma.productionRecipeInput.createMany({ data: row.inputs.map(input => ({ recipeId: recipe.id, ...input, minQuality: 'POOR' })) })
+  }
+  await prisma.productionObject.update({ where: { id: bar.id }, data: { activeRecipeId: firstBarRecipeId } })
+  await prisma.productionEquipment.upsert({
+    where: { productionObjectId: bar.id },
+    update: { code: 'equipment_bar_kitchen', name: '?????? ?????', tier: 2, requiredToolTier: 1, ownerType: 'SYSTEM', isActive: true },
+    create: { productionObjectId: bar.id, code: 'equipment_bar_kitchen', name: '?????? ?????', tier: 2, requiredToolTier: 1, ownerType: 'SYSTEM' },
+  })
+  for (const offer of BAR_OFFERS) {
+    await prisma.barOffer.upsert({
+      where: { code: offer.code }, update: { ...offer, price: offer.baseCost, isActive: true },
+      create: { productionObjectId: bar.id, ...offer, price: offer.baseCost },
+    })
+  }
 
   // --- Admin user ---
   const adminPw = await bcrypt.hash('admin_change_me_now', 10)

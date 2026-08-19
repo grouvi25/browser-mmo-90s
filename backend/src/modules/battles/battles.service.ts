@@ -16,6 +16,7 @@ import {
   type DefenderSnapshot,
   type ZonalAttackResult,
 } from './battle.formulas'
+import { decayedAlcohol, intoxicationModifiers } from '../bars/bars.formulas'
 import {
   armorOfZone,
   botArmorOfZone,
@@ -227,19 +228,23 @@ async function buildAttackerSnapshotAsync(
     (weapon?.weight ?? 0) +
     equippedArmor.reduce((sum, a) => sum + a.weight, 0)
 
+  const now = new Date()
+  const intox = intoxicationModifiers(decayedAlcohol(char.alcoholLevel, char.alcoholUpdatedAt, now))
+  const buffActive = !!char.barBuffExpiresAt && char.barBuffExpiresAt > now
   return {
     str: s.str, acc: s.acc, agi: s.agi, rea: s.rea, luck: s.luck, agr: s.agr, end: s.end,
     weaponSkillLevel,
     minDamage: effectiveWeapon?.minDamage ?? 2,
     maxDamage: effectiveWeapon?.maxDamage ?? 6,
-    weaponAccuracy: effectiveWeapon?.weaponAccuracy ?? 0.7,
+    weaponAccuracy: (effectiveWeapon?.weaponAccuracy ?? 0.7) + intox.accuracy + (buffActive ? char.barBuffAccuracy : 0),
     critBonus: effectiveWeapon?.critBonus ?? 0,
     critDamageBonus: t?.critDamageBonus ?? 0,
     blockPierce: t?.blockPierce ?? 0,
     flatDamageBonus: 0,
     equipmentWeight,   // Real equipment weight for initiative calc
     antiDodgeBonus: t?.antiDodge ?? 0,
-    antiCounterBonus: t?.antiCounter ?? 0
+    antiCounterBonus: t?.antiCounter ?? 0,
+    outgoingDamageMultiplier: 1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0),
   }
 }
 
@@ -430,6 +435,11 @@ async function saveWeaponSkillExp(
 // ---------------------------------------------------------------
 // BattleService
 // ---------------------------------------------------------------
+function assertIntoxicationAllowsBattle(character: Pick<CharacterWithStats, 'alcoholLevel' | 'alcoholUpdatedAt'>): void {
+  const state = intoxicationModifiers(decayedAlcohol(character.alcoholLevel, character.alcoholUpdatedAt))
+  if (!state.canBattle) throw new AppError(ErrorCode.BAR_TOO_DRUNK, 'Character is too drunk to fight', 409)
+}
+
 export const BattleService = {
   // -------------------------------------------------------
   // Start PvE
@@ -437,6 +447,7 @@ export const BattleService = {
   async startPve(userId: string, botCode: string) {
     const char = await CharactersRepository.findByUserId(userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    assertIntoxicationAllowsBattle(char)
     if (!char.stats) throw AppError.internal('Character stats missing')
     if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
 
@@ -540,6 +551,7 @@ export const BattleService = {
   async createPvpDuel(userId: string, levelMin?: number, levelMax?: number) {
     const char = await CharactersRepository.findByUserId(userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    assertIntoxicationAllowsBattle(char)
     if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
 
     const lMin = levelMin ?? Math.max(1, char.battleLevel - 2)
@@ -583,6 +595,7 @@ export const BattleService = {
   async acceptPvpDuel(userId: string, battleId: string) {
     const char = await CharactersRepository.findByUserId(userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    assertIntoxicationAllowsBattle(char)
     if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
 
     const battle = await prisma.battle.findUnique({
