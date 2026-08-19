@@ -64,6 +64,7 @@ export const WorkService = {
         const gateLevel = admission ? professionByCode.get(admission.professionCode)?.level ?? 0 : 0
         return {
           ...object,
+          offeredSalary: object.salaryOverride ?? object.baseSalary,
           producesResourceName: object.producesResourceCode ? resourceNames.get(object.producesResourceCode) ?? object.producesResourceCode : null,
           profession: {
             code: object.requiredProfessionCode,
@@ -160,7 +161,7 @@ export const WorkService = {
       }
       const endsAt = new Date(now.getTime() + object.shiftDurationMinutes * 60_000)
       const shift = await tx.workShift.create({
-        data: { characterId, productionObjectId, professionCode: object.requiredProfessionCode, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: object.baseSalary, toolInstanceId },
+        data: { characterId, productionObjectId, professionCode: object.requiredProfessionCode, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: object.salaryOverride ?? object.baseSalary, toolInstanceId },
       })
       await tx.productionLog.create({ data: { characterId, productionObjectId, eventType: 'SHIFT_STARTED', metadataJson: { shiftId: shift.id, endsAt, professionCode: shift.professionCode, toolInstanceId } } })
       return { shift, profession }
@@ -196,7 +197,26 @@ export const WorkService = {
         await tx.itemLog.create({ data: { itemId: tool.id, characterId, actionCode: 'TOOL_USE', details: { shiftId, usesLeft } } })
         toolUse = { itemId: tool.id, usesLeft }
       }
-      const newBalance = await EconomyService.credit(tx, { characterId, amount: salary, reasonCode: 'WORK_SALARY', refType: 'work_shift', refId: shift.id })
+      const privatelyOwned = shift.productionObject.ownerType !== 'SYSTEM'
+      if (privatelyOwned) {
+        const paid = await tx.productionObject.updateMany({
+          where: { id: shift.productionObjectId, balance: { gte: salary } },
+          data: { balance: { decrement: salary } },
+        })
+        if (paid.count !== 1) {
+          await tx.productionObject.update({
+            where: { id: shift.productionObjectId },
+            data: { maintenanceDebt: { increment: salary } },
+          })
+        }
+      }
+      const newBalance = await EconomyService.credit(tx, {
+        characterId,
+        amount: salary,
+        reasonCode: privatelyOwned ? 'SALARY_FROM_OBJECT' : 'WORK_SALARY',
+        refType: 'work_shift',
+        refId: shift.id,
+      })
       if (shift.productionObject.economicExpReward > 0) await EconomyService.grantEconomicExp(tx, characterId, shift.productionObject.economicExpReward)
       const cycleContribution = shift.productionObject.activeRecipeId
         ? await CycleService.contributeLabor(tx, {

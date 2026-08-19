@@ -14,6 +14,11 @@ export const BalanceConfig = {
       equipmentWearPerCycle: 2,
       equipmentTierSpeedBonus: 0.15,
       laborTimeoutHours: 48,
+      objectWithdrawTaxRate: 0.05,
+      salaryRangeMin: 0.5,
+      salaryRangeMax: 2.0,
+      maxObjectsPerCharacter: 2,
+      objectResaleRate: 0.5,
     },
     upgrades: { costRate: 0.15, costPower: 1.4, baseChance: 0.9, chanceLossPerLevel: 0.12, professionBonusPerLevel: 0.01, minChance: 0.15, maxChance: 0.95 },
     simulation: {

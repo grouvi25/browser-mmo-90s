@@ -237,11 +237,20 @@ async function main() {
   console.log(`  Private shop entries: ${privateItemRows.length+privateResourceRows.length}`)
 
   const productionObjects = PRODUCTION_OBJECTS
+  const purchasePrices: Record<string, number> = {
+    obj_scrapyard: 12000,
+    obj_garage_workshop: 20000,
+    obj_small_factory: 32000,
+    obj_parts_factory: 55000,
+    obj_cooperative_site: 55000,
+  }
   const objectProfessions = OBJECT_PROFESSIONS
   for(const {code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward} of productionObjects){
     const requiredProfessionCode = objectProfessions[code]
     const requiredProfessionLevel = Math.min(requiredProductionLevel, 3)
-    await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward}})
+    const purchasePrice = purchasePrices[code] ?? null
+    const isForSale = purchasePrice !== null
+    await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,purchasePrice,isForSale,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,purchasePrice,isForSale}})
   }
   for (const recipeData of PRODUCTION_RECIPES) {
     const { inputs, ...recipe } = recipeData

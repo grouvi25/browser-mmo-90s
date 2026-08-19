@@ -5,6 +5,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { CharactersRepository } from '../characters/characters.repository'
 import { ProductionService } from './production.service'
+import { OwnershipService } from './ownership.service'
 
 const Id = z.string().uuid()
 
@@ -17,6 +18,15 @@ export async function productionRoutes(fastify: FastifyInstance) {
 
   fastify.get('/objects', { preHandler: authenticate }, async (_req, reply) => {
     return reply.send(await ProductionService.list())
+  })
+
+  fastify.get('/objects/market', { preHandler: authenticate }, async (_req, reply) => {
+    return reply.send({ items: await ProductionService.market() })
+  })
+
+  fastify.get('/objects/mine', { preHandler: authenticate }, async (req, reply) => {
+    const actor = await character(req.authUser.userId)
+    return reply.send({ items: await ProductionService.mine(actor.id) })
   })
 
   fastify.get<{ Params: { id: string } }>('/objects/:id', { preHandler: authenticate }, async (req, reply) => {
@@ -35,6 +45,47 @@ export async function productionRoutes(fastify: FastifyInstance) {
     if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const limit = Number(req.query.limit ?? 20)
     return reply.send({ items: await ProductionService.cycles(req.params.id, Number.isFinite(limit) ? limit : 20) })
+  })
+
+  fastify.post<{ Params: { id: string } }>('/objects/:id/buy', { preHandler: authenticate }, async (req, reply) => {
+    if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const key = req.headers['idempotency-key']
+    if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+    const actor = await character(req.authUser.userId)
+    return reply.code(201).send(await OwnershipService.buy(actor.id, req.params.id, key))
+  })
+
+  fastify.post<{ Params: { id: string } }>('/objects/:id/sell', { preHandler: authenticate }, async (req, reply) => {
+    if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const key = req.headers['idempotency-key']
+    if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+    const actor = await character(req.authUser.userId)
+    return reply.send(await OwnershipService.sell(actor.id, req.params.id, key))
+  })
+
+  fastify.post<{ Params: { id: string }; Body: { amount: number } }>('/objects/:id/balance', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ amount: z.number().int().positive() }).safeParse(req.body)
+    if (!Id.safeParse(req.params.id).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const key = req.headers['idempotency-key']
+    if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+    const actor = await character(req.authUser.userId)
+    return reply.send(await OwnershipService.topUp(actor.id, req.params.id, parsed.data.amount, key))
+  })
+
+  fastify.post<{ Params: { id: string }; Body: { amount: number } }>('/objects/:id/withdraw', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ amount: z.number().int().positive() }).safeParse(req.body)
+    if (!Id.safeParse(req.params.id).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const key = req.headers['idempotency-key']
+    if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+    const actor = await character(req.authUser.userId)
+    return reply.send(await OwnershipService.withdraw(actor.id, req.params.id, parsed.data.amount, key))
+  })
+
+  fastify.patch<{ Params: { id: string }; Body: { salary: number } }>('/objects/:id/salary', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ salary: z.number().int().positive() }).safeParse(req.body)
+    if (!Id.safeParse(req.params.id).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const actor = await character(req.authUser.userId)
+    return reply.send(await OwnershipService.setSalary(actor.id, req.params.id, parsed.data.salary))
   })
 
   fastify.post<{ Params: { id: string } }>('/objects/:id/cycles/start', { preHandler: authenticate }, async (req, reply) => {

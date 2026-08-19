@@ -182,6 +182,12 @@ enum CurrencyLogReason {
   RESOURCE_SELL
   UPGRADE_COST
   ADMIN_ECONOMY_ADJUSTMENT
+  OBJECT_PURCHASE
+  OBJECT_SALE
+  OBJECT_BALANCE_TOP_UP
+  OBJECT_WITHDRAW
+  OBJECT_WITHDRAW_TAX
+  SALARY_FROM_OBJECT
   WORK_SALARY // Зарплата за работу (этап 2)
 }
 
@@ -307,6 +313,8 @@ enum ProductionLogEvent {
   CYCLE_STARTED
   CYCLE_COMPLETED
   CYCLE_FAILED
+  OBJECT_OWNERSHIP_CHANGED
+  OBJECT_BALANCE_CHANGED
 }
 
 enum ProductionCycleStatus {
@@ -840,6 +848,10 @@ model ProductionObject {
   outputAmountMax         Int                         @default(0) @map("output_amount_max")
   economicExpReward       Int                         @default(0) @map("economic_exp_reward")
   balance                 Int                         @default(0)
+  purchasePrice           Int?                        @map("purchase_price")
+  isForSale               Boolean                     @default(false) @map("is_for_sale")
+  salaryOverride          Int?                        @map("salary_override")
+  maintenanceDebt         Int                         @default(0) @map("maintenance_debt")
   durabilityCurrent       Int                         @default(100) @map("durability_current")
   durabilityMax           Int                         @default(100) @map("durability_max")
   isActive                Boolean                     @default(true) @map("is_active")
