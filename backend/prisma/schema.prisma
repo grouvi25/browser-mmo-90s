@@ -221,6 +221,8 @@ enum ProductionObjectType {
   WAREHOUSE
   SCRAPYARD
   SERVICE
+  BAR
+  KOLHOZ
 }
 
 enum ProductionObjectStatus {
@@ -290,6 +292,10 @@ enum ResourceLogReason {
   UPGRADE_USE
   ADMIN_ADJUSTMENT
   PRIVATE_SHOP_BUY
+  CYCLE_INPUT
+  CYCLE_OUTPUT
+  OBJECT_STOCK_PUT
+  OBJECT_STOCK_TAKE
 }
 
 enum ProductionLogEvent {
@@ -298,6 +304,32 @@ enum ProductionLogEvent {
   SHIFT_CLAIMED
   SHIFT_CANCELLED
   SHIFT_FAILED
+  CYCLE_STARTED
+  CYCLE_COMPLETED
+  CYCLE_FAILED
+}
+
+enum ProductionCycleStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ProductionCycleFailure {
+  INPUT_MISSING
+  OUTPUT_FULL
+  EQUIPMENT_BROKEN
+  NEGATIVE_BALANCE
+  OBJECT_DAMAGED
+  PROFILE_SWITCHING
+  LABOR_TIMEOUT
+}
+
+enum ResourceQuality {
+  POOR
+  NORMAL
+  FINE
 }
 
 enum UpgradeLogResult {
@@ -707,9 +739,9 @@ model BattleTurn {
   targetCharId String? @map("target_char_id")
   targetBotId  String? @map("target_bot_id")
 
-  action   BattleAction
-  weaponId   String?     @map("weapon_id") // ItemInstance used
-  sourceHand AttackHand? @map("source_hand")
+  action     BattleAction
+  weaponId   String?      @map("weapon_id") // ItemInstance used
+  sourceHand AttackHand?  @map("source_hand")
 
   // Tactical grid movement
   fromX Int? @map("from_x")
@@ -786,38 +818,129 @@ model WeaponSkill {
 // =============================================================
 
 model ProductionObject {
-  id                      String                 @id @default(uuid())
-  code                    String                 @unique
+  id                      String                      @id @default(uuid())
+  code                    String                      @unique
   name                    String
   type                    ProductionObjectType
-  status                  ProductionObjectStatus @default(ACTIVE)
-  ownerType               OwnerType              @default(SYSTEM) @map("owner_type")
-  ownerCharacterId        String?                @map("owner_character_id")
-  ownerClanId             String?                @map("owner_clan_id")
-  locationId              String?                @map("location_id")
-  level                   Int                    @default(1)
-  workerSlots             Int                    @default(10) @map("worker_slots")
-  shiftDurationMinutes    Int                    @map("shift_duration_minutes")
-  baseSalary              Int                    @map("base_salary")
-  baseProductionExp       Int                    @map("base_production_exp")
-  requiredProductionLevel Int                    @default(0) @map("required_production_level") // legacy aggregate only
-  requiredProfessionCode  String                 @default("scrap_collector") @map("required_profession_code")
-  requiredProfessionLevel Int                    @default(0) @map("required_profession_level")
-  producesResourceCode    String?                @map("produces_resource_code")
-  outputAmountMin         Int                    @default(0) @map("output_amount_min")
-  outputAmountMax         Int                    @default(0) @map("output_amount_max")
-  economicExpReward       Int                    @default(0) @map("economic_exp_reward")
-  balance                 Int                    @default(0)
-  durabilityCurrent       Int                    @default(100) @map("durability_current")
-  durabilityMax           Int                    @default(100) @map("durability_max")
-  isActive                Boolean                @default(true) @map("is_active")
-  createdAt               DateTime               @default(now()) @map("created_at")
-  updatedAt               DateTime               @updatedAt @map("updated_at")
+  status                  ProductionObjectStatus      @default(ACTIVE)
+  ownerType               OwnerType                   @default(SYSTEM) @map("owner_type")
+  ownerCharacterId        String?                     @map("owner_character_id")
+  ownerClanId             String?                     @map("owner_clan_id")
+  locationId              String?                     @map("location_id")
+  level                   Int                         @default(1)
+  workerSlots             Int                         @default(10) @map("worker_slots")
+  shiftDurationMinutes    Int                         @map("shift_duration_minutes")
+  baseSalary              Int                         @map("base_salary")
+  baseProductionExp       Int                         @map("base_production_exp")
+  requiredProductionLevel Int                         @default(0) @map("required_production_level") // legacy aggregate only
+  requiredProfessionCode  String                      @default("scrap_collector") @map("required_profession_code")
+  requiredProfessionLevel Int                         @default(0) @map("required_profession_level")
+  producesResourceCode    String?                     @map("produces_resource_code")
+  outputAmountMin         Int                         @default(0) @map("output_amount_min")
+  outputAmountMax         Int                         @default(0) @map("output_amount_max")
+  economicExpReward       Int                         @default(0) @map("economic_exp_reward")
+  balance                 Int                         @default(0)
+  durabilityCurrent       Int                         @default(100) @map("durability_current")
+  durabilityMax           Int                         @default(100) @map("durability_max")
+  isActive                Boolean                     @default(true) @map("is_active")
+  createdAt               DateTime                    @default(now()) @map("created_at")
+  updatedAt               DateTime                    @updatedAt @map("updated_at")
   shifts                  WorkShift[]
   logs                    ProductionLog[]
   equipment               ProductionEquipment?
+  storageCapacity         Int                         @default(0) @map("storage_capacity")
+  activeRecipeId          String?                     @map("active_recipe_id")
+  inventory               ProductionObjectInventory[]
+  cycles                  ProductionCycle[]
 
   @@map("production_objects")
+}
+
+model ProductionRecipe {
+  id                      String                  @id @default(uuid())
+  code                    String                  @unique
+  name                    String
+  productionObjectCode    String                  @map("production_object_code")
+  outputResourceCode      String?                 @map("output_resource_code")
+  outputItemTemplateCode  String?                 @map("output_item_template_code")
+  outputAmount            Int                     @default(1) @map("output_amount")
+  cycleMinutes            Int                     @map("cycle_minutes")
+  laborRequired           Int                     @map("labor_required")
+  requiredProfessionCode  String                  @map("required_profession_code")
+  requiredProfessionLevel Int                     @default(0) @map("required_profession_level")
+  requiredToolTier        Int                     @default(1) @map("required_tool_tier")
+  isActive                Boolean                 @default(true) @map("is_active")
+  createdAt               DateTime                @default(now()) @map("created_at")
+  inputs                  ProductionRecipeInput[]
+  cycles                  ProductionCycle[]
+
+  @@index([productionObjectCode])
+  @@map("production_recipes")
+}
+
+model ProductionRecipeInput {
+  id           String           @id @default(uuid())
+  recipeId     String           @map("recipe_id")
+  resourceCode String           @map("resource_code")
+  amount       Int
+  minQuality   ResourceQuality  @default(POOR) @map("min_quality")
+  recipe       ProductionRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, resourceCode])
+  @@map("production_recipe_inputs")
+}
+
+model ProductionObjectInventory {
+  id                 String           @id @default(uuid())
+  productionObjectId String           @map("production_object_id")
+  resourceCode       String           @map("resource_code")
+  quality            ResourceQuality  @default(NORMAL)
+  amount             Int              @default(0)
+  reservedAmount     Int              @default(0) @map("reserved_amount")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  productionObject   ProductionObject @relation(fields: [productionObjectId], references: [id], onDelete: Cascade)
+
+  @@unique([productionObjectId, resourceCode, quality])
+  @@index([productionObjectId])
+  @@map("production_object_inventory")
+}
+
+model ProductionCycle {
+  id                 String                   @id @default(uuid())
+  productionObjectId String                   @map("production_object_id")
+  recipeId           String                   @map("recipe_id")
+  status             ProductionCycleStatus    @default(PENDING)
+  laborRequired      Int                      @map("labor_required")
+  laborAccumulated   Int                      @default(0) @map("labor_accumulated")
+  startedAt          DateTime?                @map("started_at")
+  endsAt             DateTime?                @map("ends_at")
+  completedAt        DateTime?                @map("completed_at")
+  failureReason      ProductionCycleFailure?  @map("failure_reason")
+  outputQuality      ResourceQuality?         @map("output_quality")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  productionObject   ProductionObject         @relation(fields: [productionObjectId], references: [id], onDelete: Cascade)
+  recipe             ProductionRecipe         @relation(fields: [recipeId], references: [id])
+  contributions      CycleLaborContribution[]
+
+  @@index([productionObjectId, status])
+  @@index([status, endsAt])
+  @@map("production_cycles")
+}
+
+model CycleLaborContribution {
+  id              String          @id @default(uuid())
+  cycleId         String          @map("cycle_id")
+  characterId     String          @map("character_id")
+  workShiftId     String          @unique @map("work_shift_id")
+  laborMinutes    Int             @map("labor_minutes")
+  professionLevel Int             @map("profession_level")
+  toolTier        Int             @default(0) @map("tool_tier")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  cycle           ProductionCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@index([cycleId])
+  @@index([characterId])
+  @@map("cycle_labor_contributions")
 }
 
 model ProductionEquipment {

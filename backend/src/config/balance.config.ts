@@ -9,6 +9,12 @@ export const BalanceConfig = {
     resources: { governmentPayoutRate: 0.25, governmentEcoExpRate: 0.01 },
     market: { listingFeeRate: 0.02, listingFeeMin: 5, saleTaxRate: 0.05, sellerEcoExpRate: 0.03, listingDurationHours: 72, maxActiveListings: 10 },
     tools: { tiers: { 1: { price: 500, uses: 50 }, 2: { price: 1250, uses: 50 }, 3: { price: 1800, uses: 50 } } },
+    production: {
+      cycleTickSeconds: 60,
+      equipmentWearPerCycle: 2,
+      equipmentTierSpeedBonus: 0.15,
+      laborTimeoutHours: 48,
+    },
     upgrades: { costRate: 0.15, costPower: 1.4, baseChance: 0.9, chanceLossPerLevel: 0.12, professionBonusPerLevel: 0.01, minChance: 0.15, maxChance: 0.95 },
     simulation: {
       profiles: {
