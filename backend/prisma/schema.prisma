@@ -193,6 +193,10 @@ enum CurrencyLogReason {
   FARM_SEED_PURCHASE
   FARM_BUILDING_PURCHASE
   BAR_PURCHASE
+  CLAN_CREATE
+  CLAN_TREASURY_DEPOSIT
+  CLAN_TREASURY_SPEND
+  CLAN_MAINTENANCE
   SALARY_FROM_OBJECT
   WORK_SALARY // Зарплата за работу (этап 2)
 }
@@ -231,6 +235,24 @@ enum FarmBuildingType {
   CANOPY
   CELLAR
   DOG
+}
+
+enum ClanMemberStatus {
+  ACTIVE
+  LEFT
+  KICKED
+}
+
+enum ClanRelationType {
+  ALLIANCE
+  HOSTILITY
+}
+
+enum ClanInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
 }
 
 enum ProductionObjectType {
@@ -317,6 +339,8 @@ enum ResourceLogReason {
   OBJECT_STOCK_TAKE
   FARM_HARVEST
   BAR_SALE
+  CLAN_STORAGE_DEPOSIT
+  CLAN_STORAGE_WITHDRAW
 }
 
 enum ProductionLogEvent {
@@ -880,6 +904,116 @@ model FarmBuilding {
 
   @@index([type])
   @@map("farm_buildings")
+}
+
+model Clan {
+  id              String          @id @default(uuid())
+  name            String          @unique
+  tag             String          @unique
+  level           Int             @default(0)
+  treasury        Int             @default(0)
+  maintenanceDebt Int             @default(0) @map("maintenance_debt")
+  isFrozen        Boolean         @default(false) @map("is_frozen")
+  lastChargedAt   DateTime        @default(now()) @map("last_charged_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  roles           ClanRole[]
+  members         ClanMember[]
+  invites         ClanInvite[]
+  storage         ClanStorage[]
+  treasuryLogs    ClanTreasuryLog[]
+  relationsFrom   ClanRelation[]  @relation("ClanRelationFrom")
+  relationsTo     ClanRelation[]  @relation("ClanRelationTo")
+
+  @@map("clans")
+}
+
+model ClanRole {
+  id          String       @id @default(uuid())
+  clanId      String       @map("clan_id")
+  code        String
+  name        String
+  rank        Int
+  permissions Json
+  clan        Clan         @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  members     ClanMember[]
+
+  @@unique([clanId, code])
+  @@map("clan_roles")
+}
+
+model ClanMember {
+  id                 String           @id @default(uuid())
+  clanId             String           @map("clan_id")
+  characterId        String           @unique @map("character_id")
+  roleId             String           @map("role_id")
+  status             ClanMemberStatus @default(ACTIVE)
+  joinedAt           DateTime         @default(now()) @map("joined_at")
+  leftAt             DateTime?        @map("left_at")
+  storageWithdrawnAt DateTime?        @map("storage_withdrawn_at")
+  storageWithdrawn   Int              @default(0) @map("storage_withdrawn")
+  treasurySpentAt    DateTime?        @map("treasury_spent_at")
+  treasurySpent      Int              @default(0) @map("treasury_spent")
+  clan               Clan             @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  role               ClanRole         @relation(fields: [roleId], references: [id])
+
+  @@index([clanId, status])
+  @@map("clan_members")
+}
+
+model ClanInvite {
+  id          String           @id @default(uuid())
+  clanId      String           @map("clan_id")
+  characterId String           @map("character_id")
+  invitedById String           @map("invited_by_id")
+  status      ClanInviteStatus @default(PENDING)
+  expiresAt   DateTime         @map("expires_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  clan        Clan             @relation(fields: [clanId], references: [id], onDelete: Cascade)
+
+  @@unique([clanId, characterId, status])
+  @@index([characterId, status])
+  @@map("clan_invites")
+}
+
+model ClanStorage {
+  id           String   @id @default(uuid())
+  clanId       String   @map("clan_id")
+  resourceCode String   @map("resource_code")
+  amount       Int      @default(0)
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  clan         Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+
+  @@unique([clanId, resourceCode])
+  @@map("clan_storage")
+}
+
+model ClanTreasuryLog {
+  id          String   @id @default(uuid())
+  clanId      String   @map("clan_id")
+  characterId String?  @map("character_id")
+  amount      Int
+  balanceAfter Int     @map("balance_after")
+  reason      String
+  createdAt   DateTime @default(now()) @map("created_at")
+  clan        Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+
+  @@index([clanId, createdAt])
+  @@map("clan_treasury_logs")
+}
+
+model ClanRelation {
+  id         String           @id @default(uuid())
+  fromClanId String           @map("from_clan_id")
+  toClanId   String           @map("to_clan_id")
+  type       ClanRelationType
+  confirmed  Boolean          @default(false)
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  fromClan   Clan             @relation("ClanRelationFrom", fields: [fromClanId], references: [id], onDelete: Cascade)
+  toClan     Clan             @relation("ClanRelationTo", fields: [toClanId], references: [id], onDelete: Cascade)
+
+  @@unique([fromClanId, toClanId])
+  @@map("clan_relations")
 }
 
 model ProductionObject {

@@ -14,6 +14,12 @@ export async function cleanDatabase(): Promise<void> {
   await testPrisma.$transaction([
     testPrisma.idempotencyKey.deleteMany(),
     testPrisma.resourceLog.deleteMany(),
+    testPrisma.clanRelation.deleteMany(),
+    testPrisma.clanInvite.deleteMany(),
+    testPrisma.clanTreasuryLog.deleteMany(),
+    testPrisma.clanStorage.deleteMany(),
+    testPrisma.clanMember.deleteMany(),
+    testPrisma.clanRole.deleteMany(),
     testPrisma.farmBuilding.deleteMany(),
     testPrisma.farmPlot.deleteMany(),
     testPrisma.productionLog.deleteMany(),
@@ -43,6 +49,7 @@ export async function cleanDatabase(): Promise<void> {
     testPrisma.governmentShopItem.deleteMany(),
     testPrisma.characterStats.deleteMany(),
     testPrisma.character.deleteMany(),
+    testPrisma.clan.deleteMany(),
     testPrisma.session.deleteMany(),
     testPrisma.user.deleteMany(),
   ])

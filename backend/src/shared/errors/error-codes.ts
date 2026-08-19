@@ -115,6 +115,19 @@ export enum ErrorCode {
   BAR_BUFF_COOLDOWN       = 'BAR_006',
   BAR_TOO_DRUNK           = 'BAR_007',
 
+  // Stage 3 clans
+  CLAN_NOT_FOUND          = 'CLAN_001',
+  CLAN_ALREADY_MEMBER     = 'CLAN_002',
+  CLAN_REQUIREMENTS       = 'CLAN_003',
+  CLAN_PERMISSION         = 'CLAN_004',
+  CLAN_CAPACITY           = 'CLAN_005',
+  CLAN_FROZEN             = 'CLAN_006',
+  CLAN_INVITE_INVALID     = 'CLAN_007',
+  CLAN_DAILY_LIMIT        = 'CLAN_008',
+  CLAN_RELATION_COOLDOWN  = 'CLAN_009',
+  CLAN_REJOIN_COOLDOWN    = 'CLAN_010',
+  CLAN_STORAGE_FULL       = 'CLAN_011',
+
   // Stage 3 production
   PROD_ALREADY_SOLD       = 'PROD_001',
   PROD_OBJECT_LIMIT       = 'PROD_002',
