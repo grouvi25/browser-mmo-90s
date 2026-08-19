@@ -88,6 +88,23 @@ export async function productionRoutes(fastify: FastifyInstance) {
     return reply.send(await OwnershipService.setSalary(actor.id, req.params.id, parsed.data.salary))
   })
 
+  fastify.post<{ Params: { id: string }; Body: { recipeId: string } }>('/objects/:id/profile', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ recipeId: z.string().uuid() }).safeParse(req.body)
+    if (!Id.safeParse(req.params.id).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const key = req.headers['idempotency-key']
+    if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+    const actor = await character(req.authUser.userId)
+    return reply.code(202).send(await OwnershipService.switchProfile(actor.id, req.params.id, parsed.data.recipeId, key))
+  })
+
+  fastify.post<{ Params: { id: string } }>('/objects/:id/repair', { preHandler: authenticate }, async (req, reply) => {
+    if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const key = req.headers['idempotency-key']
+    if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+    const actor = await character(req.authUser.userId)
+    return reply.send(await OwnershipService.repair(actor.id, req.params.id, key))
+  })
+
   fastify.post<{ Params: { id: string } }>('/objects/:id/cycles/start', { preHandler: authenticate }, async (req, reply) => {
     if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const result = await ProductionService.startCycle(req.params.id)

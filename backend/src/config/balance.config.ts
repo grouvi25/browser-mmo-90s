@@ -19,6 +19,11 @@ export const BalanceConfig = {
       salaryRangeMax: 2.0,
       maxObjectsPerCharacter: 2,
       objectResaleRate: 0.5,
+      profileSwitchCost: 1500,
+      profileSwitchMinutes: 180,
+      repairCostPerDurability: 20,
+      repairDurabilityPerKit: 20,
+      repairResourceCode: 'comp_repair_kit',
     },
     upgrades: { costRate: 0.15, costPower: 1.4, baseChance: 0.9, chanceLossPerLevel: 0.12, professionBonusPerLevel: 0.01, minChance: 0.15, maxChance: 0.95 },
     simulation: {

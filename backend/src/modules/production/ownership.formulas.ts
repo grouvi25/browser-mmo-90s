@@ -16,3 +16,16 @@ export function objectSalaryRange(baseSalary: number): { min: number; max: numbe
 export function objectResalePayout(purchasePrice: number): number {
   return Math.floor(purchasePrice * config.objectResaleRate)
 }
+
+export function objectRepairQuote(durabilityCurrent: number, durabilityMax: number) {
+  const durability = Math.max(0, durabilityMax - durabilityCurrent)
+  return {
+    durability,
+    kits: Math.ceil(durability / config.repairDurabilityPerKit),
+    cost: durability * config.repairCostPerDurability,
+  }
+}
+
+export function profileSwitchEndsAt(now = new Date()): Date {
+  return new Date(now.getTime() + config.profileSwitchMinutes * 60_000)
+}

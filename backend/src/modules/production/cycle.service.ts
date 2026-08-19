@@ -23,6 +23,7 @@ export const CycleService = {
           include: { equipment: true },
         })
         if (object.status === 'DAMAGED') return { failure: 'OBJECT_DAMAGED' as const }
+        if (object.profileSwitchEndsAt) return { failure: 'PROFILE_SWITCHING' as const }
         if (object.durabilityCurrent <= 0) return { failure: 'EQUIPMENT_BROKEN' as const }
         if (object.ownerType !== 'SYSTEM' && object.balance < 0) return { failure: 'NEGATIVE_BALANCE' as const }
         if (!object.activeRecipeId) return { failure: 'INPUT_MISSING' as const }

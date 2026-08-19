@@ -4,7 +4,7 @@ import { withIdempotency } from '../../shared/db/idempotency'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
-import { objectResalePayout, objectSalaryRange, objectWithdrawTax } from './ownership.formulas'
+import { objectRepairQuote, objectResalePayout, objectSalaryRange, objectWithdrawTax, profileSwitchEndsAt } from './ownership.formulas'
 
 const config = BalanceConfig.economy.production
 
@@ -159,5 +159,57 @@ export const OwnershipService = {
       where: { id: objectId }, data: { salaryOverride: salary },
     })
     return { salary: updated.salaryOverride }
+  },
+
+  async switchProfile(characterId: string, objectId: string, recipeId: string, key: string) {
+    return withIdempotency({ characterId, scope: 'objects.profile', key, execute: async tx => {
+      const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
+      if (object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Object is not owned by character', 403)
+      if (object.profileSwitchEndsAt) throw new AppError(ErrorCode.PROD_CYCLE_BLOCKED, 'Object profile is already switching', 409)
+      const activeCycles = await tx.productionCycle.count({ where: { productionObjectId: objectId, status: { in: ['PENDING', 'RUNNING'] } } })
+      if (activeCycles > 0) throw new AppError(ErrorCode.PROD_CYCLE_ACTIVE, 'Production cycle is active', 409)
+      const recipe = await tx.productionRecipe.findUniqueOrThrow({ where: { id: recipeId } })
+      if (!recipe.isActive || recipe.productionObjectCode !== object.code) {
+        throw new AppError(ErrorCode.PROD_RECIPE_INVALID, 'Recipe is unavailable for this object', 422)
+      }
+      const newBalance = await EconomyService.debit(tx, {
+        characterId, amount: config.profileSwitchCost, reasonCode: 'OBJECT_PROFILE_SWITCH', refType: 'production_object', refId: objectId,
+      })
+      const endsAt = profileSwitchEndsAt()
+      await tx.productionObject.update({ where: { id: objectId }, data: { pendingRecipeId: recipeId, profileSwitchEndsAt: endsAt } })
+      await tx.productionLog.create({ data: {
+        characterId, productionObjectId: objectId, eventType: 'OBJECT_PROFILE_SWITCHED',
+        metadataJson: { fromRecipeId: object.activeRecipeId, toRecipeId: recipeId, status: 'STARTED', endsAt },
+      } })
+      return { recipeId, endsAt, cost: config.profileSwitchCost, newBalance }
+    } })
+  },
+
+  async repair(characterId: string, objectId: string, key: string) {
+    return withIdempotency({ characterId, scope: 'objects.repair', key, execute: async tx => {
+      const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
+      if (object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Object is not owned by character', 403)
+      const activeCycles = await tx.productionCycle.count({ where: { productionObjectId: objectId, status: { in: ['PENDING', 'RUNNING'] } } })
+      if (activeCycles > 0) throw new AppError(ErrorCode.PROD_CYCLE_ACTIVE, 'Cannot repair during a production cycle', 409)
+      const quote = objectRepairQuote(object.durabilityCurrent, object.durabilityMax)
+      if (quote.durability === 0) return { repaired: false as const, ...quote }
+      const inventory = await tx.productionObjectInventory.findUnique({ where: { productionObjectId_resourceCode_quality: {
+        productionObjectId: objectId, resourceCode: config.repairResourceCode, quality: 'NORMAL',
+      } } })
+      if (!inventory || inventory.amount - inventory.reservedAmount < quote.kits) {
+        throw new AppError(ErrorCode.PROD_INPUT_MISSING, 'Repair kits are missing', 409, { resourceCode: config.repairResourceCode, required: quote.kits })
+      }
+      const paid = await tx.productionObject.updateMany({
+        where: { id: objectId, ownerCharacterId: characterId, balance: { gte: quote.cost } },
+        data: { balance: { decrement: quote.cost }, durabilityCurrent: object.durabilityMax },
+      })
+      if (paid.count !== 1) throw new AppError(ErrorCode.PROD_BALANCE_LOW, 'Object balance is too low', 409)
+      await tx.productionObjectInventory.update({ where: { id: inventory.id }, data: { amount: { decrement: quote.kits } } })
+      await tx.productionLog.create({ data: {
+        characterId, productionObjectId: objectId, eventType: 'OBJECT_REPAIRED',
+        metadataJson: { from: object.durabilityCurrent, to: object.durabilityMax, ...quote },
+      } })
+      return { repaired: true as const, durabilityCurrent: object.durabilityMax, ...quote }
+    } })
   },
 }

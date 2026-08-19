@@ -13,6 +13,26 @@ export async function runProductionCycle(): Promise<{ started: number; completed
   let completed = 0
   let failed = 0
 
+  const switched = await prisma.productionObject.findMany({
+    where: { profileSwitchEndsAt: { lte: now }, pendingRecipeId: { not: null } },
+    select: { id: true, ownerCharacterId: true, pendingRecipeId: true },
+    take: 100,
+  })
+  for (const object of switched) {
+    const updated = await prisma.productionObject.updateMany({
+      where: { id: object.id, profileSwitchEndsAt: { lte: now }, pendingRecipeId: object.pendingRecipeId },
+      data: { activeRecipeId: object.pendingRecipeId, pendingRecipeId: null, profileSwitchEndsAt: null },
+    })
+    if (updated.count === 1) {
+      await prisma.productionLog.create({ data: {
+        characterId: object.ownerCharacterId,
+        productionObjectId: object.id,
+        eventType: 'OBJECT_PROFILE_SWITCHED',
+        metadataJson: { toRecipeId: object.pendingRecipeId, status: 'COMPLETED' },
+      } })
+    }
+  }
+
   const due = await prisma.productionCycle.findMany({
     where: { status: 'RUNNING', endsAt: { lte: now } },
     take: 200,

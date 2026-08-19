@@ -187,6 +187,8 @@ enum CurrencyLogReason {
   OBJECT_BALANCE_TOP_UP
   OBJECT_WITHDRAW
   OBJECT_WITHDRAW_TAX
+  OBJECT_PROFILE_SWITCH
+  OBJECT_REPAIR
   SALARY_FROM_OBJECT
   WORK_SALARY // Зарплата за работу (этап 2)
 }
@@ -315,6 +317,8 @@ enum ProductionLogEvent {
   CYCLE_FAILED
   OBJECT_OWNERSHIP_CHANGED
   OBJECT_BALANCE_CHANGED
+  OBJECT_PROFILE_SWITCHED
+  OBJECT_REPAIRED
 }
 
 enum ProductionCycleStatus {
@@ -862,6 +866,8 @@ model ProductionObject {
   equipment               ProductionEquipment?
   storageCapacity         Int                         @default(0) @map("storage_capacity")
   activeRecipeId          String?                     @map("active_recipe_id")
+  pendingRecipeId         String?                     @map("pending_recipe_id")
+  profileSwitchEndsAt     DateTime?                   @map("profile_switch_ends_at")
   inventory               ProductionObjectInventory[]
   cycles                  ProductionCycle[]
 
