@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cycleDurationMinutes, cycleReady, isQualityAtLeast, laborFromShift, outputQuality } from '../../modules/production/cycle.formulas'
+import { cycleDurationMinutes, cycleReady, isQualityAtLeast, laborFromShift, outputQuality, resourceToItemQuality } from '../../modules/production/cycle.formulas'
 
 describe('production cycle formulas', () => {
   it('converts a completed shift into labor', () => {
@@ -26,5 +26,8 @@ describe('production cycle formulas', () => {
     expect(outputQuality({ professionLevel: 6, toolTier: 1, requiredToolTier: 1, minInputQuality: 'POOR' })).toBe('NORMAL')
     expect(isQualityAtLeast('FINE', 'NORMAL')).toBe(true)
     expect(isQualityAtLeast('POOR', 'NORMAL')).toBe(false)
+    expect(resourceToItemQuality('POOR')).toBe('JUNK')
+    expect(resourceToItemQuality('NORMAL')).toBe('COMMON')
+    expect(resourceToItemQuality('FINE')).toBe('GOOD')
   })
 })

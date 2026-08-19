@@ -3,7 +3,7 @@ import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { ObjectInventoryService } from './inventory.service'
-import { cycleDurationMinutes, cycleReady, equipmentWear, laborFromShift, outputQuality } from './cycle.formulas'
+import { cycleDurationMinutes, cycleReady, equipmentWear, laborFromShift, outputQuality, resourceToItemQuality } from './cycle.formulas'
 
 const ACTIVE_STATUSES = ['PENDING', 'RUNNING'] as const
 
@@ -50,7 +50,7 @@ export const CycleService = {
             minQuality: input.minQuality,
             amount: input.amount,
           })
-          reservations.push({ ...reserved, resourceCode: input.resourceCode })
+          reservations.push(...reserved.map(item => ({ ...item, resourceCode: input.resourceCode })))
         }
         const cycle = await tx.productionCycle.create({
           data: {
@@ -190,7 +190,7 @@ export const CycleService = {
             data: {
               templateId: template.id,
               ownerId: current.productionObject.ownerCharacterId,
-              quality: template.qualityBase,
+              quality: resourceToItemQuality(quality),
               durabilityCurrent: template.durabilityMax,
               durabilityMax: template.durabilityMax,
               weight: template.weight,

@@ -55,20 +55,29 @@ export const ObjectInventoryService = {
     minQuality: ResourceQuality
     amount: number
   }) {
-    const candidates = await tx.productionObjectInventory.findMany({
+    const candidates = (await tx.productionObjectInventory.findMany({
       where: { productionObjectId: params.objectId, resourceCode: params.resourceCode },
-    })
-    const row = candidates
+    }))
       .filter(candidate => isQualityAtLeast(candidate.quality, params.minQuality))
       .sort((left, right) => ['POOR', 'NORMAL', 'FINE'].indexOf(left.quality) - ['POOR', 'NORMAL', 'FINE'].indexOf(right.quality))
-      .find(candidate => candidate.amount - candidate.reservedAmount >= params.amount)
-    if (!row) throw new AppError(ErrorCode.PROD_INPUT_MISSING, 'Недостаточно сырья для цикла', 409)
-    const changed = await tx.productionObjectInventory.updateMany({
-      where: { id: row.id, amount: row.amount, reservedAmount: row.reservedAmount },
-      data: { reservedAmount: { increment: params.amount } },
-    })
-    if (changed.count !== 1) throw new AppError(ErrorCode.PROD_INVARIANT, 'Склад изменился во время резерва', 409)
-    return { inventoryId: row.id, quality: row.quality, amount: params.amount }
+    const available = candidates.reduce((sum, row) => sum + row.amount - row.reservedAmount, 0)
+    if (available < params.amount) throw new AppError(ErrorCode.PROD_INPUT_MISSING, 'Not enough input for production cycle', 409)
+
+    let remaining = params.amount
+    const reservations: Array<{ inventoryId: string; quality: ResourceQuality; amount: number }> = []
+    for (const row of candidates) {
+      if (remaining === 0) break
+      const amount = Math.min(remaining, row.amount - row.reservedAmount)
+      if (amount <= 0) continue
+      const changed = await tx.productionObjectInventory.updateMany({
+        where: { id: row.id, amount: row.amount, reservedAmount: row.reservedAmount },
+        data: { reservedAmount: { increment: amount } },
+      })
+      if (changed.count !== 1) throw new AppError(ErrorCode.PROD_INVARIANT, 'Inventory changed during reservation', 409)
+      reservations.push({ inventoryId: row.id, quality: row.quality, amount })
+      remaining -= amount
+    }
+    return reservations
   },
 
   async consumeReserved(tx: Prisma.TransactionClient, inventoryId: string, amount: number): Promise<void> {

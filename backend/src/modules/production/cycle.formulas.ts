@@ -1,4 +1,4 @@
-import type { ResourceQuality } from '@prisma/client'
+import type { ItemQuality, ResourceQuality } from '@prisma/client'
 import { BalanceConfig } from '../../config/balance.config'
 
 const config = BalanceConfig.economy.production
@@ -43,6 +43,12 @@ export function outputQuality(params: {
 
 export function isQualityAtLeast(actual: ResourceQuality, required: ResourceQuality): boolean {
   return qualityOrder.indexOf(actual) >= qualityOrder.indexOf(required)
+}
+
+export function resourceToItemQuality(quality: ResourceQuality): ItemQuality {
+  if (quality === 'POOR') return 'JUNK'
+  if (quality === 'FINE') return 'GOOD'
+  return 'COMMON'
 }
 
 export function equipmentWear(): number {
