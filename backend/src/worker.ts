@@ -10,6 +10,7 @@ import { runBattleCleanup } from './workers/battle-cleanup.worker'
 import { runHpRecovery, TICK_MS as HP_TICK_MS } from './workers/hp-recovery.worker'
 import { runBattleTimeout, TIMER_TICK_MS } from './workers/battle-timeout.worker'
 import { runWorkShiftFinalize, WORK_SHIFT_FINALIZE_MS } from './workers/work-shift-finalize.worker'
+import { runProductionCycle, PRODUCTION_CYCLE_MS } from './workers/production-cycle.worker'
 import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worker'
 import { collectEconomyMetrics, startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
 import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
@@ -60,6 +61,11 @@ async function startWorker(): Promise<void> {
     catch (err) { logger.error({ err }, '[Worker] Work shift finalize error') }
   }, WORK_SHIFT_FINALIZE_MS)
 
+  const productionCycleTimer = setInterval(async () => {
+    try { await runProductionCycle() }
+    catch (err) { logger.error({ err }, '[Worker] Production cycle error') }
+  }, PRODUCTION_CYCLE_MS)
+
   const marketExpireTimer = setInterval(async () => {
     try { await runMarketExpire() }
     catch (err) { logger.error({ err }, '[Worker] Market expire error') }
@@ -93,6 +99,7 @@ const shutdown = async (signal: string): Promise<void> => {
     clearInterval(hpRecoveryTimer)
     clearInterval(battleTimeoutTimer)
     clearInterval(workShiftTimer)
+    clearInterval(productionCycleTimer)
     clearInterval(marketExpireTimer)
     clearInterval(idempotencyCleanupTimer)
     stopEconomyMetrics()

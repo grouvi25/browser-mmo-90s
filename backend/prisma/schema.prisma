@@ -891,14 +891,15 @@ model ProductionRecipeInput {
 }
 
 model ProductionObjectInventory {
-  id                 String           @id @default(uuid())
-  productionObjectId String           @map("production_object_id")
-  resourceCode       String           @map("resource_code")
-  quality            ResourceQuality  @default(NORMAL)
-  amount             Int              @default(0)
-  reservedAmount     Int              @default(0) @map("reserved_amount")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
-  productionObject   ProductionObject @relation(fields: [productionObjectId], references: [id], onDelete: Cascade)
+  id                 String                  @id @default(uuid())
+  productionObjectId String                  @map("production_object_id")
+  resourceCode       String                  @map("resource_code")
+  quality            ResourceQuality         @default(NORMAL)
+  amount             Int                     @default(0)
+  reservedAmount     Int                     @default(0) @map("reserved_amount")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+  productionObject   ProductionObject        @relation(fields: [productionObjectId], references: [id], onDelete: Cascade)
+  cycleReservations  CycleInputReservation[]
 
   @@unique([productionObjectId, resourceCode, quality])
   @@index([productionObjectId])
@@ -921,10 +922,26 @@ model ProductionCycle {
   productionObject   ProductionObject         @relation(fields: [productionObjectId], references: [id], onDelete: Cascade)
   recipe             ProductionRecipe         @relation(fields: [recipeId], references: [id])
   contributions      CycleLaborContribution[]
+  inputReservations  CycleInputReservation[]
 
   @@index([productionObjectId, status])
   @@index([status, endsAt])
   @@map("production_cycles")
+}
+
+model CycleInputReservation {
+  id           String                    @id @default(uuid())
+  cycleId      String                    @map("cycle_id")
+  inventoryId  String                    @map("inventory_id")
+  resourceCode String                    @map("resource_code")
+  quality      ResourceQuality
+  amount       Int
+  cycle        ProductionCycle           @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  inventory    ProductionObjectInventory @relation(fields: [inventoryId], references: [id], onDelete: Restrict)
+
+  @@unique([cycleId, inventoryId])
+  @@index([cycleId])
+  @@map("cycle_input_reservations")
 }
 
 model CycleLaborContribution {

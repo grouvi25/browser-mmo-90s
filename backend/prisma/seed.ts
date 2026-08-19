@@ -2,7 +2,7 @@
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { RESOURCES, PRODUCTION_OBJECTS, OBJECT_PROFESSIONS, PRIVATE_SHOP_RESOURCES } from './economy-data'
+import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, PRIVATE_SHOP_RESOURCES } from './economy-data'
 
 const prisma = new PrismaClient()
 
@@ -242,6 +242,24 @@ async function main() {
     const requiredProfessionCode = objectProfessions[code]
     const requiredProfessionLevel = Math.min(requiredProductionLevel, 3)
     await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward}})
+  }
+  for (const recipeData of PRODUCTION_RECIPES) {
+    const { inputs, ...recipe } = recipeData
+    const saved = await prisma.productionRecipe.upsert({
+      where: { code: recipe.code },
+      update: recipe,
+      create: recipe,
+    })
+    await prisma.productionRecipeInput.deleteMany({ where: { recipeId: saved.id } })
+    if (inputs.length > 0) {
+      await prisma.productionRecipeInput.createMany({
+        data: inputs.map(input => ({ recipeId: saved.id, ...input })),
+      })
+    }
+    await prisma.productionObject.update({
+      where: { code: recipe.productionObjectCode },
+      data: { activeRecipeId: saved.id, storageCapacity: 1000 },
+    })
   }
   const equipmentByObject: Record<string, { code: string; name: string; tier: number; requiredToolTier: number }> = {
     obj_warehouse_station: { code: 'equipment_warehouse_terminal', name: 'Складской терминал', tier: 1, requiredToolTier: 1 },

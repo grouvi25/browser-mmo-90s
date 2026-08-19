@@ -8,7 +8,8 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
-import { admissionRequirement, calcFinalSalary, calcProductionExp, fitsDailyBudget, shiftMinutes } from './work.formulas'
+import { admissionRequirement, calcFinalSalary, calcProductionExp, fitsDailyBudget, shiftMinutes, workerEfficiency } from './work.formulas'
+import { CycleService } from '../production/cycle.service'
 import { BalanceConfig } from '../../config/balance.config'
 import { PROFESSION_NAMES, professionLevelFromExp, type ProfessionCode } from '../professions/professions'
 
@@ -197,8 +198,19 @@ export const WorkService = {
       }
       const newBalance = await EconomyService.credit(tx, { characterId, amount: salary, reasonCode: 'WORK_SALARY', refType: 'work_shift', refId: shift.id })
       if (shift.productionObject.economicExpReward > 0) await EconomyService.grantEconomicExp(tx, characterId, shift.productionObject.economicExpReward)
+      const cycleContribution = shift.productionObject.activeRecipeId
+        ? await CycleService.contributeLabor(tx, {
+          objectId: shift.productionObjectId,
+          characterId,
+          workShiftId: shift.id,
+          shiftDurationMinutes: Math.round((shift.endsAt.getTime() - shift.startedAt.getTime()) / 60_000),
+          professionLevel: profession.level,
+          workerEfficiency: workerEfficiency(profession.level),
+          toolTier: shift.toolInstance?.template.toolTier ?? 0,
+        })
+        : null
       let resourceReward: { code: string; amount: number } | null = null
-      if (shift.productionObject.producesResourceCode && shift.productionObject.outputAmountMax > 0) {
+      if (!shift.productionObject.activeRecipeId && shift.productionObject.producesResourceCode && shift.productionObject.outputAmountMax > 0) {
         const template = await tx.resourceTemplate.findUnique({ where: { code: shift.productionObject.producesResourceCode } })
         if (template) {
           const amount = Math.floor(Math.random() * (shift.productionObject.outputAmountMax - shift.productionObject.outputAmountMin + 1)) + shift.productionObject.outputAmountMin
@@ -209,8 +221,8 @@ export const WorkService = {
       await tx.characterProfession.update({ where: { id: profession.id }, data: { exp: professionExp, level: professionLevel } })
       const aggregate = await tx.characterProfession.aggregate({ where: { characterId }, _max: { level: true, exp: true } })
       await tx.character.update({ where: { id: characterId }, data: { status: 'ACTIVE', productionLevel: aggregate._max.level ?? professionLevel, productionExp: aggregate._max.exp ?? professionExp } })
-      await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CLAIMED', metadataJson: { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionLevel, resourceReward, toolUse } } })
-      return { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionExp, professionLevel, resourceReward, toolUse, newBalance }
+      await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CLAIMED', metadataJson: { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionLevel, resourceReward, toolUse, cycleContribution } } })
+      return { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionExp, professionLevel, resourceReward, toolUse, cycleContribution, newBalance }
     } })
   },
 

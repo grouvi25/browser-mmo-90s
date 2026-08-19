@@ -39,6 +39,23 @@ export const PRODUCTION_OBJECTS = [
   { code: 'obj_cooperative_site', name: 'Стройка кооператива', type: 'WORKSHOP', requiredProductionLevel: 3, shiftDurationMinutes: 90, baseSalary: 300, baseProductionExp: 28, producesResourceCode: 'comp_armor_plate', outputAmountMin: 1, outputAmountMax: 1, economicExpReward: 0 },
 ] as const
 
+export const PRODUCTION_RECIPES = [
+  {
+    code: 'rcp_scrap',
+    name: 'Сбор металлолома',
+    productionObjectCode: 'obj_scrapyard',
+    outputResourceCode: 'res_scrap_metal',
+    outputItemTemplateCode: null,
+    outputAmount: 3,
+    cycleMinutes: 30,
+    laborRequired: 30,
+    requiredProfessionCode: 'scrap_collector',
+    requiredProfessionLevel: 0,
+    requiredToolTier: 1,
+    inputs: [] as ReadonlyArray<{ resourceCode: string; amount: number; minQuality: 'POOR' | 'NORMAL' | 'FINE' }>,
+  },
+] as const
+
 export const OBJECT_PROFESSIONS: Record<string, string> = {
   obj_warehouse_station: 'supplier',
   obj_scrapyard: 'scrap_collector',
