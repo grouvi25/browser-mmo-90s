@@ -245,6 +245,11 @@ async function main() {
     obj_parts_factory: 55000,
     obj_cooperative_site: 55000,
     obj_kolhoz_zarya: 45000,
+    obj_sawmill: 16000,
+    obj_textile: 30000,
+    obj_herb_point: 12000,
+    obj_pharmacy: 28000,
+    obj_chem_lab: 52000,
   }
   const objectProfessions = OBJECT_PROFESSIONS
   for(const {code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward} of productionObjects){
@@ -279,8 +284,13 @@ async function main() {
     obj_garage_workshop: { code: 'equipment_garage_press', name: 'Гаражный пресс', tier: 2, requiredToolTier: 2 },
     obj_small_factory: { code: 'equipment_small_factory_line', name: 'Производственная линия', tier: 2, requiredToolTier: 2 },
     obj_parts_factory: { code: 'equipment_parts_precision', name: 'Точный станок', tier: 3, requiredToolTier: 3 },
-    obj_kolhoz_zarya: { code: 'equipment_kolhoz_tractor', name: '????????? ???????', tier: 2, requiredToolTier: 1 },
+    obj_kolhoz_zarya: { code: 'equipment_kolhoz_tractor', name: 'Колхозный трактор', tier: 2, requiredToolTier: 1 },
     obj_cooperative_site: { code: 'equipment_site_press', name: 'Листогиб', tier: 3, requiredToolTier: 3 },
+    obj_sawmill: { code: 'equipment_sawmill_saw', name: 'Ленточная пила', tier: 1, requiredToolTier: 1 },
+    obj_textile: { code: 'equipment_textile_machine', name: 'Швейная машина', tier: 2, requiredToolTier: 2 },
+    obj_herb_point: { code: 'equipment_herb_dryer', name: 'Сушилка трав', tier: 1, requiredToolTier: 1 },
+    obj_pharmacy: { code: 'equipment_pharmacy_still', name: 'Перегонный куб', tier: 2, requiredToolTier: 2 },
+    obj_chem_lab: { code: 'equipment_chem_lab_bench', name: 'Лабораторный стол', tier: 3, requiredToolTier: 3 },
   }
   for (const [objectCode, equipment] of Object.entries(equipmentByObject)) {
     const object = await prisma.productionObject.findUniqueOrThrow({ where: { code: objectCode } })
@@ -301,8 +311,8 @@ async function main() {
   }
   const bar = await prisma.productionObject.upsert({
     where: { code: 'obj_bar_station' },
-    update: { name: '?????? ?? ????????', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, isActive: true },
-    create: { code: 'obj_bar_station', name: '?????? ?? ????????', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000 },
+    update: { name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, isActive: true },
+    create: { code: 'obj_bar_station', name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000 },
   })
   let firstBarRecipeId: string | null = null
   for (const row of BAR_RECIPES) {
@@ -318,8 +328,8 @@ async function main() {
   await prisma.productionObject.update({ where: { id: bar.id }, data: { activeRecipeId: firstBarRecipeId } })
   await prisma.productionEquipment.upsert({
     where: { productionObjectId: bar.id },
-    update: { code: 'equipment_bar_kitchen', name: '?????? ?????', tier: 2, requiredToolTier: 1, ownerType: 'SYSTEM', isActive: true },
-    create: { productionObjectId: bar.id, code: 'equipment_bar_kitchen', name: '?????? ?????', tier: 2, requiredToolTier: 1, ownerType: 'SYSTEM' },
+    update: { code: 'equipment_bar_kitchen', name: 'Барная плита', tier: 2, requiredToolTier: 1, ownerType: 'SYSTEM', isActive: true },
+    create: { productionObjectId: bar.id, code: 'equipment_bar_kitchen', name: 'Барная плита', tier: 2, requiredToolTier: 1, ownerType: 'SYSTEM' },
   })
   for (const offer of BAR_OFFERS) {
     await prisma.barOffer.upsert({

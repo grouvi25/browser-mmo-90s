@@ -14,10 +14,10 @@ export const CROPS = {
 export type CropCode = keyof typeof CROPS
 
 export const FARM_BUILDINGS = {
-  BARREL: { name: '?????', price: 2500 },
-  CANOPY: { name: '?????', price: 5000 },
-  CELLAR: { name: '??????', price: 8000 },
-  DOG: { name: '??????', price: 15000 },
+  BARREL: { name: 'Бочка', price: 2500 },
+  CANOPY: { name: 'Навес', price: 5000 },
+  CELLAR: { name: 'Погреб', price: 8000 },
+  DOG: { name: 'Собака', price: 15000 },
 } as const
 
 export type FarmBuildingCode = keyof typeof FARM_BUILDINGS

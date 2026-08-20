@@ -12,7 +12,11 @@ export const BAR_RESOURCES = [
 
 export const BAR_RECIPES = [
   { code: 'rcp_bar_alcohol', name: 'Перегон спирта', output: 'res_alcohol', amount: 2, minutes: 90, labor: 60, inputs: [{ resourceCode: 'res_hops', amount: 3 }] },
-  { code: 'rcp_bar_extract', name: 'Травяной экстракт', output: 'res_extract', amount: 2, minutes: 90, labor: 60, inputs: [{ resourceCode: 'res_greens', amount: 3 }, { resourceCode: 'res_chemicals', amount: 1 }] },
+  // Вход был res_chemicals, но это ниже по цепочке самого res_extract
+  // (rcp_chemicals в economy-data.ts: res_extract → res_chemicals) — со
+  // старым входом получался цикл, размножающий ресурсы. Травяной экстракт
+  // тематически и не должен требовать промышленной химии.
+  { code: 'rcp_bar_extract', name: 'Травяной экстракт', output: 'res_extract', amount: 2, minutes: 90, labor: 60, inputs: [{ resourceCode: 'res_greens', amount: 3 }, { resourceCode: 'res_hops', amount: 2 }] },
   { code: 'rcp_bar_shchi', name: 'Щи', output: 'bar_shchi', amount: 2, minutes: 30, labor: 30, inputs: [{ resourceCode: 'res_vegetables', amount: 3 }, { resourceCode: 'res_greens', amount: 1 }] },
   { code: 'rcp_bar_pelmeni', name: 'Пельмени', output: 'bar_pelmeni', amount: 2, minutes: 45, labor: 45, inputs: [{ resourceCode: 'res_vegetables', amount: 4 }, { resourceCode: 'res_fabric', amount: 1 }] },
   { code: 'rcp_bar_kvass', name: 'Квас', output: 'bar_kvass', amount: 2, minutes: 30, labor: 30, inputs: [{ resourceCode: 'res_hops', amount: 2 }] },
