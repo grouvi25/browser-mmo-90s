@@ -86,7 +86,7 @@ export const ClansService = {
   async assignRole(characterId: string, targetCharacterId: string, roleId: string) {
     return withTransaction(async tx => {
       const actor = await memberWithPermission(tx, characterId, 'ASSIGN_ROLE')
-      const target = await tx.clanMember.findUnique({ where: { characterId }, include: { role: true } })
+      const target = await tx.clanMember.findUnique({ where: { characterId: targetCharacterId }, include: { role: true } })
       const role = await tx.clanRole.findFirst({ where: { id: roleId, clanId: actor.clanId } })
       if (!target || target.clanId !== actor.clanId || !role) throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Clan member or role not found', 404)
       if (target.role.code === 'boss' && target.characterId === characterId) throw new AppError(ErrorCode.CLAN_PERMISSION, 'Boss cannot remove own role assignment power', 409)
