@@ -174,12 +174,22 @@ test.describe('Stage 2 visual and browser flow', () => {
     }
   })
 
-  test('E2 work page shows shift controls and seven workplaces', async ({ page }, testInfo) => {
+  test('E2 work page lists every workplace the API returns', async ({ page }, testInfo) => {
+    // Число вакансий числом здесь фиксировать нельзя: сид растёт с каждым
+    // этапом, и тест падал бы на добавлении контента, а не на дефекте.
+    // Сверяем таблицу с тем, что отдаёт API тому же персонажу.
+    const objects = await apiContext.get('/api/work/objects', {
+      headers: { Authorization: `Bearer ${seller.token}` },
+    })
+    expect(objects.status()).toBe(200)
+    const expected = (await objects.json() as { items: unknown[] }).items.length
+    expect(expected).toBeGreaterThan(0)
+
     await authPage(page, seller)
     await page.goto('/work')
     await expect(page.getByText('Рабочая смена')).toBeVisible()
     await expect(page.getByText('Вакансии', { exact: true })).toBeVisible()
-    await expect(page.locator('#vacancies tbody tr')).toHaveCount(7)
+    await expect(page.locator('#vacancies tbody tr')).toHaveCount(expected)
     await visualProof(page, testInfo, 'e2-work')
   })
 
