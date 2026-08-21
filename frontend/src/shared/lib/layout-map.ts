@@ -38,11 +38,14 @@ export const MENU = {
     { key: 'center', label: 'Центр', to: '/' },
     { key: 'market', label: 'Рынок', to: '/market' },
     { key: 'industrial', label: 'Промзона', to: '/industrial' },
-    { key: 'agriculture', label: 'Фермы и колхозы', to: '/agriculture' },
+    // Подписи укорочены под девять районов: на длинных полоса ужимала
+    // текст до 0.46 по ширине, буквы превращались в полоски. Колхозы
+    // никуда не делись — они комната внутри района.
+    { key: 'agriculture', label: 'Фермы', to: '/agriculture' },
     { key: 'bars', label: 'Бары', to: '/bars' },
     { key: 'station', label: 'Вокзал', to: '/station' },
     { key: 'garages', label: 'Гаражи', to: '/garages' },
-    { key: 'suburb', label: 'Спальный район', to: '/pvp' },
+    { key: 'suburb', label: 'Спальный', to: '/pvp' },
     { key: 'clan', label: 'Бригада', to: '/clans' },
   ],
 
@@ -68,7 +71,7 @@ export const MENU = {
       { key: 'storage', label: 'Склад', to: '/soon/storage' },
     ],
     agriculture: [
-      { key: 'farms', label: 'Фермы', to: '/farm' },
+      { key: 'farms', label: 'Мой участок', to: '/farm' },
       { key: 'kolhoz', label: 'Колхозы', to: '/objects' },
       { key: 'plants', label: 'Растения', to: '/plants' },
       { key: 'products', label: 'Продукты', to: '/bars' },
