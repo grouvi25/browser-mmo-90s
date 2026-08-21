@@ -1,37 +1,114 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+// =============================================================
+// Оболочка разделов Этапа 3. Сам экран — только шапка, локальная
+// навигация внутри своей группы и плашка приёмки; содержимое
+// каждого раздела лежит в своём файле рядом.
+// =============================================================
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Beer, Factory, Users, Droplets, Wrench, ShieldAlert, PackageOpen } from 'lucide-react'
-import { farmApi, type FarmBuilding } from '../../shared/api/farm.api'
-import { barsApi } from '../../shared/api/bars.api'
-import { clansApi } from '../../shared/api/clans.api'
-import { productionApi } from '../../shared/api/production.api'
 import { stage3AcceptanceApi } from '../../shared/api/stage3-acceptance.api'
+import { FarmSection } from './farm-section'
+import { PlantsSection } from './plants-section'
+import { ObjectsSection } from './objects-section'
+import { RecipesSection } from './recipes-section'
+import { BarsSection } from './bars-section'
+import { MyBarSection } from './my-bar-section'
+import { ClanSection } from './clan-section'
+import { ClanStorageSection } from './clan-storage-section'
+import { ClanTreasurySection } from './clan-treasury-section'
+import { ClanRelationsSection } from './clan-relations-section'
 import './stage3.css'
 
-export type Stage3Section='farm'|'bars'|'objects'|'clans'
-const nav:[Stage3Section,string][]=[['farm','Ферма'],['bars','Бары'],['objects','Объекты'],['clans','Бригада']]
-const fmt=(value:number)=>value.toLocaleString('ru-RU')
-const timer=(date:string|null)=>date?new Date(date).toLocaleString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'нет'
+export type Stage3Section =
+  | 'farm' | 'plants'
+  | 'objects' | 'recipes'
+  | 'bars' | 'mybar'
+  | 'clan' | 'clan-storage' | 'clan-treasury' | 'clan-relations'
 
-export function Stage3Page({section}:{section:Stage3Section}){
- const acceptance=useQuery({queryKey:['stage3','acceptance'],queryFn:stage3AcceptanceApi.get,refetchInterval:60000})
- return <main className="s3"><header className="s3-head"><div><span className="s3-kicker">Этап 3 — собственность</span><h1>{nav.find(([key])=>key===section)?.[1]}</h1></div><nav aria-label="Разделы этапа 3">{nav.map(([key,label])=><Link key={key} className={section===key?'active':''} to={`/${key}`}>{label}</Link>)}</nav></header>{acceptance.data&&<section className={`acceptance ${acceptance.data.ready?'ready':'attention'}`}><b>{acceptance.data.ready?'Приёмка: готова':'Приёмка: почти пройдена'}</b><span>{acceptance.data.metrics.recipes} рецептов и {acceptance.data.metrics.farmCrops} культур и {acceptance.data.metrics.barOffers} позиций меню и {acceptance.data.metrics.stuckCycles} зависших циклов</span></section>}{section==='farm'?<Farm/>:section==='bars'?<Bars/>:section==='objects'?<Objects/>:<Clans/>}</main>
+interface SectionMeta { title: string; kicker: string; group: Stage3Section[] }
+
+const FARM_GROUP: Stage3Section[] = ['farm', 'plants']
+const PROD_GROUP: Stage3Section[] = ['objects', 'recipes']
+const BAR_GROUP: Stage3Section[] = ['bars', 'mybar']
+const CLAN_GROUP: Stage3Section[] = ['clan', 'clan-storage', 'clan-treasury', 'clan-relations']
+
+const SECTIONS: Record<Stage3Section, SectionMeta> = {
+  farm: { title: 'Ферма', kicker: 'Земля и урожай', group: FARM_GROUP },
+  plants: { title: 'Растения', kicker: 'Земля и урожай', group: FARM_GROUP },
+  objects: { title: 'Объекты', kicker: 'Собственность', group: PROD_GROUP },
+  recipes: { title: 'Рецепты', kicker: 'Собственность', group: PROD_GROUP },
+  bars: { title: 'Бары', kicker: 'Еда, напитки и градус', group: BAR_GROUP },
+  mybar: { title: 'Мой бар', kicker: 'Еда, напитки и градус', group: BAR_GROUP },
+  clan: { title: 'Бригада', kicker: 'Своя команда', group: CLAN_GROUP },
+  'clan-storage': { title: 'Клановый склад', kicker: 'Своя команда', group: CLAN_GROUP },
+  'clan-treasury': { title: 'Общак', kicker: 'Своя команда', group: CLAN_GROUP },
+  'clan-relations': { title: 'Отношения', kicker: 'Своя команда', group: CLAN_GROUP },
 }
 
-function Farm(){
- const qc=useQueryClient();const [crop,setCrop]=useState('dill');const [building,setBuilding]=useState<FarmBuilding>('BARREL');const [msg,setMsg]=useState('')
- const farm=useQuery({queryKey:['farm'],queryFn:farmApi.get,refetchInterval:15000})
- const action=useMutation({mutationFn:async({kind,id}:{kind:string;id?:string})=>{if(kind==='buy')return farmApi.buyPlot();if(kind==='plant')return farmApi.plant(id!,crop);if(kind==='water')return farmApi.water(id!);if(kind==='harvest')return farmApi.harvest(id!);return farmApi.build(id!,building)},onSuccess:()=>{setMsg('Готово');void qc.invalidateQueries({queryKey:['farm']});void qc.invalidateQueries({queryKey:['resources']})},onError:(e:Error)=>setMsg(e.message)})
- if(farm.isLoading)return <Skeleton rows={3}/>;if(farm.isError)return <Fault retry={()=>farm.refetch()}/>
- return <><section className="s3-toolbar"><label>Посадить<select value={crop} onChange={e=>setCrop(e.target.value)}>{farm.data?.crops.map(x=><option disabled={!x.available} key={x.code} value={x.code}>{x.name} · {x.seedPrice} ₽</option>)}</select></label><label>Постройка<select value={building} onChange={e=>setBuilding(e.target.value as FarmBuilding)}>{Object.entries(farm.data!.buildings).map(([key,x])=><option key={key} value={key}>{x.name} · {fmt(x.price)} ₽</option>)}</select></label><button onClick={()=>action.mutate({kind:'buy'})} disabled={!farm.data?.nextPlotPrice||action.isPending}>Купить участок {farm.data?.nextPlotPrice?`${fmt(farm.data.nextPlotPrice)} ₽`:'лимит'}</button>{msg&&<output>{msg}</output>}</section><section className="farm-grid">{farm.data?.plots.map(plot=><article key={plot.id} className={`plot state-${plot.state.toLowerCase()}`}><div className="plot-num">{String(plot.slot).padStart(2,'0')}</div><div><strong>{plot.cropCode?farm.data?.crops.find(x=>x.code===plot.cropCode)?.name:'Свободная земля'}</strong><span>{plot.state==='GROWING'?`созреет ${timer(plot.readyAt)}`:plot.state==='READY'?'можно собирать':plot.state==='WITHERED'?'урожай засох':plot.building?.type?farm.data?.buildings[plot.building.type].name:'выберите культуру'}</span></div><div className="plot-actions">{plot.state==='EMPTY'&&<button onClick={()=>action.mutate({kind:'plant',id:plot.id})}>Посадить</button>}{plot.state==='GROWING'&&<button onClick={()=>action.mutate({kind:'water',id:plot.id})}><Droplets size={15}/> Полить {plot.waterCount}/3</button>}{plot.state==='READY'&&<button onClick={()=>action.mutate({kind:'harvest',id:plot.id})}>Собрать</button>}{!plot.building&&<button className="quiet" onClick={()=>action.mutate({kind:'build',id:plot.id})}>Построить</button>}</div></article>)}</section></>
+const ROUTES: Record<Stage3Section, string> = {
+  farm: '/farm',
+  plants: '/plants',
+  objects: '/objects',
+  recipes: '/recipes',
+  bars: '/bars',
+  mybar: '/bars/mine',
+  clan: '/clans',
+  'clan-storage': '/clans/storage',
+  'clan-treasury': '/clans/treasury',
+  'clan-relations': '/clans/relations',
 }
 
-function Bars(){const qc=useQueryClient();const [msg,setMsg]=useState('');const bars=useQuery({queryKey:['bars'],queryFn:barsApi.list});const status=useQuery({queryKey:['bars','status'],queryFn:barsApi.status,refetchInterval:30000});const buy=useMutation({mutationFn:barsApi.buy,onSuccess:()=>{setMsg('Заказ принят');void qc.invalidateQueries({queryKey:['bars']});void qc.invalidateQueries({queryKey:['character']})},onError:(e:Error)=>setMsg(e.message)});if(bars.isLoading)return <Skeleton rows={4}/>;return <><section className="intox"><Beer/><div><b>{status.data?.state??'...'}</b><span>градус {Math.round(status.data?.level??0)} · точность {(status.data?.accuracy??0)*100}% · вход в бой {status.data?.canBattle?'разрешён':'закрыт'}</span></div><div className="degree"><i style={{width:`${status.data?.level??0}%`}}/></div></section>{msg&&<div className="s3-note">{msg}</div>}<section className="menu-list">{bars.data?.items.flatMap(bar=>bar.barOffers.map(offer=><article key={offer.id}><div><span className="bar-name">{bar.name}</span><h2>{offer.name}</h2><p>{offer.hpRestore?`+${offer.hpRestore} HP`:offer.accuracyBuff?`+${offer.accuracyBuff*100}% точности`:`+${offer.damageBuff*100}% урона`} {offer.alcoholDegrees?`· ${offer.alcoholDegrees}°`:''}</p></div><strong>{fmt(offer.price)} ₽</strong><button disabled={buy.isPending} onClick={()=>buy.mutate(offer.id)}>Заказать</button></article>))}</section></>}
+function Body({ section }: { section: Stage3Section }) {
+  switch (section) {
+    case 'farm': return <FarmSection />
+    case 'plants': return <PlantsSection />
+    case 'objects': return <ObjectsSection />
+    case 'recipes': return <RecipesSection />
+    case 'bars': return <BarsSection />
+    case 'mybar': return <MyBarSection />
+    case 'clan': return <ClanSection />
+    case 'clan-storage': return <ClanStorageSection />
+    case 'clan-treasury': return <ClanTreasurySection />
+    case 'clan-relations': return <ClanRelationsSection />
+  }
+}
 
-function Objects(){const qc=useQueryClient();const [tab,setTab]=useState<'mine'|'market'>('mine');const query=useQuery({queryKey:['production',tab],queryFn:tab==='mine'?productionApi.mine:productionApi.market});const act=useMutation({mutationFn:({kind,id}:{kind:string;id:string})=>kind==='buy'?productionApi.buy(id):productionApi.repair(id),onSuccess:()=>void qc.invalidateQueries({queryKey:['production']})});return <><div className="s3-tabs"><button className={tab==='mine'?'active':''} onClick={()=>setTab('mine')}>Мои объекты</button><button className={tab==='market'?'active':''} onClick={()=>setTab('market')}>Рынок объектов</button></div>{query.isLoading?<Skeleton rows={3}/>:<section className="object-list">{query.data?.items.map(object=>{const cycle=object.cycles?.[0];return <article key={object.id}><div className="object-title"><Factory/><div><h2>{object.name}</h2><span>{object.type} · {object.equipment?.name??'без оборудования'}</span></div></div><dl><div><dt>Баланс</dt><dd>{fmt(object.balance)} ₽</dd></div><div><dt>Износ</dt><dd>{object.durabilityCurrent}/{object.durabilityMax}</dd></div><div><dt>Склад</dt><dd>{object.inventory?.reduce((s,x)=>s+x.amount,0)??0}</dd></div></dl>{cycle?<div className="cycle"><span>{cycle.recipe.name}</span><progress value={cycle.laborAccumulated} max={cycle.laborRequired}/><small>{cycle.status} · до {timer(cycle.endsAt)}</small></div>:<div className="empty-line"><PackageOpen size={16}/> цикл не запущен</div>}<div className="object-actions">{tab==='market'?<button onClick={()=>act.mutate({kind:'buy',id:object.id})}>Купить за {fmt(object.purchasePrice??0)} ₽</button>:<button onClick={()=>act.mutate({kind:'repair',id:object.id})}><Wrench size={15}/> Ремонт</button>}</div></article>})}</section>}</>}
+export function Stage3Page({ section }: { section: Stage3Section }) {
+  const meta = SECTIONS[section]
+  const acceptance = useQuery({
+    queryKey: ['stage3', 'acceptance'],
+    queryFn: stage3AcceptanceApi.get,
+    refetchInterval: 60000,
+  })
 
-function Clans(){const qc=useQueryClient();const [selected,setSelected]=useState('');const [name,setName]=useState('');const [tag,setTag]=useState('');const [amount,setAmount]=useState(500);const [msg,setMsg]=useState('');const list=useQuery({queryKey:['clans'],queryFn:clansApi.list});const clan=useQuery({queryKey:['clan',selected],queryFn:()=>clansApi.get(selected),enabled:!!selected});const create=useMutation({mutationFn:()=>clansApi.create(name,tag),onSuccess:x=>{setSelected(x.id);void qc.invalidateQueries({queryKey:['clans']})},onError:(e:Error)=>setMsg(e.message)});const deposit=useMutation({mutationFn:()=>clansApi.deposit(amount),onSuccess:()=>{setMsg('Общак пополнен');void qc.invalidateQueries({queryKey:['clan']})},onError:(e:Error)=>setMsg(e.message)});return <div className="clan-layout"><aside><div className="create-clan"><h2>Новая бригада</h2><input placeholder="Название" value={name} onChange={e=>setName(e.target.value)}/><input placeholder="Тег" maxLength={6} value={tag} onChange={e=>setTag(e.target.value)}/><button disabled={create.isPending||name.length<3||tag.length<2} onClick={()=>create.mutate()}>Создать · 25 000 ₽</button></div><h3>Бригады города</h3>{list.data?.items.map(x=><button key={x.id} className={selected===x.id?'active':''} onClick={()=>setSelected(x.id)}><b>[{x.tag}]</b> {x.name}<span>{x.isFrozen?'заморожен':`${x.level} ур.`}</span></button>)}</aside><section className="clan-sheet">{!selected?<div className="clan-empty"><Users/><h2>Выберите бригаду</h2><p>Участники, роли, общак и отношения откроются здесь.</p></div>:clan.isLoading?<Skeleton rows={3}/>:<><header><div><span>[{clan.data?.tag}]</span><h2>{clan.data?.name}</h2></div>{clan.data?.isFrozen&&<b className="frozen"><ShieldAlert/> заморожен</b>}</header><div className="clan-ledger"><div><span>Общак</span><b>{fmt(clan.data?.treasury??0)} ₽</b></div><div><span>Долг</span><b>{fmt(clan.data?.maintenanceDebt??0)} ₽</b></div><div><span>Состав</span><b>{clan.data?.members?.length??0}/{clan.data?.memberCapacity}</b></div><div><span>Склад</span><b>{clan.data?.storage?.length??0}/{clan.data?.storageCapacity}</b></div></div><div className="treasury"><input type="number" min={1} value={amount} onChange={e=>setAmount(Number(e.target.value))}/><button onClick={()=>deposit.mutate()}>Пополнить общак</button>{msg&&<output>{msg}</output>}</div><h3>Состав</h3><table><tbody>{clan.data?.members?.map(member=><tr key={member.id}><td>{member.character?.nickname??member.characterId}</td><td>{member.character?.battleLevel} ур.</td><td>{member.role.name}</td></tr>)}</tbody></table></>}</section></div>}
+  return (
+    <main className="s3">
+      <header className="s3-head">
+        <div>
+          <span className="s3-kicker">{meta.kicker}</span>
+          <h1>{meta.title}</h1>
+        </div>
+        <nav aria-label={'Разделы: ' + meta.kicker}>
+          {meta.group.map(key => (
+            <Link key={key} className={section === key ? 'active' : ''} to={ROUTES[key]}>
+              {SECTIONS[key].title}
+            </Link>
+          ))}
+        </nav>
+      </header>
 
-function Skeleton({rows}:{rows:number}){return <div className="s3-skeleton">{Array.from({length:rows},(_,i)=><i key={i}/>)}</div>}
-function Fault({retry}:{retry:()=>unknown}){return <div className="s3-fault"><ShieldAlert/><h2>Раздел не загрузился</h2><button onClick={retry}>Повторить</button></div>}
+      {acceptance.data && !acceptance.data.ready && (
+        <section className="acceptance attention">
+          <b>Приёмка: ещё не закрыта</b>
+          <span>
+            {acceptance.data.metrics.recipes} рецептов ·{' '}
+            {acceptance.data.metrics.farmCrops} культур ·{' '}
+            {acceptance.data.metrics.barOffers} позиций меню ·{' '}
+            {acceptance.data.metrics.stuckCycles} зависших циклов
+          </span>
+        </section>
+      )}
+
+      <Body section={section} />
+    </main>
+  )
+}

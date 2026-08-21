@@ -41,6 +41,10 @@ export interface Character {
   location: string | null
   isInvisible: boolean
   isPremium: boolean
+  /** Этап 3: приходят в профиле как обычные поля персонажа. */
+  clanId?: string | null
+  alcoholLevel?: number
+  hangoverUntil?: string | null
   stats: CharacterStats | null
   weaponSkills?: WeaponSkill[]
   economy?: {

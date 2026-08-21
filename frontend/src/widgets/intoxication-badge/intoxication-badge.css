@@ -1,0 +1,47 @@
+/* Значок градуса лежит на бумаге карточки, под числом ХП. */
+.intox-badge {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-content: center;
+  gap: 0 6px;
+  padding: 3px 6px;
+  border: 1px solid oklch(43% 0.09 28);
+  background: oklch(90% 0.05 60 / 0.92);
+  color: oklch(30% 0.06 32);
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.05;
+}
+
+.intox-badge:hover {
+  background: oklch(86% 0.08 58 / 0.96);
+}
+
+.intox-badge:focus-visible {
+  outline: 3px solid oklch(63% 0.14 28);
+  outline-offset: 2px;
+}
+
+.intox-badge--blocked {
+  border-color: oklch(45% 0.16 28);
+  background: oklch(84% 0.1 30 / 0.94);
+}
+
+.intox-badge__degree {
+  grid-row: 1 / span 2;
+  align-self: center;
+  font: 700 17px/1 'Sign', 'Oswald', sans-serif;
+}
+
+.intox-badge__state {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.intox-badge__left {
+  font-size: 9px;
+  opacity: 0.75;
+}

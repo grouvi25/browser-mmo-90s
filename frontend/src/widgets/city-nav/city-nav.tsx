@@ -145,10 +145,14 @@ export function TopNav() {
 
 export function districtKey(path: string) {
   if (path === '/' || ['/inventory', '/skills', '/stats', '/battles/history'].some(x => path.startsWith(x))) return 'center'
-  if (['/industrial', '/work', '/resources'].some(x => path.startsWith(x))
+  // Бары и бригада проверяются раньше промзоны и ферм: их пути начинаются
+  // со своих префиксов и не должны попадать в чужой район.
+  if (path.startsWith('/bars')) return 'bars'
+  if (path.startsWith('/clans')) return 'clan'
+  if (['/industrial', '/work', '/objects', '/recipes', '/resources'].some(x => path.startsWith(x))
     || path.includes('equipment-production') || path.includes('/soon/storage')) return 'industrial'
-  if (path.startsWith('/agriculture')
-    || ['farms', 'kolhoz', 'plants', 'products', 'crop-storage'].some(x => path.includes(x))) return 'agriculture'
+  if (path.startsWith('/agriculture') || path.startsWith('/farm') || path.startsWith('/plants')
+    || ['farms', 'kolhoz', 'crop-storage'].some(x => path.includes(x))) return 'agriculture'
   if (['/garages', '/upgrades', '/repair'].some(x => path.startsWith(x))) return 'garages'
   if (['/market', '/shop', '/shops/private'].some(x => path.startsWith(x))) return 'market'
   if (path.startsWith('/pvp')) return 'suburb'

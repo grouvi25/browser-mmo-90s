@@ -15,6 +15,7 @@ import { Sprite, SpriteButton } from '../../shared/ui/sprite'
 import type { ItemInstance } from '../../shared/types/api.types'
 import { ARMOR_SLOT_LABELS, WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
 import { itemImage } from '../../shared/assets/shop/shop-images'
+import { IntoxicationBadge } from '../intoxication-badge/intoxication-badge'
 
 const C = MENU.card
 
@@ -123,6 +124,9 @@ export function CharacterCard() {
       >
         {hp}
       </FitText>
+
+      {/* Этап 3: градус рядом с ХП — сам прячется, пока персонаж трезв. */}
+      <IntoxicationBadge />
 
       {/* ── ник ──────────────────────────────────────────── */}
       <FitText

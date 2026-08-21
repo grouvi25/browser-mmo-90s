@@ -44,12 +44,7 @@ function RequireGuest({ children, authenticatedTo = '/' }: { children: React.Rea
 
 /** Разделы Этапов 2–3: место в интерфейсе есть, наполнение позже. */
 const SOON: Record<string, { title: string; stage: number; what: string }> = {
-  farms:     { title: 'Фермы', stage: 3, what: 'Личные участки: посадка, полив и урожай для баров и аптечек.' },
-  kolhoz:    { title: 'Колхозы', stage: 3, what: 'Крупное производство сельхозсырья с рабочими местами.' },
-  products:  { title: 'Продукты', stage: 3, what: 'Еда и напитки из баров, временные эффекты перед боем и работой.' },
   storage:   { title: 'Склад', stage: 2, what: 'Хранение ресурсов и деталей сверх носимого веса.' },
-  plants:    { title: 'Растения', stage: 3, what: 'Посадки, уход и сбор урожая.' },
-  'crop-storage': { title: 'Склад урожая', stage: 3, what: 'Хранение растений и готовой сельхозпродукции.' },
   'equipment-production': { title: 'Производство шмота', stage: 3, what: 'Изготовление снаряжения в отдельной комнате Промзоны.' },
 }
 
@@ -97,10 +92,17 @@ export function AppRouter() {
         <Route path="/garages" element={<GaragesPage />} />
         <Route path="/industrial" element={<LocationHubPage kind="industrial" />} />
         <Route path="/agriculture" element={<LocationHubPage kind="agriculture" />} />
+        {/* Этап 3: одиннадцать разделов вместо прежних заглушек. */}
         <Route path="/farm" element={<Stage3Page section="farm" />} />
-        <Route path="/bars" element={<Stage3Page section="bars" />} />
+        <Route path="/plants" element={<Stage3Page section="plants" />} />
         <Route path="/objects" element={<Stage3Page section="objects" />} />
-        <Route path="/clans" element={<Stage3Page section="clans" />} />
+        <Route path="/recipes" element={<Stage3Page section="recipes" />} />
+        <Route path="/bars" element={<Stage3Page section="bars" />} />
+        <Route path="/bars/mine" element={<Stage3Page section="mybar" />} />
+        <Route path="/clans" element={<Stage3Page section="clan" />} />
+        <Route path="/clans/storage" element={<Stage3Page section="clan-storage" />} />
+        <Route path="/clans/treasury" element={<Stage3Page section="clan-treasury" />} />
+        <Route path="/clans/relations" element={<Stage3Page section="clan-relations" />} />
 
         <Route path="/shop" element={
           <ViewportPanel title="Рынок" subtitle="Государственные цены">

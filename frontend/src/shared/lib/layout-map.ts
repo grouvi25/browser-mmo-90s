@@ -39,9 +39,11 @@ export const MENU = {
     { key: 'market', label: 'Рынок', to: '/market' },
     { key: 'industrial', label: 'Промзона', to: '/industrial' },
     { key: 'agriculture', label: 'Фермы и колхозы', to: '/agriculture' },
+    { key: 'bars', label: 'Бары', to: '/bars' },
     { key: 'station', label: 'Вокзал', to: '/station' },
     { key: 'garages', label: 'Гаражи', to: '/garages' },
     { key: 'suburb', label: 'Спальный район', to: '/pvp' },
+    { key: 'clan', label: 'Бригада', to: '/clans' },
   ],
 
   /** Нижняя полоса показывает комнаты выбранного района, без повторов из самой сцены. */
@@ -60,20 +62,32 @@ export const MENU = {
     ],
     industrial: [
       { key: 'work', label: 'Работа', to: '/work' },
+      { key: 'objects', label: 'Мои объекты', to: '/objects' },
+      { key: 'recipes', label: 'Рецепты', to: '/recipes' },
       { key: 'resources', label: 'Запчасти', to: '/resources' },
-      { key: 'make', label: 'Делают шмот', to: '/soon/equipment-production' },
       { key: 'storage', label: 'Склад', to: '/soon/storage' },
     ],
     agriculture: [
-      { key: 'farms', label: 'Фермы', to: '/soon/farms' },
-      { key: 'kolhoz', label: 'Колхозы', to: '/soon/kolhoz' },
-      { key: 'plants', label: 'Растения', to: '/soon/plants' },
-      { key: 'products', label: 'Продукты', to: '/soon/products' },
-      { key: 'storage', label: 'Склад урожая', to: '/soon/crop-storage' },
+      { key: 'farms', label: 'Фермы', to: '/farm' },
+      { key: 'kolhoz', label: 'Колхозы', to: '/objects' },
+      { key: 'plants', label: 'Растения', to: '/plants' },
+      { key: 'products', label: 'Продукты', to: '/bars' },
+      { key: 'storage', label: 'Склад урожая', to: '/resources' },
     ],
     garages: [
       { key: 'repair', label: 'Мастерская', to: '/repair' },
       { key: 'upgrades', label: 'Улучшения', to: '/upgrades' },
+    ],
+    // Этап 3: бар и бригада — свои районы со своими комнатами.
+    bars: [
+      { key: 'bars', label: 'Заведения', to: '/bars' },
+      { key: 'mybar', label: 'Мой бар', to: '/bars/mine' },
+    ],
+    clan: [
+      { key: 'clan', label: 'Бригада', to: '/clans' },
+      { key: 'clan-storage', label: 'Склад', to: '/clans/storage' },
+      { key: 'clan-treasury', label: 'Общак', to: '/clans/treasury' },
+      { key: 'clan-relations', label: 'Отношения', to: '/clans/relations' },
     ],
   } as Record<string, readonly { key:string;label:string;to:string }[]>,
   bottomFontSize: 15.1,
@@ -98,6 +112,10 @@ export const MENU = {
     hpIcon: box(252.5, 154.5, 31.5, 22.5),
     energyText: { x: 76.5, y: 189, w: 18.5 },
     hpText: { x: 240.5, y: 189, w: 39.5 },
+    /** Этап 3: значок градуса — под числом ХП, на свободном поле бумаги.
+        Рисуется только когда персонаж пьян или в похмелье, поэтому в
+        трезвом состоянии карточка выглядит ровно как раньше. */
+    intoxication: box(228, 214, 72, 34),
     nickname: { x: 132.5, y: 377.5, w: 78, size: 22.7 },
     /** frame — рамка слота, вырезанная из подложки отдельным спрайтом:
         на вкладках со списками её нужно убирать, иначе текст ложится на неё.
