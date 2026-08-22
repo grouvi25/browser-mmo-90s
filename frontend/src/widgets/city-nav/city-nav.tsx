@@ -143,14 +143,15 @@ export function TopNav() {
   )
 }
 
+/** Какой район подсветить для текущего адреса. Порядок важен: более
+ *  длинные пути проверяются раньше коротких, иначе /shops/private
+ *  поймается на /shop. */
 export function districtKey(path: string) {
-  if (path === '/' || ['/inventory', '/skills', '/stats', '/battles/history'].some(x => path.startsWith(x))) return 'center'
-  if (['/industrial', '/work', '/resources'].some(x => path.startsWith(x))
-    || path.includes('equipment-production') || path.includes('/soon/storage')) return 'industrial'
-  if (path.startsWith('/agriculture')
-    || ['farms', 'kolhoz', 'plants', 'products', 'crop-storage'].some(x => path.includes(x))) return 'agriculture'
+  if (path === '/' || ['/inventory', '/skills', '/stats', '/battles/history', '/clans'].some(x => path.startsWith(x))) return 'center'
+  if (['/industrial', '/work', '/resources', '/objects'].some(x => path.startsWith(x))) return 'industrial'
+  if (['/agriculture', '/farm'].some(x => path.startsWith(x))) return 'agriculture'
   if (['/garages', '/upgrades', '/repair'].some(x => path.startsWith(x))) return 'garages'
-  if (['/market', '/shop', '/shops/private'].some(x => path.startsWith(x))) return 'market'
+  if (['/market', '/shops/private', '/shop', '/bars'].some(x => path.startsWith(x))) return 'market'
   if (path.startsWith('/pvp')) return 'suburb'
   if (path.startsWith('/station')) return 'station'
   return ''

@@ -53,23 +53,21 @@ export const MENU = {
       { key: 'skills', label: 'Оружейные навыки', to: '/skills' },
       { key: 'stats', label: 'Характеристики', to: '/stats' },
       { key: 'history', label: 'История боёв', to: '/battles/history' },
+      { key: 'clan', label: 'Бригада', to: '/clans' },
     ],
     market: [
       { key: 'shop', label: 'Госмагазин', to: '/shop' },
       { key: 'private', label: 'Частные лавки', to: '/shops/private' },
+      { key: 'bars', label: 'Бары', to: '/bars' },
     ],
     industrial: [
       { key: 'work', label: 'Работа', to: '/work' },
       { key: 'resources', label: 'Запчасти', to: '/resources' },
-      { key: 'make', label: 'Делают шмот', to: '/soon/equipment-production' },
-      { key: 'storage', label: 'Склад', to: '/soon/storage' },
+      { key: 'objects', label: 'Мои объекты', to: '/objects' },
     ],
     agriculture: [
-      { key: 'farms', label: 'Фермы', to: '/soon/farms' },
-      { key: 'kolhoz', label: 'Колхозы', to: '/soon/kolhoz' },
-      { key: 'plants', label: 'Растения', to: '/soon/plants' },
-      { key: 'products', label: 'Продукты', to: '/soon/products' },
-      { key: 'storage', label: 'Склад урожая', to: '/soon/crop-storage' },
+      { key: 'farms', label: 'Ферма', to: '/farm' },
+      { key: 'kolhoz', label: 'Колхозы', to: '/work' },
     ],
     garages: [
       { key: 'repair', label: 'Мастерская', to: '/repair' },
