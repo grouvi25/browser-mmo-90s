@@ -253,16 +253,23 @@ test.describe('Stage 2 visual and browser flow', () => {
   })
 
   test('location navigation exposes districts first and contextual rooms second', async ({ page }) => {
+    // Подписи комнат берём из карты города: они меняются с каждым этапом,
+    // а прибитый в тесте текст ломается на переименовании, а не на дефекте.
     await authPage(page, seller)
+
     await page.goto('/industrial')
     await expect(page.getByRole('button', { name: 'Промзона', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Работа', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Делают шмот', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Склад', exact: true })).toBeVisible()
+    for (const room of MENU.rooms.industrial) {
+      await expect(page.getByRole('button', { name: room.label, exact: true })).toBeVisible()
+    }
+
     await page.goto('/agriculture')
     await expect(page.getByRole('button', { name: 'Фермы и колхозы', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Растения', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Дело', exact: true })).toHaveCount(0)
+    for (const room of MENU.rooms.agriculture) {
+      await expect(page.getByRole('button', { name: room.label, exact: true })).toBeVisible()
+    }
+    // комнаты чужого района в полосе не появляются
+    await expect(page.getByRole('button', { name: 'Работа', exact: true })).toHaveCount(0)
   })
 
   test('visual navigation has one visible control per destination', async ({ page }, testInfo) => {
