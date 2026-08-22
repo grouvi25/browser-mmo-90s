@@ -377,10 +377,13 @@
 .battle-hand-zone > span { overflow:hidden; line-height:1.05; }
 .battle-hand-zone > div { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:2px; }
 .battle-hand-zone button { min-width:24px; min-height:28px; padding:0; border:1px solid oklch(55% .04 55); background:oklch(94% .02 75); color:oklch(30% .03 55); font:700 8px/1 var(--font-mono); cursor:pointer; }
-.battle-hand-zone button.is-selected { border-color:oklch(42% .14 25); background:oklch(45% .14 25); color:oklch(97% .01 70); }
+/* Выбранная ячейка светлая, а не залитая: на ней лежит чёрная иконка
+   с макета — броник или кулак, и на тёмном фоне она пропадала бы.
+   Состояние читается по толстой сплошной рамке и тёплой заливке. */
+.battle-hand-zone button.is-selected { border:2px solid oklch(42% .14 25); background:oklch(88% .07 32); color:oklch(30% .12 25); }
 /* Свой силуэт — защита, поэтому занятая ячейка зелёная, а не красная. */
 .battle-fighter-panel.is-self .battle-hand-zone button.is-selected {
-  border-color: oklch(38% .10 135); background: oklch(44% .11 135);
+  border-color: oklch(38% .10 135); background: oklch(89% .065 135);
 }
 .battle-hand-zone button { background: oklch(94% .02 75 / .82); }
 .battle-hand-zone button:disabled { opacity:.35; cursor:not-allowed; }
@@ -584,4 +587,17 @@
   bottom: 9%;
   height: 82%;
   transform: translate(-50%, 0);
+}
+
+/* Метки в ячейке зоны. Иконки взяты из макета «Профиль игрока Боевка.psd»:
+   броник на поставленном блоке, кулак на запланированном ударе. Пустая
+   ячейка блока — точка, пустая ячейка удара — буква руки: какой рукой
+   бьём, иконкой не передать, а информация нужна. */
+.zone-mark { display: block; width: auto; height: 76%; max-height: 22px; margin: 0 auto; object-fit: contain; }
+.zone-dot { display: block; width: 4px; height: 4px; margin: 0 auto; border-radius: 50%; background: oklch(58% .03 55); }
+.zone-hand { font: 700 8px/1 var(--font-mono); }
+.battle-hand-zone button { display: grid; place-items: center; }
+@media (max-width: 900px), (max-height: 620px) {
+  .zone-mark { max-height: 20px; }
+  .zone-hand { font-size: 9px; }
 }

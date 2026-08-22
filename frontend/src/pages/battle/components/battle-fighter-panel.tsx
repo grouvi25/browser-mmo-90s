@@ -2,6 +2,8 @@ import type { AttackHand, BodyZone } from '../../../shared/api/battles.api'
 import { itemImage } from '../../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../../shared/ui/sprite'
 import { BATTLE_ZONES } from '../battle-view-model'
+import zoneArmor from '../../../shared/assets/battle/zone-armor.png'
+import zoneFist from '../../../shared/assets/battle/zone-fist.png'
 
 const ZONE_CLASS: Record<BodyZone, string> = {
   HEAD: 'head', CHEST: 'chest', LEFT_ARM: 'left-arm', RIGHT_ARM: 'right-arm', LEGS: 'legs',
@@ -104,7 +106,11 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
                   aria-label={`${taken ? 'Снять блок' : 'Поставить блок'}: ${zone.label.toLocaleLowerCase('ru')}${slot ? ', второй' : ''}`}
                   aria-pressed={taken}
                   disabled={props.disabled || props.limit === 0 || (!taken && (full || placed < slot))}
-                  onClick={() => props.onZone(zone.key, slot)}>{taken ? '●' : '·'}</button>
+                  onClick={() => props.onZone(zone.key, slot)}>
+                  {taken
+                    ? <img src={zoneArmor} alt="" className="zone-mark" draggable={false} />
+                    : <i className="zone-dot" aria-hidden="true" />}
+                </button>
               })}
             </div>
           </div>
@@ -116,7 +122,11 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
               aria-label={`Удар ${hand === 'LEFT_HAND' ? 'левой' : 'правой'} рукой, цель: ${zone.label.toLocaleLowerCase('ru')}`}
               aria-pressed={handSelected(hand, zone.key)}
               disabled={props.disabled || props.disabledHands?.includes(hand) || props.limit === 0 || (handUsed(hand) && !handSelected(hand, zone.key)) || (!handSelected(hand, zone.key) && props.selected.length >= props.limit)}
-              onClick={() => props.onHandZone?.(hand, zone.key)}>{hand === 'LEFT_HAND' ? 'Л' : 'П'}</button>)}
+              onClick={() => props.onHandZone?.(hand, zone.key)}>
+              {handSelected(hand, zone.key)
+                ? <img src={zoneFist} alt="" className="zone-mark" draggable={false} />
+                : <span className="zone-hand">{hand === 'LEFT_HAND' ? 'Л' : 'П'}</span>}
+            </button>)}
           </div>
         </div>
       })}
