@@ -372,11 +372,14 @@
 }
 
 .battle-hand-zone { display:grid; grid-template-rows:auto 1fr; padding:2px 3px; cursor:default; }
-/* «Правая рука» в одну строку не влезает в коробку зоны и обрывалась
-   многоточием — пусть переносится. */
-.battle-hand-zone > span { overflow:hidden; line-height:1.05; }
+/* Подписи ячеек сокращены до «Л.рука»/«П.рука» (caption в BATTLE_ZONES),
+   поэтому влезают в одну строку. Перенос запрещён: вторая строка сдвигала
+   ячейки руки вниз относительно соседней зоны. */
+.battle-hand-zone > span { overflow:hidden; white-space:nowrap; line-height:1.05; }
 .battle-hand-zone > div { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:2px; }
-.battle-hand-zone button { min-width:24px; min-height:28px; padding:0; border:1px solid oklch(55% .04 55); background:oklch(94% .02 75); color:oklch(30% .03 55); font:700 8px/1 var(--font-mono); cursor:pointer; }
+/* Пустая ячейка на макете — скруглённый прямоугольник с пунктирной рамкой.
+   Пунктир читается как «сюда можно поставить», сплошная рамка — как занято. */
+.battle-hand-zone button { min-width:24px; min-height:28px; padding:0; border:1px dashed oklch(55% .04 55); border-radius:3px; background:oklch(94% .02 75 / .82); color:oklch(30% .03 55); font:700 8px/1 var(--font-mono); cursor:pointer; }
 /* Выбранная ячейка светлая, а не залитая: на ней лежит чёрная иконка
    с макета — броник или кулак, и на тёмном фоне она пропадала бы.
    Состояние читается по толстой сплошной рамке и тёплой заливке. */
@@ -385,7 +388,6 @@
 .battle-fighter-panel.is-self .battle-hand-zone button.is-selected {
   border-color: oklch(38% .10 135); background: oklch(89% .065 135);
 }
-.battle-hand-zone button { background: oklch(94% .02 75 / .82); }
 .battle-hand-zone button:disabled { opacity:.35; cursor:not-allowed; }
 @media (max-width:900px) { .battle-hand-zone { font-size:0; } .battle-hand-zone > div { height:100%; margin:0; align-items:center; } .battle-hand-zone button { min-height:30px; font-size:8px; } }
 
@@ -600,4 +602,65 @@
 @media (max-width: 900px), (max-height: 620px) {
   .zone-mark { max-height: 20px; }
   .zone-hand { font-size: 9px; }
+}
+
+/* Низкая панель (маленький телефон, 320×568 и подобные).
+   Замер до правки: карточка с портретом и оружием забирала всю высоту,
+   манекену оставалось 31 px вместо ~150, и зоны с процентными top
+   сходились в кучу — корпус, руки и ноги накладывались друг на друга,
+   а низ панели уходил под панель хода. Кликнуть было нельзя никуда.
+
+   Приоритет здесь у манекена: зоны — единственное, чем игрок управляет,
+   а портрет и оружие — оформление. Поэтому оружие прячем, портрет
+   ужимаем, манекену гарантируем высоту.
+
+   Панель объявлена size-контейнером выше, так что условие по её
+   собственной высоте, а не по окну: панель бывает низкой и на широком
+   экране с малой высотой. */
+@container (max-height: 285px) {
+  .battle-profile-weapons { display: none; }
+  .battle-profile-portrait { height: min(42px, 20cqh); }
+  /* Зоны расставлены долями высоты манекена (top 1/26/68 %), поэтому у
+     него есть порог, ниже которого коробки начинают наезжать друг на
+     друга: между головой и корпусом всего 25 % высоты, а коробка — 39px.
+     140px — минимум, при котором расходятся все три ряда. */
+  .battle-fighter-panel__figure { min-height: 140px; }
+  /* Пара пикселей на ячейку: на 320px они и так по 21px в ширину. */
+  .battle-fighter-zone { padding: 1px; }
+}
+
+/* Низкое окно (телефон в альбоме): ряд карточки ужимаем.
+   В компактной раскладке он жёстко 74px, и вместе с манекеном панель
+   не помещалась — ноги уходили под панель хода.
+   Задать это из @container нельзя: панель сама объявлена контейнером,
+   а элемент не запрашивает собственный размер — правило молча выпадало. */
+@media (max-height: 480px) {
+  .battle-fighter-panel { grid-template-rows: auto 46px 14px minmax(0, 1fr) auto; }
+}
+
+/* Маленький телефон: поле отдаёт часть высоты панелям.
+   При жёстких 210px под поле панели получали 208px, манекену не хватало
+   на три ряда зон, и ноги уходили под панель хода. Поле и на 150px
+   остаётся читаемым — оно во всю ширину экрана. */
+@media (max-width: 380px) and (max-height: 700px) {
+  .battle-duel-stage { grid-template-rows: minmax(150px, 32%) minmax(0, 1fr); }
+}
+
+/* Ширины коробок зон — долями, а не пикселями.
+   Три коробки по 60+66+60 px не влезали в манекен шириной 151 px и
+   налезали друг на друга. Доли 32 % + 34 % + 32 % оставляют зазор при
+   любой ширине панели; потолок в пикселях держит размер на планшете. */
+@media (max-width: 900px), (max-height: 620px) {
+  /* Центр держим через auto-поля: при упоре в потолок 66px доля left
+     перестала бы быть серединой и коробка съехала бы вбок. */
+  .battle-fighter-zone.is-head,
+  .battle-fighter-zone.is-chest,
+  .battle-fighter-zone.is-legs { width: min(34%, 66px); left: 0; right: 0; margin-inline: auto; }
+  .battle-fighter-zone.is-left-arm { width: min(32%, 60px); left: 0; right: auto; }
+  .battle-fighter-zone.is-right-arm { width: min(32%, 60px); right: 0; left: auto; }
+  /* Без этого две ячейки по min-width:24px не влезают в коробку зоны
+     шириной 47px и вылезают на соседнюю — визуально зоны не пересекались,
+     а кнопки пересекались, и попадал не тот удар. Ширину теперь задаёт
+     коробка, а не минимум кнопки. */
+  .battle-hand-zone button { min-width: 0; }
 }

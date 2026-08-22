@@ -1,11 +1,14 @@
 import type { AttackHand, BodyZone, GridPosition, Stance } from '../../shared/api/battles.api'
 
-export const BATTLE_ZONES: readonly { key: BodyZone; label: string; short: string }[] = [
-  { key: 'HEAD', label: 'Голова', short: 'голова' },
-  { key: 'CHEST', label: 'Корпус', short: 'корпус' },
-  { key: 'LEFT_ARM', label: 'Левая рука', short: 'левая рука' },
-  { key: 'RIGHT_ARM', label: 'Правая рука', short: 'правая рука' },
-  { key: 'LEGS', label: 'Ноги', short: 'ноги' },
+// caption — подпись на ячейке зоны. Отдельно от label: «Правая рука» не влезает
+// в колонку и переносится на вторую строку, сдвигая ячейки руки вниз.
+// Сокращения взяты из макета от 22.08.
+export const BATTLE_ZONES: readonly { key: BodyZone; label: string; short: string; caption: string }[] = [
+  { key: 'HEAD', label: 'Голова', short: 'голова', caption: 'Голова' },
+  { key: 'CHEST', label: 'Корпус', short: 'корпус', caption: 'Корпус' },
+  { key: 'LEFT_ARM', label: 'Левая рука', short: 'левая рука', caption: 'Л.рука' },
+  { key: 'RIGHT_ARM', label: 'Правая рука', short: 'правая рука', caption: 'П.рука' },
+  { key: 'LEGS', label: 'Ноги', short: 'ноги', caption: 'Ноги' },
 ]
 
 export const BATTLE_STANCES: readonly {

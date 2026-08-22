@@ -98,7 +98,7 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
           // держит удачный удар, который одиночный пропускает.
           const placed = props.selected.filter(value => value === zone.key).length
           return <div key={zone.key} className={`battle-fighter-zone battle-hand-zone is-${ZONE_CLASS[zone.key]}`}>
-            <span>{zone.label}</span><div>
+            <span>{zone.caption}</span><div>
               {[0, 1].map(slot => {
                 const taken = placed > slot
                 return <button key={slot} type="button"
@@ -116,7 +116,7 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
           </div>
         }
         return <div key={zone.key} className={`battle-fighter-zone battle-hand-zone is-${ZONE_CLASS[zone.key]}`}>
-          <span>{zone.label}</span><div>
+          <span>{zone.caption}</span><div>
             {(['LEFT_HAND', 'RIGHT_HAND'] as const).map(hand => <button key={hand} type="button"
               className={handSelected(hand, zone.key) ? 'is-selected' : ''}
               aria-label={`Удар ${hand === 'LEFT_HAND' ? 'левой' : 'правой'} рукой, цель: ${zone.label.toLocaleLowerCase('ru')}`}
