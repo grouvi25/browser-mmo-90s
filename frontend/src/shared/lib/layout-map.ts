@@ -67,7 +67,7 @@ export const MENU = {
     ],
     agriculture: [
       { key: 'farms', label: 'Ферма', to: '/farm' },
-      { key: 'kolhoz', label: 'Колхозы', to: '/work' },
+      { key: 'kolhoz', label: 'Колхозы', to: '/work?from=agriculture' },
     ],
     garages: [
       { key: 'repair', label: 'Мастерская', to: '/repair' },
