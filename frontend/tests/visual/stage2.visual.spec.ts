@@ -251,7 +251,9 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(cards.first()).toBeVisible()
     await page.getByLabel('Для уровня:').selectOption('2')
     await expect(cards).not.toHaveCount(0)
-    expect(await cards.locator('img').count()).toBe(await cards.count())
+    // Считаем только картинку товара: рамки кнопок — тоже <img>, но они
+    // декоративные и к наличию изображения предмета отношения не имеют.
+    expect(await cards.locator('img:not(.gshop-frame)').count()).toBe(await cards.count())
     await visualProof(page, testInfo, 'government-weapons-level-2')
   })
 

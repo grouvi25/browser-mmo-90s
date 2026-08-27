@@ -13,6 +13,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { QUALITY_LABELS, type ShopItem } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { SHOP_IMAGES } from '../../shared/assets/shop/shop-images'
+import { SPRITES } from '../../shared/ui/sprite'
 import './shop.css'
 
 type Category = 'WEAPON' | 'ARMOR' | 'MEDICINE' | 'TOOL' | 'FOOD' | 'DRINK'
@@ -165,7 +166,8 @@ export function GovernmentShopPage() {
             aria-current={category === tab.key}
             onClick={() => setCategory(tab.key)}
           >
-            {tab.label}
+            <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
+            <span>{tab.label}</span>
           </button>
         ))}
       </nav>
@@ -233,15 +235,17 @@ export function GovernmentShopPage() {
                 </div>
                 <div className="gshop-card-actions">
                   <button
-                    className="btn btn-success"
+                    className="gshop-btn"
                     disabled={buyMut.isPending || tooPoor || tooLow}
                     title={tooLow ? `Нужен ${t.levelReq}-й уровень` : tooPoor ? 'Не хватает денег' : undefined}
                     onClick={() => buyMut.mutate(t.id)}
                   >
-                    Купить
+                    <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                    <span>Купить</span>
                   </button>
-                  <button className="btn" disabled={tooLow} onClick={() => setCart(prev => [...prev, t.id])}>
-                    В корзину
+                  <button className="gshop-btn" disabled={tooLow} onClick={() => setCart(prev => [...prev, t.id])}>
+                    <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                    <span>В корзину</span>
                   </button>
                 </div>
               </article>
