@@ -26,6 +26,9 @@ export const MENU = {
     { key: 'updates', label: 'обновления', x: 492, y: 5.5, w: 115, to: '/updates', action: false },
     { key: 'forum', label: 'форум', x: 654, y: 4, w: 65.5, to: '/forum', action: false },
     { key: 'profile', label: 'профиль', x: 789.5, y: 4, w: 86, to: '/profile', action: false },
+    // Радио стоит между профилем и выходом — координаты сняты с макета
+    // «Фон основного меню Магазин» и пересчитаны в систему сцены.
+    { key: 'radio', label: 'радио', x: 1035, y: 4, w: 62, to: '/radio', action: false },
   ],
   navExit: { label: 'выход', x: 1471.5, y: 5.5, w: 60 },
   navFontSize: 21.9,

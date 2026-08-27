@@ -176,6 +176,11 @@ export function AppRouter() {
           </ViewportPanel>} />
         <Route path="/station" element={<LockedSection title="Вокзал" stage={2}
           what="Логистика и перевозки между районами." />} />
+        {/* Радио есть в макете верхнего меню, но что за ним стоит —
+            заказчиком не описано. Держим место, как и другие разделы,
+            у которых интерфейс есть, а наполнение впереди. */}
+        <Route path="/radio" element={<LockedSection title="Радио" stage={4}
+          what="Городская радиостанция: музыка и объявления." />} />
         <Route path="/news"    element={<LockedSection title="Новости" stage={2}
           what="Лента новостей проекта." />} />
         <Route path="/updates" element={<LockedSection title="Обновления" stage={2}
