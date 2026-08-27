@@ -1,6 +1,7 @@
 import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { DESIGNER_BATTLE_COLUMNS, DESIGNER_BATTLE_ROWS } from '../../src/shared/lib/designer-battle-grid'
+import { MENU } from '../../src/shared/lib/layout-map'
 
 type Account = { token: string; userId: string; login: string; nickname: string; characterId: string }
 let seller: Account
@@ -132,9 +133,11 @@ test.describe('Stage 2 visual and browser flow', () => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Illustrated stage navigation is desktop-only')
     await authPage(page, seller)
     await page.goto('/industrial')
+    // Число районов и комнат берём из карты города, а не числом: районы
+    // нарисованы на подложке и не меняются, а комнаты растут с этапами.
     await expect(page.locator('.stage-nav')).toHaveCount(2)
-    await expect(page.locator('.stage-nav').nth(0).locator('.stage-nav__button')).toHaveCount(7)
-    await expect(page.locator('.stage-nav').nth(1).locator('.stage-nav__button')).toHaveCount(4)
+    await expect(page.locator('.stage-nav').nth(0).locator('.stage-nav__button')).toHaveCount(MENU.districts.length)
+    await expect(page.locator('.stage-nav').nth(1).locator('.stage-nav__button')).toHaveCount(MENU.rooms.industrial.length)
 
     const offsets = await page.locator('.stage-nav__button').evaluateAll(buttons => buttons.map(button => {
       const frame = button.querySelector<HTMLElement>('.stage-nav__frame')!.getBoundingClientRect()
@@ -174,12 +177,22 @@ test.describe('Stage 2 visual and browser flow', () => {
     }
   })
 
-  test('E2 work page shows shift controls and seven workplaces', async ({ page }, testInfo) => {
+  test('E2 work page lists every workplace the API returns', async ({ page }, testInfo) => {
+    // Число вакансий числом здесь фиксировать нельзя: сид растёт с каждым
+    // этапом, и тест падал бы на добавлении контента, а не на дефекте.
+    // Сверяем таблицу с тем, что отдаёт API тому же персонажу.
+    const objects = await apiContext.get('/api/work/objects', {
+      headers: { Authorization: `Bearer ${seller.token}` },
+    })
+    expect(objects.status()).toBe(200)
+    const expected = (await objects.json() as { items: unknown[] }).items.length
+    expect(expected).toBeGreaterThan(0)
+
     await authPage(page, seller)
     await page.goto('/work')
     await expect(page.getByText('Рабочая смена')).toBeVisible()
     await expect(page.getByText('Вакансии', { exact: true })).toBeVisible()
-    await expect(page.locator('#vacancies tbody tr')).toHaveCount(7)
+    await expect(page.locator('#vacancies tbody tr')).toHaveCount(expected)
     await visualProof(page, testInfo, 'e2-work')
   })
 
@@ -240,16 +253,23 @@ test.describe('Stage 2 visual and browser flow', () => {
   })
 
   test('location navigation exposes districts first and contextual rooms second', async ({ page }) => {
+    // Подписи комнат берём из карты города: они меняются с каждым этапом,
+    // а прибитый в тесте текст ломается на переименовании, а не на дефекте.
     await authPage(page, seller)
+
     await page.goto('/industrial')
     await expect(page.getByRole('button', { name: 'Промзона', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Работа', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Делают шмот', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Склад', exact: true })).toBeVisible()
+    for (const room of MENU.rooms.industrial) {
+      await expect(page.getByRole('button', { name: room.label, exact: true })).toBeVisible()
+    }
+
     await page.goto('/agriculture')
     await expect(page.getByRole('button', { name: 'Фермы и колхозы', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Растения', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Дело', exact: true })).toHaveCount(0)
+    for (const room of MENU.rooms.agriculture) {
+      await expect(page.getByRole('button', { name: room.label, exact: true })).toBeVisible()
+    }
+    // комнаты чужого района в полосе не появляются
+    await expect(page.getByRole('button', { name: 'Работа', exact: true })).toHaveCount(0)
   })
 
   test('visual navigation has one visible control per destination', async ({ page }, testInfo) => {

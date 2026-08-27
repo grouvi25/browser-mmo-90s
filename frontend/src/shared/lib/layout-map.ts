@@ -39,11 +39,9 @@ export const MENU = {
     { key: 'market', label: 'Рынок', to: '/market' },
     { key: 'industrial', label: 'Промзона', to: '/industrial' },
     { key: 'agriculture', label: 'Фермы и колхозы', to: '/agriculture' },
-    { key: 'bars', label: 'Бары', to: '/bars' },
     { key: 'station', label: 'Вокзал', to: '/station' },
     { key: 'garages', label: 'Гаражи', to: '/garages' },
     { key: 'suburb', label: 'Спальный район', to: '/pvp' },
-    { key: 'clan', label: 'Бригада', to: '/clans' },
   ],
 
   /** Нижняя полоса показывает комнаты выбранного района, без повторов из самой сцены. */
@@ -55,39 +53,27 @@ export const MENU = {
       { key: 'skills', label: 'Оружейные навыки', to: '/skills' },
       { key: 'stats', label: 'Характеристики', to: '/stats' },
       { key: 'history', label: 'История боёв', to: '/battles/history' },
+      { key: 'clan', label: 'Бригада', to: '/clans' },
     ],
     market: [
       { key: 'shop', label: 'Госмагазин', to: '/shop' },
       { key: 'private', label: 'Частные лавки', to: '/shops/private' },
+      { key: 'bars', label: 'Бары', to: '/bars' },
     ],
     industrial: [
       { key: 'work', label: 'Работа', to: '/work' },
       { key: 'objects', label: 'Мои объекты', to: '/objects' },
       { key: 'recipes', label: 'Рецепты', to: '/recipes' },
       { key: 'resources', label: 'Запчасти', to: '/resources' },
-      { key: 'storage', label: 'Склад', to: '/soon/storage' },
     ],
     agriculture: [
-      { key: 'farms', label: 'Фермы', to: '/farm' },
-      { key: 'kolhoz', label: 'Колхозы', to: '/objects' },
+      { key: 'farms', label: 'Ферма', to: '/farm' },
+      { key: 'kolhoz', label: 'Колхозы', to: '/work?from=agriculture' },
       { key: 'plants', label: 'Растения', to: '/plants' },
-      { key: 'products', label: 'Продукты', to: '/bars' },
-      { key: 'storage', label: 'Склад урожая', to: '/resources' },
     ],
     garages: [
       { key: 'repair', label: 'Мастерская', to: '/repair' },
       { key: 'upgrades', label: 'Улучшения', to: '/upgrades' },
-    ],
-    // Этап 3: бар и бригада — свои районы со своими комнатами.
-    bars: [
-      { key: 'bars', label: 'Заведения', to: '/bars' },
-      { key: 'mybar', label: 'Мой бар', to: '/bars/mine' },
-    ],
-    clan: [
-      { key: 'clan', label: 'Бригада', to: '/clans' },
-      { key: 'clan-storage', label: 'Склад', to: '/clans/storage' },
-      { key: 'clan-treasury', label: 'Общак', to: '/clans/treasury' },
-      { key: 'clan-relations', label: 'Отношения', to: '/clans/relations' },
     ],
   } as Record<string, readonly { key:string;label:string;to:string }[]>,
   bottomFontSize: 15.1,

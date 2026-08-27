@@ -147,18 +147,20 @@ export function TopNav() {
   )
 }
 
+/** Какой район подсветить для текущего адреса. Порядок важен: более
+ *  длинные пути проверяются раньше коротких, иначе /shops/private
+ *  поймается на /shop. */
+// path — это pathname вместе с query. Query нужна ровно для одного случая:
+// страница работы общая для промзоны и села, и по одному пути не понять,
+// из какого района игрок в неё вошёл. Без пометки клик по «Колхозам»
+// перекидывал подсветку в промзону и подменял нижний ряд комнат.
 export function districtKey(path: string) {
-  if (path === '/' || ['/inventory', '/skills', '/stats', '/battles/history'].some(x => path.startsWith(x))) return 'center'
-  // Бары и бригада проверяются раньше промзоны и ферм: их пути начинаются
-  // со своих префиксов и не должны попадать в чужой район.
-  if (path.startsWith('/bars')) return 'bars'
-  if (path.startsWith('/clans')) return 'clan'
-  if (['/industrial', '/work', '/objects', '/recipes', '/resources'].some(x => path.startsWith(x))
-    || path.includes('equipment-production') || path.includes('/soon/storage')) return 'industrial'
-  if (path.startsWith('/agriculture') || path.startsWith('/farm') || path.startsWith('/plants')
-    || ['farms', 'kolhoz', 'crop-storage'].some(x => path.includes(x))) return 'agriculture'
+  if (path.startsWith('/work?from=agriculture')) return 'agriculture'
+  if (path === '/' || ['/inventory', '/skills', '/stats', '/battles/history', '/clans'].some(x => path.startsWith(x))) return 'center'
+  if (['/industrial', '/work', '/resources', '/objects', '/recipes'].some(x => path.startsWith(x))) return 'industrial'
+  if (['/agriculture', '/farm', '/plants'].some(x => path.startsWith(x))) return 'agriculture'
   if (['/garages', '/upgrades', '/repair'].some(x => path.startsWith(x))) return 'garages'
-  if (['/market', '/shop', '/shops/private'].some(x => path.startsWith(x))) return 'market'
+  if (['/market', '/shops/private', '/shop', '/bars'].some(x => path.startsWith(x))) return 'market'
   if (path.startsWith('/pvp')) return 'suburb'
   if (path.startsWith('/station')) return 'station'
   return ''
@@ -168,7 +170,7 @@ export function DistrictTabs() {
   const navigate = useNavigate()
   const location = useLocation()
   const exact = MENU.districts.find(tab => tab.to === location.pathname)?.key
-  const activeKey = districtKey(location.pathname) || exact || ''
+  const activeKey = districtKey(location.pathname + location.search) || exact || ''
 
   return (
     <FramedTabs
@@ -185,10 +187,13 @@ export function DistrictTabs() {
 export function BottomTabs() {
   const navigate = useNavigate()
   const location = useLocation()
-  const key = districtKey(location.pathname)
+  const key = districtKey(location.pathname + location.search)
   const tabs = MENU.rooms[key]
   if (!tabs?.length) return null
-  const activeKey = tabs.find(tab => tab.to === location.pathname)?.key ?? ''
+  // Сначала точное совпадение с query — иначе «Колхозы» не подсветятся
+  // никогда, их адрес отличается от пути только пометкой района.
+  const activeKey = tabs.find(tab => tab.to === location.pathname + location.search)?.key
+    ?? tabs.find(tab => tab.to === location.pathname)?.key ?? ''
 
   return (
     <FramedTabs

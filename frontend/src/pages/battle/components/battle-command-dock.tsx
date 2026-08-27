@@ -57,7 +57,7 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
       <div className="battle-command-dock__actions">
         <button type="button" className="battle-submit-turn" disabled={!props.canAct || !ready || props.pending}
           onClick={props.selectedMove ? props.onSubmitMove : props.onSubmitTurn}>
-          {props.pending ? 'Отправляем…' : props.selectedMove ? 'Перейти' : 'Подтвердить ход'}
+          {props.pending ? 'Отправляем…' : props.selectedMove ? 'Перейти' : 'Применить'}
         </button>
         <div className="battle-command-tools">
           <button type="button" onClick={props.onTogglePockets}>Карман <small>{props.pocketCount}</small></button>

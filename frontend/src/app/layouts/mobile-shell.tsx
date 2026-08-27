@@ -102,8 +102,8 @@ export function MobileShell() {
         <ErrorBoundary><Outlet /></ErrorBoundary>
       </main>
 
-      {MENU.rooms[districtKey(location.pathname)]
-        ? strip(MENU.rooms[districtKey(location.pathname)], 'economy')
+      {MENU.rooms[districtKey(location.pathname + location.search)]
+        ? strip(MENU.rooms[districtKey(location.pathname + location.search)], 'economy')
         : null}
 
       <nav className="m-tabbar">
