@@ -26,7 +26,12 @@ function FittedNavLabel({ children }: { children: ReactNode }) {
     if (!shell || !text) return
 
     const measure = () => {
-      const available = Math.max(0, shell.clientWidth - 14)
+      // Доступна ширина контента, то есть без собственных полей подписи.
+      // Раньше здесь стояло фиксированное «минус 14» под абсолютную
+      // раскладку; с полями в потоке оно поджимало текст на ровном месте.
+      const style = getComputedStyle(shell)
+      const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+      const available = Math.max(0, shell.clientWidth - padding)
       const natural = text.scrollWidth
       setScale(natural > 0 ? Math.min(1, available / natural) : 1)
     }
@@ -70,7 +75,6 @@ function FramedTabs({
         top: box.y,
         width: box.w,
         height: box.h,
-        gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`,
         gap,
       }}
     >

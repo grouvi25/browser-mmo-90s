@@ -224,10 +224,17 @@ html, body {
 
 .stage-nav {
   position: absolute;
-  display: grid;
+  display: flex;
+  align-items: stretch;
 }
+/* Вкладка шириной по своей подписи — как нарисовано в макете: «рваные
+   бумажки» разного размера, а не равные ячейки на всю полосу. Растяжка
+   до равной ширины заставляла длинные названия сжиматься по горизонтали
+   до нечитаемых полосок. Сжиматься вкладке разрешено (flex-shrink), но
+   только если весь ряд не влезает в полосу. */
 .stage-nav__button {
   position: relative;
+  flex: 0 1 auto;
   min-width: 0;
   height: 100%;
   appearance: none;
@@ -245,12 +252,16 @@ html, body {
   display: block;
   pointer-events: none;
 }
+/* Подпись лежит в потоке и задаёт ширину кнопки; рамка ушла под неё
+   абсолютом. Пока подпись была absolute, кнопка не имела собственной
+   ширины, и полосу приходилось делить поровну. */
 .stage-nav__label {
-  position: absolute;
-  inset: 0;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 100%;
+  padding: 0 6px;
   min-width: 0;
   overflow: hidden;
   line-height: 1;
