@@ -138,17 +138,28 @@ async function main() {
     console.log(`  ✓ Template: ${tpl.name}`)
   }
 
-  // Create government shop entries
-  const allTemplates = await prisma.itemTemplate.findMany()
-  for (const tpl of allTemplates) {
-    if (tpl.priceBase > 0) {
-      await prisma.governmentShopItem.upsert({
-        where: { templateId: tpl.id },
-        update: { isAvailable: true },
-        create: { templateId: tpl.id, isAvailable: true },
-      })
-    }
+  // Витрина государства: только его собственный товар. Раньше сюда
+  // сгребались все шаблоны подряд — и снаряжение частных лавок (ТТ,
+  // обрез, бронежилет), которое государство продавать не должно, и
+  // любые шаблоны, оставшиеся в базе от тестов.
+  const ownTemplates = await prisma.itemTemplate.findMany({
+    where: { sourceType: 'GOVERNMENT', priceBase: { gt: 0 } },
+    orderBy: [{ priceBase: 'asc' }, { code: 'asc' }],
+  })
+  // sortOrder задаём явно: в сервисе список сортируется по нему, а без
+  // значения все строки равны нулю и порядок витрины плавает от прогона
+  // к прогону.
+  for (const [index, tpl] of ownTemplates.entries()) {
+    await prisma.governmentShopItem.upsert({
+      where: { templateId: tpl.id },
+      update: { isAvailable: true, sortOrder: index },
+      create: { templateId: tpl.id, isAvailable: true, sortOrder: index },
+    })
   }
+  // Чужой товар из витрины убираем — на случай, если он туда уже попал.
+  await prisma.governmentShopItem.deleteMany({
+    where: { templateId: { notIn: ownTemplates.map(t => t.id) } },
+  })
   console.log('  ✓ Government shop entries created')
 
   // --- Bots ---

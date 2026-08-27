@@ -242,13 +242,16 @@ test.describe('Stage 2 visual and browser flow', () => {
   })
 
   test('government weapon shop supports exact level selection and item images', async ({ page }, testInfo) => {
+    // Витрина переехала с таблицы на плитки по макету «Фон основного меню
+    // Магазин»: уровень выбирается селектором, а не рядом кнопок.
     await authPage(page, seller)
     await page.goto('/shop')
     await page.getByRole('button', { name: 'Оружие', exact: true }).click()
-    await page.getByRole('button', { name: 'Ур. 2', exact: true }).click()
-    const rows = page.locator('tbody tr')
-    await expect(rows).not.toHaveCount(0)
-    expect(await rows.locator('img').count()).toBe(await rows.count())
+    const cards = page.locator('.gshop-card')
+    await expect(cards.first()).toBeVisible()
+    await page.getByLabel('Для уровня:').selectOption('2')
+    await expect(cards).not.toHaveCount(0)
+    expect(await cards.locator('img').count()).toBe(await cards.count())
     await visualProof(page, testInfo, 'government-weapons-level-2')
   })
 

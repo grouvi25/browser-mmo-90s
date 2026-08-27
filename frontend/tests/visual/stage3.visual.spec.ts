@@ -84,24 +84,30 @@ for (const section of SECTIONS) {
   })
 }
 
-test('город показывает районы «Бары» и «Бригада»', async ({ page }, testInfo) => {
+test('город ведёт в разделы Этапа 3 из своих районов', async ({ page }, testInfo) => {
   await authPage(page, owner)
   await page.goto('/')
-  // Полоса районов живёт только в десктопной оболочке города.
-  const strip = page.locator('[data-stage-nav="bars"], [data-stage-nav="clan"]')
-  const count = await strip.count()
-  if (count === 0) test.skip(true, 'мобильная оболочка рисует навигацию иначе')
-  await expect(page.locator('[data-stage-nav="bars"]')).toBeVisible()
+  const strip = page.locator('[data-stage-nav]')
+  if (await strip.count() === 0) test.skip(true, 'мобильная оболочка рисует навигацию иначе')
+  // Бары и бригада — комнаты, а не районы: так их развесил основной макет.
   await expect(page.locator('[data-stage-nav="clan"]')).toBeVisible()
   await visualProof(page, testInfo, 'stage3-city-districts')
 })
 
-test('переход в бар подсвечивает свой район, а не чужой', async ({ page }) => {
+test('разделы Этапа 3 подсвечивают свой район', async ({ page }) => {
   await authPage(page, owner)
-  await page.goto('/bars')
-  const bars = page.locator('[data-stage-nav="bars"]')
-  if (await bars.count() === 0) test.skip(true, 'мобильная оболочка рисует навигацию иначе')
-  await expect(bars).toHaveClass(/is-active/)
+  const cases: Array<[string, string]> = [
+    ['/bars', 'market'],
+    ['/clans', 'center'],
+    ['/objects', 'industrial'],
+    ['/farm', 'agriculture'],
+  ]
+  for (const [path, district] of cases) {
+    await page.goto(path)
+    const tab = page.locator(`[data-stage-nav="${district}"]`)
+    if (await tab.count() === 0) test.skip(true, 'мобильная оболочка рисует навигацию иначе')
+    await expect(tab).toHaveClass(/is-active/)
+  }
 })
 
 test('ферма и бригада проходят axe без нарушений', async ({ page }) => {
