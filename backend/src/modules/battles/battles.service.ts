@@ -51,6 +51,21 @@ import type { ItemWithTemplate } from '../items/item-instance.repository'
 import { applyBattleProgression } from '../experience/progression'
 import { EconomyService } from '../economy/economy.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
+import {
+  applyTeamMoves,
+  finishTeamBattle,
+  initiativeOf,
+  orderByInitiative,
+  pickTeamTarget,
+  teamMoveRecords,
+  teamOutcome,
+  teamPositioned,
+  turnOfParticipant,
+  TEAM_MAX_PER_SIDE,
+  type LiveTeamState,
+  type TeamFighterContext,
+} from './team-battle'
+
 
 // ── Таймер хода: 7 секунд, потом авто-блок ─────────────────────
 const TURN_TIMEOUT_MS = 60_000
@@ -178,6 +193,49 @@ function applySimultaneousDuelMoves(
   }
   return [Boolean(firstTarget), Boolean(secondTarget)]
 }
+
+/** Служебное действие раунда: смена оружия или расходник.
+ *  Общее для дуэли и командного боя. */
+async function applyPendingUtility(part: LiveParticipant, char: CharacterWithStats): Promise<boolean> {
+    const pending = part.pendingAction ?? ''
+    if (pending.startsWith('change_weapon:')) {
+      const changeParts = pending.split(':')
+      const hand: AttackHand = changeParts.length >= 3 && (changeParts[1] === 'LEFT_HAND' || changeParts[1] === 'RIGHT_HAND')
+        ? changeParts[1]
+        : 'LEFT_HAND'
+      const itemId = changeParts.length >= 3 ? changeParts.slice(2).join(':') : changeParts[1]
+      const item = await ItemsRepository.findInstanceById(itemId)
+      if (item && item.ownerId === char.id && item.template.type === 'WEAPON' && item.status !== 'BROKEN') {
+        const occupied = await ItemsRepository.findEquippedBySlot(char.id, hand)
+        if (occupied && occupied.id !== itemId) await ItemsRepository.unequip(occupied.id)
+        await ItemsRepository.equip(itemId, hand)
+        if (hand === 'LEFT_HAND') {
+          if (part.rightWeaponInstanceId === itemId) part.rightWeaponInstanceId = undefined
+          part.leftWeaponInstanceId = itemId
+          part.weaponInstanceId = itemId
+        } else {
+          if (part.leftWeaponInstanceId === itemId || part.weaponInstanceId === itemId) {
+            part.leftWeaponInstanceId = undefined
+            part.weaponInstanceId = undefined
+          }
+          part.rightWeaponInstanceId = itemId
+        }
+      }
+      return true
+    }
+    if (pending.startsWith('use_item:')) {
+      const itemId = pending.slice('use_item:'.length)
+      if (!part.pocketItemIds?.includes(itemId)) return true
+      const item = await ItemsRepository.findInstanceById(itemId)
+      if (item && item.ownerId === char.id && item.template.type === 'CONSUMABLE' && !['CONSUMED', 'DELETED'].includes(item.status)) {
+        part.hpCurrent = Math.min(part.hpMax, part.hpCurrent + (item.template.hpBonus ?? 0))
+        part.pocketItemIds = part.pocketItemIds.filter(id => id !== itemId)
+        await ItemsRepository.delete(itemId)
+      }
+      return true
+    }
+    return false
+    }
 
 function syncGridDistance(state: LiveBattleState): number {
   ensureGridState(state)
@@ -587,6 +645,182 @@ export const BattleService = {
 
       return { battleId: battle.id, status: 'WAITING_PLAYERS', levelMin: lMin, levelMax: lMax }
     })
+  },
+
+  // -------------------------------------------------------
+  // Командный бой: сбор состава и старт
+  // -------------------------------------------------------
+
+  /** Открыть командный бой. Создатель встаёт в первую сторону. */
+  async createTeamBattle(userId: string, perSide: number) {
+    const char = await CharactersRepository.findByUserId(userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    assertIntoxicationAllowsBattle(char)
+    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
+    if (!Number.isInteger(perSide) || perSide < 1 || perSide > TEAM_MAX_PER_SIDE) {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, `Team size must be 1..${TEAM_MAX_PER_SIDE}`, 422)
+    }
+
+    return withTransaction(async tx => {
+      const claimed = await tx.character.updateMany({
+        where: { id: char.id, status: 'ACTIVE' },
+        data: { status: 'IN_BATTLE' },
+      })
+      if (claimed.count !== 1) {
+        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Character is not available for battle', 409)
+      }
+      const battle = await tx.battle.create({
+        data: {
+          type: 'CLAN',
+          status: 'WAITING_PLAYERS',
+          levelMin: Math.max(1, char.battleLevel - 5),
+          levelMax: Math.min(99, char.battleLevel + 5),
+          // Размер стороны держим в поле раундов до старта: отдельной
+          // колонки под состав в схеме нет, а плодить миграцию ради
+          // одного числа дороже, чем переиспользовать существующее.
+          roundCount: perSide,
+        },
+      })
+      await tx.battleParticipant.create({
+        data: { battleId: battle.id, characterId: char.id, side: 1, hpMax: char.hpMax, hpCurrent: char.hpCurrent },
+      })
+      return { battleId: battle.id, status: 'WAITING_PLAYERS', perSide, side: 1 }
+    })
+  },
+
+  /** Встать в одну из сторон открытого боя. */
+  async joinTeamBattle(userId: string, battleId: string, side: number) {
+    const char = await CharactersRepository.findByUserId(userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    assertIntoxicationAllowsBattle(char)
+    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
+    if (side !== 1 && side !== 2) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Side must be 1 or 2', 422)
+
+    const battle = await prisma.battle.findUnique({ where: { id: battleId }, include: { participants: true } })
+    if (!battle) throw AppError.notFound('Battle', battleId)
+    if (battle.type !== 'CLAN') throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Not a team battle', 400)
+    if (battle.status !== 'WAITING_PLAYERS') throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Battle already started', 400)
+    if (battle.participants.some(p => p.characterId === char.id)) {
+      throw new AppError(ErrorCode.CONFLICT, 'You are already in this battle', 400)
+    }
+    if (char.battleLevel < battle.levelMin || char.battleLevel > battle.levelMax) {
+      throw new AppError(ErrorCode.CONFLICT, `Требуется уровень ${battle.levelMin}–${battle.levelMax}`, 400)
+    }
+    const perSide = battle.roundCount || 1
+    if (battle.participants.filter(p => p.side === side).length >= perSide) {
+      throw new AppError(ErrorCode.CONFLICT, 'Эта сторона уже набрана', 409)
+    }
+
+    return withTransaction(async tx => {
+      const claimed = await tx.character.updateMany({
+        where: { id: char.id, status: 'ACTIVE' },
+        data: { status: 'IN_BATTLE' },
+      })
+      if (claimed.count !== 1) {
+        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Character is not available for battle', 409)
+      }
+      await tx.battleParticipant.create({
+        data: { battleId, characterId: char.id, side, hpMax: char.hpMax, hpCurrent: char.hpCurrent },
+      })
+      const total = await tx.battleParticipant.count({ where: { battleId } })
+      return { battleId, side, joined: total, perSide }
+    })
+  },
+
+  /** Запустить бой: обе стороны должны быть непустыми. */
+  async startTeamBattle(userId: string, battleId: string) {
+    const char = await CharactersRepository.findByUserId(userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+
+    const battle = await prisma.battle.findUnique({ where: { id: battleId }, include: { participants: true } })
+    if (!battle) throw AppError.notFound('Battle', battleId)
+    if (battle.type !== 'CLAN') throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Not a team battle', 400)
+    if (battle.status !== 'WAITING_PLAYERS') throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Battle already started', 400)
+    if (!battle.participants.some(p => p.characterId === char.id)) {
+      throw new AppError(ErrorCode.BATTLE_NOT_PARTICIPANT, 'Not a participant', 403)
+    }
+    const sideOne = battle.participants.filter(p => p.side === 1)
+    const sideTwo = battle.participants.filter(p => p.side === 2)
+    if (sideOne.length === 0 || sideTwo.length === 0) {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Обе стороны должны быть заняты', 409)
+    }
+
+    const spawnsOne = teamSpawnPositions(1, sideOne.length)
+    const spawnsTwo = teamSpawnPositions(2, sideTwo.length)
+
+    const participants: LiveParticipant[] = []
+    for (const [side, members, spawns] of [[1, sideOne, spawnsOne], [2, sideTwo, spawnsTwo]] as const) {
+      for (const [index, member] of members.entries()) {
+        const memberChar = await CharactersRepository.findById(member.characterId!)
+        const weapons = memberChar
+          ? await ItemsRepository.findEquippedWeapons(memberChar.id)
+          : { LEFT_HAND: null, RIGHT_HAND: null }
+        participants.push({
+          participantId: member.id,
+          characterId: member.characterId!,
+          hpCurrent: member.hpCurrent,
+          hpMax: member.hpMax,
+          side,
+          isAlive: true,
+          isSurrendered: false,
+          hasActedThisRound: false,
+          weaponInstanceId: weapons.LEFT_HAND?.id,
+          leftWeaponInstanceId: weapons.LEFT_HAND?.id,
+          rightWeaponInstanceId: weapons.RIGHT_HAND?.id,
+          pocketItemIds: memberChar ? await loadBattlePocket(memberChar) : [],
+          damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+          skippedTurns: 0,
+          position: spawns[index],
+        })
+      }
+    }
+
+    const liveState: LiveBattleState = {
+      battleId,
+      type: 'CLAN',
+      roundNumber: 1,
+      status: 'active',
+      roundDeadline: Date.now() + TURN_TIMEOUT_MS,
+      grid: BATTLE_GRID,
+      participants,
+    }
+    syncGridDistance(liveState)
+    await BattleRedis.setState(battleId, liveState)
+    await prisma.battle.update({
+      where: { id: battleId },
+      data: { status: 'ACTIVE', startedAt: new Date(), roundCount: 0 },
+    })
+    return { battleId, status: 'ACTIVE', participants: participants.length }
+  },
+
+  /** Открытые командные бои, к которым можно присоединиться. */
+  async listTeamBattles() {
+    const battles = await prisma.battle.findMany({
+      where: { type: 'CLAN', status: 'WAITING_PLAYERS' },
+      include: { participants: true },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    })
+    const characterIds = battles.flatMap(b => b.participants.map(p => p.characterId).filter(Boolean) as string[])
+    const characters = await prisma.character.findMany({
+      where: { id: { in: characterIds } },
+      select: { id: true, nickname: true, battleLevel: true },
+    })
+    const byId = new Map(characters.map(c => [c.id, c]))
+    return {
+      items: battles.map(b => ({
+        battleId: b.id,
+        perSide: b.roundCount || 1,
+        levelMin: b.levelMin,
+        levelMax: b.levelMax,
+        sides: [1, 2].map(side => ({
+          side,
+          members: b.participants
+            .filter(p => p.side === side)
+            .map(p => byId.get(p.characterId ?? '') ?? { id: p.characterId, nickname: '—', battleLevel: 0 }),
+        })),
+      })),
+    }
   },
 
   // -------------------------------------------------------
@@ -1008,7 +1242,9 @@ export const BattleService = {
 
       const allActed = state.participants.every(p => !p.isAlive || p.isSurrendered || p.hasActedThisRound)
       if (allActed) {
-        return this._resolveRoundPvp(battleId, state)
+        return state.type === 'CLAN'
+          ? this._resolveRoundTeam(battleId, state)
+          : this._resolveRoundPvp(battleId, state)
       }
       return {
         waiting: true,
@@ -1583,6 +1819,196 @@ export const BattleService = {
     return { fromX: from.x, fromY: from.y }
   },
 
+  /**
+   * Раунд командного боя. Отличий от дуэли три: бойцов произвольное
+   * число, цель у каждого своя, и удары идут по одному в порядке
+   * инициативы, а не парой.
+   */
+  async _resolveRoundTeam(battleId: string, state: LiveBattleState) {
+    const teamState = state as unknown as LiveTeamState
+    const fighters = state.participants.filter(p => p.characterId)
+
+    // ── Контекст каждого бойца ─────────────────────────────
+    const contexts = new Map<string, TeamFighterContext>()
+    for (const part of fighters) {
+      const char = await CharactersRepository.findById(part.characterId!)
+      if (!char?.stats) continue
+      const utilityUsed = await applyPendingUtility(part, char)
+      const [weaponLeft, weaponRight] = await Promise.all([
+        part.leftWeaponInstanceId || part.weaponInstanceId
+          ? ItemsRepository.findInstanceById(part.leftWeaponInstanceId ?? part.weaponInstanceId!)
+          : Promise.resolve(null),
+        part.rightWeaponInstanceId ? ItemsRepository.findInstanceById(part.rightWeaponInstanceId) : Promise.resolve(null),
+      ])
+      const equipped = await ItemsRepository.findEquipped(char.id)
+      const armor = equipped.filter(i => i.template.type === 'ARMOR')
+      const skill = await WeaponSkillsRepository.findOrCreate(
+        char.id,
+        (weaponLeft?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1],
+      )
+      const weight = armor.reduce((sum, item) => sum + item.weight, 0)
+        + (weaponLeft?.weight ?? 0) + (weaponRight?.weight ?? 0)
+      contexts.set(part.participantId, {
+        part: part as unknown as TeamFighterContext['part'],
+        char,
+        weaponLeft,
+        weaponRight,
+        armor,
+        initiative: initiativeOf(char, skill.skillLevel, weight),
+        turn: turnOfParticipant(part as unknown as TeamFighterContext['part'], utilityUsed),
+      })
+    }
+
+    // ── Перемещения: все разом, как в дуэли ────────────────
+    const before = new Map(fighters.map(p => [p.participantId, { ...p.position }]))
+    const moveRequests = [...contexts.values()]
+      .filter(ctx => ctx.turn.moveTo)
+      .map(ctx => ({ participantId: ctx.part.participantId, destination: ctx.turn.moveTo! }))
+    const moved = applyTeamMoves(teamState, moveRequests)
+    syncGridDistance(state)
+
+    // ── Удары по одному, в порядке инициативы ──────────────
+    const roundTurns: Array<{ actor: LiveParticipant; target: LiveParticipant; r: HandStrikeResult }> = []
+    const hitZones = new Map<string, BodyZone[]>()
+
+    for (const ctx of orderByInitiative([...contexts.values()])) {
+      const actor = state.participants.find(p => p.participantId === ctx.part.participantId)!
+      if (!actor.isAlive || actor.isSurrendered) continue
+      if (moved.has(actor.participantId)) continue
+      if (ctx.turn.attackZones.length === 0) continue
+
+      const targetLite = pickTeamTarget(
+        actor as unknown as TeamFighterContext['part'],
+        teamState,
+        ctx.turn.targetParticipantId,
+      )
+      if (!targetLite) continue
+      const target = state.participants.find(p => p.participantId === targetLite.participantId)!
+      const targetCtx = contexts.get(target.participantId)
+      if (!targetCtx) continue
+
+      const board = teamPositioned(teamState)
+      const actorCell = board.find(p => p.participantId === actor.participantId)!
+      const targetCell = board.find(p => p.participantId === target.participantId)!
+      const inRange = ctx.turn.attackHands.every(hand => canAttackTarget(
+        actorCell, targetCell, board,
+        weaponRangeOf(hand === 'RIGHT_HAND' ? ctx.weaponRight : ctx.weaponLeft),
+      ))
+      if (!inRange) continue
+
+      const wtLeft = (ctx.weaponLeft?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+      const wtRight = (ctx.weaponRight?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+      const skillLeft = await WeaponSkillsRepository.findOrCreate(ctx.char.id, wtLeft)
+      const skillRight = await WeaponSkillsRepository.findOrCreate(ctx.char.id, wtRight)
+      const antiLeft = await WeaponSkillsRepository.findOrCreate(targetCtx.char.id, wtLeft)
+      const [atkLeft, atkRight] = await Promise.all([
+        buildAttackerSnapshotAsync(ctx.char, ctx.weaponLeft, skillLeft.skillLevel, ctx.armor),
+        buildAttackerSnapshotAsync(ctx.char, ctx.weaponRight, skillRight.skillLevel, ctx.armor),
+      ])
+      const defSnap = buildDefenderSnapshot(targetCtx.char, targetCtx.armor, antiLeft.antiSkillLevel, targetCtx.weaponLeft)
+      const defArmorList = armorListFromEquipped(targetCtx.armor)
+
+      const res = executeStrikes({
+        attackerSnap: atkLeft,
+        attackerSnaps: { LEFT_HAND: atkLeft, RIGHT_HAND: atkRight },
+        weaponIds: { LEFT_HAND: ctx.weaponLeft?.id ?? null, RIGHT_HAND: ctx.weaponRight?.id ?? null },
+        defenderSnap: defSnap,
+        defenderSnaps: { LEFT_HAND: defSnap, RIGHT_HAND: defSnap },
+        zoneArmorFor: z => armorOfZone(defArmorList, z),
+        attackZones: ctx.turn.attackZones,
+        attackHands: ctx.turn.attackHands,
+        blockedZones: targetCtx.turn.blockZones,
+        defenderHp: target.hpCurrent,
+      })
+      for (const r of res.results) {
+        if (r.hit && !r.dodge && !r.block) {
+          target.hpCurrent = Math.max(0, target.hpCurrent - r.finalDamage)
+          actor.hitsLanded++
+          target.hitsTaken++
+          const zones = hitZones.get(target.participantId) ?? []
+          zones.push(r.zone)
+          hitZones.set(target.participantId, zones)
+          recordWeaponDamage(actor, r.sourceHand === 'RIGHT_HAND' ? ctx.weaponRight : ctx.weaponLeft, r.finalDamage)
+        }
+        roundTurns.push({ actor, target, r })
+      }
+      actor.damageDealt += res.damageToDefender
+      target.damageReceived += res.damageToDefender
+      if (res.counterToAttacker > 0) {
+        actor.hpCurrent = Math.max(0, actor.hpCurrent - res.counterToAttacker)
+        target.damageDealt += res.counterToAttacker
+        actor.damageReceived += res.counterToAttacker
+      }
+      target.isAlive = target.hpCurrent > 0
+      actor.isAlive = actor.hpCurrent > 0
+    }
+
+    for (const part of fighters) part.isAlive = part.hpCurrent > 0
+
+    // ── Журнал и износ ─────────────────────────────────────
+    const roundNumber = state.roundNumber
+    const moveRecords = teamMoveRecords(battleId, roundNumber, moved, before, teamState)
+    const turnRecords = roundTurns.map(t => ({
+      battleId,
+      roundNumber,
+      actorCharId: t.actor.characterId ?? null,
+      targetCharId: t.target.characterId ?? null,
+      action: 'ATTACK' as BattleAction,
+      weaponId: t.r.weaponId,
+      sourceHand: t.r.sourceHand,
+      zone: t.r.zone,
+      blockPierced: t.r.blockPierced,
+      hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit,
+      rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage,
+      logLine: t.r.logParts.join(', '),
+    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await prisma.battleTurn.createMany({ data: [...moveRecords, ...turnRecords] as any })
+    for (const [participantId, zones] of hitZones) {
+      const ctx = contexts.get(participantId)
+      if (ctx) await applyZonalArmorWear(ctx.armor, zones)
+    }
+
+    // ── Итог ───────────────────────────────────────────────
+    const outcome = teamOutcome(teamState)
+    if (outcome.over) {
+      state.status = 'finishing'
+      await BattleRedis.setState(battleId, state)
+      const finished = await finishTeamBattle(battleId, teamState, outcome.winnerSide, contexts)
+      await BattleRedis.deleteState(battleId)
+      return finished
+    }
+
+    state.roundNumber++
+    state.roundDeadline = Date.now() + TURN_TIMEOUT_MS
+    for (const part of state.participants) {
+      part.hasActedThisRound = false
+      part.pendingAction = undefined
+      part.pendingTurn = undefined
+    }
+    await BattleRedis.setState(battleId, state)
+
+    return {
+      roundNumber,
+      battleOver: false,
+      participants: state.participants.map(p => ({
+        participantId: p.participantId,
+        characterId: p.characterId,
+        side: p.side,
+        hpCurrent: p.hpCurrent,
+        isAlive: p.isAlive,
+        position: p.position,
+      })),
+      turns: roundTurns.map(t => ({
+        actor: t.actor.characterId, target: t.target.characterId, action: 'attack',
+        hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit, lucky: t.r.lucky,
+        zone: t.r.zone, sourceHand: t.r.sourceHand,
+        rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage, counterDamage: 0,
+        logParts: t.r.logParts,
+      })),
+    }
+  },
+
   async _resolveRoundPvp(battleId: string, state: LiveBattleState) {
     const [part1, part2] = state.participants.filter(p => p.characterId)
     if (!part1 || !part2) {
@@ -1599,46 +2025,7 @@ export const BattleService = {
       return { roundNumber: state.roundNumber, waiting: false }
     }
 
-    const applyUtility = async (part: LiveParticipant, char: CharacterWithStats): Promise<boolean> => {
-      const pending = part.pendingAction ?? ''
-      if (pending.startsWith('change_weapon:')) {
-        const changeParts = pending.split(':')
-        const hand: AttackHand = changeParts.length >= 3 && (changeParts[1] === 'LEFT_HAND' || changeParts[1] === 'RIGHT_HAND')
-          ? changeParts[1]
-          : 'LEFT_HAND'
-        const itemId = changeParts.length >= 3 ? changeParts.slice(2).join(':') : changeParts[1]
-        const item = await ItemsRepository.findInstanceById(itemId)
-        if (item && item.ownerId === char.id && item.template.type === 'WEAPON' && item.status !== 'BROKEN') {
-          const occupied = await ItemsRepository.findEquippedBySlot(char.id, hand)
-          if (occupied && occupied.id !== itemId) await ItemsRepository.unequip(occupied.id)
-          await ItemsRepository.equip(itemId, hand)
-          if (hand === 'LEFT_HAND') {
-            if (part.rightWeaponInstanceId === itemId) part.rightWeaponInstanceId = undefined
-            part.leftWeaponInstanceId = itemId
-            part.weaponInstanceId = itemId
-          } else {
-            if (part.leftWeaponInstanceId === itemId || part.weaponInstanceId === itemId) {
-              part.leftWeaponInstanceId = undefined
-              part.weaponInstanceId = undefined
-            }
-            part.rightWeaponInstanceId = itemId
-          }
-        }
-        return true
-      }
-      if (pending.startsWith('use_item:')) {
-        const itemId = pending.slice('use_item:'.length)
-        if (!part.pocketItemIds?.includes(itemId)) return true
-        const item = await ItemsRepository.findInstanceById(itemId)
-        if (item && item.ownerId === char.id && item.template.type === 'CONSUMABLE' && !['CONSUMED', 'DELETED'].includes(item.status)) {
-          part.hpCurrent = Math.min(part.hpMax, part.hpCurrent + (item.template.hpBonus ?? 0))
-          part.pocketItemIds = part.pocketItemIds.filter(id => id !== itemId)
-          await ItemsRepository.delete(itemId)
-        }
-        return true
-      }
-      return false
-    }
+    const applyUtility = applyPendingUtility
     const utility1 = await applyUtility(part1, char1)
     const utility2 = await applyUtility(part2, char2)
 

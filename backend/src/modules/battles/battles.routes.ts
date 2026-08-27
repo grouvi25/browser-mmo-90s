@@ -18,6 +18,9 @@ const ActionSchema = z.object({
   blockZones: z.array(ZoneEnum).max(4).optional(),
 })
 const AcceptDuelSchema = z.object({ battleId: z.string().uuid() })
+const TeamCreateSchema = z.object({ perSide: z.number().int().min(1).max(10) })
+const TeamJoinSchema = z.object({ battleId: z.string().uuid(), side: z.union([z.literal(1), z.literal(2)]) })
+
 const CreateDuelSchema = z.object({
   levelMin: z.number().int().min(1).max(99).optional(),
   levelMax: z.number().int().min(1).max(99).optional(),
@@ -63,6 +66,38 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
       const parsed = AcceptDuelSchema.safeParse(req.body)
       if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
       const result = await BattleService.acceptPvpDuel(req.authUser.userId, parsed.data.battleId)
+      return reply.send(result)
+    })
+
+  // ── Командные бои ──────────────────────────────────────
+  // POST /api/battles/team/create
+  fastify.post('/team/create', { preHandler: authenticate },
+    async (req, reply) => {
+      const parsed = TeamCreateSchema.safeParse(req.body)
+      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      const result = await BattleService.createTeamBattle(req.authUser.userId, parsed.data.perSide)
+      return reply.code(201).send(result)
+    })
+
+  // GET /api/battles/team/open — бои, куда можно встать
+  fastify.get('/team/open', { preHandler: authenticate },
+    async (_req, reply) => reply.send(await BattleService.listTeamBattles()))
+
+  // POST /api/battles/team/join
+  fastify.post('/team/join', { preHandler: authenticate },
+    async (req, reply) => {
+      const parsed = TeamJoinSchema.safeParse(req.body)
+      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      const result = await BattleService.joinTeamBattle(req.authUser.userId, parsed.data.battleId, parsed.data.side)
+      return reply.send(result)
+    })
+
+  // POST /api/battles/team/start
+  fastify.post('/team/start', { preHandler: authenticate },
+    async (req, reply) => {
+      const parsed = AcceptDuelSchema.safeParse(req.body)
+      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      const result = await BattleService.startTeamBattle(req.authUser.userId, parsed.data.battleId)
       return reply.send(result)
     })
 
