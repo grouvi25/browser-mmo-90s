@@ -1,0 +1,75 @@
+/* Командные бои живут в том же вьюпорте, что и дуэли. */
+.team-battles { margin-top: 12px; }
+.team-battles > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.team-battles h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.team-create {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.team-create label {
+  display: grid;
+  gap: 3px;
+  font-size: 11px;
+}
+.team-create select { font: inherit; padding: 2px 4px; }
+
+.team-empty { font-size: 12px; opacity: .8; }
+
+.team-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.team-list > li {
+  border: 1px solid rgba(0, 0, 0, .25);
+  padding: 8px;
+  background: rgba(255, 255, 255, .5);
+}
+.team-list > li.is-mine { border-color: var(--red, #8c2f2f); }
+
+.team-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.team-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.team-side {
+  border: 1px solid rgba(0, 0, 0, .15);
+  padding: 6px;
+  font-size: 11px;
+}
+.team-side-name {
+  display: block;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+.team-side ul { list-style: none; margin: 0 0 5px; padding: 0; }
+.team-side li { display: flex; justify-content: space-between; gap: 6px; padding: 1px 0; }
+.team-side i { font-style: normal; opacity: .7; }
+
+@media (max-width: 900px) {
+  .team-sides { grid-template-columns: 1fr; }
+}

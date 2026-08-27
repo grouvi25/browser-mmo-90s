@@ -94,6 +94,17 @@ export interface BattleHistoryResponse {
   pages: number
 }
 
+
+/** Командный бой: открытый набор состава. */
+export interface TeamBattleMember { id: string; nickname: string; battleLevel: number }
+export interface TeamBattleLobby {
+  battleId: string
+  perSide: number
+  levelMin: number
+  levelMax: number
+  sides: Array<{ side: number; members: TeamBattleMember[] }>
+}
+
 export const battlesApi = {
   startPve: (botCode = 'training_bandit') =>
     api.post<StartPveResponse>('/api/battles/pve/start', { botCode }),
@@ -109,6 +120,25 @@ export const battlesApi = {
 
   acceptDuel: (battleId: string) =>
     api.post<{ battleId: string; status: string }>('/api/battles/pvp/accept', { battleId }),
+
+
+  createTeamBattle: (perSide: number) =>
+    api.post<{ battleId: string; status: string; perSide: number; side: number }>(
+      '/api/battles/team/create', { perSide },
+    ),
+
+  listTeamBattles: () =>
+    api.get<{ items: TeamBattleLobby[] }>('/api/battles/team/open'),
+
+  joinTeamBattle: (battleId: string, side: 1 | 2) =>
+    api.post<{ battleId: string; side: number; joined: number; perSide: number }>(
+      '/api/battles/team/join', { battleId, side },
+    ),
+
+  startTeamBattle: (battleId: string) =>
+    api.post<{ battleId: string; status: string; participants: number }>(
+      '/api/battles/team/start', { battleId },
+    ),
 
   getBattleHistory: (page = 1, limit = 20) =>
     api.get<BattleHistoryResponse>(`/api/battles/me/history?page=${page}&limit=${limit}`),
