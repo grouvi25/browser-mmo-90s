@@ -8,6 +8,8 @@ export const BAR_RESOURCES = [
   ['bar_moonshine', 'Самогон', 150, 0.2],
   ['bar_chifir', 'Чифирь', 130, 0.1],
   ['bar_tincture', 'Настойка', 180, 0.1],
+  ['bar_seeds', 'Семечки калёные', 90, 0.2],
+  ['bar_papirosa', 'Папиросы', 170, 0.1],
 ] as const
 
 export const BAR_RECIPES = [
@@ -24,6 +26,11 @@ export const BAR_RECIPES = [
   { code: 'rcp_bar_moonshine', name: 'Самогон', output: 'bar_moonshine', amount: 2, minutes: 75, labor: 60, inputs: [{ resourceCode: 'res_alcohol', amount: 2 }, { resourceCode: 'res_greens', amount: 1 }] },
   { code: 'rcp_bar_chifir', name: 'Чифирь', output: 'bar_chifir', amount: 1, minutes: 45, labor: 30, inputs: [{ resourceCode: 'res_greens', amount: 2 }, { resourceCode: 'res_extract', amount: 1 }] },
   { code: 'rcp_bar_tincture', name: 'Настойка', output: 'bar_tincture', amount: 1, minutes: 60, labor: 45, inputs: [{ resourceCode: 'res_extract', amount: 2 }] },
+  // Семечки и табак — две верхние культуры фермы. До этих двух рецептов их
+  // не потреблял никто: вырастить можно, деть некуда, кроме сдачи государству
+  // за четверть цены, которую ТЗ намеренно делает невыгодной.
+  { code: 'rcp_bar_seeds', name: 'Семечки калёные', output: 'bar_seeds', amount: 3, minutes: 30, labor: 30, inputs: [{ resourceCode: 'res_seeds', amount: 2 }] },
+  { code: 'rcp_bar_papirosa', name: 'Папиросы', output: 'bar_papirosa', amount: 3, minutes: 45, labor: 45, inputs: [{ resourceCode: 'res_tobacco', amount: 2 }, { resourceCode: 'res_fabric', amount: 1 }] },
 ] as const
 
 export const BAR_OFFERS = [
@@ -34,4 +41,8 @@ export const BAR_OFFERS = [
   { code: 'offer_moonshine', name: 'Самогон', resourceCode: 'bar_moonshine', baseCost: 150, hpRestore: 35, alcoholDegrees: 40, accuracyBuff: 0, damageBuff: 0, buffMinutes: 0 },
   { code: 'offer_chifir', name: 'Чифирь', resourceCode: 'bar_chifir', baseCost: 130, hpRestore: 0, alcoholDegrees: 0, accuracyBuff: 0.02, damageBuff: 0, buffMinutes: 30 },
   { code: 'offer_tincture', name: 'Настойка', resourceCode: 'bar_tincture', baseCost: 180, hpRestore: 0, alcoholDegrees: 0, accuracyBuff: 0, damageBuff: 0.03, buffMinutes: 30 },
+  { code: 'offer_seeds', name: 'Семечки калёные', resourceCode: 'bar_seeds', baseCost: 90, hpRestore: 10, alcoholDegrees: 0, accuracyBuff: 0, damageBuff: 0, buffMinutes: 0 },
+  // Одна ступень улучшения — это +0.01 точности, так что папиросы держатся
+  // внутри шага прогрессии и не спорят с чифирём.
+  { code: 'offer_papirosa', name: 'Папиросы', resourceCode: 'bar_papirosa', baseCost: 170, hpRestore: 0, alcoholDegrees: 0, accuracyBuff: 0.01, damageBuff: 0, buffMinutes: 20 },
 ] as const
