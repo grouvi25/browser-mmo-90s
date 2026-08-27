@@ -6,6 +6,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { stage3AcceptanceApi } from '../../shared/api/stage3-acceptance.api'
+import { ViewportPanel } from '../../shared/ui/viewport-panel'
 import { FarmSection } from './farm-section'
 import { PlantsSection } from './plants-section'
 import { ObjectsSection } from './objects-section'
@@ -81,34 +82,35 @@ export function Stage3Page({ section }: { section: Stage3Section }) {
   })
 
   return (
-    <main className="s3">
-      <header className="s3-head">
-        <div>
-          <span className="s3-kicker">{meta.kicker}</span>
-          <h1>{meta.title}</h1>
-        </div>
-        <nav aria-label={'Разделы: ' + meta.kicker}>
+    // Обрамление берём общее для города: заголовок и «в город» на месте,
+    // как на остальных экранах. Своя шапка выбивалась размером и не
+    // давала вернуться назад.
+    <ViewportPanel title={meta.title} subtitle={meta.kicker}>
+      <main className="s3">
+        {/* Навигация внутри группы остаётся: полоса комнат внизу знает не
+            про все разделы — «Мой бар», склад, общак и отношения только тут. */}
+        <nav className="s3-group" aria-label={'Разделы: ' + meta.kicker}>
           {meta.group.map(key => (
             <Link key={key} className={section === key ? 'active' : ''} to={ROUTES[key]}>
               {SECTIONS[key].title}
             </Link>
           ))}
         </nav>
-      </header>
 
-      {acceptance.data && !acceptance.data.ready && (
-        <section className="acceptance attention">
-          <b>Приёмка: ещё не закрыта</b>
-          <span>
-            {acceptance.data.metrics.recipes} рецептов ·{' '}
-            {acceptance.data.metrics.farmCrops} культур ·{' '}
-            {acceptance.data.metrics.barOffers} позиций меню ·{' '}
-            {acceptance.data.metrics.stuckCycles} зависших циклов
-          </span>
-        </section>
-      )}
+        {acceptance.data && !acceptance.data.ready && (
+          <section className="acceptance attention">
+            <b>Приёмка: ещё не закрыта</b>
+            <span>
+              {acceptance.data.metrics.recipes} рецептов ·{' '}
+              {acceptance.data.metrics.farmCrops} культур ·{' '}
+              {acceptance.data.metrics.barOffers} позиций меню ·{' '}
+              {acceptance.data.metrics.stuckCycles} зависших циклов
+            </span>
+          </section>
+        )}
 
-      <Body section={section} />
-    </main>
+        <Body section={section} />
+      </main>
+    </ViewportPanel>
   )
 }
