@@ -1,6 +1,11 @@
-/* Госмагазин по макету: шапка с наличностью, полка категорий,
-   плитки товаров. Живёт внутри вьюпорта города, поэтому всё
-   меряется от его ширины, а не от окна. */
+/* Госмагазин по макету «Фон основного меню Магазин».
+   Окантовка снята со слоёв PSD, а не подобрана на глаз (холст 3100x1800,
+   сцена = холст ÷ 2, поэтому рамки делятся пополам):
+     кнопка «Купить»      145x34, рамка 2px rgb(1,2,3), заливка прозрачная
+     вкладка категории    213x55, рамка 2px, фон #FFFFFE, активная #C8C8C8
+     карточка товара      691x202, рамка 3px rgb(1,2,3)
+   Отсюда 1px и 1.5px рамки ниже и чёрный цвет вместо прежнего серого. */
+:root { --shop-ink: #010203; }
 
 .gshop-head {
   display: flex;
@@ -26,7 +31,7 @@
   font: inherit;
   font-size: 12px;
   padding: 4px 10px;
-  border: 1px solid currentColor;
+  border: 1px solid var(--shop-ink);
   background: none;
   cursor: pointer;
 }
@@ -36,19 +41,20 @@
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 10px;
-  border-bottom: 1px solid rgba(0, 0, 0, .2);
+  border-bottom: 1px solid var(--shop-ink);
 }
 .gshop-tabs button {
   font: inherit;
   font-size: 12px;
   padding: 5px 12px;
-  border: 1px solid rgba(0, 0, 0, .25);
+  border: 1px solid var(--shop-ink);
   border-bottom: 0;
-  background: rgba(0, 0, 0, .04);
+  background: #fffffe;
   cursor: pointer;
 }
+/* В макете активная вкладка темнее прочих, а не светлее. */
 .gshop-tabs button.active {
-  background: var(--paper, #faeadd);
+  background: #c8c8c8;
   font-weight: 700;
 }
 .gshop-tabs button:focus-visible,
@@ -56,7 +62,7 @@
 
 /* Корзина раскрывается полкой над витриной. */
 .gshop-cart {
-  border: 1px solid rgba(0, 0, 0, .25);
+  border: 1px solid var(--shop-ink);
   padding: 8px 10px;
   margin-bottom: 10px;
   font-size: 12px;
@@ -84,7 +90,7 @@
   align-items: start;
   gap: 10px;
   padding: 10px;
-  border: 1px solid rgba(0, 0, 0, .25);
+  border: 1.5px solid var(--shop-ink);
   background: rgba(255, 255, 255, .82);
 }
 .gshop-card--bar { grid-template-columns: 1fr; }
@@ -103,7 +109,13 @@
   align-content: start;
   justify-items: stretch;
 }
-.gshop-card-actions .btn { font-size: 11px; padding: 3px 10px; }
+.gshop-card-actions .btn {
+  font-size: 11px;
+  padding: 3px 10px;
+  border: 1px solid var(--shop-ink);
+  background: transparent;
+}
+.gshop-card-actions .btn:hover:not(:disabled) { border-color: var(--shop-ink); background: rgba(0, 0, 0, .06); }
 
 .gshop-empty, .gshop-note { font-size: 12px; opacity: .8; }
 .gshop-note { margin: 0 0 8px; }
