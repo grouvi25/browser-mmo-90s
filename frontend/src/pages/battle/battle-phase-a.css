@@ -118,7 +118,9 @@
 .battle-fighter-zone em { margin-left: 2px; padding: 0 3px; border-radius: 8px; background: oklch(42% .14 25); color: oklch(97% .01 70); font-style: normal; }
 .is-self .battle-fighter-zone.is-selected { border-style: solid; border-color: oklch(41% .10 135); background: oklch(87% .065 135); color: oklch(29% .08 135); }
 .is-enemy .battle-fighter-zone.is-selected { border-style: solid; border-color: oklch(42% .14 25); background: oklch(86% .07 25); color: oklch(30% .12 25); }
-.battle-fighter-panel__reason { position: absolute; z-index: 3; align-self: center; justify-self: center; margin: 0; padding: 3px 6px; background: oklch(91% .05 70); border: 1px solid oklch(55% .06 55); color: oklch(38% .10 25); font-size: 8px; }
+/* Плашка причины лежит в своём ряду сетки — под манекеном. Абсолютом
+   по центру она накрывала ячейки корпуса, а по верху — имя бойца. */
+.battle-fighter-panel__reason { justify-self: center; align-self: end; margin: 0 0 4px; padding: 3px 6px; background: oklch(91% .05 70); border: 1px solid oklch(55% .06 55); color: oklch(38% .10 25); font-size: 8px; }
 .battle-fighter-panel__hands { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid oklch(68% .025 60); }
 .battle-fighter-panel__hands > div { min-width: 0; padding: 4px 6px; }
 .battle-fighter-panel__hands > div + div { border-left: 1px solid oklch(68% .025 60); }
@@ -663,4 +665,49 @@
      а кнопки пересекались, и попадал не тот удар. Ширину теперь задаёт
      коробка, а не минимум кнопки. */
   .battle-hand-zone button { min-width: 0; }
+}
+
+/* ── Боевой экран v4: индикатор зон ────────────────────────────
+   Фигурка по краю панели показывает, что уже разобрано планом хода.
+   Сетка повторяет раскладку силуэта: голова, корпус, руки, ноги. */
+.zone-indicator {
+  /* По внешнему краю панели, как в макете: у блока слева, у удара справа. */
+  position: absolute;
+  top: 0;
+  width: 30px;
+  height: 48px;
+  display: grid;
+  grid-template-columns: 7px 1fr 7px;
+  grid-template-rows: 11px 18px 19px;
+  gap: 1px;
+  opacity: .9;
+}
+.zone-indicator__part {
+  background: oklch(84% .02 70);
+  border: 1px solid oklch(66% .025 60);
+  border-radius: 1px;
+}
+.zone-indicator__part.is-head { grid-column: 2; grid-row: 1; }
+.zone-indicator__part.is-chest { grid-column: 2; grid-row: 2; }
+.zone-indicator__part.is-left-arm { grid-column: 1; grid-row: 2; }
+.zone-indicator__part.is-right-arm { grid-column: 3; grid-row: 2; }
+.zone-indicator__part.is-legs { grid-column: 2; grid-row: 3; }
+/* Свои закрытые зоны — зелёным, зоны чужого под ударом — красным. */
+.zone-indicator.is-block { left: -2px; }
+.zone-indicator.is-attack { right: -2px; }
+.zone-indicator.is-block .zone-indicator__part.is-on {
+  background: oklch(72% .13 138);
+  border-color: oklch(45% .11 138);
+}
+.zone-indicator.is-attack .zone-indicator__part.is-on {
+  background: oklch(66% .17 28);
+  border-color: oklch(44% .15 28);
+}
+
+/* Портрета в макете между полосой ХП и зонами нет — панель без него
+   становится плотнее, и зоны поднимаются под полосы, как нарисовано. */
+.battle-profile-summary--flat { grid-template-columns: minmax(0, 1fr); }
+
+@media (max-width: 900px), (max-height: 620px) {
+  .zone-indicator { width: 22px; height: 36px; grid-template-rows: 8px 12px 13px; }
 }

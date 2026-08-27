@@ -1,6 +1,5 @@
 import type { AttackHand, BodyZone } from '../../../shared/api/battles.api'
 import { itemImage } from '../../../shared/assets/shop/shop-images'
-import { SPRITES } from '../../../shared/ui/sprite'
 import { BATTLE_ZONES } from '../battle-view-model'
 import zoneArmor from '../../../shared/assets/battle/zone-armor.png'
 import zoneFist from '../../../shared/assets/battle/zone-fist.png'
@@ -33,11 +32,6 @@ interface BattleFighterPanelProps {
   onHandZone?: (hand: AttackHand, zone: BodyZone) => void
 }
 
-function portraitUrl(avatar?: string | null): string {
-  if (!avatar) return SPRITES['p-portrait']
-  return SPRITES[avatar] ?? avatar
-}
-
 function WeaponCell({
   hand, name, code, weaponType,
 }: {
@@ -54,9 +48,35 @@ function WeaponCell({
   </div>
 }
 
+
+/**
+ * Индикатор состояния зон из макета: фигурка по краю панели, где закрашены
+ * те части тела, которые уже разобраны текущим планом хода.
+ *
+ * Макет рисует три цвета, но чем именно они различаются — бронёй, уроном
+ * или и тем и другим — заказчиком не сказано (открытый вопрос 4 в разборе
+ * макета). Пока показываем то, что читается однозначно: разобрана зона
+ * планом или нет.
+ */
+function ZoneIndicator({ mode, selected }: { mode: 'attack' | 'block'; selected: BodyZone[] }) {
+  const covered = (zone: BodyZone) => selected.includes(zone)
+  const label = mode === 'attack' ? 'Куда бьём' : 'Что закрыто'
+  return (
+    <div className={`zone-indicator is-${mode}`} title={label} role="img" aria-label={label}>
+      {BATTLE_ZONES.map(zone => (
+        <i
+          key={zone.key}
+          className={`zone-indicator__part is-${ZONE_CLASS[zone.key]}${covered(zone.key) ? ' is-on' : ''}`}
+        />
+      ))}
+    </div>
+  )
+}
+
 export function BattleFighterPanel(props: BattleFighterPanelProps) {
   const pct = props.hpMax > 0 ? Math.max(0, Math.min(100, props.hp / props.hpMax * 100)) : 0
-  const instruction = props.mode === 'attack' ? 'Удары по противнику' : 'Защита своего тела'
+  // Подписи панелей взяты с макета: «Зона удара» и «Зона блока».
+  const instruction = props.mode === 'attack' ? 'Зона удара' : 'Зона блока'
   const handSelected = (hand: AttackHand, zone: BodyZone) => props.selected.some((value, index) => value === zone && props.selectedHands?.[index] === hand)
   const handUsed = (hand: AttackHand) => props.selectedHands?.includes(hand) ?? false
 
@@ -69,10 +89,7 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
       </div>
     </header>
 
-    <div className="battle-profile-summary">
-      <div className="battle-profile-portrait">
-        <img src={portraitUrl(props.avatar)} alt={`Портрет: ${props.name}`} draggable={false} />
-      </div>
+    <div className="battle-profile-summary battle-profile-summary--flat">
       <div className="battle-profile-weapons" aria-label="Оружие в руках">
         <WeaponCell hand="Левая" name={props.primaryHand} code={props.primaryWeaponCode} weaponType={props.primaryWeaponType} />
         <WeaponCell hand="Правая" name={props.secondaryHand} code={props.secondaryWeaponCode} weaponType={props.secondaryWeaponType} />
@@ -82,6 +99,7 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
     <div className="battle-fighter-panel__mode"><span>{instruction}</span><b>{props.selected.length} / {props.limit}</b></div>
 
     <div className="battle-fighter-panel__figure">
+      <ZoneIndicator mode={props.mode} selected={props.selected} />
       <div className="battle-fighter-panel__body" aria-hidden="true">
         <i className="battle-body-part is-head" />
         <i className="battle-body-part is-chest" />
