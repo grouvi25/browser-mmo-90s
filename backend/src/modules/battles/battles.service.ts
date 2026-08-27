@@ -979,6 +979,28 @@ export const BattleService = {
       }
 
       // ── PvP: сохраняем ход, ждём противника ────────────
+      // Чистое перемещение применяем сразу, не дожидаясь чужого хода:
+      // шаг — это тактика, и противник должен видеть его немедленно,
+      // иначе оба ходят вслепую. Удар по-прежнему ждёт конца раунда:
+      // одновременный размен на то и одновременный.
+      const pureMove = Boolean(turn.moveTo) && turn.attackZones.length === 0
+      let movedNow: { fromX: number; fromY: number } | null = null
+      if (pureMove) {
+        movedNow = this._applyImmediateMove(state, playerPart, turn.moveTo!)
+        // Ход уже совершён — убираем его из отложенного, иначе
+        // разрешение раунда сдвинет фигуру второй раз.
+        turn.moveTo = undefined
+        await prisma.battleTurn.create({
+          data: {
+            battleId, roundNumber: state.roundNumber,
+            actorCharId: char.id, action: 'MOVE' as BattleAction,
+            fromX: movedNow.fromX, fromY: movedNow.fromY,
+            toX: playerPart.position.x, toY: playerPart.position.y,
+            logLine: `Шаг в (${playerPart.position.x}, ${playerPart.position.y})`,
+          },
+        })
+      }
+
       playerPart.pendingAction = action
       playerPart.pendingTurn = turn
       playerPart.hasActedThisRound = true
@@ -988,7 +1010,11 @@ export const BattleService = {
       if (allActed) {
         return this._resolveRoundPvp(battleId, state)
       }
-      return { waiting: true, roundNumber: state.roundNumber }
+      return {
+        waiting: true,
+        roundNumber: state.roundNumber,
+        ...(movedNow ? { moved: true, position: playerPart.position, distance: state.distance } : {}),
+      }
 
     } finally {
       clearInterval(lockHeartbeat)
@@ -1539,6 +1565,24 @@ export const BattleService = {
   // -------------------------------------------------------
   // Resolve PvP round (зональная модель, оба игрока сходили)
   // -------------------------------------------------------
+  /**
+   * Немедленный шаг в PvP. Двигаем одного бойца по актуальной доске,
+   * а не по снимку начала раунда: второй игрок к этому моменту мог уже
+   * сходить, и его клетка обязана считаться занятой.
+   */
+  _applyImmediateMove(state: LiveBattleState, part: LiveParticipant, destination: GridPosition) {
+    ensureGridState(state)
+    const from = { ...part.position }
+    const board = positionedParticipants(state)
+    const mover = board.find(p => p.participantId === part.participantId)
+    if (!mover || !canMoveTo(mover, destination, board)) {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Cannot move there', 400)
+    }
+    part.position = { ...destination }
+    syncGridDistance(state)
+    return { fromX: from.x, fromY: from.y }
+  },
+
   async _resolveRoundPvp(battleId: string, state: LiveBattleState) {
     const [part1, part2] = state.participants.filter(p => p.characterId)
     if (!part1 || !part2) {

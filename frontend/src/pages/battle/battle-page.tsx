@@ -39,6 +39,8 @@ interface RoundResult {
   newLevel?: number; waiting?: boolean; turns?: TurnEvent[]
   botStance?: Stance; botAttackZones?: BodyZone[]; botBlockZones?: BodyZone[]
   distance?: number; playerRange?: number
+  /** PvP: шаг применён сервером сразу, не дожидаясь хода противника. */
+  moved?: boolean; position?: { x: number; y: number }
 }
 
 // Tactical field
@@ -255,6 +257,14 @@ export function BattlePage() {
       // Fix 1.1: аптечка пропадает сразу после использования
       if (variables.action === 'use_item') {
         qc.invalidateQueries({ queryKey: ['inventory'] })
+      }
+
+      // Шаг сервер применяет немедленно, но позиции на поле приходят из
+      // опроса раз в три секунды. Дёргаем его сразу, иначе своя же фигура
+      // доезжает до новой клетки с задержкой, и шаг перестаёт читаться
+      // как ход.
+      if (data.moved) {
+        qc.invalidateQueries({ queryKey: ['battle', battleId] })
       }
 
       const events: TurnEvent[] = data.turns?.map(t => ({
