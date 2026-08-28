@@ -8,11 +8,27 @@
    каждую страницу не нужно.
    ============================================================= */
 
+/* Doc — настоящий B52 из макета (D-Studio, Дубина Н., Москва), а не
+   подмена: familyName и PostScript-имя совпадают с тем, что записано
+   в слоях PSD. Он полностью моноширинный, все глифы 563/1000, поэтому
+   встал на место PT Mono без правки вёрстки; PT Mono остался запасным
+   на случай, если файл не загрузится. */
 @font-face {
-  font-family: 'Doc';                 /* замена макетного B52 */
+  font-family: 'Doc';
+  src: url('../shared/assets/fonts/B52.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+/* Запасной шрифт объявлен отдельно, а не вторым src у 'Doc': в одном
+   объявлении браузер тянул оба файла, хотя нужен только первый.
+   В цепочке var(--font-ui) 'PT Mono' стоит следом за 'Doc'. */
+@font-face {
+  font-family: 'PT Mono';
   src: url('../shared/assets/fonts/PTMono-400.woff2') format('woff2');
   font-weight: 400; font-style: normal; font-display: swap;
 }
+/* Sign всё ещё подмена: макетный Stengazeta-Regular достать легально
+   не удалось — в открытом доступе лежит только платный ST-Stengazeta
+   другого автора. Нужны файлы от заказчика. */
 @font-face {
   font-family: 'Sign';                /* замена макетного Stengazeta */
   src: url('../shared/assets/fonts/Oswald-var.woff2') format('woff2');
@@ -327,19 +343,37 @@ html, body {
    ЦЕНТРАЛЬНЫЙ ВЬЮПОРТ — сюда рендерятся все игровые экраны
    ============================================================= */
 
+/* Небо из макета «Фон основного мнею Магазин»: в окне вьюпорта там
+   именно фон города, а не иллюстрация района — та впечатана в старую
+   подложку menu-plate и раньше была закрыта бежевой заливкой.
+   Кладём небо фоном самого вьюпорта, а не правим подложку: экраны
+   районов рисуют свою картинку через .hub__scene поверх и не меняются. */
 .viewport {
   position: absolute;
   overflow: hidden;
+  background: url('../shared/assets/ui/viewport-sky.webp') center / cover no-repeat;
+  background-image: image-set(
+    url('../shared/assets/ui/viewport-sky@2x.webp') 2x,
+    url('../shared/assets/ui/viewport-sky.webp') 1x);
 }
 .viewport__scene { position: absolute; inset: 0; }
 .viewport__scene img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+/* Вьюпорт по макету «Фон основного мнею Магазин»: слой «Слой 15» — это
+   только рваная тушевая рамка, внутри неё альфа нулевая, и сквозь неё
+   виден фон города. Прежняя бежевая заливка закрывала его целиком.
+   Рамку кладём border-image: углы остаются острыми, а полоса тянется
+   по краям — вьюпорт в проекте шире макетного на 72 px по сцене.
+   Срезы сняты с ассета: тушь занимает 42 px по бокам и 32 px сверху
+   и снизу при холсте 1857x992, то есть 21 и 16 px в масштабе сцены. */
 .viewport__content {
   position: absolute; inset: 0;
   overflow-y: auto; overflow-x: hidden;
-  padding: 14px 16px;
-  background: linear-gradient(178deg, #faeadd 0%, #f4dfc9 55%, #eed3b8 100%);
-  box-shadow: inset 0 0 60px rgba(160,120,80,.18);
+  padding: 8px 10px;
+  background: transparent;
+  border-style: solid;
+  border-width: 16px 21px;
+  border-image: url('../shared/assets/ui/viewport-frame.png') 32 42 / 16px 21px stretch;
   font-size: 13px;
 }
 .viewport__content::-webkit-scrollbar { width: 9px; }

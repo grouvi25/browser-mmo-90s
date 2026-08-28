@@ -14,32 +14,87 @@
   flex-wrap: wrap;
   margin-bottom: 10px;
 }
-.gshop-cash { font-size: 12px; }
-.gshop-cash b { color: var(--red, #8c2f2f); font-variant-numeric: tabular-nums; }
+/* Плашки верхней строки: высота 55 px в макете, сцена = холст ÷ 2,
+   отсюда 28 px. Заливка #fffffe и та же рисованная рамка, что у вкладок,
+   поэтому рамка кладётся картинкой, а не бордером — линия там неровная.
+   Красный макета (#e34647) на белом даёт около 4:1 и не проходит проверку
+   контраста, которой /shop прогоняется в axe, поэтому сумма остаётся
+   на проектном --red: он темнее и читается. */
+.gshop-cash,
+.gshop-cart-btn,
+.gshop-level__box {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  background: #fffffe;
+  font-size: 12px;
+}
+/* Ширины плашек — из макета, поделённые пополам: наличность 523→261,
+   корзина 213→106, окно уровня 68→34. Подписи в макете набраны
+   Stengazeta, а он рисует только заглавные, поэтому подменному шрифту
+   каплок задаём через text-transform. */
+.gshop-cash { min-width: 261px; padding: 0 12px; }
+.gshop-cash > span { position: relative; z-index: 1; }
+/* Насыщенность 700: макетный Stengazeta заметно жирнее подменного
+   Oswald, и без этого подписи выглядят бледнее, чем нарисовано. */
+.gshop-cash,
+.gshop-level > span:first-child,
+.gshop-cart-btn { font-family: var(--font-sign); font-weight: 700; text-transform: uppercase; }
+/* Заглавные — только у подписи: сумма в макете набрана B52 обычным
+   регистром, «руб.» там строчными. */
+.gshop-cash b {
+  color: var(--red, #8c2f2f);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+}
 .gshop-level {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
 }
-.gshop-level select { font: inherit; padding: 2px 4px; }
+.gshop-level__box { min-width: 34px; justify-content: center; padding: 0 4px; }
+/* Селект прозрачный: фон и рамку рисует плашка под ним.
+   Селектор с двумя классами — иначе побеждает общее правило
+   `.viewport__content select`, и окно уходит в бежевую заливку
+   с собственным бордером поверх нарисованной рамки. */
+.gshop .gshop-level__box select {
+  position: relative;
+  z-index: 1;
+  font: inherit;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
 .gshop-cart-btn {
   margin-left: auto;
+  justify-content: center;
+  min-width: 106px;
+  gap: 6px;
+  font-size: 12px;
+  padding: 0 12px;
+  border: 0;
+  cursor: pointer;
+}
+.gshop-cart-btn > span {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font: inherit;
-  font-size: 12px;
-  padding: 4px 10px;
-  border: 1px solid var(--shop-ink);
-  background: none;
-  cursor: pointer;
 }
 
+/* Раскладка вкладок снята с макета: базовая плашка 213 холста → 106 сцены,
+   зазоры 28–35 → 16, вся полоса 1590 → 795. Широкие подписи
+   («Инструменты», «Бафф-еда») в макете получают плашку шире базовой,
+   поэтому ширина задана минимумом, а не жёстко. */
 .gshop-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 16px;
   margin-bottom: 10px;
   border-bottom: 1px solid var(--shop-ink);
 }
@@ -48,6 +103,7 @@
    её не подделать. Картинка тянется на кнопку, как у вкладок районов. */
 .gshop-tabs button {
   position: relative;
+  min-width: 106px;
   font: inherit;
   font-size: 12px;
   padding: 6px 14px;
@@ -55,6 +111,12 @@
   background: #fffffe;
   cursor: pointer;
 }
+/* Две широкие плашки макета: 297 и 282 холста → 148 и 141 сцены.
+   Опираться на содержимое нельзя — подменный шрифт уже макетного,
+   и обе вкладки схлопывались до базовых 106. Порядок вкладок в
+   CATEGORIES зафиксирован по макету, поэтому индексы устойчивы. */
+.gshop-tabs button:nth-child(4) { min-width: 148px; }
+.gshop-tabs button:nth-child(5) { min-width: 141px; }
 .gshop-tabs button > span { position: relative; z-index: 1; }
 .gshop-frame {
   position: absolute;
@@ -96,6 +158,8 @@
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 8px;
 }
+/* Плитка товара в макете — только рамка: у слоя «Прямоугольник 8» альфа
+   внутри нулевая, сквозь него виден фон города. Заливки нет. */
 .gshop-card {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -103,7 +167,7 @@
   gap: 10px;
   padding: 10px;
   border: 1.5px solid var(--shop-ink);
-  background: rgba(255, 255, 255, .82);
+  background: transparent;
 }
 .gshop-card--bar { grid-template-columns: 1fr; }
 .gshop-card img { object-fit: contain; align-self: start; }

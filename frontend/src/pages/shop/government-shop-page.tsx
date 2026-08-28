@@ -6,7 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ShoppingCart, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { shopApi } from '../../shared/api/shop.api'
 import { barsApi } from '../../shared/api/bars.api'
 import { charactersApi } from '../../shared/api/characters.api'
@@ -143,18 +143,28 @@ export function GovernmentShopPage() {
       {message && <div className={`alert alert-${message.type} mb8`}>{message.text}</div>}
 
       <header className="gshop-head">
+        {/* Наличность, уровень и корзина в макете лежат на белых плашках
+            с той же рисованной рамкой, что вкладки категорий: слои
+            «Наличность» 523x55, «Для уровня» 68x55 и «Корзина» 213x55 —
+            все залиты #fffffe. Подпись «Для уровня» стоит вне плашки,
+            в рамку взято только само значение. */}
         <span className="gshop-cash">
-          Ваша наличность: <b>{me.data ? money(me.data.money) : '—'} руб.</b>
+          <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
+          <span>Ваша наличность: <b>{me.data ? money(me.data.money) : '—'} руб.</b></span>
         </span>
         <label className="gshop-level">
-          Для уровня:
-          <select value={String(level)} onChange={e => setLevel(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}>
-            <option value="ALL">все</option>
-            {levels.map(lv => <option key={lv} value={lv}>{lv}</option>)}
-          </select>
+          <span>Для уровня:</span>
+          <span className="gshop-level__box">
+            <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
+            <select value={String(level)} onChange={e => setLevel(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}>
+              <option value="ALL">все</option>
+              {levels.map(lv => <option key={lv} value={lv}>{lv}</option>)}
+            </select>
+          </span>
         </label>
         <button className="gshop-cart-btn" onClick={() => setCartOpen(v => !v)} aria-expanded={cartOpen}>
-          <ShoppingCart size={14} /> Корзина{cart.length > 0 && <b> · {cart.length}</b>}
+          <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
+          <span>Корзина{cart.length > 0 && <b> · {cart.length}</b>}</span>
         </button>
       </header>
 
