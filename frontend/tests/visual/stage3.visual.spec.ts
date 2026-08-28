@@ -100,7 +100,7 @@ test('разделы Этапа 3 подсвечивают свой район',
     ['/bars', 'market'],
     ['/clans', 'center'],
     ['/objects', 'industrial'],
-    ['/farm', 'agriculture'],
+    ['/farm', 'industrial'],
   ]
   for (const [path, district] of cases) {
     await page.goto(path)

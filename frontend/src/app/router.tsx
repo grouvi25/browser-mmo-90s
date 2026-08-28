@@ -55,10 +55,13 @@ function SoonRoute() {
 }
 
 /** Посадочная района: /district/<ключ>. Ключ неизвестен — уводим в Центр. */
-const DISTRICTS: DistrictKey[] = ['market', 'industrial', 'agriculture', 'station', 'garages', 'suburb']
+const DISTRICTS: DistrictKey[] = ['market', 'industrial', 'station', 'garages', 'suburb']
 
 function DistrictRoute() {
   const { kind = '' } = useParams()
+  // Аграрный район убран: его в макете нет, а ферма и растения переехали
+  // в Промзону. Старый адрес уводим туда же, а не в Центр.
+  if (kind === 'agriculture') return <Navigate to="/district/industrial" replace />
   if (!DISTRICTS.includes(kind as DistrictKey)) return <Navigate to="/" replace />
   return <LocationHubPage kind={kind as DistrictKey} />
 }
@@ -103,7 +106,7 @@ export function AppRouter() {
             в чужих закладках и в истории Метрики. */}
         <Route path="/garages" element={<Navigate to="/district/garages" replace />} />
         <Route path="/industrial" element={<Navigate to="/district/industrial" replace />} />
-        <Route path="/agriculture" element={<Navigate to="/district/agriculture" replace />} />
+        <Route path="/agriculture" element={<Navigate to="/district/industrial" replace />} />
         {/* Этап 3: одиннадцать разделов вместо прежних заглушек. */}
         <Route path="/farm" element={<Stage3Page section="farm" />} />
         <Route path="/plants" element={<Stage3Page section="plants" />} />

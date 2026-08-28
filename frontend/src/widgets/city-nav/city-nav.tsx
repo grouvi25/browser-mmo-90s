@@ -149,23 +149,22 @@ export function TopNav() {
 /** Какой район подсветить для текущего адреса. Порядок важен: более
  *  длинные пути проверяются раньше коротких, иначе /shops/private
  *  поймается на /shop. */
-// path — это pathname вместе с query. Query нужна ровно для одного случая:
-// страница работы общая для промзоны и села, и по одному пути не понять,
-// из какого района игрок в неё вошёл. Без пометки клик по «Колхозам»
-// перекидывал подсветку в промзону и подменял нижний ряд комнат.
+// Раньше сюда приходил pathname вместе с query: страница работы была
+// комнатой сразу двух районов, и различить входы можно было только
+// пометкой /work?from=agriculture. Аграрного района больше нет,
+// спецслучай ушёл вместе с ним, и функция работает с чистым путём.
 export function districtKey(path: string) {
   // Посадочная района называет его прямо — самый надёжный случай, поэтому
   // проверяется первым. Все остальные ветки разбирают адреса комнат.
   const landing = /^\/district\/([a-z]+)/.exec(path)
   if (landing) return landing[1]
-  if (path.startsWith('/work?from=agriculture')) return 'agriculture'
   if (path === '/' || ['/inventory', '/skills', '/stats', '/battles/history', '/clans'].some(x => path.startsWith(x))) return 'center'
-  if (['/industrial', '/work', '/resources', '/objects', '/recipes'].some(x => path.startsWith(x))) return 'industrial'
-  if (['/agriculture', '/farm', '/plants'].some(x => path.startsWith(x))) return 'agriculture'
+  if (['/industrial', '/work', '/resources', '/objects', '/recipes', '/farm', '/plants', '/agriculture']
+    .some(x => path.startsWith(x))) return 'industrial'
   if (['/garages', '/upgrades', '/repair'].some(x => path.startsWith(x))) return 'garages'
   if (['/market', '/shops/private', '/shop', '/bars'].some(x => path.startsWith(x))) return 'market'
   if (path.startsWith('/pvp')) return 'suburb'
-  if (path.startsWith('/station') || path.startsWith('/soon/logistics')) return 'station'
+  if (['/station', '/soon/logistics', '/soon/storage'].some(x => path.startsWith(x))) return 'station'
   return ''
 }
 

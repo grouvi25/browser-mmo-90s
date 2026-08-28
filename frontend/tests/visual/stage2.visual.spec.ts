@@ -268,19 +268,22 @@ test.describe('Stage 2 visual and browser flow', () => {
       await expect(page.getByRole('button', { name: room.label, exact: true })).toBeVisible()
     }
 
+    // Аграрного района в макете нет; ферма и растения — комнаты Промзоны,
+    // и старый адрес обязан уводить туда же.
     await page.goto('/agriculture')
-    await expect(page.getByRole('button', { name: 'Фермы и колхозы', exact: true })).toBeVisible()
-    for (const room of MENU.rooms.agriculture) {
-      await expect(page.getByRole('button', { name: room.label, exact: true })).toBeVisible()
-    }
+    await expect(page).toHaveURL(/\/district\/industrial$/)
+    await expect(page.getByRole('button', { name: 'Промзона', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Ферма', exact: true })).toBeVisible()
+
     // комнаты чужого района в полосе не появляются
+    await page.goto('/district/garages')
     await expect(page.getByRole('button', { name: 'Работа', exact: true })).toHaveCount(0)
   })
 
   test('visual navigation has one visible control per destination', async ({ page }, testInfo) => {
     await authPage(page, seller)
 
-    for (const route of ['/', '/industrial', '/agriculture', '/garages']) {
+    for (const route of ['/', '/district/industrial', '/district/station', '/district/garages']) {
       await page.goto(route)
       const labels = await page.locator('button:visible, a[href]:visible').evaluateAll(elements =>
         elements.map(element => (element.textContent ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru'))
