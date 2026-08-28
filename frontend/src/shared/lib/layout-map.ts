@@ -40,14 +40,18 @@ export const MENU = {
   // ширина от старого макета, где вьюпорт был на 72 px шире.
   districtStrip: box(340.5, 91.5, 904.5, 27),
   districtGap: 8,
+  /** Районы города. Адрес у всех одного вида — /district/<ключ>, кроме
+      Центра: он же главный экран. Раньше три района вели на посадочную,
+      два сразу на конкретный раздел, а один на заглушку, и по адресу
+      нельзя было понять, район это или комната. */
   districts: [
     { key: 'center', label: 'Центр', to: '/' },
-    { key: 'market', label: 'Рынок', to: '/market' },
-    { key: 'industrial', label: 'Промзона', to: '/industrial' },
-    { key: 'agriculture', label: 'Фермы и колхозы', to: '/agriculture' },
-    { key: 'station', label: 'Вокзал', to: '/station' },
-    { key: 'garages', label: 'Гаражи', to: '/garages' },
-    { key: 'suburb', label: 'Спальный район', to: '/pvp' },
+    { key: 'market', label: 'Рынок', to: '/district/market' },
+    { key: 'industrial', label: 'Промзона', to: '/district/industrial' },
+    { key: 'agriculture', label: 'Фермы и колхозы', to: '/district/agriculture' },
+    { key: 'station', label: 'Вокзал', to: '/district/station' },
+    { key: 'garages', label: 'Гаражи', to: '/district/garages' },
+    { key: 'suburb', label: 'Спальный район', to: '/district/suburb' },
   ],
 
   /** Нижняя полоса показывает комнаты выбранного района, без повторов из самой сцены. */
@@ -56,6 +60,11 @@ export const MENU = {
   // вьюпорту — правый край совпадает с его правым краем (1245).
   bottomStrip: box(356, 623, 889, 28),
   bottomGap: 10,
+  /** Комнаты района. Здесь живёт всё, что называется само по себе;
+      то, что нельзя назвать без родителя («склад бригады», «общак»),
+      остаётся вкладкой внутри своей страницы — см. пояснение в
+      pages/stage3/stage3-page.tsx. Полоса не должна расти без нужды:
+      на её длине уже сгорел вариант с девятью районами. */
   rooms: {
     center: [
       { key: 'inventory', label: 'Снаряжение', to: '/inventory' },
@@ -67,6 +76,9 @@ export const MENU = {
     market: [
       { key: 'shop', label: 'Госмагазин', to: '/shop' },
       { key: 'private', label: 'Частные лавки', to: '/shops/private' },
+      // Доска объявлений игроков. Зовётся «Барахолкой», чтобы не
+      // повторять имя района: раньше и район, и эта страница были «Рынок».
+      { key: 'board', label: 'Барахолка', to: '/market' },
       { key: 'bars', label: 'Бары', to: '/bars' },
     ],
     industrial: [
@@ -83,6 +95,14 @@ export const MENU = {
     garages: [
       { key: 'repair', label: 'Мастерская', to: '/repair' },
       { key: 'upgrades', label: 'Улучшения', to: '/upgrades' },
+    ],
+    // Вокзал и Спальный район раньше комнат не имели вовсе: полоса
+    // под ними пропадала, и содержимое подпрыгивало на её высоту.
+    station: [
+      { key: 'logistics', label: 'Перевозки', to: '/soon/logistics' },
+    ],
+    suburb: [
+      { key: 'arena', label: 'Стрелки', to: '/pvp' },
     ],
   } as Record<string, readonly { key:string;label:string;to:string }[]>,
   bottomFontSize: 15.1,

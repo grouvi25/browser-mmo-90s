@@ -9,7 +9,6 @@ import { LoginPage }           from '../pages/auth/login-page'
 import { RegisterPage }        from '../pages/auth/register-page'
 import { CreateCharacterPage } from '../pages/character/create-character-page'
 import { HubPage }             from '../pages/hub/hub-page'
-import { GaragesPage }         from '../pages/garages/garages-page'
 import { DossierPage }         from '../pages/profile/dossier-page'
 import { PublicProfilePage }   from '../pages/character/public-profile-page'
 import { InventoryPage }       from '../pages/inventory/inventory-page'
@@ -27,7 +26,7 @@ import { PrivateShopsPage }    from '../pages/private-shops/private-shops-page'
 import { MarketPage }          from '../pages/market/market-page'
 import { UpgradesPage }        from '../pages/upgrades/upgrades-page'
 import { BalanceSandboxPage }   from '../pages/balance-sandbox/balance-sandbox-page'
-import { LocationHubPage }      from '../pages/locations/location-hub-page'
+import { LocationHubPage, type DistrictKey } from '../pages/locations/location-hub-page'
 import { Stage3Page }           from '../pages/stage3/stage3-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -46,12 +45,22 @@ function RequireGuest({ children, authenticatedTo = '/' }: { children: React.Rea
 const SOON: Record<string, { title: string; stage: number; what: string }> = {
   storage:   { title: 'Склад', stage: 2, what: 'Хранение ресурсов и деталей сверх носимого веса.' },
   'equipment-production': { title: 'Производство шмота', stage: 3, what: 'Изготовление снаряжения в отдельной комнате Промзоны.' },
+  logistics: { title: 'Перевозки', stage: 4, what: 'Доставка груза между районами и склад на станции.' },
 }
 
 function SoonRoute() {
   const { key = '' } = useParams()
   const cfg = SOON[key] ?? { title: 'Раздел', stage: 2, what: 'Раздел ещё не открыт.' }
   return <LockedSection title={cfg.title} stage={cfg.stage} what={cfg.what} />
+}
+
+/** Посадочная района: /district/<ключ>. Ключ неизвестен — уводим в Центр. */
+const DISTRICTS: DistrictKey[] = ['market', 'industrial', 'agriculture', 'station', 'garages', 'suburb']
+
+function DistrictRoute() {
+  const { kind = '' } = useParams()
+  if (!DISTRICTS.includes(kind as DistrictKey)) return <Navigate to="/" replace />
+  return <LocationHubPage kind={kind as DistrictKey} />
 }
 
 function MetrikaTracker() {
@@ -89,9 +98,12 @@ export function AppRouter() {
       {/* ── Город: оболочка постоянна, меняется только вьюпорт ── */}
       <Route element={<RequireAuth><GameShell /></RequireAuth>}>
         <Route path="/" element={<HubPage />} />
-        <Route path="/garages" element={<GaragesPage />} />
-        <Route path="/industrial" element={<LocationHubPage kind="industrial" />} />
-        <Route path="/agriculture" element={<LocationHubPage kind="agriculture" />} />
+        <Route path="/district/:kind" element={<DistrictRoute />} />
+        {/* Прежние адреса посадочных остаются рабочими: на них есть ссылки
+            в чужих закладках и в истории Метрики. */}
+        <Route path="/garages" element={<Navigate to="/district/garages" replace />} />
+        <Route path="/industrial" element={<Navigate to="/district/industrial" replace />} />
+        <Route path="/agriculture" element={<Navigate to="/district/agriculture" replace />} />
         {/* Этап 3: одиннадцать разделов вместо прежних заглушек. */}
         <Route path="/farm" element={<Stage3Page section="farm" />} />
         <Route path="/plants" element={<Stage3Page section="plants" />} />
@@ -105,12 +117,12 @@ export function AppRouter() {
         <Route path="/clans/relations" element={<Stage3Page section="clan-relations" />} />
 
         <Route path="/shop" element={
-          <ViewportPanel title="Рынок" subtitle="Государственные цены">
+          <ViewportPanel title="Госмагазин" subtitle="Государственные цены">
             <GovernmentShopPage />
           </ViewportPanel>} />
 
         <Route path="/repair" element={
-          <ViewportPanel title="Гаражи" subtitle="Мастерская: ремонт снаряжения">
+          <ViewportPanel title="Мастерская" subtitle="Ремонт снаряжения">
             <RepairPage />
           </ViewportPanel>} />
 
@@ -125,7 +137,7 @@ export function AppRouter() {
           </ViewportPanel>} />
 
         <Route path="/market" element={
-          <ViewportPanel title="Рынок игроков" subtitle="Объявления: вещи и сырьё">
+          <ViewportPanel title="Барахолка" subtitle="Объявления игроков: вещи и сырьё">
             <MarketPage />
           </ViewportPanel>} />
 
@@ -150,7 +162,7 @@ export function AppRouter() {
           </ViewportPanel>} />
 
         <Route path="/pvp" element={
-          <ViewportPanel title="Спальный район" subtitle="Бои с ботами и стрелки">
+          <ViewportPanel title="Стрелки" subtitle="Бои с ботами, дуэли и командные">
             <ArenaPage />
           </ViewportPanel>} />
 
@@ -174,8 +186,7 @@ export function AppRouter() {
           <ViewportPanel title="Работа" subtitle="Смены, зарплата и профессии">
             <WorkPage />
           </ViewportPanel>} />
-        <Route path="/station" element={<LockedSection title="Вокзал" stage={2}
-          what="Логистика и перевозки между районами." />} />
+        <Route path="/station" element={<Navigate to="/district/station" replace />} />
         {/* Радио есть в макете верхнего меню, но что за ним стоит —
             заказчиком не описано. Держим место, как и другие разделы,
             у которых интерфейс есть, а наполнение впереди. */}

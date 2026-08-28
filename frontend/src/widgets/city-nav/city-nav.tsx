@@ -154,6 +154,10 @@ export function TopNav() {
 // из какого района игрок в неё вошёл. Без пометки клик по «Колхозам»
 // перекидывал подсветку в промзону и подменял нижний ряд комнат.
 export function districtKey(path: string) {
+  // Посадочная района называет его прямо — самый надёжный случай, поэтому
+  // проверяется первым. Все остальные ветки разбирают адреса комнат.
+  const landing = /^\/district\/([a-z]+)/.exec(path)
+  if (landing) return landing[1]
   if (path.startsWith('/work?from=agriculture')) return 'agriculture'
   if (path === '/' || ['/inventory', '/skills', '/stats', '/battles/history', '/clans'].some(x => path.startsWith(x))) return 'center'
   if (['/industrial', '/work', '/resources', '/objects', '/recipes'].some(x => path.startsWith(x))) return 'industrial'
@@ -161,7 +165,7 @@ export function districtKey(path: string) {
   if (['/garages', '/upgrades', '/repair'].some(x => path.startsWith(x))) return 'garages'
   if (['/market', '/shops/private', '/shop', '/bars'].some(x => path.startsWith(x))) return 'market'
   if (path.startsWith('/pvp')) return 'suburb'
-  if (path.startsWith('/station')) return 'station'
+  if (path.startsWith('/station') || path.startsWith('/soon/logistics')) return 'station'
   return ''
 }
 
