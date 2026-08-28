@@ -150,11 +150,16 @@
 .battle-command-dock__plan > small.is-ready { color: oklch(38% .09 135); }
 .battle-plan-move { display: grid; place-items: center; border: 1px solid oklch(58% .035 55); background: oklch(96% .017 75); font-size: 10px; }
 .battle-command-dock__actions { min-width: 0; display: grid; grid-template-rows: 1fr 34px; gap: 5px; padding: 8px; border-left: 1px solid oklch(58% .035 55); }
-.battle-submit-turn { min-height: 44px; border: 1px solid oklch(34% .12 25); background: oklch(45% .14 25); color: oklch(97% .01 70); cursor: pointer; font: 700 11px/1 var(--font-sign); text-transform: uppercase; letter-spacing: .04em; }
-.battle-submit-turn:hover:not(:disabled) { background: oklch(39% .14 25); }
+/* Кнопки боя сняты со слоёв «Плашка Применить» и «Плашка Закрыть» макета
+   «Профиль игрока Боевка»: 235x46, заливка #fad5c8, рамка 1px тушью #07090a,
+   скруглённый угол. Прежняя красная плашка в макете отсутствует — там обе
+   кнопки одинаковые, бледно-розовые, и различаются только подписью. */
+:root { --battle-btn-face: #fad5c8; --battle-btn-ink: #07090a; }
+.battle-submit-turn { min-height: 44px; border: 1px solid var(--battle-btn-ink); border-radius: 5px; background: var(--battle-btn-face); color: var(--battle-btn-ink); cursor: pointer; font: 700 11px/1 var(--font-sign); text-transform: uppercase; letter-spacing: .04em; }
+.battle-submit-turn:hover:not(:disabled) { background: color-mix(in srgb, var(--battle-btn-face) 88%, var(--battle-btn-ink)); }
 .battle-submit-turn:disabled { opacity: .42; cursor: not-allowed; }
 .battle-command-tools { display: flex; gap: 4px; }
-.battle-command-tools button { min-width: 0; flex: 1; border: 1px solid oklch(58% .035 55); background: oklch(96% .017 75); color: oklch(30% .025 55); cursor: pointer; font-size: 8px; }
+.battle-command-tools button { min-width: 0; flex: 1; border: 1px solid var(--battle-btn-ink); border-radius: 5px; background: var(--battle-btn-face); color: var(--battle-btn-ink); cursor: pointer; font-size: 8px; }
 .battle-command-tools button small { color: oklch(45% .025 55); }
 .battle-command-tools button.is-surrender { flex: 0 0 30px; color: oklch(39% .08 25); }
 
@@ -434,6 +439,23 @@
   .battle-fighter-zone.is-right-arm span::after { content: none; }
   .battle-hand-zone > div { grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 1px; }
   .battle-hand-zone button { min-width: 0; min-height: 32px; font-size: 9px; }
+
+  /* Карта во всю ширину экрана, как в макете «Профиль игрока Боевка»:
+     там она лежит от края до края (1798 из 1800 холста), без полей и рамки.
+     Ряд под поле раньше был долей высоты, и плитку ограничивала не ширина,
+     а высота: на 720 px экране карта выходила 670 px и по бокам оставались
+     поля. Теперь ряд считается от содержимого, а высота плитки — от её
+     ширины через aspect-ratio. Контейнер переводим на inline-size:
+     при container-type: size высота не может прийти от содержимого,
+     и ряд auto схлопнулся бы в ноль. */
+  .battle-duel-stage { grid-template-rows: auto minmax(0, 1fr); }
+  .battle-field-v3 .hex-board { container-type: inline-size; padding: 0; }
+  .battle-field-v3 .designer-battle-field {
+    width: 100cqw;
+    height: auto;
+    border: 0;
+    box-shadow: none;
+  }
 }
 
 
@@ -641,11 +663,15 @@
 }
 
 /* Маленький телефон: поле отдаёт часть высоты панелям.
-   При жёстких 210px под поле панели получали 208px, манекену не хватало
-   на три ряда зон, и ноги уходили под панель хода. Поле и на 150px
-   остаётся читаемым — оно во всю ширину экрана. */
+   Ряд остаётся авто-высоты, чтобы карта шла во всю ширину, но самой плитке
+   ставим потолок по высоте экрана. Упёршись в потолок, она сузится — это
+   единственный случай, когда карта не во всю ширину: иначе на экране 360x640
+   поле съедало 208 px, панелям оставалось 282 px, и ноги манекена уходили
+   под панель хода. */
 @media (max-width: 380px) and (max-height: 700px) {
-  .battle-duel-stage { grid-template-rows: minmax(150px, 32%) minmax(0, 1fr); }
+  /* Потолок задаём через ширину, а не max-height: при фиксированной ширине
+     ограничение высоты не сжало бы плитку, а расплющило пропорцию. */
+  .battle-field-v3 .designer-battle-field { width: min(100cqw, calc(31vh * 1.824249)); }
 }
 
 /* Ширины коробок зон — долями, а не пикселями.
