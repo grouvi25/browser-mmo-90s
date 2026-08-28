@@ -51,11 +51,17 @@
 .battle-fighter-panel__head > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; }
 .battle-fighter-panel__head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12px/1 var(--font-sign); text-transform: uppercase; }
 .battle-fighter-panel__head small { color: oklch(43% .026 55); font-size: 9px; white-space: nowrap; }
-.battle-fighter-panel__hp { position: relative; height: 13px; margin-top: 5px; overflow: hidden; border: 1px solid oklch(48% .04 52); background: oklch(79% .025 60); font: 700 8px/11px var(--font-mono); text-align: center; font-variant-numeric: tabular-nums; }
+/* Полосы ХП с макета: слои «Хп зеленое» и «Хп красное» 868x36,
+   заливка #3b7f39 и #ce1818, дорожка под ними #dccbca. */
+.battle-fighter-panel__hp { position: relative; height: 13px; margin-top: 5px; overflow: hidden; border: 1px solid #a8918f; background: #dccbca; font: 700 8px/11px var(--font-mono); text-align: center; font-variant-numeric: tabular-nums; }
 /* Заливка светлее текста: цифры на полосе читаются на любой её длине. */
-.battle-fighter-panel__hp i { position: absolute; inset: 0; transform-origin: left; background: oklch(72% .13 135); transition: transform 300ms cubic-bezier(.22,1,.36,1); }
-.is-enemy .battle-fighter-panel__hp i { background: oklch(70% .14 25); }
-.battle-fighter-panel__hp span { position: relative; color: oklch(15% .018 48); text-shadow: 0 1px oklch(96% .01 70); }
+.battle-fighter-panel__hp i { position: absolute; inset: 0; transform-origin: left; background: #3b7f39; transition: transform 300ms cubic-bezier(.22,1,.36,1); }
+.is-enemy .battle-fighter-panel__hp i { background: #ce1818; }
+/* Заливка макета тёмная, а дорожка светлая: одним цветом текста обе
+   не перекрыть — на одной он тонет, на другой не проходит контраст.
+   Ставим цифры на светлую плашку, тогда фон под ними всегда один. */
+.battle-fighter-panel__hp span { position: relative; padding: 0 5px; border-radius: 7px;
+  background: rgba(255, 252, 245, .88); color: #1e1a17; }
 .battle-fighter-panel__mode { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; background: oklch(91% .025 70); border-bottom: 1px solid oklch(68% .025 60); font-size: 8px; text-transform: uppercase; letter-spacing: .07em; color: oklch(43% .026 55); }
 .battle-fighter-panel__mode b { font: 700 9px/1 var(--font-mono); }
 
