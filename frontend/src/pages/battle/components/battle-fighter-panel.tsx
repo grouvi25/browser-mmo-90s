@@ -3,9 +3,62 @@ import { itemImage } from '../../../shared/assets/shop/shop-images'
 import { BATTLE_ZONES } from '../battle-view-model'
 import zoneArmor from '../../../shared/assets/battle/zone-armor.png'
 import zoneFist from '../../../shared/assets/battle/zone-fist.png'
+import silhouette from '../../../shared/assets/battle/silhouette.png'
 
 const ZONE_CLASS: Record<BodyZone, string> = {
   HEAD: 'head', CHEST: 'chest', LEFT_ARM: 'left-arm', RIGHT_ARM: 'right-arm', LEGS: 'legs',
+}
+
+// =============================================================
+// Геометрия панели снята с макета «Профиль игрока Боевка.psd»
+// (холст 1800x3200). Панель зоны блока занимает x 0…897,
+// y 1313…1937 — отсюда система координат ниже: 897 x 624.
+//
+// Ячейка нарисована 103x103, и на каждую зону их ровно две.
+// Ячейки НЕ стоят парами вплотную: слоты рук разнесены к обоим
+// краям панели (69 и 561 для левой руки, 172 и 664 для правой),
+// поэтому позиция задаётся каждой ячейке отдельно, а не блоку.
+// Подпись лежит внутри ячейки сверху, а не под ней.
+// =============================================================
+const PANEL_W = 897
+const PANEL_H = 624
+const CELL = 103
+
+interface ZoneCell { x: number; y: number; caption: string }
+
+const ZONE_CELLS: Record<BodyZone, readonly [ZoneCell, ZoneCell]> = {
+  HEAD:      [{ x: 310, y: 38, caption: 'Голова' }, { x: 413, y: 38, caption: 'Голова' }],
+  CHEST:     [{ x: 309, y: 194, caption: 'Корпус' }, { x: 412, y: 194, caption: 'Корпус' }],
+  LEFT_ARM:  [{ x: 69, y: 290, caption: 'Л.рука' }, { x: 561, y: 290, caption: 'Л.рука' }],
+  RIGHT_ARM: [{ x: 172, y: 290, caption: 'П.рука' }, { x: 664, y: 290, caption: 'П.рука' }],
+  LEGS:      [{ x: 308, y: 484, caption: 'Л.нога' }, { x: 411, y: 484, caption: 'П.нога' }],
+}
+
+/** Ячейка в долях панели — так пропорции макета держатся при любой ширине колонки. */
+function cellStyle(cell: ZoneCell) {
+  return {
+    left: `${cell.x / PANEL_W * 100}%`,
+    top: `${cell.y / PANEL_H * 100}%`,
+    width: `${CELL / PANEL_W * 100}%`,
+    height: `${CELL / PANEL_H * 100}%`,
+  }
+}
+
+// Силуэт: слой «Силует 1», холст 283,1321 · 260x616 — то есть
+// от верха панели он отступает на 8 px и занимает её почти целиком.
+const SILHOUETTE_STYLE = {
+  left: `${283 / PANEL_W * 100}%`,
+  top: `${8 / PANEL_H * 100}%`,
+  width: `${260 / PANEL_W * 100}%`,
+  height: `${616 / PANEL_H * 100}%`,
+}
+
+// Карточка индикатора: слой «Индикатор», холст 27,1313 · 186x216.
+const INDICATOR_STYLE = {
+  left: `${27 / PANEL_W * 100}%`,
+  top: '0%',
+  width: `${186 / PANEL_W * 100}%`,
+  height: `${216 / PANEL_H * 100}%`,
 }
 
 interface BattleFighterPanelProps {
@@ -61,12 +114,23 @@ function WeaponCell({
 function ZoneIndicator({ mode, selected }: { mode: 'attack' | 'block'; selected: BodyZone[] }) {
   const covered = (zone: BodyZone) => selected.includes(zone)
   const label = mode === 'attack' ? 'Куда бьём' : 'Что закрыто'
+  // Макет рисует шесть частей: голова, торс, две руки и две ноги.
+  // Ног в боевой системе одна зона, поэтому обе фигурки ведёт LEGS.
+  const parts: { part: string; zone: BodyZone }[] = [
+    { part: 'head', zone: 'HEAD' },
+    { part: 'chest', zone: 'CHEST' },
+    { part: 'arm-l', zone: 'LEFT_ARM' },
+    { part: 'arm-r', zone: 'RIGHT_ARM' },
+    { part: 'leg-l', zone: 'LEGS' },
+    { part: 'leg-r', zone: 'LEGS' },
+  ]
   return (
-    <div className={`zone-indicator is-${mode}`} title={label} role="img" aria-label={label}>
-      {BATTLE_ZONES.map(zone => (
+    <div className={`zone-indicator is-${mode}`} style={INDICATOR_STYLE}
+      title={label} role="img" aria-label={label}>
+      {parts.map(({ part, zone }) => (
         <i
-          key={zone.key}
-          className={`zone-indicator__part is-${ZONE_CLASS[zone.key]}${covered(zone.key) ? ' is-on' : ''}`}
+          key={part}
+          className={`zone-indicator__part is-${part}${covered(zone) ? ' is-on' : ''}`}
         />
       ))}
     </div>
@@ -98,56 +162,60 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
 
     <div className="battle-fighter-panel__mode"><span>{instruction}</span><b>{props.selected.length} / {props.limit}</b></div>
 
+    {/* Обёртка нужна, чтобы коробка макета вписывалась по обеим осям:
+        во flex-контексте max-width действительно поджимает ширину,
+        а aspect-ratio следом уменьшает высоту. В голом grid-треке
+        коробка просто вылезала за панель. */}
+    <div className="battle-fighter-panel__stage">
     <div className="battle-fighter-panel__figure">
       <ZoneIndicator mode={props.mode} selected={props.selected} />
-      <div className="battle-fighter-panel__body" aria-hidden="true">
-        <i className="battle-body-part is-head" />
-        <i className="battle-body-part is-chest" />
-        <i className="battle-body-part is-left-arm" />
-        <i className="battle-body-part is-right-arm" />
-        <i className="battle-body-part is-left-leg" />
-        <i className="battle-body-part is-right-leg" />
-      </div>
+      <img className="battle-fighter-panel__body" src={silhouette} alt="" aria-hidden="true"
+        draggable={false} style={SILHOUETTE_STYLE} />
 
       {BATTLE_ZONES.map(zone => {
+        const cells = ZONE_CELLS[zone.key]
         const full = props.mode === 'block' && props.selected.length >= props.limit
         if (props.mode === 'block') {
           // Две ячейки на зону — как две руки для удара. Второй блок
           // держит удачный удар, который одиночный пропускает.
           const placed = props.selected.filter(value => value === zone.key).length
-          return <div key={zone.key} className={`battle-fighter-zone battle-hand-zone is-${ZONE_CLASS[zone.key]}`}>
-            <span>{zone.caption}</span><div>
-              {[0, 1].map(slot => {
-                const taken = placed > slot
-                return <button key={slot} type="button"
-                  className={taken ? 'is-selected' : ''}
-                  aria-label={`${taken ? 'Снять блок' : 'Поставить блок'}: ${zone.label.toLocaleLowerCase('ru')}${slot ? ', второй' : ''}`}
-                  aria-pressed={taken}
-                  disabled={props.disabled || props.limit === 0 || (!taken && (full || placed < slot))}
-                  onClick={() => props.onZone(zone.key, slot)}>
-                  {taken
-                    ? <img src={zoneArmor} alt="" className="zone-mark" draggable={false} />
-                    : <i className="zone-dot" aria-hidden="true" />}
-                </button>
-              })}
-            </div>
+          return <div key={zone.key} className="battle-zone-pair">
+            {cells.map((cell, slot) => {
+              const taken = placed > slot
+              return <button key={slot} type="button"
+                style={cellStyle(cell)}
+                className={`battle-zone-cell is-${ZONE_CLASS[zone.key]}${taken ? ' is-selected' : ''}`}
+                aria-label={`${taken ? 'Снять блок' : 'Поставить блок'}: ${zone.label.toLocaleLowerCase('ru')}${slot ? ', второй' : ''}`}
+                aria-pressed={taken}
+                disabled={props.disabled || props.limit === 0 || (!taken && (full || placed < slot))}
+                onClick={() => props.onZone(zone.key, slot)}>
+                <span className="battle-zone-cell__caption">{cell.caption}</span>
+                {taken
+                  ? <img src={zoneArmor} alt="" className="zone-mark" draggable={false} />
+                  : <i className="zone-dot" aria-hidden="true" />}
+              </button>
+            })}
           </div>
         }
-        return <div key={zone.key} className={`battle-fighter-zone battle-hand-zone is-${ZONE_CLASS[zone.key]}`}>
-          <span>{zone.caption}</span><div>
-            {(['LEFT_HAND', 'RIGHT_HAND'] as const).map(hand => <button key={hand} type="button"
-              className={handSelected(hand, zone.key) ? 'is-selected' : ''}
+        return <div key={zone.key} className="battle-zone-pair">
+          {(['LEFT_HAND', 'RIGHT_HAND'] as const).map((hand, slot) => {
+            const cell = cells[slot]
+            return <button key={hand} type="button"
+              style={cellStyle(cell)}
+              className={`battle-zone-cell is-${ZONE_CLASS[zone.key]}${handSelected(hand, zone.key) ? ' is-selected' : ''}`}
               aria-label={`Удар ${hand === 'LEFT_HAND' ? 'левой' : 'правой'} рукой, цель: ${zone.label.toLocaleLowerCase('ru')}`}
               aria-pressed={handSelected(hand, zone.key)}
               disabled={props.disabled || props.disabledHands?.includes(hand) || props.limit === 0 || (handUsed(hand) && !handSelected(hand, zone.key)) || (!handSelected(hand, zone.key) && props.selected.length >= props.limit)}
               onClick={() => props.onHandZone?.(hand, zone.key)}>
+              <span className="battle-zone-cell__caption">{cell.caption}</span>
               {handSelected(hand, zone.key)
                 ? <img src={zoneFist} alt="" className="zone-mark" draggable={false} />
                 : <span className="zone-hand">{hand === 'LEFT_HAND' ? 'Л' : 'П'}</span>}
-            </button>)}
-          </div>
+            </button>
+          })}
         </div>
       })}
+    </div>
     </div>
 
     {props.disabledReason && <p className="battle-fighter-panel__reason">{props.disabledReason}</p>}

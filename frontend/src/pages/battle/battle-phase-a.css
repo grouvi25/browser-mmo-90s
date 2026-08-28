@@ -27,7 +27,12 @@
 .battle-header-v3 .is-ready { color: oklch(39% 0.09 135); }
 .battle-header-v3 .is-pending { color: oklch(45% 0.09 75); }
 
-.battle-duel-stage { min-height: 0; display: grid; grid-template-columns: 206px minmax(0,1fr) 206px; }
+/* Панель зон нарисована в макете 897x624, ячейка занимает 11.48% ширины.
+   При 206px колонки ячейка выходила 24px — подпись в неё не влезала.
+   Берём столько, чтобы ячейка была не меньше 40px, но не больше трети
+   экрана: карта боя в центре остаётся главной. */
+.battle-duel-stage { min-height: 0; display: grid;
+  grid-template-columns: clamp(250px, 28vw, 430px) minmax(0,1fr) clamp(250px, 28vw, 430px); }
 .battle-fighter-panel {
   position: relative; min-width: 0; min-height: 0;
   /* Контейнер по обеим осям: от ширины считается размер бумажной карточки,
@@ -94,30 +99,122 @@
    листа, а зоны рук налезали на корпус. */
 /* Ширина ограничена: на планшете панель широкая, и зоны рук уезжали
    к самым краям, отрываясь от фигуры. */
-.battle-fighter-panel__figure { position: relative; min-height: 0; height: 258px; max-height: 100%; align-self: center; justify-self: center; width: min(100% - 14px, 252px); margin: 6px 0; }
-.battle-fighter-panel__body { position: absolute; left: 50%; top: 0; bottom: 0; width: 104px; transform: translateX(-50%); }
-.battle-body-part { position: absolute; display: block; background: oklch(70% .018 60); border: 1px solid oklch(43% .025 55); }
-.battle-body-part.is-head { height: 11%; aspect-ratio: 1; border-radius: 50%; left: 50%; top: 2%; translate: -50% 0; }
-.battle-body-part.is-chest { width: 44px; height: 32%; left: calc(50% - 22px); top: 15%; clip-path: polygon(14% 0,86% 0,100% 100%,0 100%); }
-.battle-body-part.is-left-arm,.battle-body-part.is-right-arm { width: 14px; height: 34%; top: 17%; border-radius: 7px; }
-.battle-body-part.is-left-arm { left: calc(50% - 38px); transform: rotate(7deg); }
-.battle-body-part.is-right-arm { right: calc(50% - 38px); transform: rotate(-7deg); }
-.battle-body-part.is-left-leg,.battle-body-part.is-right-leg { width: 17px; height: 38%; top: 50%; border-radius: 0 0 7px 7px; }
-.battle-body-part.is-left-leg { left: calc(50% - 19px); }
-.battle-body-part.is-right-leg { right: calc(50% - 19px); }
-.battle-fighter-zone { position: absolute; min-width: 44px; min-height: 36px; appearance: none; border: 1px dashed oklch(43% .025 55); background: oklch(98% .01 75 / .92); color: oklch(25% .02 50); padding: 2px 4px; cursor: pointer; font: 700 8px/1.05 var(--font-ui); transition: transform 120ms cubic-bezier(.25,1,.5,1), opacity 120ms; }
-.battle-fighter-zone:hover:not(:disabled) { transform: scale(1.04); }
-.battle-fighter-zone:focus-visible,.battle-command-dock button:focus-visible,.battle-drawer button:focus-visible { outline: 2px solid oklch(45% .14 25); outline-offset: 2px; }
-.battle-fighter-zone:disabled { opacity: .38; cursor: not-allowed; }
-/* Зоны стоят там же, где части тела: доли высоты фигуры. */
-.battle-fighter-zone.is-head { left: calc(50% - 30px); top: 1%; width: 60px; }
-.battle-fighter-zone.is-chest { left: calc(50% - 35px); top: 26%; width: 70px; }
-.battle-fighter-zone.is-left-arm { left: 0; top: 26%; width: 58px; }
-.battle-fighter-zone.is-right-arm { right: 0; top: 26%; width: 58px; }
-.battle-fighter-zone.is-legs { left: calc(50% - 35px); top: 68%; width: 70px; }
-.battle-fighter-zone em { margin-left: 2px; padding: 0 3px; border-radius: 8px; background: oklch(42% .14 25); color: oklch(97% .01 70); font-style: normal; }
-.is-self .battle-fighter-zone.is-selected { border-style: solid; border-color: oklch(41% .10 135); background: oklch(87% .065 135); color: oklch(29% .08 135); }
-.is-enemy .battle-fighter-zone.is-selected { border-style: solid; border-color: oklch(42% .14 25); background: oklch(86% .07 25); color: oklch(30% .12 25); }
+/* =============================================================
+   ПАНЕЛЬ ЗОН ПО МАКЕТУ «Профиль игрока Боевка.psd»
+
+   Панель зоны блока занимает на холсте x 0…897, y 1313…1937,
+   отсюда пропорция 897:624. Всё внутри позиционируется долями
+   этой коробки, поэтому раскладка макета держится при любой
+   ширине колонки — от узкой боковой панели до телефона.
+
+   Числа ячеек, силуэта и индикатора приходят инлайном из
+   battle-fighter-panel.tsx: они сняты из PSD и правятся только
+   там, чтобы не разъезжаться между двумя файлами.
+   ============================================================= */
+/* Место под коробку макета: центрирует её и режет всё лишнее. */
+.battle-fighter-panel__stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 4px 0;
+  /* size-контейнер: из его ширины и высоты коробка макета считает свой
+     размер сама. Через max-width это не выходит — при заданной высоте
+     браузер жертвует пропорцией, а не высотой, и ячейки вытягивались. */
+  container-type: size;
+}
+.battle-fighter-panel__figure {
+  position: relative;
+  width: min(100cqw, calc(100cqh * 897 / 624));
+  aspect-ratio: 897 / 624;
+  container-type: inline-size;
+}
+/* Узкая колонка: подпись в ячейку уже не влезает — оставляем метку.
+   Порог по ширине самой коробки, а не экрана: панель бывает узкой
+   и на широком мониторе. */
+@container (max-width: 300px) {
+  .battle-zone-cell__caption { display: none; }
+  .battle-zone-cell .zone-mark { top: 50%; height: 64%; }
+  .battle-zone-cell .zone-dot,
+  .battle-zone-cell .zone-hand { top: 50%; }
+}
+/* Силуэт с макета вместо прежней фигуры из CSS-примитивов. */
+.battle-fighter-panel__body {
+  position: absolute;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Ячейка зоны: скруглённый прямоугольник с пунктирной рамкой и
+   вертикальной заливкой — цвета сняты пипеткой с макета
+   (#f8ebf6 вверху, #ffe1e2 в середине, #ffd6ca внизу, рамка #cbbec6).
+   Подпись лежит ВНУТРИ ячейки сверху: в макете «Голова» стоит на
+   13 px ниже её верхнего края, а не под ячейкой. */
+.battle-zone-pair { display: contents; }
+/* Ячейку не набиваем полями: процент в padding считается от ШИРИНЫ
+   контейнера, а не ячейки, и 10% давали 36 px вместо 4 — коробка
+   раздувалась вдвое против макетных 103x103. Подпись и метка стоят
+   абсолютом в долях самой ячейки, как нарисовано. */
+.battle-zone-cell {
+  position: absolute;
+  appearance: none;
+  display: block;
+  padding: 0;
+  border: 1px dashed #cbbec6;
+  border-radius: 14%;
+  background: linear-gradient(180deg, #f8ebf6 0%, #ffe1e2 52%, #ffd6ca 100%);
+  color: #1e1a17;
+  cursor: pointer;
+  overflow: hidden;
+  transition: filter 120ms cubic-bezier(.25,1,.5,1), border-color 120ms;
+}
+.battle-zone-cell:hover:not(:disabled) { filter: brightness(1.05); border-color: #8a7563; }
+.battle-zone-cell:disabled { opacity: .38; cursor: not-allowed; }
+/* Подпись: макет ставит её на 13 px ниже верха ячейки при высоте 15 px
+   и ширине 73 из 103 — то есть 12.6% сверху и 70.9% ширины по центру. */
+.battle-zone-cell__caption {
+  position: absolute;
+  left: 0; right: 0; top: 12.6%;
+  font: 700 clamp(7px, 2.32cqw, 13px)/1 var(--font-ui);
+  white-space: nowrap;
+  text-align: center;
+  pointer-events: none;
+}
+/* Иконка брони (48x62) и кулака (46x64) ложатся поверх ячейки в её
+   нижние две трети — как на макете. */
+.battle-zone-cell .zone-mark {
+  position: absolute;
+  left: 50%; top: 58%;
+  width: auto; height: 52%; max-height: none;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+  pointer-events: none;
+}
+.battle-zone-cell .zone-dot,
+.battle-zone-cell .zone-hand {
+  position: absolute;
+  left: 50%; top: 58%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.battle-zone-cell .zone-hand { font: 700 clamp(7px, 2.1cqw, 12px)/1 var(--font-mono); color: #6b5c4e; }
+.battle-zone-cell .zone-dot { width: 12%; height: 0; padding-top: 12%; border-radius: 50%; background: #b7a99f; }
+/* Занятая ячейка: сплошная рамка вместо пунктира. Заливку держим
+   светлой — поверх неё ложится чёрная иконка брони или кулака
+   с макета, на тёмном фоне она бы пропала. */
+.battle-zone-cell.is-selected { border-style: solid; border-width: 2px; }
+.is-self .battle-zone-cell.is-selected { border-color: #2f6b2a; background: linear-gradient(180deg, #eef7e9 0%, #dcecd4 100%); }
+.is-enemy .battle-zone-cell.is-selected { border-color: #b81e2c; background: linear-gradient(180deg, #fdeeee 0%, #f7d7d7 100%); }
+.battle-zone-cell:focus-visible { outline: 2px solid #b81e2c; outline-offset: 1px; }
+
+.battle-zone-cell:focus-visible,.battle-command-dock button:focus-visible,.battle-drawer button:focus-visible { outline: 2px solid oklch(45% .14 25); outline-offset: 2px; }
 /* Плашка причины лежит в своём ряду сетки — под манекеном. Абсолютом
    по центру она накрывала ячейки корпуса, а по верху — имя бойца. */
 .battle-fighter-panel__reason { justify-self: center; align-self: end; margin: 0 0 4px; padding: 3px 6px; background: oklch(91% .05 70); border: 1px solid oklch(55% .06 55); color: oklch(38% .10 25); font-size: 8px; }
@@ -189,7 +286,10 @@
   .battle-header-v3 > span { font-size: 0; }
   .battle-header-v3 > span svg { width: 10px; height: 10px; }
   /* Колонка не уже суммы зон: при 108 px «Л.рук.» налезала на «Корп.». */
-  .battle-duel-stage { grid-template-columns: clamp(150px, 19vw, 168px) minmax(0,1fr) clamp(150px, 19vw, 168px); }
+  /* 150 px под коробку макета мало: ячейка выходила 17 px. Даём столько,
+     чтобы ячейка была не меньше 22 px — подпись на этой ширине всё равно
+     скрыта контейнерным запросом, читается метка. */
+  .battle-duel-stage { grid-template-columns: clamp(190px, 24vw, 300px) minmax(0,1fr) clamp(190px, 24vw, 300px); }
   .battle-fighter-panel__head { padding: 4px; }
   .battle-fighter-panel__head b { font-size: 9px; }
   .battle-fighter-panel__head small { font-size: 7px; }
@@ -197,29 +297,6 @@
   .battle-fighter-panel__stats { grid-template-columns: repeat(4,1fr); padding: 4px 3px; }
   .battle-fighter-panel__stats dt { font-size: 6px; }
   .battle-fighter-panel__stats dd { font-size: 9px; }
-  .battle-fighter-panel__figure { margin: 2px; }
-  .battle-fighter-panel__body { left: 50%; top: 50%; width: 80px; height: 120px; transform: translate(-50%,-50%); }
-  .battle-body-part.is-head { width: 20px; height: 20px; left: calc(50% - 10px); }
-  .battle-body-part.is-chest { width: 32px; height: 42px; left: calc(50% - 16px); top: 23px; }
-  .battle-body-part.is-left-arm,.battle-body-part.is-right-arm { width: 11px; height: 44px; top: 25px; }
-  .battle-body-part.is-left-arm { left: calc(50% - 29px); }
-  .battle-body-part.is-right-arm { right: calc(50% - 29px); }
-  .battle-body-part.is-left-leg,.battle-body-part.is-right-leg { width: 13px; height: 46px; top: 68px; }
-  .battle-body-part.is-left-leg { left: calc(50% - 14px); }
-  .battle-body-part.is-right-leg { right: calc(50% - 14px); }
-  .battle-fighter-zone { min-width: 44px; min-height: 44px; padding: 1px; font-size: 0; }
-  .battle-fighter-zone span::after { font-size: 7px; }
-  .battle-fighter-zone.is-head { width: 42px; left: calc(50% - 21px); top: calc(50% - 72px); }
-  .battle-fighter-zone.is-head span::after { content: 'Гол.'; }
-  .battle-fighter-zone.is-chest { width: 46px; left: calc(50% - 23px); top: calc(50% - 25px); }
-  .battle-fighter-zone.is-chest span::after { content: 'Корп.'; }
-  .battle-fighter-zone.is-left-arm { width: 42px; left: 0; top: calc(50% - 22px); }
-  .battle-fighter-zone.is-left-arm span::after { content: 'Л.рук.'; }
-  .battle-fighter-zone.is-right-arm { width: 42px; right: 0; top: calc(50% - 22px); }
-  .battle-fighter-zone.is-right-arm span::after { content: 'П.рук.'; }
-  .battle-fighter-zone.is-legs { width: 46px; left: calc(50% - 23px); top: calc(50% + 48px); }
-  .battle-fighter-zone.is-legs span::after { content: 'Ноги'; }
-  .battle-fighter-zone em { font-size: 7px; }
   .battle-fighter-panel__hands { grid-template-columns: 1fr; }
   .battle-fighter-panel__hands > div { padding: 2px 4px; }
   .battle-fighter-panel__hands > div + div { border-left: 0; border-top: 1px solid oklch(68% .025 60); }
@@ -250,10 +327,6 @@
   .battle-fighter-panel__hands > div { padding: 2px 3px; }
   .battle-fighter-panel__hands > div + div { border-top: 0; border-left: 1px solid oklch(68% .025 60); }
   .battle-fighter-panel__hands span { display: none; }
-  .battle-fighter-zone.is-head { top: calc(50% - 65px); }
-  .battle-fighter-zone.is-chest { top: calc(50% - 20px); }
-  .battle-fighter-zone.is-left-arm,.battle-fighter-zone.is-right-arm { top: calc(50% - 20px); }
-  .battle-fighter-zone.is-legs { top: calc(50% + 33px); }
   .battle-command-dock__plan { grid-template-rows: 13px 1fr 11px; padding-block: 3px; }
   .battle-command-dock__actions { grid-template-rows: 1fr 30px; padding-block: 4px; }
   .battle-submit-turn { min-height: 40px; }
@@ -265,7 +338,7 @@
   .battle-command-dock { grid-template-columns: minmax(0,1fr) 180px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .battle-fighter-zone,.battle-fighter-panel__hp i { transition: none; }
+  .battle-zone-cell,.battle-fighter-panel__hp i { transition: none; }
 }
 .battle-page-v3 .fighter-token .token-label {
   color: oklch(97% .01 70);
@@ -377,28 +450,7 @@
   .battle-field-v3 .hex-board { padding-bottom: 22px; }
   .battle-field-v3 .fighter-token { width: auto; height: clamp(34px, 180%, 66px); }
 }
-
-.battle-hand-zone { display:grid; grid-template-rows:auto 1fr; padding:2px 3px; cursor:default; }
-/* Подписи ячеек сокращены до «Л.рука»/«П.рука» (caption в BATTLE_ZONES),
-   поэтому влезают в одну строку. Перенос запрещён: вторая строка сдвигала
-   ячейки руки вниз относительно соседней зоны. */
-.battle-hand-zone > span { overflow:hidden; white-space:nowrap; line-height:1.05; }
-.battle-hand-zone > div { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:2px; }
-/* Пустая ячейка на макете — скруглённый прямоугольник с пунктирной рамкой.
-   Пунктир читается как «сюда можно поставить», сплошная рамка — как занято. */
-.battle-hand-zone button { min-width:24px; min-height:28px; padding:0; border:1px dashed oklch(55% .04 55); border-radius:3px; background:oklch(94% .02 75 / .82); color:oklch(30% .03 55); font:700 8px/1 var(--font-mono); cursor:pointer; }
-/* Выбранная ячейка светлая, а не залитая: на ней лежит чёрная иконка
-   с макета — броник или кулак, и на тёмном фоне она пропадала бы.
-   Состояние читается по толстой сплошной рамке и тёплой заливке. */
-.battle-hand-zone button.is-selected { border:2px solid oklch(42% .14 25); background:oklch(88% .07 32); color:oklch(30% .12 25); }
-/* Свой силуэт — защита, поэтому занятая ячейка зелёная, а не красная. */
-.battle-fighter-panel.is-self .battle-hand-zone button.is-selected {
-  border-color: oklch(38% .10 135); background: oklch(89% .065 135);
-}
-.battle-hand-zone button:disabled { opacity:.35; cursor:not-allowed; }
-@media (max-width:900px) { .battle-hand-zone { font-size:0; } .battle-hand-zone > div { height:100%; margin:0; align-items:center; } .battle-hand-zone button { min-height:30px; font-size:8px; } }
-
-
+@media (max-width:900px) { }
 
 /* Portrait phones need composition, not a squeezed desktop duel. The field gets
    the full width, then both readable fighter controls share the second row.
@@ -425,20 +477,6 @@
      трёх коробок в ряд хватает, если не раздувать их. Ширины задаются
      тем же селектором с .is-*, что и в компактном блоке, иначе те
      побеждают по специфичности и руки налезают на корпус. */
-  .battle-fighter-panel__figure { width: calc(100% - 8px); margin: 4px 0; }
-  .battle-fighter-zone { min-width: 0; padding: 2px; }
-  .battle-fighter-zone.is-head { width: 66px; left: calc(50% - 33px); top: 1%; }
-  .battle-fighter-zone.is-chest { width: 66px; left: calc(50% - 33px); top: 26%; }
-  .battle-fighter-zone.is-legs { width: 66px; left: calc(50% - 33px); top: 68%; }
-  .battle-fighter-zone.is-left-arm { width: 60px; left: 0; right: auto; top: 26%; }
-  .battle-fighter-zone.is-right-arm { width: 60px; right: 0; left: auto; top: 26%; }
-  /* Полная подпись вместо «Гол.»: место под неё здесь есть. */
-  .battle-fighter-zone { font-size: 7px; }
-  .battle-fighter-zone.is-head span::after,.battle-fighter-zone.is-chest span::after,
-  .battle-fighter-zone.is-legs span::after,.battle-fighter-zone.is-left-arm span::after,
-  .battle-fighter-zone.is-right-arm span::after { content: none; }
-  .battle-hand-zone > div { grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 1px; }
-  .battle-hand-zone button { min-width: 0; min-height: 32px; font-size: 9px; }
 
   /* Карта во всю ширину экрана, как в макете «Профиль игрока Боевка»:
      там она лежит от края до края (1798 из 1800 холста), без полей и рамки.
@@ -457,7 +495,6 @@
     box-shadow: none;
   }
 }
-
 
 /* Портрет во всю ширину, оружие строкой под ним: колонка узкая, и рядом
    с портретом обе руки не помещались без обрезки названий. */
@@ -622,7 +659,6 @@
 .zone-mark { display: block; width: auto; height: 76%; max-height: 22px; margin: 0 auto; object-fit: contain; }
 .zone-dot { display: block; width: 4px; height: 4px; margin: 0 auto; border-radius: 50%; background: oklch(58% .03 55); }
 .zone-hand { font: 700 8px/1 var(--font-mono); }
-.battle-hand-zone button { display: grid; place-items: center; }
 @media (max-width: 900px), (max-height: 620px) {
   .zone-mark { max-height: 20px; }
   .zone-hand { font-size: 9px; }
@@ -648,9 +684,6 @@
      него есть порог, ниже которого коробки начинают наезжать друг на
      друга: между головой и корпусом всего 25 % высоты, а коробка — 39px.
      140px — минимум, при котором расходятся все три ряда. */
-  .battle-fighter-panel__figure { min-height: 140px; }
-  /* Пара пикселей на ячейку: на 320px они и так по 21px в ширину. */
-  .battle-fighter-zone { padding: 1px; }
 }
 
 /* Низкое окно (телефон в альбоме): ряд карточки ужимаем.
@@ -679,61 +712,94 @@
    налезали друг на друга. Доли 32 % + 34 % + 32 % оставляют зазор при
    любой ширине панели; потолок в пикселях держит размер на планшете. */
 @media (max-width: 900px), (max-height: 620px) {
-  /* Центр держим через auto-поля: при упоре в потолок 66px доля left
-     перестала бы быть серединой и коробка съехала бы вбок. */
-  .battle-fighter-zone.is-head,
-  .battle-fighter-zone.is-chest,
-  .battle-fighter-zone.is-legs { width: min(34%, 66px); left: 0; right: 0; margin-inline: auto; }
-  .battle-fighter-zone.is-left-arm { width: min(32%, 60px); left: 0; right: auto; }
-  .battle-fighter-zone.is-right-arm { width: min(32%, 60px); right: 0; left: auto; }
-  /* Без этого две ячейки по min-width:24px не влезают в коробку зоны
-     шириной 47px и вылезают на соседнюю — визуально зоны не пересекались,
-     а кнопки пересекались, и попадал не тот удар. Ширину теперь задаёт
-     коробка, а не минимум кнопки. */
-  .battle-hand-zone button { min-width: 0; }
 }
 
 /* ── Боевой экран v4: индикатор зон ────────────────────────────
    Фигурка по краю панели показывает, что уже разобрано планом хода.
    Сетка повторяет раскладку силуэта: голова, корпус, руки, ноги. */
+/* =============================================================
+   ИНДИКАТОР СОСТОЯНИЯ ЗОН — слой «Индикатор» макета
+
+   Карточка 186x216 на холсте, внутри шесть цветных частей тела
+   отдельными слоями. Позиция карточки приходит инлайном из TSX,
+   части разложены долями карточки — числа сняты из PSD:
+     Голова  99,1321 22x35   Торс   90,1356 39x70
+     Рука л  68,1367 22x82   Рука п 129,1367 22x82
+     Нога л  88,1426 18x97   Нога п 113,1426 18x97
+   минус начало карточки (27, 1313).
+
+   Три цвета макета взяты пипеткой: #05dc59, #ffda3a, #ff594a.
+   Чем именно они различаются у заказчика — бронёй, уроном или
+   и тем и другим — не сказано (открытый вопрос 4 в разборе макета),
+   поэтому пока показываем то, что читается однозначно: жёлтый —
+   зона не тронута планом, зелёный — прикрыта блоком, красный —
+   назначена целью удара.
+   ============================================================= */
 .zone-indicator {
-  /* По внешнему краю панели, как в макете: у блока слева, у удара справа. */
   position: absolute;
-  top: 0;
-  width: 30px;
-  height: 48px;
-  display: grid;
-  grid-template-columns: 7px 1fr 7px;
-  grid-template-rows: 11px 18px 19px;
-  gap: 1px;
-  opacity: .9;
+  border: 1px dashed #cbbec6;
+  border-radius: 8%;
+  background: #f8ebf6;
+  pointer-events: none;
 }
 .zone-indicator__part {
-  background: oklch(84% .02 70);
-  border: 1px solid oklch(66% .025 60);
-  border-radius: 1px;
+  position: absolute;
+  display: block;
+  background: #ffda3a;
+  border-radius: 40%;
+  transition: background 140ms ease;
 }
-.zone-indicator__part.is-head { grid-column: 2; grid-row: 1; }
-.zone-indicator__part.is-chest { grid-column: 2; grid-row: 2; }
-.zone-indicator__part.is-left-arm { grid-column: 1; grid-row: 2; }
-.zone-indicator__part.is-right-arm { grid-column: 3; grid-row: 2; }
-.zone-indicator__part.is-legs { grid-column: 2; grid-row: 3; }
-/* Свои закрытые зоны — зелёным, зоны чужого под ударом — красным. */
-.zone-indicator.is-block { left: -2px; }
-.zone-indicator.is-attack { right: -2px; }
-.zone-indicator.is-block .zone-indicator__part.is-on {
-  background: oklch(72% .13 138);
-  border-color: oklch(45% .11 138);
-}
-.zone-indicator.is-attack .zone-indicator__part.is-on {
-  background: oklch(66% .17 28);
-  border-color: oklch(44% .15 28);
-}
+.zone-indicator__part.is-head  { left: 38.71%; top: 3.70%;  width: 11.83%; height: 16.20%; border-radius: 45%; }
+.zone-indicator__part.is-chest { left: 33.87%; top: 19.91%; width: 20.97%; height: 32.41%; border-radius: 22%; }
+.zone-indicator__part.is-arm-l { left: 22.04%; top: 25.00%; width: 11.83%; height: 37.96%; }
+.zone-indicator__part.is-arm-r { left: 54.84%; top: 25.00%; width: 11.83%; height: 37.96%; }
+.zone-indicator__part.is-leg-l { left: 32.80%; top: 52.31%; width: 9.68%;  height: 44.91%; }
+.zone-indicator__part.is-leg-r { left: 46.24%; top: 52.31%; width: 9.68%;  height: 44.91%; }
+
+.zone-indicator.is-block  .zone-indicator__part.is-on { background: #05dc59; }
+.zone-indicator.is-attack .zone-indicator__part.is-on { background: #ff594a; }
 
 /* Портрета в макете между полосой ХП и зонами нет — панель без него
    становится плотнее, и зоны поднимаются под полосы, как нарисовано. */
 .battle-profile-summary--flat { grid-template-columns: minmax(0, 1fr); }
 
 @media (max-width: 900px), (max-height: 620px) {
-  .zone-indicator { width: 22px; height: 36px; grid-template-rows: 8px 12px 13px; }
+}
+
+/* Узкий телефон: панели в столбик, а не рядом.
+
+   Макет нарисован на холсте 1800 — это 900 логических пикселей, то есть
+   планшет. Там панель занимает половину ширины и ячейка выходит 51.5 px.
+   На 375-пиксельном телефоне та же композиция даёт 21 px — попасть пальцем
+   нельзя. Пропорции внутри панели трогать нельзя, они и есть макет,
+   поэтому уступаем единственным, чем можно: панели встают одна под другой
+   и каждая получает всю ширину. Ячейка возвращается к 43 px.
+
+   container-type здесь inline-size, а не size: ряд под панель считается
+   от содержимого, и при size-контейнере высота пришла бы из нуля. */
+@media (max-width: 520px) and (min-height: 521px) {
+  .battle-duel-stage {
+    grid-template-columns: 1fr;
+    /* max-content, а не auto: при фиксированной высоте сетки ряды auto
+       сжимаются ниже содержимого. Панели теряли по половине ячеек, а
+       когда их подпёрли — в ноль схлопывался ряд с картой боя. */
+    grid-template-rows: max-content max-content max-content;
+    grid-template-areas: 'field' 'self' 'enemy';
+    overflow-y: auto;
+  }
+  .battle-fighter-panel.is-self { border-right: 0; }
+  /* Ряд под фигуру перестаёт быть 1fr: в столбик панели сжимались
+     до 148 px и половина ячеек уезжала под обрез. Теперь ряд равен
+     высоте самой коробки, а лишнее забирает вертикальная прокрутка —
+     ровно как в макете, где экран 900x1600 и тоже листается. */
+  /* container-type: size у панели запрещает высоте приходить от
+     содержимого — ряд под фигуру схлопывался в 74 px. В столбик
+     потолок по высоте не нужен, поэтому переводим на inline-size. */
+  .battle-fighter-panel { container-type: inline-size;
+    grid-template-rows: auto auto 22px auto auto; }
+  /* Высота коробки выводится из её же ширины по пропорции макета —
+     так ряд знает свой минимум и не схлопывается. */
+  .battle-fighter-panel__stage { container-type: inline-size;
+    min-height: calc(100cqw * 624 / 897); }
+  .battle-fighter-panel__figure { width: 100%; }
 }
