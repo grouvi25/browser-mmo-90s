@@ -4,7 +4,6 @@ import { useQueryClient } from '@tanstack/react-query'
 
 import { MENU } from '../../shared/lib/layout-map'
 import { FitText, type StageBox } from '../../shared/lib/stage'
-import { SPRITES } from '../../shared/ui/sprite'
 import { useAuth } from '../../app/providers/auth-provider'
 import { authApi } from '../../shared/api/auth.api'
 
@@ -92,7 +91,7 @@ function FramedTabs({
             title={locked ? 'Откроется на следующих этапах' : tab.label}
             data-stage-nav={tab.key}
           >
-            <img className="stage-nav__frame" src={SPRITES['nav-frame']} alt="" draggable={false} />
+            <span className="stage-nav__frame" aria-hidden="true" />
             <FittedNavLabel>{tab.label}</FittedNavLabel>
           </button>
         )
