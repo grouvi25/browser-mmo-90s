@@ -51,6 +51,9 @@
 .battle-fighter-panel__head > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; }
 .battle-fighter-panel__head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12px/1 var(--font-sign); text-transform: uppercase; }
 .battle-fighter-panel__head small { color: oklch(43% .026 55); font-size: 9px; white-space: nowrap; }
+/* Цифры здоровья у имени нужны только там, где полоса чистая, то есть
+   на телефоне: на десктопе они остаются на самой полосе. */
+.battle-fighter-panel__hp-num { display: none; }
 /* Полосы ХП с макета: слои «Хп зеленое» и «Хп красное» 868x36,
    заливка #3b7f39 и #ce1818, дорожка под ними #dccbca. */
 .battle-fighter-panel__hp { position: relative; height: 13px; margin-top: 5px; overflow: hidden; border: 1px solid #a8918f; background: #dccbca; font: 700 8px/11px var(--font-mono); text-align: center; font-variant-numeric: tabular-nums; }
@@ -865,6 +868,13 @@
   display: grid; height: auto; min-height: 0;
   background: transparent; border-top: 1px solid rgba(7, 9, 10, .35);
 }
+/* Чата в макете внизу у нас нет, и его доля высоты — по холсту это 222 px
+   из 1280 — досталась журналу. Пустое место копилось под последней
+   строкой; строки прижаты к низу, и журнал растёт снизу вверх, как лента
+   сообщений, а свободное поле остаётся сверху, под кнопками. */
+.battle-command-dock.is-compact .battle-chronicle ol {
+  display: flex; flex-direction: column; justify-content: flex-end;
+}
 
 /* Карман и сдача — их в макете нет, поэтому уводим в шапку иконками. */
 .battle-header-tools { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
@@ -881,8 +891,28 @@
 /* Портретная раскладка: тот же запрос, что у стопки «поле — панели». */
 @media (max-width: 600px) and (min-height: 521px),
        (max-aspect-ratio: 4 / 5) and (min-height: 521px) {
-  /* Журналу нужна своя доля высоты: в макете он занимает 597 из 3200. */
-  .battle-page-v3 { grid-template-rows: 32px minmax(0, 1fr) minmax(120px, 26%); }
+  /* Журналу нужна своя доля высоты: в макете он занимает 597 из 3200.
+     Шапки в макете нет вовсе, а её 32 px сдвигали вниз весь экран,
+     поэтому ряд под неё схлопываем в ноль, а саму шапку кладём поверх
+     карты: раунд, состояние хода, карман и сдача — наше, в макете их
+     негде разместить, но и высоту у макетных блоков они забирать
+     не должны. Верх карты декоративен, надпись там не мешает. */
+  /* Треков два, а не три: шапка ушла в absolute и место в сетке
+     больше не занимает — с лишним треком полоса боя попадала
+     в нулевой ряд и схлопывалась. */
+  .battle-page-v3 { grid-template-rows: minmax(0, 1fr) minmax(120px, 38%); }
+  .battle-header-v3 {
+    position: absolute; z-index: 6; left: 0; right: 0; top: 0;
+    min-height: 26px;
+    border-bottom: 0;
+    background: linear-gradient(oklch(87% .032 70 / .92), oklch(87% .032 70 / 0));
+  }
+
+  /* У поля объявлено три ряда — карта, плашка дистанции и 22 px под
+     хронику. На телефоне хроника уехала в нижнюю панель, ряд остался
+     пустым и отодвигал панель зон от плашки, которые в макете стоят
+     вплотную. Оставляем два ряда. */
+  .battle-field-v3 { grid-template-rows: minmax(0, 1fr) auto; }
 
   /* Плашка дистанции. */
   .battle-field-v3__meta {
@@ -917,11 +947,37 @@
   }
   .battle-fighter-panel__mode b { position: absolute; right: 5px; font-size: 8px; }
 
-  /* Внутренности панели — ячейки, силуэт, индикатор, ряды сетки и
-     раскладка в столбик на узком телефоне — заданы разбором макета
-     в battle-fighter-panel.tsx и в блоке «ПАНЕЛЬ ЗОН» выше. Отсюда
-     их не переопределяем: раскладка держится на тех долях, и любое
-     правило здесь побеждает их по порядку в файле. */
+  /* Ячейки, силуэт и индикатор заданы разбором макета в
+     battle-fighter-panel.tsx: их доли отсюда не трогаем. Замеры на
+     720x1280 (та же пропорция 9:16, что у холста) показывают, что они
+     сходятся с макетом точно — ячейка 41x41 против 41, силуэт 103x245
+     против 104x246, индикатор 74x86 против 74x86.
+
+     Расходилось положение: строки оружия в макете нет вовсе, а она
+     занимает 47 px и сдвигает вниз всё содержимое панели. На телефоне
+     её снимаем — какое оружие в какой руке, видно по подписям «Л» и «П»
+     на самих ячейках. Рядов при этом становится на один меньше. */
+  .battle-fighter-panel .battle-profile-summary { display: none; }
+  .battle-fighter-panel { grid-template-rows: auto 18px minmax(0, 1fr) auto; }
+  /* Коробка зон прижата к верху панели, как в макете: там она занимает
+     y 1313…1937 при панели 1066…1985, то есть запас остаётся снизу.
+     По центру она висела с дырой в 95 px над зонами. */
+  .battle-fighter-panel__stage { align-items: flex-start; padding-top: 47px; }
+
+  /* Полоса здоровья в макете чистая: ни цифр, ни подписи, зато слева
+     от неё стоит сердце (слой «ХП» 52x45, то есть 21x18 на этой ширине).
+     Цифры переехали к имени, здесь их снимаем. */
+  .battle-fighter-panel__hp span { display: none; }
+  .battle-fighter-panel__head > div:first-child { gap: 6px; }
+  .battle-fighter-panel__hp-num { display: inline; font-variant-numeric: tabular-nums; }
+  .battle-fighter-panel__head > div:nth-child(2) {
+    display: flex; align-items: center; gap: 5px;
+  }
+  .battle-fighter-panel__hp::before {
+    content: ''; position: absolute; z-index: 1; left: 2px; top: 50%;
+    width: 16px; height: 14px; transform: translateY(-50%);
+    background: url('../../shared/assets/ui/icon-hp.png') left center / contain no-repeat;
+  }
 
   /* Журнал боя на заливке панели. */
   .battle-command-dock.is-compact .battle-chronicle > header { background: transparent; }
@@ -933,4 +989,13 @@
    там оказалась бы поперёк экрана. */
 @media (min-width: 521px) and (max-aspect-ratio: 4 / 5) and (min-height: 521px) {
   .battle-fighter-panel.is-self { border-right: 3px solid rgba(67, 0, 0, .4); }
+}
+
+/* Узкий телефон: панели в столбик — ряды те же, что задаёт блок «ПАНЕЛЬ
+   ЗОН» для этого случая, минус снятая строка оружия. Правило обязано
+   стоять после портретного блока, иначе тот перебьёт его по порядку и
+   вернёт ряду с зонами растяжимую высоту, от которой в столбик панель
+   схлопывается. */
+@media (max-width: 520px) and (min-height: 521px) {
+  .battle-fighter-panel { grid-template-rows: auto 22px auto auto; }
 }

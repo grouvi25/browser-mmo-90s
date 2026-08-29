@@ -146,7 +146,11 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
 
   return <section className={`battle-fighter-panel is-${props.side}`} aria-label={`${props.name}: ${instruction.toLowerCase()}`}>
     <header className="battle-fighter-panel__head">
-      <div><b>{props.name}</b>{props.level != null && <small>ур. {props.level}</small>}</div>
+      {/* Цифры здоровья продублированы у имени: в макете полоса чистая, на
+          ней нет ни числа, ни подписи. На телефоне число с полосы снимается
+          и остаётся только здесь, на десктопе видны оба. */}
+      <div><b>{props.name}</b>{props.level != null && <small>ур. {props.level}</small>}
+        <small className="battle-fighter-panel__hp-num">{props.hp} / {props.hpMax}</small></div>
       <div className="battle-fighter-panel__hp" aria-label={`Здоровье ${props.hp} из ${props.hpMax}`}>
         <i style={{ transform: `scaleX(${pct / 100})` }} />
         <span>{props.hp} / {props.hpMax}</span>
