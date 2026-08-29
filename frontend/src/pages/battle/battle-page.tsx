@@ -20,6 +20,8 @@ import fighterBlue2x from '../../shared/assets/battle/fighter-blue@2x.webp'
 import fighterRed from '../../shared/assets/battle/fighter-red.webp'
 import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
 import { BattleFighterPanel } from './components/battle-fighter-panel'
+import { BattleChat, CHAT_SCENE_TOP } from './components/battle-chat'
+import { useViewportScale } from '../../shared/lib/stage'
 import { BattleCommandDock } from './components/battle-command-dock'
 import { BattleChronicle } from './components/battle-chronicle'
 import { EventIcon, getEvent, type RoundRecord, type TurnEvent } from './components/battle-events'
@@ -183,10 +185,16 @@ export function BattlePage() {
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
   const [pocketsOpen, setPocketsOpen]   = useState(false)
+  // Чат закрыт по умолчанию: так сцена короче и всё на экране крупнее.
+  const [chatOpen, setChatOpen]         = useState(false)
   // Телефон получает раскладку макета: журнал уезжает под кнопки, а карман
   // и сдача — в шапку. Порог тот же, на котором `.battle-chronicle`
   // прячется под полем, иначе журнал показался бы дважды.
   const isMobile = useIsMobile()
+  // Сцена макета — 900x1600. Свёрнутый чат обрезает её по своему верху,
+  // и та же сцена помещается в окно крупнее. maxScale=1: увеличивать
+  // сверх исходного размера нечего, ассеты нарезаны под него.
+  const sceneScale = useViewportScale(900, chatOpen ? 1600 : CHAT_SCENE_TOP, 'contain', 1)
   const actionPendingRef = useRef(false)
   const [playerHit, setPlayerHit]       = useState(false)
   const [enemyHit, setEnemyHit]         = useState(false)
@@ -440,6 +448,16 @@ export function BattlePage() {
 
   return (
     <div className="battle-page-v3">
+    {/* Сцена боя — фиксированная композиция макета «Профиль игрока
+        Боевка.psd»: холст 1800x3200, сцена вдвое меньше. Вписывается
+        в окно целиком, по краям остаётся поле; прокрутки нет ни на
+        десктопе, ни на телефоне.
+
+        Свёрнутый чат укорачивает сцену до 1312 — до его собственного
+        верха. Высота меньше, значит масштаб больше: на 1440x900 сцена
+        растёт с 506 до 617 px по ширине. Это и есть «больше места»,
+        которое даёт сворачивание. */}
+    <div className="battle-mockup-scene" style={{ height: chatOpen ? 1600 : CHAT_SCENE_TOP, transform: `scale(${sceneScale})` }}>
       <header className="battle-header-v3">
         <div><Sword size={13} /><b>Бой</b></div>
         <strong>Раунд {currentRound} / 30</strong>
@@ -503,11 +521,13 @@ export function BattlePage() {
       </main>
 
       {actionError && <div className="battle-error-v3" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
+      {/* Колодка всегда компактная: сцена одна и та же на любом экране,
+          и кнопки в ней — те, что нарисованы в макете. */}
       <BattleCommandDock stance={stance} attackZones={attackZones} attackHands={attackHands} blockZones={blockZones}
         selectedMove={selectedMove} targetId={ePart?.participantId} targetInRange={targetInRange}
         canAct={canAct} pending={actionMut.isPending} timeLeft={timeLeft}
         roundsCount={rounds.length} pocketCount={pocketSlots.filter(Boolean).length}
-        compact={isMobile} rounds={rounds} playerName={playerName} enemyName={enemyName}
+        compact rounds={rounds} playerName={playerName} enemyName={enemyName}
         onRemoveAttack={removeAttack}
         onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
         onToggleLog={() => setShowLog(value => !value)} onTogglePockets={() => setPocketsOpen(value => !value)}
@@ -532,5 +552,8 @@ export function BattlePage() {
             onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />}
         </section>
       </aside>}
+
+      <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
+    </div>
     </div>
   )}

@@ -6,6 +6,8 @@ import ReactDOM from 'react-dom/client'
 import { Backpack, CircleDot, Flag, Sword } from 'lucide-react'
 import { BattleFighterPanel } from '../pages/battle/components/battle-fighter-panel'
 import { BattleCommandDock } from '../pages/battle/components/battle-command-dock'
+import { BattleChat, CHAT_SCENE_TOP } from '../pages/battle/components/battle-chat'
+import { useViewportScale } from '../shared/lib/stage'
 import { BattleChronicle } from '../pages/battle/components/battle-chronicle'
 import type { RoundRecord, TurnEvent } from '../pages/battle/components/battle-events'
 import { toggleAutomaticBlockSlot, selectAutomaticAttack, removeAutomaticAttack, type AutomaticTurnPlan } from '../pages/battle/battle-view-model'
@@ -77,11 +79,14 @@ function Preview() {
   })
   const { attackZones: attacks, attackHands: hands, blockZones: blocks } = plan
   const blockLimit = hands.length > 0 ? 2 : 4
-  // Стенд повторяет разметку страницы, включая выбор раскладки по ширине:
-  // иначе на нём нельзя проверить мобильный экран.
+  // Стенд повторяет разметку страницы, включая сцену: иначе на нём
+  // нельзя проверить ни десктоп, ни телефон.
   const isMobile = useIsMobile()
+  const [chatOpen, setChatOpen] = useState(false)
+  const sceneScale = useViewportScale(900, chatOpen ? 1600 : CHAT_SCENE_TOP, 'contain', 1)
 
   return <div className="battle-page-v3">
+    <div className="battle-mockup-scene" style={{ height: chatOpen ? 1600 : CHAT_SCENE_TOP, transform: `scale(${sceneScale})` }}>
     <header className="battle-header-v3">
       <div><Sword size={13} /><b>Бой</b></div>
       <strong>Раунд 3 / 30</strong>
@@ -118,11 +123,14 @@ function Preview() {
     <BattleCommandDock stance="mixed" attackZones={attacks} attackHands={hands} blockZones={blocks}
       selectedMove={null} targetId="enemy" targetInRange canAct pending={false}
       timeLeft={47} roundsCount={2} pocketCount={1}
-      compact={isMobile} rounds={ROUNDS} playerName="Миша" enemyName="Гопник"
+      compact rounds={ROUNDS} playerName="Миша" enemyName="Гопник"
       onRemoveAttack={index => setPlan(removeAutomaticAttack(plan, index))}
       onSubmitTurn={() => undefined} onSubmitMove={() => undefined}
       onReset={() => setPlan({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] })}
       onToggleLog={() => undefined} onTogglePockets={() => undefined} onSurrender={() => undefined} />
+
+    <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
+    </div>
   </div>
 }
 

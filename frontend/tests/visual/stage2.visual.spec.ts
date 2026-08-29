@@ -421,23 +421,31 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.locator('.hex-cell')).toHaveCount(DESIGNER_BATTLE_COLUMNS * DESIGNER_BATTLE_ROWS)
     expect(await page.locator('.designer-battle-field').evaluate(element => getComputedStyle(element).backgroundImage)).not.toBe('none')
 
-    const geometry = await page.locator('.battle-page-v3').evaluate(element => {
-      const root = element.getBoundingClientRect()
+    // Экран боя — фиксированная сцена макета, ужатая под окно. Мерить её
+    // scrollHeight бессмысленно: он показывает размер ДО масштабирования,
+    // то есть всегда 1312 или 1600. Смотрим то, что видит игрок: сцена
+    // после масштабирования влезает в окно и документ не прокручивается.
+    const geometry = await page.locator('.battle-mockup-scene').evaluate(element => {
+      const box = element.getBoundingClientRect()
       return {
-        rootWidth: root.width,
-        rootHeight: root.height,
-        scrollWidth: element.scrollWidth,
-        scrollHeight: element.scrollHeight,
+        sceneWidth: box.width,
+        sceneHeight: box.height,
         viewportWidth: window.innerWidth,
         viewportHeight: window.innerHeight,
         documentWidth: document.documentElement.scrollWidth,
         documentHeight: document.documentElement.scrollHeight,
       }
     })
-    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.rootWidth + 1)
-    expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.rootHeight + 1)
+    expect(geometry.sceneWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1)
+    expect(geometry.sceneHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1)
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1)
     expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1)
+
+    // Обе панели стоят в один ряд — и на десктопе, и на телефоне: так их
+    // рисует макет, и ради этого сцена вписывается целиком.
+    const rows = await page.locator('.battle-fighter-panel').evaluateAll(
+      panels => panels.map(panel => Math.round(panel.getBoundingClientRect().y)))
+    expect(new Set(rows).size, 'панели зон должны стоять на одной строке').toBe(1)
 
     await page.locator('.battle-fighter-panel.is-enemy .battle-zone-cell.is-head').nth(1).click()
     // Десять ячеек — ровно столько нарисовано в макете: у головы, корпуса
