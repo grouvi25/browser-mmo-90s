@@ -848,6 +848,10 @@
 }
 .battle-dock-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--battle-btn-face) 88%, var(--battle-btn-ink)); }
 .battle-dock-btn:disabled { opacity: .42; cursor: not-allowed; }
+/* Кнопка «Применить» несёт и класс battle-submit-turn — по нему её ищут
+   приёмочные сценарии. Вместе с классом приезжает мобильное правило
+   `width: 100%`, от которого пара кнопок растянулась бы в одну строку. */
+.battle-command-dock.is-compact .battle-submit-turn { width: auto; padding-inline: 10px; }
 .battle-dock-hint {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   margin: 0; padding: 0 10px 4px;

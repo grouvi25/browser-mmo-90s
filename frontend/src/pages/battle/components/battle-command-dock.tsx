@@ -51,7 +51,10 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
       <section className="battle-command-dock is-compact" aria-label="Ход">
         <div className="battle-dock-actions">
           <button type="button" className="battle-dock-btn" disabled={planEmpty} onClick={props.onReset}>Закрыть</button>
-          <button type="button" className="battle-dock-btn is-apply"
+          {/* battle-submit-turn остаётся на кнопке и здесь: по этому классу
+              её находят приёмочные сценарии, и на телефоне он тоже нужен —
+              это та же кнопка отправки хода, только в оформлении макета. */}
+          <button type="button" className="battle-dock-btn is-apply battle-submit-turn"
             disabled={!props.canAct || !ready || props.pending}
             onClick={props.selectedMove ? props.onSubmitMove : props.onSubmitTurn}>
             {props.pending ? 'Отправляем…' : props.selectedMove ? 'Перейти' : 'Применить'}
