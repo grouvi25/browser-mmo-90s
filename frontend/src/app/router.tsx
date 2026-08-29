@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from './providers/auth-provider'
+import { charactersApi } from '../shared/api/characters.api'
+import { ApiError } from '../shared/api/client'
 import { PublicLayout } from './layouts/public-layout'
 import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
@@ -38,6 +41,39 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 function RequireGuest({ children, authenticatedTo = '/' }: { children: React.ReactNode; authenticatedTo?: string }) {
   const { isAuth } = useAuth()
   if (isAuth) return <Navigate to={authenticatedTo} replace />
+  return <>{children}</>
+}
+
+/**
+ * Пускает дальше только тех, у кого есть персонаж.
+ *
+ * Регистрация заводит учётную запись, а персонаж создаётся отдельным
+ * шагом. Если человек с этого шага ушёл — закрыл вкладку, обновил
+ * страницу, вернулся по старой ссылке, — он попадал в игру без
+ * персонажа: ни имени, ни денег, ни инвентаря. Все личные ручки при
+ * этом отвечают CHAR_001, то есть город рисовался поверх пустоты.
+ */
+function RequireCharacter({ children }: { children: React.ReactNode }) {
+  const { isLoading, error } = useQuery({
+    queryKey: ['character', 'me'],
+    queryFn: () => charactersApi.getMe(),
+    retry: false,
+    // Тот же ключ, что у оболочки города: она подхватит уже готовый
+    // ответ и не пойдёт за ним второй раз.
+    staleTime: 30_000,
+  })
+
+  // Пока ответ не пришёл, не рисуем ничего: иначе экран моргнёт
+  // городом и только потом уедет на создание персонажа.
+  if (isLoading) return null
+
+  // Уводим на онбординг ровно по одному коду — «учётка есть, персонажа
+  // нет». На любой другой ошибке пускаем дальше: обрыв связи не должен
+  // выкидывать игрока из игры на экран регистрации персонажа.
+  if (error instanceof ApiError && error.code === 'CHAR_001') {
+    return <Navigate to="/character/create" replace />
+  }
+
   return <>{children}</>
 }
 
@@ -92,14 +128,14 @@ export function AppRouter() {
       <Route path="/character/create"
         element={<RequireAuth><CreateCharacterPage /></RequireAuth>} />
       <Route path="/profile"
-        element={<RequireAuth><DossierPage /></RequireAuth>} />
+        element={<RequireAuth><RequireCharacter><DossierPage /></RequireCharacter></RequireAuth>} />
       <Route path="/battle/:id"
-        element={<RequireAuth><BattlePage /></RequireAuth>} />
+        element={<RequireAuth><RequireCharacter><BattlePage /></RequireCharacter></RequireAuth>} />
       <Route path="/balance-sandbox"
-        element={<RequireAuth><BalanceSandboxPage /></RequireAuth>} />
+        element={<RequireAuth><RequireCharacter><BalanceSandboxPage /></RequireCharacter></RequireAuth>} />
 
       {/* ── Город: оболочка постоянна, меняется только вьюпорт ── */}
-      <Route element={<RequireAuth><GameShell /></RequireAuth>}>
+      <Route element={<RequireAuth><RequireCharacter><GameShell /></RequireCharacter></RequireAuth>}>
         <Route path="/" element={<HubPage />} />
         <Route path="/district/:kind" element={<DistrictRoute />} />
         {/* Прежние адреса посадочных остаются рабочими: на них есть ссылки

@@ -118,6 +118,44 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.locator('body')).toContainText(`Hero_${suffix}`.slice(0, 30))
   })
 
+  test('registration without a character always lands back on onboarding', async ({ page }) => {
+    // Учётка есть, персонажа нет — так бывает, если человек ушёл с шага
+    // создания: закрыл вкладку, обновил страницу, вернулся по старой
+    // ссылке. Раньше он попадал в город без имени, денег и инвентаря,
+    // потому что все личные ручки отвечают CHAR_001.
+    const suffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+    const login = `nochar_${suffix}`.slice(0, 30)
+    const password = 'visual_pass_123'
+    const registration = await apiContext.post('/api/auth/register', {
+      data: { login, email: `${login}@visual.local`, password },
+    })
+    expect(registration.status()).toBe(201)
+    const logged = await apiContext.post('/api/auth/login', { data: { login, password } })
+    expect(logged.status()).toBe(200)
+    const auth = await logged.json() as { token: string; userId: string }
+
+    await page.goto('/login')
+    await page.evaluate(({ token, userId, login }) => {
+      localStorage.setItem('mmo_token', token)
+      localStorage.setItem('mmo_user', JSON.stringify({ userId, login }))
+    }, { token: auth.token, userId: auth.userId, login })
+
+    // Проверяем не только главную: попасть в город можно по любому адресу.
+    for (const route of ['/', '/profile', '/shop', '/district/market', '/inventory']) {
+      await page.goto(route)
+      await expect(page, `${route} должен уводить на создание персонажа`).toHaveURL(/\/character\/create$/)
+    }
+    await expect(page.locator('.arch-card')).toHaveCount(8)
+
+    // А после онбординга гард пропускает и больше не вмешивается.
+    await page.locator('.arch-card').nth(0).click()
+    await page.locator('input[type="text"]').fill(`Guard_${suffix}`.slice(0, 30))
+    await page.locator('button[type="submit"]').click()
+    await expect(page).toHaveURL(/\/profile$/)
+    await page.goto('/shop')
+    await expect(page).toHaveURL(/\/shop$/)
+  })
+
   test('expired session redirects instead of rendering empty Stage 2 data', async ({ page }) => {
     await page.goto('/login')
     await page.evaluate(() => {
