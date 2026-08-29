@@ -1066,11 +1066,31 @@
 /* Шапка боя в макете не нарисована. Кладём поверх верха карты — там
    декоративное небо, и раунд с таймером ничего не загораживают. */
 .battle-mockup-scene .battle-header-v3 {
-  position: absolute; left: 0; top: 0; width: 900px; height: 26px;
+  position: absolute; left: 0; top: 0; width: 900px; height: 34px;
   z-index: 3; border-bottom: 0; background: rgba(20, 17, 15, .42);
-  color: oklch(96% .01 70); font-size: 11px;
+  color: oklch(96% .01 70);
+  /* Шапки в макете нет, значит и кегль из него взять неоткуда. Берём
+     столько, чтобы на 1440x900 вышло около 12 px на экране: раунд и
+     таймер читаются, а полосу над картой это не раздувает. */
+  font-size: 17px; padding: 0 14px;
 }
+.battle-mockup-scene .battle-header-v3 > strong { font-size: 17px; }
 .battle-mockup-scene .battle-header-v3 > div { color: oklch(88% .06 60); }
+.battle-header-timer { color: oklch(96% .01 70); font: 700 17px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.battle-mockup-scene .battle-header-tools { display: inline-flex; gap: 6px; margin-left: 8px; }
+.battle-mockup-scene .battle-header-tools button {
+  position: relative; display: grid; place-items: center;
+  width: 30px; height: 26px; padding: 0;
+  border: 1px solid rgba(255,255,255,.35); border-radius: 3px;
+  background: rgba(255,255,255,.12); color: oklch(96% .01 70); cursor: pointer;
+}
+.battle-mockup-scene .battle-header-tools button:hover:not(:disabled) { background: rgba(255,255,255,.24); }
+.battle-mockup-scene .battle-header-tools button:disabled { opacity: .45; cursor: not-allowed; }
+.battle-mockup-scene .battle-header-tools i {
+  position: absolute; right: -4px; top: -5px; min-width: 15px; height: 15px;
+  border-radius: 8px; background: #b81e2c; color: #fff;
+  font: 700 11px/15px var(--font-mono); font-style: normal; text-align: center;
+}
 
 /* Карта боя. Поле рисуется по ширине, высоту даёт пропорция арта. */
 .battle-mockup-scene .battle-field-v3 {
@@ -1150,5 +1170,56 @@
 .bs-chat__online ul { list-style: none; margin: 0; padding: 0; }
 .bs-chat__online li { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
 
-/* Выдвижные панели (лог, карман) ложатся поверх сцены целиком. */
-.battle-mockup-scene .battle-drawer { position: absolute; inset: 0; z-index: 9; }
+/* Служебные наложения стоят поверх всего экрана, а не внутри сцены:
+   иначе они масштабировались бы вместе с ней и на телефоне текст
+   лога сжался бы до нечитаемого. Прежние отступы 34/118 были под
+   старую раскладку с шапкой и колодкой — теперь во весь экран. */
+.battle-page-v3 > .battle-drawer { position: absolute; inset: 0; z-index: 20; }
+.battle-page-v3 > .battle-error-v3 { bottom: 24px; z-index: 22; font-size: 13px; }
+
+/* =============================================================
+   КЕГЛИ ПО МАКЕТУ
+
+   Прежние размеры задавались под раскладку 1:1 и лежали в диапазоне
+   8–13 px. Сцена ужимает всё ещё раз (на 1440x900 это 0.686), и текст
+   выходил 5–6 px на экране — нечитаемо. Числа ниже сняты из PSD и
+   поделены на 2, как вся остальная геометрия:
+
+     «Зона блока», имена, дистанция   41.67 -> 20.83
+     «Закрыть» / «Применить»          33.33 -> 16.67
+     чат и список онлайна             27.77 -> 13.89
+     строки журнала                   21.53 -> 10.77
+     подписи ячеек зон                20.83 -> 10.42
+   ============================================================= */
+.battle-mockup-scene .battle-fighter-panel__mode { font-size: 20.83px; letter-spacing: .02em; padding: 0 14px; }
+.battle-mockup-scene .battle-fighter-panel__mode b { font-size: 16px; }
+.battle-mockup-scene .battle-fighter-panel__head { padding: 8px 10px 6px; }
+.battle-mockup-scene .battle-fighter-panel__head b { font-size: 20.83px; }
+.battle-mockup-scene .battle-fighter-panel__head small { font-size: 14px; }
+.battle-mockup-scene .battle-fighter-panel__hp { height: 18px; font-size: 12px; line-height: 16px; }
+.battle-mockup-scene .battle-fighter-panel__hp span { padding: 0 7px; border-radius: 9px; }
+.battle-mockup-scene .battle-field-v3__meta { font-size: 20.83px; }
+.battle-mockup-scene .battle-dock-btn { font-size: 16.67px; }
+.battle-mockup-scene .battle-chronicle { font-size: 10.77px; }
+.battle-mockup-scene .battle-chronicle li,
+.battle-mockup-scene .battle-chronicle__empty { font-size: 10.77px; }
+.battle-mockup-scene .battle-chronicle > header { font-size: 11px; }
+.battle-mockup-scene .battle-chronicle li i { width: 16px; font-size: 10px; }
+.battle-mockup-scene .battle-chronicle li b { max-width: 120px; }
+.battle-mockup-scene .battle-chronicle li em { font-size: 11px; }
+.bs-chat { font-size: 13.89px; }
+.bs-chat__toggle { font-size: 15px; }
+/* Подпись ячейки: 10.42 в сцене — это 2.32% ширины панели, ровно то,
+   что уже считает cqw. Оставляем долю, но снимаем потолок в 13 px:
+   он срабатывал раньше, чем доля успевала дорасти. */
+.battle-mockup-scene .battle-zone-cell__caption { font: 700 10.42px/1 var(--font-ui); }
+.battle-mockup-scene .battle-zone-cell .zone-hand { font: 700 11px/1 var(--font-mono); }
+
+/* Подписи бойцов на карте и номера раундов в журнале — не из макета,
+   там фигуры нарисованы, а журнал набран одним кеглем. Свои размеры
+   они получили под прежнюю раскладку 1:1 и после ужатия сцены падали
+   до 5 px. Поднимаем до читаемых. */
+.battle-mockup-scene .token-label { font-size: 11px; }
+.battle-mockup-scene .token-target-label { font-size: 10px; }
+.battle-mockup-scene .battle-chronicle li i { font-size: 10.77px; }
+

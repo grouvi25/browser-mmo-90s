@@ -5,7 +5,6 @@ import {
   Sword, Heart, RotateCcw, ChevronDown, Skull,
   CircleDot, Trophy, AlertTriangle, Backpack, Flag,
 } from 'lucide-react'
-import { useIsMobile } from '../../shared/lib/use-media-query'
 import { battlesApi, type AttackHand, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { type BattleAction, type ItemInstance, type LiveParticipant } from '../../shared/types/api.types'
@@ -23,7 +22,6 @@ import { BattleFighterPanel } from './components/battle-fighter-panel'
 import { BattleChat, CHAT_SCENE_TOP } from './components/battle-chat'
 import { useViewportScale } from '../../shared/lib/stage'
 import { BattleCommandDock } from './components/battle-command-dock'
-import { BattleChronicle } from './components/battle-chronicle'
 import { EventIcon, getEvent, type RoundRecord, type TurnEvent } from './components/battle-events'
 import { BattlePockets } from './components/battle-pockets'
 import { removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
@@ -187,10 +185,6 @@ export function BattlePage() {
   const [pocketsOpen, setPocketsOpen]   = useState(false)
   // Чат закрыт по умолчанию: так сцена короче и всё на экране крупнее.
   const [chatOpen, setChatOpen]         = useState(false)
-  // Телефон получает раскладку макета: журнал уезжает под кнопки, а карман
-  // и сдача — в шапку. Порог тот же, на котором `.battle-chronicle`
-  // прячется под полем, иначе журнал показался бы дважды.
-  const isMobile = useIsMobile()
   // Сцена макета — 900x1600. Свёрнутый чат обрезает её по своему верху,
   // и та же сцена помещается в окно крупнее. maxScale=1: увеличивать
   // сверх исходного размера нечего, ассеты нарезаны под него.
@@ -357,6 +351,9 @@ export function BattlePage() {
   // Сервер хранит минутный deadline и сам применяет auto-defense по таймауту.
   // Клиент только показывает авторитетное время, не отправляя конкурирующий ход.
   const [timeLeft, setTimeLeft] = useState(60)
+  // Таймер хода показывается в шапке: под зонами по макету стоят только
+  // две кнопки, и места под подсказку колодки там нет.
+  const timerText = `${String(Math.floor(Math.max(0, timeLeft) / 60)).padStart(2, '0')}:${String(Math.max(0, timeLeft) % 60).padStart(2, '0')}`
 
   useEffect(() => {
     if (battleOver) return
@@ -459,14 +456,17 @@ export function BattlePage() {
         которое даёт сворачивание. */}
     <div className="battle-mockup-scene" style={{ height: chatOpen ? 1600 : CHAT_SCENE_TOP, transform: `scale(${sceneScale})` }}>
       <header className="battle-header-v3">
-        <div><Sword size={13} /><b>Бой</b></div>
+        <div><Sword size={13} /><b>Бой</b><b className="battle-header-timer">{timerText}</b></div>
         <strong>Раунд {currentRound} / 30</strong>
         <span className={actionMut.isPending ? 'is-pending' : 'is-ready'}>
           {actionMut.isPending ? <><RotateCcw size={11} className="spin" /> Ход отправляется</> : <><CircleDot size={9} /> Ваш ход</>}
-          {/* Карман и сдача в макете не нарисованы — на телефоне они
-              переезжают сюда, чтобы под зонами остались только «Закрыть»
-              и «Применить», как в макете. */}
-          {isMobile && <span className="battle-header-tools">
+          {/* Карман, сдача и таймер в макете не нарисованы, а деть их
+              некуда: под зонами по макету стоят только «Закрыть» и
+              «Применить». Поэтому они живут в шапке — она и так лежит
+              поверх карты, вне композиции макета. Раньше здесь стояло
+              условие isMobile, и на десктопе карман со сдачей пропадали
+              совсем: компактная колодка их не рисует. */}
+          <span className="battle-header-tools">
             <button type="button" aria-label="Боевой карман" title="Боевой карман"
               onClick={() => setPocketsOpen(value => !value)}>
               <Backpack size={13} />{pocketSlots.filter(Boolean).length > 0 && <i>{pocketSlots.filter(Boolean).length}</i>}
@@ -475,7 +475,7 @@ export function BattlePage() {
               disabled={!canAct} onClick={() => act('surrender')}>
               <Flag size={13} />
             </button>
-          </span>}
+          </span>
         </span>
       </header>
 
@@ -500,9 +500,9 @@ export function BattlePage() {
             participants={live?.participants} playerParticipantId={pPart?.participantId}
             playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
             onSelectTarget={setSelectedTargetId} />
-          {/* На телефоне хроника живёт в нижней панели, под кнопками, как
-              рисует макет; здесь она в этом случае и не создаётся. */}
-          {!isMobile && <BattleChronicle rounds={rounds} playerName={playerName} enemyName={enemyName} onOpenLog={() => setShowLog(true)} />}
+          {/* Хроника живёт только в нижней панели, как рисует макет.
+              Раньше на десктопе она создавалась ещё и здесь, под полем,
+              и после перехода на общую сцену показалась бы дважды. */}
           <div className="battle-field-v3__meta">
             <span>Дистанция: <b>{currentDistance}</b></span><span>Дальность: <b>{playerRange ?? '—'}</b></span>
           </div>
@@ -520,7 +520,6 @@ export function BattlePage() {
           onZone={() => undefined} onHandZone={toggleAttackHand} />
       </main>
 
-      {actionError && <div className="battle-error-v3" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
       {/* Колодка всегда компактная: сцена одна и та же на любом экране,
           и кнопки в ней — те, что нарисованы в макете. */}
       <BattleCommandDock stance={stance} attackZones={attackZones} attackHands={attackHands} blockZones={blockZones}
@@ -532,6 +531,15 @@ export function BattlePage() {
         onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
         onToggleLog={() => setShowLog(value => !value)} onTogglePockets={() => setPocketsOpen(value => !value)}
         onSurrender={() => act('surrender')} />
+
+      <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
+    </div>
+
+      {/* Сообщение об ошибке и выдвижные панели живут ВНЕ сцены.
+          Внутри они масштабировались бы вместе с ней: на телефоне
+          сцена ужимается до 0.42, и текст лога стал бы нечитаемым.
+          К макету они не относятся — это служебные наложения. */}
+      {actionError && <div className="battle-error-v3" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
 
       {(showLog || pocketsOpen) && <aside className="battle-drawer" aria-label={showLog ? 'Лог боя' : 'Боевой карман'}>
         <button type="button" className="battle-drawer__scrim" aria-label="Закрыть" onClick={() => { setShowLog(false); setPocketsOpen(false) }} />
@@ -552,8 +560,5 @@ export function BattlePage() {
             onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />}
         </section>
       </aside>}
-
-      <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
-    </div>
     </div>
   )}

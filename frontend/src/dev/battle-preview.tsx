@@ -8,12 +8,10 @@ import { BattleFighterPanel } from '../pages/battle/components/battle-fighter-pa
 import { BattleCommandDock } from '../pages/battle/components/battle-command-dock'
 import { BattleChat, CHAT_SCENE_TOP } from '../pages/battle/components/battle-chat'
 import { useViewportScale } from '../shared/lib/stage'
-import { BattleChronicle } from '../pages/battle/components/battle-chronicle'
 import type { RoundRecord, TurnEvent } from '../pages/battle/components/battle-events'
 import { toggleAutomaticBlockSlot, selectAutomaticAttack, removeAutomaticAttack, type AutomaticTurnPlan } from '../pages/battle/battle-view-model'
 import { DESIGNER_BATTLE_CELLS } from '../shared/lib/designer-battle-grid'
 import { isNeighbour } from '../shared/lib/hex'
-import { useIsMobile } from '../shared/lib/use-media-query'
 import battleField from '../shared/assets/battle/battle-field.webp'
 import battleField2x from '../shared/assets/battle/battle-field@2x.webp'
 import fighterBlue from '../shared/assets/battle/fighter-blue.webp'
@@ -80,21 +78,19 @@ function Preview() {
   const { attackZones: attacks, attackHands: hands, blockZones: blocks } = plan
   const blockLimit = hands.length > 0 ? 2 : 4
   // Стенд повторяет разметку страницы, включая сцену: иначе на нём
-  // нельзя проверить ни десктоп, ни телефон.
-  const isMobile = useIsMobile()
   const [chatOpen, setChatOpen] = useState(false)
   const sceneScale = useViewportScale(900, chatOpen ? 1600 : CHAT_SCENE_TOP, 'contain', 1)
 
   return <div className="battle-page-v3">
     <div className="battle-mockup-scene" style={{ height: chatOpen ? 1600 : CHAT_SCENE_TOP, transform: `scale(${sceneScale})` }}>
     <header className="battle-header-v3">
-      <div><Sword size={13} /><b>Бой</b></div>
+      <div><Sword size={13} /><b>Бой</b><b className="battle-header-timer">00:47</b></div>
       <strong>Раунд 3 / 30</strong>
       <span className="is-ready"><CircleDot size={9} /> Ваш ход
-        {isMobile && <span className="battle-header-tools">
+        <span className="battle-header-tools">
           <button type="button" aria-label="Боевой карман"><Backpack size={13} /><i>1</i></button>
           <button type="button" className="is-surrender" aria-label="Сдаться"><Flag size={13} /></button>
-        </span>}
+        </span>
       </span>
     </header>
 
@@ -107,7 +103,6 @@ function Preview() {
 
       <div className="battle-field-v3">
         <Field />
-        {!isMobile && <BattleChronicle rounds={ROUNDS} playerName="Миша" enemyName="Гопник" onOpenLog={() => undefined} />}
         <div className="battle-field-v3__meta">
           <span>Дистанция: <b>5</b></span><span>Дальность: <b>1</b></span>
         </div>
