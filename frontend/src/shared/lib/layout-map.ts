@@ -159,14 +159,16 @@ export const MENU = {
     body: box(36, 406, 282, 236),
     /** подпись выбранной зоны — под слотами, ещё внутри бумаги */
     zoneNote: box(36, 620, 282, 24),
-    /** зоны тела — те же пять, что в боевой системе */
+    /** зоны тела — те же шесть, что в боевой системе. Раньше правая нога
+        стояла под ключом LEGS_R и карточка сводила её обратно к LEGS:
+        зона была одна на обе ноги. Теперь ноги разведены, костыль снят. */
     zones: [
       { key: 'HEAD', sprite: 'zone-head', box: box(172, 407, 15, 19), label: 'Голова' },
       { key: 'CHEST', sprite: 'zone-chest', box: box(165, 426.5, 27.5, 39), label: 'Корпус' },
       { key: 'LEFT_ARM', sprite: 'zone-left-arm', box: box(151.5, 432, 13.5, 41.5), label: 'Левая рука' },
       { key: 'RIGHT_ARM', sprite: 'zone-right-arm', box: box(192.5, 432, 14.5, 41.5), label: 'Правая рука' },
-      { key: 'LEGS', sprite: 'zone-left-leg', box: box(165, 465, 14, 54.5), label: 'Левая нога' },
-      { key: 'LEGS_R', sprite: 'zone-right-leg', box: box(180, 465, 13.5, 54.5), label: 'Правая нога' },
+      { key: 'LEFT_LEG', sprite: 'zone-left-leg', box: box(165, 465, 14, 54.5), label: 'Левая нога' },
+      { key: 'RIGHT_LEG', sprite: 'zone-right-leg', box: box(180, 465, 13.5, 54.5), label: 'Правая нога' },
     ],
   },
 
@@ -206,11 +208,15 @@ export const PROFILE = {
   ],
 } as const
 
-/** Пять боевых зон -> слоты брони, которые их прикрывают (зеркало backend zones.ts) */
+/** Шесть боевых зон -> слоты брони, которые их прикрывают (зеркало backend zones.ts).
+    Штаны и обувь закрывают обе ноги сразу, поэтому набор у левой и правой один. */
 export const ZONE_ARMOR_SLOTS: Record<string, string[]> = {
   HEAD: ['HEAD'],
   CHEST: ['CHEST', 'BACK', 'BELT'],
-  LEGS: ['LEGS', 'FEET'],
   RIGHT_ARM: ['RIGHT_HAND', 'GLOVES', 'HANDS'],
   LEFT_ARM: ['GLOVES', 'HANDS'],
+  RIGHT_LEG: ['LEGS', 'FEET'],
+  LEFT_LEG: ['LEGS', 'FEET'],
+  // Старые бои подписаны прежней зоной на обе ноги.
+  LEGS: ['LEGS', 'FEET'],
 }

@@ -16,7 +16,10 @@ const ZONE_CLASS: Record<BodyZone, string> = {
   CHEST: 'chest',
   LEFT_ARM: 'left-arm',
   RIGHT_ARM: 'right-arm',
-  LEGS: 'legs',
+  LEFT_LEG: 'left-leg',
+  RIGHT_LEG: 'right-leg',
+  // Зона из старых боёв: рисуется теми же правилами, что левая нога.
+  LEGS: 'left-leg',
 }
 
 export function BodyZoneSelector({

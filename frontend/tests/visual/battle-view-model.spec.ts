@@ -29,16 +29,16 @@ test.describe('battle phase A view model', () => {
     const first = selectAutomaticAttack({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] }, 'RIGHT_HAND', 'HEAD')
     const attack2 = selectAutomaticAttack(first, 'LEFT_HAND', 'CHEST')
     expect(attack2).toEqual({ stance: 'attack2', attackHands: ['LEFT_HAND', 'RIGHT_HAND'], attackZones: ['CHEST', 'HEAD'], blockZones: [] })
-    expect(toggleAutomaticBlockSlot(attack2, 'LEGS', 0)).toEqual(attack2)
+    expect(toggleAutomaticBlockSlot(attack2, 'LEFT_LEG', 0)).toEqual(attack2)
   })
 
   test('locks the second attack after defence starts and never deletes prior choices', () => {
     let plan = toggleAutomaticBlockSlot({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] }, 'HEAD', 0)
     plan = toggleAutomaticBlockSlot(plan, 'CHEST', 0)
-    plan = selectAutomaticAttack(plan, 'LEFT_HAND', 'LEGS')
-    expect(plan).toEqual({ stance: 'mixed', attackHands: ['LEFT_HAND'], attackZones: ['LEGS'], blockZones: ['HEAD', 'CHEST'] })
+    plan = selectAutomaticAttack(plan, 'LEFT_HAND', 'LEFT_LEG')
+    expect(plan).toEqual({ stance: 'mixed', attackHands: ['LEFT_HAND'], attackZones: ['LEFT_LEG'], blockZones: ['HEAD', 'CHEST'] })
     expect(selectAutomaticAttack(plan, 'RIGHT_HAND', 'CHEST')).toEqual(plan)
-    expect(toggleAutomaticBlockSlot(plan, 'LEGS', 0)).toEqual(plan)
+    expect(toggleAutomaticBlockSlot(plan, 'LEFT_LEG', 0)).toEqual(plan)
   })
 
   test('allows four blocks when no attack is selected', () => {
@@ -46,8 +46,8 @@ test.describe('battle phase A view model', () => {
     let next = toggleAutomaticBlockSlot(plan, 'HEAD', 0)
     next = toggleAutomaticBlockSlot(next, 'CHEST', 0)
     next = toggleAutomaticBlockSlot(next, 'LEFT_ARM', 0)
-    next = toggleAutomaticBlockSlot(next, 'LEGS', 0)
-    expect(next).toEqual({ stance: 'defense4', attackHands: [], attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'LEGS'] })
+    next = toggleAutomaticBlockSlot(next, 'LEFT_LEG', 0)
+    expect(next).toEqual({ stance: 'defense4', attackHands: [], attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'LEFT_LEG'] })
   })
 
   test('принимает два блока на одну зону и отбрасывает третий', () => {
@@ -66,12 +66,12 @@ test.describe('battle phase A view model', () => {
     // нужен ей только чтобы отличить постановку от снятия. Пустую вторую
     // ячейку гасит панель, а модель на всякий случай не создаёт дырок.
     const empty = { stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] } as const
-    expect(toggleAutomaticBlockSlot(empty, 'LEGS', 1).blockZones).toEqual(['LEGS'])
+    expect(toggleAutomaticBlockSlot(empty, 'LEFT_LEG', 1).blockZones).toEqual(['LEFT_LEG'])
   })
 
   test('describes complete mixed plan', () => {
-    expect(getTurnPlanText({ stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEGS'] }))
-      .toBe('1 удар: голова · 2 блока: корпус, ноги')
+    expect(getTurnPlanText({ stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEFT_LEG'] }))
+      .toBe('1 удар: голова · 2 блока: корпус, левая нога')
   })
 
   test('describes movement instead of zonal plan', () => {
@@ -89,7 +89,7 @@ test.describe('battle phase A view model', () => {
   })
 
   test('requires a source hand for each attack and both hands for attack2', () => {
-    expect(validateTurnPlan({ stance: 'mixed', attackZones: ['HEAD'], attackHands: [], blockZones: ['CHEST', 'LEGS'], targetParticipantId: 'enemy', targetInRange: true }).valid).toBe(false)
+    expect(validateTurnPlan({ stance: 'mixed', attackZones: ['HEAD'], attackHands: [], blockZones: ['CHEST', 'LEFT_LEG'], targetParticipantId: 'enemy', targetInRange: true }).valid).toBe(false)
     expect(validateTurnPlan({ stance: 'attack2', attackZones: ['HEAD', 'CHEST'], attackHands: ['LEFT_HAND', 'LEFT_HAND'], blockZones: [], targetParticipantId: 'enemy', targetInRange: true }).reason).toContain('обе руки')
   })
 
@@ -100,8 +100,8 @@ test.describe('battle phase A view model', () => {
 
   test('accepts all complete plans and movement', () => {
     expect(validateTurnPlan({ stance: 'attack2', attackZones: ['HEAD', 'CHEST'], attackHands: ['LEFT_HAND', 'RIGHT_HAND'], blockZones: [], targetParticipantId: 'enemy', targetInRange: true }).valid).toBe(true)
-    expect(validateTurnPlan({ stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEGS'], targetParticipantId: 'enemy', targetInRange: true }).valid).toBe(true)
-    expect(validateTurnPlan({ stance: 'defense4', attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'LEGS'], targetParticipantId: null, targetInRange: false }).valid).toBe(true)
+    expect(validateTurnPlan({ stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEFT_LEG'], targetParticipantId: 'enemy', targetInRange: true }).valid).toBe(true)
+    expect(validateTurnPlan({ stance: 'defense4', attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'LEFT_LEG'], targetParticipantId: null, targetInRange: false }).valid).toBe(true)
     expect(validateTurnPlan({ stance: 'attack2', attackZones: [], blockZones: [], targetParticipantId: null, targetInRange: false, selectedMove: { x: 2, y: 2 } }).valid).toBe(true)
   })
 })

@@ -1,19 +1,27 @@
 // =============================================================
-// Зональная боёвка (модель Апехи): 5 зон, стойки, маппинг брони
+// Зональная боёвка (модель Апехи): 6 зон, стойки, маппинг брони
 // Чистый модуль без зависимостей от БД — легко тестировать.
 // =============================================================
 import type { ArmorSlot, BodyZone } from '@prisma/client'
 
-export const BODY_ZONES: BodyZone[] = ['HEAD', 'CHEST', 'LEGS', 'RIGHT_ARM', 'LEFT_ARM']
+// Ноги разведены на левую и правую, как руки: макет рисует их двумя
+// ячейками («ЗБ Нога Л» и «ЗБ Нога П»). Устаревшее LEGS в список не
+// входит — новые бои им не пользуются, оно живёт только в истории.
+export const BODY_ZONES: BodyZone[] = ['HEAD', 'CHEST', 'RIGHT_ARM', 'LEFT_ARM', 'RIGHT_LEG', 'LEFT_LEG']
 
 // Какие слоты брони прикрывают каждую зону.
 // LEFT_HAND — это оружие (не броня), поэтому левую руку прикрывают только перчатки.
+// Штаны и обувь прикрывают обе ноги сразу — отдельной брони на одну
+// ногу в игре нет, поэтому у левой и правой набор слотов одинаковый.
 export const ZONE_ARMOR_SLOTS: Record<BodyZone, ArmorSlot[]> = {
   HEAD: ['HEAD'],
   CHEST: ['CHEST', 'BACK', 'BELT'],
-  LEGS: ['LEGS', 'FEET'],
   RIGHT_ARM: ['RIGHT_HAND', 'GLOVES', 'HANDS'],
   LEFT_ARM: ['GLOVES', 'HANDS'],
+  RIGHT_LEG: ['LEGS', 'FEET'],
+  LEFT_LEG: ['LEGS', 'FEET'],
+  // Старые бои: зона встречается в истории, броню по ней считаем так же.
+  LEGS: ['LEGS', 'FEET'],
 }
 
 // Стойки хода: сколько ударов и блоков допускается (фидбэк заказчика).
@@ -119,13 +127,13 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
   }
 }
 
-// Приоритет зон для авто-блока (голова и корпус важнее рук).
-export const DEFAULT_BLOCK_PRIORITY: BodyZone[] = ['HEAD', 'CHEST', 'LEGS', 'RIGHT_ARM', 'LEFT_ARM']
+// Приоритет зон для авто-блока (голова и корпус важнее конечностей).
+export const DEFAULT_BLOCK_PRIORITY: BodyZone[] = ['HEAD', 'CHEST', 'RIGHT_LEG', 'LEFT_LEG', 'RIGHT_ARM', 'LEFT_ARM']
 
 // Маппинг старых действий на стойки (обратная совместимость API/старого фронта).
 export function legacyActionToTurn(action: string): ZonalTurnInput {
   if (action === 'block') {
-    // Полная защита: блок 4 из 5 зон (по приоритету), 5-я открыта.
+    // Полная защита: блок 4 из 6 зон (по приоритету), две остаются открыты.
     return normalizeTurn({ stance: 'defense4', blockZones: DEFAULT_BLOCK_PRIORITY.slice(0, 4) })
   }
   // attack по умолчанию: 2 удара в корпус.

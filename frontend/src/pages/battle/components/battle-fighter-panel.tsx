@@ -6,7 +6,11 @@ import zoneFist from '../../../shared/assets/battle/zone-fist.png'
 import silhouette from '../../../shared/assets/battle/silhouette.png'
 
 const ZONE_CLASS: Record<BodyZone, string> = {
-  HEAD: 'head', CHEST: 'chest', LEFT_ARM: 'left-arm', RIGHT_ARM: 'right-arm', LEGS: 'legs',
+  HEAD: 'head', CHEST: 'chest', LEFT_ARM: 'left-arm', RIGHT_ARM: 'right-arm',
+  LEFT_LEG: 'left-leg', RIGHT_LEG: 'right-leg',
+  // Зона из старых боёв: своих ячеек не имеет, класс нужен только
+  // чтобы разметка не осталась без модификатора.
+  LEGS: 'left-leg',
 }
 
 // =============================================================
@@ -26,12 +30,20 @@ const CELL = 103
 
 interface ZoneCell { x: number; y: number; caption: string }
 
-const ZONE_CELLS: Record<BodyZone, readonly [ZoneCell, ZoneCell]> = {
+// Макет рисует ровно десять ячеек. У головы, корпуса и каждой руки их
+// по две — это два слота зоны. У ног по одной, потому что сами ноги
+// разведены на две зоны: слои «ЗБ Нога Л» и «ЗБ Нога П».
+//
+// Отсюда следствие для удара: в зону с двумя ячейками бьют обеими
+// руками, каждой своей ячейкой, а в зону с одной — ближайшей свободной.
+// Придумывать ногам вторую ячейку нельзя: её в макете нет.
+const ZONE_CELLS: Partial<Record<BodyZone, readonly ZoneCell[]>> = {
   HEAD:      [{ x: 310, y: 38, caption: 'Голова' }, { x: 413, y: 38, caption: 'Голова' }],
   CHEST:     [{ x: 309, y: 194, caption: 'Корпус' }, { x: 412, y: 194, caption: 'Корпус' }],
   LEFT_ARM:  [{ x: 69, y: 290, caption: 'Л.рука' }, { x: 561, y: 290, caption: 'Л.рука' }],
   RIGHT_ARM: [{ x: 172, y: 290, caption: 'П.рука' }, { x: 664, y: 290, caption: 'П.рука' }],
-  LEGS:      [{ x: 308, y: 484, caption: 'Л.нога' }, { x: 411, y: 484, caption: 'П.нога' }],
+  LEFT_LEG:  [{ x: 308, y: 484, caption: 'Л.нога' }],
+  RIGHT_LEG: [{ x: 411, y: 484, caption: 'П.нога' }],
 }
 
 /** Ячейка в долях панели — так пропорции макета держатся при любой ширине колонки. */
@@ -183,6 +195,7 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
 
       {BATTLE_ZONES.map(zone => {
         const cells = ZONE_CELLS[zone.key]
+        if (!cells) return null
         const full = props.mode === 'block' && props.selected.length >= props.limit
         if (props.mode === 'block') {
           // Две ячейки на зону — как две руки для удара. Второй блок
@@ -206,8 +219,14 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
             })}
           </div>
         }
+        // Ячеек может быть две (по руке на каждую) или одна — у ног.
+        // Одиночная ячейка бьёт той рукой, которая ещё свободна: иначе
+        // по ноге можно было бы ударить только левой.
+        const hands = cells.length > 1
+          ? (['LEFT_HAND', 'RIGHT_HAND'] as const).slice(0, cells.length)
+          : [handUsed('LEFT_HAND') ? 'RIGHT_HAND' : 'LEFT_HAND'] as const
         return <div key={zone.key} className="battle-zone-pair">
-          {(['LEFT_HAND', 'RIGHT_HAND'] as const).map((hand, slot) => {
+          {hands.map((hand, slot) => {
             const cell = cells[slot]
             return <button key={hand} type="button"
               style={cellStyle(cell)}

@@ -879,6 +879,10 @@
    здесь под ними заливка панели #cdc5c8 — «КРИТ» на ней не добирал
    контраста и валил проверку axe. Затемняем ровно те тона, что
    использует журнал в нижней панели. */
+/* Пустая хроника тоже лежит на #cdc5c8 нижней панели: её прежний
+   oklch(48%) давал 3.9:1 против нужных 4.5:1. Нарушение всплывало
+   только когда журнал пуст, поэтому и прошло мимо прошлой правки. */
+.battle-command-dock.is-compact .battle-chronicle__empty { color: oklch(30% .04 55); }
 .battle-command-dock.is-compact .battle-chronicle__label { color: oklch(30% .05 55); }
 .battle-command-dock.is-compact .battle-chronicle__label.is-hit { color: oklch(35% .16 27); }
 .battle-command-dock.is-compact .battle-chronicle__label.is-crit { color: oklch(34% .11 70); }

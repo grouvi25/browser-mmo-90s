@@ -147,7 +147,8 @@ describe('командный бой', () => {
 
     await BattleService.submitAction(strong.user.id, created.battleId, {
       // Ноги защитник не закрывает: FULL_BLOCK — это голова, корпус и руки.
-      action: 'attack', stance: 'attack2', attackZones: ['LEGS', 'LEGS'], blockZones: [],
+      // Ног теперь две отдельные зоны, поэтому бьём по обеим.
+      action: 'attack', stance: 'attack2', attackZones: ['LEFT_LEG', 'RIGHT_LEG'], blockZones: [],
     })
     const result = await BattleService.submitAction(weak.user.id, created.battleId, {
       action: 'block', stance: 'defense4', attackZones: [], blockZones: [...FULL_BLOCK],

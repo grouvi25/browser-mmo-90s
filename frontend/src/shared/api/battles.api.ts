@@ -6,7 +6,12 @@ interface StartPveResponse {
   state: LiveBattleState
 }
 
-export type BodyZone = 'HEAD' | 'CHEST' | 'LEGS' | 'RIGHT_ARM' | 'LEFT_ARM'
+// Ноги разведены на левую и правую, как руки: так они нарисованы в
+// макете боевого экрана. LEGS остаётся только ради истории — сервер
+// его больше не принимает, но старые бои им подписаны.
+export type BodyZone =
+  | 'HEAD' | 'CHEST' | 'RIGHT_ARM' | 'LEFT_ARM' | 'RIGHT_LEG' | 'LEFT_LEG'
+  | 'LEGS'
 export type AttackHand = 'LEFT_HAND' | 'RIGHT_HAND'
 export type Stance = 'attack2' | 'mixed' | 'defense4'
 

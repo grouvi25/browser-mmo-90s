@@ -4,7 +4,9 @@ import { BattleService } from './battles.service'
 import { z } from 'zod'
 
 const StartPveSchema = z.object({ botCode: z.string().default('training_bandit') })
-const ZoneEnum = z.enum(['HEAD', 'CHEST', 'LEGS', 'RIGHT_ARM', 'LEFT_ARM'])
+// LEGS не принимаем: зона разделена на левую и правую, старое значение
+// живёт только в истории боёв и приходить с клиента больше не должно.
+const ZoneEnum = z.enum(['HEAD', 'CHEST', 'RIGHT_ARM', 'LEFT_ARM', 'RIGHT_LEG', 'LEFT_LEG'])
 const ActionSchema = z.object({
   action: z.enum(['attack', 'block', 'move', 'use_item', 'change_weapon', 'surrender']),
   itemInstanceId: z.string().uuid().optional(),

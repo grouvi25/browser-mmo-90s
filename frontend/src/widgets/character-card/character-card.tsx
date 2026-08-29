@@ -21,13 +21,13 @@ const C = MENU.card
 
 type CardTab = 'overview' | 'gear' | 'person'
 
-/** Пять боевых зон: правая нога — часть зоны «ноги», отдельной цели не даёт. */
-const ZONE_KEYS = ['HEAD', 'CHEST', 'LEFT_ARM', 'RIGHT_ARM', 'LEGS'] as const
+/** Шесть боевых зон: у ног, как и у рук, левая и правая — разные цели. */
+const ZONE_KEYS = ['HEAD', 'CHEST', 'LEFT_ARM', 'RIGHT_ARM', 'LEFT_LEG', 'RIGHT_LEG'] as const
 type ZoneKey = (typeof ZONE_KEYS)[number]
 
 const ZONE_LABELS: Record<ZoneKey, string> = {
   HEAD: 'Голова', CHEST: 'Корпус', LEFT_ARM: 'Левая рука',
-  RIGHT_ARM: 'Правая рука', LEGS: 'Ноги',
+  RIGHT_ARM: 'Правая рука', LEFT_LEG: 'Левая нога', RIGHT_LEG: 'Правая нога',
 }
 
 /** Художка есть только на автомат и биту — выбираем по типу оружия. */
@@ -174,7 +174,7 @@ export function CharacterCard() {
 
           {/* зоны тела — цели ударов в бою */}
           {C.zones.map(z => {
-            const key = (z.key === 'LEGS_R' ? 'LEGS' : z.key) as ZoneKey
+            const key = z.key as ZoneKey
             const armor = zoneArmor[key] ?? 0
             return (
               <SpriteButton

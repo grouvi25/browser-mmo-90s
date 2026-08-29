@@ -57,7 +57,7 @@ export async function runBattleTimeout(): Promise<void> {
           action: 'block',
           stance: 'defense4',
           attackZones: [],
-          blockZones: ['HEAD', 'CHEST', 'LEGS', 'RIGHT_ARM'],
+          blockZones: ['HEAD', 'CHEST', 'RIGHT_LEG', 'LEFT_LEG'],
         })
       }
 

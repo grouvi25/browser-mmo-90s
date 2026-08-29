@@ -35,7 +35,7 @@ const ROUNDS: RoundRecord[] = [
   ] },
   { round: 2, type: 'normal', events: [
     event({ zone: 'CHEST', block: true, hit: true, counterDamage: 4 }),
-    event({ actor: 'enemy', zone: 'LEGS', crit: true, finalDamage: 21, rawDamage: 21 }),
+    event({ actor: 'enemy', zone: 'LEFT_LEG', crit: true, finalDamage: 21, rawDamage: 21 }),
     event({ zone: 'HEAD', lucky: true, finalDamage: 17, rawDamage: 17 }),
   ] },
 ]

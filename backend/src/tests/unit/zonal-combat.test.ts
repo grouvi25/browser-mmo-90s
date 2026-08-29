@@ -6,6 +6,8 @@ import {
   legacyActionToTurn,
   botChooseTurn,
   STANCE_BUDGET,
+  BODY_ZONES,
+  ZONE_ARMOR_SLOTS,
   type EquipArmorLike,
 } from '../../modules/battles/zones'
 import {
@@ -55,9 +57,28 @@ describe('zones: armorOfZone', () => {
   ]
   it('HEAD берёт шлем', () => expect(armorOfZone(equip, 'HEAD')).toBe(4))
   it('CHEST берёт корпусную броню', () => expect(armorOfZone(equip, 'CHEST')).toBe(10))
-  it('LEGS = штаны + обувь', () => expect(armorOfZone(equip, 'LEGS')).toBe(12))
   it('RIGHT_ARM берёт щит', () => expect(armorOfZone(equip, 'RIGHT_ARM')).toBe(8))
   it('LEFT_ARM без перчаток = 0', () => expect(armorOfZone(equip, 'LEFT_ARM')).toBe(0))
+  // Отдельной брони на одну ногу в игре нет: штаны и обувь прикрывают
+  // обе, поэтому у левой и правой значение обязано совпадать.
+  it('каждая нога = штаны + обувь', () => {
+    expect(armorOfZone(equip, 'LEFT_LEG')).toBe(12)
+    expect(armorOfZone(equip, 'RIGHT_LEG')).toBe(12)
+  })
+  it('устаревшая LEGS всё ещё считается — на ней лежит история боёв',
+    () => expect(armorOfZone(equip, 'LEGS')).toBe(12))
+})
+
+describe('zones: состав зон', () => {
+  it('зон шесть, ноги разведены как руки', () => {
+    expect(BODY_ZONES).toEqual(['HEAD', 'CHEST', 'RIGHT_ARM', 'LEFT_ARM', 'RIGHT_LEG', 'LEFT_LEG'])
+  })
+  it('устаревшая LEGS в набор не входит и с клиента прийти не может', () => {
+    expect(BODY_ZONES).not.toContain('LEGS')
+  })
+  it('у каждой зоны описана броня', () => {
+    for (const zone of BODY_ZONES) expect(ZONE_ARMOR_SLOTS[zone]).toBeDefined()
+  })
 })
 
 describe('zones: botArmorOfZone', () => {

@@ -440,11 +440,12 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1)
 
     await page.locator('.battle-fighter-panel.is-enemy .battle-zone-cell.is-head').nth(1).click()
-    // На своём силуэте столько же ячеек, сколько на чужом: пять зон по две.
-    // Ставим по одному блоку в разные зоны — на второй слот проверка отдельная.
+    // Десять ячеек — ровно столько нарисовано в макете: у головы, корпуса
+    // и каждой руки по две, у каждой ноги по одной. Ноги разведены в
+    // отдельные зоны, поэтому второй ячейки им не положено.
     await expect(page.locator('.battle-fighter-panel.is-self .battle-zone-cell')).toHaveCount(10)
     await page.locator('.battle-fighter-panel.is-self .battle-zone-cell.is-chest').first().click()
-    await page.locator('.battle-fighter-panel.is-self .battle-zone-cell.is-legs').first().click()
+    await page.locator('.battle-fighter-panel.is-self .battle-zone-cell.is-left-leg').first().click()
 
     const actionRequest = page.waitForRequest(request => request.url().endsWith(`/api/battles/${battleId}/action`))
     await page.locator('.battle-submit-turn').click()
@@ -452,7 +453,7 @@ test.describe('Stage 2 visual and browser flow', () => {
       action: string; stance: string; attackZones: string[]; attackHands: string[]; blockZones: string[]; targetParticipantId: string
     }
     expect(payload).toMatchObject({
-      action: 'attack', stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEGS'],
+      action: 'attack', stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEFT_LEG'],
     })
     expect(payload.targetParticipantId).toBeTruthy()
 
