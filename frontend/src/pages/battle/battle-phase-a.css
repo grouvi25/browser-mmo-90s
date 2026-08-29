@@ -875,6 +875,23 @@
 .battle-command-dock.is-compact .battle-chronicle ol {
   display: flex; flex-direction: column; justify-content: flex-end;
 }
+/* Цвета подписей хроники рассчитывались на светлую бумагу оклч(93%), а
+   здесь под ними заливка панели #cdc5c8 — «КРИТ» на ней не добирал
+   контраста и валил проверку axe. Затемняем ровно те тона, что
+   использует журнал в нижней панели. */
+.battle-command-dock.is-compact .battle-chronicle__label { color: oklch(30% .05 55); }
+.battle-command-dock.is-compact .battle-chronicle__label.is-hit { color: oklch(35% .16 27); }
+.battle-command-dock.is-compact .battle-chronicle__label.is-crit { color: oklch(34% .11 70); }
+.battle-command-dock.is-compact .battle-chronicle__label.is-lucky { color: oklch(35% .17 305); }
+.battle-command-dock.is-compact .battle-chronicle__label.is-block { color: oklch(33% .11 140); }
+.battle-command-dock.is-compact .battle-chronicle__label.is-dodge { color: oklch(34% .12 132); }
+.battle-command-dock.is-compact .battle-chronicle__label.is-move { color: oklch(35% .12 250); }
+.battle-command-dock.is-compact .battle-chronicle li i { color: oklch(38% .02 55); }
+.battle-command-dock.is-compact .battle-chronicle li.is-mine b { color: oklch(30% .09 135); }
+.battle-command-dock.is-compact .battle-chronicle li.is-theirs b { color: oklch(33% .13 25); }
+.battle-command-dock.is-compact .battle-chronicle li em { color: oklch(32% .13 25); }
+.battle-command-dock.is-compact .battle-chronicle > header { color: oklch(32% .03 55); }
+.battle-command-dock.is-compact .battle-chronicle > header button { color: oklch(33% .09 25); }
 
 /* Карман и сдача — их в макете нет, поэтому уводим в шапку иконками. */
 .battle-header-tools { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }

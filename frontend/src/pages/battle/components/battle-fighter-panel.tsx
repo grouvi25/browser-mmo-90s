@@ -151,7 +151,12 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
           и остаётся только здесь, на десктопе видны оба. */}
       <div><b>{props.name}</b>{props.level != null && <small>ур. {props.level}</small>}
         <small className="battle-fighter-panel__hp-num">{props.hp} / {props.hpMax}</small></div>
-      <div className="battle-fighter-panel__hp" aria-label={`Здоровье ${props.hp} из ${props.hpMax}`}>
+      {/* Роль обязательна: aria-label на голом div запрещён, и axe ловит
+          это как нарушение. Полоса здоровья — это progressbar, роль
+          заодно сообщает читалке само значение, а не только подпись. */}
+      <div className="battle-fighter-panel__hp" role="progressbar"
+        aria-label={`Здоровье ${props.hp} из ${props.hpMax}`}
+        aria-valuenow={props.hp} aria-valuemin={0} aria-valuemax={props.hpMax}>
         <i style={{ transform: `scaleX(${pct / 100})` }} />
         <span>{props.hp} / {props.hpMax}</span>
       </div>
