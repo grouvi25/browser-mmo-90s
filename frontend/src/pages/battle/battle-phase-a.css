@@ -809,3 +809,124 @@
     min-height: calc(100cqw * 624 / 897); }
   .battle-fighter-panel__figure { width: 100%; }
 }
+
+/* =============================================================
+   ТЕЛЕФОН ПО МАКЕТУ «Профиль игрока Боевка» (холст 1800x3200)
+
+   Порядок блоков, цвета и пропорции сняты со слоёв:
+     плашка дистанции   1801x68,  заливка #f9d8cf, обводка 3px
+     панель зон         1802x919, заливка #cdc5c8, обводка 3px
+     разделитель панелей   7x903, #430000 при 40% непрозрачности
+     полосы ХП           868x36,  #567e40 своя и #b01e1e цели
+     ячейка зоны         103x103, заливка #f7e0df, обводка 1px
+     кнопки              235x46,  «Закрыть» и «Применить»
+     журнал боя         1802x597, та же заливка, что у панели зон
+
+   Размеры не масштабируются буквально: 235x46 при ширине экрана
+   412 px дали бы кнопку 53x10, а ячейку 23 px — мимо пальца.
+   Пропорции и порядок держим, размеры поднимаем до пригодных.
+
+   Весь блок лежит внутри мобильных запросов: десктоп не меняется.
+   ============================================================= */
+
+/* Нижняя панель в раскладке макета. Правила вне медиазапроса:
+   компактный режим включается по (max-width: 900px) из React,
+   и в альбомной ориентации он тоже должен выглядеть собранным. */
+.battle-command-dock.is-compact {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  background: #cdc5c8;
+  border-top: 3px solid var(--battle-btn-ink);
+}
+.battle-dock-actions { display: flex; justify-content: center; gap: 14px; padding: 6px 8px 4px; }
+.battle-dock-btn {
+  min-width: 104px; min-height: 34px; padding: 0 10px;
+  border: 1px solid var(--battle-btn-ink); border-radius: 5px;
+  background: var(--battle-btn-face); color: var(--battle-btn-ink);
+  font: 700 11px/1 var(--font-sign); text-transform: uppercase; letter-spacing: .04em;
+  cursor: pointer;
+}
+.battle-dock-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--battle-btn-face) 88%, var(--battle-btn-ink)); }
+.battle-dock-btn:disabled { opacity: .42; cursor: not-allowed; }
+.battle-dock-hint {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  margin: 0; padding: 0 10px 4px;
+  color: oklch(42% .12 25); font-size: 8px;
+}
+.battle-dock-hint .is-ready { color: oklch(38% .09 135); }
+.battle-dock-hint b { color: oklch(30% .025 55); font: 700 9px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+/* Хронику под полем прячет мобильное правило выше; здесь она нужна,
+   поэтому селектор с двумя классами перебивает его по весу. */
+.battle-command-dock.is-compact .battle-chronicle {
+  display: grid; height: auto; min-height: 0;
+  background: transparent; border-top: 1px solid rgba(7, 9, 10, .35);
+}
+
+/* Карман и сдача — их в макете нет, поэтому уводим в шапку иконками. */
+.battle-header-tools { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+.battle-header-tools button {
+  position: relative; display: inline-flex; align-items: center; gap: 2px;
+  min-width: 26px; min-height: 22px; justify-content: center;
+  border: 1px solid var(--battle-btn-ink); border-radius: 4px;
+  background: var(--battle-btn-face); color: var(--battle-btn-ink); cursor: pointer;
+}
+.battle-header-tools button:disabled { opacity: .42; cursor: not-allowed; }
+.battle-header-tools button i { font-style: normal; font: 700 8px/1 var(--font-mono); }
+.battle-header-tools .is-surrender { color: oklch(39% .08 25); }
+
+/* Портретная раскладка: тот же запрос, что у стопки «поле — панели». */
+@media (max-width: 600px) and (min-height: 521px),
+       (max-aspect-ratio: 4 / 5) and (min-height: 521px) {
+  /* Журналу нужна своя доля высоты: в макете он занимает 597 из 3200. */
+  .battle-page-v3 { grid-template-rows: 32px minmax(0, 1fr) minmax(120px, 26%); }
+
+  /* Плашка дистанции. */
+  .battle-field-v3__meta {
+    min-height: 26px; padding-inline: 10px;
+    border-top: 3px solid var(--battle-btn-ink);
+    border-bottom: 3px solid var(--battle-btn-ink);
+    background: #f9d8cf; color: var(--battle-btn-ink);
+    font: 700 10px/1 var(--font-sign); text-transform: uppercase; letter-spacing: .04em;
+  }
+  .battle-field-v3__meta b { color: var(--battle-btn-ink); }
+
+  /* Панель зон: сплошная заливка макета вместо бумажной текстуры. */
+  .battle-fighter-panel { background: #cdc5c8; }
+  .battle-fighter-panel.is-self { border-top: 3px solid var(--battle-btn-ink); }
+  .battle-fighter-panel.is-enemy { border-left: 0; border-top: 3px solid var(--battle-btn-ink); }
+
+  /* Имя по центру и полоса ХП во всю ширину половины. */
+  .battle-fighter-panel__head { padding: 5px 6px 0; border-bottom: 0; background: transparent; }
+  .battle-fighter-panel__head > div:first-child { justify-content: center; }
+  .battle-fighter-panel__head b { font: 700 11px/1 var(--font-sign); letter-spacing: .04em; }
+  /* «Цель:» перед именем противника — как подписано в макете. */
+  .is-enemy .battle-fighter-panel__head b::before { content: 'Цель: '; color: #b01e1e; }
+  /* Цвета полос ХП не трогаем: они уже сняты с макета выше
+     (#3b7f39, #ce1818 на дорожке #dccbca), здесь только высота. */
+  .battle-fighter-panel__hp { height: 14px; margin-top: 4px; }
+
+  /* Заголовок половины по центру, счётчик — мелким у края. */
+  .battle-fighter-panel__mode {
+    position: relative; justify-content: center; padding: 4px 0 2px;
+    border-bottom: 0; background: transparent;
+    color: var(--battle-btn-ink); font: 700 10px/1 var(--font-sign); letter-spacing: .06em;
+  }
+  .battle-fighter-panel__mode b { position: absolute; right: 5px; font-size: 8px; }
+
+  /* Внутренности панели — ячейки, силуэт, индикатор, ряды сетки и
+     раскладка в столбик на узком телефоне — заданы разбором макета
+     в battle-fighter-panel.tsx и в блоке «ПАНЕЛЬ ЗОН» выше. Отсюда
+     их не переопределяем: раскладка держится на тех долях, и любое
+     правило здесь побеждает их по порядку в файле. */
+
+  /* Журнал боя на заливке панели. */
+  .battle-command-dock.is-compact .battle-chronicle > header { background: transparent; }
+}
+
+/* Разделитель половин — слой «Прямоугольник 5» макета, 7x903 при 40%
+   непрозрачности. Только когда панели действительно стоят рядом:
+   на телефоне уже 520 px они встают в столбик, и вертикальная линия
+   там оказалась бы поперёк экрана. */
+@media (min-width: 521px) and (max-aspect-ratio: 4 / 5) and (min-height: 521px) {
+  .battle-fighter-panel.is-self { border-right: 3px solid rgba(67, 0, 0, .4); }
+}

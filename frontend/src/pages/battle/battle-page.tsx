@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import {
   Sword, Heart, RotateCcw, ChevronDown, Skull,
-  CircleDot, Trophy, AlertTriangle,
+  CircleDot, Trophy, AlertTriangle, Backpack, Flag,
 } from 'lucide-react'
+import { useIsMobile } from '../../shared/lib/use-media-query'
 import { battlesApi, type AttackHand, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { type BattleAction, type ItemInstance, type LiveParticipant } from '../../shared/types/api.types'
@@ -182,6 +183,10 @@ export function BattlePage() {
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
   const [pocketsOpen, setPocketsOpen]   = useState(false)
+  // Телефон получает раскладку макета: журнал уезжает под кнопки, а карман
+  // и сдача — в шапку. Порог тот же, на котором `.battle-chronicle`
+  // прячется под полем, иначе журнал показался бы дважды.
+  const isMobile = useIsMobile()
   const actionPendingRef = useRef(false)
   const [playerHit, setPlayerHit]       = useState(false)
   const [enemyHit, setEnemyHit]         = useState(false)
@@ -440,6 +445,19 @@ export function BattlePage() {
         <strong>Раунд {currentRound} / 30</strong>
         <span className={actionMut.isPending ? 'is-pending' : 'is-ready'}>
           {actionMut.isPending ? <><RotateCcw size={11} className="spin" /> Ход отправляется</> : <><CircleDot size={9} /> Ваш ход</>}
+          {/* Карман и сдача в макете не нарисованы — на телефоне они
+              переезжают сюда, чтобы под зонами остались только «Закрыть»
+              и «Применить», как в макете. */}
+          {isMobile && <span className="battle-header-tools">
+            <button type="button" aria-label="Боевой карман" title="Боевой карман"
+              onClick={() => setPocketsOpen(value => !value)}>
+              <Backpack size={13} />{pocketSlots.filter(Boolean).length > 0 && <i>{pocketSlots.filter(Boolean).length}</i>}
+            </button>
+            <button type="button" className="is-surrender" aria-label="Сдаться" title="Сдаться"
+              disabled={!canAct} onClick={() => act('surrender')}>
+              <Flag size={13} />
+            </button>
+          </span>}
         </span>
       </header>
 
@@ -464,7 +482,9 @@ export function BattlePage() {
             participants={live?.participants} playerParticipantId={pPart?.participantId}
             playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
             onSelectTarget={setSelectedTargetId} />
-          <BattleChronicle rounds={rounds} playerName={playerName} enemyName={enemyName} onOpenLog={() => setShowLog(true)} />
+          {/* На телефоне хроника живёт в нижней панели, под кнопками, как
+              рисует макет; здесь она в этом случае и не создаётся. */}
+          {!isMobile && <BattleChronicle rounds={rounds} playerName={playerName} enemyName={enemyName} onOpenLog={() => setShowLog(true)} />}
           <div className="battle-field-v3__meta">
             <span>Дистанция: <b>{currentDistance}</b></span><span>Дальность: <b>{playerRange ?? '—'}</b></span>
           </div>
@@ -487,6 +507,7 @@ export function BattlePage() {
         selectedMove={selectedMove} targetId={ePart?.participantId} targetInRange={targetInRange}
         canAct={canAct} pending={actionMut.isPending} timeLeft={timeLeft}
         roundsCount={rounds.length} pocketCount={pocketSlots.filter(Boolean).length}
+        compact={isMobile} rounds={rounds} playerName={playerName} enemyName={enemyName}
         onRemoveAttack={removeAttack}
         onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
         onToggleLog={() => setShowLog(value => !value)} onTogglePockets={() => setPocketsOpen(value => !value)}

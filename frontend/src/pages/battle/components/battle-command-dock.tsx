@@ -1,6 +1,8 @@
 import { Flag, RotateCcw, Shield, Sword, X } from 'lucide-react'
 import type { AttackHand, BodyZone, GridPosition, Stance } from '../../../shared/api/battles.api'
 import { ZONE_LABEL, getActionBudget, validateTurnPlan } from '../battle-view-model'
+import { BattleChronicle } from './battle-chronicle'
+import type { RoundRecord } from './battle-events'
 
 interface BattleCommandDockProps {
   stance: Stance
@@ -15,6 +17,11 @@ interface BattleCommandDockProps {
   timeLeft: number
   roundsCount: number
   pocketCount: number
+  /** Раскладка макета для телефона: вместо плашки плана — две кнопки и журнал. */
+  compact?: boolean
+  rounds?: RoundRecord[]
+  playerName?: string
+  enemyName?: string
   onRemoveAttack: (index: number) => void
   onSubmitTurn: () => void
   onSubmitMove: () => void
@@ -31,6 +38,35 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
   const missing = props.selectedMove ? 'Перемещение выбрано' : validation.valid ? 'План готов' : validation.reason
   const minutes = Math.floor(props.timeLeft / 60)
   const seconds = String(props.timeLeft % 60).padStart(2, '0')
+  const planEmpty = props.attackZones.length === 0 && props.blockZones.length === 0 && !props.selectedMove
+
+  if (props.compact) {
+    // Макет «Профиль игрока Боевка»: под зонами стоят «Закрыть» и
+    // «Применить», ниже — журнал боя. Плашки плана там нет вовсе:
+    // выбранное видно по иконкам брони и кулака прямо на ячейках.
+    // Что делает «Закрыть», макет не поясняет; из двух кнопок рядом
+    // осмысленно только снятие плана — это и повешено, замена
+    // прежней кнопке со стрелкой.
+    return (
+      <section className="battle-command-dock is-compact" aria-label="Ход">
+        <div className="battle-dock-actions">
+          <button type="button" className="battle-dock-btn" disabled={planEmpty} onClick={props.onReset}>Закрыть</button>
+          <button type="button" className="battle-dock-btn is-apply"
+            disabled={!props.canAct || !ready || props.pending}
+            onClick={props.selectedMove ? props.onSubmitMove : props.onSubmitTurn}>
+            {props.pending ? 'Отправляем…' : props.selectedMove ? 'Перейти' : 'Применить'}
+          </button>
+        </div>
+        <p className="battle-dock-hint">
+          <span className={ready ? 'is-ready' : ''}>{missing}</span>
+          <b>{minutes}:{seconds}</b>
+        </p>
+        <BattleChronicle rounds={props.rounds ?? []} playerName={props.playerName ?? ''}
+          enemyName={props.enemyName ?? ''} onOpenLog={props.onToggleLog} />
+      </section>
+    )
+  }
+
   return (
     <section className="battle-command-dock" aria-label="План хода">
       <div className="battle-command-dock__plan">

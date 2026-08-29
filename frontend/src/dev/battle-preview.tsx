@@ -3,7 +3,7 @@
 // точка входа battle-preview.html исключена из билда.
 import { useState, type CSSProperties } from 'react'
 import ReactDOM from 'react-dom/client'
-import { CircleDot, Sword } from 'lucide-react'
+import { Backpack, CircleDot, Flag, Sword } from 'lucide-react'
 import { BattleFighterPanel } from '../pages/battle/components/battle-fighter-panel'
 import { BattleCommandDock } from '../pages/battle/components/battle-command-dock'
 import { BattleChronicle } from '../pages/battle/components/battle-chronicle'
@@ -11,6 +11,7 @@ import type { RoundRecord, TurnEvent } from '../pages/battle/components/battle-e
 import { toggleAutomaticBlockSlot, selectAutomaticAttack, removeAutomaticAttack, type AutomaticTurnPlan } from '../pages/battle/battle-view-model'
 import { DESIGNER_BATTLE_CELLS } from '../shared/lib/designer-battle-grid'
 import { isNeighbour } from '../shared/lib/hex'
+import { useIsMobile } from '../shared/lib/use-media-query'
 import battleField from '../shared/assets/battle/battle-field.webp'
 import battleField2x from '../shared/assets/battle/battle-field@2x.webp'
 import fighterBlue from '../shared/assets/battle/fighter-blue.webp'
@@ -76,12 +77,20 @@ function Preview() {
   })
   const { attackZones: attacks, attackHands: hands, blockZones: blocks } = plan
   const blockLimit = hands.length > 0 ? 2 : 4
+  // Стенд повторяет разметку страницы, включая выбор раскладки по ширине:
+  // иначе на нём нельзя проверить мобильный экран.
+  const isMobile = useIsMobile()
 
   return <div className="battle-page-v3">
     <header className="battle-header-v3">
       <div><Sword size={13} /><b>Бой</b></div>
       <strong>Раунд 3 / 30</strong>
-      <span className="is-ready"><CircleDot size={9} /> Ваш ход</span>
+      <span className="is-ready"><CircleDot size={9} /> Ваш ход
+        {isMobile && <span className="battle-header-tools">
+          <button type="button" aria-label="Боевой карман"><Backpack size={13} /><i>1</i></button>
+          <button type="button" className="is-surrender" aria-label="Сдаться"><Flag size={13} /></button>
+        </span>}
+      </span>
     </header>
 
     <main className="battle-duel-stage">
@@ -93,7 +102,7 @@ function Preview() {
 
       <div className="battle-field-v3">
         <Field />
-        <BattleChronicle rounds={ROUNDS} playerName="Миша" enemyName="Гопник" onOpenLog={() => undefined} />
+        {!isMobile && <BattleChronicle rounds={ROUNDS} playerName="Миша" enemyName="Гопник" onOpenLog={() => undefined} />}
         <div className="battle-field-v3__meta">
           <span>Дистанция: <b>5</b></span><span>Дальность: <b>1</b></span>
         </div>
@@ -109,6 +118,7 @@ function Preview() {
     <BattleCommandDock stance="mixed" attackZones={attacks} attackHands={hands} blockZones={blocks}
       selectedMove={null} targetId="enemy" targetInRange canAct pending={false}
       timeLeft={47} roundsCount={2} pocketCount={1}
+      compact={isMobile} rounds={ROUNDS} playerName="Миша" enemyName="Гопник"
       onRemoveAttack={index => setPlan(removeAutomaticAttack(plan, index))}
       onSubmitTurn={() => undefined} onSubmitMove={() => undefined}
       onReset={() => setPlan({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] })}
