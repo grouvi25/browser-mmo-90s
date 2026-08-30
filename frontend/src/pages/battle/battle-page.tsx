@@ -20,6 +20,7 @@ import fighterRed from '../../shared/assets/battle/fighter-red.webp'
 import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
 import { BattleFighterPanel } from './components/battle-fighter-panel'
 import { BattleChat, CHAT_SCENE_TOP } from './components/battle-chat'
+import { BattleSideCard } from './components/battle-side-card'
 import { useViewportScale } from '../../shared/lib/stage'
 import { BattleCommandDock } from './components/battle-command-dock'
 import { EventIcon, getEvent, type RoundRecord, type TurnEvent } from './components/battle-events'
@@ -454,7 +455,26 @@ export function BattlePage() {
         верха. Высота меньше, значит масштаб больше: на 1440x900 сцена
         растёт с 506 до 617 px по ширине. Это и есть «больше места»,
         которое даёт сворачивание. */}
-    <div className="battle-mockup-scene" style={{ height: chatOpen ? 1600 : CHAT_SCENE_TOP, transform: `scale(${sceneScale})` }}>
+    {/* Свой профиль слева, чужой справа — так же, как карточка персонажа
+        стоит слева на главном экране города. Занимают поле, которое
+        иначе простаивает: сцена вертикальная, экран горизонтальный. */}
+    <BattleSideCard side="self" fighter={{
+      name: playerName, level: char?.battleLevel, avatar: playerProfile?.avatar ?? char?.avatar,
+      hp: pHp, hpMax: pHpMax,
+      primaryHand: playerProfile?.primaryHand ?? weapon?.template.name,
+      secondaryHand: playerProfile?.secondaryHand,
+      primaryWeaponCode: playerProfile?.primaryWeaponCode ?? weapon?.template.code,
+      secondaryWeaponCode: playerProfile?.secondaryWeaponCode,
+      primaryWeaponType: playerProfile?.primaryWeaponType ?? weapon?.template.weaponType,
+      secondaryWeaponType: playerProfile?.secondaryWeaponType,
+      primaryRange: playerProfile?.primaryRange, secondaryRange: playerProfile?.secondaryRange,
+      stats: playerProfile?.stats,
+    }} />
+
+    <div className="battle-mockup-scene-holder"
+      style={{ width: 900 * sceneScale, height: (chatOpen ? 1600 : CHAT_SCENE_TOP) * sceneScale }}>
+    <div className="battle-mockup-scene"
+      style={{ height: chatOpen ? 1600 : CHAT_SCENE_TOP, transform: `scale(${sceneScale})` }}>
       <header className="battle-header-v3">
         <div><Sword size={13} /><b>Бой</b><b className="battle-header-timer">{timerText}</b></div>
         <strong>Раунд {currentRound} / 30</strong>
@@ -534,6 +554,17 @@ export function BattlePage() {
 
       <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
     </div>
+    </div>
+
+    <BattleSideCard side="enemy" fighter={{
+      name: enemyName, level: enemyProfile?.level, avatar: enemyProfile?.avatar,
+      hp: eHp, hpMax: eHpMax,
+      primaryHand: enemyProfile?.primaryHand, secondaryHand: enemyProfile?.secondaryHand,
+      primaryWeaponCode: enemyProfile?.primaryWeaponCode, secondaryWeaponCode: enemyProfile?.secondaryWeaponCode,
+      primaryWeaponType: enemyProfile?.primaryWeaponType, secondaryWeaponType: enemyProfile?.secondaryWeaponType,
+      primaryRange: enemyProfile?.primaryRange, secondaryRange: enemyProfile?.secondaryRange,
+      stats: enemyProfile?.stats,
+    }} />
 
       {/* Сообщение об ошибке и выдвижные панели живут ВНЕ сцены.
           Внутри они масштабировались бы вместе с ней: на телефоне

@@ -82,7 +82,10 @@ function Preview() {
   const sceneScale = useViewportScale(900, chatOpen ? 1600 : CHAT_SCENE_TOP, 'contain', 1)
 
   return <div className="battle-page-v3">
-    <div className="battle-mockup-scene" style={{ height: chatOpen ? 1600 : CHAT_SCENE_TOP, transform: `scale(${sceneScale})` }}>
+    <div className="battle-mockup-scene-holder"
+      style={{ width: 900 * sceneScale, height: (chatOpen ? 1600 : CHAT_SCENE_TOP) * sceneScale }}>
+    <div className="battle-mockup-scene"
+      style={{ height: chatOpen ? 1600 : CHAT_SCENE_TOP, transform: `scale(${sceneScale})` }}>
     <header className="battle-header-v3">
       <div><Sword size={13} /><b>Бой</b><b className="battle-header-timer">00:47</b></div>
       <strong>Раунд 3 / 30</strong>
@@ -125,6 +128,7 @@ function Preview() {
       onToggleLog={() => undefined} onTogglePockets={() => undefined} onSurrender={() => undefined} />
 
     <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
+    </div>
     </div>
   </div>
 }
