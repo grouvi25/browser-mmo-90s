@@ -46,31 +46,44 @@ const ZONE_CELLS: Partial<Record<BodyZone, readonly ZoneCell[]>> = {
   RIGHT_LEG: [{ x: 411, y: 484, caption: 'П.нога' }],
 }
 
+// Половины макета не одинаковы: всё содержимое панели удара сдвинуто
+// вправо на 45 px относительно панели блока — «ЗУ Голова Л» стоит на
+// 1255 (то есть 355 внутри своей панели) против 310 у «ЗБ Голова Л»,
+// «ЗУ Рука Л» на 114 против 69, «Силует 2» на 328 против 283.
+const ATTACK_DX = 45
+
 /** Ячейка в долях панели — так пропорции макета держатся при любой ширине колонки. */
-function cellStyle(cell: ZoneCell) {
+function cellStyle(cell: ZoneCell, dx: number) {
   return {
-    left: `${cell.x / PANEL_W * 100}%`,
+    left: `${(cell.x + dx) / PANEL_W * 100}%`,
     top: `${cell.y / PANEL_H * 100}%`,
     width: `${CELL / PANEL_W * 100}%`,
     height: `${CELL / PANEL_H * 100}%`,
   }
 }
 
-// Силуэт: слой «Силует 1», холст 283,1321 · 260x616 — то есть
+// Силуэт: слои «Силует 1» 283,1321 и «Силует 2» 1228,1321 · 260x616 —
 // от верха панели он отступает на 8 px и занимает её почти целиком.
-const SILHOUETTE_STYLE = {
-  left: `${283 / PANEL_W * 100}%`,
+// Второй сдвинут на те же 45 px, что и остальное содержимое половины.
+const silhouetteStyle = (dx: number) => ({
+  left: `${(283 + dx) / PANEL_W * 100}%`,
   top: `${8 / PANEL_H * 100}%`,
   width: `${260 / PANEL_W * 100}%`,
   height: `${616 / PANEL_H * 100}%`,
-}
+})
 
-// Карточка индикатора: слой «Индикатор», холст 27,1313 · 186x216.
-const INDICATOR_STYLE = {
-  left: `${27 / PANEL_W * 100}%`,
+// Карточка индикатора: слои «Индикатор», холст 27,1313 и 1573,1313 · 186x216.
+// Индикаторы смотрят НАРУЖУ: панель блока занимает x 0…897, панель удара
+// 900…1797, поэтому у второй он стоит на 1573−900 = 673, у правого края,
+// а не у левого. Композиция половин зеркальная.
+const INDICATOR_SIZE = {
   top: '0%',
   width: `${186 / PANEL_W * 100}%`,
   height: `${216 / PANEL_H * 100}%`,
+}
+const INDICATOR_STYLE = {
+  block:  { ...INDICATOR_SIZE, left: `${27 / PANEL_W * 100}%` },
+  attack: { ...INDICATOR_SIZE, left: `${673 / PANEL_W * 100}%` },
 }
 
 interface BattleFighterPanelProps {
@@ -137,7 +150,7 @@ function ZoneIndicator({ mode, selected }: { mode: 'attack' | 'block'; selected:
     { part: 'leg-r', zone: 'LEGS' },
   ]
   return (
-    <div className={`zone-indicator is-${mode}`} style={INDICATOR_STYLE}
+    <div className={`zone-indicator is-${mode}`} style={INDICATOR_STYLE[mode]}
       title={label} role="img" aria-label={label}>
       {parts.map(({ part, zone }) => (
         <i
@@ -155,6 +168,8 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
   const instruction = props.mode === 'attack' ? 'Зона удара' : 'Зона блока'
   const handSelected = (hand: AttackHand, zone: BodyZone) => props.selected.some((value, index) => value === zone && props.selectedHands?.[index] === hand)
   const handUsed = (hand: AttackHand) => props.selectedHands?.includes(hand) ?? false
+  // Половина удара смещена вправо на 45 px — так нарисован макет.
+  const dx = props.mode === 'attack' ? ATTACK_DX : 0
 
   return <section className={`battle-fighter-panel is-${props.side}`} aria-label={`${props.name}: ${instruction.toLowerCase()}`}>
     <header className="battle-fighter-panel__head">
@@ -191,7 +206,7 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
     <div className="battle-fighter-panel__figure">
       <ZoneIndicator mode={props.mode} selected={props.selected} />
       <img className="battle-fighter-panel__body" src={silhouette} alt="" aria-hidden="true"
-        draggable={false} style={SILHOUETTE_STYLE} />
+        draggable={false} style={silhouetteStyle(dx)} />
 
       {BATTLE_ZONES.map(zone => {
         const cells = ZONE_CELLS[zone.key]
@@ -205,7 +220,7 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
             {cells.map((cell, slot) => {
               const taken = placed > slot
               return <button key={slot} type="button"
-                style={cellStyle(cell)}
+                style={cellStyle(cell, dx)}
                 className={`battle-zone-cell is-${ZONE_CLASS[zone.key]}${taken ? ' is-selected' : ''}`}
                 aria-label={`${taken ? 'Снять блок' : 'Поставить блок'}: ${zone.label.toLocaleLowerCase('ru')}${slot ? ', второй' : ''}`}
                 aria-pressed={taken}
@@ -229,7 +244,7 @@ export function BattleFighterPanel(props: BattleFighterPanelProps) {
           {hands.map((hand, slot) => {
             const cell = cells[slot]
             return <button key={hand} type="button"
-              style={cellStyle(cell)}
+              style={cellStyle(cell, dx)}
               className={`battle-zone-cell is-${ZONE_CLASS[zone.key]}${handSelected(hand, zone.key) ? ' is-selected' : ''}`}
               aria-label={`Удар ${hand === 'LEFT_HAND' ? 'левой' : 'правой'} рукой, цель: ${zone.label.toLocaleLowerCase('ru')}`}
               aria-pressed={handSelected(hand, zone.key)}

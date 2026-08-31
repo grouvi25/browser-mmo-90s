@@ -39,7 +39,15 @@
      верху, и от этой же высоты считается масштаб. */
   overflow: hidden;
   transform-origin: top left;
-  background: oklch(92% 0.025 70);
+  /* Подложка сцены — акварель со слоя «Слой 1» макета, обрезанная по
+     холсту 1800x3200 и уменьшенная вдвое под сцену 900x1600. Она видна
+     сквозь панель зон и журнал: у их прямоугольников в PSD заливка
+     ВЫКЛЮЧЕНА, нарисована только рамка. Прежний ровный тон закрывал её
+     целиком, отчего экран выглядел глухим против макета. */
+  background: #efeaea url('../../shared/assets/battle/battle-bg.webp') top center / 100% auto no-repeat;
+  background-image: image-set(
+    url('../../shared/assets/battle/battle-bg@2x.webp') 2x,
+    url('../../shared/assets/battle/battle-bg.webp') 1x);
 }
 .battle-header-v3 {
   display: grid;
@@ -866,10 +874,12 @@
 /* Нижняя панель в раскладке макета. Правила вне медиазапроса:
    компактный режим включается по (max-width: 900px) из React,
    и в альбомной ориентации он тоже должен выглядеть собранным. */
+/* Журнал в макете — тот же случай, что панель зон: «Прямоугольник 1
+   копия 3» нарисован одной рамкой, заливка у него выключена. */
 .battle-command-dock.is-compact {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr);
-  background: #cdc5c8;
+  background: transparent;
   border-top: 3px solid var(--battle-btn-ink);
 }
 .battle-dock-actions { display: flex; justify-content: center; gap: 14px; padding: 6px 8px 4px; }
@@ -976,8 +986,11 @@
   }
   .battle-field-v3__meta b { color: var(--battle-btn-ink); }
 
-  /* Панель зон: сплошная заливка макета вместо бумажной текстуры. */
-  .battle-fighter-panel { background: #cdc5c8; }
+  /* Панель зон прозрачна: у слоя «Прямоугольник 1» в PSD заливка
+     выключена, нарисована только рамка 3px, и сквозь него видна
+     акварель сцены. #cdc5c8 — цвет той отключённой заливки, рисовать
+     его было ошибкой. */
+  .battle-fighter-panel { background: transparent; }
   .battle-fighter-panel.is-self { border-top: 3px solid var(--battle-btn-ink); }
   .battle-fighter-panel.is-enemy { border-left: 0; border-top: 3px solid var(--battle-btn-ink); }
 
@@ -1027,7 +1040,8 @@
   }
   .battle-fighter-panel__hp::before {
     content: ''; position: absolute; z-index: 1; left: 2px; top: 50%;
-    width: 16px; height: 14px; transform: translateY(-50%);
+    /* Слой «ХП» 52x45 при холсте 1800 — это 21x18 на ширине 720. */
+    width: 21px; height: 18px; transform: translateY(-50%);
     background: url('../../shared/assets/ui/icon-hp.png') left center / contain no-repeat;
   }
 
