@@ -790,19 +790,38 @@
   background: #f8ebf6;
   pointer-events: none;
 }
+/* Части фигурки — силуэты, снятые со слоёв макета «Голова», «Торс»,
+   «Рука л/п» и «Нога л/п» (первый набор, у панели блока: под именем
+   «Голова» в PSD лежит ещё и текстовая подпись зоны, поэтому слои
+   выбирались по координатам). Формы кладутся маской, а не картинкой:
+   цвет продолжает задавать состояние зоны. Прежние прямоугольники
+   со скруглением давали овалы вместо рук и ног. */
 .zone-indicator__part {
   position: absolute;
   display: block;
   background: #ffda3a;
-  border-radius: 40%;
   transition: background 140ms ease;
+  -webkit-mask: center / 100% 100% no-repeat;
+  mask: center / 100% 100% no-repeat;
 }
-.zone-indicator__part.is-head  { left: 38.71%; top: 3.70%;  width: 11.83%; height: 16.20%; border-radius: 45%; }
-.zone-indicator__part.is-chest { left: 33.87%; top: 19.91%; width: 20.97%; height: 32.41%; border-radius: 22%; }
-.zone-indicator__part.is-arm-l { left: 22.04%; top: 25.00%; width: 11.83%; height: 37.96%; }
-.zone-indicator__part.is-arm-r { left: 54.84%; top: 25.00%; width: 11.83%; height: 37.96%; }
-.zone-indicator__part.is-leg-l { left: 32.80%; top: 52.31%; width: 9.68%;  height: 44.91%; }
-.zone-indicator__part.is-leg-r { left: 46.24%; top: 52.31%; width: 9.68%;  height: 44.91%; }
+.zone-indicator__part.is-head  { left: 38.71%; top: 3.70%;  width: 11.83%; height: 16.20%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-head.png');
+  mask-image: url('../../shared/assets/battle/indicator-head.png'); }
+.zone-indicator__part.is-chest { left: 33.87%; top: 19.91%; width: 20.97%; height: 32.41%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-chest.png');
+  mask-image: url('../../shared/assets/battle/indicator-chest.png'); }
+.zone-indicator__part.is-arm-l { left: 22.04%; top: 25.00%; width: 11.83%; height: 37.96%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-arm-l.png');
+  mask-image: url('../../shared/assets/battle/indicator-arm-l.png'); }
+.zone-indicator__part.is-arm-r { left: 54.84%; top: 25.00%; width: 11.83%; height: 37.96%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-arm-r.png');
+  mask-image: url('../../shared/assets/battle/indicator-arm-r.png'); }
+.zone-indicator__part.is-leg-l { left: 32.80%; top: 52.31%; width: 9.68%;  height: 44.91%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-leg-l.png');
+  mask-image: url('../../shared/assets/battle/indicator-leg-l.png'); }
+.zone-indicator__part.is-leg-r { left: 46.24%; top: 52.31%; width: 9.68%;  height: 44.91%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-leg-r.png');
+  mask-image: url('../../shared/assets/battle/indicator-leg-r.png'); }
 
 .zone-indicator.is-block  .zone-indicator__part.is-on { background: #05dc59; }
 .zone-indicator.is-attack .zone-indicator__part.is-on { background: #ff594a; }
