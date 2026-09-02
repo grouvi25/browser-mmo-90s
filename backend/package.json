@@ -58,5 +58,8 @@
     },
     "prisma": {
         "seed": "tsx prisma/seed.ts"
+    },
+    "overrides": {
+        "fast-uri": "^4.1.3"
     }
 }
