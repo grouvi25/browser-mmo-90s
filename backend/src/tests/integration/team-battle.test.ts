@@ -5,7 +5,7 @@
  * проходом — тест следит, чтобы он считал урон, добивал сторону и
  * раздавал награду каждому, а не только первому попавшемуся.
  */
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BattleRedis } from '../../shared/db/redis'
 import { BattleService } from '../../modules/battles/battles.service'
 import { cleanDatabase, testPrisma, uid } from './helpers'
@@ -145,14 +145,25 @@ describe('командный бой', () => {
     }
     await BattleRedis.setState(created.battleId, state)
 
-    await BattleService.submitAction(strong.user.id, created.battleId, {
-      // Ноги защитник не закрывает: FULL_BLOCK — это голова, корпус и руки.
-      // Ног теперь две отдельные зоны, поэтому бьём по обеим.
-      action: 'attack', stance: 'attack2', attackZones: ['LEFT_LEG', 'RIGHT_LEG'], blockZones: [],
-    })
-    const result = await BattleService.submitAction(weak.user.id, created.battleId, {
-      action: 'block', stance: 'defense4', attackZones: [], blockZones: [...FULL_BLOCK],
-    }) as { battleOver?: boolean; winnerSide?: number | null; rewards?: Record<string, { expGain: number }> }
+    // Размен идёт на живых бросках: уворот считается как `rng() >= hitChance`,
+    // и оба удара по ногам могли пройти мимо — тогда защитник с 1 HP выживал
+    // и бой не заканчивался. Тест про подсчёт итога, а не про меткость,
+    // поэтому броски фиксируются: 0 не даёт увернуться ни одному удару.
+    type TurnResult = { battleOver?: boolean; winnerSide?: number | null; rewards?: Record<string, { expGain: number }> }
+    let result: TurnResult
+    const rng = vi.spyOn(Math, 'random').mockReturnValue(0)
+    try {
+      await BattleService.submitAction(strong.user.id, created.battleId, {
+        // Ноги защитник не закрывает: FULL_BLOCK — это голова, корпус и руки.
+        // Ног теперь две отдельные зоны, поэтому бьём по обеим.
+        action: 'attack', stance: 'attack2', attackZones: ['LEFT_LEG', 'RIGHT_LEG'], blockZones: [],
+      })
+      result = await BattleService.submitAction(weak.user.id, created.battleId, {
+        action: 'block', stance: 'defense4', attackZones: [], blockZones: [...FULL_BLOCK],
+      }) as TurnResult
+    } finally {
+      rng.mockRestore()
+    }
 
     expect(result.battleOver).toBe(true)
     expect(result.winnerSide).toBe(1)
