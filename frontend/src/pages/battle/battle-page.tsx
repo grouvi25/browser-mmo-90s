@@ -290,7 +290,7 @@ export function BattlePage() {
       if (events.length > 0) setLastEvent(events[events.length - 1])
 
       setRounds(prev => [...prev, {
-        round: rn, events,
+        round: rn, events, at: Date.now(),
         type: data.battleOver ? (data.result === 'PVE_WIN' ? 'win' : 'lose') : 'normal',
         ...data,
       }])
@@ -547,6 +547,9 @@ export function BattlePage() {
         canAct={canAct} pending={actionMut.isPending} timeLeft={timeLeft}
         roundsCount={rounds.length} pocketCount={pocketSlots.filter(Boolean).length}
         compact rounds={rounds} playerName={playerName} enemyName={enemyName}
+        battleType={battleData?.battle?.type} startedAt={battleData?.battle?.startedAt}
+        selfFighter={{ name: playerName, level: char?.battleLevel, hp: pHp, hpMax: pHpMax, acted: pPart?.hasActedThisRound }}
+        enemyFighter={{ name: enemyName, level: enemyProfile?.level, hp: eHp, hpMax: eHpMax, acted: ePart?.hasActedThisRound }}
         onRemoveAttack={removeAttack}
         onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
         onToggleLog={() => setShowLog(value => !value)} onTogglePockets={() => setPocketsOpen(value => !value)}
