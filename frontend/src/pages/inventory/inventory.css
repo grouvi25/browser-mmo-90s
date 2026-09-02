@@ -56,34 +56,44 @@
 }
 
 /* Плитка вещи: в макете это только рамка, заливки у неё нет. */
-.inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+/* В макете карточек ровно две в ряд, и они не растянуты на всю
+   ширину: 960 из 3200 каждая, то есть 30% холста, а дальше до панели
+   идёт пустое поле. Держим ту же долю — 264 при сцене в 869. */
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 264px));
+  justify-content: start;
+  gap: 6px;
+}
 .inv-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   padding: 8px;
-  border: 1.5px solid #010203;
+  border: 2px solid #010203;
   background: transparent;
 }
 /* Только картинка вещи: рамки кнопок лежат внутри карточки тем же
    тегом, и общее правило растягивало их до 52 на 52. */
-.inv-card > img { width: 52px; height: 52px; object-fit: contain; align-self: start; }
+.inv-card > img { width: 56px; height: 41px; object-fit: contain; align-self: center; }
 .inv-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.inv-card__head h3 { margin: 0; font-size: 12px; text-transform: uppercase; }
+.inv-card__head h3 { margin: 0; font-size: 11px; text-transform: uppercase; }
 .inv-card__count { color: #4a4345; white-space: nowrap; }
-.inv-card dl { display: grid; gap: 1px; margin: 4px 0; font-size: 10.5px; }
-.inv-card dl > div { display: flex; justify-content: space-between; gap: 8px; }
+.inv-card dl { display: grid; gap: 0; margin: 4px 0; font-size: 10px; line-height: 1.25; }
+.inv-card dl > div { display: flex; justify-content: flex-start; gap: 5px; }
+.inv-card dt::after { content: ":"; }
+.inv-card dl > div:first-child { margin-bottom: 4px; }
 .inv-card dt { color: #4a4345; }
 .inv-card dd { margin: 0; font-variant-numeric: tabular-nums; }
-.inv-card__actions { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+.inv-card__actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
 .inv-btn {
   position: relative;
-  padding: 3px 10px;
+  padding: 2px 7px;
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -106,7 +116,7 @@
   height: 330px;
   width: auto;
   justify-self: end;
-  border: 1.5px solid #07090a;
+  border: 2px solid #07090a;
   background: #ddd4d6;
 }
 
@@ -128,7 +138,7 @@
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1.5px dashed #1c1318;
+  border: 2px dashed #1c1318;
   border-radius: 2px;
   background: transparent;
   color: inherit;
@@ -141,7 +151,7 @@
 /* Ячейки, под которые в игре нет ни вещей, ни слота. Оставлены на
    своих местах, но приглушены: живая рамка в пустоту хуже видимой
    закрытой. */
-.inv-cell.is-locked { pointer-events: none; opacity: .45; }
+.inv-cell.is-locked { pointer-events: none; opacity: .7; }
 .inv-cell:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
 
 /* Два гнезда под камни в каждой ячейке. Вставки камней в игре нет,
@@ -150,7 +160,7 @@
   position: absolute;
   border: 1.5px dashed #1c1318;
   border-radius: 2px;
-  opacity: .45;
+  opacity: .8;
   pointer-events: none;
 }
 
@@ -159,7 +169,7 @@
   left: 30.75%; top: 95.36%; width: 38.5%; height: 3.44%;
   display: grid;
   place-items: center;
-  border: 1.5px solid #07090a;
+  border: 2px solid #07090a;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -182,5 +192,6 @@
 
 @media (max-width: 900px) {
   .inv-body { grid-template-columns: minmax(0, 1fr); }
+  .inv-grid { grid-template-columns: minmax(0, 1fr); }
   .inv-doll { height: 380px; margin: 0 auto; justify-self: center; }
 }
