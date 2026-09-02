@@ -1,0 +1,153 @@
+/* =============================================================
+   Инвентарь по макету «Инвентарь.psd». Холст 3200x1800.
+
+     вкладки        плашки «Слой 18» 263x68, два ряда — y 97 и 172;
+                    длинные подписи шире: 595, 602 и 410
+     карточка вещи  «Прямоугольник 8» 960x272, по две в ряд,
+                    первая на 94,361
+       картинка     106,422 · 203x148
+       название     333,386   количество 749,386
+       прочность    334,424   блок характеристик 333,475 · 313x126
+       кнопка       829,567 · 199x43 — «Надеть» / «снять»
+     панель справа  «Прямоугольник 1 копия 4» 2314,350 · 709x1251,
+                    заливка #ddd4d6, обводка 3px
+       манекен      «Слой 4 копия» 2430,396 · 476x1128
+       слоты        рамки «Прямоугольник 6», заливка ВЫКЛЮЧЕНА
+       «снять всё»  2532,1543 · 273x43
+
+   Панель вьюпорта у нас 928x496 по сцене, а макет нарисован на 3200
+   в ширину — буквально числа не переносятся. Держим композицию и
+   доли: две трети под карточки, треть под манекен.
+   ============================================================= */
+
+.inv { font-size: 12px; }
+
+/* Два ряда вкладок, как нарисовано. Плашка и рамка — те же, что
+   у вкладок магазина: в макете это один и тот же слой. */
+.inv-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.inv-tabs button {
+  position: relative;
+  min-width: 76px;
+  padding: 4px 10px;
+  border: 0;
+  background: #fffffe;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.inv-tabs button > span { position: relative; z-index: 1; }
+.inv-tabs button.active { background: #c8c8c8; font-weight: 700; }
+.inv-tabs button:disabled { color: #8b8288; cursor: not-allowed; }
+.inv-tabs button:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+
+/* Слева карточки, справа панель с манекеном — 709 из 3200 это 22%,
+   но на узком вьюпорте панели нужен пол, иначе манекен схлопывается. */
+.inv-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  gap: 10px;
+  align-items: start;
+}
+
+/* Плитка вещи: в макете это только рамка, заливки у неё нет. */
+.inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+.inv-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+  border: 1.5px solid #010203;
+  background: transparent;
+}
+.inv-card img { width: 52px; height: 52px; object-fit: contain; align-self: start; }
+.inv-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.inv-card__head h3 { margin: 0; font-size: 12px; text-transform: uppercase; }
+.inv-card__count { color: #4a4345; white-space: nowrap; }
+.inv-card dl { display: grid; gap: 1px; margin: 4px 0; font-size: 10.5px; }
+.inv-card dl > div { display: flex; justify-content: space-between; gap: 8px; }
+.inv-card dt { color: #4a4345; }
+.inv-card dd { margin: 0; font-variant-numeric: tabular-nums; }
+.inv-card__actions { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+.inv-btn {
+  position: relative;
+  padding: 3px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.inv-btn > span { position: relative; z-index: 1; }
+.inv-btn:disabled { opacity: .4; cursor: not-allowed; }
+.inv-btn:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+
+/* Панель манекена: единственная плашка макета с настоящей заливкой. */
+.inv-doll {
+  position: relative;
+  padding: 8px;
+  border: 1.5px solid #010203;
+  background: #ddd4d6;
+}
+.inv-doll__figure {
+  position: relative;
+  aspect-ratio: 476 / 1128;
+  width: 100%;
+  max-width: 88px;
+  margin: 0 auto;
+  background: url('../../shared/assets/ui/mannequin.png') center / contain no-repeat;
+}
+/* Слоты стоят колонками по обе стороны фигуры — так они разложены
+   в макете. Заливки у рамок нет, только обводка. */
+/* Колонки слотов фиксированы, а не в долях: при 1fr слот раздувался
+   до 70 px, шесть штук в столбик давали 420 и кнопка «снять всё»
+   уходила за нижний край вьюпорта. */
+.inv-doll__slots {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 4px;
+  align-items: start;
+}
+.inv-doll__col { display: grid; gap: 4px; }
+.inv-slot {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 1px solid #010203;
+  background: transparent;
+  cursor: pointer;
+}
+.inv-slot img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.inv-slot__label {
+  position: absolute;
+  left: 2px; bottom: 1px;
+  font-size: 7px;
+  color: #4a4345;
+  pointer-events: none;
+}
+.inv-slot.is-empty { cursor: default; }
+.inv-slot:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+.inv-doll__strip { margin-top: 8px; display: flex; justify-content: center; }
+
+.inv-empty { font-size: 12px; opacity: .8; }
+
+/* Карманы — наша механика, в макете её нет: держим отдельной полосой
+   под карточками, чтобы не спорить с его композицией. */
+.inv-pockets { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(1, 2, 3, .35); }
+.inv-pockets__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.inv-pockets__head b { font-family: var(--font-sign); text-transform: uppercase; font-size: 11px; }
+.inv-pockets__head small { color: #4a4345; }
+.inv-pockets__list { display: flex; gap: 5px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .inv-body { grid-template-columns: minmax(0, 1fr); }
+  .inv-doll { max-width: 260px; margin: 0 auto; }
+}
