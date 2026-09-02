@@ -261,73 +261,76 @@ export function InventoryPage() {
                             «Колличество» макета здесь всегда единица. */}
                         <span className="inv-card__count">Количество: 1</span>
                       </div>
-                      <dl>
-                        <div><dt>Прочность</dt><dd>{item.durabilityCurrent}/{item.durabilityMax}</dd></div>
-                        <div><dt>Качество</dt><dd>{QUALITY_LABELS[item.quality]}</dd></div>
-                        <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
-                        {t.minDamage != null && <div><dt>Урон</dt><dd>{t.minDamage}–{t.maxDamage}</dd></div>}
-                        {!!t.armor && <div><dt>Броня тела</dt><dd>+{t.armor}</dd></div>}
-                        {!!t.hpBonus && <div><dt>Восстановит</dt><dd>+{t.hpBonus} HP</dd></div>}
-                        {t.strReq > 0 && <div><dt>Требует силы</dt><dd>{t.strReq}</dd></div>}
-                      </dl>
+                      <div className="inv-card__body">
+                        <dl>
+                          <div><dt>Прочность</dt><dd>{item.durabilityCurrent}/{item.durabilityMax}</dd></div>
+                          <div><dt>Качество</dt><dd>{QUALITY_LABELS[item.quality]}</dd></div>
+                          <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
+                          {t.minDamage != null && <div><dt>Урон</dt><dd>{t.minDamage}–{t.maxDamage}</dd></div>}
+                          {!!t.armor && <div><dt>Броня тела</dt><dd>+{t.armor}</dd></div>}
+                          {!!t.hpBonus && <div><dt>Восстановит</dt><dd>+{t.hpBonus} HP</dd></div>}
+                          {t.strReq > 0 && <div><dt>Требует силы</dt><dd>{t.strReq}</dd></div>}
+                        </dl>
+                        <div className="inv-card__side">
+                          {t.allocationMode === 'PLAYER' && item.freePoints > 0 && (
+                            <div className="inv-card__actions">
+                              <span className="inv-card__count">Очки: {item.freePoints}</span>
+                              {stats.map(stat => (
+                                <button key={stat} type="button" className="inv-btn"
+                                  disabled={allocateMut.isPending || inBattle}
+                                  onClick={() => allocateMut.mutate({ id: item.id, stat })}>
+                                  <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                                  <span>+ {stat}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
 
-                      {t.allocationMode === 'PLAYER' && item.freePoints > 0 && (
-                        <div className="inv-card__actions">
-                          <span className="inv-card__count">Очки: {item.freePoints}</span>
-                          {stats.map(stat => (
-                            <button key={stat} type="button" className="inv-btn"
-                              disabled={allocateMut.isPending || inBattle}
-                              onClick={() => allocateMut.mutate({ id: item.id, stat })}>
-                              <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                              <span>+ {stat}</span>
-                            </button>
-                          ))}
+                          <div className="inv-card__actions">
+                            {item.isEquipped ? (
+                              <button type="button" className="inv-btn" disabled={inBattle || unequipMut.isPending}
+                                onClick={() => unequipMut.mutate(item.id)}>
+                                <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                                <span>Снять</span>
+                              </button>
+                            ) : t.type === 'CONSUMABLE' ? (
+                              <>
+                                <button type="button" className="inv-btn" disabled={useItemMut.isPending}
+                                  onClick={() => useItemMut.mutate(item.id)}>
+                                  <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                                  <span>Использовать</span>
+                                </button>
+                                <button type="button" className="inv-btn"
+                                  onClick={() => toggleLoadout(item.id)}>
+                                  <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                                  <span>{loadoutIds.includes(item.id) ? 'Из кармана' : 'В карман'}</span>
+                                </button>
+                              </>
+                            ) : (
+                              <button type="button" className="inv-btn"
+                                disabled={inBattle || broken || tooLow || equipMut.isPending}
+                                title={broken ? 'Сломан — сначала починить' : tooLow ? `Нужен ${t.levelReq}-й уровень` : undefined}
+                                onClick={() => equipMut.mutate({ id: item.id })}>
+                                <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                                <span>Надеть</span>
+                              </button>
+                            )}
+                            {!item.isEquipped && (
+                              <>
+                                <button type="button" className="inv-btn" disabled={sellMut.isPending}
+                                  onClick={() => sellMut.mutate(item.id)}>
+                                  <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                                  <span>Продать</span>
+                                </button>
+                                <button type="button" className="inv-btn" disabled={discardMut.isPending}
+                                  onClick={() => discardMut.mutate(item.id)}>
+                                  <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                                  <span>Выбросить</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      )}
-
-                      <div className="inv-card__actions">
-                        {item.isEquipped ? (
-                          <button type="button" className="inv-btn" disabled={inBattle || unequipMut.isPending}
-                            onClick={() => unequipMut.mutate(item.id)}>
-                            <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                            <span>Снять</span>
-                          </button>
-                        ) : t.type === 'CONSUMABLE' ? (
-                          <>
-                            <button type="button" className="inv-btn" disabled={useItemMut.isPending}
-                              onClick={() => useItemMut.mutate(item.id)}>
-                              <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                              <span>Использовать</span>
-                            </button>
-                            <button type="button" className="inv-btn"
-                              onClick={() => toggleLoadout(item.id)}>
-                              <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                              <span>{loadoutIds.includes(item.id) ? 'Из кармана' : 'В карман'}</span>
-                            </button>
-                          </>
-                        ) : (
-                          <button type="button" className="inv-btn"
-                            disabled={inBattle || broken || tooLow || equipMut.isPending}
-                            title={broken ? 'Сломан — сначала починить' : tooLow ? `Нужен ${t.levelReq}-й уровень` : undefined}
-                            onClick={() => equipMut.mutate({ id: item.id })}>
-                            <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                            <span>Надеть</span>
-                          </button>
-                        )}
-                        {!item.isEquipped && (
-                          <>
-                            <button type="button" className="inv-btn" disabled={sellMut.isPending}
-                              onClick={() => sellMut.mutate(item.id)}>
-                              <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                              <span>Продать</span>
-                            </button>
-                            <button type="button" className="inv-btn" disabled={discardMut.isPending}
-                              onClick={() => discardMut.mutate(item.id)}>
-                              <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                              <span>Выбросить</span>
-                            </button>
-                          </>
-                        )}
                       </div>
                     </div>
                   </article>
