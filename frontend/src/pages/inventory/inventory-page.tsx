@@ -12,9 +12,10 @@
 // на своих местах, но отключены — вести живую вкладку в пустоту хуже,
 // чем показать её закрытой.
 //
-// Слоты манекена берутся из ARMOR_SLOT_LABELS, то есть из того, что
-// умеет сервер. Полсотни рамок, нарисованных вокруг фигуры, повторять
-// нечем: под них нет ни предметов, ни слотов.
+// Манекен и его ячейки взяты из макета по координатам слоёв. Рамок
+// там 48, но это не 48 слотов: шестнадцать ячеек снаряжения, и в
+// каждой по два гнезда под камни. Одиннадцать ячеек заняты нашими
+// слотами, пять пустуют, гнёзда молчат — вставки камней в игре нет.
 //
 // Карманы (расходники на бой) — наша механика, в макете её нет.
 // Держим отдельной полосой под плитками, чтобы не спорить с ним.
@@ -31,6 +32,7 @@ import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { itemImage } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
+import '../shop/shop.css'
 import './inventory.css'
 
 const LOADOUT_KEY = 'mmo_battle_loadout'
@@ -63,10 +65,57 @@ const TABS: Tab[] = [
   { key: 'tools',   label: 'Инструменты', match: i => i.template.type === 'TOOL' || i.template.type === 'CONSUMABLE' },
 ]
 
-/** Слоты манекена: две колонки по бокам фигуры, как разложено в макете. */
-const LEFT_SLOTS = ['HEAD', 'CHEST', 'GLOVES', 'HANDS', 'BELT', 'LEFT_HAND']
-const RIGHT_SLOTS = ['BACK', 'LEGS', 'FEET', 'ACCESSORY', 'POCKET', 'RIGHT_HAND']
+interface Rect { x: number; y: number; w: number; h: number }
+interface Cell { slot: string | null; box: Rect; sockets: Rect[] }
 
+/** Манекен взят из макета как есть. Ячеек шестнадцать, у каждой два
+ *  гнезда под камни — это и есть те 48 рамок «Прямоугольник 6».
+ *  Числа ниже посчитаны из слоёв: доли панели «Прямоугольник 1 копия 4»
+ *  (2314,350 · 709x1251), в которой они нарисованы.
+ *
+ *  Наших слотов двенадцать, и один из них — карманы, у которых своя
+ *  полоса. Остальные одиннадцать легли по месту на теле; перчатки и
+ *  руки — на верхние боковые ячейки, зеркально друг другу. Пять ячеек
+ *  остаются без слота: под них в игре нет ни вещей, ни места, и это
+ *  ровно те пять категорий, что закрыты во вкладках. Гнёзда под камни
+ *  не работают — вставки камней в игре нет.
+ */
+const CELLS: Cell[] = [
+  { slot: 'HEAD', box: { x: 39.77, y: 1.28, w: 20.31, h: 11.51 },
+    sockets: [{ x: 40.9, y: 8.55, w: 6.35, h: 3.6 }, { x: 52.89, y: 8.55, w: 6.35, h: 3.6 }] },
+  { slot: 'ACCESSORY', box: { x: 39.77, y: 13.51, w: 20.45, h: 6 },
+    sockets: [{ x: 40.76, y: 15.11, w: 6.35, h: 3.6 }, { x: 52.89, y: 15.11, w: 6.35, h: 3.6 }] },
+  { slot: 'CHEST', box: { x: 35.54, y: 20.46, w: 28.77, h: 27.5 },
+    sockets: [{ x: 36.53, y: 39.57, w: 9.17, h: 7.59 }, { x: 53.88, y: 39.57, w: 9.17, h: 7.59 }] },
+  { slot: 'BACK', box: { x: 71.65, y: 27.9, w: 18.05, h: 17.43 },
+    sockets: [{ x: 72.78, y: 41.25, w: 6.35, h: 3.6 }, { x: 82.37, y: 41.25, w: 6.35, h: 3.6 }] },
+  { slot: 'LEFT_HAND', box: { x: 3.1, y: 47.08, w: 28.91, h: 13.75 },
+    sockets: [{ x: 4.23, y: 55.16, w: 9.17, h: 5.12 }, { x: 21.72, y: 55.16, w: 9.17, h: 5.12 }] },
+  { slot: 'RIGHT_HAND', box: { x: 67.56, y: 47.08, w: 28.91, h: 13.75 },
+    sockets: [{ x: 68.55, y: 55.16, w: 9.17, h: 5.12 }, { x: 86.32, y: 55.16, w: 9.17, h: 5.12 }] },
+  { slot: 'BELT', box: { x: 39.77, y: 48.52, w: 20.45, h: 6 },
+    sockets: [{ x: 40.76, y: 50.12, w: 6.35, h: 3.6 }, { x: 52.89, y: 49.64, w: 6.35, h: 3.6 }] },
+  { slot: 'GLOVES', box: { x: 3.1, y: 61.71, w: 14.25, h: 7.51 },
+    sockets: [{ x: 3.95, y: 65.23, w: 6.35, h: 3.52 }, { x: 10.16, y: 65.23, w: 6.35, h: 3.52 }] },
+  { slot: null, box: { x: 17.91, y: 61.71, w: 14.25, h: 7.51 },
+    sockets: [{ x: 18.9, y: 65.23, w: 6.35, h: 3.52 }, { x: 25.11, y: 65.23, w: 6.35, h: 3.52 }] },
+  { slot: 'HANDS', box: { x: 67.56, y: 61.71, w: 14.25, h: 7.51 },
+    sockets: [{ x: 68.41, y: 65.23, w: 6.35, h: 3.52 }, { x: 74.61, y: 65.23, w: 6.35, h: 3.52 }] },
+  { slot: null, box: { x: 82.37, y: 61.71, w: 14.25, h: 7.51 },
+    sockets: [{ x: 83.22, y: 65.23, w: 6.35, h: 3.52 }, { x: 89.42, y: 65.23, w: 6.35, h: 3.52 }] },
+  { slot: 'LEGS', box: { x: 3.1, y: 70.5, w: 14.25, h: 7.51 },
+    sockets: [{ x: 3.95, y: 74.02, w: 6.35, h: 3.52 }, { x: 10.16, y: 74.02, w: 6.35, h: 3.52 }] },
+  { slot: null, box: { x: 17.91, y: 70.5, w: 14.25, h: 7.51 },
+    sockets: [{ x: 18.9, y: 74.02, w: 6.35, h: 3.52 }, { x: 25.11, y: 74.02, w: 6.35, h: 3.52 }] },
+  { slot: null, box: { x: 67.56, y: 70.5, w: 14.25, h: 7.51 },
+    sockets: [{ x: 68.41, y: 74.02, w: 6.35, h: 3.52 }, { x: 74.61, y: 74.02, w: 6.35, h: 3.52 }] },
+  { slot: null, box: { x: 82.37, y: 70.5, w: 14.25, h: 7.51 },
+    sockets: [{ x: 83.22, y: 74.02, w: 6.35, h: 3.52 }, { x: 89.42, y: 74.02, w: 6.35, h: 3.52 }] },
+  { slot: 'FEET', box: { x: 35.83, y: 79.3, w: 28.21, h: 14.55 },
+    sockets: [{ x: 36.67, y: 87.93, w: 9.17, h: 5.12 }, { x: 53.74, y: 87.93, w: 9.17, h: 5.12 }] },
+]
+
+const place = (r: Rect) => ({ left: `${r.x}%`, top: `${r.y}%`, width: `${r.w}%`, height: `${r.h}%` })
 export function InventoryPage() {
   const qc = useQueryClient()
   const [tabKey, setTabKey] = useState('melee')
@@ -147,19 +196,28 @@ export function InventoryPage() {
 
   if (isLoading) return <div className="loading"><span className="spinner" />Загрузка инвентаря…</div>
 
-  const Slot = ({ slot }: { slot: string }) => {
-    const item = bySlot(slot)
-    const label = ARMOR_SLOT_LABELS[slot] ?? slot
-    return (
-      <button type="button" className={'inv-slot' + (item ? '' : ' is-empty')}
+  const DollCell = ({ cell }: { cell: Cell }) => {
+    const sockets = cell.sockets.map((s, n) => (
+      <span key={n} className="inv-socket" style={place(s)} aria-hidden="true" />
+    ))
+    if (!cell.slot) {
+      return <>
+        <span className="inv-cell is-locked" style={place(cell.box)} aria-hidden="true" />
+        {sockets}
+      </>
+    }
+    const item = bySlot(cell.slot)
+    const label = ARMOR_SLOT_LABELS[cell.slot] ?? cell.slot
+    return <>
+      <button type="button" className={'inv-cell' + (item ? '' : ' is-empty')} style={place(cell.box)}
         disabled={!item || inBattle || unequipMut.isPending}
         title={item ? `${item.template.name} — снять` : `${label}: пусто`}
         aria-label={item ? `Снять: ${item.template.name}` : `${label}: пусто`}
         onClick={() => item && unequipMut.mutate(item.id)}>
         {item && <img src={itemImage(item.template.code, item.template.weaponType, item.template.type)} alt="" />}
-        <span className="inv-slot__label">{label}</span>
       </button>
-    )
+      {sockets}
+    </>
   }
 
   return (
@@ -301,19 +359,13 @@ export function InventoryPage() {
         </div>
 
         <aside className="inv-doll" aria-label="Надетое снаряжение">
-          <div className="inv-doll__slots">
-            <div className="inv-doll__col">{LEFT_SLOTS.map(s => <Slot key={s} slot={s} />)}</div>
-            <div className="inv-doll__figure" aria-hidden="true" />
-            <div className="inv-doll__col">{RIGHT_SLOTS.map(s => <Slot key={s} slot={s} />)}</div>
-          </div>
-          <div className="inv-doll__strip">
-            <button type="button" className="inv-btn"
-              disabled={inBattle || equipped.length === 0 || unequipMut.isPending}
-              onClick={() => equipped.forEach(i => unequipMut.mutate(i.id))}>
-              <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-              <span>Снять всё</span>
-            </button>
-          </div>
+          <div className="inv-doll__figure" aria-hidden="true" />
+          {CELLS.map((cell, n) => <DollCell key={cell.slot ?? `empty-${n}`} cell={cell} />)}
+          <button type="button" className="inv-doll__all"
+            disabled={inBattle || equipped.length === 0 || unequipMut.isPending}
+            onClick={() => equipped.forEach(i => unequipMut.mutate(i.id))}>
+            Снять всё
+          </button>
         </aside>
       </div>
     </div>

@@ -12,7 +12,8 @@
      панель справа  «Прямоугольник 1 копия 4» 2314,350 · 709x1251,
                     заливка #ddd4d6, обводка 3px
        манекен      «Слой 4 копия» 2430,396 · 476x1128
-       слоты        рамки «Прямоугольник 6», заливка ВЫКЛЮЧЕНА
+       слоты        16 рамок «Прямоугольник 6», в каждой два гнезда;
+                    пунктир 5px #1c1318, штрих 10/2, заливка ВЫКЛЮЧЕНА
        «снять всё»  2532,1543 · 273x43
 
    Панель вьюпорта у нас 928x496 по сцене, а макет нарисован на 3200
@@ -49,7 +50,7 @@
    но на узком вьюпорте панели нужен пол, иначе манекен схлопывается. */
 .inv-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 250px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: start;
 }
@@ -64,7 +65,9 @@
   border: 1.5px solid #010203;
   background: transparent;
 }
-.inv-card img { width: 52px; height: 52px; object-fit: contain; align-self: start; }
+/* Только картинка вещи: рамки кнопок лежат внутри карточки тем же
+   тегом, и общее правило растягивало их до 52 на 52. */
+.inv-card > img { width: 52px; height: 52px; object-fit: contain; align-self: start; }
 .inv-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .inv-card__head h3 { margin: 0; font-size: 12px; text-transform: uppercase; }
 .inv-card__count { color: #4a4345; white-space: nowrap; }
@@ -88,54 +91,84 @@
 .inv-btn:disabled { opacity: .4; cursor: not-allowed; }
 .inv-btn:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
 
-/* Панель манекена: единственная плашка макета с настоящей заливкой. */
+/* Панель манекена. В макете это единственная плашка с настоящей
+   заливкой: 709x1251, #ddd4d6, обводка 3px #07090a. Внутри неё всё
+   стоит по координатам слоёв, поэтому панель держит свою пропорцию,
+   а содержимое разложено в долях от неё — как в боевой панели. */
+/* Панель высокая и узкая: 709 на 1251. Наша сцена, наоборот, широкая
+   и низкая — 869 на 464 в единицах вёрстки, и высота эта постоянная,
+   сцена масштабируется целиком. Поэтому ведём панель от высоты, а
+   ширину отдаём пропорции макета: иначе низ с «снять всё» уезжает под
+   обрез, что и было. */
 .inv-doll {
   position: relative;
-  padding: 8px;
-  border: 1.5px solid #010203;
+  aspect-ratio: 709 / 1251;
+  height: 330px;
+  width: auto;
+  justify-self: end;
+  border: 1.5px solid #07090a;
   background: #ddd4d6;
 }
+
+/* Человек — слой «Слой 4 копия», 476x1128. В файле он сплошной
+   чёрный, а в макете виден серым: держим его маской и заливаем
+   #a6a0a1 — цветом, снятым с композита. */
 .inv-doll__figure {
-  position: relative;
-  aspect-ratio: 476 / 1128;
-  width: 100%;
-  max-width: 88px;
-  margin: 0 auto;
-  background: url('../../shared/assets/ui/mannequin.png') center / contain no-repeat;
+  position: absolute;
+  left: 16.36%; top: 3.68%; width: 67.14%; height: 90.17%;
+  background: #a6a0a1;
+  -webkit-mask: url("../../shared/assets/ui/mannequin.png") center / 100% 100% no-repeat;
+  mask: url("../../shared/assets/ui/mannequin.png") center / 100% 100% no-repeat;
 }
-/* Слоты стоят колонками по обе стороны фигуры — так они разложены
-   в макете. Заливки у рамок нет, только обводка. */
-/* Колонки слотов фиксированы, а не в долях: при 1fr слот раздувался
-   до 70 px, шесть штук в столбик давали 420 и кнопка «снять всё»
-   уходила за нижний край вьюпорта. */
-.inv-doll__slots {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
-  gap: 4px;
-  align-items: start;
-}
-.inv-doll__col { display: grid; gap: 4px; }
-.inv-slot {
-  position: relative;
-  aspect-ratio: 1;
+
+/* Ячейка снаряжения: пунктир 5px по холсту шириной 709 — на нашей
+   ширине это полтора пикселя. Заливки у рамок в макете нет. */
+.inv-cell {
+  position: absolute;
   display: grid;
   place-items: center;
-  padding: 2px;
-  border: 1px solid #010203;
+  padding: 0;
+  border: 1.5px dashed #1c1318;
+  border-radius: 2px;
   background: transparent;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
+  overflow: hidden;
 }
-.inv-slot img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.inv-slot__label {
+.inv-cell img { max-width: 84%; max-height: 84%; object-fit: contain; }
+.inv-cell.is-empty { cursor: default; }
+/* Ячейки, под которые в игре нет ни вещей, ни слота. Оставлены на
+   своих местах, но приглушены: живая рамка в пустоту хуже видимой
+   закрытой. */
+.inv-cell.is-locked { pointer-events: none; opacity: .45; }
+.inv-cell:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+
+/* Два гнезда под камни в каждой ячейке. Вставки камней в игре нет,
+   поэтому они нарисованы и молчат. */
+.inv-socket {
   position: absolute;
-  left: 2px; bottom: 1px;
-  font-size: 7px;
-  color: #4a4345;
+  border: 1.5px dashed #1c1318;
+  border-radius: 2px;
+  opacity: .45;
   pointer-events: none;
 }
-.inv-slot.is-empty { cursor: default; }
-.inv-slot:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
-.inv-doll__strip { margin-top: 8px; display: flex; justify-content: center; }
+
+.inv-doll__all {
+  position: absolute;
+  left: 30.75%; top: 95.36%; width: 38.5%; height: 3.44%;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid #07090a;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 9px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.inv-doll__all:disabled { opacity: .45; cursor: not-allowed; }
+.inv-doll__all:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
 
 .inv-empty { font-size: 12px; opacity: .8; }
 
@@ -149,5 +182,5 @@
 
 @media (max-width: 900px) {
   .inv-body { grid-template-columns: minmax(0, 1fr); }
-  .inv-doll { max-width: 260px; margin: 0 auto; }
+  .inv-doll { height: 380px; margin: 0 auto; justify-self: center; }
 }
