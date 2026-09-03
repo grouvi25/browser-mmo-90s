@@ -85,10 +85,11 @@ const ITEM_PRICES: Record<string, number> = {
   armor_leather_jacket_private: 1_300,
   consumable_bandage: 50,
   consumable_first_aid_kit: 170,
+  // Импортная оснастка (G8): та же цена, что и в seed.ts —
+  // STAGE2_TOOL_TIERS[4].price. Без неё rcp_import_tool считался выходом
+  // в 0 ₽ и ложно попадал в список убыточных.
+  tool_work_import: 2_500,
 }
-/** Содержание объекта за сутки — из блока производства BalanceConfig. */
-const OBJECT_DAILY_UPKEEP = 150
-
 /**
  * Наценка рынка к базовой цене ресурса.
  *
@@ -171,16 +172,24 @@ function ownerDay(objectCode: string) {
     // Берём самый выгодный рецепт объекта: владелец не станет варить убыточный.
     .map(row => ({ row, margin: recipeMargin(row) }))
     .sort((a, b) => b.margin - a.margin)[0]
-  if (!recipe) return { revenue: 0, inputs: 0, salaries: 0, upkeep: 0, profit: 0, cycles: 0 }
+  if (!recipe) return { revenue: 0, inputs: 0, salaries: 0, profit: 0, cycles: 0 }
 
   // Решение заказчика по В11: владелец объекта здесь — не рантье, а игрок,
   // который РАБОТАЕТ НА СВОЁМ ОБЪЕКТЕ САМ. Зарплату он платит себе же из
   // баланса объекта, то есть перекладывает деньги из кармана в карман, и
   // расходом она не является. Настоящая выгода — выход циклов, закрытых его
-  // собственным трудом, минус сырьё и содержание.
+  // собственным трудом, минус сырьё.
   //
   // Прежняя модель считала объект нанимающим полный штат посторонних и
   // мерила совсем другое: там чужие зарплаты съедали всё.
+  //
+  // Содержания объекта здесь больше нет (В13): в игре нет ни поля, ни
+  // воркера, который бы списывал фиксированную плату за факт владения —
+  // maintenanceDebt на объекте это исключительно накопленная зарплата за
+  // отработанные смены (work.service.ts, helpers.service.ts), а не отдельный
+  // сток. Прежняя строка `OBJECT_DAILY_UPKEEP = 150` была придумана прямо в
+  // этом файле и не бралась ни из BalanceConfig, ни из какого-либо реального
+  // расхода — комментарий над ней утверждал обратное. Модель мерила не игру.
   const shifts = Math.min(W.dailyShiftLimit, Math.floor(W.dailyShiftMinutes / object.shiftDurationMinutes))
   const labourPerShift = laborFromShift(object.shiftDurationMinutes, workerEfficiency(1))
   const cycles = Math.floor((shifts * labourPerShift) / recipe.row.laborRequired)
@@ -188,8 +197,7 @@ function ownerDay(objectCode: string) {
   const revenue = cycles * recipe.row.outputAmount * outputPrice(recipe.row)
   const inputs = cycles * recipeInputCost(recipe.row)
   const salaries = 0
-  const upkeep = OBJECT_DAILY_UPKEEP
-  return { revenue, inputs, salaries, upkeep, cycles, profit: revenue - inputs - upkeep }
+  return { revenue, inputs, salaries, cycles, profit: revenue - inputs }
 }
 
 /**
@@ -276,8 +284,9 @@ for (let day = 0; day < days; day++) {
 
   const income = worker + owner + farmer + barman + premium + fighter
   minted += income
-  // Стоки, которые модель знает поимённо: содержание бригад и территорий,
-  // содержание объектов и комиссия рынка с оборота.
+  // Стоки, которые модель знает поимённо: содержание бригад и территорий и
+  // комиссия рынка с оборота. Содержания объектов среди них больше нет
+  // (В13) — такого стока не существует в игре, см. комментарий в ownerDay.
   //
   // Полной картины денежной массы это НЕ даёт: ремонт, госзакупки, налог
   // продажи и покупки в лавках сюда не входят, потому что их объём зависит
@@ -285,7 +294,6 @@ for (let day = 0; day < days; day++) {
   // помечен как неизмеренный, а не выставлен зелёным по неполной модели.
   const sinks = 3 * CLAN_MAINTENANCE_DAILY
     + territoryUpkeepPerDay(1) + territoryUpkeepPerDay(2)
-    + OBJECT_DAILY_UPKEEP * Object.keys(OBJECT_PRICES).length
     + income * BalanceConfig.economy.market.saleTaxRate
   burned += sinks
   money += income - sinks

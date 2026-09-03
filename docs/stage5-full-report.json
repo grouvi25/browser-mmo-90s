@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generatedAt": "2026-09-03T19:10:44.854Z",
+    "generatedAt": "2026-09-03T21:41:52.913Z",
     "days": 30,
     "seed": 4242
   },
@@ -10,9 +10,9 @@
   },
   "income": {
     "workerFullDay": 745.7276990378928,
-    "ownerPerDay": -24.441038736775518,
-    "ownerTotalDay": 722.5589612632244,
-    "ownerShareOfShift": 1.026362160885262,
+    "ownerPerDay": 128.31545336807147,
+    "ownerTotalDay": 875.3154533680715,
+    "ownerShareOfShift": 1.2433458144432834,
     "farmerPerHour": 105.29466985501348,
     "farmerShareOfShift": 0.8973977544461377,
     "barmanPerDay": 709.5762322032452,
@@ -21,17 +21,17 @@
   },
   "payback": {
     "objects": {
-      "obj_scrapyard": 47.39336492890995,
-      "obj_garage_workshop": 234.7417840375592,
-      "obj_small_factory": null,
-      "obj_parts_factory": 15.708899805780874,
-      "obj_cooperative_site": 282.921810699589,
-      "obj_kolhoz_zarya": 11.71875,
-      "obj_sawmill": 216.21621621621622,
-      "obj_textile": 45.7038391224863,
-      "obj_herb_point": 13.986013986013987,
-      "obj_pharmacy": 17.53067868770348,
-      "obj_chem_lab": 205.3712480252766
+      "obj_scrapyard": 29.761904761904763,
+      "obj_garage_workshop": 85.03401360544224,
+      "obj_small_factory": 253.96825396825398,
+      "obj_parts_factory": 15.063540753724801,
+      "obj_cooperative_site": 159.69802555168425,
+      "obj_kolhoz_zarya": 11.278195488721805,
+      "obj_sawmill": 71.42857142857143,
+      "obj_textile": 37.202380952380956,
+      "obj_herb_point": 11.904761904761905,
+      "obj_pharmacy": 16.025641025641026,
+      "obj_chem_lab": 128.96825396825403
     },
     "bar": 56.37167394375567
   },
@@ -40,9 +40,9 @@
     "territory": 0.01
   },
   "money": {
-    "minted": 101958.92734903331,
-    "burned": 309597.94636745163,
-    "m2Final": -132639.01901841836,
+    "minted": 106541.62211217872,
+    "burned": 260327.08110560884,
+    "m2Final": -78785.4589934302,
     "dailyGrowth": 0,
     "m2Positive": false
   },
@@ -228,12 +228,19 @@
       "output": 622,
       "inputs": 563,
       "margin": 59
+    },
+    {
+      "code": "rcp_import_tool",
+      "object": "obj_parts_factory",
+      "output": 3500,
+      "inputs": 1788,
+      "margin": 1712
     }
   ],
   "destructiveRecipes": [],
   "verdicts": {
     "workerDayCorridor": true,
-    "ownerCorridor": false,
+    "ownerCorridor": true,
     "farmCorridor": false,
     "paybackCorridor": false,
     "barPaybackCorridor": false,
