@@ -66,9 +66,17 @@ export function UpgradesPage() {
     onError: (e: Error) => setMsg(e.message),
   })
 
-  const selected = items.data?.find(x => x.id === itemId)
   const p = preview.data
   const lacking = p?.requiredResources.filter(r => !r.enough) ?? []
+  const enoughMoney = !p || (me.data?.money ?? 0) >= p.cost
+
+  const status: string[] = []
+  if (items.data?.length === 0) status.push('У вас нет вещей для улучшения.')
+  else if (!itemId) status.push('Вещь не выбрана.')
+  if (p) status.push(`Шанс успеха: ${Math.round(p.chance * 100)}%.`)
+  if (lacking.length > 0) status.push(`Не хватает деталей: ${lacking.map(r => r.resourceName).join(', ')}.`)
+  if (p && !enoughMoney) status.push('Не хватает денег.')
+  status.push('При неудаче деньги и детали спишутся.')
 
   return (
     <div className="upg">
@@ -101,24 +109,38 @@ export function UpgradesPage() {
         ))}
       </nav>
 
+      {/* Заголовок в макете стоит НАД рамкой: слой лежит на -38 от
+          верха «Плашки 1» и в неё не заходит. */}
+      <h2 className="upg-panel__title">Государственная вставка камней</h2>
       <section className="upg-panel">
-        <h2 className="upg-panel__title">Государственная вставка камней</h2>
 
+        {/* В макете справа от «Цена:» стоят четыре ряда камней: кружок
+            сорта, прибавка и цена. Камней в игре нет, поэтому ряды
+            заняты тем, из чего цена улучшения действительно состоит —
+            деньгами и деталями, — а кружок показывает то, что здесь
+            бывает разным: хватает или не хватает. */}
         <dl className="upg-price">
           <dt>Цена:</dt>
           <dd>
             {p ? (
-              <span className="upg-price__tier is-current">
-                уровень {p.currentTotalLevel} → {p.nextTotalLevel} — {money(p.cost)} руб., шанс {Math.round(p.chance * 100)}%
-              </span>
+              <>
+                <span className="upg-price__row">
+                  <i className={'upg-chip' + (enoughMoney ? '' : ' upg-chip--lack')} aria-hidden="true" />
+                  {money(p.cost)} руб. — уровень {p.currentTotalLevel} → {p.nextTotalLevel}
+                </span>
+                {p.requiredResources.map(r => (
+                  <span key={r.resourceCode} className="upg-price__row">
+                    <i className={'upg-chip' + (r.enough ? '' : ' upg-chip--lack')} aria-hidden="true" />
+                    {r.resourceName}: {r.available}/{r.amount}
+                  </span>
+                ))}
+              </>
             ) : (
-              <span className="upg-price__tier">выберите вещь и вид усиления</span>
-            )}
-            {p?.requiredResources.map(r => (
-              <span key={r.resourceCode} className={'upg-price__tier' + (r.enough ? '' : ' upg-lack')}>
-                {r.resourceName}: {r.available}/{r.amount}
+              <span className="upg-price__row">
+                <i className="upg-chip upg-chip--idle" aria-hidden="true" />
+                выберите вещь и вид усиления
               </span>
-            ))}
+            )}
           </dd>
         </dl>
 
@@ -154,14 +176,17 @@ export function UpgradesPage() {
 
         <button className="upg-commit" disabled={!p?.canCommit || commit.isPending}
           onClick={() => commit.mutate()}>
-          <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
           <span>Вставить</span>
         </button>
-
-        {selected && lacking.length > 0 && (
-          <p className="upg-note upg-lack">Не хватает: {lacking.map(r => r.resourceName).join(', ')}.</p>
-        )}
       </section>
+
+      {/* Три строки под панелью — в макете они сообщают о состоянии
+          сумки. Здесь стоят те же по смыслу, но настоящие. */}
+      {status.length > 0 && (
+        <ul className="upg-status">
+          {status.map(line => <li key={line}>{line}</li>)}
+        </ul>
+      )}
     </div>
   )
 }
