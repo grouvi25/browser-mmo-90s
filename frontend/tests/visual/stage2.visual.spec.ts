@@ -391,9 +391,12 @@ test.describe('Stage 2 visual and browser flow', () => {
     const selector = page.locator('select').first()
     await expect(selector.locator('option')).toHaveCount(3)
     // Столбец сортов приходит правилами и от выбранной вещи не зависит.
-    await expect(page.getByText('Камень мутный', { exact: false })).toBeVisible()
-    await page.locator('select').nth(2).selectOption('ARMOR')
+    // Ищем именно строку прайса: то же название стоит ещё и пунктом в
+    // списке выбора камня, а getByText нашёл бы оба и упал бы на строгом
+    // режиме.
+    await expect(page.locator('.upg-price__row').filter({ hasText: 'Камень мутный' })).toHaveCount(1)
     await selector.selectOption({ index: 1 })
+    await page.locator('select').nth(2).selectOption('ARMOR')
     await expect(page.getByRole('button', { name: 'Вставить' })).toBeVisible()
 
     await page.getByRole('button', { name: 'Кузница', exact: true }).click()
