@@ -21,6 +21,8 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { upgradesApi, type UpgradeType } from '../../shared/api/upgrades.api'
 import { charactersApi } from '../../shared/api/characters.api'
+import { inventoryApi } from '../../shared/api/inventory.api'
+import { itemImage } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
 import '../shop/shop.css'
 import './upgrades.css'
@@ -49,6 +51,9 @@ export function UpgradesPage() {
   const [msg, setMsg] = useState('')
 
   const items = useQuery({ queryKey: ['upgrades', 'items'], queryFn: upgradesApi.items })
+  /* Список улучшаемых вещей отдаёт только имя и тип, без кода — а по
+     коду берётся картинка. Берём её из сумки, там вещь та же по id. */
+  const bag = useQuery({ queryKey: ['inventory'], queryFn: inventoryApi.getItems })
   const me = useQuery({ queryKey: ['character'], queryFn: charactersApi.getMe })
   const preview = useQuery({
     queryKey: ['upgrades', 'preview', itemId, type],
@@ -69,6 +74,11 @@ export function UpgradesPage() {
   const p = preview.data
   const lacking = p?.requiredResources.filter(r => !r.enough) ?? []
   const enoughMoney = !p || (me.data?.money ?? 0) >= p.cost
+  const chosen = bag.data?.find(x => x.id === itemId)
+  const chosenImage = chosen && itemImage(chosen.template.code, chosen.template.weaponType, chosen.template.type)
+  /* Камни макета: зелёный и красный вырезаны из его же слоёв. Сортов
+     там четыре, а состояний у нас два — хватает или нет. */
+  const gem = (ok: boolean) => SPRITES[ok ? 'gem-green' : 'gem-red']
 
   const status: string[] = []
   if (items.data?.length === 0) status.push('У вас нет вещей для улучшения.')
@@ -125,19 +135,19 @@ export function UpgradesPage() {
             {p ? (
               <>
                 <span className="upg-price__row">
-                  <i className={'upg-chip' + (enoughMoney ? '' : ' upg-chip--lack')} aria-hidden="true" />
+                  <img className="upg-chip" src={gem(enoughMoney)} alt="" draggable={false} />
                   {money(p.cost)} руб. — уровень {p.currentTotalLevel} → {p.nextTotalLevel}
                 </span>
                 {p.requiredResources.map(r => (
                   <span key={r.resourceCode} className="upg-price__row">
-                    <i className={'upg-chip' + (r.enough ? '' : ' upg-chip--lack')} aria-hidden="true" />
+                    <img className="upg-chip" src={gem(r.enough)} alt="" draggable={false} />
                     {r.resourceName}: {r.available}/{r.amount}
                   </span>
                 ))}
               </>
             ) : (
               <span className="upg-price__row">
-                <i className="upg-chip upg-chip--idle" aria-hidden="true" />
+                <img className="upg-chip upg-chip--idle" src={SPRITES['gem-green']} alt="" draggable={false} />
                 выберите вещь и вид усиления
               </span>
             )}
@@ -151,26 +161,36 @@ export function UpgradesPage() {
         <div className="upg-slots">
           <label className="upg-slot">
             <span>Предмет</span>
-            <select className="upg-slot__box" value={itemId} onChange={e => setItemId(e.target.value)}
-              aria-label="Вещь для улучшения">
-              <option value="">не выбрано</option>
-              {items.data?.map(x => <option key={x.id} value={x.id}>{x.template.name} (+{x.upgradeLevel})</option>)}
-            </select>
+            <span className="upg-slot__box">
+              {chosenImage
+                ? <img src={chosenImage} alt="" draggable={false} />
+                : <span className="upg-slot__mark" aria-hidden="true">—</span>}
+              <select className="upg-slot__pick" value={itemId} onChange={e => setItemId(e.target.value)}
+                aria-label="Вещь для улучшения">
+                <option value="">не выбрано</option>
+                {items.data?.map(x => <option key={x.id} value={x.id}>{x.template.name} (+{x.upgradeLevel})</option>)}
+              </select>
+            </span>
           </label>
 
           <label className="upg-slot">
             <span>Усиление</span>
-            <select className="upg-slot__box" value={type} onChange={e => setType(e.target.value as UpgradeType)}
-              aria-label="Вид усиления">
-              {TYPES.map(x => <option key={x} value={x}>{TYPE_LABELS[x]}</option>)}
-            </select>
+            <span className="upg-slot__box">
+              {/* Алмаз макета — эмблема самой вставки; какая именно,
+                  говорит выбор под ним. */}
+              <img src={SPRITES['gem-diamond']} alt="" draggable={false} />
+              <select className="upg-slot__pick" value={type} onChange={e => setType(e.target.value as UpgradeType)}
+                aria-label="Вид усиления">
+                {TYPES.map(x => <option key={x} value={x}>{TYPE_LABELS[x]}</option>)}
+              </select>
+            </span>
           </label>
 
           <div className="upg-slot">
             <span>Результат</span>
-            <output className={'upg-slot__box' + (p ? '' : ' is-empty')}>
-              {p ? `+${p.nextTotalLevel}` : '—'}
-            </output>
+            <span className={'upg-slot__box' + (p ? '' : ' is-empty')}>
+              <output className="upg-slot__mark">{p ? `+${p.nextTotalLevel}` : '—'}</output>
+            </span>
           </div>
         </div>
 
