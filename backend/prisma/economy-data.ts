@@ -107,6 +107,12 @@ export const PRODUCTION_RECIPES = [
   // Заодно у ремкомплекта появляется производитель — до этого его можно
   // было только купить в лавке, хотя чинят им постоянно.
   { code: 'rcp_repair_kit', name: 'Сборка ремкомплекта', productionObjectCode: 'obj_garage_workshop', outputResourceCode: 'comp_repair_kit', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 75, laborRequired: 75, requiredProfessionCode: 'foundry_worker', requiredProfessionLevel: 2, requiredToolTier: 2, inputs: [{ resourceCode: 'res_spare_parts', amount: 2, minQuality: 'POOR' }, { resourceCode: 'comp_fastener', amount: 1, minQuality: 'POOR' }] },
+  // Импортная оснастка (Этап 5, G8): единственный крафт-выход четвёртой
+  // ступени. Делается на верхнем металлопеределе (Фабрика деталей,
+  // gunsmith L2, инструмент 3-й ступени) из деталей верхнего передела,
+  // чтобы это была цель производства, а не дорогая покупка. Государство
+  // её не продаёт; готовую оснастку игрок несёт на рынок и в частные лавки.
+  { code: 'rcp_import_tool', name: 'Сборка импортной оснастки', productionObjectCode: 'obj_parts_factory', outputResourceCode: null, outputItemTemplateCode: 'tool_work_import', outputAmount: 1, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'gunsmith', requiredProfessionLevel: 2, requiredToolTier: 3, inputs: [{ resourceCode: 'comp_weapon_part', amount: 5, minQuality: 'NORMAL' }, { resourceCode: 'comp_fastener', amount: 4, minQuality: 'POOR' }] },
 ] as const
 
 export const OBJECT_PROFESSIONS: Record<string, string> = {

@@ -9,7 +9,12 @@ import { isGrantImplemented } from '../src/modules/premium/premium.service'
 const prisma = new PrismaClient()
 
 // Must match BalanceConfig.economy.tools; kept inside prisma because the production image runs seed.ts without src/.
-const STAGE2_TOOL_TIERS = { 1: { price: 500, uses: 50 }, 2: { price: 1250, uses: 50 }, 3: { price: 1800, uses: 50 } } as const
+// Ступень 4 — импортная оснастка Этапа 5 (G8). Государство её не продаёт:
+// добывается только крафтом и перепродаётся на рынке и в частных лавках.
+// Цена — ориентир для продажи, выведена из шага ступеней (500→1250→1800),
+// подтверждается заказчиком по вопросу В7; реальная стоимость — компоненты
+// верхнего передела в рецепте rcp_import_tool.
+const STAGE2_TOOL_TIERS = { 1: { price: 500, uses: 50 }, 2: { price: 1250, uses: 50 }, 3: { price: 1800, uses: 50 }, 4: { price: 2500, uses: 50 } } as const
 
 async function main() {
   console.log('🌱 Seeding database...')
@@ -126,6 +131,12 @@ async function main() {
     { code: 'tool_work_basic', name: 'Рабочий набор', description: 'Расходная оснастка для базовых производственных площадок.', type: 'TOOL' as const, toolTier: 1, usesMax: STAGE2_TOOL_TIERS[1].uses, weight: 1.0, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[1].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
     { code: 'tool_work_advanced', name: 'Профессиональная оснастка', description: 'Оснастка для оборудования второго тира.', type: 'TOOL' as const, toolTier: 2, usesMax: STAGE2_TOOL_TIERS[2].uses, weight: 1.5, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[2].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
     { code: 'tool_work_precision', name: 'Точная оснастка', description: 'Расходный инструмент для сложного производства.', type: 'TOOL' as const, toolTier: 3, usesMax: STAGE2_TOOL_TIERS[3].uses, weight: 2.0, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[3].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
+    // Импортная оснастка (Этап 5, G8): 4-я ступень, +15% к скорости цикла
+    // сверх третьей — тем же шагом equipmentTierSpeedBonus, что и между
+    // прочими ступенями, так что формула цикла её уже учитывает без правок.
+    // sourceType PRIVATE: сид госмагазина берёт только GOVERNMENT, поэтому
+    // казна её не продаёт — только крафт и перепродажа игроками.
+    { code: 'tool_work_import', name: 'Импортная оснастка', description: 'Редкий инструмент четвёртой ступени. Государство им не торгует — только собственная сборка из деталей верхнего передела.', type: 'TOOL' as const, toolTier: 4, usesMax: STAGE2_TOOL_TIERS[4].uses, weight: 2.5, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[4].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'PRIVATE' as const, isEquippable: false },
   ]
 
   // Upsert templates

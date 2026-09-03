@@ -212,6 +212,11 @@ export const CycleService = {
               durabilityMax: template.durabilityMax,
               weight: template.weight,
               sourceType: 'CRAFTED',
+              // Инструмент расходуется применениями. До Этапа 5 ни один
+              // рецепт не выпускал TOOL, поэтому запас не проставлялся;
+              // импортная оснастка (G8) — первый крафт-инструмент, и без
+              // usesLeft она вышла бы с null и работой бы не взялась.
+              usesLeft: template.type === 'TOOL' ? template.usesMax : null,
             },
           })
         }
