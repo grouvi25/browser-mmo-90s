@@ -71,9 +71,10 @@ export const options = {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
-function post(path, body, token) {
+function post(path, body, token, idem) {
   const headers = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
+  if (idem) headers['Idempotency-Key'] = idem
   return http.post(`${BASE}${path}`, JSON.stringify(body), { headers })
 }
 
@@ -126,7 +127,7 @@ export default function () {
 
   // 5. Buy cheapest item
   const cheapest = items.sort((a, b) => a.template.priceBase - b.template.priceBase)[0]
-  const buyRes = post('/api/shops/government/buy', { templateId: cheapest.templateId }, token)
+  const buyRes = post('/api/shops/government/buy', { templateId: cheapest.templateId }, token, `load-gov-buy-${__VU}-${__ITER}`)
   check(buyRes, { 'buy item': (r) => r.status === 201 })
   const itemId = buyRes.json('item.id')
 

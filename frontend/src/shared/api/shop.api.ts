@@ -6,7 +6,8 @@ export const shopApi = {
     api.get<ShopItem[]>('/api/shops/government/items'),
 
   buy: (templateId: string) =>
-    api.post<{ item: ItemInstance; newBalance: number }>('/api/shops/government/buy', { templateId }),
+    api.post<{ item: ItemInstance; newBalance: number }>('/api/shops/government/buy', { templateId },
+      { headers: { 'Idempotency-Key': crypto.randomUUID() } }),
 
   sell: (itemInstanceId: string) =>
     api.post<{ sellPrice: number; newBalance: number }>('/api/shops/government/sell', { itemInstanceId }),

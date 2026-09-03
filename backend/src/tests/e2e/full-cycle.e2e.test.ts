@@ -13,11 +13,13 @@ async function api(
   method: string,
   path: string,
   body?: unknown,
-  token?: string
+  token?: string,
+  idem?: string
 ): Promise<{ status: number; data: unknown }> {
   const headers: Record<string, string> = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers['Authorization'] = `Bearer ${token}`
+  if (idem) headers['Idempotency-Key'] = idem
 
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -93,9 +95,9 @@ describe('E2E: Full player cycle (Stage 1 TZ razdel 11)', () => {
     expect(weapon).toBeTruthy()
 
     const charBefore = (await api('GET', '/api/characters/me', undefined, token)).data as { money: number }
-    const r = await api('POST', '/api/shops/government/buy', { templateId: weapon!.templateId }, token)
+    const r = await api('POST', '/api/shops/government/buy', { templateId: weapon!.templateId }, token, 'e2e-gov-buy-' + Date.now() + '-1')
     expect(r.status).toBe(201)
-    const second = await api('POST', '/api/shops/government/buy', { templateId: weapon!.templateId }, token)
+    const second = await api('POST', '/api/shops/government/buy', { templateId: weapon!.templateId }, token, 'e2e-gov-buy-' + Date.now() + '-2')
     expect(second.status).toBe(201)
 
     const bought = r.data as { item: { id: string; durabilityCurrent: number }; newBalance: number }
@@ -290,10 +292,10 @@ describe('E2E: Security invariants (ТЗ раздел 4)', () => {
     }>
     items.sort((a, b) => a.template.priceBase - b.template.priceBase)
     for (let i = 0; i < 20; i++) {
-      await api('POST', '/api/shops/government/buy', { templateId: items[0].templateId }, tok1)
+      await api('POST', '/api/shops/government/buy', { templateId: items[0].templateId }, tok1, 'e2e-gov-buy-' + Date.now() + '-3')
     }
     const expensive = items[items.length - 1]
-    const r = await api('POST', '/api/shops/government/buy', { templateId: expensive.templateId }, tok1)
+    const r = await api('POST', '/api/shops/government/buy', { templateId: expensive.templateId }, tok1, 'e2e-gov-buy-' + Date.now() + '-4')
     expect(r.status).toBe(400)
   })
 
@@ -348,7 +350,7 @@ describe('E2E: Mathematical correctness', () => {
     }>
     const weapon = items.find(i => i.template.type === 'WEAPON')
     if (weapon) {
-      const bought = await api('POST', '/api/shops/government/buy', { templateId: weapon.templateId }, token)
+      const bought = await api('POST', '/api/shops/government/buy', { templateId: weapon.templateId }, token, 'e2e-gov-buy-' + Date.now() + '-5')
       const itemId = (bought.data as { item: { id: string } }).item.id
       await api('POST', '/api/inventory/equip', { itemInstanceId: itemId }, token)
     }

@@ -46,10 +46,15 @@ export async function governmentShopRoutes(fastify: FastifyInstance): Promise<vo
       const parsed = BuySchema.safeParse(req.body)
       if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
 
+      const key = req.headers['idempotency-key']
+      if (typeof key !== 'string') {
+        return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+      }
+
       const char = await CharactersRepository.findByUserId(req.authUser.userId)
       if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
 
-      const result = await GovernmentShopService.buy(char.id, parsed.data.templateId)
+      const result = await GovernmentShopService.buy(char.id, parsed.data.templateId, key)
       return reply.code(201).send(result)
     })
 

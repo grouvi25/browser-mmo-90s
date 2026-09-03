@@ -88,7 +88,7 @@ describe('GovernmentShopService.buy', () => {
     const { char, template } = await createCharacterWithTemplate()
 
     const moneyBefore = char.money
-    const result = await GovernmentShopService.buy(char.id, template.id)
+    const result = await GovernmentShopService.buy(char.id, template.id, uid("key"))
 
     expect(result.newBalance).toBe(moneyBefore - template.priceBase)
     expect(result.item.ownerId).toBe(char.id)
@@ -107,7 +107,7 @@ describe('GovernmentShopService.buy', () => {
     })
     await testPrisma.governmentShopItem.create({ data: { templateId: tool.id, isAvailable: true } })
 
-    const bought = await GovernmentShopService.buy(char.id, tool.id)
+    const bought = await GovernmentShopService.buy(char.id, tool.id, uid("key"))
 
     expect(bought.item.usesLeft).toBe(50)
     expect(bought.item.status).toBe('NORMAL')
@@ -115,7 +115,7 @@ describe('GovernmentShopService.buy', () => {
 
   it('writes currency log on purchase', async () => {
     const { char, template } = await createCharacterWithTemplate()
-    await GovernmentShopService.buy(char.id, template.id)
+    await GovernmentShopService.buy(char.id, template.id, uid("key"))
 
     const log = await testPrisma.currencyLog.findFirst({
       where: { characterId: char.id, reasonCode: 'SHOP_PURCHASE' },
@@ -126,7 +126,7 @@ describe('GovernmentShopService.buy', () => {
 
   it('writes item log on purchase', async () => {
     const { char, template } = await createCharacterWithTemplate()
-    const { item } = await GovernmentShopService.buy(char.id, template.id)
+    const { item } = await GovernmentShopService.buy(char.id, template.id, uid("key"))
 
     const log = await testPrisma.itemLog.findFirst({
       where: { itemId: item.id, actionCode: 'CREATED_FROM_SHOP' },
@@ -140,7 +140,7 @@ describe('GovernmentShopService.buy', () => {
     await testPrisma.character.update({ where: { id: char.id }, data: { money: 0 } })
 
     await expect(
-      GovernmentShopService.buy(char.id, template.id)
+      GovernmentShopService.buy(char.id, template.id, uid("key"))
     ).rejects.toSatisfy((e: unknown) => e instanceof AppError && e.statusCode === 400)
   })
 
@@ -149,7 +149,7 @@ describe('GovernmentShopService.buy', () => {
     const randomId = '00000000-0000-0000-0000-000000000000'
 
     await expect(
-      GovernmentShopService.buy(char.id, randomId)
+      GovernmentShopService.buy(char.id, randomId, uid("key"))
     ).rejects.toSatisfy((e: unknown) => e instanceof AppError && (e.statusCode === 404 || e.statusCode === 400))
   })
 
@@ -165,7 +165,7 @@ describe('GovernmentShopService.buy', () => {
     })
 
     try {
-      await GovernmentShopService.buy(char.id, template.id)
+      await GovernmentShopService.buy(char.id, template.id, uid("key"))
     } catch (_e) {
       // Expected to fail
     }
@@ -181,7 +181,7 @@ describe('GovernmentShopService.buy', () => {
 describe('GovernmentShopService.sell', () => {
   it('returns 50% of base price', async () => {
     const { char, template } = await createCharacterWithTemplate()
-    const { item } = await GovernmentShopService.buy(char.id, template.id)
+    const { item } = await GovernmentShopService.buy(char.id, template.id, uid("key"))
 
     const charAfterBuy = await testPrisma.character.findUnique({ where: { id: char.id } })
     const moneyBeforeSell = charAfterBuy!.money
@@ -195,7 +195,7 @@ describe('GovernmentShopService.sell', () => {
 
   it('deletes item after sell', async () => {
     const { char, template } = await createCharacterWithTemplate()
-    const { item } = await GovernmentShopService.buy(char.id, template.id)
+    const { item } = await GovernmentShopService.buy(char.id, template.id, uid("key"))
     await GovernmentShopService.sell(char.id, item.id)
 
     const itemInDb = await testPrisma.itemInstance.findUnique({ where: { id: item.id } })
@@ -216,10 +216,50 @@ describe('GovernmentShopService.sell', () => {
 
     // Buy item with char2 but try to sell with first char
     const { char: char1 } = await createCharacterWithTemplate()
-    const { item } = await GovernmentShopService.buy(char2!.id, template.id)
+    const { item } = await GovernmentShopService.buy(char2!.id, template.id, uid('key'))
 
     await expect(
       GovernmentShopService.sell(char1.id, item.id)
     ).rejects.toSatisfy((e: unknown) => e instanceof AppError && e.statusCode === 403)
+  })
+})
+
+// ---------------------------------------------------------------
+// Идемпотентность и защита от повторного начисления
+// ---------------------------------------------------------------
+describe('GovernmentShopService — повторы не создают денег из воздуха', () => {
+  it('повтор buy с тем же ключом не создаёт вторую вещь и не списывает дважды', async () => {
+    const { char, template } = await createCharacterWithTemplate()
+    const moneyBefore = char.money
+    const key = uid('buy-key')
+
+    const first = await GovernmentShopService.buy(char.id, template.id, key)
+    const replay = await GovernmentShopService.buy(char.id, template.id, key)
+
+    // Тот же результат, помеченный как повтор.
+    expect(replay.item.id).toBe(first.item.id)
+    expect((replay as { replayed?: boolean }).replayed).toBe(true)
+
+    // Списано ровно один раз, вещь создана одна.
+    const updated = await testPrisma.character.findUniqueOrThrow({ where: { id: char.id } })
+    expect(updated.money).toBe(moneyBefore - template.priceBase)
+    expect(await testPrisma.itemInstance.count({ where: { ownerId: char.id, templateId: template.id } })).toBe(1)
+  })
+
+  it('повтор sell не начисляет деньги дважды за одну вещь', async () => {
+    const { char, template } = await createCharacterWithTemplate()
+    const { item } = await GovernmentShopService.buy(char.id, template.id, uid('buy-key'))
+
+    const afterBuy = await testPrisma.character.findUniqueOrThrow({ where: { id: char.id } })
+    const first = await GovernmentShopService.sell(char.id, item.id)
+    const afterSell = await testPrisma.character.findUniqueOrThrow({ where: { id: char.id } })
+    expect(afterSell.money).toBe(afterBuy.money + first.sellPrice)
+
+    // Второй sell той же вещи должен упасть, а не заплатить снова.
+    await expect(GovernmentShopService.sell(char.id, item.id))
+      .rejects.toSatisfy((e: unknown) => e instanceof AppError && e.statusCode === 409)
+
+    const afterSecond = await testPrisma.character.findUniqueOrThrow({ where: { id: char.id } })
+    expect(afterSecond.money).toBe(afterSell.money)
   })
 })
