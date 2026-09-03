@@ -59,7 +59,15 @@
      верху, и от этой же высоты считается масштаб. */
   overflow: hidden;
   transform-origin: top left;
-  background: oklch(92% 0.025 70);
+  /* Подложка сцены — акварель со слоя «Слой 1» макета, обрезанная по
+     холсту 1800x3200 и уменьшенная вдвое под сцену 900x1600. Она видна
+     сквозь панель зон и журнал: у их прямоугольников в PSD заливка
+     ВЫКЛЮЧЕНА, нарисована только рамка. Прежний ровный тон закрывал её
+     целиком, отчего экран выглядел глухим против макета. */
+  background: #efeaea url('../../shared/assets/battle/battle-bg.webp') top center / 100% auto no-repeat;
+  background-image: image-set(
+    url('../../shared/assets/battle/battle-bg@2x.webp') 2x,
+    url('../../shared/assets/battle/battle-bg.webp') 1x);
 }
 .battle-header-v3 {
   display: grid;
@@ -810,7 +818,14 @@
   background: #f8ebf6;
   pointer-events: none;
 }
-/* Базовый цвет — зелёный, как в макете: нетронутая зона. Раньше стоял
+/* Части фигурки — силуэты, снятые со слоёв макета «Голова», «Торс»,
+   «Рука л/п» и «Нога л/п» (первый набор, у панели блока: под именем
+   «Голова» в PSD лежит ещё и текстовая подпись зоны, поэтому слои
+   выбирались по координатам). Формы кладутся маской, а не картинкой:
+   цвет продолжает задавать состояние зоны. Прежние прямоугольники
+   со скруглением давали овалы вместо рук и ног.
+
+   Базовый цвет — зелёный, как в макете: нетронутая зона. Раньше стоял
    жёлтый, и фигурка целиком читалась как «всё плохо» ещё до первого
    хода. Три цвета макета теперь заняты: зелёный — чисто, жёлтый —
    прикрыта блоком, красный — назначена целью удара. */
@@ -818,15 +833,28 @@
   position: absolute;
   display: block;
   background: #5bbf46;
-  border-radius: 40%;
   transition: background 140ms ease;
+  -webkit-mask: center / 100% 100% no-repeat;
+  mask: center / 100% 100% no-repeat;
 }
-.zone-indicator__part.is-head  { left: 38.71%; top: 3.70%;  width: 11.83%; height: 16.20%; border-radius: 45%; }
-.zone-indicator__part.is-chest { left: 33.87%; top: 19.91%; width: 20.97%; height: 32.41%; border-radius: 22%; }
-.zone-indicator__part.is-arm-l { left: 22.04%; top: 25.00%; width: 11.83%; height: 37.96%; }
-.zone-indicator__part.is-arm-r { left: 54.84%; top: 25.00%; width: 11.83%; height: 37.96%; }
-.zone-indicator__part.is-leg-l { left: 32.80%; top: 52.31%; width: 9.68%;  height: 44.91%; }
-.zone-indicator__part.is-leg-r { left: 46.24%; top: 52.31%; width: 9.68%;  height: 44.91%; }
+.zone-indicator__part.is-head  { left: 38.71%; top: 3.70%;  width: 11.83%; height: 16.20%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-head.png');
+  mask-image: url('../../shared/assets/battle/indicator-head.png'); }
+.zone-indicator__part.is-chest { left: 33.87%; top: 19.91%; width: 20.97%; height: 32.41%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-chest.png');
+  mask-image: url('../../shared/assets/battle/indicator-chest.png'); }
+.zone-indicator__part.is-arm-l { left: 22.04%; top: 25.00%; width: 11.83%; height: 37.96%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-arm-l.png');
+  mask-image: url('../../shared/assets/battle/indicator-arm-l.png'); }
+.zone-indicator__part.is-arm-r { left: 54.84%; top: 25.00%; width: 11.83%; height: 37.96%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-arm-r.png');
+  mask-image: url('../../shared/assets/battle/indicator-arm-r.png'); }
+.zone-indicator__part.is-leg-l { left: 32.80%; top: 52.31%; width: 9.68%;  height: 44.91%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-leg-l.png');
+  mask-image: url('../../shared/assets/battle/indicator-leg-l.png'); }
+.zone-indicator__part.is-leg-r { left: 46.24%; top: 52.31%; width: 9.68%;  height: 44.91%;
+  -webkit-mask-image: url('../../shared/assets/battle/indicator-leg-r.png');
+  mask-image: url('../../shared/assets/battle/indicator-leg-r.png'); }
 
 .zone-indicator.is-block  .zone-indicator__part.is-on { background: #ffda3a; }
 .zone-indicator.is-attack .zone-indicator__part.is-on { background: #e8392c; }
@@ -898,10 +926,12 @@
 /* Нижняя панель в раскладке макета. Правила вне медиазапроса:
    компактный режим включается по (max-width: 900px) из React,
    и в альбомной ориентации он тоже должен выглядеть собранным. */
+/* Журнал в макете — тот же случай, что панель зон: «Прямоугольник 1
+   копия 3» нарисован одной рамкой, заливка у него выключена. */
 .battle-command-dock.is-compact {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr);
-  background: #cdc5c8;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  background: transparent;
   border-top: 3px solid var(--battle-btn-ink);
 }
 .battle-dock-actions { display: flex; justify-content: center; gap: 14px; padding: 6px 8px 4px; }
@@ -928,9 +958,23 @@
 /* Хронику под полем прячет мобильное правило выше; здесь она нужна,
    поэтому селектор с двумя классами перебивает его по весу. */
 .battle-command-dock.is-compact .battle-chronicle {
-  display: grid; height: auto; min-height: 0;
-  background: transparent; border-top: 1px solid rgba(7, 9, 10, .35);
+  display: grid; flex: 1 1 auto; height: auto; min-height: 0;
+  background: transparent; border-top: 0;
 }
+/* Своей шапки «Хроника / весь лог» у журнала в макете нет — там сверху
+   стоит строка типа боя и участников. Полосу убираем, а вход в полный
+   лог оставляем ссылкой в её правом углу. */
+/* Ссылка на полный лог стоит в углу поверх ленты, а не отдельной строкой:
+   в макете над строками журнала нет ничего, кроме шапки. */
+.battle-command-dock.is-compact .battle-chronicle {
+  position: relative;
+  grid-template-rows: minmax(0, 1fr);
+}
+.battle-command-dock.is-compact .battle-chronicle > header {
+  position: absolute; z-index: 1; right: 6px; top: 2px;
+  padding: 0; background: transparent;
+}
+.battle-command-dock.is-compact .battle-chronicle > header b { display: none; }
 /* Чата в макете внизу у нас нет, и его доля высоты — по холсту это 222 px
    из 1280 — досталась журналу. Пустое место копилось под последней
    строкой; строки прижаты к низу, и журнал растёт снизу вверх, как лента
@@ -1004,8 +1048,11 @@
   }
   .battle-field-v3__meta b { color: var(--battle-btn-ink); }
 
-  /* Панель зон: сплошная заливка макета вместо бумажной текстуры. */
-  .battle-fighter-panel { background: #cdc5c8; }
+  /* Панель зон прозрачна: у слоя «Прямоугольник 1» в PSD заливка
+     выключена, нарисована только рамка 3px, и сквозь него видна
+     акварель сцены. #cdc5c8 — цвет той отключённой заливки, рисовать
+     его было ошибкой. */
+  .battle-fighter-panel { background: transparent; }
   .battle-fighter-panel.is-self { border-top: 3px solid var(--battle-btn-ink); }
   .battle-fighter-panel.is-enemy { border-left: 0; border-top: 3px solid var(--battle-btn-ink); }
 
@@ -1055,7 +1102,8 @@
   }
   .battle-fighter-panel__hp::before {
     content: ''; position: absolute; z-index: 1; left: 2px; top: 50%;
-    width: 16px; height: 14px; transform: translateY(-50%);
+    /* Слой «ХП» 52x45 при холсте 1800 — это 21x18 на ширине 720. */
+    width: 21px; height: 18px; transform: translateY(-50%);
     background: url('../../shared/assets/ui/icon-hp.png') left center / contain no-repeat;
   }
 
@@ -1173,9 +1221,18 @@
 .battle-mockup-scene .battle-dock-actions { padding: 6px 0 0; gap: 15px; }
 .battle-mockup-scene .battle-dock-btn { min-width: 117.5px; height: 23px; font-size: 13px; }
 .battle-mockup-scene .battle-dock-hint { display: none; }
-.battle-mockup-scene .battle-command-dock .battle-chronicle {
-  position: absolute; left: 0; top: 39px; width: 900px; height: 298px;
+/* Шапка журнала занимает его верх: блок журнала начинается на 1988
+   холста, то есть на 994 сцены — это и есть 39 от верха колодки (955).
+   Строка типа боя стоит на 1000, линейки на 1024 и 2054/2, строки лога
+   с 1067 — отсюда 60 px под шапку и 99 под начало ленты. */
+.battle-mockup-scene .battle-command-dock .battle-journal-head {
+  position: absolute; left: 0; top: 39px; width: 900px; height: 60px;
   background: #e6dbda; border-top: 1px solid #a8918f;
+  font-size: 13px;
+}
+.battle-mockup-scene .battle-command-dock .battle-chronicle {
+  position: absolute; left: 0; top: 99px; width: 900px; height: 238px;
+  background: #e6dbda; border-top: 0;
 }
 
 /* Чат. Свёрнутый — узкая полоска по низу укороченной сцены; открытый
@@ -1300,3 +1357,66 @@
 .card-cutout.is-enemy .portrait-hot .sprite-btn__img {
   filter: grayscale(1) contrast(1.05) brightness(.92) sepia(.25) hue-rotate(170deg);
 }
+/* =============================================================
+   ШАПКА ЖУРНАЛА по макету «Профиль игрока Боевка»
+
+   Строка «Тип боя … Время начала боя» стоит на 430,2000 холста
+   1800x3200, под ней линейка на 2048, строка участников на 2065,
+   вторая линейка на 2108 — отсюда высоты ниже, поделённые пополам
+   под сцену 900x1600.
+   ============================================================= */
+.battle-journal-head {
+  display: grid;
+  gap: 2px;
+  padding: 3px 8px 0;
+  font-size: 11px;
+}
+.battle-journal-head__meta {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-sign);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--battle-btn-ink);
+}
+/* Тип боя и время в макете набраны цветом, а не тушью. */
+.battle-journal-head__meta b { color: #b01e1e; }
+.battle-journal-head__meta > span { margin-left: 10px; }
+
+/* Строка участников зажата между двумя линейками — слои «Линия 1»
+   и «Линия 2», 1797x3 на 2048 и 2108. */
+.battle-journal-head__fighters {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 10px;
+  padding: 3px 0;
+  border-top: 1px solid var(--battle-btn-ink);
+  border-bottom: 1px solid var(--battle-btn-ink);
+}
+.battle-journal-head__fighter { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.battle-journal-head__fighter b { font-family: var(--font-sign); text-transform: uppercase; }
+.battle-journal-head__fighter.is-enemy b { color: #b01e1e; }
+.battle-journal-head__lvl { color: oklch(38% .02 55); font-variant-numeric: tabular-nums; }
+.battle-journal-head__fighter em { color: #a33; font-style: normal; font-variant-numeric: tabular-nums; }
+/* Иконка бойца слева от имени — слой «Иконка» 35x31 на 395,2067. */
+.battle-journal-head__mark {
+  width: 11px; height: 11px; flex: none;
+  background: currentColor;
+  -webkit-mask: url('../../shared/assets/battle/indicator-head.png') center / contain no-repeat;
+  mask: url('../../shared/assets/battle/indicator-head.png') center / contain no-repeat;
+}
+/* Кружок «!» — слои «Круг 1/2» 41x41 и текст в них. Пока боец не
+   сходил, кружок горит; после хода гаснет. */
+.battle-journal-head__flag {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; flex: none;
+  border: 1px solid var(--battle-btn-ink); border-radius: 50%;
+  background: #fad5c8;
+  color: #b01e1e; font: 700 9px/1 var(--font-mono); font-style: normal;
+}
+.battle-journal-head__flag.is-done { background: transparent; color: oklch(45% .02 55); }
+
+/* Время в начале строки журнала — «[16:31] …», как в макете. */
+.battle-chronicle__clock { width: auto; min-width: 34px; }

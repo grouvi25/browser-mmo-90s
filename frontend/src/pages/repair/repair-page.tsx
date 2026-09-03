@@ -1,221 +1,187 @@
+// =============================================================
+// Мастерская по макету «Фон основного мнею Мастерская.psd».
+//
+// Макет рисует ту же композицию, что и магазин: строка наличности
+// и уровня, шесть вкладок категорий на 712/953/1194/1442/1774/2089
+// (y 366, плашка 213x55, широкие 297 и 282) и плитки товаров
+// «Прямоугольник 8» 691x202 сеткой 2x2 на 716/1404 x 451/650.
+// Отличий два: корзины нет, а вместо «Купить» и «В корзину» стоит
+// одна кнопка «Ремонт» — слой 146x35.
+//
+// Поэтому разметка и стили берутся у магазина: в макете это буквально
+// те же нарисованные плашки, и повторять их вторым набором классов
+// значило бы разъехаться с ним при первой же правке.
+// =============================================================
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Wrench, ClipboardList, Check, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { repairApi } from '../../shared/api/repair.api'
-import { QUALITY_LABELS, WEAPON_TYPE_LABELS, ARMOR_SLOT_LABELS } from '../../shared/types/api.types'
+import { charactersApi } from '../../shared/api/characters.api'
+import { QUALITY_LABELS, type RepairItem } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
+import { SHOP_IMAGES } from '../../shared/assets/shop/shop-images'
+import { SPRITES } from '../../shared/ui/sprite'
+import '../shop/shop.css'
+
+type Category = 'WEAPON' | 'ARMOR' | 'MEDICINE' | 'TOOL' | 'FOOD' | 'DRINK'
+
+/** Вкладки и их порядок — те же, что нарисованы в магазине и здесь. */
+const CATEGORIES: Array<{ key: Category; label: string }> = [
+  { key: 'WEAPON', label: 'Оружие' },
+  { key: 'ARMOR', label: 'Броня' },
+  { key: 'MEDICINE', label: 'Аптечки' },
+  { key: 'TOOL', label: 'Инструменты' },
+  { key: 'FOOD', label: 'Бафф-еда' },
+  { key: 'DRINK', label: 'Напитки' },
+]
+
+const money = (value: number) => value.toLocaleString('ru-RU')
+
+function itemImage(item: RepairItem) {
+  return SHOP_IMAGES[item.template.code] ?? SHOP_IMAGES.weapon_fists
+}
+
+/** Строки бонусов под названием — как в макете: «Сила: +2», «Броня тела: +5». */
+function bonusLines(item: RepairItem): string[] {
+  const t = item.template
+  const out: string[] = []
+  if (t.minDamage != null && t.maxDamage != null) out.push(`Урон: ${t.minDamage}–${t.maxDamage}`)
+  if (t.armor) out.push(`Броня тела: +${t.armor}`)
+  if (t.strReq > 0) out.push(`Требует силы: ${t.strReq}`)
+  return out
+}
+
+function categoryOf(item: RepairItem): Category | null {
+  const t = item.template
+  if (t.type === 'WEAPON') return 'WEAPON'
+  if (t.type === 'ARMOR') return 'ARMOR'
+  if (t.type === 'TOOL') return 'TOOL'
+  if (t.type === 'CONSUMABLE') return 'MEDICINE'
+  return null
+}
 
 export function RepairPage() {
   const qc = useQueryClient()
+  const [category, setCategory] = useState<Category>('WEAPON')
+  const [level, setLevel] = useState<number | 'ALL'>('ALL')
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [previewItem, setPreviewItem] = useState<string | null>(null)
 
   const { data: items = [], isLoading, refetch } = useQuery({
     queryKey: ['repair', 'items'],
     queryFn: () => repairApi.listItems(),
   })
-
-  const { data: preview, isLoading: previewLoading } = useQuery({
-    queryKey: ['repair', 'preview', previewItem],
-    queryFn: () => repairApi.preview(previewItem!),
-    enabled: !!previewItem,
-  })
+  const me = useQuery({ queryKey: ['character'], queryFn: charactersApi.getMe })
 
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text })
-    setTimeout(() => setMessage(null), 5000)
+    setTimeout(() => setMessage(null), 4000)
   }
 
   const repairMut = useMutation({
     mutationFn: (itemId: string) => repairApi.commit(itemId),
-    onSuccess: (data) => {
-      showMsg('success', `Отремонтировано! Остаток: ₽ ${data.newBalance.toLocaleString('ru')}`)
-      setPreviewItem(null)
-      qc.invalidateQueries({ queryKey: ['repair'] })
-      qc.invalidateQueries({ queryKey: ['inventory'] })
-      qc.invalidateQueries({ queryKey: ['character'] })
-      refetch()
+    onSuccess: data => {
+      showMsg('success', `Отремонтировано. Остаток: ${money(data.newBalance)} ₽`)
+      void qc.invalidateQueries({ queryKey: ['repair'] })
+      void qc.invalidateQueries({ queryKey: ['inventory'] })
+      void qc.invalidateQueries({ queryKey: ['character'] })
+      void refetch()
     },
-    onError: (err) => {
+    onError: err => {
       if (err instanceof ApiError) {
-        if (err.status === 400) showMsg('error', 'Не хватает денег на ремонт')
-        else showMsg('error', err.message)
-      }
+        showMsg('error', err.status === 400 ? 'Не хватает денег на ремонт' : err.message)
+      } else showMsg('error', 'Не удалось починить')
     },
   })
 
-  if (isLoading) return <div className="loading"><span className="spinner" />Загрузка...</div>
+  const levels = useMemo(
+    () => [...new Set(items.map(i => i.template.levelReq))].sort((a, b) => a - b),
+    [items],
+  )
+
+  const visible = items.filter(item => {
+    if (categoryOf(item) !== category) return false
+    if (level !== 'ALL' && item.template.levelReq !== level) return false
+    return true
+  })
+
+  if (isLoading) return <div className="loading"><span className="spinner" />Загрузка мастерской…</div>
 
   return (
-    <div>
+    <div className="gshop">
       {message && <div className={`alert alert-${message.type} mb8`}>{message.text}</div>}
 
-      <div className="row">
-        <div className="col">
-          <div className="panel">
-            <div className="panel-header">
-              <span className="panel-title">
-                <Wrench size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                МАСТЕРСКАЯ — РЕМОНТ
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                Стоимость: базовая цена / 120 × потеря прочности
-              </span>
-            </div>
-            <div className="panel-body">
-              {items.length === 0 ? (
-                <div className="alert alert-info">
-                  Нет предметов, требующих ремонта. Все предметы в хорошем состоянии!
+      {/* Строка наличности и уровня — как в магазине; корзины в макете
+          мастерской нет, чинят по одной вещи прямо в плитке. */}
+      <header className="gshop-head">
+        <span className="gshop-cash">
+          <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
+          <span>Ваша наличность: <b>{me.data ? money(me.data.money) : '—'} руб.</b></span>
+        </span>
+        <label className="gshop-level">
+          <span>Для уровня:</span>
+          <span className="gshop-level__box">
+            <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
+            <select value={String(level)} onChange={e => setLevel(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}>
+              <option value="ALL">все</option>
+              {levels.map(lv => <option key={lv} value={lv}>{lv}</option>)}
+            </select>
+          </span>
+        </label>
+      </header>
+
+      <nav className="gshop-tabs" aria-label="Категории предметов">
+        {CATEGORIES.map(tab => (
+          <button
+            key={tab.key}
+            className={category === tab.key ? 'active' : ''}
+            aria-current={category === tab.key}
+            onClick={() => setCategory(tab.key)}
+          >
+            <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {visible.length === 0 ? (
+        <p className="gshop-empty">В этой категории нет повреждённых вещей.</p>
+      ) : (
+        <section className="gshop-grid">
+          {visible.map(item => {
+            const t = item.template
+            const tooPoor = me.data ? me.data.money < item.repairCost : false
+            return (
+              <article key={item.id} className="gshop-card gshop-card--repair">
+                <img src={itemImage(item)} alt="" width={64} height={64} />
+                <div className="gshop-card-body">
+                  <h3 className={`q-${item.quality}`}>{t.name}</h3>
+                  <dl>
+                    {/* В макете у вещи стоит её текущая прочность, а не предел:
+                        чинить имеет смысл именно по ней. */}
+                    <div><dt>Прочность</dt><dd>{item.durabilityCurrent}</dd></div>
+                    <div><dt>Качество</dt><dd>{QUALITY_LABELS[item.quality]}</dd></div>
+                    <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
+                    <div><dt>Цена за ремонт</dt><dd>{money(item.repairCost)} руб.</dd></div>
+                  </dl>
+                  <ul className="gshop-bonuses">
+                    {bonusLines(item).map(line => <li key={line}>{line}</li>)}
+                  </ul>
                 </div>
-              ) : (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Предмет</th>
-                      <th>Тип</th>
-                      <th>Качество</th>
-                      <th>Прочность</th>
-                      <th className="num">Стоимость ремонта</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map(item => {
-                      const t = item.template
-                      const typeLabel = t.weaponType
-                        ? WEAPON_TYPE_LABELS[t.weaponType]
-                        : t.armorSlot ? ARMOR_SLOT_LABELS[t.armorSlot] : t.type
-                      const durPct = (item.durabilityCurrent / item.durabilityMax) * 100
-                      const durColor = durPct > 60 ? 'var(--success)' : durPct > 25 ? 'var(--warning)' : 'var(--danger)'
-
-                      return (
-                        <tr key={item.id}
-                          style={{
-                            cursor: 'pointer',
-                            background: previewItem === item.id ? 'var(--bg-hover)' : undefined,
-                          }}
-                          onClick={() => setPreviewItem(item.id === previewItem ? null : item.id)}
-                        >
-                          <td>
-                            <span className={`q-${item.quality}`} style={{ fontWeight: 'bold' }}>
-                              {t.name}
-                            </span>
-                            {item.status === 'BROKEN' && (
-                              <span style={{ color: 'var(--danger)', fontSize: 10, marginLeft: 4 }}>СЛОМАН</span>
-                            )}
-                          </td>
-                          <td style={{ fontSize: 11 }}>{typeLabel}</td>
-                          <td><span className={`q-${item.quality}`}>{QUALITY_LABELS[item.quality]}</span></td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <div style={{ flex: 1, height: 6, background: 'var(--border)' }}>
-                                <div style={{ width: `${durPct}%`, height: '100%', background: durColor }} />
-                              </div>
-                              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
-                                {item.durabilityCurrent}/{item.durabilityMax}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="num repair-cost">₽ {item.repairCost.toLocaleString('ru')}</td>
-                          <td>
-                            <button
-                              className="btn btn-sm btn-success"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                repairMut.mutate(item.id)
-                              }}
-                              disabled={repairMut.isPending}
-                            >
-                              Починить
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Preview panel */}
-        {previewItem && (
-          <div style={{ width: 260, flexShrink: 0 }}>
-            <div className="panel">
-              <div className="panel-header">
-                <span className="panel-title">
-                  <ClipboardList size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  ДЕТАЛИ РЕМОНТА
-                </span>
-              </div>
-              <div className="panel-body">
-                {previewLoading ? (
-                  <div className="loading"><span className="spinner" />Расчёт...</div>
-                ) : preview ? (
-                  <>
-                    <table className="data-table mb8">
-                      <tbody>
-                        <tr>
-                          <td>Прочность</td>
-                          <td className="text-mono">
-                            {preview.durabilityCurrent} → <strong style={{ color: 'var(--success)' }}>
-                              {preview.durabilityMax}
-                            </strong>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>Потеря</td>
-                          <td className="text-mono text-danger">{preview.lostDurability}</td>
-                        </tr>
-                        <tr>
-                          <td>Стоимость</td>
-                          <td className="repair-cost">₽ {preview.repairCost.toLocaleString('ru')}</td>
-                        </tr>
-                        <tr>
-                          <td>У вас денег</td>
-                          <td className={preview.canAfford ? 'money' : 'text-danger'}>
-                            ₽ {preview.characterMoney.toLocaleString('ru')}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>Хватит?</td>
-                          <td style={{ color: preview.canAfford ? 'var(--success)' : 'var(--danger)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            {preview.canAfford
-                              ? <><Check size={12} /> Да</>
-                              : <><X size={12} /> Нет</>}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-
-                    {preview.requiredParts.length > 0 && <div className="mb8">
-                      {preview.requiredParts.map(part => <div key={part.resourceCode} className={part.enough ? 'text-success' : 'text-danger'}>
-                        {part.resourceName}: {part.available}/{part.amount}
-                      </div>)}
-                    </div>}
-                    <button
-                      className="btn btn-success btn-block"
-                      disabled={!preview.canRepair || repairMut.isPending}
-                      onClick={() => repairMut.mutate(previewItem)}
-                    >
-                      {repairMut.isPending
-                        ? <><span className="spinner" />Ремонт...</>
-                        : <><Wrench size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />Починить</>}
-                    </button>
-
-                    {!preview.canAfford && (
-                      <div className="alert alert-error mt8" style={{ fontSize: 11 }}>
-                        Не хватает ₽ {(preview.repairCost - preview.characterMoney).toLocaleString('ru')}
-                      </div>
-                    )}
-                  </>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+                <div className="gshop-card-actions">
+                  <button
+                    className="gshop-btn"
+                    disabled={repairMut.isPending || tooPoor}
+                    title={tooPoor ? 'Не хватает денег' : undefined}
+                    onClick={() => repairMut.mutate(item.id)}
+                  >
+                    <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                    <span>Ремонт</span>
+                  </button>
+                </div>
+              </article>
+            )
+          })}
+        </section>
+      )}
     </div>
   )
 }

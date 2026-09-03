@@ -1,0 +1,212 @@
+/* =============================================================
+   Инвентарь по макету «Инвентарь.psd». Холст 3200x1800.
+
+     вкладки        плашки «Слой 18» 263x68, два ряда — y 97 и 172;
+                    длинные подписи шире: 595, 602 и 410
+     карточка вещи  «Прямоугольник 8» 960x272, по две в ряд,
+                    первая на 94,361
+       картинка     106,422 · 203x148
+       название     333,386   количество 749,386
+       прочность    334,424   блок характеристик 333,475 · 313x126
+       кнопка       829,567 · 199x43 — «Надеть» / «снять»
+     панель справа  «Прямоугольник 1 копия 4» 2314,350 · 709x1251,
+                    заливка #ddd4d6, обводка 3px
+       манекен      «Слой 4 копия» 2430,396 · 476x1128
+       слоты        16 рамок «Прямоугольник 6», в каждой два гнезда;
+                    пунктир 5px #1c1318, штрих 10/2, заливка ВЫКЛЮЧЕНА
+       «снять всё»  2532,1543 · 273x43
+
+   Панель вьюпорта у нас 928x496 по сцене, а макет нарисован на 3200
+   в ширину — буквально числа не переносятся. Держим композицию и
+   доли: две трети под карточки, треть под манекен.
+   ============================================================= */
+
+.inv { font-size: 12px; }
+
+/* Два ряда вкладок, как нарисовано. Плашка и рамка — те же, что
+   у вкладок магазина: в макете это один и тот же слой. */
+.inv-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.inv-tabs button {
+  position: relative;
+  min-width: 76px;
+  padding: 4px 10px;
+  border: 0;
+  background: #fffffe;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.inv-tabs button > span { position: relative; z-index: 1; }
+.inv-tabs button.active { background: #c8c8c8; font-weight: 700; }
+.inv-tabs button:disabled { color: #8b8288; cursor: not-allowed; }
+.inv-tabs button:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+
+/* Слева карточки, справа панель с манекеном — 709 из 3200 это 22%,
+   но на узком вьюпорте панели нужен пол, иначе манекен схлопывается. */
+.inv-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+/* Плитка вещи: в макете это только рамка, заливки у неё нет. */
+/* В макете карточек ровно две в ряд, и они не растянуты на всю
+   ширину: 960 из 3200 каждая, то есть 30% холста, а дальше до панели
+   идёт пустое поле. Держим ту же долю — 264 при сцене в 869. */
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 264px));
+  justify-content: start;
+  gap: 6px;
+}
+.inv-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+  border: 2px solid #010203;
+  background: transparent;
+}
+/* Только картинка вещи: рамки кнопок лежат внутри карточки тем же
+   тегом, и общее правило растягивало их до 52 на 52. */
+.inv-card > img { width: 56px; height: 41px; object-fit: contain; align-self: center; }
+.inv-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.inv-card__head h3 { margin: 0; font-size: 11px; text-transform: uppercase; }
+.inv-card__count { color: #4a4345; white-space: nowrap; }
+/* В макете кнопка стоит СПРАВА от характеристик, на одной с ними
+   высоте, а не под ними — потому карточка там и плоская, 960 на 272.
+   Держим тот же ряд, иначе кнопки добавляют карточке лишний этаж. */
+.inv-card__body { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+.inv-card__side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+/* Столбец характеристик держит свою ширину и не переносится: иначе
+   кнопки его сжимают и «требуемый уровень» ломается пополам. */
+.inv-card dl {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 0;
+  margin: 3px 0 0;
+  font-size: 9.5px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.inv-card dl > div { display: flex; justify-content: flex-start; gap: 5px; }
+.inv-card dt::after { content: ":"; }
+.inv-card dl > div:first-child { margin-bottom: 4px; }
+.inv-card dt { color: #4a4345; }
+.inv-card dd { margin: 0; font-variant-numeric: tabular-nums; }
+.inv-card__actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.inv-btn {
+  position: relative;
+  padding: 2px 7px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.inv-btn > span { position: relative; z-index: 1; }
+.inv-btn:disabled { opacity: .4; cursor: not-allowed; }
+.inv-btn:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+
+/* Панель манекена. В макете это единственная плашка с настоящей
+   заливкой: 709x1251, #ddd4d6, обводка 3px #07090a. Внутри неё всё
+   стоит по координатам слоёв, поэтому панель держит свою пропорцию,
+   а содержимое разложено в долях от неё — как в боевой панели. */
+/* Панель высокая и узкая: 709 на 1251. Наша сцена, наоборот, широкая
+   и низкая — 869 на 464 в единицах вёрстки, и высота эта постоянная,
+   сцена масштабируется целиком. Поэтому ведём панель от высоты, а
+   ширину отдаём пропорции макета: иначе низ с «снять всё» уезжает под
+   обрез, что и было. */
+.inv-doll {
+  position: relative;
+  aspect-ratio: 709 / 1251;
+  height: 330px;
+  width: auto;
+  justify-self: end;
+  border: 2px solid #07090a;
+  background: #ddd4d6;
+}
+
+/* Человек — слой «Слой 4 копия», 476x1128. В файле он сплошной
+   чёрный, а в макете виден серым: держим его маской и заливаем
+   #a6a0a1 — цветом, снятым с композита. */
+.inv-doll__figure {
+  position: absolute;
+  left: 16.36%; top: 3.68%; width: 67.14%; height: 90.17%;
+  background: #a6a0a1;
+  -webkit-mask: url("../../shared/assets/ui/mannequin.png") center / 100% 100% no-repeat;
+  mask: url("../../shared/assets/ui/mannequin.png") center / 100% 100% no-repeat;
+}
+
+/* Ячейка снаряжения: пунктир 5px по холсту шириной 709 — на нашей
+   ширине это полтора пикселя. Заливки у рамок в макете нет. */
+.inv-cell {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px dashed #1c1318;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+}
+.inv-cell img { max-width: 84%; max-height: 84%; object-fit: contain; }
+.inv-cell.is-empty { cursor: default; }
+/* Ячейки, под которые в игре нет ни вещей, ни слота. Оставлены на
+   своих местах, но приглушены: живая рамка в пустоту хуже видимой
+   закрытой. */
+.inv-cell.is-locked { pointer-events: none; opacity: .7; }
+.inv-cell:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+
+/* Два гнезда под камни в каждой ячейке. Вставки камней в игре нет,
+   поэтому они нарисованы и молчат. */
+.inv-socket {
+  position: absolute;
+  border: 1.5px dashed #1c1318;
+  border-radius: 2px;
+  opacity: .8;
+  pointer-events: none;
+}
+
+.inv-doll__all {
+  position: absolute;
+  left: 30.75%; top: 95.36%; width: 38.5%; height: 3.44%;
+  display: grid;
+  place-items: center;
+  border: 2px solid #07090a;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 9px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.inv-doll__all:disabled { opacity: .45; cursor: not-allowed; }
+.inv-doll__all:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+
+.inv-empty { font-size: 12px; opacity: .8; }
+
+/* Карманы — наша механика, в макете её нет: держим отдельной полосой
+   под карточками, чтобы не спорить с его композицией. */
+.inv-pockets { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(1, 2, 3, .35); }
+.inv-pockets__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.inv-pockets__head b { font-family: var(--font-sign); text-transform: uppercase; font-size: 11px; }
+.inv-pockets__head small { color: #4a4345; }
+.inv-pockets__list { display: flex; gap: 5px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .inv-body { grid-template-columns: minmax(0, 1fr); }
+  .inv-grid { grid-template-columns: minmax(0, 1fr); }
+  .inv-doll { height: 380px; margin: 0 auto; justify-self: center; }
+}

@@ -394,13 +394,17 @@ test.describe('Stage 2 visual and browser flow', () => {
   test('E5 upgrades shows preview controls for buyer item', async ({ page }, testInfo) => {
     await authPage(page, buyer)
     await page.goto('/upgrades')
-    await expect(page.getByText('Улучшение вещей')).toBeVisible()
+    // Подписи взяты с макета «Фон основного мнею Улучшения»: панель там
+    // называется «Государственная вставка камней», кнопка — «Вставить»,
+    // а шанс стоит одной строкой вместе с ценой и ступенью. Проверка
+    // прежняя: список вещей, выбор усиления, живой расчёт и кнопка.
+    await expect(page.getByText('Государственная вставка камней')).toBeVisible()
     const selector = page.locator('select').first()
     await expect(selector.locator('option')).toHaveCount(3)
     await page.locator('select').nth(1).selectOption('ARMOR')
     await selector.selectOption({ index: 1 })
-    await expect(page.getByText('Шанс успеха:', { exact: false })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Улучшить' })).toBeVisible()
+    await expect(page.getByText('шанс', { exact: false })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Вставить' })).toBeVisible()
     await visualProof(page, testInfo, 'e5-upgrades')
   })
 

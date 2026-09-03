@@ -15,8 +15,14 @@ interface BattleChronicleProps {
 export function BattleChronicle({ rounds, playerName, enemyName, onOpenLog }: BattleChronicleProps) {
   const tail = useRef<HTMLOListElement>(null)
   const lines = rounds.flatMap(round => round.events.map((event, index) => ({
-    key: `${round.round}-${index}`, round: round.round, event,
+    key: `${round.round}-${index}`, round: round.round, event, at: round.at,
   })))
+  // Время в начале строки — как набрано в макете: «[16:31] …».
+  const clock = (at?: number) => {
+    if (!at) return null
+    const d = new Date(at)
+    return `[${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}]`
+  }
   // Прокручиваем к свежему: список растёт вниз, как в мессенджере.
   useEffect(() => { tail.current?.scrollTo({ top: tail.current.scrollHeight }) }, [lines.length])
 
@@ -32,7 +38,7 @@ export function BattleChronicle({ rounds, playerName, enemyName, onOpenLog }: Ba
           const view = getEvent(line.event)
           const mine = line.event.actor === 'player'
           return <li key={line.key} className={mine ? 'is-mine' : 'is-theirs'}>
-            <i>{line.round}</i>
+            <i className="battle-chronicle__clock">{clock(line.at) ?? line.round}</i>
             <span className="battle-chronicle__icon" style={{ color: view.color }}><EventIcon type={view.type} size={10} /></span>
             <b>{mine ? playerName : enemyName}</b>
             {/* Цвет берём из таблицы стилей, а не из события: те тона

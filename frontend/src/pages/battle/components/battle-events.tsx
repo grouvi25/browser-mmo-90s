@@ -15,6 +15,10 @@ export interface TurnEvent {
 
 export interface RoundRecord {
   round: number; events: TurnEvent[]; type: 'normal' | 'win' | 'lose'
+  /** Момент получения раунда клиентом: макет пишет строки журнала со
+   *  временем — «[16:31] Раунд № 1 начался». Сервер времени раунда не
+   *  отдаёт, поэтому берём время, когда он пришёл. */
+  at?: number
   expGain?: number; weaponExpGain?: number; moneyReward?: number; newLevel?: number
 }
 
