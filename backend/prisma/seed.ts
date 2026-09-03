@@ -2,7 +2,7 @@
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, PRIVATE_SHOP_RESOURCES } from './economy-data'
+import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, PRIVATE_SHOP_RESOURCES } from './economy-data'
 import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
 
 const prisma = new PrismaClient()
@@ -268,7 +268,8 @@ async function main() {
     const requiredProfessionLevel = Math.min(requiredProductionLevel, 3)
     const purchasePrice = purchasePrices[code] ?? null
     const isForSale = purchasePrice !== null
-    await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,purchasePrice,isForSale,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,purchasePrice,isForSale}})
+    const locationId = OBJECT_DISTRICTS[code] ?? null
+    await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,purchasePrice,isForSale,locationId,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,purchasePrice,isForSale,locationId}})
   }
   for (const recipeData of PRODUCTION_RECIPES) {
     const { inputs, ...recipe } = recipeData
@@ -322,8 +323,8 @@ async function main() {
   }
   const bar = await prisma.productionObject.upsert({
     where: { code: 'obj_bar_station' },
-    update: { name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, isActive: true },
-    create: { code: 'obj_bar_station', name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000 },
+    update: { name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, locationId: OBJECT_DISTRICTS.obj_bar_station, isActive: true },
+    create: { code: 'obj_bar_station', name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, locationId: OBJECT_DISTRICTS.obj_bar_station },
   })
   let firstBarRecipeId: string | null = null
   for (const row of BAR_RECIPES) {

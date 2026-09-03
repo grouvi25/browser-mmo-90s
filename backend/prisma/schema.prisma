@@ -477,19 +477,19 @@ model Character {
   premiumExpiresAt DateTime? @map("premium_expires_at")
 
   // Profile extras
-  battlesTotal         Int       @default(0) @map("battles_total")
-  battlesWon           Int       @default(0) @map("battles_won")
+  battlesTotal         Int        @default(0) @map("battles_total")
+  battlesWon           Int        @default(0) @map("battles_won")
   location             String? // Текстовое местоположение
-  isInvisible          Boolean   @default(false) @map("is_invisible")
-  lastBattleFinishedAt DateTime? @map("last_battle_finished_at")
-  alcoholLevel         Int       @default(0) @map("alcohol_level")
-  alcoholUpdatedAt     DateTime? @map("alcohol_updated_at")
-  hangoverUntil        DateTime? @map("hangover_until")
-  barBuffAccuracy      Float     @default(0) @map("bar_buff_accuracy")
-  barBuffDamage        Float     @default(0) @map("bar_buff_damage")
-  barBuffExpiresAt     DateTime? @map("bar_buff_expires_at")
-  lastBarBuffAt        DateTime? @map("last_bar_buff_at") // для HP recovery
-  farmPlots             FarmPlot[]
+  isInvisible          Boolean    @default(false) @map("is_invisible")
+  lastBattleFinishedAt DateTime?  @map("last_battle_finished_at")
+  alcoholLevel         Int        @default(0) @map("alcohol_level")
+  alcoholUpdatedAt     DateTime?  @map("alcohol_updated_at")
+  hangoverUntil        DateTime?  @map("hangover_until")
+  barBuffAccuracy      Float      @default(0) @map("bar_buff_accuracy")
+  barBuffDamage        Float      @default(0) @map("bar_buff_damage")
+  barBuffExpiresAt     DateTime?  @map("bar_buff_expires_at")
+  lastBarBuffAt        DateTime?  @map("last_bar_buff_at") // для HP recovery
+  farmPlots            FarmPlot[]
 
   createdAt    DateTime @default(now()) @map("created_at")
   lastActiveAt DateTime @default(now()) @map("last_active_at")
@@ -881,19 +881,19 @@ model WeaponSkill {
 // =============================================================
 
 model FarmPlot {
-  id              String    @id @default(uuid())
-  characterId     String    @map("character_id")
-  slot            Int
-  cropCode        String?   @map("crop_code")
-  plantedAt       DateTime? @map("planted_at")
-  readyAt         DateTime? @map("ready_at")
-  withersAt       DateTime? @map("withers_at")
-  waterCount      Int       @default(0) @map("water_count")
-  lastWateredAt   DateTime? @map("last_watered_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  character       Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  building        FarmBuilding?
+  id            String        @id @default(uuid())
+  characterId   String        @map("character_id")
+  slot          Int
+  cropCode      String?       @map("crop_code")
+  plantedAt     DateTime?     @map("planted_at")
+  readyAt       DateTime?     @map("ready_at")
+  withersAt     DateTime?     @map("withers_at")
+  waterCount    Int           @default(0) @map("water_count")
+  lastWateredAt DateTime?     @map("last_watered_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  character     Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  building      FarmBuilding?
 
   @@unique([characterId, slot])
   @@index([characterId])
@@ -913,23 +913,24 @@ model FarmBuilding {
 }
 
 model Clan {
-  id              String          @id @default(uuid())
-  name            String          @unique
-  tag             String          @unique
-  level           Int             @default(0)
-  treasury        Int             @default(0)
-  maintenanceDebt Int             @default(0) @map("maintenance_debt")
-  isFrozen        Boolean         @default(false) @map("is_frozen")
-  lastChargedAt   DateTime        @default(now()) @map("last_charged_at")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  id              String            @id @default(uuid())
+  name            String            @unique
+  tag             String            @unique
+  level           Int               @default(0)
+  treasury        Int               @default(0)
+  maintenanceDebt Int               @default(0) @map("maintenance_debt")
+  isFrozen        Boolean           @default(false) @map("is_frozen")
+  lastChargedAt   DateTime          @default(now()) @map("last_charged_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
   roles           ClanRole[]
   members         ClanMember[]
   invites         ClanInvite[]
   storage         ClanStorage[]
   treasuryLogs    ClanTreasuryLog[]
-  relationsFrom   ClanRelation[]  @relation("ClanRelationFrom")
-  relationsTo     ClanRelation[]  @relation("ClanRelationTo")
+  relationsFrom   ClanRelation[]    @relation("ClanRelationFrom")
+  relationsTo     ClanRelation[]    @relation("ClanRelationTo")
+  territories     Territory[]
 
   @@map("clans")
 }
@@ -995,14 +996,14 @@ model ClanStorage {
 }
 
 model ClanTreasuryLog {
-  id          String   @id @default(uuid())
-  clanId      String   @map("clan_id")
-  characterId String?  @map("character_id")
-  amount      Int
-  balanceAfter Int     @map("balance_after")
-  reason      String
-  createdAt   DateTime @default(now()) @map("created_at")
-  clan        Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  id           String   @id @default(uuid())
+  clanId       String   @map("clan_id")
+  characterId  String?  @map("character_id")
+  amount       Int
+  balanceAfter Int      @map("balance_after")
+  reason       String
+  createdAt    DateTime @default(now()) @map("created_at")
+  clan         Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
 
   @@index([clanId, createdAt])
   @@map("clan_treasury_logs")
@@ -1065,6 +1066,11 @@ model ProductionObject {
   cycles                  ProductionCycle[]
   barOffers               BarOffer[]
 
+  // Индекс создан руками миграцией stage3_equipment_profile, но в схеме
+  // объявлен не был: Prisma видела дрейф и норовила снести его первой же
+  // следующей миграцией. По нему ходит воркер смены профиля — без индекса
+  // он бы тихо перешёл на полный перебор объектов.
+  @@index([profileSwitchEndsAt])
   @@map("production_objects")
 }
 
@@ -1440,4 +1446,54 @@ model AdminUser {
   lastLoginAt  DateTime? @map("last_login_at")
 
   @@map("admin_users")
+}
+
+// =============================================================
+// ЭТАП 4 — ТЕРРИТОРИИ
+//
+// Район города как объект владения кланом. Коды совпадают с ключами
+// MENU.districts во фронте и с OBJECT_DISTRICTS в сиде: по ним же
+// ProductionObject.locationId связывает объект с районом.
+// Раскладка и обоснование — docs/specs/stage-4/STAGE4_DATA_MODEL.md.
+// =============================================================
+
+enum TerritoryStatus {
+  NEUTRAL // ничей
+  CONTROLLED // под контролем клана
+  CONTESTED // подана заявка, бой назначен
+  UNDER_ATTACK // бой идёт
+  PROTECTED // защита после захвата
+}
+
+model Territory {
+  id     String          @id @default(uuid())
+  code   String          @unique
+  name   String
+  status TerritoryStatus @default(NEUTRAL)
+
+  ownerClanId    String?   @map("owner_clan_id")
+  controlledAt   DateTime? @map("controlled_at")
+  protectedUntil DateTime? @map("protected_until")
+
+  // Бонус района вынесен в данные: подбор бонусов — предмет балансировки,
+  // а балансировка не должна требовать выката кода.
+  bonusCode  String @map("bonus_code")
+  bonusValue Float  @map("bonus_value")
+
+  // Порядковый номер владения у клана: определяет ступень содержания.
+  // Пересчитывается при каждой смене владельца.
+  upkeepTier Int @default(1) @map("upkeep_tier")
+  // Общак пуст — содержание копится долгом, а не отбирает район мгновенно.
+  // Тот же приём, что с зарплатой объекта в Этапе 3.
+  upkeepDebt Int @default(0) @map("upkeep_debt")
+
+  lastChargedAt DateTime @default(now()) @map("last_charged_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  ownerClan Clan? @relation(fields: [ownerClanId], references: [id])
+
+  @@index([ownerClanId])
+  @@index([status])
+  @@map("territories")
 }

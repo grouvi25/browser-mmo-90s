@@ -125,6 +125,47 @@ export const OBJECT_PROFESSIONS: Record<string, string> = {
   obj_chem_lab: 'chemist',
 }
 
+/**
+ * Районы города. Коды дословно совпадают с ключами `MENU.districts` во
+ * фронте (`frontend/src/shared/lib/layout-map.ts`): это единственная связь
+ * карты города с территориями Этапа 4, и держится она на совпадении строк,
+ * поэтому проверяется тестом.
+ */
+export const DISTRICT_CODES = [
+  'center', 'market', 'industrial', 'station', 'garages', 'suburb',
+] as const
+
+export type DistrictCode = (typeof DISTRICT_CODES)[number]
+
+/**
+ * В каком районе стоит объект. Пишется в `ProductionObject.locationId` —
+ * поле заведено заделом ещё в Этапе 1 и до сих пор не заполнялось ничем.
+ *
+ * Раскладка не случайна. От неё зависит, где в Этапе 4 будет война: атаковать
+ * можно только объект в своём районе или в районе врага, поэтому район с
+ * четырьмя объектами спорнее района с одним. Промзона и Спальный намеренно
+ * сделаны производственными центрами, Рынок и Вокзал — редкими: их ценность
+ * в бонусе района, а не в числе целей.
+ */
+export const OBJECT_DISTRICTS: Record<string, DistrictCode> = {
+  obj_pharmacy: 'center',
+  obj_textile: 'center',
+  obj_market_loader: 'market',
+  obj_herb_point: 'market',
+  obj_scrapyard: 'industrial',
+  obj_small_factory: 'industrial',
+  obj_parts_factory: 'industrial',
+  obj_chem_lab: 'industrial',
+  obj_warehouse_station: 'station',
+  // Пивная сеется отдельным блоком (BAR_RECIPES тянут за собой объект), но
+  // район ей нужен так же: без него бар нельзя ни защитить, ни ограбить.
+  obj_bar_station: 'station',
+  obj_garage_workshop: 'garages',
+  obj_cooperative_site: 'suburb',
+  obj_kolhoz_zarya: 'suburb',
+  obj_sawmill: 'suburb',
+}
+
 /** Ресурсы, которые лавки продают игроку. Государство ресурсы только скупает. */
 export const PRIVATE_SHOP_RESOURCES = [
   { shopCode: 'kommersant', resourceCode: 'comp_armor_plate', price: 105 },
