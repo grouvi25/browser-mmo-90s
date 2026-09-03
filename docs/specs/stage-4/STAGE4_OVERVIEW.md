@@ -32,7 +32,7 @@
 | `BattleType.CLAN`, `BattleType.TERRITORY` | `schema.prisma` |
 | `BattleParticipant.side` — стороны боя | `schema.prisma` |
 | Командные бои N против N на общей сетке | реализованы, коммит `2810313` |
-| `User.isPremium`, `User.premiumExpiresAt` | `schema.prisma` |
+| `Character.isPremium`, `Character.premiumExpiresAt` | `schema.prisma` |
 | `WeaponSkill.premiumMultiplier` | `schema.prisma` |
 | `ItemSourceType.PREMIUM` | `schema.prisma` |
 | `OwnerType.CLAN` у производственных объектов | `schema.prisma` |

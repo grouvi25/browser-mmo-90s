@@ -11,6 +11,7 @@ import { ResourcesService } from '../resources/resources.service'
 import { admissionRequirement, calcFinalSalary, calcProductionExp, fitsDailyBudget, shiftMinutes, workerEfficiency } from './work.formulas'
 import { CycleService } from '../production/cycle.service'
 import { BalanceConfig } from '../../config/balance.config'
+import { PremiumService } from '../premium/premium.service'
 import { PROFESSION_NAMES, professionLevelFromExp, type ProfessionCode } from '../professions/professions'
 
 const MAX_DAILY_SHIFTS = BalanceConfig.economy.work.dailyShiftLimit
@@ -118,7 +119,11 @@ export const WorkService = {
         tx.productionObject.findUnique({ where: { id: productionObjectId }, include: { equipment: true } }),
         tx.workShift.findMany({ where: { characterId, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
       ])
-      if (todayShifts.length >= MAX_DAILY_SHIFTS) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
+      // Подписка поднимает ВЕРХНЮЮ ГРАНИЦУ дня, а не эффективность часа:
+      // подписчик может работать дольше, но не зарабатывает больше в час,
+      // и усталость зарплаты Этапа 2 продолжает действовать на все смены.
+      const shiftCap = await PremiumService.dailyShiftCap(characterId)
+      if (todayShifts.length >= shiftCap) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
       if (!object) throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object not found', 404)
       if (!fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), object.shiftDurationMinutes)) {
         throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift budget reached', 400)

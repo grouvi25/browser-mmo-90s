@@ -511,6 +511,8 @@ model Character {
   professions          CharacterProfession[]
   resourceStacks       ResourceStack[]
   claimRosters         TerritoryClaimRoster[]
+  helpers              Helper[]
+  premiumPurchases     PremiumPurchase[]
 
   @@map("characters")
 }
@@ -1258,6 +1260,11 @@ model WorkShift {
   character            Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
   productionObject     ProductionObject @relation(fields: [productionObjectId], references: [id])
   toolInstance         ItemInstance?    @relation("WorkShiftTool", fields: [toolInstanceId], references: [id])
+  // Этап 4: смена помощника — ОБЫЧНАЯ смена с проставленным helperId.
+  // Вклад труда, зарплата, износ и закрытие цикла идут по коду Этапа 3
+  // без правок; отличается только множитель эффективности.
+  helperId             String?          @map("helper_id")
+  helper               Helper?
 
   @@index([characterId, status])
   @@index([status, endsAt])
@@ -1665,4 +1672,86 @@ model ObjectAttack {
   @@index([objectId, createdAt])
   @@index([attackerClanId, createdAt])
   @@map("object_attacks")
+}
+
+// =============================================================
+// ЭТАП 4 — PREMIUM И ПОМОЩНИКИ
+//
+// Главное правило этапа: премиум продаёт ВРЕМЯ, а не силу. Ни один товар
+// витрины не выдаёт предмет с ненулевым бюджетом статов — это проверяется
+// машинно, а не декларируется.
+// ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, часть VI.
+// =============================================================
+
+enum PremiumProductKind {
+  TIME // ускоряет то, чего можно дождаться
+  COSMETIC // на механику не влияет вообще
+  CONVENIENCE // удобство, на бой не влияет
+}
+
+enum HelperStatus {
+  ACTIVE // подписка активна, работает
+  DORMANT // подписки нет, остаётся в профиле
+}
+
+model PremiumProduct {
+  id          String             @id @default(uuid())
+  code        String             @unique
+  name        String
+  description String
+  kind        PremiumProductKind
+  priceRub    Int                @map("price_rub")
+  /// Что выдаётся: ключ эффекта, разбирается сервисом по закрытому списку.
+  grantCode   String             @map("grant_code")
+  grantValue  Int                @default(0) @map("grant_value")
+  isActive    Boolean            @default(true) @map("is_active")
+  sortOrder   Int                @default(0) @map("sort_order")
+
+  purchases PremiumPurchase[]
+
+  @@map("premium_products")
+}
+
+model PremiumPurchase {
+  id               String  @id @default(uuid())
+  /// Покупает персонаж: подписка живёт на нём, а не на аккаунте.
+  characterId      String  @map("character_id")
+  productId        String  @map("product_id")
+  /// Цена копией: в каталоге она меняется, история покупок обязана
+  /// остаться неизменной. Тот же приём, что в рыночных сделках Этапа 2.
+  priceRub         Int     @map("price_rub")
+  /// Оплата в первой версии вне игры, оформляет администратор.
+  grantedByAdminId String? @map("granted_by_admin_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  character Character      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  product   PremiumProduct @relation(fields: [productId], references: [id])
+
+  @@index([characterId, createdAt])
+  @@map("premium_purchases")
+}
+
+model Helper {
+  id              String       @id @default(uuid())
+  characterId     String       @map("character_id")
+  name            String
+  status          HelperStatus @default(ACTIVE)
+  /// Профессия своя, не хозяйская. Потолок 3 при потолке игрока 6:
+  /// помощник никогда не заменит специалиста на верхних переделах.
+  professionCode  String       @map("profession_code")
+  professionLevel Int          @default(0) @map("profession_level")
+  professionExp   Float        @default(0) @map("profession_exp")
+
+  /// Текущая смена, если помощник занят.
+  activeShiftId String? @unique @map("active_shift_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  character   Character  @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  activeShift WorkShift? @relation(fields: [activeShiftId], references: [id])
+
+  @@index([characterId])
+  @@map("helpers")
 }

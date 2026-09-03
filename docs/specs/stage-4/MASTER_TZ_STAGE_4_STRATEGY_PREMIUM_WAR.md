@@ -116,7 +116,7 @@ enum-значений, формул и констант канонические
 | `BattleType.CLAN`, `BattleType.TERRITORY` | схема | типы боёв |
 | `BattleParticipant.side` | схема | стороны |
 | Командный бой N против N | реализован | бой за территорию целиком |
-| `User.isPremium`, `premiumExpiresAt` | схема | подписка |
+| `Character.isPremium`, `premiumExpiresAt` | схема | подписка |
 | `WeaponSkill.premiumMultiplier` | схема | множитель опыта навыка |
 | `ItemSourceType.PREMIUM` | схема | источник предметов витрины |
 | `OwnerType.CLAN`, `ProductionObject.ownerClanId` | схема | клановая собственность |

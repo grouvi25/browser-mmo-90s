@@ -183,6 +183,60 @@ export const TERRITORIES = [
   { code: 'suburb', name: 'Спальный район', bonusCode: 'UPKEEP_COST', bonusValue: 0.25 },
 ] as const satisfies readonly { code: DistrictCode; name: string; bonusCode: string; bonusValue: number }[]
 
+/**
+ * Премиум-витрина Этапа 4. Три категории и ни одной четвёртой.
+ *
+ * Ни один товар не выдаёт предмет с ненулевым бюджетом статов — это самый
+ * простой возможный ответ на требование заказчика ограничить влияние
+ * премиум-шмота на баланс: премиум-шмота не существует. Проверяется тестом
+ * и рантайм-отказом PREM_002.
+ *
+ * `grantCode` разбирается сервисом по закрытому списку; неизвестный код —
+ * ошибка сида, а не тихо не выданный товар.
+ */
+export const PREMIUM_PRODUCTS = [
+  // ── Подписка ────────────────────────────────────────────────
+  { code: 'prem_sub_30', name: 'Подписка на 30 дней', kind: 'TIME', priceRub: 299,
+    grantCode: 'SUBSCRIPTION_DAYS', grantValue: 30, sortOrder: 10,
+    description: 'Опыт оружия быстрее в 1.5 раза, два помощника, 16 смен в сутки.' },
+  { code: 'prem_sub_90', name: 'Подписка на 90 дней', kind: 'TIME', priceRub: 749,
+    grantCode: 'SUBSCRIPTION_DAYS', grantValue: 90, sortOrder: 11,
+    description: 'То же на три месяца.' },
+
+  // ── Время ───────────────────────────────────────────────────
+  { code: 'prem_cycle_boost', name: 'Ускорение цикла', kind: 'TIME', priceRub: 49,
+    grantCode: 'CYCLE_INSTANT', grantValue: 1, sortOrder: 20,
+    description: 'Закрывает время текущего цикла на объекте. Труд всё равно нужно набрать.' },
+  { code: 'prem_water_all', name: 'Полив всей грядки', kind: 'TIME', priceRub: 29,
+    grantCode: 'FARM_WATER_ALL', grantValue: 1, sortOrder: 21,
+    description: 'Поливает все участки разом. Лимит поливов не меняется.' },
+  { code: 'prem_buff_reset', name: 'Сброс отката бафа', kind: 'TIME', priceRub: 39,
+    grantCode: 'BUFF_COOLDOWN_RESET', grantValue: 1, sortOrder: 22,
+    description: 'Снимает 12-часовой откат бафа из бара.' },
+
+  // ── Удобство ────────────────────────────────────────────────
+  { code: 'prem_inv_slots', name: '+10 мест в инвентаре', kind: 'CONVENIENCE', priceRub: 149,
+    grantCode: 'INVENTORY_SLOTS', grantValue: 10, sortOrder: 30,
+    description: 'Навсегда. На бой не влияет.' },
+  { code: 'prem_loadout', name: 'Второй набор экипировки', kind: 'CONVENIENCE', priceRub: 99,
+    grantCode: 'LOADOUT_SLOT', grantValue: 1, sortOrder: 31,
+    description: 'Ещё одна сохранённая раскладка. На бой не влияет.' },
+
+  // ── Косметика ───────────────────────────────────────────────
+  { code: 'prem_portrait_1', name: 'Портрет «Бригадир»', kind: 'COSMETIC', priceRub: 79,
+    grantCode: 'PORTRAIT', grantValue: 1, sortOrder: 40, description: 'Только внешний вид.' },
+  { code: 'prem_portrait_2', name: 'Портрет «Челнок»', kind: 'COSMETIC', priceRub: 79,
+    grantCode: 'PORTRAIT', grantValue: 2, sortOrder: 41, description: 'Только внешний вид.' },
+  { code: 'prem_nick_color', name: 'Цвет ника в чате', kind: 'COSMETIC', priceRub: 59,
+    grantCode: 'NICK_COLOR', grantValue: 1, sortOrder: 42, description: 'Только внешний вид.' },
+] as const
+
+/** Закрытый список эффектов витрины. Ни один не выдаёт предмет. */
+export const PREMIUM_GRANT_CODES = [
+  'SUBSCRIPTION_DAYS', 'CYCLE_INSTANT', 'FARM_WATER_ALL', 'BUFF_COOLDOWN_RESET',
+  'INVENTORY_SLOTS', 'LOADOUT_SLOT', 'PORTRAIT', 'NICK_COLOR',
+] as const
+
 /** Ресурсы, которые лавки продают игроку. Государство ресурсы только скупает. */
 export const PRIVATE_SHOP_RESOURCES = [
   { shopCode: 'kommersant', resourceCode: 'comp_armor_plate', price: 105 },

@@ -2,7 +2,7 @@
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PRIVATE_SHOP_RESOURCES } from './economy-data'
+import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PRIVATE_SHOP_RESOURCES } from './economy-data'
 import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
 
 const prisma = new PrismaClient()
@@ -345,6 +345,17 @@ async function main() {
     warGranted += 1
   }
   if (warGranted > 0) console.log(`  Clan roles granted WAR: ${warGranted}`)
+
+  // Премиум-витрина. update не трогает историю покупок: цена в каталоге
+  // меняется, а PremiumPurchase хранит её копией на момент сделки.
+  for (const p of PREMIUM_PRODUCTS) {
+    await prisma.premiumProduct.upsert({
+      where: { code: p.code },
+      update: { name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: true },
+      create: { code: p.code, name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder },
+    })
+  }
+  console.log(`  Premium products: ${PREMIUM_PRODUCTS.length}`)
 
 
   for (const [code, name, basePrice, weight] of BAR_RESOURCES) {

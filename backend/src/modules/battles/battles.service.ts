@@ -6,6 +6,7 @@ import { ItemsRepository } from '../items/item-instance.repository'
 import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repository'
 import { AppError } from '../../shared/errors/app-error'
 import { TerritoriesService } from '../territories/territories.service'
+import { PremiumService } from '../premium/premium.service'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { withTransaction } from '../../shared/db/transaction'
 import { audit } from '../../shared/logger/audit-logger'
@@ -85,11 +86,11 @@ function recordWeaponDamage(part: LiveParticipant, weapon: ItemWithTemplate | nu
   part.weaponDamage[weaponType] = (part.weaponDamage[weaponType] ?? 0) + damage
 }
 
-function weaponExpByType(part: LiveParticipant, fallbackWeapon: ItemWithTemplate | null, targetHpMax: number, won: boolean, levelDiff: number): Array<{ weaponType: PrismaWeaponType; exp: number }> {
+function weaponExpByType(part: LiveParticipant, fallbackWeapon: ItemWithTemplate | null, targetHpMax: number, won: boolean, levelDiff: number, premiumMultiplier = 1): Array<{ weaponType: PrismaWeaponType; exp: number }> {
   const tracked = Object.entries(part.weaponDamage ?? {}) as Array<[PrismaWeaponType, number]>
   const damageEntries = tracked.length > 0 ? tracked : [[(fallbackWeapon?.template.weaponType ?? 'MELEE') as PrismaWeaponType, part.damageDealt] as [PrismaWeaponType, number]]
   return damageEntries
-    .map(([weaponType, damage]) => ({ weaponType, exp: calcWeaponSkillExp(damage, targetHpMax, won ? 1 : 0, levelDiff) }))
+    .map(([weaponType, damage]) => ({ weaponType, exp: calcWeaponSkillExp(damage, targetHpMax, won ? 1 : 0, levelDiff, 1.0, premiumMultiplier) }))
     .filter(entry => entry.exp > 0)
 }
 
@@ -1727,7 +1728,11 @@ export const BattleService = {
       antiFarmCoeff   // Apply daily anti-farm
     ) * (1 + battleExpBonus))
 
-    const weaponExpEntries = weaponExpByType(playerPart, weapon, bot.hpMax, playerWon, levelDiff)
+    // Премиум ускоряет НАБОР навыка, но не поднимает его потолок:
+    // подписчик доходит до той же границы быстрее и там останавливается
+    // ровно там же, где все. Это и есть «время, а не сила».
+    const skillMultiplier = await PremiumService.skillMultiplier(char.id)
+    const weaponExpEntries = weaponExpByType(playerPart, weapon, bot.hpMax, playerWon, levelDiff, skillMultiplier)
     const weaponExpGain = weaponExpEntries.reduce((sum, entry) => sum + entry.exp, 0)
 
     return withTransaction(async (tx) => {

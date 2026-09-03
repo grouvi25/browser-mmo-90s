@@ -23,7 +23,7 @@
 |---|---|---|
 | `BattleType` | `CLAN`, `TERRITORY` | типы боёв этапа |
 | `BattleParticipant` | `side` | стороны в бою за территорию |
-| `User` | `isPremium`, `premiumExpiresAt` | подписка |
+| `Character` | `isPremium`, `premiumExpiresAt` | подписка |
 | `WeaponSkill` | `premiumMultiplier` | множитель опыта навыка |
 | `ItemSourceType` | `PREMIUM` | источник предметов премиум-магазина |
 | `OwnerType` | `CLAN` | клановая собственность на объект |
