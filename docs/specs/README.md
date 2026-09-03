@@ -36,10 +36,39 @@
 | [`stage-3/STAGE3_DISCOVERY.md`](stage-3/STAGE3_DISCOVERY.md) | разведка: откуда взялось содержимое этапа |
 | [`stage-3/EXTERNAL_AUDIT_2026-08-13.md`](stage-3/EXTERNAL_AUDIT_2026-08-13.md) | внешний аудит (устарел на две трети, см. разведку) |
 
-## Этапы 4–5 — не начаты
+## Этап 4 — стратегический слой
 
-По плану заказчика: стратегический слой (premium, помощники, территории,
-клановые войны) и финальная сборка.
+| Документ | Содержание |
+|---|---|
+| [`stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md`](stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md) | **основное ТЗ**: дизайн, границы, приёмка, план |
+| [`stage-4/STAGE4_OVERVIEW.md`](stage-4/STAGE4_OVERVIEW.md) | обзор для заказчика: тот же этап человеческим языком |
+| [`stage-4/STAGE4_DATA_MODEL.md`](stage-4/STAGE4_DATA_MODEL.md) | схема БД, enum, порядок миграций, инварианты |
+| [`stage-4/STAGE4_API.md`](stage-4/STAGE4_API.md) | контракты ручек, коды ошибок, матрица прав |
+| [`stage-4/STAGE4_BALANCE.md`](stage-4/STAGE4_BALANCE.md) | формулы, числа, коридоры, стоки |
+| [`stage-4/STAGE4_SEED_CONTENT.md`](stage-4/STAGE4_SEED_CONTENT.md) | территории, бонусы, премиум-витрина, права |
+
+Статус: **проект, ждёт решений заказчика** по девяти вопросам раздела 30
+мастер-ТЗ. До ответов реализуются только шаги, от них не зависящие.
+
+Выполнено: шаг F0 — все 14 производственных объектов привязаны к районам через
+`ProductionObject.locationId`, раскладка закреплена тестами с обеих сторон.
+Начат F1: модель `Territory` и миграция `stage4_territories`.
+
+## Этап 5 — финальная сборка
+
+| Документ | Содержание |
+|---|---|
+| [`stage-5/MASTER_TZ_STAGE_5_FINAL_ASSEMBLY_RELEASE_PREP.md`](stage-5/MASTER_TZ_STAGE_5_FINAL_ASSEMBLY_RELEASE_PREP.md) | **основное ТЗ**: админка, антиабуз, баланс, релиз, документация |
+| [`stage-5/STAGE5_OVERVIEW.md`](stage-5/STAGE5_OVERVIEW.md) | обзор для заказчика |
+| [`stage-5/STAGE5_ADMIN_API.md`](stage-5/STAGE5_ADMIN_API.md) | разделы админки, контракты, обратимость, цепочка транзакций |
+| [`stage-5/STAGE5_ANTIABUSE.md`](stage-5/STAGE5_ANTIABUSE.md) | девять рисков, жёсткие лимиты, сигналы, граф связей |
+| [`stage-5/STAGE5_ACCEPTANCE.md`](stage-5/STAGE5_ACCEPTANCE.md) | сквозной симулятор, протокол релиза, закрытый тест |
+
+Статус: **проект, ждёт решений заказчика** по шести вопросам раздела 24
+мастер-ТЗ.
+
+Основание обоих: «Этапы реализации проекта V1» разделы 8–9 и «Реестр механик
+по модулям» разделы 22–31 из базы знаний заказчика.
 
 ---
 
