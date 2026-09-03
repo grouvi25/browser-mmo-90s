@@ -216,7 +216,7 @@ describe('GovernmentShopService.sell', () => {
 
     // Buy item with char2 but try to sell with first char
     const { char: char1 } = await createCharacterWithTemplate()
-    const { item } = await GovernmentShopService.buy(char2!.id, template.id)
+    const { item } = await GovernmentShopService.buy(char2!.id, template.id, uid('key'))
 
     await expect(
       GovernmentShopService.sell(char1.id, item.id)
