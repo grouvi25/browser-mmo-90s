@@ -228,6 +228,7 @@ enum ItemLogAction {
   STATUS_CHANGED
   POINTS_ALLOCATED
   TOOL_USE
+  SOCKET_INSERTED
 }
 
 enum AdminRole {
@@ -635,6 +636,8 @@ model ItemInstance {
   upgradeModifiersJson Json?       @map("upgrade_modifiers_json")
   statAllocation       Json?       @map("stat_allocation")
   freePoints           Int         @default(0) @map("free_points")
+  // Гнёзда под камни: [{ stone, cut }], не длиннее SOCKETS_PER_ITEM.
+  socketsJson          Json?       @map("sockets_json")
   usesLeft             Int?        @map("uses_left")
 
   status     ItemStatus @default(NORMAL)
