@@ -4,9 +4,17 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PREMIUM_PRODUCTS_DEFERRED, PRIVATE_SHOP_RESOURCES } from './economy-data'
 import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
-import { isGrantImplemented } from '../src/modules/premium/premium.service'
 
 const prisma = new PrismaClient()
+
+// Источник правды: PREMIUM.IMPLEMENTED_GRANTS в
+// src/modules/premium/premium.service.ts. Дублируется здесь, а не
+// импортируется, потому что прод-образ гоняет seed.ts без src/ (см.
+// backend.Dockerfile) — импорт оттуда ронял CD на шаге сидинга с
+// MODULE_NOT_FOUND, CI это не ловил, потому что запускает seed.ts через
+// tsx прямо из чекаута, где src/ есть.
+const SEED_IMPLEMENTED_PREMIUM_GRANTS: readonly string[] = ['SUBSCRIPTION_DAYS']
+const isGrantImplemented = (code: string): boolean => SEED_IMPLEMENTED_PREMIUM_GRANTS.includes(code)
 
 // Must match BalanceConfig.economy.tools; kept inside prisma because the production image runs seed.ts without src/.
 // Ступень 4 — импортная оснастка Этапа 5 (G8). Государство её не продаёт:
