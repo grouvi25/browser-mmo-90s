@@ -90,6 +90,21 @@ export const ClaimsService = {
         if (ally) throw new AppError(ErrorCode.WAR_ALLY_OWNED, 'Район принадлежит союзному клану', 409)
       }
 
+      // Открытая заявка на район уже есть.
+      //
+      // Раньше этой проверки не было вовсе: WAR_005 держался ИСКЛЮЧИТЕЛЬНО
+      // на частичном уникальном индексе, а его Prisma не умеет объявлять в
+      // схеме — значит в любой базе, поднятой через `prisma db push`, его
+      // нет. В CI база поднимается именно так, и там второй клан спокойно
+      // подавал вторую заявку на тот же район. Индекс остаётся, но теперь
+      // страхует только гонку, а не заменяет проверку.
+      const openClaims = await tx.territoryClaim.count({
+        where: { territoryId: territory.id, status: { in: [...OPEN_STATUSES] } },
+      })
+      if (openClaims > 0) {
+        throw new AppError(ErrorCode.WAR_CLAIM_EXISTS, 'На район уже подана заявка', 409)
+      }
+
       const owned = await tx.territory.count({
         where: { ownerClanId: clan.id, status: 'CONTROLLED' },
       })

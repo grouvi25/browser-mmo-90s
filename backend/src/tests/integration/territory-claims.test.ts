@@ -94,6 +94,20 @@ describe('заявки на территорию', () => {
     expect(clan.id).toBeTruthy()
   })
 
+  it('частичный индекс на открытую заявку существует в базе', async () => {
+    // Индекса нет и не может быть в schema.prisma: Prisma не умеет частичные
+    // уникальные индексы. Значит его легко потерять — база, поднятая через
+    // `prisma db push`, окажется без него. Так и вышло в CI, и там вторая
+    // заявка на район спокойно проходила, пока проверка чтением отсутствовала.
+    //
+    // Проверка чтением теперь есть, но от гонки двух одновременных заявок
+    // спасает только база, поэтому индекс обязан быть на месте.
+    const rows = await testPrisma.$queryRawUnsafe<Array<{ indexname: string }>>(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'territory_claims'
+         AND indexname = 'territory_claims_one_open_per_territory'`)
+    expect(rows, 'частичный индекс потерян: примените prisma/raw-indexes.sql').toHaveLength(1)
+  })
+
   it('две заявки на один район одновременно: вторая отклоняется', async () => {
     const first = await warClan('first')
     const second = await warClan('second')

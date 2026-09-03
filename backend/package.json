@@ -22,7 +22,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "accept:stage4": "tsx scripts/accept-stage4.ts",
-    "test:db:setup": "prisma db push --skip-generate --accept-data-loss && prisma db seed"
+    "db:raw-indexes": "tsx prisma/apply-raw-indexes.ts",
+    "test:db:setup": "prisma db push --skip-generate --accept-data-loss && tsx prisma/apply-raw-indexes.ts && prisma db seed"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
