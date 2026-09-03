@@ -82,9 +82,9 @@ const RECIPES = PRODUCTION_RECIPES as unknown as Array<{
  */
 const ITEM_PRICES: Record<string, number> = {
   weapon_tt_private: 2_400,
-  armor_leather_jacket_private: 900,
+  armor_leather_jacket_private: 1_300,
   consumable_bandage: 50,
-  consumable_first_aid_kit: 150,
+  consumable_first_aid_kit: 170,
 }
 /** Содержание объекта за сутки — из блока производства BalanceConfig. */
 const OBJECT_DAILY_UPKEEP = 150
@@ -197,12 +197,20 @@ function ownerDay(objectCode: string) {
   return { revenue, inputs, salaries, upkeep, cycles, profit: revenue - inputs - salaries - upkeep }
 }
 
-/** Цена выхода рецепта: ресурс по рынку либо предмет по своей цене. */
+/**
+ * Цена выхода рецепта.
+ *
+ * Наценка рынка применяется и к предметам: крафтовую куртку игрок продаёт
+ * другому игроку так же выше базовой, как и сырьё. Первая версия множила
+ * только ресурсы, и рецепты с предметом на выходе сравнивали рыночные входы
+ * с базовым выходом — куртка выглядела убыточной там, где мерка просто была
+ * разной.
+ */
 function outputPrice(recipe: (typeof RECIPES)[number]): number {
   if (recipe.outputResourceCode) {
     return (resourcePrice.get(recipe.outputResourceCode) ?? 0) * MARKET_MULTIPLIER
   }
-  return ITEM_PRICES[recipe.outputItemTemplateCode ?? ''] ?? 0
+  return (ITEM_PRICES[recipe.outputItemTemplateCode ?? ''] ?? 0) * MARKET_MULTIPLIER
 }
 
 /** Стоимость входов: сырьё владелец тоже покупает у игроков, а не у казны. */

@@ -110,7 +110,7 @@ async function main() {
       code: 'consumable_first_aid_kit', name: 'Аптечка', type: 'CONSUMABLE' as const,
       hpBonus: 50,  // Restores 50 HP when used in battle
       weight: 0.3, durabilityMax: 1, qualityBase: 'COMMON' as const,
-      priceBase: 150, levelReq: 0, isSellable: true, isActive: true,
+      priceBase: 170, levelReq: 0, isSellable: true, isActive: true,
       sourceType: 'GOVERNMENT' as const, isEquippable: false,
     },
     {
@@ -235,7 +235,7 @@ async function main() {
   const privateTemplates = [
     {code:'weapon_tt_private',name:'Пистолет ТТ',type:'WEAPON' as const,weaponType:'PISTOL' as const,minDamage:45,maxDamage:90,weaponAccuracy:.78,optimalRange:4,maxRange:5,weight:1.1,durabilityMax:100,priceBase:2400,levelReq:3,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_weapon_part'},
     {code:'weapon_sawnoff_private',name:'Обрез',type:'WEAPON' as const,weaponType:'SHOTGUN' as const,minDamage:80,maxDamage:150,weaponAccuracy:.63,optimalRange:2,maxRange:3,weight:3,durabilityMax:90,priceBase:3900,levelReq:4,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_weapon_part'},
-    {code:'armor_leather_jacket_private',name:'Кожаная куртка с пластинами',type:'ARMOR' as const,armorSlot:'CHEST' as const,armor:16,weight:2,durabilityMax:110,priceBase:900,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
+    {code:'armor_leather_jacket_private',name:'Кожаная куртка с пластинами',type:'ARMOR' as const,armorSlot:'CHEST' as const,armor:16,weight:2,durabilityMax:110,priceBase:1300,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
     {code:'armor_army_vest_private',name:'Армейский бронежилет',type:'ARMOR' as const,armorSlot:'CHEST' as const,armor:34,antiCrit:.07,weight:6,durabilityMax:130,priceBase:5200,levelReq:4,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
     {code:'armor_boots_army_private',name:'Армейские берцы',type:'ARMOR' as const,armorSlot:'FEET' as const,armor:9,dodgeBonus:.03,weight:1.2,durabilityMax:100,priceBase:700,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
   ]

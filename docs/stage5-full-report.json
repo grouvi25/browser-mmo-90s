@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generatedAt": "2026-09-03T18:14:36.614Z",
-    "days": 30,
+    "generatedAt": "2026-09-03T18:34:37.416Z",
+    "days": 5,
     "seed": 4242
   },
   "rates": {
@@ -9,41 +9,41 @@
     "lowShiftPerHour": 58.666666666666664
   },
   "income": {
-    "workerFullDay": 745.7276990378928,
-    "ownerPerDay": -6438.176953912284,
-    "ownerShareOfShift": -9.145137718625405,
-    "farmerPerHour": 105.29466985501348,
-    "farmerShareOfShift": 0.8973977544461377,
-    "barmanPerDay": 709.5762322032452,
+    "workerFullDay": 751.8522865182348,
+    "ownerPerDay": -6216.063925929069,
+    "ownerShareOfShift": -8.829636258421974,
+    "farmerPerHour": 104.34670511707664,
+    "farmerShareOfShift": 0.8893185095205396,
+    "barmanPerDay": 729.0531409263612,
     "premiumPerDay": 841,
-    "premiumRatio": 1.127757492560654
+    "premiumRatio": 1.1185707818946735
   },
   "payback": {
     "objects": {
       "obj_scrapyard": 24.17405318291702,
       "obj_garage_workshop": null,
       "obj_small_factory": null,
-      "obj_parts_factory": 1.8138645208099728,
-      "obj_cooperative_site": 24.707996406109615,
+      "obj_parts_factory": 1.966955153422502,
+      "obj_cooperative_site": null,
       "obj_kolhoz_zarya": 1.274065685164213,
       "obj_sawmill": null,
-      "obj_textile": 16.174250593055863,
+      "obj_textile": 21.49613069647463,
       "obj_herb_point": 1.8387986515476555,
-      "obj_pharmacy": 5.83479203134117,
+      "obj_pharmacy": 2.465049124907561,
       "obj_chem_lab": null
     },
-    "bar": 56.37167394375567
+    "bar": 54.8656850297285
   },
   "shares": {
-    "clan": 0.015000000000000001,
+    "clan": 0.015,
     "territory": 0.01
   },
   "money": {
-    "minted": -90453.15010623196,
-    "burned": 299977.3424946884,
-    "m2Final": -315430.4926009204,
-    "dailyGrowth": 0,
-    "m2Positive": false
+    "minted": -13865.391338910069,
+    "burned": 50056.7304330545,
+    "m2Final": 11077.878228035439,
+    "dailyGrowth": -0.29140853952272683,
+    "m2Positive": true
   },
   "valueAdded": [
     {
@@ -105,209 +105,131 @@
     {
       "code": "rcp_fastener",
       "object": "obj_garage_workshop",
-      "output": 34,
+      "output": 50,
       "inputs": 45,
-      "margin": -11
+      "margin": 6
     },
     {
       "code": "rcp_steel_plate",
       "object": "obj_small_factory",
-      "output": 84,
-      "inputs": 101,
-      "margin": -17
+      "output": 132,
+      "inputs": 118,
+      "margin": 14
     },
     {
       "code": "rcp_spring",
       "object": "obj_small_factory",
-      "output": 140,
-      "inputs": 126,
-      "margin": 14
+      "output": 218,
+      "inputs": 197,
+      "margin": 21
     },
     {
       "code": "rcp_weapon_part",
       "object": "obj_parts_factory",
-      "output": 84,
-      "inputs": 196,
-      "margin": -112
+      "output": 337,
+      "inputs": 307,
+      "margin": 31
     },
     {
       "code": "rcp_tt_pistol",
       "object": "obj_parts_factory",
-      "output": 2400,
-      "inputs": 456,
-      "margin": 1944
+      "output": 3360,
+      "inputs": 1534,
+      "margin": 1826
     },
     {
       "code": "rcp_fabric",
       "object": "obj_textile",
-      "output": 25,
+      "output": 34,
       "inputs": 28,
-      "margin": -3
+      "margin": 6
     },
     {
       "code": "rcp_leather",
       "object": "obj_textile",
-      "output": 34,
-      "inputs": 137,
-      "margin": -104
+      "output": 188,
+      "inputs": 169,
+      "margin": 18
     },
     {
       "code": "rcp_armor_plate",
       "object": "obj_cooperative_site",
-      "output": 98,
-      "inputs": 160,
-      "margin": -62
+      "output": 424,
+      "inputs": 385,
+      "margin": 39
     },
     {
       "code": "rcp_jacket",
       "object": "obj_cooperative_site",
-      "output": 900,
-      "inputs": 361,
-      "margin": 539
+      "output": 1820,
+      "inputs": 1648,
+      "margin": 172
     },
     {
       "code": "rcp_alcohol",
       "object": "obj_pharmacy",
-      "output": 224,
+      "output": 272,
       "inputs": 245,
-      "margin": -21
+      "margin": 27
     },
     {
       "code": "rcp_extract",
       "object": "obj_chem_lab",
-      "output": 252,
-      "inputs": 532,
-      "margin": -280
+      "output": 638,
+      "inputs": 580,
+      "margin": 59
     },
     {
       "code": "rcp_chemicals",
       "object": "obj_chem_lab",
-      "output": 84,
-      "inputs": 378,
-      "margin": -294
+      "output": 1058,
+      "inputs": 958,
+      "margin": 101
     },
     {
       "code": "rcp_cloth",
       "object": "obj_textile",
       "output": 123,
-      "inputs": 17,
-      "margin": 106
+      "inputs": 22,
+      "margin": 101
     },
     {
       "code": "rcp_bandage",
       "object": "obj_pharmacy",
-      "output": 200,
+      "output": 280,
       "inputs": 62,
-      "margin": 138
+      "margin": 218
     },
     {
       "code": "rcp_first_aid",
       "object": "obj_pharmacy",
-      "output": 300,
-      "inputs": 218,
-      "margin": 82
+      "output": 476,
+      "inputs": 412,
+      "margin": 64
     },
     {
       "code": "rcp_plastic",
       "object": "obj_chem_lab",
-      "output": 39,
-      "inputs": 63,
-      "margin": -24
+      "output": 874,
+      "inputs": 794,
+      "margin": 80
     },
     {
       "code": "rcp_spare_parts",
       "object": "obj_garage_workshop",
-      "output": 50,
-      "inputs": 53,
-      "margin": -3
+      "output": 538,
+      "inputs": 487,
+      "margin": 50
     },
     {
       "code": "rcp_repair_kit",
       "object": "obj_garage_workshop",
-      "output": 126,
-      "inputs": 67,
+      "output": 622,
+      "inputs": 563,
       "margin": 59
     }
   ],
-  "destructiveRecipes": [
-    {
-      "code": "rcp_fastener",
-      "object": "obj_garage_workshop",
-      "output": 34,
-      "inputs": 45,
-      "margin": -11
-    },
-    {
-      "code": "rcp_steel_plate",
-      "object": "obj_small_factory",
-      "output": 84,
-      "inputs": 101,
-      "margin": -17
-    },
-    {
-      "code": "rcp_weapon_part",
-      "object": "obj_parts_factory",
-      "output": 84,
-      "inputs": 196,
-      "margin": -112
-    },
-    {
-      "code": "rcp_fabric",
-      "object": "obj_textile",
-      "output": 25,
-      "inputs": 28,
-      "margin": -3
-    },
-    {
-      "code": "rcp_leather",
-      "object": "obj_textile",
-      "output": 34,
-      "inputs": 137,
-      "margin": -104
-    },
-    {
-      "code": "rcp_armor_plate",
-      "object": "obj_cooperative_site",
-      "output": 98,
-      "inputs": 160,
-      "margin": -62
-    },
-    {
-      "code": "rcp_alcohol",
-      "object": "obj_pharmacy",
-      "output": 224,
-      "inputs": 245,
-      "margin": -21
-    },
-    {
-      "code": "rcp_extract",
-      "object": "obj_chem_lab",
-      "output": 252,
-      "inputs": 532,
-      "margin": -280
-    },
-    {
-      "code": "rcp_chemicals",
-      "object": "obj_chem_lab",
-      "output": 84,
-      "inputs": 378,
-      "margin": -294
-    },
-    {
-      "code": "rcp_plastic",
-      "object": "obj_chem_lab",
-      "output": 39,
-      "inputs": 63,
-      "margin": -24
-    },
-    {
-      "code": "rcp_spare_parts",
-      "object": "obj_garage_workshop",
-      "output": 50,
-      "inputs": 53,
-      "margin": -3
-    }
-  ],
+  "destructiveRecipes": [],
   "verdicts": {
     "workerDayCorridor": true,
     "ownerCorridor": false,
@@ -318,11 +240,11 @@
     "territoryShareCorridor": true,
     "premiumCorridor": true,
     "progressionMakesSense": true,
-    "chainAddsValue": false
+    "chainAddsValue": true
   },
   "observations": {
-    "m2DailyGrowth": 0,
-    "m2Positive": false,
+    "m2DailyGrowth": -0.29140853952272683,
+    "m2Positive": true,
     "note": "денежная масса измерена по неполному набору стоков"
   },
   "passed": false

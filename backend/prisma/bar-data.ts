@@ -1,6 +1,6 @@
 export const BAR_RESOURCES = [
-  ['res_alcohol', 'Спирт', 80, 0.2],
-  ['res_extract', 'Экстракт', 90, 0.1],
+  ['res_alcohol', 'Спирт', 97, 0.2],
+  ['res_extract', 'Экстракт', 228, 0.1],
   ['bar_shchi', 'Щи', 75, 0.5],
   ['bar_pelmeni', 'Пельмени', 120, 0.5],
   ['bar_kvass', 'Квас', 55, 0.3],
