@@ -1,0 +1,136 @@
+/* =============================================================
+   Админка. Никакого своего дизайна: та же бумажная палитра, что и у
+   экранов Этапов 3–4, те же отступы, те же кнопки.
+
+   Админка не витрина, и вкладывать в неё оформление раньше, чем в саму
+   игру, незачем. Здесь только то, чего нет в stage3.css: таблица, карточка
+   разбора и лента сигналов.
+   ============================================================= */
+
+.adm { font-size: 12px; }
+
+.adm-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 8px;
+}
+.adm-role {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 700 11px/1 var(--font-ui); letter-spacing: .04em;
+  color: var(--s3-red, #8c2f2f);
+}
+.adm-logout { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Вкладки — те же, что у разделов Этапа 3, но кнопками, а не ссылками:
+   разделы админки не адресуются отдельными путями. */
+.adm .s3-group button {
+  padding: 4px 10px; border: 1px solid var(--s3-line, #b9a68f);
+  border-bottom: 0; background: transparent;
+  font: 600 11px/1.5 var(--font-ui); color: inherit; cursor: pointer;
+}
+.adm .s3-group button.active {
+  background: var(--paper, #faeadd); font-weight: 700; color: var(--red, #8c2f2f);
+}
+
+/* ── Вход ─────────────────────────────────────────────────── */
+.adm-login {
+  display: grid; gap: 8px; max-width: 320px; margin: 24px auto;
+  padding: 16px; border: 1px solid var(--s3-line, #b9a68f);
+  background: var(--paper, #faeadd);
+}
+.adm-login h3 {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0; font: 700 13px/1.2 var(--font-ui);
+}
+.adm-login input { padding: 5px 7px; font: inherit; }
+
+/* ── Таблица ──────────────────────────────────────────────── */
+.adm-scroll { overflow-x: auto; margin: 8px 0; }
+.adm-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.adm-table th {
+  text-align: left; padding: 4px 6px; white-space: nowrap;
+  border-bottom: 1px solid var(--s3-line, #b9a68f);
+  font: 700 10.5px/1.4 var(--font-ui); letter-spacing: .04em;
+  color: var(--s3-dim, #6b5b4a); text-transform: uppercase;
+}
+.adm-table td {
+  padding: 4px 6px; vertical-align: top;
+  border-bottom: 1px solid rgba(185, 166, 143, .4);
+}
+.adm-table tr:hover td { background: rgba(255, 255, 255, .35); }
+.adm-table button { margin-right: 4px; }
+
+.adm-frozen td { opacity: .6; }
+.adm-undone td { text-decoration: line-through; opacity: .65; }
+.adm-by-admin td { background: rgba(140, 47, 47, .06); }
+
+/* ── Карточки и факты ─────────────────────────────────────── */
+.adm-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.adm-card {
+  display: grid; gap: 2px; padding: 8px;
+  border: 1px solid var(--s3-line, #b9a68f); background: var(--paper, #faeadd);
+}
+.adm-card span { font-size: 10.5px; color: var(--s3-dim, #6b5b4a); }
+.adm-card b { font: 700 16px/1 var(--font-mono, monospace); }
+
+.adm-card-block {
+  margin: 10px 0; padding: 10px;
+  border: 1px solid var(--s3-line, #b9a68f); background: var(--paper, #faeadd);
+}
+.adm-card-block h4, .adm-card-block h5 { margin: 0 0 6px; font: 700 12px/1.3 var(--font-ui); }
+.adm-card-block h5 { margin-top: 10px; }
+.adm-card-block p { margin: 0 0 8px; line-height: 1.45; }
+
+.adm-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0 0 8px; }
+.adm-facts div { display: grid; gap: 1px; }
+.adm-facts dt { font-size: 10.5px; color: var(--s3-dim, #6b5b4a); }
+.adm-facts dd { margin: 0; font-weight: 700; }
+
+/* ── Формы ────────────────────────────────────────────────── */
+.adm-search, .adm-amount { padding: 4px 7px; font: inherit; }
+.adm-search { width: 100%; max-width: 280px; margin-bottom: 8px; }
+.adm-amount { width: 70px; }
+
+.adm-reason { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.adm-reason input { flex: 1 1 220px; padding: 4px 7px; font: inherit; }
+.adm-danger { color: #a12a2a; font-weight: 700; }
+
+.adm-trace-form { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.adm-trace-form input { flex: 1 1 260px; padding: 4px 7px; font: inherit; }
+.adm-trace-form button { display: inline-flex; align-items: center; gap: 4px; }
+
+.adm-switch { display: flex; gap: 4px; margin-bottom: 8px; }
+.adm-switch button { padding: 3px 9px; }
+.adm-switch button.active { background: var(--paper, #faeadd); font-weight: 700; }
+
+/* ── Сигналы ──────────────────────────────────────────────── */
+.adm-signals { display: grid; gap: 8px; margin: 8px 0; padding: 0; list-style: none; }
+.adm-signal {
+  padding: 8px; border: 1px solid var(--s3-line, #b9a68f);
+  border-left-width: 3px; background: var(--paper, #faeadd);
+}
+/* Тяжесть слева полосой: её видно, не читая строку. */
+.adm-signal--1 { border-left-color: #8a8a6a; }
+.adm-signal--2 { border-left-color: #b8862f; }
+.adm-signal--3 { border-left-color: #a12a2a; }
+.adm-signal header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.adm-signal p { margin: 4px 0; line-height: 1.45; }
+.adm-signal__actions { display: flex; gap: 6px; margin-top: 6px; }
+
+.adm-evidence {
+  margin: 4px 0 0; padding: 5px 7px; overflow-x: auto;
+  background: rgba(0, 0, 0, .04); font: 10.5px/1.4 var(--font-mono, monospace);
+}
+
+/* ── Мелочи ───────────────────────────────────────────────── */
+.adm-hint { font-size: 10.5px; color: var(--s3-dim, #6b5b4a); }
+.adm-alert {
+  margin: 8px 0; padding: 6px 8px;
+  border: 1px solid var(--s3-line, #b9a68f); background: rgba(255, 255, 255, .4);
+}
+.adm-ok { color: var(--s3-green, #2f6b3a); }
+.adm-bad { color: #a12a2a; }
+
+@media (max-width: 720px) {
+  .adm-cards { grid-template-columns: repeat(2, 1fr); }
+  .adm-facts { grid-template-columns: repeat(2, 1fr); }
+}

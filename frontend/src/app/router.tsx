@@ -126,6 +126,13 @@ export function AppRouter() {
       </Route>
 
       {/* ── Экраны без городской оболочки ─────────────────── */}
+      {/* Админка живёт вне игровой оболочки и вне игрового входа.
+          У администратора своя учётная запись и свой токен; требовать от
+          него игрового персонажа неправильно — на проде админ может вовсе
+          не играть. Раньше маршрут стоял внутри города, и попасть в него
+          можно было только залогинившись игроком. */}
+      <Route path="/admin" element={<AdminPage />} />
+
       <Route path="/character/create"
         element={<RequireAuth><CreateCharacterPage /></RequireAuth>} />
       <Route path="/profile"
@@ -222,11 +229,6 @@ export function AppRouter() {
         <Route path="/u/:nickname" element={
           <ViewportPanel title="Личное дело">
             <PublicProfilePage />
-          </ViewportPanel>} />
-
-        <Route path="/admin" element={
-          <ViewportPanel title="Администрирование">
-            <AdminPage />
           </ViewportPanel>} />
 
         <Route path="/soon/:key" element={<SoonRoute />} />
