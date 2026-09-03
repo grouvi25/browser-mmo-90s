@@ -232,31 +232,42 @@ export function GovernmentShopPage() {
               <article key={item.id} className="gshop-card">
                 <img src={itemImage(item)} alt="" width={64} height={64} />
                 <div className="gshop-card-body">
-                  <h3 className={`q-${t.qualityBase}`}>{t.name}</h3>
-                  <dl>
-                    <div><dt>Прочность</dt><dd>{t.durabilityMax}</dd></div>
-                    <div><dt>Качество</dt><dd>{QUALITY_LABELS[t.qualityBase]}</dd></div>
-                    <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
-                    <div><dt>Цена в магазине</dt><dd>{money(price)} руб.</dd></div>
-                  </dl>
-                  <ul className="gshop-bonuses">
-                    {bonusLines(item).map(line => <li key={line}>{line}</li>)}
-                  </ul>
-                </div>
-                <div className="gshop-card-actions">
-                  <button
-                    className="gshop-btn"
-                    disabled={buyMut.isPending || tooPoor || tooLow}
-                    title={tooLow ? `Нужен ${t.levelReq}-й уровень` : tooPoor ? 'Не хватает денег' : undefined}
-                    onClick={() => buyMut.mutate(t.id)}
-                  >
-                    <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                    <span>Купить</span>
-                  </button>
-                  <button className="gshop-btn" disabled={tooLow} onClick={() => setCart(prev => [...prev, t.id])}>
-                    <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                    <span>В корзину</span>
-                  </button>
+                  <div className="gshop-card-head">
+                    <h3 className={`q-${t.qualityBase}`}>{t.name}</h3>
+                    {/* «Количество» макета здесь не показываем: у казённого
+                        прилавка запаса нет, число было бы выдумкой. */}
+                  </div>
+                  {/* Прочность и цена — одной строкой под подписью, как в макете. */}
+                  <p className="gshop-card-meta">
+                    <span>Прочность: {t.durabilityMax}</span>
+                    <span>Цена в магазине: {money(price)} руб.</span>
+                  </p>
+                  <div className="gshop-card-lower">
+                    <div className="gshop-card-stats">
+                      <dl>
+                        <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
+                        <div><dt>Качество</dt><dd>{QUALITY_LABELS[t.qualityBase]}</dd></div>
+                      </dl>
+                      <ul className="gshop-bonuses">
+                        {bonusLines(item).map(line => <li key={line}>{line}</li>)}
+                      </ul>
+                    </div>
+                    <div className="gshop-card-actions">
+                      <button
+                        className="gshop-btn"
+                        disabled={buyMut.isPending || tooPoor || tooLow}
+                        title={tooLow ? `Нужен ${t.levelReq}-й уровень` : tooPoor ? 'Не хватает денег' : undefined}
+                        onClick={() => buyMut.mutate(t.id)}
+                      >
+                        <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                        <span>Купить</span>
+                      </button>
+                      <button className="gshop-btn" disabled={tooLow} onClick={() => setCart(prev => [...prev, t.id])}>
+                        <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                        <span>В корзину</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </article>
             )

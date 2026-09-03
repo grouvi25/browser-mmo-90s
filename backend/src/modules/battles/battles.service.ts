@@ -281,7 +281,7 @@ async function buildAttackerSnapshotAsync(
   const s = char.stats!
   const t = weapon?.template
   const effectiveWeapon = t
-    ? applyUpgradeModifiers(t, ((weapon?.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), weapon?.statAllocation)
+    ? applyUpgradeModifiers(t, ((weapon?.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), weapon?.statAllocation, weapon?.socketsJson)
     : null
   // Sum weight of all equipped items (weapon + armor)
   const equipmentWeight =
@@ -315,7 +315,7 @@ function buildDefenderSnapshot(
   equippedWeapon?: ItemWithTemplate | null  // нужен для ответки
 ): DefenderSnapshot {
   const s = char.stats!
-  const effectiveArmor = equippedArmor.map(a => applyUpgradeModifiers(a.template, ((a.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), a.statAllocation))
+  const effectiveArmor = equippedArmor.map(a => applyUpgradeModifiers(a.template, ((a.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), a.statAllocation, a.socketsJson))
   const totalArmor   = effectiveArmor.reduce((sum, a) => sum + a.armor, 0)
   const antiCrit     = effectiveArmor.reduce((sum, a) => sum + a.antiCrit, 0)
   const blockBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.blockBonus ?? 0), 0)
@@ -340,7 +340,7 @@ function buildDefenderSnapshot(
 // Преобразуем экипированную броню в форму для расчёта брони по зоне.
 function armorListFromEquipped(equippedArmor: ItemWithTemplate[]): EquipArmorLike[] {
   return equippedArmor.map(it => ({
-    armor: applyUpgradeModifiers(it.template, ((it.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), it.statAllocation).armor,
+    armor: applyUpgradeModifiers(it.template, ((it.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), it.statAllocation, it.socketsJson).armor,
     slot: it.armorSlot ?? it.template.armorSlot ?? null,
   }))
 }

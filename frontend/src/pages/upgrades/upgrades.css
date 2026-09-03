@@ -25,35 +25,73 @@
   max-width: 308px;
   margin-top: 8px;
   padding: 8px 10px 12px;
-  border: 1.5px solid #797d87;
+  /* Рамка берётся у обводки «Плашки 1» — 3px #07090a. Раньше тут
+     стоял #797d87: это цвет её ОТКЛЮЧЁННОЙ заливки, не обводки. */
+  border: 1.5px solid #07090a;
   background: transparent;
 }
+/* Заголовок в макете оранжевый с тёмной обводкой по глифам. */
 .upg-panel__title {
-  margin: 0 0 8px;
+  margin: 10px 0 3px;
   font-family: var(--font-sign);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .03em;
   font-size: 13px;
-  color: #17130f;
+  color: var(--upg-accent, #ff9c00);
+  -webkit-text-stroke: .6px #1c1318;
+  paint-order: stroke fill;
 }
 
-/* Цена слева, столбец ступеней справа — как разложено в макете. */
+/* «Цена:» слева крупно, справа столбец строк — как в макете. Подпись
+   там 55.5 кегля против 39.6 у строк, отсюда и соотношение. */
 .upg-price {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 4px 10px;
+  align-items: center;
+  gap: 3px 12px;
   margin-bottom: 8px;
 }
 .upg-price > dt {
   font-family: var(--font-sign);
   font-weight: 700;
+  font-size: 14px;
   text-transform: uppercase;
   color: #17130f;
 }
 .upg-price > dd { margin: 0; font-variant-numeric: tabular-nums; }
-.upg-price__tier { display: block; white-space: nowrap; }
-.upg-price__tier.is-current { color: var(--red, #b81e2c); font-weight: 700; }
+/* Каждая строка — кружок состояния и текст. В макете это камни четырёх
+   сортов; камней в игре нет, поэтому кружок показывает то, что здесь
+   действительно бывает разным: хватает или не хватает. */
+.upg-price__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+/* Строки прайса — сорта камня, их выбирают. Выбранный подчёркнут: цвет
+   один на всю панель, а камни слева уже несут свой. */
+button.upg-price__row { cursor: pointer; }
+button.upg-price__row:hover { text-decoration: underline; }
+.upg-price__row.is-current { font-weight: 700; text-decoration: underline; }
+.upg-price__row:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+/* Камни вырезаны из слоёв макета: «Зеленая огр» 20x25 и «Красная огр»
+   21x29. Держим их по высоте строки, ширина следует пропорции. */
+.upg-chip {
+  flex: none;
+  width: auto;
+  height: 12px;
+  display: block;
+}
+.upg-chip--idle { opacity: .45; }
 
 /* Линейка «Линия 1»: 618x7 холста — 309x3.5 сцены. */
 .upg-rule { height: 3px; margin: 8px 0; background: #1c1318; }
@@ -76,33 +114,65 @@
 /* Селектор с двумя классами: иначе побеждает общее
    `.viewport__content select`, и слот уходит в бежевую заливку
    со своим бордером вместо макетного #564f56. */
+/* Рамка слота — та же коробка макета, а внутри картинка сверху и выбор
+   снизу. В макете внутри лежит нарисованная вещь; у нас в первом слоте
+   стоит настоящая картинка выбранной вещи, поэтому подпись под ней. */
 .upg .upg-slot__box {
   position: relative;
   width: 74px;
   height: 68px;
   display: grid;
-  place-items: center;
-  padding: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  justify-items: center;
+  gap: 2px;
+  padding: 4px 3px 3px;
   border: 1.5px solid #010203;
+  border-radius: 6px;
   background: #564f56;
   color: #f3ece7;
   font: inherit;
   font-size: 10px;
   text-align: center;
+}
+.upg .upg-slot__box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.upg .upg-slot__mark {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.upg .upg-slot__box.is-empty { color: #cbc2c8; }
+/* Закрытый слот: рамка макета на месте, но внутрь класть нечего. */
+.upg .upg-slot__box.is-locked { opacity: .55; cursor: help; }
+.upg .upg-slot__box.is-locked .upg-slot__mark { font-size: 9px; color: #d8d0d4; }
+/* Два класса: иначе побеждает общее «.viewport__content select» и
+   выбор уходит в бежевый инпут со своей рамкой. */
+.upg .upg-slot__pick {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #f3ece7;
+  font: inherit;
+  font-size: 9px;
+  text-align: center;
   cursor: pointer;
 }
-.upg .upg-slot__box:disabled { cursor: default; }
-.upg .upg-slot__box img { max-width: 80%; max-height: 80%; object-fit: contain; }
-.upg .upg-slot__box.is-empty { color: #cbc2c8; }
-.upg .upg-slot__box:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+.upg .upg-slot__pick:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
 
-/* Кнопка «Вставить» — та же рисованная рамка, что у кнопок магазина. */
+/* Кнопка «Вставить» в макете — простая светлая коробка с тонкой чёрной
+   рамкой, 143x32, а не рисованная плашка магазина. */
 .upg-commit {
   position: relative;
-  min-width: 106px;
-  padding: 5px 12px;
-  border: 0;
-  background: transparent;
+  min-width: 72px;
+  padding: 3px 12px;
+  border: 1.5px solid #07090a;
+  background: #f1eeec;
   color: inherit;
   font: inherit;
   font-size: 11px;
@@ -114,6 +184,20 @@
 
 .upg-note { margin: 8px 0 0; font-size: 11px; color: #4a4345; }
 .upg-lack { color: var(--red, #b81e2c); }
+
+/* Три строки состояния под панелью — в макете они того же оранжевого
+   цвета, что и заголовок, и стоят вне рамки. */
+.upg-status {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-sign);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--upg-accent, #ff9c00);
+  -webkit-text-stroke: .5px #1c1318;
+  paint-order: stroke fill;
+}
 
 @media (max-width: 900px) {
   .upg-panel { max-width: none; }

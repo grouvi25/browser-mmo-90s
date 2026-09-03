@@ -1,4 +1,5 @@
 import { withTransaction } from '../../shared/db/transaction'
+import { socketAllocation } from '../upgrades/upgrades.stones'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { allocatedPoints, allowedItemStats, mergeAllocations, normalizeAllocation, type ItemStatKey } from './item-stats.formulas'
@@ -17,8 +18,9 @@ export const ItemStatsService = {
       if (points > available) throw new AppError(ErrorCode.CONFLICT, 'Not enough free item points', 409)
       const after = { ...before, [stat]: (before[stat] ?? 0) + points }
       const freePoints = available - points
-      const oldDurabilityPoints = mergeAllocations(item.template.statAllocation, before, item.upgradeModifiersJson).DURABILITY ?? 0
-      const newDurabilityPoints = mergeAllocations(item.template.statAllocation, after, item.upgradeModifiersJson).DURABILITY ?? 0
+      const sockets = socketAllocation(item.socketsJson)
+      const oldDurabilityPoints = mergeAllocations(item.template.statAllocation, before, item.upgradeModifiersJson, sockets).DURABILITY ?? 0
+      const newDurabilityPoints = mergeAllocations(item.template.statAllocation, after, item.upgradeModifiersJson, sockets).DURABILITY ?? 0
       const oldMax = Math.round(item.template.durabilityMax * (1 + .08 * oldDurabilityPoints))
       const newMax = Math.round(item.template.durabilityMax * (1 + .08 * newDurabilityPoints))
       const durabilityCurrent = stat === 'DURABILITY' && oldMax > 0 ? Math.round(item.durabilityCurrent * newMax / oldMax) : item.durabilityCurrent

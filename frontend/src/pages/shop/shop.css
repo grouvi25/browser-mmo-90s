@@ -153,16 +153,20 @@
 .gshop-cart li button { border: 0; background: none; cursor: pointer; line-height: 0; }
 .gshop-cart-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
+/* Плитка в макете — 691 из 1857 ширины окна, то есть 37%, и в ряду их
+   две, а справа остаётся пустое поле. Растянутая на всю ширину плитка
+   этого поля не оставляет. */
 .gshop-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 345px));
+  justify-content: start;
   gap: 8px;
 }
 /* Плитка товара в макете — только рамка: у слоя «Прямоугольник 8» альфа
    внутри нулевая, сквозь него виден фон города. Заливки нет. */
 .gshop-card {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: 10px;
   padding: 10px;
@@ -171,18 +175,52 @@
 }
 .gshop-card--bar { grid-template-columns: 1fr; }
 .gshop-card img { object-fit: contain; align-self: start; }
-.gshop-card h3 { font-size: 12px; margin: 0 0 4px; text-transform: uppercase; }
+.gshop-card h3 { font-size: 12px; margin: 0; text-transform: uppercase; }
+/* Макет складывает сведения в три этажа: подпись и количество в одну
+   строку, прочность и цена во вторую, и только потом столбец
+   характеристик. Значение идёт сразу за подписью — у правого края
+   плитки стоит кнопка, а не числа. */
+.gshop-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.gshop-card-count { font-size: 10.5px; color: #4a4345; white-space: nowrap; }
+/* Строка «прочность / цена» в макете идёт во всю ширину плитки: цена
+   кончается на 666-м пикселе из 691, то есть заходит правее кнопки —
+   они просто на разных этажах. Поэтому кнопки живут не отдельной
+   колонкой плитки, а внизу справа, рядом со столбцом характеристик. */
+.gshop-card-lower {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+.gshop-card-stats { flex: 0 1 auto; min-width: 0; }
+.gshop-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin: 3px 0 6px;
+  font-size: 10.5px;
+}
 .gshop-bar-name { font-size: 10px; opacity: .7; }
-.gshop-card dl { display: grid; gap: 1px; margin: 0 0 4px; font-size: 10.5px; }
-.gshop-card dl > div { display: flex; justify-content: space-between; gap: 8px; }
+.gshop-card dl { display: grid; gap: 0; margin: 0 0 2px; font-size: 10.5px; line-height: 1.25; }
+.gshop-card dl > div { display: flex; justify-content: flex-start; gap: 5px; }
+.gshop-card dt::after { content: ":"; }
 .gshop-card dt { color: #4a4345; }
 .gshop-card dd { margin: 0; font-variant-numeric: tabular-nums; }
 .gshop-bonuses { list-style: none; margin: 0; padding: 0; font-size: 10.5px; color: #3a3436; }
 /* Кнопки стоят колонкой у правого края плитки, как в макете. */
+/* Кнопки в макете стоят в нижней половине плитки: «купить» на 48% её
+   высоты, «в корзину» на 73%. Прижимаем к низу и растягиваем колонку —
+   плитка равняет детей по верху, и без stretch прижимать не к чему. */
 .gshop-card-actions {
   display: grid;
   gap: 5px;
-  align-content: start;
+  align-self: stretch;
+  align-content: end;
   justify-items: stretch;
 }
 /* Кнопки товара — та же рисованная рамка, что в макете. */
@@ -207,15 +245,10 @@
 
 @media (max-width: 900px) {
   .gshop-grid { grid-template-columns: 1fr; }
-  .gshop-card { grid-template-columns: auto 1fr; }
-  .gshop-card-actions { grid-column: 1 / -1; grid-auto-flow: column; }
+  .gshop-card-lower { flex-wrap: wrap; }
   .gshop-cart-btn { margin-left: 0; }
 }
 
-/* Мастерская: кнопка «Ремонт» в макете стоит у нижнего края плитки —
-   слой 146x35 на 1238,596 при карточке от 451, то есть 145 из 202
-   её высоты. В магазине кнопок две и они прижаты к верху.
-   Колонку кнопок при этом надо растянуть: карточка выравнивает детей
-   по верху, и без stretch она высотой в одну кнопку — прижимать внутри
-   неё нечего. */
-.gshop-card--repair .gshop-card-actions { align-self: stretch; align-content: end; }
+/* У барной плитки колонка справа держит цену и ссылку, а не кнопки
+   макета: прижимать её к низу незачем. */
+.gshop-card--bar .gshop-card-actions { align-self: start; align-content: start; }

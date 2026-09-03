@@ -394,17 +394,27 @@ test.describe('Stage 2 visual and browser flow', () => {
   test('E5 upgrades shows preview controls for buyer item', async ({ page }, testInfo) => {
     await authPage(page, buyer)
     await page.goto('/upgrades')
-    // Подписи взяты с макета «Фон основного мнею Улучшения»: панель там
-    // называется «Государственная вставка камней», кнопка — «Вставить»,
-    // а шанс стоит одной строкой вместе с ценой и ступенью. Проверка
-    // прежняя: список вещей, выбор усиления, живой расчёт и кнопка.
+    // Панель государства теперь занята вставкой камней, как и рисует
+    // макет «Фон основного мнею Улучшения»: три слота — предмет, камень
+    // и огранка — и столбец цен по сортам. Повышение уровня со своим
+    // шансом переехало в «Кузницу», раздел рядом.
     await expect(page.getByText('Государственная вставка камней')).toBeVisible()
     const selector = page.locator('select').first()
     await expect(selector.locator('option')).toHaveCount(3)
-    await page.locator('select').nth(1).selectOption('ARMOR')
+    // Столбец сортов приходит правилами и от выбранной вещи не зависит.
+    // Ищем именно строку прайса: то же название стоит ещё и пунктом в
+    // списке выбора камня, а getByText нашёл бы оба и упал бы на строгом
+    // режиме.
+    await expect(page.locator('.upg-price__row').filter({ hasText: 'Камень мутный' })).toHaveCount(1)
     await selector.selectOption({ index: 1 })
-    await expect(page.getByText('шанс', { exact: false })).toBeVisible()
+    await page.locator('select').nth(2).selectOption('ARMOR')
     await expect(page.getByRole('button', { name: 'Вставить' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Кузница', exact: true }).click()
+    await page.locator('select').first().selectOption({ index: 1 })
+    await page.locator('select').nth(1).selectOption('ARMOR')
+    await expect(page.getByText('шанс', { exact: false })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Улучшить' })).toBeVisible()
     await visualProof(page, testInfo, 'e5-upgrades')
   })
 

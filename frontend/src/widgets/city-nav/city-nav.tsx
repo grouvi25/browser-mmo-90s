@@ -57,7 +57,7 @@ function FittedNavLabel({ children }: { children: ReactNode }) {
 
 /** Frame and label share one grid cell, so neither can drift from the other. */
 function FramedTabs({
-  tabs, box, gap, fontSize, activeKey, onSelect,
+  tabs, box, gap, fontSize, activeKey, onSelect, variant,
 }: {
   tabs: readonly StageTab[]
   box: StageBox
@@ -65,10 +65,12 @@ function FramedTabs({
   fontSize: number
   activeKey: string
   onSelect: (tab: StageTab) => void
+  /** Ряд комнат в макете залит белым, ряд районов — прозрачный. */
+  variant?: 'rooms'
 }) {
   return (
     <nav
-      className="stage-nav"
+      className={'stage-nav' + (variant ? ' stage-nav--' + variant : '')}
       style={{
         left: box.x,
         top: box.y,
@@ -200,6 +202,7 @@ export function BottomTabs() {
   return (
     <FramedTabs
       tabs={tabs}
+      variant="rooms"
       box={MENU.bottomStrip}
       gap={MENU.bottomGap}
       fontSize={MENU.bottomFontSize}
