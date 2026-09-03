@@ -67,9 +67,22 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   white-space: nowrap;
   line-height: 1.4;
 }
+/* Строки прайса — сорта камня, их выбирают. Выбранный подчёркнут: цвет
+   один на всю панель, а камни слева уже несут свой. */
+button.upg-price__row { cursor: pointer; }
+button.upg-price__row:hover { text-decoration: underline; }
+.upg-price__row.is-current { font-weight: 700; text-decoration: underline; }
+.upg-price__row:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
 /* Камни вырезаны из слоёв макета: «Зеленая огр» 20x25 и «Красная огр»
    21x29. Держим их по высоте строки, ширина следует пропорции. */
 .upg-chip {
