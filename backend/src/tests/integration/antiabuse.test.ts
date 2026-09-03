@@ -97,7 +97,7 @@ describe('антиабуз', () => {
     })
 
     await expect(MarketService.buy(buyer.character.id, listing.id, uid('key')))
-      .rejects.toMatchObject({ code: 'MARKET_011' })
+      .rejects.toMatchObject({ code: 'MARKET_013' })
 
     // Лот не тронут, деньги не двинулись: отказ обязан быть полным.
     const after = await testPrisma.marketListing.findUniqueOrThrow({ where: { id: listing.id } })
