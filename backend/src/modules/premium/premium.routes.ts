@@ -44,6 +44,11 @@ export async function helpersRoutes(fastify: FastifyInstance) {
     return reply.send(await HelpersService.list(character.id))
   })
 
+  fastify.get('/objects', { preHandler: authenticate }, async (req, reply) => {
+    const character = await me(req.authUser.userId)
+    return reply.send(await HelpersService.eligibleObjects(character.id))
+  })
+
   fastify.post<{ Body: { name: string; professionCode: string } }>('/', { preHandler: authenticate }, async (req, reply) => {
     const parsed = z.object({
       name: z.string().trim().min(2).max(24),

@@ -161,8 +161,19 @@ export interface Helper {
   activeShift: { id: string; productionObjectId: string; endsAt: string; status: string } | null
 }
 
+/** Объект, на который помощника пустят. Список считает сервер. */
+export interface HelperObject {
+  id: string
+  name: string
+  requiredProfessionCode: string
+  requiredProfessionLevel: number
+  ownerType: 'PRIVATE' | 'CLAN'
+  workerSlots: number
+}
+
 export const helpersApi = {
   list: () => api.get<{ items: Helper[]; slots: { used: number; total: number } }>('/api/helpers'),
+  objects: () => api.get<{ items: HelperObject[] }>('/api/helpers/objects'),
   hire: (name: string, professionCode: string) =>
     api.post<Helper>('/api/helpers', { name, professionCode }, idem()),
   dismiss: (id: string) => api.delete<{ dismissed: string }>(`/api/helpers/${id}`),

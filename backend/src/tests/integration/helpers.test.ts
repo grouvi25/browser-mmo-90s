@@ -23,6 +23,24 @@ async function subscribed(prefix = 'sub') {
   return character
 }
 
+/**
+ * Объект хозяина. С решения заказчика по В10 помощник работает только на
+ * своих объектах и объектах бригады: на государственном зарплату платила бы
+ * казна, и подписка печатала бы деньги.
+ */
+async function myObject(ownerId: string, profession = 'scrap_collector', level = 0, slots = 10) {
+  return testPrisma.productionObject.create({
+    data: {
+      code: uid('obj'), name: 'Пункт', type: 'SCRAPYARD', locationId: 'industrial',
+      requiredProfessionCode: profession, requiredProfessionLevel: level,
+      shiftDurationMinutes: 30, baseSalary: 100, baseProductionExp: 10,
+      workerSlots: slots,
+      ownerType: 'PRIVATE', ownerCharacterId: ownerId, balance: 10_000,
+    },
+  })
+}
+
+/** Государственный объект — для проверки отказа. */
 async function stateObject(profession = 'scrap_collector', level = 0) {
   return testPrisma.productionObject.create({
     data: {
@@ -103,7 +121,7 @@ describe('помощники', () => {
   it('смена помощника даёт зарплату с множителем и опыт помощнику', async () => {
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
-    const object = await stateObject()
+    const object = await myObject(character.id)
 
     const started = await HelpersService.startShift(character.id, helper.id, object.id)
     await finishShift(started.shiftId)
@@ -119,7 +137,7 @@ describe('помощники', () => {
   it('помощник растёт вдвое медленнее игрока', async () => {
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
-    const object = await stateObject()
+    const object = await myObject(character.id)
     const started = await HelpersService.startShift(character.id, helper.id, object.id)
     await finishShift(started.shiftId)
     const claimed = await HelpersService.claimShift(character.id, helper.id)
@@ -131,7 +149,7 @@ describe('помощники', () => {
     // Помощник работает ВМЕСТО игрока, а не вместо его дня.
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
-    const object = await stateObject()
+    const object = await myObject(character.id)
     await HelpersService.startShift(character.id, helper.id, object.id)
 
     await expect(WorkService.start(character.id, object.id)).resolves.toBeTruthy()
@@ -140,7 +158,7 @@ describe('помощники', () => {
   it('смена помощника не расходует суточный лимит хозяина', async () => {
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
-    const object = await stateObject()
+    const object = await myObject(character.id)
     const started = await HelpersService.startShift(character.id, helper.id, object.id)
     await finishShift(started.shiftId)
     await HelpersService.claimShift(character.id, helper.id)
@@ -154,7 +172,7 @@ describe('помощники', () => {
     // множитель 0.6 и профессию помощника.
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
-    const object = await stateObject()
+    const object = await myObject(character.id)
     const started = await HelpersService.startShift(character.id, helper.id, object.id)
     await finishShift(started.shiftId)
 
@@ -165,13 +183,7 @@ describe('помощники', () => {
   it('помощник занимает рабочий слот объекта', async () => {
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
-    const object = await testPrisma.productionObject.create({
-      data: {
-        code: uid('tight'), name: 'Тесный', type: 'SCRAPYARD', locationId: 'industrial',
-        requiredProfessionCode: 'scrap_collector', requiredProfessionLevel: 0,
-        shiftDurationMinutes: 30, baseSalary: 100, baseProductionExp: 10, workerSlots: 1,
-      },
-    })
+    const object = await myObject(character.id, 'scrap_collector', 0, 1)
     await HelpersService.startShift(character.id, helper.id, object.id)
     await expect(WorkService.start(character.id, object.id))
       .rejects.toMatchObject({ code: 'WORK_004' })
@@ -180,7 +192,7 @@ describe('помощники', () => {
   it('занятого помощника не уволить', async () => {
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
-    const object = await stateObject()
+    const object = await myObject(character.id)
     await HelpersService.startShift(character.id, helper.id, object.id)
     await expect(HelpersService.dismiss(character.id, helper.id))
       .rejects.toMatchObject({ code: 'HELP_004' })
@@ -189,7 +201,7 @@ describe('помощники', () => {
   it('помощник не идёт на верхний передел', async () => {
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Мастер', 'gunsmith')
-    const object = await stateObject('gunsmith', 2)
+    const object = await myObject(character.id, 'gunsmith', 2)
     await expect(HelpersService.startShift(character.id, helper.id, object.id))
       .rejects.toMatchObject({ code: 'HELP_005' })
   })
@@ -197,7 +209,7 @@ describe('помощники', () => {
   it('после истечения подписки помощник числится спящим и не работает', async () => {
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
-    const object = await stateObject()
+    const object = await myObject(character.id)
     await testPrisma.character.update({
       where: { id: character.id },
       data: { premiumExpiresAt: new Date(Date.now() - 1000) },
@@ -209,22 +221,46 @@ describe('помощники', () => {
       .rejects.toMatchObject({ code: 'HELP_001' })
   })
 
-  it('зарплату помощника платит объект, если он частный', async () => {
+  it('зарплату помощника платит объект хозяина — деньги не печатаются', async () => {
     const character = await subscribed()
-    const owner = await player('owner')
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
-    const object = await stateObject()
-    await testPrisma.productionObject.update({
-      where: { id: object.id },
-      data: { ownerType: 'PRIVATE', ownerCharacterId: owner.id, balance: 10_000 },
-    })
+    const object = await myObject(character.id)
 
     const started = await HelpersService.startShift(character.id, helper.id, object.id)
     await finishShift(started.shiftId)
     const claimed = await HelpersService.claimShift(character.id, helper.id)
 
     const after = await testPrisma.productionObject.findUniqueOrThrow({ where: { id: object.id } })
-    // Помощник не бесплатная рабочая сила для чужого объекта.
+    // Смысл решения по В10: зарплата переезжает из баланса объекта в карман
+    // хозяина, а не появляется из воздуха. Иначе подписка — денежный кран.
     expect(after.balance).toBe(10_000 - claimed.salary)
+  })
+
+  it('на чужом и государственном объекте помощник не работает', async () => {
+    const character = await subscribed()
+    const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
+    const stranger = await player('stranger')
+
+    const state = await stateObject()
+    await expect(HelpersService.startShift(character.id, helper.id, state.id))
+      .rejects.toMatchObject({ code: 'HELP_007' })
+
+    const foreign = await myObject(stranger.id)
+    await expect(HelpersService.startShift(character.id, helper.id, foreign.id))
+      .rejects.toMatchObject({ code: 'HELP_007' })
+  })
+
+  it('суточная норма помощника — потолок из баланса', async () => {
+    const character = await subscribed()
+    const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
+    const object = await myObject(character.id)
+
+    for (let i = 0; i < H.dailyShiftCap; i++) {
+      const started = await HelpersService.startShift(character.id, helper.id, object.id)
+      await finishShift(started.shiftId)
+      await HelpersService.claimShift(character.id, helper.id)
+    }
+    await expect(HelpersService.startShift(character.id, helper.id, object.id))
+      .rejects.toMatchObject({ code: 'HELP_006' })
   })
 })

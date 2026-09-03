@@ -594,15 +594,22 @@ async function run() {
   })
 
   await check(20, 'Помощники', 'Подписчик с двумя помощниками не выше 130% активного игрока', async () => {
-    // Сначала живая проверка потолка: без него вся арифметика ниже
-    // бессмысленна — смена длится полчаса, и помощника можно гонять сутки.
     const boss = await player('c20')
     await PremiumService.grant({ characterId: boss.id, productCode: 'prem_sub_30' })
     const helper = await HelpersService.hire(boss.id, 'Сменщик', 'scrap_collector')
-    const object = await objectOf(null, { profession: 'scrap_collector' })
-    await prisma.productionObject.update({ where: { id: object.id }, data: { workerSlots: 10 } })
+
+    // Главное ограничение коридора (решение заказчика по В10): на чужом и
+    // государственном объекте помощник не работает. Там зарплату платит
+    // казна, и подписка печатала бы деньги — приёмка намерила на этом 213%.
+    const state = await objectOf(null, { profession: 'scrap_collector' })
+    const foreign = await refuses('HELP_007',
+      () => HelpersService.startShift(boss.id, helper.id, state.id))
+
+    // На своём объекте — работает, и зарплату платит баланс этого объекта.
+    const own = await objectOf(boss.id, { profession: 'scrap_collector', balance: 50_000 })
+    await prisma.productionObject.update({ where: { id: own.id }, data: { workerSlots: 10 } })
     for (let i = 0; i < H.dailyShiftCap; i++) {
-      await HelpersService.startShift(boss.id, helper.id, object.id)
+      await HelpersService.startShift(boss.id, helper.id, own.id)
       await prisma.workShift.updateMany({
         where: { helperId: helper.id, status: 'ACTIVE' },
         data: { status: 'CLAIMED', endsAt: new Date(Date.now() - 1000) },
@@ -610,10 +617,11 @@ async function run() {
       await prisma.helper.update({ where: { id: helper.id }, data: { activeShiftId: null } })
     }
     const capped = await refuses('HELP_006',
-      () => HelpersService.startShift(boss.id, helper.id, object.id))
+      () => HelpersService.startShift(boss.id, helper.id, own.id))
 
-    // Коридор считаем теми же формулами, что и игра: ставка одна,
-    // различаются число смен, усталость и множитель помощника.
+    // Коридор считаем теми же формулами, что и игра. Помощники в него не
+    // входят: их зарплата — это перекладывание денег хозяина из баланса
+    // объекта в карман, а не новый доход.
     const base = 1000
     const income = (shifts: number, efficiency = 1) => {
       let sum = 0
@@ -621,16 +629,14 @@ async function run() {
       return sum
     }
     const plain = income(BalanceConfig.economy.work.dailyShiftLimit)
-    const own = income(P.dailyShiftCap)
-    const helpers = H.maxCount * income(H.dailyShiftCap, helperEfficiency(H.skillCap))
-    const ratio = (own + helpers) / plain
+    const premium = income(P.dailyShiftCap)
+    const ratio = premium / plain
     must(ratio <= 1.30 + 1e-9,
-      `подписчик зарабатывает ${(ratio * 100).toFixed(1)}% от активного игрока при коридоре 130%. `
-      + `Свои ${P.dailyShiftCap} смен дают уже ${(own / plain * 100).toFixed(1)}%, `
-      + `два помощника по ${H.dailyShiftCap} смен добавляют ${(helpers / plain * 100).toFixed(1)}%. `
-      + `Потолок соблюдён («${capped}»), но самих чисел коридор не выдерживает: `
-      + `STAGE4_BALANCE 6.3 оценила вклад помощников в 12.5%, фактически он ${(helpers / plain * 100).toFixed(1)}%`)
-    return `${Math.round(plain)} ₽ против ${Math.round(own + helpers)} ₽ = ${(ratio * 100).toFixed(1)}%, потолок ${H.dailyShiftCap} смен держит`
+      `подписчик зарабатывает ${(ratio * 100).toFixed(1)}% от активного игрока при коридоре 130%`)
+    must(helperEfficiency(H.skillCap) < 1,
+      `помощник эффективнее живого рабочего: ${helperEfficiency(H.skillCap)}`)
+    return `${Math.round(plain)} ₽ против ${Math.round(premium)} ₽ = ${(ratio * 100).toFixed(1)}%; `
+      + `«${foreign}», «${capped}»`
   })
 
   // ── Бой ────────────────────────────────────────────────────

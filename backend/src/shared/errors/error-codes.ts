@@ -162,6 +162,7 @@ export enum ErrorCode {
   HELP_ALREADY_WORKING    = 'HELP_004',
   HELP_PROFESSION_TOO_LOW = 'HELP_005',
   HELP_DAILY_LIMIT        = 'HELP_006',
+  HELP_FOREIGN_OBJECT     = 'HELP_007',
 
   // Stage 3 production
   PROD_ALREADY_SOLD       = 'PROD_001',

@@ -13,7 +13,6 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, Hammer, Moon, Trash2 } from 'lucide-react'
 import { helpersApi, type Helper } from '../../shared/api/strategy.api'
-import { workApi } from '../../shared/api/work.api'
 import { fmt, remaining, Skeleton, Fault, Empty, Note } from '../stage3/stage3-ui'
 
 /** Те же профессии, что у игрока: отдельного справочника у помощника нет. */
@@ -39,7 +38,9 @@ export function HelpersSection() {
   const [bad, setBad] = useState(false)
 
   const query = useQuery({ queryKey: ['helpers'], queryFn: helpersApi.list, refetchInterval: 30_000 })
-  const objects = useQuery({ queryKey: ['work', 'objects'], queryFn: workApi.objects })
+  // Только свои и бригадные объекты: на государственном помощник не работает
+  // (решение по В10). Список считает сервер, чтобы экран и мутация не разошлись.
+  const objects = useQuery({ queryKey: ['helpers', 'objects'], queryFn: helpersApi.objects })
 
   const done = (text: string) => {
     setBad(false); setMsg(text)
@@ -83,6 +84,12 @@ export function HelpersSection() {
         времени, и тот, кто не может сидеть в игре весь день, иначе просто
         проигрывает по доступности. Он делает 60% от вашей смены и не растёт
         выше третьего уровня профессии — специалиста он не заменит.
+      </p>
+      <p className="s4-lead">
+        Работает он только на ваших объектах и объектах бригады: зарплату ему
+        платит баланс объекта, то есть вы сами. На государственный пункт
+        помощника не берут — иначе подписка печатала бы деньги. Норма — шесть
+        смен в сутки.
       </p>
 
       <div className="s4-summary">
@@ -189,7 +196,7 @@ function HelperCard({
             aria-label={`Объект для ${helper.name}`}
           >
             {suitable.length === 0
-              ? <option value="">нет подходящих объектов</option>
+              ? <option value="">нет своих объектов под эту профессию</option>
               : suitable.map(object => <option key={object.id} value={object.id}>{object.name}</option>)}
           </select>
           <button type="button" disabled={busy || dormant || !objectId} onClick={() => onWork(objectId)}>

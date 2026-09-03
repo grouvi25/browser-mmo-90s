@@ -94,6 +94,38 @@ export const HelpersService = {
     }
   },
 
+  /**
+   * Объекты, на которые помощника вообще пустят: свои и бригадные.
+   *
+   * Считает сервер, а не клиент. Правило В10 живёт в одном месте, иначе
+   * экран предлагал бы государственные объекты, а мутация отказывала бы —
+   * ровно та ошибка, которую этап уже ловил на налётах.
+   */
+  async eligibleObjects(characterId: string) {
+    const member = await prisma.clanMember.findUnique({
+      where: { characterId },
+      select: { clanId: true, status: true },
+    })
+    const clanId = member && member.status === 'ACTIVE' ? member.clanId : null
+    const items = await prisma.productionObject.findMany({
+      where: {
+        isActive: true,
+        status: 'ACTIVE',
+        requiredProfessionLevel: { lte: H.skillCap },
+        OR: [
+          { ownerType: 'PRIVATE', ownerCharacterId: characterId },
+          ...(clanId ? [{ ownerType: 'CLAN' as const, ownerClanId: clanId }] : []),
+        ],
+      },
+      select: {
+        id: true, name: true, requiredProfessionCode: true, requiredProfessionLevel: true,
+        ownerType: true, workerSlots: true,
+      },
+      orderBy: { name: 'asc' },
+    })
+    return { items }
+  },
+
   /** Нанять помощника. */
   async hire(characterId: string, name: string, professionCode: string) {
     return withTransaction(async tx => {
@@ -152,6 +184,30 @@ export const HelpersService = {
         include: { equipment: true },
       })
       if (!object) throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object not found', 404)
+
+      // Только свой объект или объект своей бригады.
+      //
+      // Решение заказчика от 03.09.2026 по вопросу В10. Причина
+      // арифметическая: на государственном объекте зарплату помощника платит
+      // казна, то есть подписка печатает деньги, и приёмка намерила 213%
+      // дохода активного игрока при коридоре 130%. На своём объекте зарплату
+      // платит сам хозяин из баланса объекта — денег в игре не прибавляется,
+      // а помощник остаётся тем, чем задуман: он работает, пока хозяин
+      // офлайн. Премиум продаёт время, а не силу (принцип П4).
+      const mine = object.ownerType === 'PRIVATE' && object.ownerCharacterId === characterId
+      const clanMember = object.ownerType === 'CLAN' && object.ownerClanId
+        ? await tx.clanMember.findFirst({
+          where: { characterId, clanId: object.ownerClanId, status: 'ACTIVE' },
+          select: { id: true },
+        })
+        : null
+      if (!mine && !clanMember) {
+        throw new AppError(
+          ErrorCode.HELP_FOREIGN_OBJECT,
+          'Помощник работает только на ваших объектах и объектах бригады',
+          409,
+        )
+      }
       if (!object.isActive || object.status !== 'ACTIVE') {
         throw new AppError(ErrorCode.WORK_OBJECT_UNAVAILABLE, 'Production object unavailable', 409)
       }
