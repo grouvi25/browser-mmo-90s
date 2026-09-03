@@ -35,4 +35,38 @@ describe('WorkService E2',()=>{
  it('allows only one concurrent start to reserve the character and tool',async()=>{const{character,object}=await fixture();const{tool}=await addEquipmentAndTool(character.id,object.id,2);const attempts=await Promise.allSettled([WorkService.start(character.id,object.id),WorkService.start(character.id,object.id)]);expect(attempts.filter(x=>x.status==='fulfilled')).toHaveLength(1);expect(attempts.filter(x=>x.status==='rejected')).toHaveLength(1);expect(await testPrisma.workShift.count({where:{characterId:character.id,status:'ACTIVE'}})).toBe(1);expect((await testPrisma.itemInstance.findUniqueOrThrow({where:{id:tool.id}})).status).toBe('LOCKED')})
  it('reserves a tool, restores it on cancel and consumes exactly one use on idempotent claim',async()=>{const{character,object}=await fixture();const{tool}=await addEquipmentAndTool(character.id,object.id,2);const cancelled=await WorkService.start(character.id,object.id);expect((await testPrisma.itemInstance.findUniqueOrThrow({where:{id:tool.id}})).status).toBe('LOCKED');await WorkService.cancel(character.id,cancelled.shift.id);expect((await testPrisma.itemInstance.findUniqueOrThrow({where:{id:tool.id}})).status).toBe('NORMAL');expect((await testPrisma.itemInstance.findUniqueOrThrow({where:{id:tool.id}})).usesLeft).toBe(2);const started=await WorkService.start(character.id,object.id);await testPrisma.workShift.update({where:{id:started.shift.id},data:{endsAt:new Date(Date.now()-1000)}});await runWorkShiftFinalize();const claimed=await WorkService.claim(character.id,started.shift.id,'tool-claim-once');expect(claimed.toolUse?.usesLeft).toBe(1);const replay=await WorkService.claim(character.id,started.shift.id,'tool-claim-once');expect(replay.replayed).toBe(true);const saved=await testPrisma.itemInstance.findUniqueOrThrow({where:{id:tool.id}});expect(saved.usesLeft).toBe(1);expect(saved.status).toBe('NORMAL');expect(await testPrisma.itemLog.count({where:{itemId:tool.id,actionCode:'TOOL_USE'}})).toBe(1)})
 
+ it('подписка действительно даёт больше смен, а не только больший потолок', async () => {
+  // Дефект, найденный сквозным прогоном Этапа 5: потолок смен поднимался до
+  // шестнадцати, а fitsDailyBudget проверял бюджет с настройками по
+  // умолчанию — двенадцать смен и 360 минут. Подписчик работал ровно
+  // столько же, сколько бесплатный игрок, при заявленных шестнадцати сменах.
+  const { character, object } = await fixture()
+  const view = await WorkService.listObjects(character.id)
+  expect(view.daily.shiftsLimit).toBe(12)
+  expect(view.daily.minutesLimit).toBe(360)
+
+  await testPrisma.character.update({
+   where: { id: character.id },
+   data: { isPremium: true, premiumExpiresAt: new Date(Date.now() + 30 * 24 * 3_600_000) },
+  })
+  const premiumView = await WorkService.listObjects(character.id)
+  expect(premiumView.daily.shiftsLimit).toBe(16)
+  // Бюджет минут растёт пропорционально: иначе шестнадцать смен по полчаса
+  // не влезают в 360 минут и потолок остаётся мёртвым.
+  expect(premiumView.daily.minutesLimit).toBe(480)
+
+  // И тринадцатая смена действительно начинается.
+  const day = new Date(); day.setUTCHours(0, 0, 0, 0)
+  for (let i = 0; i < 12; i++) {
+   await testPrisma.workShift.create({ data: {
+    characterId: character.id, productionObjectId: object.id,
+    professionCode: object.requiredProfessionCode, status: 'CLAIMED',
+    startedAt: new Date(day.getTime() + i * 60_000),
+    endsAt: new Date(day.getTime() + i * 60_000 + 30 * 60_000),
+    baseSalary: object.baseSalary,
+   } })
+  }
+  await expect(WorkService.start(character.id, object.id)).resolves.toBeTruthy()
+ })
+
 })

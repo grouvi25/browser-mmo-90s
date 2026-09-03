@@ -76,7 +76,8 @@ export function shiftMinutes(shifts: readonly { startedAt: Date; endsAt: Date }[
  */
 export function fitsDailyBudget(
   shiftsToday: number, minutesToday: number, nextShiftMinutes: number,
-  limits = { shifts: WORK_BALANCE.dailyShiftLimit, minutes: WORK_BALANCE.dailyShiftMinutes },
+  limits: { shifts: number; minutes: number } =
+    { shifts: WORK_BALANCE.dailyShiftLimit, minutes: WORK_BALANCE.dailyShiftMinutes },
 ): boolean {
   return shiftsToday < limits.shifts && minutesToday + nextShiftMinutes <= limits.minutes
 }
