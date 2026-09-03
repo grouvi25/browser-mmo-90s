@@ -495,9 +495,9 @@ model Character {
   lastActiveAt DateTime @default(now()) @map("last_active_at")
 
   // Relations
-  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   stats                CharacterStats?
-  items                ItemInstance[]        @relation("OwnerItems")
+  items                ItemInstance[]         @relation("OwnerItems")
   weaponSkills         WeaponSkill[]
   battlesAsParticipant BattleParticipant[]
   currencyLogs         CurrencyLog[]
@@ -506,6 +506,7 @@ model Character {
   workShifts           WorkShift[]
   professions          CharacterProfession[]
   resourceStacks       ResourceStack[]
+  claimRosters         TerritoryClaimRoster[]
 
   @@map("characters")
 }
@@ -747,6 +748,7 @@ model Battle {
   participants      BattleParticipant[]
   winnerParticipant BattleParticipant?  @relation("BattleWinner", fields: [winnerParticipantId], references: [id])
   turns             BattleTurn[]
+  territoryClaim    TerritoryClaim?
 
   @@index([status])
   @@index([createdAt])
@@ -931,6 +933,17 @@ model Clan {
   relationsFrom   ClanRelation[]    @relation("ClanRelationFrom")
   relationsTo     ClanRelation[]    @relation("ClanRelationTo")
   territories     Territory[]
+
+  // Этап 4. Авторитет — валюта войны: не покупается, не передаётся, не
+  // конвертируется в рубли. Дробный намеренно: смена даёт 0.2, и целое
+  // поле округлило бы её в ноль, отрезав малым кланам главный источник.
+  // Текущее значение хранится здесь, а не считается из журнала: оно
+  // проверяется при каждой заявке и каждой атаке.
+  authority       Float              @default(0)
+  territoryLimit  Int                @default(2) @map("territory_limit")
+  authorityLogs   ClanAuthorityLog[]
+  claimsAttacking TerritoryClaim[]   @relation("ClaimAttacker")
+  claimsDefending TerritoryClaim[]   @relation("ClaimDefender")
 
   @@map("clans")
 }
@@ -1491,9 +1504,111 @@ model Territory {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  ownerClan Clan? @relation(fields: [ownerClanId], references: [id])
+  ownerClan Clan?            @relation(fields: [ownerClanId], references: [id])
+  claims    TerritoryClaim[]
 
   @@index([ownerClanId])
   @@index([status])
   @@map("territories")
+}
+
+// =============================================================
+// ЭТАП 4 — ЗАЯВКИ НА ТЕРРИТОРИЮ И АВТОРИТЕТ
+//
+// Заявка живёт своей жизнью: подана — ждёт назначенного часа — идёт бой —
+// разобран исход. Состав пишется при подаче и переносится в бой дословно,
+// чтобы его нельзя было подменить между подачей и началом.
+// ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, раздел 8.
+// =============================================================
+
+enum TerritoryClaimStatus {
+  PENDING // подана, ждёт назначенного времени
+  BATTLE // бой идёт
+  WON // контроль передан
+  LOST // оборона выстояла
+  CANCELLED // отозвана подавшим
+  EXPIRED // сорвалось назначение боя
+}
+
+enum ClanAuthorityReason {
+  TERRITORY_WON
+  TERRITORY_DEFENDED
+  TERRITORY_HELD
+  CYCLE_COMPLETED
+  SHIFT_COMPLETED
+  CLAIM_FILED
+  CLAIM_REFUNDED
+  SABOTAGE_FILED
+  ROBBERY_FILED
+  ADMIN_ADJUST
+}
+
+model TerritoryClaim {
+  id                 String  @id @default(uuid())
+  territoryId        String  @map("territory_id")
+  attackerClanId     String  @map("attacker_clan_id")
+  defenderClanId     String? @map("defender_clan_id") // null для ничейной
+  filedByCharacterId String  @map("filed_by_character_id")
+
+  status         TerritoryClaimStatus @default(PENDING)
+  battleStartsAt DateTime             @map("battle_starts_at")
+  battleId       String?              @unique @map("battle_id")
+
+  feePaid        Int
+  authoritySpent Float   @map("authority_spent")
+  /// Победа без боя: обороняющийся никого не выставил.
+  walkover       Boolean @default(false)
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  territory    Territory              @relation(fields: [territoryId], references: [id], onDelete: Cascade)
+  attackerClan Clan                   @relation("ClaimAttacker", fields: [attackerClanId], references: [id], onDelete: Cascade)
+  defenderClan Clan?                  @relation("ClaimDefender", fields: [defenderClanId], references: [id])
+  battle       Battle?                @relation(fields: [battleId], references: [id])
+  roster       TerritoryClaimRoster[]
+
+  @@index([territoryId, status])
+  @@index([attackerClanId])
+  @@index([status, battleStartsAt])
+  @@map("territory_claims")
+}
+
+model TerritoryClaimRoster {
+  id          String @id @default(uuid())
+  claimId     String @map("claim_id")
+  characterId String @map("character_id")
+  /// 1 — атакующий клан, 2 — обороняющийся. Совпадает с
+  /// BattleParticipant.side: состав переносится в бой один в один.
+  side        Int
+  /// Вес бойца на момент записи. Проверка «пять от третьего уровня»
+  /// смотрит сюда, иначе заявку закрывают прокачанными, а приводят альтов.
+  battleLevel Int    @map("battle_level")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  claim     TerritoryClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  character Character      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([claimId, characterId])
+  @@index([claimId, side])
+  @@map("territory_claim_rosters")
+}
+
+model ClanAuthorityLog {
+  id           String              @id @default(uuid())
+  clanId       String              @map("clan_id")
+  amount       Float
+  reason       ClanAuthorityReason
+  /// Свободная ссылка на источник: заявка, цикл, смена, атака.
+  refId        String?             @map("ref_id")
+  /// Остаток после операции — по нему сверяется поле Clan.authority.
+  balanceAfter Float               @map("balance_after")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  clan Clan @relation(fields: [clanId], references: [id], onDelete: Cascade)
+
+  @@index([clanId, createdAt])
+  @@map("clan_authority_logs")
 }

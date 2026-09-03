@@ -12,6 +12,7 @@ import { runBattleTimeout, TIMER_TICK_MS } from './workers/battle-timeout.worker
 import { runWorkShiftFinalize, WORK_SHIFT_FINALIZE_MS } from './workers/work-shift-finalize.worker'
 import { runProductionCycle, PRODUCTION_CYCLE_MS } from './workers/production-cycle.worker'
 import { runClanMaintenance, CLAN_MAINTENANCE_MS } from './workers/clan-maintenance.worker'
+import { runTerritoryClaims, TERRITORY_CLAIMS_MS } from './workers/territory-claims.worker'
 import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worker'
 import { collectEconomyMetrics, startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
 import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
@@ -72,6 +73,13 @@ async function startWorker(): Promise<void> {
     catch (err) { logger.error({ err }, '[Worker] Clan maintenance error') }
   }, CLAN_MAINTENANCE_MS)
 
+  // Заявки на территорию: раз в минуту назначить бой тем, чей час настал,
+  // и разобрать исход тем, чей бой закончился.
+  const territoryClaimsTimer = setInterval(async () => {
+    try { await runTerritoryClaims() }
+    catch (err) { logger.error({ err }, '[Worker] Territory claims error') }
+  }, TERRITORY_CLAIMS_MS)
+
   const marketExpireTimer = setInterval(async () => {
     try { await runMarketExpire() }
     catch (err) { logger.error({ err }, '[Worker] Market expire error') }
@@ -107,6 +115,7 @@ const shutdown = async (signal: string): Promise<void> => {
     clearInterval(workShiftTimer)
     clearInterval(productionCycleTimer)
     clearInterval(clanMaintenanceTimer)
+    clearInterval(territoryClaimsTimer)
     clearInterval(marketExpireTimer)
     clearInterval(idempotencyCleanupTimer)
     stopEconomyMetrics()

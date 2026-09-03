@@ -8,6 +8,12 @@ export default defineConfig({
     // им нужна своя. Без TEST_DATABASE_URL всё работает как раньше — по
     // DATABASE_URL, — и CI не меняется; локально переменная уводит прогон
     // на mmo90s_test, и рабочая база с сидом остаётся целой.
+    //
+    // Тестовую базу нужно один раз подготовить:
+    //   DATABASE_URL=$TEST_DATABASE_URL npx prisma db push
+    //   DATABASE_URL=$TEST_DATABASE_URL npx prisma db seed
+    // Сид нужен: часть тестов опирается на справочные ItemTemplate, а их
+    // cleanDatabase не трогает — они переживают прогоны.
     env: {
       DATABASE_URL: process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? '',
     },

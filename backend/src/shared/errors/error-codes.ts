@@ -130,6 +130,21 @@ export enum ErrorCode {
 
   // Stage 4 strategy
   TERRITORY_NOT_FOUND     = 'TERR_001',
+  WAR_NO_PERMISSION       = 'WAR_001',
+  WAR_ROSTER_TOO_SMALL    = 'WAR_002',
+  WAR_FIGHTER_TOO_WEAK    = 'WAR_003',
+  WAR_FIGHTER_NOT_IN_CLAN = 'WAR_004',
+  WAR_CLAIM_EXISTS        = 'WAR_005',
+  WAR_PROTECTED           = 'WAR_006',
+  WAR_CLAN_COOLDOWN       = 'WAR_007',
+  WAR_TERRITORY_LIMIT     = 'WAR_008',
+  WAR_ALLY_OWNED          = 'WAR_009',
+  WAR_NOT_ENOUGH_AUTHORITY= 'WAR_010',
+  WAR_NOT_DEFENDER        = 'WAR_011',
+  WAR_DEFENCE_LOCKED      = 'WAR_012',
+  WAR_BATTLE_STARTED      = 'WAR_013',
+  WAR_CLAIM_NOT_FOUND     = 'WAR_014',
+  WAR_OWN_TERRITORY       = 'WAR_015',
 
   // Stage 3 production
   PROD_ALREADY_SOLD       = 'PROD_001',

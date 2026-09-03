@@ -331,6 +331,21 @@ async function main() {
   }
   console.log(`  Territories: ${TERRITORIES.length}`)
 
+  // Право WAR существующим ролям: добавляется, ничего не отбирая.
+  // Клан, где главарь уже перенастроил роли под себя, не должен получить
+  // сюрприз при выкате, поэтому правим только те роли, где права нет.
+  const warRoles = await prisma.clanRole.findMany({ where: { code: { in: ['boss', 'brigadier'] } } })
+  let warGranted = 0
+  for (const role of warRoles) {
+    const current = Array.isArray(role.permissions)
+      ? role.permissions.filter((v): v is string => typeof v === 'string')
+      : []
+    if (current.includes('WAR')) continue
+    await prisma.clanRole.update({ where: { id: role.id }, data: { permissions: [...current, 'WAR'] } })
+    warGranted += 1
+  }
+  if (warGranted > 0) console.log(`  Clan roles granted WAR: ${warGranted}`)
+
 
   for (const [code, name, basePrice, weight] of BAR_RESOURCES) {
     await prisma.resourceTemplate.upsert({
