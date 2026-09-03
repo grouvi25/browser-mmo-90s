@@ -3,6 +3,7 @@ import type { ItemTemplate, GovernmentShopItem } from '@prisma/client'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { withTransaction } from '../../shared/db/transaction'
+import { withIdempotency } from '../../shared/db/idempotency'
 import { audit } from '../../shared/logger/audit-logger'
 import { BalanceConfig } from '../../config/balance.config'
 import { getEconomicLevelFromExp } from '../stats/stats.formulas'
@@ -19,8 +20,12 @@ export const GovernmentShopService = {
     })
   },
 
-  async buy(characterId: string, templateId: string) {
-    return withTransaction(async (tx) => {
+  async buy(characterId: string, templateId: string, key: string) {
+    // Идемпотентность: покупка создаёт вещь и списывает деньги, клеймить
+    // нечего. Без ключа сетевой повтор удавшегося запроса создавал вторую
+    // вещь и списывал второй раз — как и на всех прочих платных путях,
+    // теперь повтор с тем же ключом возвращает первый результат.
+    return withIdempotency({ characterId, scope: 'government-shop.buy', key, execute: async (tx) => {
       // Load shop entry
       const shopEntry = await tx.governmentShopItem.findFirst({
         where: { templateId, isAvailable: true },
@@ -71,7 +76,7 @@ export const GovernmentShopService = {
 
       audit('item.purchased', { characterId, itemId: item.id, templateId, price })
       return { item, newBalance }
-    })
+    } })
   },
 
   async sell(characterId: string, itemInstanceId: string) {
@@ -89,6 +94,20 @@ export const GovernmentShopService = {
       }
       if (!item.template.isSellable) {
         throw new AppError(ErrorCode.ITEM_NOT_SELLABLE, 'This item cannot be sold', 400)
+      }
+
+      // Помечаем проданным ПЕРЕД начислением денег и атомарно — по статусу.
+      // Раньше проверки статуса не было вовсе: findUnique возвращает вещь
+      // и после DELETED (ownerId не очищается), поэтому повтор запроса или
+      // дабл-клик начислял деньги ещё раз за ту же вещь. Клейм по
+      // { status: NORMAL|BROKEN } закрывает и повтор, и гонку: второй заход
+      // не находит строку и падает до кредита.
+      const claimed = await tx.itemInstance.updateMany({
+        where: { id: itemInstanceId, ownerId: characterId, isEquipped: false, status: { in: ['NORMAL', 'BROKEN'] } },
+        data: { status: 'DELETED', isEquipped: false },
+      })
+      if (claimed.count !== 1) {
+        throw new AppError(ErrorCode.ITEM_NOT_SELLABLE, 'Item is no longer available to sell', 409)
       }
 
       const sellPrice = Math.floor(item.template.priceBase * 0.5) // 50% от базовой цены
@@ -110,7 +129,7 @@ export const GovernmentShopService = {
       const newEcoLevel = getEconomicLevelFromExp(newEcoExp)
 
       await EconomyService.grantEconomicExp(tx, characterId, ecoExpGain)
-      await tx.itemInstance.update({ where: { id: itemInstanceId }, data: { status: 'DELETED', isEquipped: false } })
+      // Статус уже переведён в DELETED атомарным клеймом выше.
 
       await tx.itemLog.create({
         data: {
