@@ -218,6 +218,69 @@ jobs:
       - run: npx tsx prisma/seed.ts
       - run: npx vitest run --config vitest.integration.config.ts --reporter=verbose
 
+  # Приёмка исполняемая, а не бумажная (принцип проекта) — но до сих пор
+  # запускалась только руками. Она обязана быть частью пайплайна, иначе
+  # это просто скрипт, про который можно забыть. Красная приёмка валит
+  # сборку так же, как красный тест.
+  stage4-stage5-acceptance:
+    name: Stage 4 & 5 Executable Acceptance
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mmo90s_acceptance
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_acceptance
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres_acceptance@localhost:5432/mmo90s_acceptance
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: acceptance_test_secret_32_chars_minimum
+      NODE_ENV: test
+      BCRYPT_ROUNDS: '4'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma db push --force-reset --accept-data-loss
+      - run: npx tsx prisma/apply-raw-indexes.ts
+      - run: npx tsx prisma/seed.ts
+      - name: Stage 4 acceptance (22 checks)
+        run: npm run accept:stage4
+      - name: Stage 5 acceptance (17 executed, 7 deliberately deferred)
+        run: npm run accept:stage5
+      - name: Upload acceptance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage4-5-acceptance-reports
+          path: |
+            docs/stage4-acceptance-report.json
+            docs/stage5-acceptance-report.json
+          if-no-files-found: warn
+
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
