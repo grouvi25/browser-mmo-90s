@@ -1,6 +1,7 @@
 import type { Prisma, ProductionCycleFailure, ResourceQuality } from '@prisma/client'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
+import { TerritoriesService } from '../territories/territories.service'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { ObjectInventoryService } from './inventory.service'
 import { cycleDurationMinutes, cycleReady, equipmentWear, laborFromShift, outputQuality, resourceToItemQuality } from './cycle.formulas'
@@ -114,7 +115,16 @@ export const CycleService = {
       data: { laborAccumulated: { increment: laborMinutes } },
     })
     if (updated.status === 'PENDING' && updated.laborAccumulated >= updated.laborRequired) {
-      const minutes = cycleDurationMinutes(cycle.recipe.cycleMinutes, params.toolTier, cycle.recipe.requiredToolTier)
+      // Бонус Промзоны принадлежит владельцу ОБЪЕКТА, а не рабочему:
+      // ускоряется производство клана, а не смена наёмника.
+      const object = await tx.productionObject.findUnique({
+        where: { id: params.objectId },
+        select: { ownerType: true, ownerClanId: true },
+      })
+      const speedBonus = object?.ownerType === 'CLAN'
+        ? (await TerritoriesService.bonusesForClan(object.ownerClanId)).CYCLE_SPEED ?? 0
+        : 0
+      const minutes = cycleDurationMinutes(cycle.recipe.cycleMinutes, params.toolTier, cycle.recipe.requiredToolTier, speedBonus)
       const now = new Date()
       await tx.productionCycle.updateMany({
         where: { id: cycle.id, status: 'PENDING' },
@@ -171,12 +181,19 @@ export const CycleService = {
         minInputQuality: minimumQuality(current.inputReservations.map(item => item.quality)),
       })
       if (current.recipe.outputResourceCode) {
+        // Бонус Вокзала: +10% к вместимости складов объектов клана.
+        // Считается от базовой вместимости объекта, а не хранится в ней:
+        // потеряв район, клан не должен остаться со складом, в котором
+        // лежит больше, чем в него помещается.
+        const storageBonus = current.productionObject.ownerType === 'CLAN'
+          ? (await TerritoriesService.bonusesForClan(current.productionObject.ownerClanId)).STORAGE_CAP ?? 0
+          : 0
         await ObjectInventoryService.put(tx, {
           objectId: current.productionObjectId,
           resourceCode: current.recipe.outputResourceCode,
           quality,
           amount: current.recipe.outputAmount,
-          capacity: current.productionObject.storageCapacity,
+          capacity: Math.floor(current.productionObject.storageCapacity * (1 + storageBonus)),
         })
       } else if (current.recipe.outputItemTemplateCode) {
         if (!current.productionObject.ownerCharacterId) {

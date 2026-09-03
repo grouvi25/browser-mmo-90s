@@ -5,6 +5,7 @@ import { CharactersRepository } from '../characters/characters.repository'
 import { ItemsRepository } from '../items/item-instance.repository'
 import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repository'
 import { AppError } from '../../shared/errors/app-error'
+import { TerritoriesService } from '../territories/territories.service'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { withTransaction } from '../../shared/db/transaction'
 import { audit } from '../../shared/logger/audit-logger'
@@ -1712,14 +1713,19 @@ export const BattleService = {
       await AntiFarmRedis.incrementPveKills(char.id)
     }
 
-    const expGain = calcBattleExp(
+    // Бонус Центра: +10% боевого опыта участникам клана-владельца.
+    // Опыт, а не сила — потолок навыка тот же, до него доходят быстрее.
+    // Множитель применяется ПОСЛЕ античита, а не вместо него: иначе
+    // территория отменяла бы ограничение фарма.
+    const battleExpBonus = (await TerritoriesService.bonusesForCharacter(char.id)).BATTLE_EXP ?? 0
+    const expGain = Math.round(calcBattleExp(
       playerPart.damageDealt,
       bot.power,
       bot.hpMax,
       levelDiff,
       result,
       antiFarmCoeff   // Apply daily anti-farm
-    )
+    ) * (1 + battleExpBonus))
 
     const weaponExpEntries = weaponExpByType(playerPart, weapon, bot.hpMax, playerWon, levelDiff)
     const weaponExpGain = weaponExpEntries.reduce((sum, entry) => sum + entry.exp, 0)

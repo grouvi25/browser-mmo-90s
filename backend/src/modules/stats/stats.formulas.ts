@@ -98,21 +98,32 @@ export function getWeaponSkillLevelFromExp(exp: number): number {
 // ---------------------------------------------------------------
 // Repair cost — from TZ section 19.3
 // ---------------------------------------------------------------
+/**
+ * Стоимость ремонта.
+ *
+ * `districtDiscount` — бонус REPAIR_COST района Гаражи, доля от 0 до 1.
+ * Он параметр, а не поправка на стороне вызова, намеренно: цену ремонта
+ * считают в трёх местах, и скидка, которую можно забыть применить в
+ * одном из них, показала бы игроку одну сумму, а списала другую.
+ */
 export function calcRepairCost(
   itemBasePrice: number,
   lostDurabilityUnits: number,
   quality: string,
-  upgradeLevel = 0
+  upgradeLevel = 0,
+  districtDiscount = 0
 ): number {
   const qualityCoeff = BalanceConfig.repair.qualityCoeff[quality] ?? 1.0
   const upgradeCoeff = 1 + upgradeLevel * 0.1
+  const discountCoeff = 1 - Math.max(0, Math.min(1, districtDiscount))
   return Math.max(
     1,
     Math.ceil(
       (itemBasePrice / BalanceConfig.repair.baseCostDivider) *
       lostDurabilityUnits *
       qualityCoeff *
-      upgradeCoeff
+      upgradeCoeff *
+      discountCoeff
     )
   )
 }
