@@ -12,8 +12,9 @@ import { Flag, Swords, ShieldCheck, Clock, Users } from 'lucide-react'
 import {
   territoriesApi, type TerritoryRow, type ClaimBlockedReason,
 } from '../../shared/api/strategy.api'
-import { charactersApi } from '../../shared/api/characters.api'
 import { fmt, remaining, Skeleton, Fault, Empty, Note } from '../stage3/stage3-ui'
+import { useMyClan } from '../stage3/use-my-clan'
+import { RosterPicker } from './roster-picker'
 
 /** Причина отказа — словами. Требование раздела «Что появится в интерфейсе». */
 const BLOCKED: Record<ClaimBlockedReason, string> = {
@@ -42,32 +43,46 @@ export function TerritoryMapSection() {
   const [bad, setBad] = useState(false)
   const [openCode, setOpenCode] = useState('')
 
+  // Какой район сейчас собирает состав: заявка или оборона.
+  const [rosterFor, setRosterFor] = useState<{ code: string; mode: 'claim' | 'defence'; claimId?: string } | null>(null)
+
   const query = useQuery({
     queryKey: ['territories'],
     queryFn: territoriesApi.list,
     refetchInterval: 30_000,
   })
-  // Состав заявки — пять бойцов бригады. Пока состав не собирается вручную,
-  // берём себя: серверу нужен явный список, и подсовывать пустой нельзя.
-  const me = useQuery({ queryKey: ['character', 'me'], queryFn: charactersApi.getMe, retry: false })
+  // Состав собирается из бригады: сервер требует пятерых своих бойцов от
+  // третьего уровня, и подставлять одного себя значило бы гарантированный
+  // отказ на каждой заявке.
+  const clan = useMyClan()
+  const members = clan.clan?.members ?? []
+
+  const finish = (text: string) => {
+    setBad(false); setMsg(text); setRosterFor(null)
+    void qc.invalidateQueries({ queryKey: ['territories'] })
+  }
+  const fail = (e: Error) => { setBad(true); setMsg(e.message) }
 
   const claim = useMutation({
     mutationFn: ({ code, roster }: { code: string; roster: string[] }) =>
       territoriesApi.claim(code, roster),
-    onSuccess: () => {
-      setBad(false)
-      setMsg('Заявка подана. Бой назначен, обороняющиеся уже видят ваш состав.')
-      void qc.invalidateQueries({ queryKey: ['territories'] })
-    },
-    onError: (e: Error) => { setBad(true); setMsg(e.message) },
+    onSuccess: () => finish('Заявка подана. Бой назначен, обороняющиеся уже видят ваш состав.'),
+    onError: fail,
+  })
+  const defence = useMutation({
+    mutationFn: ({ code, claimId, roster }: { code: string; claimId: string; roster: string[] }) =>
+      territoriesApi.defence(code, claimId, roster),
+    onSuccess: () => finish('Состав обороны выставлен.'),
+    onError: fail,
   })
 
   if (query.isLoading) return <Skeleton rows={6} />
   if (query.isError) return <Fault retry={() => query.refetch()} />
 
   const items = query.data?.items ?? []
+  const busy = claim.isPending || defence.isPending
   if (items.length === 0) {
-    return <Empty title="Районов нет" hint="Карта territорий ещё не заполнена сидом." />
+    return <Empty title="Районов нет" hint="Карта районов ещё не заполнена сидом." />
   }
 
   return (
@@ -127,18 +142,46 @@ export function TerritoryMapSection() {
               <div className="s4-district__actions">
                 <button
                   type="button"
-                  disabled={!territory.myClan.canClaim || claim.isPending || !me.data}
-                  onClick={() => {
-                    if (!me.data) return
-                    claim.mutate({ code: territory.code, roster: [me.data.id] })
-                  }}
+                  disabled={!territory.myClan.canClaim || busy}
+                  onClick={() => setRosterFor({ code: territory.code, mode: 'claim' })}
                 >
                   <Flag size={13} /> Подать заявку
                 </button>
+                {/* Оборона своего района: состав выставляет владелец, и
+                    только пока заявка ещё не ушла в бой. */}
+                {mine && territory.owner!.clanId === clan.clan?.id && territory.activeClaim && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setRosterFor({
+                      code: territory.code, mode: 'defence', claimId: territory.activeClaim!.id,
+                    })}
+                  >
+                    <Swords size={13} /> Выставить оборону
+                  </button>
+                )}
                 <button type="button" className="s4-ghost" onClick={() => setOpenCode(open ? '' : territory.code)}>
                   {open ? 'Свернуть' : 'Подробнее'}
                 </button>
               </div>
+
+              {rosterFor?.code === territory.code && (
+                <RosterPicker
+                  members={members}
+                  // У обороны нижней границы нет: выставить одного честнее,
+                  // чем не выставить никого и получить техническое поражение.
+                  minSize={rosterFor.mode === 'claim' ? 5 : 1}
+                  busy={busy}
+                  submitLabel={rosterFor.mode === 'claim' ? 'Подать заявку' : 'Выставить оборону'}
+                  note={rosterFor.mode === 'claim'
+                    ? 'Взнос 10 000 ₽ из общака не возвращается: иначе заявка стала бы бесплатной разведкой чужой обороны.'
+                    : 'Состав закрывается за 10 минут до боя.'}
+                  onCancel={() => setRosterFor(null)}
+                  onSubmit={roster => rosterFor.mode === 'claim'
+                    ? claim.mutate({ code: territory.code, roster })
+                    : defence.mutate({ code: territory.code, claimId: rosterFor.claimId!, roster })}
+                />
+              )}
 
               {/* Почему нельзя — словами и всегда, а не тултипом на
                   выключенной кнопке: игрок должен понимать без наведения. */}

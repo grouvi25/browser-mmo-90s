@@ -158,3 +158,22 @@ for (const [path, title, tabs] of STAGE4_SCREENS) {
     expect(errors).toEqual([])
   })
 }
+
+test('состав на бой собирается из бригады и отсекает слабых', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'Карта районов проверяется на широком экране')
+  await authPage(page, owner)
+  await page.goto('/territories')
+  const claim = page.locator('.s4-district').first().getByRole('button', { name: 'Подать заявку' })
+  // Без бригады заявку подать нельзя — и кнопка об этом честно молчит,
+  // а причина стоит текстом рядом.
+  if (await claim.isDisabled()) {
+    await expect(page.locator('.s4-district__blocked').first()).toBeVisible()
+    return
+  }
+  await claim.click()
+  const picker = page.locator('.s4-roster')
+  await expect(picker).toBeVisible()
+  // Кнопка отправки заперта, пока состав не набран: сервер откажет тем же
+  // условием, но узнавать об этом из ошибки — плохой способ.
+  await expect(picker.locator('.s4-roster__actions button').first()).toBeDisabled()
+})

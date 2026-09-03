@@ -163,3 +163,50 @@
   .s4-helper__facts { gap: 16px; }
   .s4-list li { flex-wrap: wrap; }
 }
+
+/* ── Выбор состава на бой ──────────────────────────────────── */
+.s4-roster {
+  border-top: 1px dashed var(--s4-line);
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+.s4-roster__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: .78rem;
+}
+.s4-roster__head > span:first-child { display: inline-flex; align-items: center; gap: 5px; }
+/* Нехватка бойцов сообщается ДО отправки: сервер откажет тем же условием,
+   но узнавать об этом из ошибки — плохой способ. */
+.s4-roster__short { color: var(--s3-red); }
+.s4-roster__note { margin: 0; font-size: .72rem; color: oklch(50% .025 55); }
+
+.s4-roster__list { list-style: none; margin: 0; padding: 0; max-height: 210px; overflow-y: auto; }
+.s4-roster__list label {
+  display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 8px;
+  padding: 6px 4px; cursor: pointer; font-size: .82rem;
+  border-bottom: 1px solid oklch(84% .015 60);
+}
+.s4-roster__list label.is-on { background: oklch(92% .04 130); }
+/* Негодный боец не прячется: игрок должен видеть, что человек в бригаде
+   есть, но по уровню не проходит — иначе состав кажется меньше, чем он есть. */
+.s4-roster__list label.is-weak { opacity: .5; cursor: not-allowed; }
+/* Ввод не схлопнут в ноль, а лежит поверх своей метки прозрачным: нулевой
+   чекбокс формально фокусируется, но не имеет области попадания — ни
+   мышью, ни пальцем. Метку рисуем сами, попадание оставляем настоящему
+   элементу. */
+.s4-roster__list label { position: relative; }
+.s4-roster__list input {
+  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; margin: 0; opacity: 0; cursor: inherit;
+}
+.s4-roster__mark {
+  width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid oklch(50% .03 58); background: oklch(97% .012 75);
+}
+.s4-roster__list label.is-weak .s4-roster__mark { border-style: dashed; }
+.s4-roster__list input:focus-visible + .s4-roster__mark { outline: 3px solid oklch(63% .14 28); outline-offset: 2px; }
+.s4-roster__nick { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s4-roster__lvl { font-size: .72rem; color: oklch(50% .025 55); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.s4-roster__actions { display: flex; gap: 8px; }
+.s4-roster__actions button { min-height: 36px; padding: 5px 12px; }
