@@ -115,6 +115,21 @@ async function reset() {
   for (const { code, name, bonusCode, bonusValue } of TERRITORIES) {
     await prisma.territory.create({ data: { code, name, bonusCode, bonusValue } })
   }
+  // Витрину поднимаем сами, а не полагаемся на сид: интеграционные тесты
+  // засевают её по-своему, и приёмка, запущенная после них, проверяла бы
+  // чужое состояние. Проверка 17 на этом уже один раз соврала.
+  for (const product of PREMIUM_PRODUCTS) {
+    await prisma.premiumProduct.upsert({
+      where: { code: product.code },
+      update: { isActive: isGrantImplemented(product.grantCode) },
+      create: {
+        code: product.code, name: product.name, description: product.description,
+        kind: product.kind, priceRub: product.priceRub, grantCode: product.grantCode,
+        grantValue: product.grantValue, sortOrder: product.sortOrder,
+        isActive: isGrantImplemented(product.grantCode),
+      },
+    })
+  }
 }
 
 async function player(prefix: string, battleLevel = 5) {

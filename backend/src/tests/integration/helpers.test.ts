@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { HelpersService, helperEfficiency, helperLevelFromExp } from '../../modules/premium/helpers.service'
-import { PremiumService } from '../../modules/premium/premium.service'
+import { PremiumService, isGrantImplemented } from '../../modules/premium/premium.service'
 import { WorkService } from '../../modules/work/work.service'
 import { workerEfficiency } from '../../modules/work/work.formulas'
 import { BalanceConfig } from '../../config/balance.config'
@@ -58,6 +58,7 @@ async function seedShop() {
       data: {
         code: p.code, name: p.name, description: p.description, kind: p.kind,
         priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder,
+        isActive: isGrantImplemented(p.grantCode),
       },
     })
   }
