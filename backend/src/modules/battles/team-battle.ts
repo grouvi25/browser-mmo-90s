@@ -16,10 +16,11 @@ import { withTransaction } from '../../shared/db/transaction'
 import { audit } from '../../shared/logger/audit-logger'
 import { CharactersRepository, type CharacterWithStats } from '../characters/characters.repository'
 import { ItemsRepository, type ItemWithTemplate } from '../items/item-instance.repository'
-import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repository'
+import { WeaponSkillsRepository, saveWeaponSkillExp } from '../weapon-skills/weapon-skills.repository'
 import { applyBattleProgression } from '../experience/progression'
 import { calcBattleExp } from '../stats/stats.formulas'
-import { calcInitiative } from './battle.formulas'
+import { TerritoriesService } from '../territories/territories.service'
+import { calcInitiative, weaponExpByType } from './battle.formulas'
 import { normalizeTurn, type ZonalTurnInput } from './zones'
 import {
   canAttackTarget,
@@ -212,13 +213,40 @@ export async function finishTeamBattle(
       levelDiff,
       result as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW',
     )
-    return { part, ctx, exp, won: winnerSide !== null && winnerSide === part.side }
+    return {
+      part, ctx, exp, levelDiff,
+      enemyHp: averageHp(enemySide),
+      won: winnerSide !== null && winnerSide === part.side,
+    }
   })
+
+  // Бонус района к боевому опыту. Считается до транзакции: у каждого бойца
+  // свой клан, и бонус у сторон разный. Раньше бонус применялся только в бою
+  // с ботом — то есть не работал в войне за район, ради которой и заведён.
+  const expBonus = new Map<string, number>()
+  for (const payout of payouts) {
+    if (!payout.ctx) continue
+    const bonuses = await TerritoriesService.bonusesForCharacter(payout.ctx.char.id)
+    expBonus.set(payout.ctx.char.id, bonuses.BATTLE_EXP ?? 0)
+  }
 
   return withTransaction(async tx => {
     const progress: Record<string, { expGain: number; newLevel: number; hp: number }> = {}
     for (const payout of payouts) {
       if (!payout.ctx) continue
+      payout.exp = Math.round(payout.exp * (1 + (expBonus.get(payout.ctx.char.id) ?? 0)))
+      // Опыт оружия — тем же кодом, что в дуэли: командный бой не начислял
+      // его вовсе, и бой за район не качал навык ни одному участнику.
+      const weaponEntries = weaponExpByType(
+        payout.part,
+        payout.ctx.weaponLeft?.template.weaponType ?? null,
+        payout.enemyHp,
+        payout.won,
+        payout.levelDiff,
+      )
+      for (const entry of weaponEntries) {
+        await saveWeaponSkillExp(tx as typeof prisma, payout.ctx.char.id, entry.weaponType, entry.exp)
+      }
       const applied = await applyBattleProgression(tx, payout.ctx.char, {
         expGain: payout.exp,
         hpCurrentAfterBattle: payout.part.hpCurrent,

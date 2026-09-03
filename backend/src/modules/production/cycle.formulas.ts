@@ -8,9 +8,23 @@ export function laborFromShift(shiftDurationMinutes: number, workerEfficiency: n
   return Math.round(shiftDurationMinutes * workerEfficiency)
 }
 
-export function cycleDurationMinutes(baseMinutes: number, toolTier: number, requiredToolTier: number): number {
-  const bonus = Math.max(0, toolTier - requiredToolTier) * config.equipmentTierSpeedBonus
-  return Math.max(1, Math.round(baseMinutes / (1 + bonus)))
+/**
+ * Длительность цикла.
+ *
+ * `districtSpeedBonus` — бонус CYCLE_SPEED Промзоны, доля от 0 до 1. Он
+ * складывается с бонусом инструмента в общий делитель, а не режет время
+ * отдельным множителем: иначе два ускорения перемножались бы, и владелец
+ * Промзоны с хорошим инструментом закрывал бы цикл вдвое быстрее коридора.
+ */
+export function cycleDurationMinutes(
+  baseMinutes: number,
+  toolTier: number,
+  requiredToolTier: number,
+  districtSpeedBonus = 0,
+): number {
+  const toolBonus = Math.max(0, toolTier - requiredToolTier) * config.equipmentTierSpeedBonus
+  const district = Math.max(0, Math.min(1, districtSpeedBonus))
+  return Math.max(1, Math.round(baseMinutes / (1 + toolBonus + district)))
 }
 
 export function cycleReady(params: {

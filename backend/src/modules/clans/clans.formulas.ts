@@ -5,11 +5,15 @@ export const CLAN_FREEZE_DEBT = 1500
 export const CLAN_REJOIN_HOURS = 48
 export const CLAN_RELATION_COOLDOWN_HOURS = 24
 
-export type ClanPermission = 'INVITE'|'KICK'|'ASSIGN_ROLE'|'STORAGE_PUT'|'STORAGE_TAKE'|'TREASURY_PUT'|'TREASURY_SPEND'|'RELATIONS'|'OBJECTS'|'EDIT'
+// WAR — право Этапа 4: заявка на территорию, диверсия, ограбление.
+// Имя без префикса, по конвенции остальных: не CLAN_WAR.
+// Управление объектами клана берёт существующее OBJECTS — заводить
+// рядом второе право на то же действие незачем.
+export type ClanPermission = 'INVITE'|'KICK'|'ASSIGN_ROLE'|'STORAGE_PUT'|'STORAGE_TAKE'|'TREASURY_PUT'|'TREASURY_SPEND'|'RELATIONS'|'OBJECTS'|'EDIT'|'WAR'
 
 export const DEFAULT_ROLES = [
-  { code: 'boss', name: 'Главарь', rank: 100, permissions: ['INVITE','KICK','ASSIGN_ROLE','STORAGE_PUT','STORAGE_TAKE','TREASURY_PUT','TREASURY_SPEND','RELATIONS','OBJECTS','EDIT'] },
-  { code: 'brigadier', name: 'Бригадир', rank: 70, permissions: ['INVITE','KICK','STORAGE_PUT','STORAGE_TAKE','TREASURY_PUT','TREASURY_SPEND','OBJECTS'] },
+  { code: 'boss', name: 'Главарь', rank: 100, permissions: ['INVITE','KICK','ASSIGN_ROLE','STORAGE_PUT','STORAGE_TAKE','TREASURY_PUT','TREASURY_SPEND','RELATIONS','OBJECTS','EDIT','WAR'] },
+  { code: 'brigadier', name: 'Бригадир', rank: 70, permissions: ['INVITE','KICK','STORAGE_PUT','STORAGE_TAKE','TREASURY_PUT','TREASURY_SPEND','OBJECTS','WAR'] },
   { code: 'fighter', name: 'Боец', rank: 40, permissions: ['STORAGE_PUT','STORAGE_TAKE','TREASURY_PUT'] },
   { code: 'infantry', name: 'Пехота', rank: 10, permissions: ['STORAGE_PUT','TREASURY_PUT'] },
 ] as const

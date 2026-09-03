@@ -160,12 +160,12 @@ export function districtKey(path: string) {
   // проверяется первым. Все остальные ветки разбирают адреса комнат.
   const landing = /^\/district\/([a-z]+)/.exec(path)
   if (landing) return landing[1]
-  if (path === '/' || ['/inventory', '/skills', '/stats', '/battles/history', '/clans'].some(x => path.startsWith(x))) return 'center'
+  if (path === '/' || ['/inventory', '/skills', '/stats', '/battles/history', '/clans', '/premium'].some(x => path.startsWith(x))) return 'center'
   if (['/industrial', '/work', '/resources', '/objects', '/recipes', '/farm', '/plants', '/agriculture']
     .some(x => path.startsWith(x))) return 'industrial'
   if (['/garages', '/upgrades', '/repair'].some(x => path.startsWith(x))) return 'garages'
   if (['/market', '/shops/private', '/shop', '/bars'].some(x => path.startsWith(x))) return 'market'
-  if (path.startsWith('/pvp')) return 'suburb'
+  if (path.startsWith('/pvp') || path.startsWith('/territories')) return 'suburb'
   if (['/station', '/soon/logistics', '/soon/storage'].some(x => path.startsWith(x))) return 'station'
   return ''
 }

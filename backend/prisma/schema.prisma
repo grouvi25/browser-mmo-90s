@@ -351,6 +351,10 @@ enum ResourceLogReason {
 }
 
 enum ProductionLogEvent {
+  // Этап 4: последствия войны за объекты.
+  SABOTAGED
+  ROBBED
+  TRANSFERRED_TO_CLAN
   SHIFT_STARTED
   SHIFT_READY
   SHIFT_CLAIMED
@@ -478,27 +482,27 @@ model Character {
   premiumExpiresAt DateTime? @map("premium_expires_at")
 
   // Profile extras
-  battlesTotal         Int       @default(0) @map("battles_total")
-  battlesWon           Int       @default(0) @map("battles_won")
+  battlesTotal         Int        @default(0) @map("battles_total")
+  battlesWon           Int        @default(0) @map("battles_won")
   location             String? // Текстовое местоположение
-  isInvisible          Boolean   @default(false) @map("is_invisible")
-  lastBattleFinishedAt DateTime? @map("last_battle_finished_at")
-  alcoholLevel         Int       @default(0) @map("alcohol_level")
-  alcoholUpdatedAt     DateTime? @map("alcohol_updated_at")
-  hangoverUntil        DateTime? @map("hangover_until")
-  barBuffAccuracy      Float     @default(0) @map("bar_buff_accuracy")
-  barBuffDamage        Float     @default(0) @map("bar_buff_damage")
-  barBuffExpiresAt     DateTime? @map("bar_buff_expires_at")
-  lastBarBuffAt        DateTime? @map("last_bar_buff_at") // для HP recovery
-  farmPlots             FarmPlot[]
+  isInvisible          Boolean    @default(false) @map("is_invisible")
+  lastBattleFinishedAt DateTime?  @map("last_battle_finished_at")
+  alcoholLevel         Int        @default(0) @map("alcohol_level")
+  alcoholUpdatedAt     DateTime?  @map("alcohol_updated_at")
+  hangoverUntil        DateTime?  @map("hangover_until")
+  barBuffAccuracy      Float      @default(0) @map("bar_buff_accuracy")
+  barBuffDamage        Float      @default(0) @map("bar_buff_damage")
+  barBuffExpiresAt     DateTime?  @map("bar_buff_expires_at")
+  lastBarBuffAt        DateTime?  @map("last_bar_buff_at") // для HP recovery
+  farmPlots            FarmPlot[]
 
   createdAt    DateTime @default(now()) @map("created_at")
   lastActiveAt DateTime @default(now()) @map("last_active_at")
 
   // Relations
-  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   stats                CharacterStats?
-  items                ItemInstance[]        @relation("OwnerItems")
+  items                ItemInstance[]         @relation("OwnerItems")
   weaponSkills         WeaponSkill[]
   battlesAsParticipant BattleParticipant[]
   currencyLogs         CurrencyLog[]
@@ -507,6 +511,9 @@ model Character {
   workShifts           WorkShift[]
   professions          CharacterProfession[]
   resourceStacks       ResourceStack[]
+  claimRosters         TerritoryClaimRoster[]
+  helpers              Helper[]
+  premiumPurchases     PremiumPurchase[]
 
   @@map("characters")
 }
@@ -750,6 +757,7 @@ model Battle {
   participants      BattleParticipant[]
   winnerParticipant BattleParticipant?  @relation("BattleWinner", fields: [winnerParticipantId], references: [id])
   turns             BattleTurn[]
+  territoryClaim    TerritoryClaim?
 
   @@index([status])
   @@index([createdAt])
@@ -884,19 +892,19 @@ model WeaponSkill {
 // =============================================================
 
 model FarmPlot {
-  id              String    @id @default(uuid())
-  characterId     String    @map("character_id")
-  slot            Int
-  cropCode        String?   @map("crop_code")
-  plantedAt       DateTime? @map("planted_at")
-  readyAt         DateTime? @map("ready_at")
-  withersAt       DateTime? @map("withers_at")
-  waterCount      Int       @default(0) @map("water_count")
-  lastWateredAt   DateTime? @map("last_watered_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  character       Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  building        FarmBuilding?
+  id            String        @id @default(uuid())
+  characterId   String        @map("character_id")
+  slot          Int
+  cropCode      String?       @map("crop_code")
+  plantedAt     DateTime?     @map("planted_at")
+  readyAt       DateTime?     @map("ready_at")
+  withersAt     DateTime?     @map("withers_at")
+  waterCount    Int           @default(0) @map("water_count")
+  lastWateredAt DateTime?     @map("last_watered_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  character     Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  building      FarmBuilding?
 
   @@unique([characterId, slot])
   @@index([characterId])
@@ -916,23 +924,37 @@ model FarmBuilding {
 }
 
 model Clan {
-  id              String          @id @default(uuid())
-  name            String          @unique
-  tag             String          @unique
-  level           Int             @default(0)
-  treasury        Int             @default(0)
-  maintenanceDebt Int             @default(0) @map("maintenance_debt")
-  isFrozen        Boolean         @default(false) @map("is_frozen")
-  lastChargedAt   DateTime        @default(now()) @map("last_charged_at")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  id              String            @id @default(uuid())
+  name            String            @unique
+  tag             String            @unique
+  level           Int               @default(0)
+  treasury        Int               @default(0)
+  maintenanceDebt Int               @default(0) @map("maintenance_debt")
+  isFrozen        Boolean           @default(false) @map("is_frozen")
+  lastChargedAt   DateTime          @default(now()) @map("last_charged_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
   roles           ClanRole[]
   members         ClanMember[]
   invites         ClanInvite[]
   storage         ClanStorage[]
   treasuryLogs    ClanTreasuryLog[]
-  relationsFrom   ClanRelation[]  @relation("ClanRelationFrom")
-  relationsTo     ClanRelation[]  @relation("ClanRelationTo")
+  relationsFrom   ClanRelation[]    @relation("ClanRelationFrom")
+  relationsTo     ClanRelation[]    @relation("ClanRelationTo")
+  territories     Territory[]
+
+  // Этап 4. Авторитет — валюта войны: не покупается, не передаётся, не
+  // конвертируется в рубли. Дробный намеренно: смена даёт 0.2, и целое
+  // поле округлило бы её в ноль, отрезав малым кланам главный источник.
+  // Текущее значение хранится здесь, а не считается из журнала: оно
+  // проверяется при каждой заявке и каждой атаке.
+  authority       Float              @default(0)
+  territoryLimit  Int                @default(2) @map("territory_limit")
+  authorityLogs   ClanAuthorityLog[]
+  claimsAttacking TerritoryClaim[]   @relation("ClaimAttacker")
+  claimsDefending TerritoryClaim[]   @relation("ClaimDefender")
+  attacksMade     ObjectAttack[]     @relation("AttackAttacker")
+  attacksSuffered ObjectAttack[]     @relation("AttackDefender")
 
   @@map("clans")
 }
@@ -998,14 +1020,14 @@ model ClanStorage {
 }
 
 model ClanTreasuryLog {
-  id          String   @id @default(uuid())
-  clanId      String   @map("clan_id")
-  characterId String?  @map("character_id")
-  amount      Int
-  balanceAfter Int     @map("balance_after")
-  reason      String
-  createdAt   DateTime @default(now()) @map("created_at")
-  clan        Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  id           String   @id @default(uuid())
+  clanId       String   @map("clan_id")
+  characterId  String?  @map("character_id")
+  amount       Int
+  balanceAfter Int      @map("balance_after")
+  reason       String
+  createdAt    DateTime @default(now()) @map("created_at")
+  clan         Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
 
   @@index([clanId, createdAt])
   @@map("clan_treasury_logs")
@@ -1067,7 +1089,13 @@ model ProductionObject {
   inventory               ProductionObjectInventory[]
   cycles                  ProductionCycle[]
   barOffers               BarOffer[]
+  attacks                 ObjectAttack[]
 
+  // Индекс создан руками миграцией stage3_equipment_profile, но в схеме
+  // объявлен не был: Prisma видела дрейф и норовила снести его первой же
+  // следующей миграцией. По нему ходит воркер смены профиля — без индекса
+  // он бы тихо перешёл на полный перебор объектов.
+  @@index([profileSwitchEndsAt])
   @@map("production_objects")
 }
 
@@ -1235,6 +1263,11 @@ model WorkShift {
   character            Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
   productionObject     ProductionObject @relation(fields: [productionObjectId], references: [id])
   toolInstance         ItemInstance?    @relation("WorkShiftTool", fields: [toolInstanceId], references: [id])
+  // Этап 4: смена помощника — ОБЫЧНАЯ смена с проставленным helperId.
+  // Вклад труда, зарплата, износ и закрытие цикла идут по коду Этапа 3
+  // без правок; отличается только множитель эффективности.
+  helperId             String?          @map("helper_id")
+  helper               Helper?
 
   @@index([characterId, status])
   @@index([status, endsAt])
@@ -1443,4 +1476,285 @@ model AdminUser {
   lastLoginAt  DateTime? @map("last_login_at")
 
   @@map("admin_users")
+}
+
+// =============================================================
+// ЭТАП 4 — ТЕРРИТОРИИ
+//
+// Район города как объект владения кланом. Коды совпадают с ключами
+// MENU.districts во фронте и с OBJECT_DISTRICTS в сиде: по ним же
+// ProductionObject.locationId связывает объект с районом.
+// Раскладка и обоснование — docs/specs/stage-4/STAGE4_DATA_MODEL.md.
+// =============================================================
+
+enum TerritoryStatus {
+  NEUTRAL // ничей
+  CONTROLLED // под контролем клана
+  CONTESTED // подана заявка, бой назначен
+  UNDER_ATTACK // бой идёт
+  PROTECTED // защита после захвата
+}
+
+model Territory {
+  id     String          @id @default(uuid())
+  code   String          @unique
+  name   String
+  status TerritoryStatus @default(NEUTRAL)
+
+  ownerClanId    String?   @map("owner_clan_id")
+  controlledAt   DateTime? @map("controlled_at")
+  protectedUntil DateTime? @map("protected_until")
+
+  // Бонус района вынесен в данные: подбор бонусов — предмет балансировки,
+  // а балансировка не должна требовать выката кода.
+  bonusCode  String @map("bonus_code")
+  bonusValue Float  @map("bonus_value")
+
+  // Порядковый номер владения у клана: определяет ступень содержания.
+  // Пересчитывается при каждой смене владельца.
+  upkeepTier Int @default(1) @map("upkeep_tier")
+  // Общак пуст — содержание копится долгом, а не отбирает район мгновенно.
+  // Тот же приём, что с зарплатой объекта в Этапе 3.
+  upkeepDebt Int @default(0) @map("upkeep_debt")
+
+  lastChargedAt DateTime @default(now()) @map("last_charged_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  ownerClan Clan?            @relation(fields: [ownerClanId], references: [id])
+  claims    TerritoryClaim[]
+
+  @@index([ownerClanId])
+  @@index([status])
+  @@map("territories")
+}
+
+// =============================================================
+// ЭТАП 4 — ЗАЯВКИ НА ТЕРРИТОРИЮ И АВТОРИТЕТ
+//
+// Заявка живёт своей жизнью: подана — ждёт назначенного часа — идёт бой —
+// разобран исход. Состав пишется при подаче и переносится в бой дословно,
+// чтобы его нельзя было подменить между подачей и началом.
+// ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, раздел 8.
+// =============================================================
+
+enum TerritoryClaimStatus {
+  PENDING // подана, ждёт назначенного времени
+  BATTLE // бой идёт
+  WON // контроль передан
+  LOST // оборона выстояла
+  CANCELLED // отозвана подавшим
+  EXPIRED // сорвалось назначение боя
+}
+
+enum ClanAuthorityReason {
+  TERRITORY_WON
+  TERRITORY_DEFENDED
+  TERRITORY_HELD
+  CYCLE_COMPLETED
+  SHIFT_COMPLETED
+  CLAIM_FILED
+  CLAIM_REFUNDED
+  SABOTAGE_FILED
+  ROBBERY_FILED
+  ADMIN_ADJUST
+}
+
+model TerritoryClaim {
+  id                 String  @id @default(uuid())
+  territoryId        String  @map("territory_id")
+  attackerClanId     String  @map("attacker_clan_id")
+  defenderClanId     String? @map("defender_clan_id") // null для ничейной
+  filedByCharacterId String  @map("filed_by_character_id")
+
+  status         TerritoryClaimStatus @default(PENDING)
+  battleStartsAt DateTime             @map("battle_starts_at")
+  battleId       String?              @unique @map("battle_id")
+
+  feePaid        Int
+  authoritySpent Float   @map("authority_spent")
+  /// Победа без боя: обороняющийся никого не выставил.
+  walkover       Boolean @default(false)
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  territory    Territory              @relation(fields: [territoryId], references: [id], onDelete: Cascade)
+  attackerClan Clan                   @relation("ClaimAttacker", fields: [attackerClanId], references: [id], onDelete: Cascade)
+  defenderClan Clan?                  @relation("ClaimDefender", fields: [defenderClanId], references: [id])
+  battle       Battle?                @relation(fields: [battleId], references: [id])
+  roster       TerritoryClaimRoster[]
+
+  @@index([territoryId, status])
+  @@index([attackerClanId])
+  @@index([status, battleStartsAt])
+  @@map("territory_claims")
+}
+
+model TerritoryClaimRoster {
+  id          String @id @default(uuid())
+  claimId     String @map("claim_id")
+  characterId String @map("character_id")
+  /// 1 — атакующий клан, 2 — обороняющийся. Совпадает с
+  /// BattleParticipant.side: состав переносится в бой один в один.
+  side        Int
+  /// Вес бойца на момент записи. Проверка «пять от третьего уровня»
+  /// смотрит сюда, иначе заявку закрывают прокачанными, а приводят альтов.
+  battleLevel Int    @map("battle_level")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  claim     TerritoryClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  character Character      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([claimId, characterId])
+  @@index([claimId, side])
+  @@map("territory_claim_rosters")
+}
+
+model ClanAuthorityLog {
+  id           String              @id @default(uuid())
+  clanId       String              @map("clan_id")
+  amount       Float
+  reason       ClanAuthorityReason
+  /// Свободная ссылка на источник: заявка, цикл, смена, атака.
+  refId        String?             @map("ref_id")
+  /// Остаток после операции — по нему сверяется поле Clan.authority.
+  balanceAfter Float               @map("balance_after")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  clan Clan @relation(fields: [clanId], references: [id], onDelete: Cascade)
+
+  @@index([clanId, createdAt])
+  @@map("clan_authority_logs")
+}
+
+// =============================================================
+// ЭТАП 4 — БОИ ЗА ОБЪЕКТЫ
+//
+// Объект нельзя разрушить насовсем. Можно повредить (диверсия) или снять
+// долю с баланса (ограбление). Основание — разведка GanjaWars: война
+// обязана двигать экономические потоки, но не стирать прогресс игрока.
+// Повреждённый объект чинится восстановительными работами Этапа 3 с
+// тройным опытом профессии, то есть война создаёт работу.
+//
+// ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, часть III.
+// =============================================================
+
+enum ObjectAttackType {
+  SABOTAGE // прочность и простой
+  ROBBERY // доля баланса
+}
+
+model ObjectAttack {
+  id                 String  @id @default(uuid())
+  objectId           String  @map("object_id")
+  attackerClanId     String  @map("attacker_clan_id")
+  defenderClanId     String? @map("defender_clan_id")
+  filedByCharacterId String  @map("filed_by_character_id")
+
+  type ObjectAttackType
+
+  /// Диверсия: сколько прочности снято. Ограбление: 0.
+  durabilityLost   Int     @default(0) @map("durability_lost")
+  /// Ограбление: сколько рублей ушло в общак атакующего. Диверсия: 0.
+  moneyTaken       Int     @default(0) @map("money_taken")
+  /// Отменённый диверсией цикл, если он был. Сырьё по нему возвращено.
+  cancelledCycleId String? @map("cancelled_cycle_id")
+
+  authoritySpent Float    @map("authority_spent")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  object       ProductionObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  attackerClan Clan             @relation("AttackAttacker", fields: [attackerClanId], references: [id], onDelete: Cascade)
+  defenderClan Clan?            @relation("AttackDefender", fields: [defenderClanId], references: [id])
+
+  // Кулдаун в 72 часа считается запросом по этому индексу, а не отдельным
+  // полем на объекте: поле пришлось бы чистить, индекс — нет.
+  @@index([objectId, createdAt])
+  @@index([attackerClanId, createdAt])
+  @@map("object_attacks")
+}
+
+// =============================================================
+// ЭТАП 4 — PREMIUM И ПОМОЩНИКИ
+//
+// Главное правило этапа: премиум продаёт ВРЕМЯ, а не силу. Ни один товар
+// витрины не выдаёт предмет с ненулевым бюджетом статов — это проверяется
+// машинно, а не декларируется.
+// ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, часть VI.
+// =============================================================
+
+enum PremiumProductKind {
+  TIME // ускоряет то, чего можно дождаться
+  COSMETIC // на механику не влияет вообще
+  CONVENIENCE // удобство, на бой не влияет
+}
+
+enum HelperStatus {
+  ACTIVE // подписка активна, работает
+  DORMANT // подписки нет, остаётся в профиле
+}
+
+model PremiumProduct {
+  id          String             @id @default(uuid())
+  code        String             @unique
+  name        String
+  description String
+  kind        PremiumProductKind
+  priceRub    Int                @map("price_rub")
+  /// Что выдаётся: ключ эффекта, разбирается сервисом по закрытому списку.
+  grantCode   String             @map("grant_code")
+  grantValue  Int                @default(0) @map("grant_value")
+  isActive    Boolean            @default(true) @map("is_active")
+  sortOrder   Int                @default(0) @map("sort_order")
+
+  purchases PremiumPurchase[]
+
+  @@map("premium_products")
+}
+
+model PremiumPurchase {
+  id               String  @id @default(uuid())
+  /// Покупает персонаж: подписка живёт на нём, а не на аккаунте.
+  characterId      String  @map("character_id")
+  productId        String  @map("product_id")
+  /// Цена копией: в каталоге она меняется, история покупок обязана
+  /// остаться неизменной. Тот же приём, что в рыночных сделках Этапа 2.
+  priceRub         Int     @map("price_rub")
+  /// Оплата в первой версии вне игры, оформляет администратор.
+  grantedByAdminId String? @map("granted_by_admin_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  character Character      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  product   PremiumProduct @relation(fields: [productId], references: [id])
+
+  @@index([characterId, createdAt])
+  @@map("premium_purchases")
+}
+
+model Helper {
+  id              String       @id @default(uuid())
+  characterId     String       @map("character_id")
+  name            String
+  status          HelperStatus @default(ACTIVE)
+  /// Профессия своя, не хозяйская. Потолок 3 при потолке игрока 6:
+  /// помощник никогда не заменит специалиста на верхних переделах.
+  professionCode  String       @map("profession_code")
+  professionLevel Int          @default(0) @map("profession_level")
+  professionExp   Float        @default(0) @map("profession_exp")
+
+  /// Текущая смена, если помощник занят.
+  activeShiftId String? @unique @map("active_shift_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  character   Character  @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  activeShift WorkShift? @relation(fields: [activeShiftId], references: [id])
+
+  @@index([characterId])
+  @@map("helpers")
 }

@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { authenticate } from '../../shared/security/auth-middleware'
 import { CharactersRepository } from '../characters/characters.repository'
 import { AppError } from '../../shared/errors/app-error'
+import { TerritoriesService } from '../territories/territories.service'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { ItemsRepository } from '../items/item-instance.repository'
 import { calcRepairCost } from '../stats/stats.formulas'
@@ -39,6 +40,10 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
       const char = await CharactersRepository.findByUserId(req.authUser.userId)
       if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
 
+      // Скидка Гаражей действует на все три расчёта цены в этом файле:
+      // список, предпросмотр и само списание. Показать одну сумму, а
+      // списать другую — худшее, что тут можно сделать.
+      const repairDiscount = (await TerritoriesService.bonusesForCharacter(char.id)).REPAIR_COST ?? 0
       const items = await ItemsRepository.findByOwner(char.id)
       const repairable = items.filter(i =>
         i.durabilityCurrent < i.durabilityMax &&
@@ -49,7 +54,7 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
         const parts = await repairPartsPreview(char.id, i)
         return {
           ...i,
-          repairCost: calcRepairCost(i.template.priceBase, i.durabilityMax - i.durabilityCurrent, i.quality, i.upgradeLevel),
+          repairCost: calcRepairCost(i.template.priceBase, i.durabilityMax - i.durabilityCurrent, i.quality, i.upgradeLevel, repairDiscount),
           needsParts: parts.needsParts,
           partsResourceCode: parts.requiredParts[0]?.resourceCode ?? null,
           requiredPartsAmount: parts.requiredParts[0]?.amount ?? 0,
@@ -74,7 +79,8 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const lostDur = item.durabilityMax - item.durabilityCurrent
-      const cost = calcRepairCost(item.template.priceBase, lostDur, item.quality, item.upgradeLevel)
+      const discount = (await TerritoriesService.bonusesForCharacter(char.id)).REPAIR_COST ?? 0
+      const cost = calcRepairCost(item.template.priceBase, lostDur, item.quality, item.upgradeLevel, discount)
       const parts = await repairPartsPreview(char.id, item)
       return reply.send({
         item,
@@ -114,7 +120,8 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
         }
 
         const lostDur = item.durabilityMax - item.durabilityCurrent
-        const cost = calcRepairCost(item.template.priceBase, lostDur, item.quality, item.upgradeLevel)
+        const discount = (await TerritoriesService.bonusesForCharacter(char.id)).REPAIR_COST ?? 0
+        const cost = calcRepairCost(item.template.priceBase, lostDur, item.quality, item.upgradeLevel, discount)
         let partsSpent: { resourceCode: string; amount: number } | null = null
         if (needsRepairParts(item.template.itemTier, item.upgradeLevel)) {
           const code = repairPartsCode(item.template.repairResourceCode)

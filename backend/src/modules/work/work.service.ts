@@ -11,6 +11,7 @@ import { ResourcesService } from '../resources/resources.service'
 import { admissionRequirement, calcFinalSalary, calcProductionExp, fitsDailyBudget, shiftMinutes, workerEfficiency } from './work.formulas'
 import { CycleService } from '../production/cycle.service'
 import { BalanceConfig } from '../../config/balance.config'
+import { PremiumService } from '../premium/premium.service'
 import { PROFESSION_NAMES, professionLevelFromExp, type ProfessionCode } from '../professions/professions'
 
 const MAX_DAILY_SHIFTS = BalanceConfig.economy.work.dailyShiftLimit
@@ -46,7 +47,7 @@ export const WorkService = {
     const { start, end } = utcDayRange()
     const [objects, used, professions, templates, tools] = await Promise.all([
       prisma.productionObject.findMany({ where: { isActive: true, status: 'ACTIVE' }, include: { equipment: true }, orderBy: [{ requiredProfessionLevel: 'asc' }, { code: 'asc' }] }),
-      prisma.workShift.findMany({ where: { characterId, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
+      prisma.workShift.findMany({ where: { characterId, helperId: null, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
       prisma.characterProfession.findMany({ where: { characterId } }),
       prisma.resourceTemplate.findMany({ select: { code: true, name: true } }),
       prisma.itemInstance.findMany({ where: { ownerId: characterId, status: 'NORMAL', usesLeft: { gt: 0 }, template: { type: 'TOOL' } }, include: { template: true } }),
@@ -94,8 +95,8 @@ export const WorkService = {
   async current(characterId: string) {
     const { start, end } = utcDayRange()
     const [shift, used] = await Promise.all([
-      prisma.workShift.findFirst({ where: { characterId, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } }, include: { productionObject: { include: { equipment: true } }, toolInstance: { include: { template: true } } }, orderBy: { createdAt: 'desc' } }),
-      prisma.workShift.findMany({ where: { characterId, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
+      prisma.workShift.findFirst({ where: { characterId, helperId: null, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } }, include: { productionObject: { include: { equipment: true } }, toolInstance: { include: { template: true } } }, orderBy: { createdAt: 'desc' } }),
+      prisma.workShift.findMany({ where: { characterId, helperId: null, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
     ])
     const profession = shift ? await professionState(characterId, shift.professionCode) : null
     return {
@@ -116,9 +117,17 @@ export const WorkService = {
       const [character, object, todayShifts] = await Promise.all([
         tx.character.findUniqueOrThrow({ where: { id: characterId } }),
         tx.productionObject.findUnique({ where: { id: productionObjectId }, include: { equipment: true } }),
-        tx.workShift.findMany({ where: { characterId, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
+        // helperId: null — только собственные смены игрока. Смены
+        // помощника висят на том же characterId, но суточный лимит
+        // хозяина не расходуют: помощник работает вместо него, а не
+        // вместо его же дня.
+        tx.workShift.findMany({ where: { characterId, helperId: null, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
       ])
-      if (todayShifts.length >= MAX_DAILY_SHIFTS) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
+      // Подписка поднимает ВЕРХНЮЮ ГРАНИЦУ дня, а не эффективность часа:
+      // подписчик может работать дольше, но не зарабатывает больше в час,
+      // и усталость зарплаты Этапа 2 продолжает действовать на все смены.
+      const shiftCap = await PremiumService.dailyShiftCap(characterId)
+      if (todayShifts.length >= shiftCap) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
       if (!object) throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object not found', 404)
       if (!fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), object.shiftDurationMinutes)) {
         throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift budget reached', 400)
@@ -137,7 +146,8 @@ export const WorkService = {
         if ((gate?.level ?? 0) < admission.level) throw new AppError(ErrorCode.WORK_LEVEL_REQUIRED, 'Profession level too low', 400)
       }
       if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 400)
-      if (await tx.workShift.findFirst({ where: { characterId, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } } })) throw new AppError(ErrorCode.WORK_ACTIVE_SHIFT, 'Active shift already exists', 409)
+      // Тоже только свои: занятый помощник не должен запирать хозяина.
+      if (await tx.workShift.findFirst({ where: { characterId, helperId: null, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } } })) throw new AppError(ErrorCode.WORK_ACTIVE_SHIFT, 'Active shift already exists', 409)
       const slots = await tx.workShift.count({ where: { productionObjectId, status: 'ACTIVE' } })
       if (slots >= object.workerSlots) throw new AppError(ErrorCode.WORK_NO_SLOTS, 'No free worker slots', 409)
       const claimed = await tx.character.updateMany({ where: { id: characterId, status: 'ACTIVE' }, data: { status: 'WORKING' } })
@@ -170,7 +180,10 @@ export const WorkService = {
 
   async claim(characterId: string, shiftId: string, key: string) {
     return withIdempotency({ characterId, scope: 'work.shift.claim', key, execute: async tx => {
-      let shift = await tx.workShift.findFirst({ where: { id: shiftId, characterId }, include: { productionObject: true, toolInstance: { include: { template: true } } } })
+      // helperId: null обязателен: без него игрок забирал бы смену
+      // помощника этой ручкой и получал полную зарплату и опыт себе,
+      // минуя множитель 0.6 и профессию помощника.
+      let shift = await tx.workShift.findFirst({ where: { id: shiftId, characterId, helperId: null }, include: { productionObject: true, toolInstance: { include: { template: true } } } })
       if (!shift) throw new AppError(ErrorCode.WORK_SHIFT_NOT_FOUND, 'Shift not found', 404)
       if (shift.status === 'ACTIVE' && shift.endsAt <= new Date()) shift = await tx.workShift.update({ where: { id: shift.id }, data: { status: 'READY_TO_CLAIM' }, include: { productionObject: true, toolInstance: { include: { template: true } } } })
       if (shift.status !== 'READY_TO_CLAIM') throw new AppError(ErrorCode.WORK_NOT_READY, 'Shift is not ready', 400)
@@ -180,7 +193,9 @@ export const WorkService = {
         where: { characterId_professionCode: { characterId, professionCode: shift.professionCode } }, update: {}, create: { characterId, professionCode: shift.professionCode },
       })
       const day = utcDayRange(shift.startedAt)
-      const dailyShiftNumber = await tx.workShift.count({ where: { characterId, startedAt: { gte: day.start, lt: day.end }, createdAt: { lte: shift.createdAt } } })
+      // Усталость считается по СВОИМ сменам: смены помощника не должны
+      // душить зарплату хозяина, у помощника усталость своя.
+      const dailyShiftNumber = await tx.workShift.count({ where: { characterId, helperId: null, startedAt: { gte: day.start, lt: day.end }, createdAt: { lte: shift.createdAt } } })
       const salary = calcFinalSalary(shift.baseSalary, shift.productionObject.level, profession.level, Math.random(), dailyShiftNumber)
       const professionExpGain = calcProductionExp(shift.productionObject.baseProductionExp, shift.productionObject.level)
       const professionExp = profession.exp + professionExpGain
@@ -248,7 +263,7 @@ export const WorkService = {
 
   async cancel(characterId: string, shiftId: string) {
     return withTransaction(async tx => {
-      const shift = await tx.workShift.findFirst({ where: { id: shiftId, characterId, status: 'ACTIVE' } })
+      const shift = await tx.workShift.findFirst({ where: { id: shiftId, characterId, helperId: null, status: 'ACTIVE' } })
       if (!shift) throw new AppError(ErrorCode.WORK_SHIFT_NOT_FOUND, 'Active shift not found', 404)
       await tx.workShift.update({ where: { id: shift.id }, data: { status: 'CANCELLED' } })
       if (shift.toolInstanceId) await tx.itemInstance.updateMany({ where: { id: shift.toolInstanceId, ownerId: characterId, status: 'LOCKED' }, data: { status: 'NORMAL' } })

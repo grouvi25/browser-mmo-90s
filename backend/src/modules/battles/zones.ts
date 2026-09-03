@@ -44,6 +44,32 @@ export interface ZonalTurnInput {
   blockZones: BodyZone[]
   moveTo?: { x: number; y: number }
   targetParticipantId?: string
+  /** Этап 4: переодевание в бою. Смена оружия — очко хода, брони — весь ход. */
+  swapWeapon?: { hand: AttackHand; itemInstanceId: string }
+  swapArmor?: { zone: BodyZone; itemInstanceId: string }
+}
+
+/**
+ * Бюджет хода — два очка. Одно очко это либо удар, либо два блока: отсюда
+ * и берутся три стойки, 2/0, 1/2 и 0/4, а не три отдельных набора.
+ *
+ * Переодевание тратит очки из того же бюджета, а не заводит своё правило:
+ * смена оружия — одно очко, смена брони — оба. Так сохраняется главное
+ * свойство боёвки: НАПАДЕНИЕ ВСЕГДА УМЕНЬШАЕТ ЗАЩИТУ, и наоборот.
+ *
+ * Очки снимаются сначала с ударов, потом с блоков. Порядок предсказуем:
+ * игрок, сменивший оружие, теряет удар, а не защиту, — и это то, чего он
+ * ожидает, меняя оружие.
+ */
+export function budgetAfterSwaps(
+  budget: { attacks: number; blocks: number },
+  swaps: { weapon?: unknown; armor?: unknown },
+): { attacks: number; blocks: number } {
+  if (swaps.armor) return { attacks: 0, blocks: 0 }
+  if (!swaps.weapon) return budget
+  if (budget.attacks > 0) return { attacks: budget.attacks - 1, blocks: budget.blocks }
+  // Очков ударов нет — снимаем очко блоков, то есть два блока.
+  return { attacks: 0, blocks: Math.max(0, budget.blocks - MAX_BLOCKS_PER_ZONE) }
 }
 
 // Минимальная форма экипированного предмета для расчёта брони по зоне.
@@ -82,7 +108,9 @@ export function botArmorOfZone(
 export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): ZonalTurnInput {
   const stance: Stance =
     input?.stance && STANCE_BUDGET[input.stance] ? input.stance : 'attack2'
-  const budget = input?.moveTo ? { attacks: 0, blocks: 0 } : STANCE_BUDGET[stance]
+  const budget = input?.moveTo
+    ? { attacks: 0, blocks: 0 }
+    : budgetAfterSwaps(STANCE_BUDGET[stance], { weapon: input?.swapWeapon, armor: input?.swapArmor })
 
   const rawAttack = (input?.attackZones ?? []).filter(isBodyZone)
   const rawHands = (input?.attackHands ?? []).filter(isAttackHand)
@@ -122,6 +150,8 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
     attackZones,
     attackHands,
     blockZones,
+    swapWeapon: input?.swapWeapon,
+    swapArmor: input?.swapArmor,
     moveTo: input?.moveTo,
     targetParticipantId: input?.targetParticipantId,
   }

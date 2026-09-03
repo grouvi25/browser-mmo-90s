@@ -20,11 +20,15 @@ import fighterRed from '../../shared/assets/battle/fighter-red.webp'
 import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
 import { BattleFighterPanel } from './components/battle-fighter-panel'
 import { BattleChat, CHAT_SCENE_TOP } from './components/battle-chat'
-import { BattleSideCard } from './components/battle-side-card'
-import { useViewportScale } from '../../shared/lib/stage'
+import { CardCutout } from '../../widgets/character-card/card-cutout'
+import { NavCutout } from '../../widgets/city-nav/nav-cutout'
+import { MENU } from '../../shared/lib/layout-map'
+import { PLATES } from '../../shared/ui/sprite'
+import { useViewportSize } from '../../shared/lib/stage'
 import { BattleCommandDock } from './components/battle-command-dock'
 import { EventIcon, getEvent, type RoundRecord, type TurnEvent } from './components/battle-events'
 import { BattlePockets } from './components/battle-pockets'
+import { BattleSwap, type SwapPlan } from './components/battle-swap'
 import { removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
 import './battle-phase-a.css'
 
@@ -184,12 +188,46 @@ export function BattlePage() {
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
   const [pocketsOpen, setPocketsOpen]   = useState(false)
+  // План переодевания на текущий ход; после отправки сбрасывается.
+  const [swapPlan, setSwapPlan]         = useState<SwapPlan>({})
   // Чат закрыт по умолчанию: так сцена короче и всё на экране крупнее.
   const [chatOpen, setChatOpen]         = useState(false)
+  // ── Раскладка экрана ───────────────────────────────────
+  // Экран боя собран из трёх частей: шапка города сверху, карточки
+  // бойцов по краям и сцена макета посередине. Каждой нужен свой
+  // расчёт от габаритов окна, поэтому берём сами габариты, а не
+  // готовый коэффициент.
+  const view = useViewportSize()
+  const sceneH = chatOpen ? 1600 : CHAT_SCENE_TOP
+  // Шапка — вырез полосы меню во всю ширину окна. Она масштабируется
+  // вместе со сценой города, поэтому на узком экране сжимается до
+  // нечитаемой полоски в несколько пикселей: ниже 1000 не показываем
+  // её вовсе, как и раньше на телефоне её тут не было.
+  const showNav = view.w >= 1000
+  const navH = showNav ? view.w * MENU.navStrip.h / MENU.navStrip.w : 0
+  // Порядок расчёта важен, иначе он зациклится: ширина карточек зависит
+  // от ширины сцены, а ширина сцены — от того, сколько осталось после
+  // карточек. Разрываем так: сцена берёт своё по ВЫСОТЕ (для вертикального
+  // макета на горизонтальном экране это и есть настоящее ограничение),
+  // а карточки делят остаток ширины.
+  const sceneGap = 10
+  const freeH = view.h - navH
   // Сцена макета — 900x1600. Свёрнутый чат обрезает её по своему верху,
-  // и та же сцена помещается в окно крупнее. maxScale=1: увеличивать
-  // сверх исходного размера нечего, ассеты нарезаны под него.
-  const sceneScale = useViewportScale(900, chatOpen ? 1600 : CHAT_SCENE_TOP, 'contain', 1)
+  // и та же сцена помещается в окно крупнее. Верхняя граница 1:
+  // увеличивать сверх исходного размера нечего, ассеты нарезаны под него.
+  const sceneScaleByHeight = Math.min(freeH / sceneH, 1)
+  const freeHalf = (view.w - 900 * sceneScaleByHeight) / 2 - 2 * sceneGap
+  // Ниже 1080 и уже 240 px на карточку поля нет: она бы смялась.
+  const showCards = view.w > 1080 && freeHalf >= 240
+  // Карточка растёт, пока есть место, но не выше свободной высоты и не
+  // крупнее полутора своих размеров — дальше портрет начинает мылиться.
+  const cardW = showCards
+    ? Math.min(freeHalf, freeH * MENU.card.cutout.w / MENU.card.cutout.h, MENU.card.cutout.w * 1.5)
+    : 0
+  const sceneScale = showCards
+    ? sceneScaleByHeight
+    : Math.min(sceneScaleByHeight, (view.w - 2 * sceneGap) / 900)
+  const platePicture = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
   const actionPendingRef = useRef(false)
   const [playerHit, setPlayerHit]       = useState(false)
   const [enemyHit, setEnemyHit]         = useState(false)
@@ -342,7 +380,14 @@ export function BattlePage() {
   const resetPlan = () => { setStance('defense4'); setAttackZones([]); setAttackHands([]); setBlockZones([]); setSelectedMove(null) }
   const submitTurn = () => {
     const action: BattleAction = stance === 'defense4' ? 'block' : 'attack'
-    act(action, { stance, attackZones, attackHands, blockZones, targetParticipantId: ePart?.participantId })
+    act(action, {
+      stance, attackZones, attackHands, blockZones,
+      targetParticipantId: ePart?.participantId,
+      // Переодевание уходит частью обычного хода: цену с бюджета снимает
+      // сервер там же, где считает зоны.
+      ...swapPlan,
+    })
+    setSwapPlan({})
   }
   const submitMove = () => {
     if (!selectedMove) return
@@ -455,21 +500,37 @@ export function BattlePage() {
         верха. Высота меньше, значит масштаб больше: на 1440x900 сцена
         растёт с 506 до 617 px по ширине. Это и есть «больше места»,
         которое даёт сворачивание. */}
-    {/* Свой профиль слева, чужой справа — так же, как карточка персонажа
-        стоит слева на главном экране города. Занимают поле, которое
-        иначе простаивает: сцена вертикальная, экран горизонтальный. */}
-    <BattleSideCard side="self" fighter={{
-      name: playerName, level: char?.battleLevel, avatar: playerProfile?.avatar ?? char?.avatar,
+    {/* Поле по краям сцены — та же размытая плашка, что подстилает
+        главный экран. Плоская тёмная заливка, стоявшая тут раньше,
+        и делала бой не похожим на остальную игру: в городе пустое
+        место — это продолжение рисунка, а не провал. */}
+    <div className="stage-backdrop" aria-hidden="true" style={{ backgroundImage: platePicture }} />
+
+    {/* Шапка города — вырез той же полосы меню из той же подложки.
+        Без неё из боя некуда выйти, и экран читался как кусок другой
+        игры: в городе шапка есть везде. */}
+    {showNav && <NavCutout width={view.w} />}
+
+    <div className="battle-page-v3__body">
+
+    {/* Свой профиль слева, чужой справа — та самая карточка «личное
+        дело» с главного экрана, вырезанная окном из общей псд-бумаги.
+        Занимают поле, которое иначе простаивает: сцена вертикальная,
+        экран горизонтальный.
+
+        Данные отдаём готовыми, а не даём карточке сходить в свои
+        запросы: в бою здоровье меняется каждый ход, и /characters/me
+        с его обновлением раз в полминуты показывал бы вчерашнее. */}
+    {showCards && <CardCutout width={cardW} profile={{
+      nickname: playerName, level: char?.battleLevel ?? 0,
       hp: pHp, hpMax: pHpMax,
-      primaryHand: playerProfile?.primaryHand ?? weapon?.template.name,
-      secondaryHand: playerProfile?.secondaryHand,
-      primaryWeaponCode: playerProfile?.primaryWeaponCode ?? weapon?.template.code,
-      secondaryWeaponCode: playerProfile?.secondaryWeaponCode,
-      primaryWeaponType: playerProfile?.primaryWeaponType ?? weapon?.template.weaponType,
-      secondaryWeaponType: playerProfile?.secondaryWeaponType,
-      primaryRange: playerProfile?.primaryRange, secondaryRange: playerProfile?.secondaryRange,
-      stats: playerProfile?.stats,
-    }} />
+      avatar: playerProfile?.avatar ?? char?.avatar,
+      weaponName: playerProfile?.primaryHand ?? weapon?.template.name,
+      weaponCode: playerProfile?.primaryWeaponCode ?? weapon?.template.code,
+      weaponType: playerProfile?.primaryWeaponType ?? weapon?.template.weaponType,
+      offhandName: playerProfile?.secondaryHand,
+      offhandCode: playerProfile?.secondaryWeaponCode,
+    }} />}
 
     <div className="battle-mockup-scene-holder"
       style={{ width: 900 * sceneScale, height: (chatOpen ? 1600 : CHAT_SCENE_TOP) * sceneScale }}>
@@ -559,15 +620,18 @@ export function BattlePage() {
     </div>
     </div>
 
-    <BattleSideCard side="enemy" fighter={{
-      name: enemyName, level: enemyProfile?.level, avatar: enemyProfile?.avatar,
+    {showCards && <CardCutout width={cardW} className="is-enemy" profile={{
+      nickname: enemyName, level: enemyProfile?.level ?? 0,
       hp: eHp, hpMax: eHpMax,
-      primaryHand: enemyProfile?.primaryHand, secondaryHand: enemyProfile?.secondaryHand,
-      primaryWeaponCode: enemyProfile?.primaryWeaponCode, secondaryWeaponCode: enemyProfile?.secondaryWeaponCode,
-      primaryWeaponType: enemyProfile?.primaryWeaponType, secondaryWeaponType: enemyProfile?.secondaryWeaponType,
-      primaryRange: enemyProfile?.primaryRange, secondaryRange: enemyProfile?.secondaryRange,
-      stats: enemyProfile?.stats,
-    }} />
+      avatar: enemyProfile?.avatar,
+      weaponName: enemyProfile?.primaryHand,
+      weaponCode: enemyProfile?.primaryWeaponCode,
+      weaponType: enemyProfile?.primaryWeaponType,
+      offhandName: enemyProfile?.secondaryHand,
+      offhandCode: enemyProfile?.secondaryWeaponCode,
+    }} />}
+
+    </div>
 
       {/* Сообщение об ошибке и выдвижные панели живут ВНЕ сцены.
           Внутри они масштабировались бы вместе с ней: на телефоне
@@ -590,8 +654,25 @@ export function BattlePage() {
                 {t.finalDamage > 0 && <span className="log-ev-dmg">-{t.finalDamage} HP</span>}
               </div> })}
             </div>)}
-          </div> : <BattlePockets slots={pocketSlots} canAct={canAct} open
-            onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />}
+          </div> : (
+            <>
+              <BattlePockets slots={pocketSlots} canAct={canAct} open
+                onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />
+              {/* Переодевание живёт в том же ящике, что и карман: макет
+                  боевого экрана его не рисует, и втискивать кнопку в его
+                  геометрию значило бы ломать пиксель-перфект. */}
+              <BattleSwap
+                inventory={items}
+                plan={swapPlan}
+                canAct={canAct}
+                // В ящике раздел всегда развёрнут — как и карман рядом:
+                // ящик и есть раскрытие, второй уровень сворачивания в нём
+                // только прячет содержимое от глаз.
+                open
+                onChange={setSwapPlan}
+              />
+            </>
+          )}
         </section>
       </aside>}
     </div>

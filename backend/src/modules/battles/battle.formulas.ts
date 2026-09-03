@@ -1,4 +1,5 @@
-import type { BodyZone } from '@prisma/client'
+import type { BodyZone, WeaponType as PrismaWeaponType } from '@prisma/client'
+import { calcWeaponSkillExp } from '../stats/stats.formulas'
 import { BalanceConfig } from '../../config/balance.config'
 import { clamp } from '../../shared/utils/clamp'
 import { randomFloat } from '../../shared/utils/random'
@@ -374,4 +375,33 @@ export function resolveZonalAttack(
   finalDamage = Math.max(1, Math.round(dmg * (defender.incomingDamageMultiplier ?? 1)))
   log.push(`Удар в ${zoneName}: ${finalDamage}`)
   return base()
+}
+
+
+/**
+ * Опыт оружия по типам, которыми боец бил в этом бою.
+ *
+ * Жила в battles.service и была доступна только дуэли и бою с ботом.
+ * Командный бой — а значит и бой за район — не начислял опыт оружия вовсе:
+ * главное содержание Этапа 4 не качало навык. Здесь функция пуста от
+ * зависимостей и годится обоим.
+ */
+export function weaponExpByType(
+  part: { weaponDamage?: Partial<Record<PrismaWeaponType, number>>; damageDealt: number },
+  fallbackWeaponType: PrismaWeaponType | null | undefined,
+  targetHpMax: number,
+  won: boolean,
+  levelDiff: number,
+  premiumMultiplier = 1,
+): Array<{ weaponType: PrismaWeaponType; exp: number }> {
+  const tracked = Object.entries(part.weaponDamage ?? {}) as Array<[PrismaWeaponType, number]>
+  const entries: Array<[PrismaWeaponType, number]> = tracked.length > 0
+    ? tracked
+    : [[fallbackWeaponType ?? 'MELEE', part.damageDealt]]
+  return entries
+    .map(([weaponType, damage]) => ({
+      weaponType,
+      exp: calcWeaponSkillExp(damage, targetHpMax, won ? 1 : 0, levelDiff, 1.0, premiumMultiplier),
+    }))
+    .filter(entry => entry.exp > 0)
 }

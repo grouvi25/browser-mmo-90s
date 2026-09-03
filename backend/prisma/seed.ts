@@ -2,8 +2,9 @@
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, PRIVATE_SHOP_RESOURCES } from './economy-data'
+import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PRIVATE_SHOP_RESOURCES } from './economy-data'
 import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
+import { isGrantImplemented } from '../src/modules/premium/premium.service'
 
 const prisma = new PrismaClient()
 
@@ -268,7 +269,8 @@ async function main() {
     const requiredProfessionLevel = Math.min(requiredProductionLevel, 3)
     const purchasePrice = purchasePrices[code] ?? null
     const isForSale = purchasePrice !== null
-    await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,purchasePrice,isForSale,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,purchasePrice,isForSale}})
+    const locationId = OBJECT_DISTRICTS[code] ?? null
+    await prisma.productionObject.upsert({where:{code},update:{name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,purchasePrice,isForSale,locationId,isActive:true,status:'ACTIVE'},create:{code,name,type,requiredProductionLevel,requiredProfessionCode,requiredProfessionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward,purchasePrice,isForSale,locationId}})
   }
   for (const recipeData of PRODUCTION_RECIPES) {
     const { inputs, ...recipe } = recipeData
@@ -313,6 +315,53 @@ async function main() {
   }
   console.log(`  Production objects: ${productionObjects.length}; equipment: ${Object.keys(equipmentByObject).length}`)
 
+  // ── Территории Этапа 4 ───────────────────────────────────────
+  // Сеются ПОСЛЕ объектов: связь идёт от объекта к району через
+  // locationId, и проверка «в районе есть объекты» должна работать
+  // сразу после первого прогона.
+  //
+  // update трогает только имя и бонус. Владелец, статус, долг, защита
+  // и время захвата — игровое состояние: повторный сид на боевой базе
+  // не имеет права его сбросить.
+  for (const { code, name, bonusCode, bonusValue } of TERRITORIES) {
+    await prisma.territory.upsert({
+      where: { code },
+      update: { name, bonusCode, bonusValue },
+      create: { code, name, bonusCode, bonusValue },
+    })
+  }
+  console.log(`  Territories: ${TERRITORIES.length}`)
+
+  // Право WAR существующим ролям: добавляется, ничего не отбирая.
+  // Клан, где главарь уже перенастроил роли под себя, не должен получить
+  // сюрприз при выкате, поэтому правим только те роли, где права нет.
+  const warRoles = await prisma.clanRole.findMany({ where: { code: { in: ['boss', 'brigadier'] } } })
+  let warGranted = 0
+  for (const role of warRoles) {
+    const current = Array.isArray(role.permissions)
+      ? role.permissions.filter((v): v is string => typeof v === 'string')
+      : []
+    if (current.includes('WAR')) continue
+    await prisma.clanRole.update({ where: { id: role.id }, data: { permissions: [...current, 'WAR'] } })
+    warGranted += 1
+  }
+  if (warGranted > 0) console.log(`  Clan roles granted WAR: ${warGranted}`)
+
+  // Премиум-витрина. update не трогает историю покупок: цена в каталоге
+  // меняется, а PremiumPurchase хранит её копией на момент сделки.
+  for (const p of PREMIUM_PRODUCTS) {
+    // Товар с нереализованным эффектом заводится, но выключен: витрина
+    // показывает только то, что действительно работает. Долг Этапа 4,
+    // закрывается шагом G0 Этапа 5.
+    const active = isGrantImplemented(p.grantCode)
+    await prisma.premiumProduct.upsert({
+      where: { code: p.code },
+      update: { name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: active },
+      create: { code: p.code, name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: active },
+    })
+  }
+  console.log(`  Premium products: ${PREMIUM_PRODUCTS.length}`)
+
 
   for (const [code, name, basePrice, weight] of BAR_RESOURCES) {
     await prisma.resourceTemplate.upsert({
@@ -322,8 +371,8 @@ async function main() {
   }
   const bar = await prisma.productionObject.upsert({
     where: { code: 'obj_bar_station' },
-    update: { name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, isActive: true },
-    create: { code: 'obj_bar_station', name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000 },
+    update: { name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, locationId: OBJECT_DISTRICTS.obj_bar_station, isActive: true },
+    create: { code: 'obj_bar_station', name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, locationId: OBJECT_DISTRICTS.obj_bar_station },
   })
   let firstBarRecipeId: string | null = null
   for (const row of BAR_RECIPES) {

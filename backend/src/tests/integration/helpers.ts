@@ -14,6 +14,10 @@ export async function cleanDatabase(): Promise<void> {
   await testPrisma.$transaction([
     testPrisma.idempotencyKey.deleteMany(),
     testPrisma.resourceLog.deleteMany(),
+    // Территории ссылаются на клан: удалять их надо раньше кланов.
+    // Связь стоит SET NULL, но чистим полностью — сид-данные Этапа 4
+    // не должны перетекать между тестами вместе с владельцем и долгом.
+    testPrisma.territory.deleteMany(),
     testPrisma.clanRelation.deleteMany(),
     testPrisma.clanInvite.deleteMany(),
     testPrisma.clanTreasuryLog.deleteMany(),

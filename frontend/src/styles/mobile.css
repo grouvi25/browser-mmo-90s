@@ -121,9 +121,14 @@
   background: none; border: 0; font-family: var(--font-ui); font-size: 13px; color: var(--red);
 }
 
-/* ── карточка персонажа в шторке ────────────────────────────── */
+/* ── вырезы из сцены главного экрана ────────────────────────────
+   Не только мобильные: тем же окном боевой экран берёт карточку
+   персонажа и полосу верхнего меню. Файл грузится глобально, так
+   что правила действуют на любой ширине. */
 .card-cutout { position: relative; overflow: hidden; margin: 0 auto; }
 .card-cutout__inner { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.nav-cutout { position: relative; overflow: hidden; }
+.nav-cutout__inner { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 
 /* ── меню «ещё» ─────────────────────────────────────────────── */
 .m-menu { display: grid; gap: 6px; }

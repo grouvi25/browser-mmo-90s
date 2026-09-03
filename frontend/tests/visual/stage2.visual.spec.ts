@@ -167,6 +167,17 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.locator('form')).toBeVisible()
   })
 
+  // Коды районов — единственная связь карты города с территориями Этапа 4:
+  // бэкенд пишет их в ProductionObject.locationId и по ним же считает, чей
+  // район и кого можно атаковать. Связь держится на совпадении строк, поэтому
+  // список закреплён с обеих сторон: тут и в backend/src/tests/unit/districts.
+  // Переименовали район здесь — упадёт этот тест, а не территории на проде.
+  test('district codes stay the six the backend pins territories to', async () => {
+    expect(MENU.districts.map(district => district.key)).toEqual([
+      'center', 'market', 'industrial', 'station', 'garages', 'suburb',
+    ])
+  })
+
   test('illustrated navigation labels stay centred in their frames', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Illustrated stage navigation is desktop-only')
     await authPage(page, seller)

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Factory, Wrench, PackageOpen, Play, Banknote, Repeat } from 'lucide-react'
+import { Factory, Wrench, PackageOpen, Play, Banknote, Repeat, Users } from 'lucide-react'
 import { productionApi, type ProductionObject, type StartCycleResult } from '../../shared/api/production.api'
 import { fmt, remaining, timer, Skeleton, Fault, Empty, Note } from './stage3-ui'
+import { objectWarApi } from '../../shared/api/strategy.api'
 
 /** Причина простоя — словами, а не кодом: требование к интерфейсу этапа. */
 const FAILURE_TEXT: Record<string, string> = {
@@ -46,6 +47,16 @@ export function ObjectsSection() {
   const buy = useMutation({ mutationFn: productionApi.buy, onSuccess: () => done('Объект куплен'), onError: fail })
   const sell = useMutation({ mutationFn: productionApi.sell, onSuccess: () => done('Объект продан государству'), onError: fail })
   const repair = useMutation({ mutationFn: productionApi.repair, onSuccess: () => done('Объект отремонтирован'), onError: fail })
+  // Этап 4: перевод объекта в бригаду. Операция НЕОБРАТИМА, поэтому
+  // подтверждение показывает, что именно уедет в общак, а не спрашивает
+  // «вы уверены?» в пустоту.
+  const transfer = useMutation({
+    mutationFn: objectWarApi.transferToClan,
+    onSuccess: result => done(
+      `Объект передан бригаде. В общак ушло ${fmt(result.balanceMoved)} ₽.`,
+    ),
+    onError: fail,
+  })
   const start = useMutation({
     mutationFn: productionApi.startCycle,
     onSuccess: (result: StartCycleResult) => {
@@ -61,7 +72,7 @@ export function ObjectsSection() {
   if (query.isError) return <Fault retry={() => query.refetch()} />
 
   const items = query.data?.items ?? []
-  const busy = buy.isPending || sell.isPending || repair.isPending || start.isPending
+  const busy = buy.isPending || sell.isPending || repair.isPending || start.isPending || transfer.isPending
 
   return (
     <>
@@ -94,6 +105,7 @@ export function ObjectsSection() {
               onBuy={() => buy.mutate(object.id)}
               onSell={() => sell.mutate(object.id)}
               onRepair={() => repair.mutate(object.id)}
+              onTransfer={() => transfer.mutate(object.id)}
               onStart={() => start.mutate(object.id)}
               onDone={done}
               onFail={fail}
@@ -105,7 +117,7 @@ export function ObjectsSection() {
   )
 }
 
-function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepair, onStart, onDone, onFail }: {
+function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepair, onTransfer, onStart, onDone, onFail }: {
   object: ProductionObject
   mode: 'mine' | 'market'
   open: boolean
@@ -114,6 +126,7 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
   onBuy: () => void
   onSell: () => void
   onRepair: () => void
+  onTransfer: () => void
   onStart: () => void
   onDone: (text: string) => void
   onFail: (e: Error) => void
@@ -170,18 +183,19 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
       </div>
 
       {open && mode === 'mine' && (
-        <ObjectControls object={object} busy={busy} onRepair={onRepair} onSell={onSell} onDone={onDone} onFail={onFail} />
+        <ObjectControls object={object} busy={busy} onRepair={onRepair} onTransfer={onTransfer} onSell={onSell} onDone={onDone} onFail={onFail} />
       )}
     </article>
   )
 }
 
 /** Управление объектом: деньги, ставка, ремонт, смена профиля, продажа. */
-function ObjectControls({ object, busy, onRepair, onSell, onDone, onFail }: {
+function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, onFail }: {
   object: ProductionObject
   busy: boolean
   onRepair: () => void
   onSell: () => void
+  onTransfer: () => void
   onDone: (text: string) => void
   onFail: (e: Error) => void
 }) {
@@ -242,7 +256,69 @@ function ObjectControls({ object, busy, onRepair, onSell, onDone, onFail }: {
         >
           Продать за {fmt(Math.floor((object.purchasePrice ?? 0) * 0.5))} ₽
         </button>
+        <TransferToClan object={object} busy={busy} onTransfer={onTransfer} />
       </fieldset>
     </div>
+  )
+}
+
+
+/** Почему передать нельзя — словами, как и везде в стратегическом слое. */
+const TRANSFER_BLOCKED: Record<string, (d: { clanObjectLimit: number }) => string> = {
+  NO_CLAN: () => 'Передать объект можно только своей бригаде — вступите в неё или создайте свою.',
+  NOT_OWNER: () => 'Это не ваш личный объект.',
+  DAMAGED: () => 'Повреждённый объект передать нельзя — сначала восстановите.',
+  NO_PERMISSION: () => 'Нужно право «Объекты» в бригаде.',
+  LIMIT_REACHED: d => `У бригады предел объектов: ${d.clanObjectLimit}. Он растёт от числа районов.`,
+}
+
+/**
+ * Перевод объекта в бригаду — Этап 4.
+ *
+ * Операция необратима, поэтому кнопка сначала спрашивает сервер, что
+ * именно произойдёт, и показывает это: сколько уедет в общак и не упрётся
+ * ли бригада в свой предел объектов. Диалог «вы уверены?» без цифр не
+ * даёт человеку ничего, кроме страха нажать.
+ */
+function TransferToClan({
+  object, busy, onTransfer,
+}: {
+  object: ProductionObject
+  busy: boolean
+  onTransfer: () => void
+}) {
+  const preview = useQuery({
+    queryKey: ['object-transfer', object.id],
+    queryFn: () => objectWarApi.transferPreview(object.id),
+    // Спрашиваем только для своих: у чужого объекта предпросмотр вернёт 403.
+    enabled: object.ownerType === 'PRIVATE',
+    retry: false,
+  })
+  const data = preview.data
+  if (!data) return null
+
+  const confirm = () => {
+    const text = [
+      `Передать «${data.objectName}» бригаде?`,
+      '',
+      `В общак уйдёт ${fmt(data.balanceMovedToTreasury)} ₽ с баланса объекта.`,
+      `У бригады станет ${data.clanObjects + 1} объектов из ${data.clanObjectLimit}.`,
+      '',
+      'Вернуть объект в личную собственность будет НЕЛЬЗЯ.',
+    ].join(String.fromCharCode(10))
+    if (window.confirm(text)) onTransfer()
+  }
+
+  return (
+    <>
+      <button onClick={confirm} disabled={busy || !data.canTransfer}>
+        <Users size={15} /> Передать бригаде
+      </button>
+      {!data.canTransfer && (
+        <small>
+          {TRANSFER_BLOCKED[data.blockedReason ?? 'NOT_OWNER'](data)}
+        </small>
+      )}
+    </>
   )
 }

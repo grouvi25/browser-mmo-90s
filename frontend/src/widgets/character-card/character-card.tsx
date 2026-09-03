@@ -2,6 +2,13 @@
 // Левая карточка «личное дело» на главном экране.
 // Всё кликабельно: вкладки, портрет, слоты снаряжения и зоны тела.
 // Данные — настоящие, из /api/characters/me и /api/inventory.
+//
+// Второй режим — чужой профиль. Карточке отдают готовые данные
+// (`profile`), и она перестаёт ходить в свои запросы: так тот же
+// рисунок на псд-бумаге показывает противника на экране боя, а не
+// только владельца аккаунта. В этом режиме карточка только
+// показывает: вкладок, переходов и выбора зон нет, потому что о
+// чужом персонаже мы знаем лишь то, что отдаёт боевой профиль.
 // =============================================================
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -41,21 +48,40 @@ function weaponSprite(item: ItemInstance | undefined): string {
 /** Строк снаряжения помещается в бумагу карточки; остальное — ссылкой. */
 const GEAR_ROWS = 5
 
-export function CharacterCard() {
+/** Чужой профиль: ровно то, что о бойце известно боевому экрану. */
+export interface CardProfile {
+  nickname: string
+  level: number
+  hp: number
+  hpMax: number
+  avatar?: string | null
+  weaponName?: string | null
+  weaponCode?: string | null
+  weaponType?: string | null
+  offhandName?: string | null
+  offhandCode?: string | null
+}
+
+export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
   const navigate = useNavigate()
   const [tab, setTab] = useState<CardTab>('overview')
   const [zone, setZone] = useState<ZoneKey | null>(null)
+  // Чужая карточка не ходит в наши запросы: иначе она показала бы
+  // владельца аккаунта под чужим именем.
+  const own = !profile
 
   const { data: char } = useQuery({
     queryKey: ['character', 'me'],
     queryFn: () => charactersApi.getMe(),
     retry: false,
     refetchInterval: 30_000,
+    enabled: own,
   })
   const { data: items } = useQuery({
     queryKey: ['inventory'],
     queryFn: () => inventoryApi.getItems(),
     retry: false,
+    enabled: own,
   })
 
   const equipped = useMemo(
@@ -79,13 +105,17 @@ export function CharacterCard() {
     && i.armorSlot !== 'RIGHT_HAND')
   const offhand = equipped.find(i => i.armorSlot === 'RIGHT_HAND')
 
-  const hp = char?.hpCurrent ?? 0
-  const energy = char?.battleLevel ?? 0
+  const hp = profile?.hp ?? char?.hpCurrent ?? 0
+  const energy = profile?.level ?? char?.battleLevel ?? 0
+  const nickname = profile?.nickname ?? char?.nickname ?? '—'
+  const hpMax = profile?.hpMax ?? char?.hpMax
 
   return (
     <>
       {/* ── вкладки карточки ─────────────────────────────── */}
-      {C.tabs.map(t => (
+      {/* У чужой карточки вкладок нет: «Надето» и «Личное дело»
+          показывать нечем — боевой профиль этих данных не отдаёт. */}
+      {own && C.tabs.map(t => (
         <SpriteButton
           key={t.key}
           name={t.sprite}
@@ -99,10 +129,14 @@ export function CharacterCard() {
       {/* ── портрет ──────────────────────────────────────── */}
       <SpriteButton
         name="portrait"
+        src={profile?.avatar ?? undefined}
         box={C.portrait}
         className="portrait-hot"
-        title={char ? `${char.nickname} — открыть личное дело` : 'Личное дело'}
-        onClick={() => navigate('/profile')}
+        disabled={!own}
+        title={own
+          ? (char ? `${char.nickname} — открыть личное дело` : 'Личное дело')
+          : nickname}
+        onClick={own ? () => navigate('/profile') : undefined}
       />
 
       {/* ── показатели поверх портрета ───────────────────── */}
@@ -120,50 +154,64 @@ export function CharacterCard() {
       <FitText
         x={C.hpText.x} y={C.hpText.y} w={C.hpText.w}
         size={20.8} className="stat-num stat-num--hp"
-        title={char ? `Здоровье: ${hp} из ${char.hpMax}` : 'Здоровье'}
+        title={hpMax != null ? `Здоровье: ${hp} из ${hpMax}` : 'Здоровье'}
       >
         {hp}
       </FitText>
 
-      {/* Этап 3: градус рядом с ХП — сам прячется, пока персонаж трезв. */}
-      <IntoxicationBadge />
+      {/* Этап 3: градус рядом с ХП — сам прячется, пока персонаж трезв.
+          У чужой карточки его нет: градус читается только у себя. */}
+      {own && <IntoxicationBadge />}
 
       {/* ── ник ──────────────────────────────────────────── */}
       <FitText
         x={C.nickname.x} y={C.nickname.y} w={C.nickname.w}
         size={C.nickname.size} className="nick-badge"
-        title="Открыть личное дело"
-        as="button"
-        onClick={() => navigate('/profile')}
+        title={own ? 'Открыть личное дело' : nickname}
+        as={own ? 'button' : 'div'}
+        onClick={own ? () => navigate('/profile') : undefined}
       >
-        {char?.nickname ?? '—'}
+        {nickname}
       </FitText>
 
       {/* ── тело карточки: зависит от выбранной вкладки ──── */}
-      {tab === 'overview' && (
+      {(!own || tab === 'overview') && (
         <>
           {/* рамки слотов: вырезаны из подложки, поэтому рисуем их сами
               и только здесь — на других вкладках карточка остаётся чистой */}
           {C.slots.map(s => <Sprite key={s.key} name={`slot-frame-${s.key}`} box={s.frame} />)}
 
           <SpriteButton
-            name={weaponSprite(weapon)}
-            src={weapon ? itemImage(weapon.template.code, weapon.template.weaponType) : undefined}
+            name={own ? weaponSprite(weapon) : 'item-ak'}
+            src={own
+              ? (weapon ? itemImage(weapon.template.code, weapon.template.weaponType) : undefined)
+              : (profile?.weaponCode
+                ? itemImage(profile.weaponCode, profile.weaponType ?? undefined, 'WEAPON') ?? undefined
+                : undefined)}
             box={C.slots[0].box}
-            empty={!weapon}
-            title={weapon
-              ? `${weapon.template.name} · прочность ${weapon.durabilityCurrent}/${weapon.durabilityMax}`
-              : 'Оружие не надето — открыть снаряжение'}
-            onClick={() => navigate('/inventory')}
+            empty={own ? !weapon : !profile?.weaponCode}
+            disabled={!own}
+            title={own
+              ? (weapon
+                ? `${weapon.template.name} · прочность ${weapon.durabilityCurrent}/${weapon.durabilityMax}`
+                : 'Оружие не надето — открыть снаряжение')
+              : `Левая рука: ${profile?.weaponName || 'кулак'}`}
+            onClick={own ? () => navigate('/inventory') : undefined}
           />
           <SpriteButton
             name="item-bat"
+            src={!own && profile?.offhandCode
+              ? itemImage(profile.offhandCode, undefined, 'WEAPON') ?? undefined
+              : undefined}
             box={C.slots[1].box}
-            empty={!offhand}
-            title={offhand
-              ? `${offhand.template.name} · прочность ${offhand.durabilityCurrent}/${offhand.durabilityMax}`
-              : 'Правая рука свободна — открыть снаряжение'}
-            onClick={() => navigate('/inventory')}
+            empty={own ? !offhand : !profile?.offhandCode}
+            disabled={!own}
+            title={own
+              ? (offhand
+                ? `${offhand.template.name} · прочность ${offhand.durabilityCurrent}/${offhand.durabilityMax}`
+                : 'Правая рука свободна — открыть снаряжение')
+              : `Правая рука: ${profile?.offhandName || 'кулак'}`}
+            onClick={own ? () => navigate('/inventory') : undefined}
           />
           <SpriteButton
             name="item-dog"
@@ -182,9 +230,12 @@ export function CharacterCard() {
                 name={z.sprite}
                 box={z.box}
                 className="zone-hot"
-                active={zone === key}
-                title={`${z.label} · броня ${armor}`}
-                onClick={() => setZone(zone === key ? null : key)}
+                active={own && zone === key}
+                disabled={!own}
+                // Броня чужого бойца нам неизвестна: боевой профиль
+                // отдаёт оружие и характеристики, но не зональную защиту.
+                title={own ? `${z.label} · броня ${armor}` : z.label}
+                onClick={own ? () => setZone(zone === key ? null : key) : undefined}
               />
             )
           })}

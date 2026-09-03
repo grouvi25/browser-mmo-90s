@@ -67,6 +67,11 @@ jobs:
           npx tsx ../scripts/check-economy-reachability.ts
           --json ../docs/stage2-economy-reachability.json
           --text ../docs/stage2-economy-reachability.txt
+      - name: Run territory war simulation
+        working-directory: backend
+        run: >-
+          npx tsx ../scripts/simulate-war.ts --days 30 --seed 40404
+          --json ../docs/stage4-war-report.json --quiet
       - name: Run zonal balance simulation
         working-directory: backend
         run: npx tsx ../scripts/simulate-balance.ts --zonal | tee ../docs/stage2-balance-report.txt
@@ -206,6 +211,10 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npx prisma db push --force-reset --accept-data-loss
+      # db push строит схему по schema.prisma, а частичные уникальные индексы
+      # Prisma объявлять не умеет. Без этого шага в CI не было уникальности
+      # заявки на район — и тест ловил это как «вторая заявка прошла».
+      - run: npx tsx prisma/apply-raw-indexes.ts
       - run: npx tsx prisma/seed.ts
       - run: npx vitest run --config vitest.integration.config.ts --reporter=verbose
 
@@ -258,6 +267,10 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npx prisma db push --force-reset --accept-data-loss
+      # db push строит схему по schema.prisma, а частичные уникальные индексы
+      # Prisma объявлять не умеет. Без этого шага в CI не было уникальности
+      # заявки на район — и тест ловил это как «вторая заявка прошла».
+      - run: npx tsx prisma/apply-raw-indexes.ts
       - run: npx tsx prisma/seed.ts
       - name: Build backend
         run: npx tsc -p tsconfig.build.json
