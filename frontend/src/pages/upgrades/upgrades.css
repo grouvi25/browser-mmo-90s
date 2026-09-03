@@ -132,6 +132,9 @@
   line-height: 1.2;
 }
 .upg .upg-slot__box.is-empty { color: #cbc2c8; }
+/* Закрытый слот: рамка макета на месте, но внутрь класть нечего. */
+.upg .upg-slot__box.is-locked { opacity: .55; cursor: help; }
+.upg .upg-slot__box.is-locked .upg-slot__mark { font-size: 9px; color: #d8d0d4; }
 /* Два класса: иначе побеждает общее «.viewport__content select» и
    выбор уходит в бежевый инпут со своей рамкой. */
 .upg .upg-slot__pick {

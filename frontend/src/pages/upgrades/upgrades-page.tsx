@@ -83,7 +83,7 @@ export function UpgradesPage() {
   const status: string[] = []
   if (items.data?.length === 0) status.push('У вас нет вещей для улучшения.')
   else if (!itemId) status.push('Вещь не выбрана.')
-  if (p) status.push(`Шанс успеха: ${Math.round(p.chance * 100)}%.`)
+  if (p) status.push(`Станет: +${p.nextTotalLevel}. Шанс успеха: ${Math.round(p.chance * 100)}%.`)
   if (lacking.length > 0) status.push(`Не хватает деталей: ${lacking.map(r => r.resourceName).join(', ')}.`)
   if (p && !enoughMoney) status.push('Не хватает денег.')
   status.push('При неудаче деньги и детали спишутся.')
@@ -186,10 +186,15 @@ export function UpgradesPage() {
             </span>
           </label>
 
+          {/* Третий слот макета — «Огранка». Огранки в игре нет ни как
+              предмета, ни как механики, поэтому слот стоит на своём
+              месте закрытым — так же, как закрыты соседние разделы.
+              Итог улучшения ушёл в строки состояния под панелью. */}
           <div className="upg-slot">
-            <span>Результат</span>
-            <span className={'upg-slot__box' + (p ? '' : ' is-empty')}>
-              <output className="upg-slot__mark">{p ? `+${p.nextTotalLevel}` : '—'}</output>
+            <span>Огранка</span>
+            <span className="upg-slot__box is-locked" title="Огранка появится позже">
+              <img src={SPRITES['gem-cut']} alt="" draggable={false} />
+              <span className="upg-slot__mark">закрыто</span>
             </span>
           </div>
         </div>
