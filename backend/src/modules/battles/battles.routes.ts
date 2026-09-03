@@ -18,6 +18,16 @@ const ActionSchema = z.object({
   attackZones: z.array(ZoneEnum).max(2).optional(),
   attackHands: z.array(z.enum(['LEFT_HAND', 'RIGHT_HAND'])).max(2).optional(),
   blockZones: z.array(ZoneEnum).max(4).optional(),
+  // Этап 4: переодевание в бою. Часть обычного хода, а не отдельное
+  // действие: цена снимается с бюджета хода в normalizeTurn.
+  swapWeapon: z.object({
+    hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']),
+    itemInstanceId: z.string().uuid(),
+  }).optional(),
+  swapArmor: z.object({
+    zone: ZoneEnum,
+    itemInstanceId: z.string().uuid(),
+  }).optional(),
 })
 const AcceptDuelSchema = z.object({ battleId: z.string().uuid() })
 const TeamCreateSchema = z.object({ perSide: z.number().int().min(1).max(10) })
@@ -128,6 +138,8 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
           attackZones: parsed.data.attackZones,
           attackHands: parsed.data.attackHands,
           blockZones: parsed.data.blockZones,
+          swapWeapon: parsed.data.swapWeapon,
+          swapArmor: parsed.data.swapArmor,
           moveTo: parsed.data.moveTo,
           targetParticipantId: parsed.data.targetParticipantId,
         }

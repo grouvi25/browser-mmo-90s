@@ -500,6 +500,54 @@ function assertIntoxicationAllowsBattle(character: Pick<CharacterWithStats, 'alc
   if (!state.canBattle) throw new AppError(ErrorCode.BAR_TOO_DRUNK, 'Character is too drunk to fight', 409)
 }
 
+/**
+ * Переодевание в бою — шаг F7 Этапа 4.
+ *
+ * Применяется ДО загрузки оружия и брони раунда: снаряжение меняют, чтобы
+ * оно подействовало в этом же ходу, иначе смена оружия стоила бы очко и не
+ * давала ничего до следующего раунда.
+ *
+ * Цена уже снята бюджетом в normalizeTurn: здесь только сама подмена.
+ */
+async function applyTurnSwaps(
+  characterId: string,
+  part: LiveParticipant,
+  turn: ZonalTurnInput,
+): Promise<string[]> {
+  const notes: string[] = []
+
+  if (turn.swapWeapon) {
+    const item = await ItemsRepository.findInstanceById(turn.swapWeapon.itemInstanceId)
+    if (!item || item.ownerId !== characterId || item.template.type !== 'WEAPON') {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Оружие недоступно', 400)
+    }
+    await ItemsRepository.equip(item.id, turn.swapWeapon.hand)
+    if (turn.swapWeapon.hand === 'LEFT_HAND') {
+      if (part.rightWeaponInstanceId === item.id) part.rightWeaponInstanceId = undefined
+      part.leftWeaponInstanceId = item.id
+      part.weaponInstanceId = item.id
+    } else {
+      if (part.leftWeaponInstanceId === item.id || part.weaponInstanceId === item.id) {
+        part.leftWeaponInstanceId = undefined
+        part.weaponInstanceId = undefined
+      }
+      part.rightWeaponInstanceId = item.id
+    }
+    notes.push(`Сменил оружие: ${item.template.name}`)
+  }
+
+  if (turn.swapArmor) {
+    const item = await ItemsRepository.findInstanceById(turn.swapArmor.itemInstanceId)
+    if (!item || item.ownerId !== characterId || item.template.type !== 'ARMOR' || !item.template.armorSlot) {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Броня недоступна', 400)
+    }
+    await ItemsRepository.equip(item.id, item.template.armorSlot)
+    notes.push(`Сменил броню: ${item.template.name}`)
+  }
+
+  return notes
+}
+
 export const BattleService = {
   // -------------------------------------------------------
   // Start PvE
@@ -1030,6 +1078,9 @@ export const BattleService = {
       blockZones?: string[]
       moveTo?: GridPosition
       targetParticipantId?: string
+      /** Этап 4: переодевание в бою, часть обычного хода. */
+      swapWeapon?: { hand: AttackHand; itemInstanceId: string }
+      swapArmor?: { zone: BodyZone; itemInstanceId: string }
     } | string,
     legacyTargetItemId?: string
   ) {
@@ -1204,6 +1255,8 @@ export const BattleService = {
             attackZones: (payload.attackZones ?? []) as BodyZone[],
             attackHands: (payload.attackHands ?? []) as AttackHand[],
             blockZones: (payload.blockZones ?? []) as BodyZone[],
+            swapWeapon: payload.swapWeapon,
+            swapArmor: payload.swapArmor,
             moveTo: payload.moveTo,
             targetParticipantId: payload.targetParticipantId,
           })
@@ -1471,6 +1524,10 @@ export const BattleService = {
       throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid battle target', 400)
     }
     if (!botPart.botId) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'PvE target must be a bot', 400)
+    // Переодевание применяется первым: подмена должна подействовать в
+    // этом же ходу, её цена уже снята бюджетом.
+    const swapNotes = await applyTurnSwaps(char.id, playerPart, playerTurn)
+
     const bot = await loadBotData(botPart.botId!)
     const botStats = bot.stats as Record<string, number>
     const botEquip = bot.equipment as Record<string, unknown>
@@ -1606,6 +1663,14 @@ export const BattleService = {
       if (doPlayerStrike && playerHp > 0 && botHp > 0) playerStrike()
     }
 
+    // Переодевание попадает в журнал первым событием раунда: игрок должен
+    // видеть, за что он отдал очко хода.
+    const swapEvents = swapNotes.map(note => ({
+      actor: 'player', action: 'change_weapon', hit: false, dodge: false, block: false,
+      crit: false, lucky: false, blockPierced: false,
+      rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [note],
+    }))
+
     // Применяем сближение (дистанция уменьшается за каждого, кто двигался)
     const moveEvents = [
       ...(playerMoved ? [{ actor: 'player', action: 'move', to: playerPart.position, hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [`Перемещение в (${playerPart.position.x}, ${playerPart.position.y})`] }] : []),
@@ -1671,7 +1736,8 @@ export const BattleService = {
       botBlockZones: botTurn.blockZones,
       distance: state.distance,
       playerRange,
-      turns: [...moveEvents, ...turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r }))],
+      turns: [...swapEvents,
+      ...moveEvents, ...turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r }))],
       playerHp,
       botHp,
       battleOver: false,
@@ -2240,7 +2306,8 @@ export const BattleService = {
     return {
       roundNumber,
       distance: state.distance,
-      turns: [...moveEvents, ...roundTurns.map(t => ({ actor: t.actorPart.characterId, action: 'attack', ...t.r }))],
+      turns: [
+      ...moveEvents, ...roundTurns.map(t => ({ actor: t.actorPart.characterId, action: 'attack', ...t.r }))],
       player1Hp: hp1,
       player2Hp: hp2,
       battleOver: false,
