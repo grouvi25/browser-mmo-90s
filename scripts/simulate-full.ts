@@ -27,7 +27,8 @@ import { CLAN_MAINTENANCE_DAILY } from '../backend/src/modules/clans/clans.formu
 import { CROPS } from '../backend/src/modules/farm/farm.formulas'
 import { laborFromShift } from '../backend/src/modules/production/cycle.formulas'
 import { PRODUCTION_OBJECTS, PRODUCTION_RECIPES, RESOURCES } from '../backend/prisma/economy-data'
-import { BAR_RESOURCES } from '../backend/prisma/bar-data'
+import { BAR_RESOURCES, BAR_RECIPES, BAR_OFFERS } from '../backend/prisma/bar-data'
+import { barPriceRange, barSaleSplit } from '../backend/src/modules/bars/bars.formulas'
 
 // ── Аргументы ────────────────────────────────────────────────
 const args = process.argv.slice(2)
@@ -227,34 +228,85 @@ function recipeMargin(recipe: (typeof RECIPES)[number]): number {
   return outputPrice(recipe) * recipe.outputAmount - recipeInputCost(recipe)
 }
 
-/** Доход фермы за час внимания: посадил, полил, собрал. */
+/**
+ * Доход фермы за час внимания: посадил, полил, собрал.
+ *
+ * Два факта, на которых стояла прежняя версия этой функции, оказались
+ * неверны (проверено по коду, 04.09.2026):
+ *
+ * 1. «Шесть грядок — по числу свободных слотов у новичка». Неправда:
+ *    `plotPrice()` в `farm.formulas.ts` даёт бесплатным только первый
+ *    слот, второй и третий стоят 1500 ₽ каждый, дальше дороже. У
+ *    новичка ровно ОДНА грядка. Сам расчётный пример в
+ *    `STAGE3_BALANCE.md` 3.4 тоже считает на одном цикле, не на шести
+ *    грядках сразу — предположение «шесть» было придумано прямо здесь.
+ * 2. Половина урожая продавалась «по рынку», но по БАЗОВОЙ цене, а не
+ *    по рыночной (`price`, без `MARKET_MULTIPLIER`) — несогласованно с
+ *    тем, как рынок оценивается везде в этом файле (`outputPrice`).
+ *
+ * Фикс не переносится: цель 60–80% в `STAGE3_BALANCE.md` 3.4 сама
+ * скалькулирована на базовой цене овощей 12 ₽ — а в реальном сиде
+ * (`economy-data.ts`) она всегда была 25 ₽, git-история подтверждает,
+ * что 12 никогда не было в коде. То есть коридор изначально обоснован
+ * числом, которого не было в игре. Честный расчёт (одна грядка,
+ * рыночная цена) даёт то, что даёт — смотри итог прогона, коридор не
+ * подгонялся под него.
+ */
 function farmerHour() {
-  // Картошка: 45 минут роста, 3–5 единиц по 25 ₽, семена 45 ₽.
   const crop = CROPS.potato
   const yieldAvg = (crop.yieldMin + crop.yieldMax) / 2
   const price = resourcePrice.get(crop.resourceCode) ?? 0
-  // За час внимания игрок обслуживает несколько грядок: время уходит на
-  // клики, а не на ожидание. Берём шесть — по числу свободных слотов у
-  // новичка, иначе получилось бы, что ферма кормит одной грядкой.
-  const plots = 6
+  const plots = 1
   const gross = yieldAvg * price * plots
   const seeds = crop.seedPrice * plots
-  // Госскупка: ресурсы продаются государству за четверть цены, если нет
-  // покупателя на рынке. Считаем половину партии по рынку, половину казне.
-  const sold = gross * 0.5 + gross * 0.5 * BalanceConfig.economy.resources.governmentPayoutRate
+  // Госскупка — пол цены, а не канал сбыта (STAGE3_BALANCE 3.4): половина
+  // партии по рыночной цене (с той же наценкой, что и везде в этом файле),
+  // половина — казне по четверти базовой.
+  const sold = gross * 0.5 * MARKET_MULTIPLIER + gross * 0.5 * BalanceConfig.economy.resources.governmentPayoutRate
   return sold - seeds
 }
 
 /** Доход бармена за сутки: наценка на еду и баффы. */
+/**
+ * Доход владельца бара за сутки.
+ *
+ * Прежняя версия считала «7 предложений по 250 ₽, себестоимость 40%» —
+ * ни одно из трёх чисел не совпадает с реальным сидом (проверено
+ * 04.09.2026): предложений девять, а не семь (`BAR_OFFERS`), средняя
+ * `baseCost` — 120 ₽, а не 250, и себестоимость по рецептам не
+ * фиксированные 40%, а своя у каждого напитка. К тому же вычитались
+ * «зарплаты» — расход, которого по В11 у владельца, работающего сам,
+ * не бывает (та же ошибка, что была в `ownerDay`).
+ *
+ * Модель по той же логике, что и `ownerDay`: владелец варит сам, в
+ * пределах собственной смены, лучший по марже рецепт, продаёт по
+ * верхней границе `barPriceRange` (владелец разумно ставит максимум,
+ * раз спрос считается данностью — модель не знает толкучки у стойки).
+ * Налог и доля владельца — `barSaleSplit`, реальная формула бара.
+ */
 function barmanDay() {
-  // Бар продаёт по 7 предложений в сутки со средним чеком 250 ₽ и
-  // себестоимостью 40% — числа из сида баров Этапа 3.
-  const offers = 7
-  const check = 250
-  const cost = 0.4
-  const revenue = offers * check * (1 - cost)
-  const salaries = fullDayIncome('obj_textile').money * 0.5
-  return revenue - salaries
+  const shifts = Math.min(W.dailyShiftLimit, Math.floor(W.dailyShiftMinutes / 60))
+  const labourPerShift = laborFromShift(60, workerEfficiency(1))
+  const laborAvailable = shifts * labourPerShift
+
+  const candidates = BAR_RECIPES.map(recipe => {
+    const offer = BAR_OFFERS.find(o => o.resourceCode === recipe.output)
+    // Итоговый напиток продаётся через стойку (barPriceRange/barSaleSplit,
+    // налог 20%); промежуточное сырьё (спирт, экстракт) уходит как обычный
+    // ресурс — по нему нет отдельной наценки бара.
+    const unitPrice = offer
+      ? barSaleSplit(barPriceRange(offer.baseCost).max).ownerIncome
+      : (resourcePrice.get(recipe.output) ?? 0) * MARKET_MULTIPLIER
+    const inputCost = recipe.inputs.reduce(
+      (sum, input) => sum + (resourcePrice.get(input.resourceCode) ?? 0) * MARKET_MULTIPLIER * input.amount, 0)
+    const marginPerLabor = (recipe.amount * unitPrice - inputCost) / recipe.labor
+    return { recipe, unitPrice, inputCost, marginPerLabor }
+  }).sort((a, b) => b.marginPerLabor - a.marginPerLabor)[0]
+
+  const cycles = Math.floor(laborAvailable / candidates.recipe.labor)
+  const revenue = cycles * candidates.recipe.amount * candidates.unitPrice
+  const inputs = cycles * candidates.inputCost
+  return revenue - inputs
 }
 
 // ── Прогон ───────────────────────────────────────────────────
