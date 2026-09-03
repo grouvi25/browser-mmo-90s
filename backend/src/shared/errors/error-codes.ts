@@ -128,6 +128,9 @@ export enum ErrorCode {
   CLAN_REJOIN_COOLDOWN    = 'CLAN_010',
   CLAN_STORAGE_FULL       = 'CLAN_011',
 
+  // Stage 4 strategy
+  TERRITORY_NOT_FOUND     = 'TERR_001',
+
   // Stage 3 production
   PROD_ALREADY_SOLD       = 'PROD_001',
   PROD_OBJECT_LIMIT       = 'PROD_002',

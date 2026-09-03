@@ -166,6 +166,23 @@ export const OBJECT_DISTRICTS: Record<string, DistrictCode> = {
   obj_sawmill: 'suburb',
 }
 
+/**
+ * Территории Этапа 4 — те же шесть районов, что и `DISTRICT_CODES`.
+ *
+ * Бонус вынесен в данные, а не в код: подбор бонусов — предмет балансировки,
+ * а балансировка не должна требовать выката. `bonusCode` разбирается сервисом
+ * по закрытому списку; неизвестный код — ошибка сида, а не тихо не
+ * применившийся бонус, который нашли бы через неделю после выката.
+ */
+export const TERRITORIES = [
+  { code: 'center', name: 'Центр', bonusCode: 'BATTLE_EXP', bonusValue: 0.10 },
+  { code: 'market', name: 'Рынок', bonusCode: 'MARKET_SHARE', bonusValue: 0.30 },
+  { code: 'industrial', name: 'Промзона', bonusCode: 'CYCLE_SPEED', bonusValue: 0.15 },
+  { code: 'station', name: 'Вокзал', bonusCode: 'STORAGE_CAP', bonusValue: 0.10 },
+  { code: 'garages', name: 'Гаражи', bonusCode: 'REPAIR_COST', bonusValue: 0.20 },
+  { code: 'suburb', name: 'Спальный район', bonusCode: 'UPKEEP_COST', bonusValue: 0.25 },
+] as const satisfies readonly { code: DistrictCode; name: string; bonusCode: string; bonusValue: number }[]
+
 /** Ресурсы, которые лавки продают игроку. Государство ресурсы только скупает. */
 export const PRIVATE_SHOP_RESOURCES = [
   { shopCode: 'kommersant', resourceCode: 'comp_armor_plate', price: 105 },

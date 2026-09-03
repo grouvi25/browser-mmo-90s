@@ -4,6 +4,48 @@
 // =============================================================
 
 export const BalanceConfig = {
+  // ── Этап 4: стратегический слой ──────────────────────────────
+  // Числа и их вывод — docs/specs/stage-4/STAGE4_BALANCE.md.
+  // Здесь только значения: ни одна константа не живёт в коде формул.
+  strategy: {
+    territory: {
+      limit: 2,                    // территорий на клан
+      upkeepTier1: 2000,           // ₽/сутки за первую
+      upkeepTier2: 5000,           // ₽/сутки за вторую — в 2.5 раза дороже
+      upkeepDebtBonusOff: 10000,   // долг: бонус района отключается
+      upkeepDebtRelease: 25000,    // долг: район уходит в NEUTRAL
+      protectionHours: 48,
+      claimWindowHours: 6,
+      claimClanCooldownHours: 24,
+      defenceLockMinutes: 10,
+      neutralClaimHours: 6,
+      claimFee: 10000,             // безвозвратно
+      claimMinRoster: 5,
+      claimMinBattleLevel: 3,
+    },
+    objectAttack: {
+      sabotageDurabilityLoss: 40,
+      robberyShare: 0.20,
+      robberyCap: 8000,
+      robberyMinBalance: 5000,
+      cooldownHours: 72,
+    },
+    authority: {
+      territoryWon: 15,
+      territoryDefended: 20,       // оборона дороже атаки: время выбирал не он
+      cycleCompleted: 1,
+      shiftCompleted: 0.2,         // дробное намеренно: целое округлило бы в ноль
+      territoryHeldDay: 2,
+      claimCost: 20,               // дороже победы: одних побед не хватает
+      sabotageCost: 12,
+      robberyCost: 25,
+    },
+    clanObjects: { base: 2, perTerritory: 2 },
+    premium: { skillMultiplier: 1.5, dailyShiftCap: 16, helperSlots: 2, loadoutSlots: 4 },
+    helper: { efficiency: 0.6, maxCount: 2, skillCap: 3, skillRate: 0.5 },
+    battleSwap: { weaponCostPoints: 1, armorCostTurn: true },
+  },
+
   economy: {
     work: { efficiencyPerProfessionLevel: 0.03, objectLevelStep: 0.25, salaryRandomMin: 0.9, salaryRandomMax: 1.1, salaryCapMultiplier: 3, dailyShiftLimit: 12, dailyShiftMinutes: 360, salaryFatigueStep: 0.20, salaryFatigueFloor: 0.20 },
     resources: { governmentPayoutRate: 0.25, governmentEcoExpRate: 0.01 },

@@ -2,7 +2,7 @@
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, PRIVATE_SHOP_RESOURCES } from './economy-data'
+import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PRIVATE_SHOP_RESOURCES } from './economy-data'
 import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
 
 const prisma = new PrismaClient()
@@ -313,6 +313,23 @@ async function main() {
     })
   }
   console.log(`  Production objects: ${productionObjects.length}; equipment: ${Object.keys(equipmentByObject).length}`)
+
+  // ── Территории Этапа 4 ───────────────────────────────────────
+  // Сеются ПОСЛЕ объектов: связь идёт от объекта к району через
+  // locationId, и проверка «в районе есть объекты» должна работать
+  // сразу после первого прогона.
+  //
+  // update трогает только имя и бонус. Владелец, статус, долг, защита
+  // и время захвата — игровое состояние: повторный сид на боевой базе
+  // не имеет права его сбросить.
+  for (const { code, name, bonusCode, bonusValue } of TERRITORIES) {
+    await prisma.territory.upsert({
+      where: { code },
+      update: { name, bonusCode, bonusValue },
+      create: { code, name, bonusCode, bonusValue },
+    })
+  }
+  console.log(`  Territories: ${TERRITORIES.length}`)
 
 
   for (const [code, name, basePrice, weight] of BAR_RESOURCES) {
