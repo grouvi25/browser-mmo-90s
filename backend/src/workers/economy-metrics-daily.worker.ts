@@ -55,7 +55,10 @@ export async function collectEconomyMetrics(now = new Date()): Promise<EconomyMe
                ORDER BY EXTRACT(EPOCH FROM (pl.created_at - ws.ends_at))
              ) AS median_seconds
         FROM production_logs pl
-        JOIN work_shifts ws ON ws.id = (pl.metadata_json ->> 'shiftId')::uuid
+        -- work_shifts.id — обычный Prisma String (в базе text, не uuid),
+        -- ->> тоже отдаёт text: сравнение с явным ::uuid справа падало
+        -- "оператор не существует: text = uuid" при каждом сборе метрик.
+        JOIN work_shifts ws ON ws.id = (pl.metadata_json ->> 'shiftId')
        WHERE pl.event_type = 'SHIFT_READY'
          AND pl.created_at >= ${start}
          AND pl.created_at < ${end}

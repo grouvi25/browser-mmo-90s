@@ -18,6 +18,8 @@ import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worke
 import { collectEconomyMetrics, startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
 import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
 import { writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 async function startWorker(): Promise<void> {
   logger.info('🔧 Starting MMO 90s BullMQ workers...')
@@ -110,7 +112,11 @@ async function startWorker(): Promise<void> {
   const stopEconomyMetrics = startEconomyMetricsDaily(4)
   logger.info('Economy metrics daily collector scheduled for 04:00 UTC')
 
-  const heartbeatPath = process.env.WORKER_HEARTBEAT_PATH ?? '/tmp/mmo90s-worker-heartbeat'
+  // os.tmpdir() resolves to /tmp on Linux (matches the healthcheck in
+  // docker-compose.prod.yml) and to a real, existing directory on Windows -
+  // a hardcoded '/tmp/...' default crashed the worker outright on local
+  // Windows dev, since C:\tmp doesn't exist there.
+  const heartbeatPath = process.env.WORKER_HEARTBEAT_PATH ?? join(tmpdir(), 'mmo90s-worker-heartbeat')
   const writeHeartbeat = () => writeFileSync(heartbeatPath, new Date().toISOString())
   writeHeartbeat()
   const heartbeatTimer = setInterval(writeHeartbeat, 10_000)
