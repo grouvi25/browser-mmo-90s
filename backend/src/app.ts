@@ -22,6 +22,7 @@ import { governmentShopRoutes } from './modules/government-shop/government-shop.
 import { battlesRoutes } from './modules/battles/battles.routes'
 import { repairRoutes } from './modules/repair/repair.routes'
 import { adminBasicRoutes } from './modules/admin-basic/admin-basic.routes'
+import { adminStrategyRoutes } from './modules/admin-strategy/admin-strategy.routes'
 import { adminAuthRoutes } from './modules/admin-auth/admin-auth.routes'
 import { resourcesRoutes } from './modules/resources/resources.routes'
 import { workRoutes } from './modules/work/work.routes'
@@ -144,6 +145,7 @@ export async function buildApp() {
   await fastify.register(upgradesRoutes,       { prefix: '/api/upgrades' })
   await fastify.register(adminAuthRoutes,      { prefix: '/api/admin/auth' })
   await fastify.register(adminBasicRoutes,     { prefix: '/api/admin' })
+  await fastify.register(adminStrategyRoutes, { prefix: '/api/admin' })
 
   return fastify
 }

@@ -184,6 +184,32 @@ GET /api/admin/trace?type=item|money|character|resource&id=<id>
 
 # 4. Новые разделы
 
+**Состояние на 03.09.2026.** Шаг G1 реализован и закрыт: все перечисленные
+ниже ручки ЧТЕНИЯ работают, покрыты `admin-strategy.test.ts`, доступны роли
+`SUPPORT`. Мутации разделов не реализованы намеренно — они приходят шагом G2
+вместе с `AdminActionLog`.
+
+Причина именно такого порядка: по принципу П1 действие без записанной
+обратной операции админу не выдаётся. Выдать «сброс района» сейчас, а
+обратимость приделать на следующем шаге — значит оставить между шагами окно,
+в котором админ ломает состояние безвозвратно. Читать при этом можно всё
+и сразу: чтение необратимым не бывает.
+
+| Ручка | Шаг | Состояние |
+|---|---|---|
+| `GET /clans`, `/clans/:id` | G1 | готово |
+| `GET /territories` | G1 | готово |
+| `GET /claims`, `/claims/:id/roster` | G1 | готово |
+| `GET /objects/:id/attacks` | G1 | готово |
+| `GET /premium?characterId=` | G1 | готово |
+| `GET /logs` | G1 | готово |
+| `POST /territories/:code/reset` | G2 | не начато |
+| `POST /claims/:id/expire` | G2 | не начато |
+| `POST /clans/:id/authority` | G2 | не начато |
+| `POST /objects/:id/clear-cooldown` | G2 | не начато |
+| `POST /helpers/:id/sleep` | G2 | не начато |
+| `POST /premium/grant`, `/revoke` + `reason` | G2 | ручки есть с Этапа 4, причины нет |
+
 ## 4.1. Кланы
 
 ```
@@ -192,9 +218,22 @@ GET  /api/admin/clans?query=&cursor=
                   territories, isFrozen, debt }], nextCursor }
 
 GET  /api/admin/clans/:id
-→ 200 { clan, members: [...], storage: [...], treasuryLog: [...],
-        authorityLog: [...], territories: [...] }
+→ 200 { clan: { ..., upkeepPerDay },
+        authorityAudit: { stored, fromLog, matches },
+        members: [...], storage: [...], treasuryLog: [...],
+        authorityLog: [...], territories: [...],
+        openClaims, attacksMade }
+404 ADMIN_002  бригада не найдена
 ```
+
+`authorityAudit` — сверка поля `Clan.authority` с суммой журнала, тем же
+кодом, что `AuthorityService.audit`. Она идёт прямо в карточке, а не
+отдельной ручкой: расхождение означает либо дефект, либо правку мимо
+приложения, и админ должен увидеть его тогда же, когда смотрит на клан, а не
+когда специально пойдёт проверять.
+
+`members` собирается двумя запросами: у `ClanMember` нет связи с персонажем,
+только `characterId` без внешнего ключа, и ники добираются отдельно.
 
 Чтение доступно `SUPPORT`. Мутаций над кланом в первой версии нет: распустить
 клан или отобрать общак — действия, которые нечем корректно откатить, и по
@@ -333,15 +372,36 @@ POST /api/admin/helpers/:id/sleep            Idempotency-Key
 ## 4.4. Единый поиск по логам
 
 ```
-GET /api/admin/logs?source=all|currency|item|resource|production|admin
-                   &characterId=&userId=&from=&to=&query=&cursor=
-→ 200 { items: [{ at, source, action, actor, target, amount, correlationId }],
-        nextCursor }
+GET /api/admin/logs?source=all|currency|item|resource|production|treasury|authority
+                   &characterId=&clanId=&from=&to=&limit=
+→ 200 { items: [{ at, source, action, actor, amount, balanceAfter, ref, note }],
+        sources, truncated }
+422 GEN_001  characterId и clanId одновременно
 ```
 
-Один запрос вместо трёх существующих. Старые ручки `/logs/currency`,
-`/logs/items`, `/logs/resources` остаются: их использует текущая страница
-админки, и ломать её ради унификации незачем.
+Один запрос вместо шести таблиц. Старые ручки `/logs/currency`, `/logs/items`,
+`/logs/resources` остаются: их использует текущая страница админки, и ломать
+её ради унификации незачем.
+
+Три отличия от первой редакции контракта, каждое по делу:
+
+- **`correlationId` не отдаётся.** Его нет ни в одном журнале Этапов 2–4: поле
+  появится вместе с `AdminActionLog` на шаге G2. Отдавать всегда `null` —
+  значит врать в контракте, поэтому события пока сшиваются по `ref`, который
+  журналы уже пишут (`refType`/`refId`, id предмета, id объекта).
+- **Добавлены источники `treasury` и `authority`.** Общак и авторитет бригады
+  — это журналы Этапа 4, и без них лента не показывает войну вовсе. Одно
+  событие «подана заявка» оставляет след сразу в обоих, и именно связка, а не
+  отдельная строка, показывает, что произошло.
+- **Курсора нет, есть `limit` и признак `truncated`.** Курсор по шести
+  разнородным таблицам — это шесть курсоров, и склеить их в один честно
+  нельзя. Каждый журнал берёт свои `limit` строк, лента сливается и режется по
+  времени; `truncated` говорит, что за границей осталось ещё. Настоящая
+  постраничная выдача по всей ленте появится, когда у событий будет общий
+  ключ сортировки, то есть с `correlationId` на G2.
+
+`characterId` и `clanId` вместе отклоняются, а не возвращают пустоту молча:
+журналы персонажа и бригады разные, и такой запрос — это ошибка вызывающего.
 
 ## 4.5. Заморозка рынка
 
