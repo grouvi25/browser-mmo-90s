@@ -88,8 +88,7 @@ const ITEM_PRICES: Record<string, number> = {
 }
 /** Содержание объекта за сутки — из блока производства BalanceConfig. */
 const OBJECT_DAILY_UPKEEP = 150
-/** Слотов рабочих у объекта по схеме. Полная загрузка — база коридора. */
-const WORKERS_PER_OBJECT = 10
+
 /**
  * Наценка рынка к базовой цене ресурса.
  *
@@ -174,27 +173,23 @@ function ownerDay(objectCode: string) {
     .sort((a, b) => b.margin - a.margin)[0]
   if (!recipe) return { revenue: 0, inputs: 0, salaries: 0, upkeep: 0, profit: 0, cycles: 0 }
 
-  // Объект укомплектован полностью: коридор ТЗ Этапа 3 («окупаемость 12–20
-  // дней активной игры владельца») считался именно для загруженного объекта.
-  // На половине штата окупаемость, естественно, вдвое дольше — это не
-  // дефект баланса, а другой вопрос.
-  const workers = WORKERS_PER_OBJECT
-  const shiftsPerWorker = Math.min(W.dailyShiftLimit, Math.floor(W.dailyShiftMinutes / object.shiftDurationMinutes))
-  const shifts = workers * shiftsPerWorker
+  // Решение заказчика по В11: владелец объекта здесь — не рантье, а игрок,
+  // который РАБОТАЕТ НА СВОЁМ ОБЪЕКТЕ САМ. Зарплату он платит себе же из
+  // баланса объекта, то есть перекладывает деньги из кармана в карман, и
+  // расходом она не является. Настоящая выгода — выход циклов, закрытых его
+  // собственным трудом, минус сырьё и содержание.
+  //
+  // Прежняя модель считала объект нанимающим полный штат посторонних и
+  // мерила совсем другое: там чужие зарплаты съедали всё.
+  const shifts = Math.min(W.dailyShiftLimit, Math.floor(W.dailyShiftMinutes / object.shiftDurationMinutes))
   const labourPerShift = laborFromShift(object.shiftDurationMinutes, workerEfficiency(1))
   const cycles = Math.floor((shifts * labourPerShift) / recipe.row.laborRequired)
 
   const revenue = cycles * recipe.row.outputAmount * outputPrice(recipe.row)
   const inputs = cycles * recipeInputCost(recipe.row)
-
-  let salaries = 0
-  for (let worker = 0; worker < workers; worker++) {
-    for (let n = 1; n <= shiftsPerWorker; n++) {
-      salaries += calcFinalSalary(object.baseSalary, 1, 0, 0.5, n)
-    }
-  }
+  const salaries = 0
   const upkeep = OBJECT_DAILY_UPKEEP
-  return { revenue, inputs, salaries, upkeep, cycles, profit: revenue - inputs - salaries - upkeep }
+  return { revenue, inputs, salaries, upkeep, cycles, profit: revenue - inputs - upkeep }
 }
 
 /**
@@ -307,7 +302,10 @@ const barmanDayAvg = avg(row => row.barman)
 const premiumDayAvg = avg(row => row.premium)
 
 // Часовые ставки для коридоров, привязанных к смене.
-const ownerPerHour = ownerDayAvg / (W.dailyShiftMinutes / 60)
+// Владелец получает и зарплату (себе же), и выход циклов; наёмный рабочий
+// на том же объекте — только зарплату. Сравниваем их дни целиком.
+const ownerTotalDay = ownerDayAvg + fullDayIncome(MID_OBJECT, 2).money
+const ownerPerHour = ownerTotalDay / (W.dailyShiftMinutes / 60)
 const farmerPerHour = farmerDayAvg / 6
 const ownerShare = ownerPerHour / workerRate.perHour
 const farmerShare = farmerPerHour / workerRate.perHour
@@ -405,6 +403,7 @@ const report = {
   income: {
     workerFullDay: workerDay,
     ownerPerDay: ownerDayAvg,
+    ownerTotalDay,
     ownerShareOfShift: ownerShare,
     farmerPerHour,
     farmerShareOfShift: farmerShare,

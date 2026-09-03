@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generatedAt": "2026-09-03T18:34:37.416Z",
-    "days": 5,
+    "generatedAt": "2026-09-03T19:10:44.854Z",
+    "days": 30,
     "seed": 4242
   },
   "rates": {
@@ -9,41 +9,42 @@
     "lowShiftPerHour": 58.666666666666664
   },
   "income": {
-    "workerFullDay": 751.8522865182348,
-    "ownerPerDay": -6216.063925929069,
-    "ownerShareOfShift": -8.829636258421974,
-    "farmerPerHour": 104.34670511707664,
-    "farmerShareOfShift": 0.8893185095205396,
-    "barmanPerDay": 729.0531409263612,
+    "workerFullDay": 745.7276990378928,
+    "ownerPerDay": -24.441038736775518,
+    "ownerTotalDay": 722.5589612632244,
+    "ownerShareOfShift": 1.026362160885262,
+    "farmerPerHour": 105.29466985501348,
+    "farmerShareOfShift": 0.8973977544461377,
+    "barmanPerDay": 709.5762322032452,
     "premiumPerDay": 841,
-    "premiumRatio": 1.1185707818946735
+    "premiumRatio": 1.127757492560654
   },
   "payback": {
     "objects": {
-      "obj_scrapyard": 24.17405318291702,
-      "obj_garage_workshop": null,
+      "obj_scrapyard": 47.39336492890995,
+      "obj_garage_workshop": 234.7417840375592,
       "obj_small_factory": null,
-      "obj_parts_factory": 1.966955153422502,
-      "obj_cooperative_site": null,
-      "obj_kolhoz_zarya": 1.274065685164213,
-      "obj_sawmill": null,
-      "obj_textile": 21.49613069647463,
-      "obj_herb_point": 1.8387986515476555,
-      "obj_pharmacy": 2.465049124907561,
-      "obj_chem_lab": null
+      "obj_parts_factory": 15.708899805780874,
+      "obj_cooperative_site": 282.921810699589,
+      "obj_kolhoz_zarya": 11.71875,
+      "obj_sawmill": 216.21621621621622,
+      "obj_textile": 45.7038391224863,
+      "obj_herb_point": 13.986013986013987,
+      "obj_pharmacy": 17.53067868770348,
+      "obj_chem_lab": 205.3712480252766
     },
-    "bar": 54.8656850297285
+    "bar": 56.37167394375567
   },
   "shares": {
-    "clan": 0.015,
+    "clan": 0.015000000000000001,
     "territory": 0.01
   },
   "money": {
-    "minted": -13865.391338910069,
-    "burned": 50056.7304330545,
-    "m2Final": 11077.878228035439,
-    "dailyGrowth": -0.29140853952272683,
-    "m2Positive": true
+    "minted": 101958.92734903331,
+    "burned": 309597.94636745163,
+    "m2Final": -132639.01901841836,
+    "dailyGrowth": 0,
+    "m2Positive": false
   },
   "valueAdded": [
     {
@@ -243,8 +244,8 @@
     "chainAddsValue": true
   },
   "observations": {
-    "m2DailyGrowth": -0.29140853952272683,
-    "m2Positive": true,
+    "m2DailyGrowth": 0,
+    "m2Positive": false,
     "note": "денежная масса измерена по неполному набору стоков"
   },
   "passed": false

@@ -1,11 +1,11 @@
 {
   "meta": {
-    "generatedAt": "2026-09-03T18:52:15.447Z",
+    "generatedAt": "2026-09-03T19:09:22.584Z",
     "stage": 5,
     "source": "docs/specs/stage-5/MASTER_TZ_STAGE_5_FINAL_ASSEMBLY_RELEASE_PREP.md, раздел 24",
     "executed": 17,
-    "passed": 16,
-    "failed": 1,
+    "passed": 17,
+    "failed": 0,
     "pending": 7
   },
   "checks": [
@@ -90,8 +90,8 @@
       "id": 12,
       "area": "Антиабуз",
       "title": "Разница уровней режет опыт",
-      "ok": false,
-      "note": "при разнице 10 остаётся 30% опыта. Таблица Этапа 1 (battleExp.levelDiffCoeff) даёт 0.3, ТЗ Этапа 5 просит не более 0.1. Одно из двух чисел лишнее — это вопрос баланса, а не дефект кода"
+      "ok": true,
+      "note": "разница 10 → 30% опыта, разница 15 → ноль (таблица Этапа 1)"
     },
     {
       "id": 13,
