@@ -237,6 +237,35 @@ enum AdminRole {
   SUPPORT
 }
 
+/// Что сделал администратор. Значения парные: у каждого действия есть
+/// обратное, и оно тоже из этого списка — иначе откат нечем выразить.
+/// Действие, для которого пары нет, админу не выдаётся (принцип П1 Этапа 5).
+enum AdminActionKind {
+  GRANT_MONEY
+  TAKE_MONEY
+  GRANT_ITEM
+  DELETE_ITEM
+  LOCK_LISTING
+  UNLOCK_LISTING
+  DEACTIVATE_SHOP_ITEM
+  ACTIVATE_SHOP_ITEM
+  GRANT_PREMIUM
+  REVOKE_PREMIUM
+  RESTORE_PREMIUM
+  ADJUST_AUTHORITY
+  RESET_TERRITORY
+  RESTORE_TERRITORY
+  EXPIRE_CLAIM
+  RESTORE_CLAIM
+  CLEAR_ATTACK_COOLDOWN
+  RESTORE_ATTACK_COOLDOWN
+  SLEEP_HELPER
+  WAKE_HELPER
+  REVIEW_SIGNAL
+  REOPEN_SIGNAL
+  ROLLBACK
+}
+
 enum FarmBuildingType {
   BARREL
   CANOPY
@@ -1465,6 +1494,134 @@ model RepairLog {
 // =============================================================
 // ADMIN
 // =============================================================
+
+/// Вид сигнала антиабуза. Девять из реестра механик заказчика и пять,
+/// которые принёс стратегический слой Этапа 4.
+enum AbuseSignalKind {
+  MULTI_ACCOUNT
+  MATCH_FIXING
+  DUPLICATION
+  BOT_FARMING
+  WEAK_FARMING
+  MONEY_FUNNEL
+  CLAN_STORAGE_DRAIN
+  MARKET_MANIPULATION
+  AUTOCLICKER
+  HELPER_DRAIN
+  OBJECT_TRANSFER_TRAP
+  WAR_COLLUSION
+  CLAIM_REFUNDED
+  ROBBERY_STREAK
+}
+
+enum AbuseSignalStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
+}
+
+/// Сигнал антиабуза. НЕ наказание: сигнал ничего не делает сам, он
+/// показывается администратору, и решает человек (принцип П3 Этапа 5).
+model AbuseSignal {
+  id       String            @id @default(uuid())
+  kind     AbuseSignalKind
+  status   AbuseSignalStatus @default(OPEN)
+  /// 1..3. Тройка означает «остановить и разобраться», а не «забанить».
+  severity Int
+
+  /// Кого касается. Аккаунтов может быть несколько: граф связей находит пары.
+  userIds String[] @map("user_ids")
+
+  /// Объяснение словами. Сигнал «подозрительная активность у игрока X»
+  /// бесполезен: его нельзя ни проверить, ни отклонить.
+  summary String
+
+  /// Числа, на которых сигнал сработал. Без них отклонённый сигнал
+  /// невозможно перепроверить, когда правило изменится.
+  evidence Json
+
+  /// Ключ повторного срабатывания: один и тот же повод не должен плодить
+  /// сигналы каждые сутки, иначе лента алертов станет нечитаемой.
+  dedupeKey String @map("dedupe_key")
+
+  reviewedByAdminId String?   @map("reviewed_by_admin_id")
+  reviewedAt        DateTime? @map("reviewed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@unique([kind, dedupeKey])
+  @@index([status, severity, createdAt])
+  @@map("abuse_signals")
+}
+
+/// Чем связаны два аккаунта. Рёбра взвешены: общий IP весит больше, чем
+/// одна сделка на рынке.
+enum AccountLinkKind {
+  SHARED_IP
+  MARKET_TRADE
+  SAME_CLAN
+}
+
+/// Ребро графа связей аккаунтов.
+///
+/// Хранятся именно рёбра, а не готовые кластеры: правила кластеризации будут
+/// меняться, а сырые связи останутся верными.
+///
+/// Ребро неориентированное, поэтому в userAId всегда лексикографически
+/// меньший id — иначе одна пара завелась бы дважды.
+model AccountLink {
+  id      String          @id @default(uuid())
+  userAId String          @map("user_a_id")
+  userBId String          @map("user_b_id")
+  kind    AccountLinkKind
+  weight  Float
+  evidence Json
+
+  lastSeenAt DateTime @map("last_seen_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([userAId, userBId, kind])
+  @@index([userAId])
+  @@index([userBId])
+  @@map("account_links")
+}
+
+/// Журнал административных действий с обратной операцией.
+///
+/// Главная сущность Этапа 5. Без неё админ действует безвозвратно: выдал
+/// миллион — миллион в экономике навсегда. Каждая строка знает не только что
+/// сделано, но и как это отменить.
+model AdminActionLog {
+  id        String          @id @default(uuid())
+  adminId   String          @map("admin_id")
+  /// Роль на момент действия. Роль аккаунта может измениться позже,
+  /// история обязана остаться правдивой.
+  adminRole AdminRole       @map("admin_role")
+  kind      AdminActionKind
+  reason    String
+
+  /// Кого затронуло: тип и id. Свободная пара, потому что цели разнородны —
+  /// персонаж, предмет, лот, клан, район, заявка, помощник.
+  targetType String @map("target_type")
+  targetId   String @map("target_id")
+
+  /// Параметры выполненной операции и параметры обратной к ней.
+  /// Обратная обязательна: действие без неё не заводится.
+  payload     Json
+  undoKind    AdminActionKind @map("undo_kind")
+  undoPayload Json            @map("undo_payload")
+
+  /// Если это откат — ссылка на отменённое действие. Уникальна: одно
+  /// действие нельзя откатить дважды, иначе откат выдачи денег превратился
+  /// бы в списание.
+  rolledBackId String?   @unique @map("rolled_back_id")
+  rolledBackAt DateTime? @map("rolled_back_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([adminId, createdAt])
+  @@index([targetType, targetId])
+  @@map("admin_action_logs")
+}
 
 model AdminUser {
   id           String    @id @default(uuid())

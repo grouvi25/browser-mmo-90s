@@ -46,6 +46,27 @@ export const BalanceConfig = {
     battleSwap: { weaponCostPoints: 1, armorCostTurn: true },
   },
 
+  // ── Этап 5: антиабуз ────────────────────────────────────────
+  //
+  // Жёсткие лимиты работают молча, всегда и для всех. Это не наказание, а
+  // правила игры, и они описываются игроку в разделе ограничений первой
+  // версии. Обоснование чисел — docs/specs/stage-5/STAGE5_ANTIABUSE.md.
+  //
+  // Чего здесь НЕТ намеренно: коэффициента разницы уровней и лимита опыта с
+  // ботов. И то и другое уже действует с Этапов 1–2
+  // (`battleExp.levelDiffCoeff` и `pveDailyPenaltyPerKill` ниже), и заводить
+  // второе правило поверх принятого баланса значило бы менять боёвку под
+  // видом антиабуза.
+  antiAbuse: {
+    /// Второй и последующие бои той же пары за сутки дают эту долю опыта.
+    repeatBattleShare: 0.25,
+    /// Сколько денег один аккаунт может получить от другого за сутки.
+    /// Прямых передач в игре нет — единственный канал это рынок.
+    pairMoneyDailyCap: 50_000,
+    /// И сколько предметов.
+    pairItemsDailyCap: 5,
+  },
+
   economy: {
     work: { efficiencyPerProfessionLevel: 0.03, objectLevelStep: 0.25, salaryRandomMin: 0.9, salaryRandomMax: 1.1, salaryCapMultiplier: 3, dailyShiftLimit: 12, dailyShiftMinutes: 360, salaryFatigueStep: 0.20, salaryFatigueFloor: 0.20 },
     resources: { governmentPayoutRate: 0.25, governmentEcoExpRate: 0.01 },

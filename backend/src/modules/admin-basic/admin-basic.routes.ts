@@ -1,29 +1,9 @@
 import type { FastifyInstance } from 'fastify'
 import { requireAdminRole } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
-import { withTransaction } from '../../shared/db/transaction'
-import { z } from 'zod'
-import { EconomyService } from '../economy/economy.service'
 import { getLatestEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
-import { audit } from '../../shared/logger/audit-logger'
 
 const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
-const MODERATE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }
-const SUPER_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN') }
-const ReasonSchema = z.string().trim().min(3).max(500)
-const ModerationReasonSchema = z.object({ reason: ReasonSchema })
-
-const GrantMoneySchema = z.object({
-  characterId: z.string().uuid(),
-  amount: z.number().int().positive().max(1_000_000),
-  reason: ReasonSchema,
-})
-
-const GrantItemSchema = z.object({
-  characterId: z.string().uuid(),
-  templateId: z.string().uuid(),
-  reason: ReasonSchema,
-})
 
 export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> {
 
@@ -71,24 +51,16 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
       return reply.send(char)
     })
 
-  // POST /api/admin/grant-money — выдача денег
-  fastify.post('/grant-money', SUPER_ADMIN,
-    async (req, reply) => {
-      const parsed = GrantMoneySchema.safeParse(req.body)
-      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
-      const { characterId, amount, reason } = parsed.data
-
-      return withTransaction(async (tx) => {
-        const char = await tx.character.findUnique({ where: { id: characterId } })
-        if (!char) return reply.code(404).send({ code: 'GEN_002', message: 'Character not found' })
-
-        const newBalance = await EconomyService.credit(tx, {
-          characterId, amount, reasonCode: 'ADMIN_GRANT', note: reason,
-        })
-        audit('admin.action', { action: 'grant_money', adminId: req.adminUser.adminId, targetCharacterId: characterId, amount, reason, newBalance })
-        return reply.send({ characterId, amount, newBalance })
-      })
-    })
+  // Мутации переехали в admin-actions (шаг G2 Этапа 5).
+  //
+  // Выдача денег и предметов, блокировка лота и снятие товара лавки теперь
+  // идут через журнал с обратной операцией: `/characters/money`,
+  // `/items/grant`, `/items/:id/delete`, `/listings/:id/lock`,
+  // `/listings/:id/unlock`, `/shop-items/:id/deactivate`.
+  //
+  // Старые ручки удалены, а не оставлены рядом. Две двери к одному действию,
+  // из которых одна ничего не записывает, делают правило «ничего без
+  // причины» необязательным: достаточно постучать во вторую.
 
   // POST /api/admin/grant-item — выдача предмета
   fastify.get('/economy/overview', READ_ADMIN, async (_req, reply) => {
@@ -117,69 +89,9 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
     return reply.send({ items: await prisma.marketListing.findMany({ where: selected ? { status: selected } : {}, orderBy: { createdAt: 'desc' }, take: Math.min(100, Math.max(1, Number(limit ?? 50))) }) })
   })
 
-  fastify.post<{ Params: { id: string } }>('/private-shops/items/:id/deactivate', MODERATE_ADMIN, async (req, reply) => {
-    const parsed = ModerationReasonSchema.safeParse(req.body)
-    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Reason is required' })
-    const changed = await prisma.privateShopItem.updateMany({ where: { id: req.params.id, isActive: true }, data: { isActive: false } })
-    if (changed.count !== 1) return reply.code(404).send({ code: 'PSHOP_001', message: 'Private shop item not found or inactive' })
-    audit('admin.action', { action: 'private_shop_item_deactivated', adminId: req.adminUser.adminId, privateShopItemId: req.params.id, reason: parsed.data.reason })
-    return reply.send({ privateShopItemId: req.params.id, isActive: false })
-  })
-
   fastify.get('/logs/resources', READ_ADMIN, async (_req, reply) => {
     return reply.send(await prisma.resourceLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }))
   })
-
-  fastify.post<{ Params: { id: string } }>('/market/listings/:id/lock', MODERATE_ADMIN, async (req, reply) => {
-    const parsed = ModerationReasonSchema.safeParse(req.body)
-    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Reason is required' })
-    const changed = await prisma.marketListing.updateMany({ where: { id: req.params.id, status: 'ACTIVE' }, data: { status: 'LOCKED' } })
-    if (changed.count !== 1) return reply.code(409).send({ code: 'MARKET_002', message: 'Listing cannot be locked' })
-    audit('admin.action', { action: 'market_listing_locked', adminId: req.adminUser.adminId, listingId: req.params.id, before: 'ACTIVE', after: 'LOCKED', reason: parsed.data.reason })
-    return reply.send({ listingId: req.params.id, status: 'LOCKED' })
-  })
-
-  fastify.post<{ Params: { id: string } }>('/market/listings/:id/unlock', MODERATE_ADMIN, async (req, reply) => {
-    const parsed = ModerationReasonSchema.safeParse(req.body)
-    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Reason is required' })
-    const changed = await prisma.marketListing.updateMany({ where: { id: req.params.id, status: 'LOCKED' }, data: { status: 'ACTIVE' } })
-    if (changed.count !== 1) return reply.code(409).send({ code: 'MARKET_002', message: 'Listing cannot be unlocked' })
-    audit('admin.action', { action: 'market_listing_unlocked', adminId: req.adminUser.adminId, listingId: req.params.id, before: 'LOCKED', after: 'ACTIVE', reason: parsed.data.reason })
-    return reply.send({ listingId: req.params.id, status: 'ACTIVE' })
-  })
-
-  fastify.post('/grant-item', SUPER_ADMIN,
-    async (req, reply) => {
-      const parsed = GrantItemSchema.safeParse(req.body)
-      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
-      const { characterId, templateId, reason } = parsed.data
-
-      const template = await prisma.itemTemplate.findUnique({ where: { id: templateId } })
-      if (!template) return reply.code(404).send({ code: 'GEN_002', message: 'Template not found' })
-
-      return withTransaction(async (tx) => {
-        const item = await tx.itemInstance.create({
-          data: {
-            templateId, ownerId: characterId,
-            quality: template.qualityBase,
-            durabilityCurrent: template.durabilityMax,
-            durabilityMax: template.durabilityMax,
-            weight: template.weight,
-            sourceType: 'ADMIN',
-            usesLeft: template.type === 'TOOL' ? template.usesMax : null,
-          },
-        })
-        await tx.itemLog.create({
-          data: {
-            itemId: item.id, characterId,
-            actionCode: 'CREATED_BY_ADMIN',
-            details: { templateName: template.name, reason, adminId: req.adminUser.adminId },
-          },
-        })
-        audit('admin.action', { action: 'grant_item', adminId: req.adminUser.adminId, targetCharacterId: characterId, templateId, itemId: item.id, reason })
-        return reply.code(201).send(item)
-      })
-    })
 
   // GET /api/admin/battles/:id — инфо о бое
   fastify.get<{ Params: { id: string } }>('/battles/:id', READ_ADMIN,

@@ -31,7 +31,9 @@ import { BattleRedis } from '../src/shared/db/redis'
 import { calcFinalSalary } from '../src/modules/work/work.formulas'
 import { BalanceConfig } from '../src/config/balance.config'
 import { CLAN_MAINTENANCE_DAILY } from '../src/modules/clans/clans.formulas'
-import { TERRITORIES, PREMIUM_PRODUCTS, PREMIUM_GRANT_CODES } from '../prisma/economy-data'
+import {
+  TERRITORIES, PREMIUM_PRODUCTS, PREMIUM_PRODUCTS_DEFERRED, PREMIUM_GRANT_CODES,
+} from '../prisma/economy-data'
 
 const T = BalanceConfig.strategy.territory
 const O = BalanceConfig.strategy.objectAttack
@@ -118,7 +120,7 @@ async function reset() {
   // Витрину поднимаем сами, а не полагаемся на сид: интеграционные тесты
   // засевают её по-своему, и приёмка, запущенная после них, проверяла бы
   // чужое состояние. Проверка 17 на этом уже один раз соврала.
-  for (const product of PREMIUM_PRODUCTS) {
+  for (const product of [...PREMIUM_PRODUCTS, ...PREMIUM_PRODUCTS_DEFERRED]) {
     await prisma.premiumProduct.upsert({
       where: { code: product.code },
       update: { isActive: isGrantImplemented(product.grantCode) },
@@ -575,20 +577,19 @@ async function run() {
     const shop = await PremiumService.shop()
     // Витрина показывает только товары с реализованным эффектом: покупка,
     // которая ничего не делает, хуже отсутствующего товара.
-    const ready = PREMIUM_PRODUCTS.filter(item => isGrantImplemented(item.grantCode))
-    must(shop.items.length === ready.length,
-      `в витрине ${shop.items.length} товаров, рабочих ${ready.length}`)
+    must(shop.items.length === PREMIUM_PRODUCTS.length,
+      `в витрине ${shop.items.length} товаров, в первой версии ${PREMIUM_PRODUCTS.length}`)
     must(shop.items.every(item => isGrantImplemented(item.grantCode)),
       'в витрине есть товар с нереализованным эффектом')
 
     for (const product of shop.items) {
       await PremiumService.grant({ characterId: boss.id, productCode: product.code })
     }
-    // Нереализованный товар не выдаётся даже админом.
-    const planned = PREMIUM_PRODUCTS.find(item => !isGrantImplemented(item.grantCode))
-    must(planned, 'все эффекты реализованы — проверку пора упростить')
+    // Отложенный за первую версию товар не выдаётся даже админом: строка в
+    // базе есть, но эффекта за ней нет. Решение по В8 от 03.09.2026.
+    const deferred = PREMIUM_PRODUCTS_DEFERRED[0]
     await refuses('PREM_003',
-      () => PremiumService.grant({ characterId: boss.id, productCode: planned!.code }))
+      () => PremiumService.grant({ characterId: boss.id, productCode: deferred.code }))
     const items = await prisma.itemInstance.count({ where: { ownerId: boss.id } })
     must(items === 0, `после покупки всей витрины у персонажа ${items} предметов`)
     const after = await prisma.characterStats.findUnique({ where: { characterId: boss.id } })
@@ -596,7 +597,7 @@ async function run() {
 
     const unknown = PREMIUM_PRODUCTS.filter(item => !PREMIUM_GRANT_CODES.includes(item.grantCode))
     must(unknown.length === 0, `эффект вне закрытого списка: ${unknown.map(i => i.code).join(', ')}`)
-    return `куплено ${shop.items.length} рабочих из ${PREMIUM_PRODUCTS.length}: 0 предметов, характеристики не изменились; нереализованные не выдаются`
+    return `куплена вся витрина (${shop.items.length} товаров): 0 предметов, характеристики не изменились; отложенные за первую версию не выдаются`
   })
 
   await check(18, 'Помощники', 'Помощник без подписки на смену не выходит', async () => {

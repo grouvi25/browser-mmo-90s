@@ -7,18 +7,18 @@
 /** [код, имя, категория, тир, базовая цена, вес, ремонтный, улучшающий] */
 export const RESOURCES = [
   ['res_scrap_metal', 'Металлолом', 'PRIMARY', 1, 8, 0.5, false, false],
-  ['res_fabric', 'Ткань', 'PRIMARY', 1, 6, 0.3, false, false],
-  ['res_leather', 'Кожа', 'PRIMARY', 1, 12, 0.4, false, false],
+  ['res_fabric', 'Ткань', 'PRIMARY', 1, 8, 0.3, false, false],
+  ['res_leather', 'Кожа', 'PRIMARY', 1, 67, 0.4, false, false],
   ['res_wood', 'Древесина', 'PRIMARY', 1, 5, 0.8, false, false],
-  ['res_plastic', 'Пластик', 'PRIMARY', 1, 7, 0.3, false, false],
-  ['res_chemicals', 'Химия', 'PRIMARY', 1, 15, 0.4, false, false],
-  ['res_spare_parts', 'Запчасти', 'PRIMARY', 1, 18, 0.6, false, false],
-  ['comp_metal_plate', 'Металлическая пластина', 'REPAIR_PART', 2, 30, 0.7, true, false],
-  ['comp_fastener', 'Крепёж', 'COMPONENT', 2, 12, 0.2, false, false],
-  ['comp_spring', 'Пружина', 'UPGRADE_PART', 2, 25, 0.2, false, true],
-  ['comp_weapon_part', 'Оружейная деталь', 'UPGRADE_PART', 2, 60, 0.5, true, true],
-  ['comp_armor_plate', 'Бронепластина', 'UPGRADE_PART', 2, 70, 0.9, true, true],
-  ['comp_repair_kit', 'Ремкомплект', 'REPAIR_PART', 2, 45, 0.5, true, false],
+  ['res_plastic', 'Пластик', 'PRIMARY', 1, 156, 0.3, false, false],
+  ['res_chemicals', 'Химия', 'PRIMARY', 1, 189, 0.4, false, false],
+  ['res_spare_parts', 'Запчасти', 'PRIMARY', 1, 192, 0.6, false, false],
+  ['comp_metal_plate', 'Металлическая пластина', 'REPAIR_PART', 2, 47, 0.7, true, false],
+  ['comp_fastener', 'Крепёж', 'COMPONENT', 2, 18, 0.2, false, false],
+  ['comp_spring', 'Пружина', 'UPGRADE_PART', 2, 39, 0.2, false, true],
+  ['comp_weapon_part', 'Оружейная деталь', 'UPGRADE_PART', 2, 241, 0.5, true, true],
+  ['comp_armor_plate', 'Бронепластина', 'UPGRADE_PART', 2, 303, 0.9, true, true],
+  ['comp_repair_kit', 'Ремкомплект', 'REPAIR_PART', 2, 222, 0.5, true, false],
   ['res_greens', 'Зелень', 'PRIMARY', 1, 20, 0.1, false, false],
   ['res_vegetables', 'Овощи', 'PRIMARY', 1, 25, 0.4, false, false],
   ['res_hops', 'Хмель', 'PRIMARY', 1, 55, 0.1, false, false],
@@ -107,6 +107,12 @@ export const PRODUCTION_RECIPES = [
   // Заодно у ремкомплекта появляется производитель — до этого его можно
   // было только купить в лавке, хотя чинят им постоянно.
   { code: 'rcp_repair_kit', name: 'Сборка ремкомплекта', productionObjectCode: 'obj_garage_workshop', outputResourceCode: 'comp_repair_kit', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 75, laborRequired: 75, requiredProfessionCode: 'foundry_worker', requiredProfessionLevel: 2, requiredToolTier: 2, inputs: [{ resourceCode: 'res_spare_parts', amount: 2, minQuality: 'POOR' }, { resourceCode: 'comp_fastener', amount: 1, minQuality: 'POOR' }] },
+  // Импортная оснастка (Этап 5, G8): единственный крафт-выход четвёртой
+  // ступени. Делается на верхнем металлопеределе (Фабрика деталей,
+  // gunsmith L2, инструмент 3-й ступени) из деталей верхнего передела,
+  // чтобы это была цель производства, а не дорогая покупка. Государство
+  // её не продаёт; готовую оснастку игрок несёт на рынок и в частные лавки.
+  { code: 'rcp_import_tool', name: 'Сборка импортной оснастки', productionObjectCode: 'obj_parts_factory', outputResourceCode: null, outputItemTemplateCode: 'tool_work_import', outputAmount: 1, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'gunsmith', requiredProfessionLevel: 2, requiredToolTier: 3, inputs: [{ resourceCode: 'comp_weapon_part', amount: 5, minQuality: 'NORMAL' }, { resourceCode: 'comp_fastener', amount: 4, minQuality: 'POOR' }] },
 ] as const
 
 export const OBJECT_PROFESSIONS: Record<string, string> = {
@@ -202,7 +208,23 @@ export const PREMIUM_PRODUCTS = [
   { code: 'prem_sub_90', name: 'Подписка на 90 дней', kind: 'TIME', priceRub: 749,
     grantCode: 'SUBSCRIPTION_DAYS', grantValue: 90, sortOrder: 11,
     description: 'То же на три месяца.' },
+] as const
 
+/**
+ * Товары, отложенные за первую версию. Решение заказчика 03.09.2026,
+ * вопрос В8 Этапа 5.
+ *
+ * Ни один из семи не был реализован: каждому нужны поля или механики,
+ * которых в игре нет — лимита инвентаря не существует, портрета и цвета
+ * ника нет в схеме, ускорение цикла, полив и сброс отката это разовые
+ * действия с целью. Платёжного шлюза в первой версии тоже нет, продавать
+ * их было бы нечем и незачем.
+ *
+ * Список остаётся в коде, а не удаляется: он же — задача следующей версии,
+ * и по нему сид гасит строки, если они уже заведены в чьей-то базе.
+ * Удалять сами строки нельзя — на них ссылаются записи о покупках.
+ */
+export const PREMIUM_PRODUCTS_DEFERRED = [
   // ── Время ───────────────────────────────────────────────────
   { code: 'prem_cycle_boost', name: 'Ускорение цикла', kind: 'TIME', priceRub: 49,
     grantCode: 'CYCLE_INSTANT', grantValue: 1, sortOrder: 20,

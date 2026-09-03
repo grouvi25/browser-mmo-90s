@@ -15,6 +15,7 @@ import { PremiumService } from '../premium/premium.service'
 import { PROFESSION_NAMES, professionLevelFromExp, type ProfessionCode } from '../professions/professions'
 
 const MAX_DAILY_SHIFTS = BalanceConfig.economy.work.dailyShiftLimit
+const WORK_LIMITS = BalanceConfig.economy.work
 const MAX_DAILY_MINUTES = BalanceConfig.economy.work.dailyShiftMinutes
 
 async function recordMissingToolBlock(now: Date): Promise<void> {
@@ -52,6 +53,7 @@ export const WorkService = {
       prisma.resourceTemplate.findMany({ select: { code: true, name: true } }),
       prisma.itemInstance.findMany({ where: { ownerId: characterId, status: 'NORMAL', usesLeft: { gt: 0 }, template: { type: 'TOOL' } }, include: { template: true } }),
     ])
+    const dailyCap = await PremiumService.dailyShiftCap(characterId)
     const professionByCode = new Map(professions.map(item => [item.professionCode, item]))
     const resourceNames = new Map(templates.map(item => [item.code, item.name]))
     return {
@@ -88,7 +90,14 @@ export const WorkService = {
         ...item,
         name: PROFESSION_NAMES[item.professionCode as ProfessionCode] ?? item.professionCode,
       })),
-      daily: { shiftsUsedToday: used.length, shiftsLimit: MAX_DAILY_SHIFTS, minutesUsedToday: shiftMinutes(used), minutesLimit: MAX_DAILY_MINUTES },
+      // Лимиты показываются подписчицкие: экран, обещающий 12 смен тому,
+      // у кого их 16, врёт ровно там, где игрок за это заплатил.
+      daily: {
+        shiftsUsedToday: used.length,
+        shiftsLimit: dailyCap,
+        minutesUsedToday: shiftMinutes(used),
+        minutesLimit: Math.round(MAX_DAILY_MINUTES * (dailyCap / MAX_DAILY_SHIFTS)),
+      },
     }
   },
 
@@ -99,6 +108,7 @@ export const WorkService = {
       prisma.workShift.findMany({ where: { characterId, helperId: null, startedAt: { gte: start, lt: end } }, select: { startedAt: true, endsAt: true } }),
     ])
     const profession = shift ? await professionState(characterId, shift.professionCode) : null
+    const dailyCap = await PremiumService.dailyShiftCap(characterId)
     return {
       shift: shift ? {
         ...shift,
@@ -106,7 +116,14 @@ export const WorkService = {
         isReady: shift.status === 'READY_TO_CLAIM' || shift.endsAt <= new Date(),
         remainingSeconds: Math.max(0, Math.ceil((shift.endsAt.getTime() - Date.now()) / 1000)),
       } : null,
-      daily: { shiftsUsedToday: used.length, shiftsLimit: MAX_DAILY_SHIFTS, minutesUsedToday: shiftMinutes(used), minutesLimit: MAX_DAILY_MINUTES },
+      // Лимиты показываются подписчицкие: экран, обещающий 12 смен тому,
+      // у кого их 16, врёт ровно там, где игрок за это заплатил.
+      daily: {
+        shiftsUsedToday: used.length,
+        shiftsLimit: dailyCap,
+        minutesUsedToday: shiftMinutes(used),
+        minutesLimit: Math.round(MAX_DAILY_MINUTES * (dailyCap / MAX_DAILY_SHIFTS)),
+      },
     }
   },
 
@@ -129,7 +146,20 @@ export const WorkService = {
       const shiftCap = await PremiumService.dailyShiftCap(characterId)
       if (todayShifts.length >= shiftCap) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
       if (!object) throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object not found', 404)
-      if (!fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), object.shiftDurationMinutes)) {
+      // Бюджет минут растёт вместе с потолком смен.
+      //
+      // Иначе премиальные шестнадцать смен не значат НИЧЕГО: fitsDailyBudget
+      // с настройками по умолчанию режет подписчика теми же двенадцатью
+      // сменами и тремястами шестьюдесятью минутами, что и всех. Дефект
+      // нашёл сквозной прогон Этапа 5: подписчик зарабатывал ровно столько
+      // же, сколько бесплатный игрок, при заявленных 16 сменах.
+      //
+      // Пропорция, а не отдельное число: подписка покупает время, и растёт
+      // всё время целиком, а не число смен в отрыве от минут.
+      const minuteBudget = Math.round(
+        WORK_LIMITS.dailyShiftMinutes * (shiftCap / WORK_LIMITS.dailyShiftLimit))
+      if (!fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), object.shiftDurationMinutes,
+        { shifts: shiftCap, minutes: minuteBudget })) {
         throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift budget reached', 400)
       }
       if (!object.isActive || object.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_OBJECT_UNAVAILABLE, 'Production object unavailable', 409)

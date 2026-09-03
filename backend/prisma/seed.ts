@@ -2,14 +2,27 @@
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PRIVATE_SHOP_RESOURCES } from './economy-data'
+import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PREMIUM_PRODUCTS_DEFERRED, PRIVATE_SHOP_RESOURCES } from './economy-data'
 import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
-import { isGrantImplemented } from '../src/modules/premium/premium.service'
 
 const prisma = new PrismaClient()
 
+// Источник правды: PREMIUM.IMPLEMENTED_GRANTS в
+// src/modules/premium/premium.service.ts. Дублируется здесь, а не
+// импортируется, потому что прод-образ гоняет seed.ts без src/ (см.
+// backend.Dockerfile) — импорт оттуда ронял CD на шаге сидинга с
+// MODULE_NOT_FOUND, CI это не ловил, потому что запускает seed.ts через
+// tsx прямо из чекаута, где src/ есть.
+const SEED_IMPLEMENTED_PREMIUM_GRANTS: readonly string[] = ['SUBSCRIPTION_DAYS']
+const isGrantImplemented = (code: string): boolean => SEED_IMPLEMENTED_PREMIUM_GRANTS.includes(code)
+
 // Must match BalanceConfig.economy.tools; kept inside prisma because the production image runs seed.ts without src/.
-const STAGE2_TOOL_TIERS = { 1: { price: 500, uses: 50 }, 2: { price: 1250, uses: 50 }, 3: { price: 1800, uses: 50 } } as const
+// Ступень 4 — импортная оснастка Этапа 5 (G8). Государство её не продаёт:
+// добывается только крафтом и перепродаётся на рынке и в частных лавках.
+// Цена — ориентир для продажи, выведена из шага ступеней (500→1250→1800),
+// подтверждается заказчиком по вопросу В7; реальная стоимость — компоненты
+// верхнего передела в рецепте rcp_import_tool.
+const STAGE2_TOOL_TIERS = { 1: { price: 500, uses: 50 }, 2: { price: 1250, uses: 50 }, 3: { price: 1800, uses: 50 }, 4: { price: 2500, uses: 50 } } as const
 
 async function main() {
   console.log('🌱 Seeding database...')
@@ -110,7 +123,7 @@ async function main() {
       code: 'consumable_first_aid_kit', name: 'Аптечка', type: 'CONSUMABLE' as const,
       hpBonus: 50,  // Restores 50 HP when used in battle
       weight: 0.3, durabilityMax: 1, qualityBase: 'COMMON' as const,
-      priceBase: 150, levelReq: 0, isSellable: true, isActive: true,
+      priceBase: 170, levelReq: 0, isSellable: true, isActive: true,
       sourceType: 'GOVERNMENT' as const, isEquippable: false,
     },
     {
@@ -126,6 +139,12 @@ async function main() {
     { code: 'tool_work_basic', name: 'Рабочий набор', description: 'Расходная оснастка для базовых производственных площадок.', type: 'TOOL' as const, toolTier: 1, usesMax: STAGE2_TOOL_TIERS[1].uses, weight: 1.0, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[1].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
     { code: 'tool_work_advanced', name: 'Профессиональная оснастка', description: 'Оснастка для оборудования второго тира.', type: 'TOOL' as const, toolTier: 2, usesMax: STAGE2_TOOL_TIERS[2].uses, weight: 1.5, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[2].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
     { code: 'tool_work_precision', name: 'Точная оснастка', description: 'Расходный инструмент для сложного производства.', type: 'TOOL' as const, toolTier: 3, usesMax: STAGE2_TOOL_TIERS[3].uses, weight: 2.0, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[3].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'GOVERNMENT' as const, isEquippable: false },
+    // Импортная оснастка (Этап 5, G8): 4-я ступень, +15% к скорости цикла
+    // сверх третьей — тем же шагом equipmentTierSpeedBonus, что и между
+    // прочими ступенями, так что формула цикла её уже учитывает без правок.
+    // sourceType PRIVATE: сид госмагазина берёт только GOVERNMENT, поэтому
+    // казна её не продаёт — только крафт и перепродажа игроками.
+    { code: 'tool_work_import', name: 'Импортная оснастка', description: 'Редкий инструмент четвёртой ступени. Государство им не торгует — только собственная сборка из деталей верхнего передела.', type: 'TOOL' as const, toolTier: 4, usesMax: STAGE2_TOOL_TIERS[4].uses, weight: 2.5, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[4].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'PRIVATE' as const, isEquippable: false },
   ]
 
   // Upsert templates
@@ -235,7 +254,7 @@ async function main() {
   const privateTemplates = [
     {code:'weapon_tt_private',name:'Пистолет ТТ',type:'WEAPON' as const,weaponType:'PISTOL' as const,minDamage:45,maxDamage:90,weaponAccuracy:.78,optimalRange:4,maxRange:5,weight:1.1,durabilityMax:100,priceBase:2400,levelReq:3,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_weapon_part'},
     {code:'weapon_sawnoff_private',name:'Обрез',type:'WEAPON' as const,weaponType:'SHOTGUN' as const,minDamage:80,maxDamage:150,weaponAccuracy:.63,optimalRange:2,maxRange:3,weight:3,durabilityMax:90,priceBase:3900,levelReq:4,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_weapon_part'},
-    {code:'armor_leather_jacket_private',name:'Кожаная куртка с пластинами',type:'ARMOR' as const,armorSlot:'CHEST' as const,armor:16,weight:2,durabilityMax:110,priceBase:900,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
+    {code:'armor_leather_jacket_private',name:'Кожаная куртка с пластинами',type:'ARMOR' as const,armorSlot:'CHEST' as const,armor:16,weight:2,durabilityMax:110,priceBase:1300,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
     {code:'armor_army_vest_private',name:'Армейский бронежилет',type:'ARMOR' as const,armorSlot:'CHEST' as const,armor:34,antiCrit:.07,weight:6,durabilityMax:130,priceBase:5200,levelReq:4,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
     {code:'armor_boots_army_private',name:'Армейские берцы',type:'ARMOR' as const,armorSlot:'FEET' as const,armor:9,dodgeBonus:.03,weight:1.2,durabilityMax:100,priceBase:700,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
   ]
@@ -350,9 +369,7 @@ async function main() {
   // Премиум-витрина. update не трогает историю покупок: цена в каталоге
   // меняется, а PremiumPurchase хранит её копией на момент сделки.
   for (const p of PREMIUM_PRODUCTS) {
-    // Товар с нереализованным эффектом заводится, но выключен: витрина
-    // показывает только то, что действительно работает. Долг Этапа 4,
-    // закрывается шагом G0 Этапа 5.
+    // Витрина первой версии — только то, что действительно работает.
     const active = isGrantImplemented(p.grantCode)
     await prisma.premiumProduct.upsert({
       where: { code: p.code },
@@ -360,7 +377,13 @@ async function main() {
       create: { code: p.code, name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: active },
     })
   }
-  console.log(`  Premium products: ${PREMIUM_PRODUCTS.length}`)
+  // Отложенные за первую версию (решение по В8): не заводим, но если строка
+  // уже есть в базе — гасим. Удалять нельзя: на товар ссылаются покупки.
+  const deferred = await prisma.premiumProduct.updateMany({
+    where: { code: { in: PREMIUM_PRODUCTS_DEFERRED.map(p => p.code) }, isActive: true },
+    data: { isActive: false },
+  })
+  console.log(`  Premium products: ${PREMIUM_PRODUCTS.length} active, ${deferred.count} deactivated`)
 
 
   for (const [code, name, basePrice, weight] of BAR_RESOURCES) {

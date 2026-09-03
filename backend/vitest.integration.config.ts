@@ -17,6 +17,9 @@ export default defineConfig({
     env: {
       DATABASE_URL: process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? '',
     },
+    // Подхватывает .env до первого импорта: иначе тест, которому нужен
+    // Redis, запускался только в компании других — см. setup-env.ts.
+    setupFiles: ['src/tests/integration/setup-env.ts'],
     include: ['src/tests/integration/**/*.test.ts'],
     environment: 'node',
     globals: true,

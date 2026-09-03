@@ -12,6 +12,7 @@ import { runBattleTimeout, TIMER_TICK_MS } from './workers/battle-timeout.worker
 import { runWorkShiftFinalize, WORK_SHIFT_FINALIZE_MS } from './workers/work-shift-finalize.worker'
 import { runProductionCycle, PRODUCTION_CYCLE_MS } from './workers/production-cycle.worker'
 import { runClanMaintenance, CLAN_MAINTENANCE_MS } from './workers/clan-maintenance.worker'
+import { runAntiAbuse, ANTIABUSE_MS } from './workers/antiabuse.worker'
 import { runTerritoryClaims, TERRITORY_CLAIMS_MS } from './workers/territory-claims.worker'
 import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worker'
 import { collectEconomyMetrics, startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
@@ -80,6 +81,13 @@ async function startWorker(): Promise<void> {
     catch (err) { logger.error({ err }, '[Worker] Territory claims error') }
   }, TERRITORY_CLAIMS_MS)
 
+  // Антиабуз: раз в сутки пересобрать граф связей и прогнать детекторы.
+  // Ничего не наказывает — поднимает сигналы для администратора.
+  const antiAbuseTimer = setInterval(async () => {
+    try { await runAntiAbuse() }
+    catch (err) { logger.error({ err }, '[Worker] Antiabuse error') }
+  }, ANTIABUSE_MS)
+
   const marketExpireTimer = setInterval(async () => {
     try { await runMarketExpire() }
     catch (err) { logger.error({ err }, '[Worker] Market expire error') }
@@ -116,6 +124,7 @@ const shutdown = async (signal: string): Promise<void> => {
     clearInterval(productionCycleTimer)
     clearInterval(clanMaintenanceTimer)
     clearInterval(territoryClaimsTimer)
+    clearInterval(antiAbuseTimer)
     clearInterval(marketExpireTimer)
     clearInterval(idempotencyCleanupTimer)
     stopEconomyMetrics()

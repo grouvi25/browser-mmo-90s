@@ -22,6 +22,8 @@ import { governmentShopRoutes } from './modules/government-shop/government-shop.
 import { battlesRoutes } from './modules/battles/battles.routes'
 import { repairRoutes } from './modules/repair/repair.routes'
 import { adminBasicRoutes } from './modules/admin-basic/admin-basic.routes'
+import { adminStrategyRoutes } from './modules/admin-strategy/admin-strategy.routes'
+import { adminActionsRoutes } from './modules/admin-actions/admin-actions.routes'
 import { adminAuthRoutes } from './modules/admin-auth/admin-auth.routes'
 import { resourcesRoutes } from './modules/resources/resources.routes'
 import { workRoutes } from './modules/work/work.routes'
@@ -33,7 +35,7 @@ import { farmRoutes } from './modules/farm/farm.routes'
 import { barsRoutes } from './modules/bars/bars.routes'
 import { clansRoutes } from './modules/clans/clans.routes'
 import { territoriesRoutes, clanTerritoriesRoutes, objectWarRoutes } from './modules/territories/territories.routes'
-import { premiumRoutes, adminPremiumRoutes, helpersRoutes } from './modules/premium/premium.routes'
+import { premiumRoutes, helpersRoutes } from './modules/premium/premium.routes'
 import { stage3AcceptanceRoutes } from './modules/stage3-acceptance/stage3-acceptance.routes'
 import { balanceSandboxRoutes } from './modules/balance-sandbox/balance-sandbox.routes'
 
@@ -136,7 +138,6 @@ export async function buildApp() {
   await fastify.register(objectWarRoutes,     { prefix: '/api/objects' })
   await fastify.register(premiumRoutes,       { prefix: '/api/premium' })
   await fastify.register(helpersRoutes,       { prefix: '/api/helpers' })
-  await fastify.register(adminPremiumRoutes,  { prefix: '/api/admin' })
   await fastify.register(stage3AcceptanceRoutes,{ prefix: '/api/stage3/acceptance' })
   await fastify.register(balanceSandboxRoutes, { prefix: '/api/balance-sandbox' })
   await fastify.register(privateShopsRoutes,   { prefix: '/api/private-shops' })
@@ -144,6 +145,8 @@ export async function buildApp() {
   await fastify.register(upgradesRoutes,       { prefix: '/api/upgrades' })
   await fastify.register(adminAuthRoutes,      { prefix: '/api/admin/auth' })
   await fastify.register(adminBasicRoutes,     { prefix: '/api/admin' })
+  await fastify.register(adminStrategyRoutes, { prefix: '/api/admin' })
+  await fastify.register(adminActionsRoutes,  { prefix: '/api/admin' })
 
   return fastify
 }

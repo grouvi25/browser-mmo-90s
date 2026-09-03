@@ -1,0 +1,252 @@
+{
+  "meta": {
+    "generatedAt": "2026-09-03T19:10:44.854Z",
+    "days": 30,
+    "seed": 4242
+  },
+  "rates": {
+    "midShiftPerHour": 117.33333333333333,
+    "lowShiftPerHour": 58.666666666666664
+  },
+  "income": {
+    "workerFullDay": 745.7276990378928,
+    "ownerPerDay": -24.441038736775518,
+    "ownerTotalDay": 722.5589612632244,
+    "ownerShareOfShift": 1.026362160885262,
+    "farmerPerHour": 105.29466985501348,
+    "farmerShareOfShift": 0.8973977544461377,
+    "barmanPerDay": 709.5762322032452,
+    "premiumPerDay": 841,
+    "premiumRatio": 1.127757492560654
+  },
+  "payback": {
+    "objects": {
+      "obj_scrapyard": 47.39336492890995,
+      "obj_garage_workshop": 234.7417840375592,
+      "obj_small_factory": null,
+      "obj_parts_factory": 15.708899805780874,
+      "obj_cooperative_site": 282.921810699589,
+      "obj_kolhoz_zarya": 11.71875,
+      "obj_sawmill": 216.21621621621622,
+      "obj_textile": 45.7038391224863,
+      "obj_herb_point": 13.986013986013987,
+      "obj_pharmacy": 17.53067868770348,
+      "obj_chem_lab": 205.3712480252766
+    },
+    "bar": 56.37167394375567
+  },
+  "shares": {
+    "clan": 0.015000000000000001,
+    "territory": 0.01
+  },
+  "money": {
+    "minted": 101958.92734903331,
+    "burned": 309597.94636745163,
+    "m2Final": -132639.01901841836,
+    "dailyGrowth": 0,
+    "m2Positive": false
+  },
+  "valueAdded": [
+    {
+      "code": "rcp_scrap",
+      "object": "obj_scrapyard",
+      "output": 34,
+      "inputs": 0,
+      "margin": 34
+    },
+    {
+      "code": "rcp_kolhoz_greens",
+      "object": "obj_kolhoz_zarya",
+      "output": 336,
+      "inputs": 0,
+      "margin": 336
+    },
+    {
+      "code": "rcp_kolhoz_vegetables",
+      "object": "obj_kolhoz_zarya",
+      "output": 420,
+      "inputs": 0,
+      "margin": 420
+    },
+    {
+      "code": "rcp_kolhoz_hops",
+      "object": "obj_kolhoz_zarya",
+      "output": 616,
+      "inputs": 0,
+      "margin": 616
+    },
+    {
+      "code": "rcp_kolhoz_seeds",
+      "object": "obj_kolhoz_zarya",
+      "output": 980,
+      "inputs": 0,
+      "margin": 980
+    },
+    {
+      "code": "rcp_kolhoz_tobacco",
+      "object": "obj_kolhoz_zarya",
+      "output": 1330,
+      "inputs": 0,
+      "margin": 1330
+    },
+    {
+      "code": "rcp_wood",
+      "object": "obj_sawmill",
+      "output": 28,
+      "inputs": 0,
+      "margin": 28
+    },
+    {
+      "code": "rcp_herbs",
+      "object": "obj_herb_point",
+      "output": 84,
+      "inputs": 0,
+      "margin": 84
+    },
+    {
+      "code": "rcp_fastener",
+      "object": "obj_garage_workshop",
+      "output": 50,
+      "inputs": 45,
+      "margin": 6
+    },
+    {
+      "code": "rcp_steel_plate",
+      "object": "obj_small_factory",
+      "output": 132,
+      "inputs": 118,
+      "margin": 14
+    },
+    {
+      "code": "rcp_spring",
+      "object": "obj_small_factory",
+      "output": 218,
+      "inputs": 197,
+      "margin": 21
+    },
+    {
+      "code": "rcp_weapon_part",
+      "object": "obj_parts_factory",
+      "output": 337,
+      "inputs": 307,
+      "margin": 31
+    },
+    {
+      "code": "rcp_tt_pistol",
+      "object": "obj_parts_factory",
+      "output": 3360,
+      "inputs": 1534,
+      "margin": 1826
+    },
+    {
+      "code": "rcp_fabric",
+      "object": "obj_textile",
+      "output": 34,
+      "inputs": 28,
+      "margin": 6
+    },
+    {
+      "code": "rcp_leather",
+      "object": "obj_textile",
+      "output": 188,
+      "inputs": 169,
+      "margin": 18
+    },
+    {
+      "code": "rcp_armor_plate",
+      "object": "obj_cooperative_site",
+      "output": 424,
+      "inputs": 385,
+      "margin": 39
+    },
+    {
+      "code": "rcp_jacket",
+      "object": "obj_cooperative_site",
+      "output": 1820,
+      "inputs": 1648,
+      "margin": 172
+    },
+    {
+      "code": "rcp_alcohol",
+      "object": "obj_pharmacy",
+      "output": 272,
+      "inputs": 245,
+      "margin": 27
+    },
+    {
+      "code": "rcp_extract",
+      "object": "obj_chem_lab",
+      "output": 638,
+      "inputs": 580,
+      "margin": 59
+    },
+    {
+      "code": "rcp_chemicals",
+      "object": "obj_chem_lab",
+      "output": 1058,
+      "inputs": 958,
+      "margin": 101
+    },
+    {
+      "code": "rcp_cloth",
+      "object": "obj_textile",
+      "output": 123,
+      "inputs": 22,
+      "margin": 101
+    },
+    {
+      "code": "rcp_bandage",
+      "object": "obj_pharmacy",
+      "output": 280,
+      "inputs": 62,
+      "margin": 218
+    },
+    {
+      "code": "rcp_first_aid",
+      "object": "obj_pharmacy",
+      "output": 476,
+      "inputs": 412,
+      "margin": 64
+    },
+    {
+      "code": "rcp_plastic",
+      "object": "obj_chem_lab",
+      "output": 874,
+      "inputs": 794,
+      "margin": 80
+    },
+    {
+      "code": "rcp_spare_parts",
+      "object": "obj_garage_workshop",
+      "output": 538,
+      "inputs": 487,
+      "margin": 50
+    },
+    {
+      "code": "rcp_repair_kit",
+      "object": "obj_garage_workshop",
+      "output": 622,
+      "inputs": 563,
+      "margin": 59
+    }
+  ],
+  "destructiveRecipes": [],
+  "verdicts": {
+    "workerDayCorridor": true,
+    "ownerCorridor": false,
+    "farmCorridor": false,
+    "paybackCorridor": false,
+    "barPaybackCorridor": false,
+    "clanShareCorridor": true,
+    "territoryShareCorridor": true,
+    "premiumCorridor": true,
+    "progressionMakesSense": true,
+    "chainAddsValue": true
+  },
+  "observations": {
+    "m2DailyGrowth": 0,
+    "m2Positive": false,
+    "note": "денежная масса измерена по неполному набору стоков"
+  },
+  "passed": false
+}
