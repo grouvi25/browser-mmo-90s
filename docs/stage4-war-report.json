@@ -1,0 +1,907 @@
+{
+  "meta": {
+    "generatedAt": "2026-09-03T06:29:23.684Z",
+    "days": 30,
+    "seed": 40404
+  },
+  "config": {
+    "territoryLimit": 2,
+    "upkeep": [
+      2000,
+      5000
+    ],
+    "claimFee": 10000,
+    "authority": {
+      "claim": 20,
+      "won": 15,
+      "defended": 20
+    },
+    "robbery": {
+      "share": 0.2,
+      "cap": 8000,
+      "cost": 25
+    }
+  },
+  "map": [
+    {
+      "code": "center",
+      "owner": 2,
+      "debt": 0
+    },
+    {
+      "code": "market",
+      "owner": 1,
+      "debt": 0
+    },
+    {
+      "code": "industrial",
+      "owner": 0,
+      "debt": 4546
+    },
+    {
+      "code": "station",
+      "owner": null,
+      "debt": 0
+    },
+    {
+      "code": "garages",
+      "owner": null,
+      "debt": 0
+    },
+    {
+      "code": "suburb",
+      "owner": null,
+      "debt": 0
+    }
+  ],
+  "clans": [
+    {
+      "clan": 0,
+      "size": 5,
+      "territories": 1,
+      "treasury": 19968,
+      "authority": 11,
+      "objectLimit": 4,
+      "wins": 1,
+      "losses": 0,
+      "defended": 0,
+      "daysInDebt": 2,
+      "marginPerDay": 100
+    },
+    {
+      "clan": 1,
+      "size": 10,
+      "territories": 1,
+      "treasury": 84275,
+      "authority": 279,
+      "objectLimit": 4,
+      "wins": 1,
+      "losses": 0,
+      "defended": 0,
+      "daysInDebt": 0,
+      "marginPerDay": 2700
+    },
+    {
+      "clan": 2,
+      "size": 20,
+      "territories": 1,
+      "treasury": 166999,
+      "authority": 517,
+      "objectLimit": 4,
+      "wins": 1,
+      "losses": 0,
+      "defended": 0,
+      "daysInDebt": 0,
+      "marginPerDay": 2700
+    }
+  ],
+  "income": {
+    "fromWork": 380196,
+    "fromWar": 57618,
+    "warShareOfWork": 0.152,
+    "playersEarnedMeanwhile": 840000
+  },
+  "war": {
+    "captures": 3,
+    "capturesPerDistrictPerDay": 0.017,
+    "suburbTakenAtDay": null,
+    "lostToDebt": 0,
+    "robberies": 36,
+    "objectsAdded": 2
+  },
+  "ledger": [
+    {
+      "day": 1,
+      "clan": 0,
+      "territories": 0,
+      "objects": 1,
+      "incomePerDay": 1300,
+      "upkeepPerDay": 500,
+      "treasury": 40000
+    },
+    {
+      "day": 1,
+      "clan": 1,
+      "territories": 0,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 500,
+      "treasury": 60000
+    },
+    {
+      "day": 1,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 80000
+    },
+    {
+      "day": 2,
+      "clan": 0,
+      "territories": 0,
+      "objects": 1,
+      "incomePerDay": 1300,
+      "upkeepPerDay": 500,
+      "treasury": 39500
+    },
+    {
+      "day": 2,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 17500
+    },
+    {
+      "day": 2,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 77500
+    },
+    {
+      "day": 3,
+      "clan": 0,
+      "territories": 0,
+      "objects": 1,
+      "incomePerDay": 1300,
+      "upkeepPerDay": 500,
+      "treasury": 42954
+    },
+    {
+      "day": 3,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 25357
+    },
+    {
+      "day": 3,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 90426
+    },
+    {
+      "day": 4,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 454
+    },
+    {
+      "day": 4,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 22857
+    },
+    {
+      "day": 4,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 87926
+    },
+    {
+      "day": 5,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 0
+    },
+    {
+      "day": 5,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 20357
+    },
+    {
+      "day": 5,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 85426
+    },
+    {
+      "day": 6,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 7800
+    },
+    {
+      "day": 6,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 33457
+    },
+    {
+      "day": 6,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 98526
+    },
+    {
+      "day": 7,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 5300
+    },
+    {
+      "day": 7,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 30957
+    },
+    {
+      "day": 7,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 96026
+    },
+    {
+      "day": 8,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 4100
+    },
+    {
+      "day": 8,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 29627
+    },
+    {
+      "day": 8,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 94739
+    },
+    {
+      "day": 9,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 11324
+    },
+    {
+      "day": 9,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 39590
+    },
+    {
+      "day": 9,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 105369
+    },
+    {
+      "day": 10,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 8824
+    },
+    {
+      "day": 10,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 37090
+    },
+    {
+      "day": 10,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 102869
+    },
+    {
+      "day": 11,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 7754
+    },
+    {
+      "day": 11,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 36080
+    },
+    {
+      "day": 11,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 101929
+    },
+    {
+      "day": 12,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 11560
+    },
+    {
+      "day": 12,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 45203
+    },
+    {
+      "day": 12,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 116020
+    },
+    {
+      "day": 13,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 9060
+    },
+    {
+      "day": 13,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 42703
+    },
+    {
+      "day": 13,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 113520
+    },
+    {
+      "day": 14,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 8163
+    },
+    {
+      "day": 14,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 40203
+    },
+    {
+      "day": 14,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 113013
+    },
+    {
+      "day": 15,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 13879
+    },
+    {
+      "day": 15,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 49586
+    },
+    {
+      "day": 15,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 125818
+    },
+    {
+      "day": 16,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 11379
+    },
+    {
+      "day": 16,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 47086
+    },
+    {
+      "day": 16,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 123318
+    },
+    {
+      "day": 17,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 10395
+    },
+    {
+      "day": 17,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 44586
+    },
+    {
+      "day": 17,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 120818
+    },
+    {
+      "day": 18,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 15695
+    },
+    {
+      "day": 18,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 59896
+    },
+    {
+      "day": 18,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 130192
+    },
+    {
+      "day": 19,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 13195
+    },
+    {
+      "day": 19,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 57396
+    },
+    {
+      "day": 19,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 127692
+    },
+    {
+      "day": 20,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 10695
+    },
+    {
+      "day": 20,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 56066
+    },
+    {
+      "day": 20,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 126210
+    },
+    {
+      "day": 21,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 17143
+    },
+    {
+      "day": 21,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 67000
+    },
+    {
+      "day": 21,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 138140
+    },
+    {
+      "day": 22,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 14643
+    },
+    {
+      "day": 22,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 64500
+    },
+    {
+      "day": 22,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 135640
+    },
+    {
+      "day": 23,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 13269
+    },
+    {
+      "day": 23,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 63126
+    },
+    {
+      "day": 23,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 134171
+    },
+    {
+      "day": 24,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 17378
+    },
+    {
+      "day": 24,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 76759
+    },
+    {
+      "day": 24,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 144646
+    },
+    {
+      "day": 25,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 14878
+    },
+    {
+      "day": 25,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 74259
+    },
+    {
+      "day": 25,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 142146
+    },
+    {
+      "day": 26,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 14024
+    },
+    {
+      "day": 26,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 71759
+    },
+    {
+      "day": 26,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 139646
+    },
+    {
+      "day": 27,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 16972
+    },
+    {
+      "day": 27,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 83555
+    },
+    {
+      "day": 27,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 154756
+    },
+    {
+      "day": 28,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 14472
+    },
+    {
+      "day": 28,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 81055
+    },
+    {
+      "day": 28,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 152256
+    },
+    {
+      "day": 29,
+      "clan": 0,
+      "territories": 1,
+      "objects": 2,
+      "incomePerDay": 2600,
+      "upkeepPerDay": 2500,
+      "treasury": 13878
+    },
+    {
+      "day": 29,
+      "clan": 1,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 78555
+    },
+    {
+      "day": 29,
+      "clan": 2,
+      "territories": 1,
+      "objects": 4,
+      "incomePerDay": 5200,
+      "upkeepPerDay": 2500,
+      "treasury": 149756
+    }
+  ],
+  "verdicts": {
+    "mapIsShared": true,
+    "smallClanSurvives": true,
+    "bigClanSolvent": true,
+    "allHoldersSolvent": true,
+    "warCheaperThanWork": true,
+    "suburbNotInstant": true,
+    "mapIsStable": true,
+    "authorityNonNegative": true
+  }
+}

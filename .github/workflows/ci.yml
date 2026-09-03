@@ -67,6 +67,11 @@ jobs:
           npx tsx ../scripts/check-economy-reachability.ts
           --json ../docs/stage2-economy-reachability.json
           --text ../docs/stage2-economy-reachability.txt
+      - name: Run territory war simulation
+        working-directory: backend
+        run: >-
+          npx tsx ../scripts/simulate-war.ts --days 30 --seed 40404
+          --json ../docs/stage4-war-report.json --quiet
       - name: Run zonal balance simulation
         working-directory: backend
         run: npx tsx ../scripts/simulate-balance.ts --zonal | tee ../docs/stage2-balance-report.txt
