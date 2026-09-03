@@ -127,3 +127,34 @@ test('рынок объектов показывает цену и кнопку 
   await page.getByRole('tab', { name: 'Рынок объектов' }).click()
   await expect(page.getByRole('button', { name: /Купить за/ }).first()).toBeVisible()
 })
+
+/**
+ * Этап 4: пять экранов стратегического слоя.
+ *
+ * Проверяем не вёрстку, а то, что каждый открывается, не роняет страницу и
+ * держит свою полосу вкладок. Макетов под них нет, поэтому пиксели сверять
+ * не с чем — а вот «раздел не открылся» ловится именно здесь.
+ */
+const STAGE4_SCREENS: Array<[string, string, number]> = [
+  ['/territories', 'Территории', 3],
+  ['/territories/raids', 'Налёты', 3],
+  ['/territories/wars', 'Войны бригады', 3],
+  ['/premium', 'Премиум', 2],
+  ['/premium/helpers', 'Помощники', 2],
+]
+
+for (const [path, title, tabs] of STAGE4_SCREENS) {
+  test(`раздел ${title} открывается и держит вкладки`, async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', error => errors.push(error.message))
+    await authPage(page, owner)
+    await page.goto(path)
+    await expect(page.locator('.viewport__title, .m-view h1').first()).toContainText(title)
+    // Граница ошибок рисует эту плашку вместо раздела — значит он упал.
+    await expect(page.getByText('Раздел не открылся')).toHaveCount(0)
+    if (!test.info().project.name.startsWith('mobile')) {
+      await expect(page.locator('.s3-group a')).toHaveCount(tabs)
+    }
+    expect(errors).toEqual([])
+  })
+}

@@ -1,0 +1,165 @@
+/* =============================================================
+   ЭТАП 4 — стратегический слой.
+
+   Ни одного собственного цвета и шрифта: всё берётся из палитры
+   Этапа 3 (--s3-paper, --s3-ink, --s3-red, --s3-green) и его типографики.
+   Макетов под эти экраны нет, и заводить рядом вторую систему значило бы
+   получить два разных интерфейса в одной игре.
+   ============================================================= */
+
+.s4 { --s4-line: oklch(72% .025 60); }
+
+.s4-lead {
+  max-width: 74ch;
+  margin: 0 0 20px;
+  font-size: .84rem;
+  color: oklch(46% .028 55);
+}
+.s4-muted { color: oklch(52% .025 55); font-size: .78rem; }
+.s4-warn { color: var(--s3-red); }
+.s4-plus { color: var(--s3-green); font-variant-numeric: tabular-nums; }
+.s4-minus { color: var(--s3-red); font-variant-numeric: tabular-nums; }
+.s4 h4 {
+  display: flex; align-items: center; gap: 6px;
+  font: .72rem/1 'Doc', 'PT Mono', monospace;
+  text-transform: uppercase; letter-spacing: .08em;
+  margin: 26px 0 10px; padding-bottom: 7px;
+  border-bottom: 1px solid var(--s4-line);
+}
+.s4 .s3-tabs a, .s4-tabs a { text-decoration: none; }
+
+/* Кнопка-призрак: второстепенное действие рядом с главным. */
+.s4 button.s4-ghost { background: transparent; border-style: dashed; }
+
+/* ── Сводка цифр: районы, содержание, авторитет ─────────────── */
+.s4-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border-block: 1px solid var(--s4-line);
+  margin-bottom: 22px;
+}
+.s4-stat { padding: 14px 16px 14px 0; }
+.s4-stat__label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: .66rem; text-transform: uppercase; letter-spacing: .07em;
+  color: oklch(48% .025 55);
+}
+.s4-stat b { display: block; margin-top: 4px; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.s4-stat--warn b { color: var(--s3-red); }
+.s4-stat--good b { color: var(--s3-green); }
+
+/* ── Карта районов ─────────────────────────────────────────── */
+.s4-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 1px;
+  background: oklch(57% .025 60);
+  border: 1px solid oklch(57% .025 60);
+}
+.s4-district { background: oklch(96% .018 76); padding: 16px; display: grid; gap: 10px; align-content: start; }
+.s4-district > header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.s4-district h3 { font: 700 1.3rem/1.05 'Sign', 'Oswald', sans-serif; text-transform: uppercase; }
+.s4-district__status {
+  font-size: .66rem; text-transform: uppercase; letter-spacing: .07em;
+  color: oklch(48% .025 55); white-space: nowrap;
+}
+/* Состояние района читается цветом полосы слева, а не заливкой: заливка
+   спорила бы с бумагой и мешала читать текст. */
+.s4-district { border-left: 4px solid transparent; }
+.s4-district--controlled { border-left-color: var(--s3-green); }
+.s4-district--contested,
+.s4-district--under_attack { border-left-color: var(--s3-red); }
+.s4-district--protected { border-left-color: oklch(62% .1 250); }
+
+.s4-district__facts { display: grid; gap: 5px; }
+.s4-district__facts > div { display: flex; justify-content: space-between; gap: 12px; }
+.s4-district__facts dt {
+  display: flex; align-items: center; gap: 4px;
+  font-size: .66rem; text-transform: uppercase; letter-spacing: .06em;
+  color: oklch(50% .025 55);
+}
+.s4-district__facts dd { margin: 0; font-size: .84rem; text-align: right; }
+
+.s4-district__claim {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0; padding: 7px 9px; font-size: .78rem;
+  background: oklch(91% .045 60); color: oklch(40% .11 36);
+}
+.s4-district__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.s4-district__actions button { min-height: 38px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px; }
+/* Причина отказа стоит текстом всегда, а не тултипом на выключенной
+   кнопке: игрок должен понимать, чего не хватает, без наведения. */
+.s4-district__blocked, .s4-target__blocked {
+  margin: 0; font-size: .75rem; color: var(--s3-red);
+}
+.s4-district__details { border-top: 1px dashed var(--s4-line); padding-top: 10px; }
+.s4-upkeep { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: .78rem; }
+
+/* ── Списки: объекты района, история, журнал авторитета ────── */
+.s4-list { list-style: none; margin: 0; padding: 0; }
+.s4-list li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid oklch(80% .018 60); font-size: .84rem;
+}
+.s4-list--log li { gap: 10px; }
+.s4-list--log li > :first-child { flex: 0 0 auto; }
+.s4-list--log li > :nth-child(2) { flex: 1 1 auto; }
+
+/* ── Налёты ────────────────────────────────────────────────── */
+.s4-targets { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: oklch(57% .025 60); border: 1px solid oklch(57% .025 60); }
+.s4-target { background: oklch(96% .018 76); padding: 14px 16px; display: grid; gap: 8px; }
+.s4-target__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.s4-target__head b { font: 700 1.05rem/1.1 'Sign', 'Oswald', sans-serif; text-transform: uppercase; }
+.s4-target__facts { display: flex; flex-wrap: wrap; gap: 14px; font-size: .76rem; color: oklch(48% .025 55); }
+.s4-target__facts span { display: inline-flex; align-items: center; gap: 4px; }
+.s4-target__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.s4-target__actions button { min-height: 38px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px; }
+
+/* ── Витрина ───────────────────────────────────────────────── */
+.s4-shop-group { margin-bottom: 18px; }
+.s4-shop-group__hint { margin: -4px 0 10px; }
+.s4-shop { list-style: none; margin: 0; padding: 0; }
+.s4-goods {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  padding: 11px 0; border-bottom: 1px solid oklch(80% .018 60);
+}
+.s4-goods__body { display: grid; gap: 3px; }
+.s4-goods__body b { font-size: .95rem; }
+.s4-goods__price { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.s4-note-box {
+  margin: 18px 0 0; padding: 11px 13px; font-size: .78rem;
+  border: 1px solid oklch(62% .04 65); background: oklch(93% .03 75);
+}
+
+/* ── Помощники ─────────────────────────────────────────────── */
+.s4-hire { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.s4-hire input { flex: 1 1 180px; min-width: 0; }
+.s4-hire select { flex: 1 1 200px; min-width: 0; }
+.s4-hire button { display: inline-flex; align-items: center; gap: 6px; }
+
+.s4-helpers { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: oklch(57% .025 60); border: 1px solid oklch(57% .025 60); }
+.s4-helper { background: oklch(96% .018 76); padding: 15px 16px; display: grid; gap: 9px; }
+/* Спящий помощник не прячется и не выключается насовсем: он остаётся в
+   профиле, и экран обязан объяснить, почему он не работает. */
+.s4-helper--dormant { background: oklch(93% .012 72); }
+.s4-helper__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.s4-helper__head b { font: 700 1.05rem/1.1 'Sign', 'Oswald', sans-serif; text-transform: uppercase; }
+.s4-helper__head span { display: inline-flex; align-items: center; gap: 4px; }
+.s4-helper__facts { display: flex; gap: 22px; margin: 0; }
+.s4-helper__facts dt { font-size: .66rem; text-transform: uppercase; letter-spacing: .07em; color: oklch(50% .025 55); }
+.s4-helper__facts dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.s4-helper__shift { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.s4-helper__shift > span { display: inline-flex; align-items: center; gap: 5px; font-size: .8rem; flex: 1 1 auto; }
+.s4-helper__shift select { flex: 1 1 180px; min-width: 0; }
+.s4-helper__shift button { min-height: 38px; padding: 6px 12px; }
+.s4-helper__dismiss { justify-self: start; min-height: 32px; padding: 4px 10px; font-size: .75rem; display: inline-flex; align-items: center; gap: 5px; }
+
+/* ── Узкий экран ───────────────────────────────────────────── */
+@media (max-width: 800px) {
+  .s4-map, .s4-targets, .s4-helpers { grid-template-columns: 1fr; }
+  .s4-summary { grid-template-columns: 1fr 1fr; }
+  .s4-district__facts > div { flex-direction: column; gap: 2px; }
+  .s4-district__facts dd { text-align: left; }
+  .s4-helper__facts { gap: 16px; }
+  .s4-list li { flex-wrap: wrap; }
+}

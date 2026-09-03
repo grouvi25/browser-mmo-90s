@@ -31,6 +31,7 @@ import { UpgradesPage }        from '../pages/upgrades/upgrades-page'
 import { BalanceSandboxPage }   from '../pages/balance-sandbox/balance-sandbox-page'
 import { LocationHubPage, type DistrictKey } from '../pages/locations/location-hub-page'
 import { Stage3Page }           from '../pages/stage3/stage3-page'
+import { Stage4Page }           from '../pages/stage4/stage4-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -154,6 +155,13 @@ export function AppRouter() {
         <Route path="/clans/storage" element={<Stage3Page section="clan-storage" />} />
         <Route path="/clans/treasury" element={<Stage3Page section="clan-treasury" />} />
         <Route path="/clans/relations" element={<Stage3Page section="clan-relations" />} />
+
+        {/* Этап 4: две комнаты, остальное — вкладки внутри них. */}
+        <Route path="/territories" element={<Stage4Page section="territories" />} />
+        <Route path="/territories/raids" element={<Stage4Page section="raids" />} />
+        <Route path="/territories/wars" element={<Stage4Page section="wars" />} />
+        <Route path="/premium" element={<Stage4Page section="premium" />} />
+        <Route path="/premium/helpers" element={<Stage4Page section="helpers" />} />
 
         <Route path="/shop" element={
           <ViewportPanel title="Госмагазин" subtitle="Государственные цены">

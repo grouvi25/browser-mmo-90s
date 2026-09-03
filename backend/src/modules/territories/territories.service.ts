@@ -9,6 +9,7 @@
 // ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, часть II.
 // =============================================================
 import { prisma } from '../../shared/db/prisma'
+import { claimEligibility } from './claims.service'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import {
@@ -69,6 +70,17 @@ export const TerritoriesService = {
       }),
       clanIdOf(characterId),
     ])
+    // Право на заявку считает СЕРВЕР по тому же предикату, что и сама
+    // заявка: проверок восемь, и клиент не должен повторять ни одну.
+    const eligibility = await claimEligibility(characterId)
+    const activeClaims = await prisma.territoryClaim.findMany({
+      where: { status: { in: ['PENDING', 'BATTLE'] } },
+      include: {
+        territory: { select: { code: true } },
+        attackerClan: { select: { tag: true } },
+      },
+    })
+    const claimByCode = new Map(activeClaims.map(claim => [claim.territory.code, claim]))
     const byDistrict = new Map(counts.map(row => [row.locationId, row._count._all]))
     return {
       items: territories.map(territory => ({
@@ -88,6 +100,19 @@ export const TerritoriesService = {
         },
         objectCount: byDistrict.get(territory.code) ?? 0,
         protectedUntil: isProtected(territory.protectedUntil) ? territory.protectedUntil : null,
+        // Обороняющийся видит заявку и состав атакующего с момента подачи:
+        // внезапное нападение в асинхронной игре выигрывает тот, кто просто
+        // оказался онлайн, а не тот, кто лучше играет.
+        activeClaim: (() => {
+          const claim = claimByCode.get(territory.code)
+          return claim
+            ? { id: claim.id, attackerTag: claim.attackerClan.tag, battleStartsAt: claim.battleStartsAt }
+            : null
+        })(),
+        myClan: (() => {
+          const blockedReason = eligibility.check(territory)
+          return { canClaim: blockedReason === null, blockedReason }
+        })(),
       })),
       limit: TERRITORY_LIMIT,
     }

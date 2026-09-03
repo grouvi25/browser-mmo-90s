@@ -382,3 +382,80 @@ export async function releaseTerritory(tx: Prisma.TransactionClient, territoryId
     data: { status: territory.ownerClanId ? 'CONTROLLED' : 'NEUTRAL' },
   })
 }
+
+/**
+ * Можно ли клану подать заявку на район — и если нет, то почему.
+ *
+ * Тот же набор проверок, что и в ClaimsService.file, но без побочных
+ * действий: список районов должен показывать ровно ту причину, по которой
+ * откажет мутация. Две независимые копии разошлись бы, и кнопка врала бы
+ * игроку — ровно эта ошибка уже случилась с налётами на объекты.
+ */
+export type ClaimBlockedReason =
+  | 'NO_CLAN' | 'NO_PERMISSION' | 'PROTECTED' | 'CONTESTED' | 'LIMIT_REACHED'
+  | 'NOT_ENOUGH_AUTHORITY' | 'NOT_ENOUGH_MONEY' | 'CLAN_COOLDOWN' | 'ALLY_OWNED'
+  | 'OWN_TERRITORY'
+
+export async function claimEligibility(characterId: string): Promise<{
+  clanId: string | null
+  check: (territory: {
+    code: string
+    ownerClanId: string | null
+    protectedUntil: Date | null
+    status: string
+  }) => ClaimBlockedReason | null
+}> {
+  const member = await prisma.clanMember.findUnique({
+    where: { characterId },
+    include: { role: true, clan: true },
+  })
+  if (!member || member.status !== 'ACTIVE') {
+    return { clanId: null, check: () => 'NO_CLAN' }
+  }
+  const permissions = Array.isArray(member.role.permissions)
+    ? member.role.permissions.filter((v): v is string => typeof v === 'string')
+    : []
+  if (!permissions.includes('WAR')) {
+    return { clanId: member.clanId, check: () => 'NO_PERMISSION' }
+  }
+
+  const clan = member.clan
+  const [owned, lastClaim, allies, pending] = await Promise.all([
+    prisma.territory.count({ where: { ownerClanId: clan.id, status: 'CONTROLLED' } }),
+    prisma.territoryClaim.findFirst({
+      where: { attackerClanId: clan.id },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    }),
+    prisma.clanRelation.findMany({
+      where: {
+        type: 'ALLIANCE',
+        OR: [{ fromClanId: clan.id }, { toClanId: clan.id }],
+      },
+    }),
+    prisma.territoryClaim.findMany({
+      where: { status: { in: ['PENDING', 'BATTLE'] } },
+      include: { territory: { select: { code: true } } },
+    }),
+  ])
+  const allyIds = new Set(allies.map(r => (r.fromClanId === clan.id ? r.toClanId : r.fromClanId)))
+  const contested = new Set(pending.map(c => c.territory.code))
+  const cooldownLeft = lastClaim
+    ? T.claimClanCooldownHours - (Date.now() - lastClaim.createdAt.getTime()) / HOUR_MS
+    : 0
+
+  return {
+    clanId: clan.id,
+    check: territory => {
+      if (territory.ownerClanId === clan.id) return 'OWN_TERRITORY'
+      if (isProtected(territory.protectedUntil)) return 'PROTECTED'
+      if (contested.has(territory.code)) return 'CONTESTED'
+      if (territory.ownerClanId && allyIds.has(territory.ownerClanId)) return 'ALLY_OWNED'
+      if (owned >= clan.territoryLimit) return 'LIMIT_REACHED'
+      if (cooldownLeft > 0) return 'CLAN_COOLDOWN'
+      if (clan.authority < AUTHORITY_COSTS.claim) return 'NOT_ENOUGH_AUTHORITY'
+      if (clan.treasury < T.claimFee) return 'NOT_ENOUGH_MONEY'
+      return null
+    },
+  }
+}

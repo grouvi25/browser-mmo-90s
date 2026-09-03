@@ -85,6 +85,10 @@ export const MENU = {
       { key: 'stats', label: 'Характеристики', to: '/stats' },
       { key: 'history', label: 'История боёв', to: '/battles/history' },
       { key: 'clan', label: 'Бригада', to: '/clans' },
+      // Этап 4. Премиум — личное, поэтому Центр. Витрина и помощники
+      // живут вкладками внутри: помощник без подписки не существует, и
+      // разводить их по разным комнатам значило бы врать о связи.
+      { key: 'premium', label: 'Премиум', to: '/premium' },
     ],
     market: [
       { key: 'shop', label: 'Госмагазин', to: '/shop' },
@@ -117,6 +121,9 @@ export const MENU = {
     ],
     suburb: [
       { key: 'arena', label: 'Стрелки', to: '/pvp' },
+      // Этап 4. Территории — к стрелкам: и то и другое про то, как
+      // бригады делят город, а не про то, где что производят.
+      { key: 'territories', label: 'Территории', to: '/territories' },
     ],
   } as Record<string, readonly { key:string;label:string;to:string }[]>,
   bottomFontSize: 15.1,
