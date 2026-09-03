@@ -179,6 +179,23 @@ export const HelpersService = {
         )
       }
 
+      // Суточный потолок смен. У игрока он есть с Этапа 2, у помощника его
+      // не было вовсе: смена длится полчаса, и подписчик мог гонять двух
+      // помощников круглые сутки — сорок восемь смен на каждого. Приёмка
+      // Этапа 4 намерила на этом 213% дохода активного игрока при коридоре
+      // 130%. Число — из STAGE4_BALANCE 6.3, где модель считала шесть смен.
+      const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0)
+      const today = await tx.workShift.count({
+        where: { helperId, startedAt: { gte: dayStart } },
+      })
+      if (today >= H.dailyShiftCap) {
+        throw new AppError(
+          ErrorCode.HELP_DAILY_LIMIT,
+          `Помощник отработал суточную норму: ${H.dailyShiftCap} смен`,
+          409,
+        )
+      }
+
       // Помощник занимает обычный рабочий слот: он такой же работник на
       // объекте, и владелец не должен получать бесконечную рабочую силу.
       const slots = await tx.workShift.count({ where: { productionObjectId, status: 'ACTIVE' } })

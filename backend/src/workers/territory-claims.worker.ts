@@ -42,6 +42,17 @@ async function startDueBattles(now: Date): Promise<number> {
     const attackers = claim.roster.filter(row => row.side === 1)
     const defenders = claim.roster.filter(row => row.side === 2)
 
+    // Назначать бой некому: состав нападения разошёлся между подачей и часом
+    // боя (вышли из клана, удалились, забанены). Раньше такая заявка молча
+    // попадала в ветку неявки и ОТДАВАЛА район нападающему, которого нет.
+    // Заявка гасится, взнос и авторитет возвращаются: сбой назначения — не
+    // вина клана, и платить за него он не должен.
+    if (attackers.length === 0) {
+      await expireClaim(claim, now)
+      started += 1
+      continue
+    }
+
     // Оборона никого не выставила — техническая победа. Но район всё равно
     // уходит под защиту на те же 48 часов: безответная война не должна быть
     // быстрее честной.
@@ -153,6 +164,43 @@ async function resolveFinishedBattles(now: Date): Promise<number> {
     resolved += 1
   }
   return resolved
+}
+
+/**
+ * Погасить заявку, которую невозможно назначить, и вернуть уплаченное.
+ *
+ * Единственный путь возврата взноса во всём этапе: при отзыве он сгорает
+ * намеренно, здесь же клан не получил ничего — ни боя, ни разведки.
+ */
+async function expireClaim(
+  claim: { id: string; territoryId: string; attackerClanId: string; feePaid: number; authoritySpent: number },
+  now: Date,
+) {
+  await withTransaction(async tx => {
+    const changed = await tx.territoryClaim.updateMany({
+      where: { id: claim.id, status: 'PENDING' },
+      data: { status: 'EXPIRED', resolvedAt: now },
+    })
+    // Идемпотентность: если строку уже погасил соседний тик, денег не
+    // возвращаем второй раз.
+    if (changed.count !== 1) return
+
+    const clan = await tx.clan.update({
+      where: { id: claim.attackerClanId },
+      data: { treasury: { increment: claim.feePaid } },
+    })
+    await tx.clanTreasuryLog.create({
+      data: {
+        clanId: claim.attackerClanId, amount: claim.feePaid,
+        balanceAfter: clan.treasury, reason: 'TERRITORY_CLAIM_REFUND',
+      },
+    })
+    await AuthorityService.grant(tx, {
+      clanId: claim.attackerClanId, amount: claim.authoritySpent,
+      reason: 'CLAIM_REFUNDED', refId: claim.id,
+    })
+    await releaseTerritory(tx, claim.territoryId)
+  })
 }
 
 /**

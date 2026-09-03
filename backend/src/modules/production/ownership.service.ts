@@ -199,9 +199,17 @@ export const OwnershipService = {
       if (!inventory || inventory.amount - inventory.reservedAmount < quote.kits) {
         throw new AppError(ErrorCode.PROD_INPUT_MISSING, 'Repair kits are missing', 409, { resourceCode: config.repairResourceCode, required: quote.kits })
       }
+      // Статус снимается вместе с прочностью. Иначе объект, повреждённый
+      // диверсией Этапа 4, чинился по числам, но навсегда оставался DAMAGED:
+      // циклы на нём больше не запускались, и разовая диверсия стирала
+      // объект насовсем — прямо против принципа П1.
       const paid = await tx.productionObject.updateMany({
         where: { id: objectId, ownerCharacterId: characterId, balance: { gte: quote.cost } },
-        data: { balance: { decrement: quote.cost }, durabilityCurrent: object.durabilityMax },
+        data: {
+          balance: { decrement: quote.cost },
+          durabilityCurrent: object.durabilityMax,
+          ...(object.status === 'DAMAGED' ? { status: 'ACTIVE' as const } : {}),
+        },
       })
       if (paid.count !== 1) throw new AppError(ErrorCode.PROD_BALANCE_LOW, 'Object balance is too low', 409)
       await tx.productionObjectInventory.update({ where: { id: inventory.id }, data: { amount: { decrement: quote.kits } } })
