@@ -153,29 +153,41 @@ export function RepairPage() {
               <article key={item.id} className="gshop-card gshop-card--repair">
                 <img src={itemImage(item)} alt="" width={64} height={64} />
                 <div className="gshop-card-body">
-                  <h3 className={`q-${item.quality}`}>{t.name}</h3>
-                  <dl>
-                    {/* В макете у вещи стоит её текущая прочность, а не предел:
-                        чинить имеет смысл именно по ней. */}
-                    <div><dt>Прочность</dt><dd>{item.durabilityCurrent}</dd></div>
-                    <div><dt>Качество</dt><dd>{QUALITY_LABELS[item.quality]}</dd></div>
-                    <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
-                    <div><dt>Цена за ремонт</dt><dd>{money(item.repairCost)} руб.</dd></div>
-                  </dl>
-                  <ul className="gshop-bonuses">
-                    {bonusLines(item).map(line => <li key={line}>{line}</li>)}
-                  </ul>
-                </div>
-                <div className="gshop-card-actions">
-                  <button
-                    className="gshop-btn"
-                    disabled={repairMut.isPending || tooPoor}
-                    title={tooPoor ? 'Не хватает денег' : undefined}
-                    onClick={() => repairMut.mutate(item.id)}
-                  >
-                    <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                    <span>Ремонт</span>
-                  </button>
+                  <div className="gshop-card-head">
+                    <h3 className={`q-${item.quality}`}>{t.name}</h3>
+                    {/* Каждая запись ремонта — одна вещь, поэтому «количество»
+                        макета здесь всегда единица. */}
+                    <span className="gshop-card-count">Количество: 1</span>
+                  </div>
+                  {/* В макете прочность и цена стоят одной строкой, сразу под
+                      подписью. У вещи берётся текущая прочность, а не предел:
+                      чинить имеет смысл именно по ней. */}
+                  <p className="gshop-card-meta">
+                    <span>Прочность: {item.durabilityCurrent}</span>
+                    <span>Цена за ремонт: {money(item.repairCost)} руб.</span>
+                  </p>
+                  <div className="gshop-card-lower">
+                    <div className="gshop-card-stats">
+                      <dl>
+                        <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
+                        <div><dt>Качество</dt><dd>{QUALITY_LABELS[item.quality]}</dd></div>
+                      </dl>
+                      <ul className="gshop-bonuses">
+                        {bonusLines(item).map(line => <li key={line}>{line}</li>)}
+                      </ul>
+                    </div>
+                    <div className="gshop-card-actions">
+                      <button
+                        className="gshop-btn"
+                        disabled={repairMut.isPending || tooPoor}
+                        title={tooPoor ? 'Не хватает денег' : undefined}
+                        onClick={() => repairMut.mutate(item.id)}
+                      >
+                        <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                        <span>Ремонт</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </article>
             )
