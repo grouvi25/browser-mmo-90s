@@ -244,7 +244,8 @@ test.describe('Stage 2 visual and browser flow', () => {
     const tool = (await shop.json() as Array<{ templateId: string; template: { type: string; toolTier: number | null } }>).find(item => item.template.type === 'TOOL' && item.template.toolTier === 1)
     expect(tool).toBeTruthy()
     const purchase = await apiContext.post('/api/shops/government/buy', {
-      headers: { Authorization: `Bearer ${worker.token}` }, data: { templateId: tool!.templateId },
+      headers: { Authorization: `Bearer ${worker.token}`, 'Idempotency-Key': `visual-gov-buy-${worker.login}` },
+      data: { templateId: tool!.templateId },
     })
     expect(purchase.status()).toBe(201)
 
