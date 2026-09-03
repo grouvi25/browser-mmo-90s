@@ -33,7 +33,7 @@ import { farmRoutes } from './modules/farm/farm.routes'
 import { barsRoutes } from './modules/bars/bars.routes'
 import { clansRoutes } from './modules/clans/clans.routes'
 import { territoriesRoutes, clanTerritoriesRoutes, objectWarRoutes } from './modules/territories/territories.routes'
-import { premiumRoutes, adminPremiumRoutes } from './modules/premium/premium.routes'
+import { premiumRoutes, adminPremiumRoutes, helpersRoutes } from './modules/premium/premium.routes'
 import { stage3AcceptanceRoutes } from './modules/stage3-acceptance/stage3-acceptance.routes'
 import { balanceSandboxRoutes } from './modules/balance-sandbox/balance-sandbox.routes'
 
@@ -135,6 +135,7 @@ export async function buildApp() {
   // операциями над объектами Этапа 3.
   await fastify.register(objectWarRoutes,     { prefix: '/api/objects' })
   await fastify.register(premiumRoutes,       { prefix: '/api/premium' })
+  await fastify.register(helpersRoutes,       { prefix: '/api/helpers' })
   await fastify.register(adminPremiumRoutes,  { prefix: '/api/admin' })
   await fastify.register(stage3AcceptanceRoutes,{ prefix: '/api/stage3/acceptance' })
   await fastify.register(balanceSandboxRoutes, { prefix: '/api/balance-sandbox' })
