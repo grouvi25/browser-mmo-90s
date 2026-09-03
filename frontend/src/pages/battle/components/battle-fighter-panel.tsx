@@ -126,15 +126,17 @@ function WeaponCell({
 function ZoneIndicator({ mode, selected }: { mode: 'attack' | 'block'; selected: BodyZone[] }) {
   const covered = (zone: BodyZone) => selected.includes(zone)
   const label = mode === 'attack' ? 'Куда бьём' : 'Что закрыто'
-  // Макет рисует шесть частей: голова, торс, две руки и две ноги.
-  // Ног в боевой системе одна зона, поэтому обе фигурки ведёт LEGS.
+  // Макет рисует шесть частей: голова, торс, две руки и две ноги —
+  // ровно шесть боевых зон. Раньше обе ноги вели на LEGS, оставшийся
+  // от общей зоны; после развода ног этой зоны в плане не бывает, и
+  // ноги на фигурке не загорались никогда.
   const parts: { part: string; zone: BodyZone }[] = [
     { part: 'head', zone: 'HEAD' },
     { part: 'chest', zone: 'CHEST' },
     { part: 'arm-l', zone: 'LEFT_ARM' },
     { part: 'arm-r', zone: 'RIGHT_ARM' },
-    { part: 'leg-l', zone: 'LEGS' },
-    { part: 'leg-r', zone: 'LEGS' },
+    { part: 'leg-l', zone: 'LEFT_LEG' },
+    { part: 'leg-r', zone: 'RIGHT_LEG' },
   ]
   return (
     <div className={`zone-indicator is-${mode}`} style={INDICATOR_STYLE}

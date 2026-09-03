@@ -35,6 +35,29 @@ export type StageFit = 'contain' | 'width'
  * горизонтальный, и без привязки одни и те же элементы выходили бы
  * разного размера на разных экранах.
  */
+/**
+ * Размер окна в пикселях.
+ *
+ * Нужен там, где одного коэффициента мало: боевой экран делит ширину
+ * между двумя карточками и сценой, и каждой части нужен свой расчёт от
+ * общих габаритов, а не общий множитель.
+ */
+export function useViewportSize(): { w: number; h: number } {
+  const [size, setSize] = useState(() => ({
+    w: typeof window === 'undefined' ? 1440 : window.innerWidth,
+    h: typeof window === 'undefined' ? 900 : window.innerHeight,
+  }))
+
+  useLayoutEffect(() => {
+    const recalc = () => setSize({ w: window.innerWidth, h: window.innerHeight })
+    recalc()
+    window.addEventListener('resize', recalc)
+    return () => window.removeEventListener('resize', recalc)
+  }, [])
+
+  return size
+}
+
 export function useViewportScale(
   width: number, height: number, fit: StageFit = 'contain', maxScale = 1.5,
 ): number {

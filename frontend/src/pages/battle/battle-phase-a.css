@@ -15,11 +15,31 @@
   inset: 0;
   overflow: hidden;
   display: grid;
-  place-items: center;
+  /* Шапка города прижата к верху, всё остальное занимает остаток. */
+  grid-template-rows: auto minmax(0, 1fr);
   color: oklch(23% 0.018 48);
-  /* Поле по краям сцены: тёмное, чтобы сама сцена читалась как лист. */
-  background: #2b2724;
+  /* Поле по краям сцены — размытая плашка главного экрана, она
+     приходит слоем .stage-backdrop из разметки. Цвет под ней тот же,
+     что у сцены города: он виден по углам, пока картинка грузится. */
+  background: #b0a2b0;
+  isolation: isolate;
   user-select: none;
+}
+/* Шапка и тело лежат НАД подложкой: без z-index размытая плашка
+   рисуется поверх них — она в потоке идёт первой. */
+.battle-page-v3 > .nav-cutout { position: relative; z-index: 1; }
+.battle-page-v3__body {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto auto auto;
+  /* Верх у всех троих общий. По центру карточки висели посреди пустого
+     поля, пока сцена была прижата к шапке, — три предмета на трёх
+     разных высотах и читались как «всё едет». */
+  align-items: start;
+  justify-content: center;
+  gap: 10px;
 }
 /* Обёртка держит РЕАЛЬНЫЙ размер сцены — тот, что после масштабирования.
    Без неё центрирование считалось по неотмасштабированной коробке 900x1312:
@@ -214,7 +234,17 @@
   transition: filter 120ms cubic-bezier(.25,1,.5,1), border-color 120ms;
 }
 .battle-zone-cell:hover:not(:disabled) { filter: brightness(1.05); border-color: #8a7563; }
-.battle-zone-cell:disabled { opacity: .38; cursor: not-allowed; }
+/* Недоступную ячейку гасим ИЗНУТРИ, а не прозрачностью всей кнопки.
+   Ячейки стоят поверх чёрного силуэта: opacity на кнопке просвечивала
+   его насквозь, и вторые слоты головы, корпуса и рук выглядели тёмными
+   плитами поперёк тела — будто пол-манекена выключено. В макете все
+   десять ячеек одинаково светлые. */
+.battle-zone-cell:disabled {
+  cursor: not-allowed;
+  border-color: #ded4da;
+  background: linear-gradient(180deg, #f6f0f5 0%, #f7e9e9 52%, #f6e6e0 100%);
+}
+.battle-zone-cell:disabled > * { opacity: .42; }
 /* Подпись: макет ставит её на 13 px ниже верха ячейки при высоте 15 px
    и ширине 73 из 103 — то есть 12.6% сверху и 70.9% ширины по центру. */
 .battle-zone-cell__caption {
@@ -319,7 +349,7 @@
    бывает шире 900 px, и без второго условия он получал настольную вёрстку
    с портретом в пол-экрана и раздавленным манекеном. */
 @media (max-width: 900px), (max-height: 620px) {
-  .battle-page-v3 { position: fixed; z-index: 50; grid-template-rows: 32px minmax(0,1fr) 118px; }
+  .battle-page-v3 { position: fixed; z-index: 50; }
   .battle-header-v3 { padding: 0 6px; }
   .battle-header-v3 > div b { font-size: 9px; }
   .battle-header-v3 > strong { font-size: 9px; }
@@ -358,7 +388,6 @@
 }
 
 @media (max-height: 520px) {
-  .battle-page-v3 { grid-template-rows: 30px minmax(0,1fr) 108px; }
   .battle-header-v3 { min-height: 30px; }
   /* Полоску режима держим и на низком экране: без неё шаблон рядов
      расходится с разметкой, и манекен получает чужой ряд в 18 px. */
@@ -373,7 +402,6 @@
   .battle-drawer { inset: 30px 0 108px; }
 }
 @media (max-height: 560px) and (min-width: 901px) {
-  .battle-page-v3 { grid-template-rows: 30px minmax(0,1fr) 108px; }
   .battle-fighter-panel__head { padding-block: 4px; }
   .battle-command-dock { grid-template-columns: minmax(0,1fr) 180px; }
 }
@@ -782,10 +810,14 @@
   background: #f8ebf6;
   pointer-events: none;
 }
+/* Базовый цвет — зелёный, как в макете: нетронутая зона. Раньше стоял
+   жёлтый, и фигурка целиком читалась как «всё плохо» ещё до первого
+   хода. Три цвета макета теперь заняты: зелёный — чисто, жёлтый —
+   прикрыта блоком, красный — назначена целью удара. */
 .zone-indicator__part {
   position: absolute;
   display: block;
-  background: #ffda3a;
+  background: #5bbf46;
   border-radius: 40%;
   transition: background 140ms ease;
 }
@@ -796,8 +828,8 @@
 .zone-indicator__part.is-leg-l { left: 32.80%; top: 52.31%; width: 9.68%;  height: 44.91%; }
 .zone-indicator__part.is-leg-r { left: 46.24%; top: 52.31%; width: 9.68%;  height: 44.91%; }
 
-.zone-indicator.is-block  .zone-indicator__part.is-on { background: #05dc59; }
-.zone-indicator.is-attack .zone-indicator__part.is-on { background: #ff594a; }
+.zone-indicator.is-block  .zone-indicator__part.is-on { background: #ffda3a; }
+.zone-indicator.is-attack .zone-indicator__part.is-on { background: #e8392c; }
 
 /* Портрета в макете между полосой ХП и зонами нет — панель без него
    становится плотнее, и зоны поднимаются под полосы, как нарисовано. */
@@ -949,10 +981,6 @@
      карты: раунд, состояние хода, карман и сдача — наше, в макете их
      негде разместить, но и высоту у макетных блоков они забирать
      не должны. Верх карты декоративен, надпись там не мешает. */
-  /* Треков два, а не три: шапка ушла в absolute и место в сетке
-     больше не занимает — с лишним треком полоса боя попадала
-     в нулевой ряд и схлопывалась. */
-  .battle-page-v3 { grid-template-rows: minmax(0, 1fr) minmax(120px, 38%); }
   .battle-header-v3 {
     position: absolute; z-index: 6; left: 0; right: 0; top: 0;
     min-height: 26px;
@@ -1234,104 +1262,41 @@
 .battle-mockup-scene .battle-chronicle li i { font-size: 10.77px; }
 
 /* =============================================================
-   БОКОВЫЕ КАРТОЧКИ
+   БОКОВЫЕ КАРТОЧКИ БОЙЦОВ
 
    Сцена макета вертикальная, экран горизонтальный: на 1440x900 она
-   занимает 617 px из 1440, и по бокам остаётся по 411 px пустоты.
-   Туда встают краткие профили — свой слева, противника справа, тем же
-   порядком, что карточка персонажа в городе.
+   занимает около 600 px из 1440, и по бокам остаётся поле. Туда
+   встают карточки «личное дело» — свой профиль слева, чужой справа,
+   тем же порядком, что карточка персонажа в городе.
 
-   Страница из «сетки по центру» становится тремя колонками: боковые
-   делят остаток поровну, сцена посередине остаётся ровно там же, где
-   была. Карточки живут вне сцены и не масштабируются вместе с ней.
+   Это не отдельная вёрстка, а вырез из сцены главного экрана: тот же
+   рисунок на той же псд-бумаге. Ширину и положение задаёт разметка,
+   поэтому здесь остаётся только колонка и метка противника.
    ============================================================= */
-.battle-page-v3 {
-  grid-template-columns: 1fr auto 1fr;
-  /* Строк ровно одна. Прежняя раскладка задавала их через медиазапросы
-     (шапка / поле / колодка), и на телефоне сцена центрировалась внутри
-     первой строки, а не всего экрана — верх карты уходил за край. */
-  grid-template-rows: none;
-  align-items: center;
-  justify-items: center;
-}
-.battle-side-card {
-  width: min(100% - 24px, 268px);
-  display: grid;
-  gap: 7px;
-  padding: 12px 13px 14px;
-  border: 1px solid #8a7563;
-  background: var(--paper, #faeadd);
-  box-shadow: 3px 4px 0 rgba(0, 0, 0, .22);
-  color: #1e1a17;
-  font-family: var(--font-ui);
-  font-size: 13px;
-}
-.battle-side-card.is-self { grid-column: 1; }
-.battle-side-card.is-enemy { grid-column: 3; }
-.battle-side-card > header {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
-  padding-bottom: 6px; border-bottom: 1px solid rgba(43, 43, 43, .35);
-}
-.battle-side-card > header b {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font: 700 16px/1.1 var(--font-sign); text-transform: uppercase; letter-spacing: .02em;
-}
-.battle-side-card.is-enemy > header b { color: #8c2f2f; }
-.battle-side-card > header small { color: #6b5c4e; white-space: nowrap; }
+.battle-page-v3__body > .card-cutout { grid-column: 1; }
+.battle-page-v3__body > .card-cutout.is-enemy { grid-column: 3; }
 
-.battle-side-card__portrait {
-  width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block;
-  border: 1px solid #a8918f; background: #ddd0cf;
+/* Две одинаковые бумажки по краям иначе не различить с одного взгляда,
+   тем более что портрет у бойца может быть общей заглушкой — тогда на
+   обеих карточках буквально одно лицо. Метим чужую так же, как метит
+   макет боя: словом «ЦЕЛЬ» и холодным монохромом портрета.
+
+   Метка встаёт на полку вкладок: у чужой карточки вкладок нет — их
+   нечем наполнить, — и полка стоит пустая. */
+.card-cutout.is-enemy::before {
+  content: 'ЦЕЛЬ';
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 1.5%;
+  transform: translateX(-50%);
+  padding: 3px 12px 2px;
+  border: 1px solid #6d1a1e;
+  background: #a4232a;
+  color: #fff8f0;
+  font: 700 clamp(9px, 3.2%, 14px)/1 var(--font-sign);
+  letter-spacing: .14em;
 }
-/* Портрета у бойца может не быть — тогда общая заглушка. Чтобы две
-   карточки не выглядели одним и тем же человеком, у противника она
-   уходит в холодный монохром: лицо то же, но читается как чужое. */
-.battle-side-card__portrait.is-empty {
-  background: #ddd0cf url('../../shared/assets/ui/portrait.png') center / cover no-repeat;
-  filter: grayscale(.35) contrast(.95);
-}
-.battle-side-card.is-enemy .battle-side-card__portrait.is-empty {
+.card-cutout.is-enemy .portrait-hot .sprite-btn__img {
   filter: grayscale(1) contrast(1.05) brightness(.92) sepia(.25) hue-rotate(170deg);
-}
-
-.battle-side-card__hp {
-  position: relative; height: 18px; overflow: hidden;
-  border: 1px solid #a8918f; background: #dccbca;
-  font: 700 12px/16px var(--font-mono); text-align: center; font-variant-numeric: tabular-nums;
-}
-.battle-side-card__hp i { position: absolute; inset: 0; transform-origin: left; background: #3b7f39; }
-.battle-side-card.is-enemy .battle-side-card__hp i { background: #ce1818; }
-.battle-side-card__hp span {
-  position: relative; padding: 0 6px; border-radius: 8px;
-  background: rgba(255, 252, 245, .88); color: #1e1a17;
-}
-
-.battle-side-card__weapons { display: grid; gap: 4px; }
-.battle-side-card__weapon {
-  display: grid; grid-template-columns: auto 22px 1fr auto; align-items: center; gap: 6px;
-  padding: 3px 0; border-bottom: 1px dotted rgba(43, 43, 43, .3);
-}
-.battle-side-card__hand { color: #6b5c4e; font-size: 11px; }
-.battle-side-card__weapon img { width: 22px; height: 22px; object-fit: contain; display: block; }
-.battle-side-card__weapon b {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400;
-}
-/* Дальность оружия: по ней видно, достаёт ли рука до цели. */
-.battle-side-card__weapon i {
-  font-style: normal; font: 700 11px/1 var(--font-mono); color: #8a5a2b;
-}
-
-.battle-side-card__stats {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; margin: 0;
-  padding-top: 6px; border-top: 1px solid rgba(43, 43, 43, .35);
-}
-.battle-side-card__stats > div { display: flex; justify-content: space-between; gap: 6px; }
-.battle-side-card__stats dt { color: #6b5c4e; font-size: 11px; }
-.battle-side-card__stats dd { margin: 0; font: 700 12px/1.3 var(--font-mono); font-variant-numeric: tabular-nums; }
-
-/* Поля хватает не всегда: на 1440x900 оно 411 px, на 1000 — уже 191,
-   а ниже пропадает вовсе. Прячем карточки раньше, чем они начнут
-   сминаться, — сцена от этого не двигается. */
-@media (max-width: 1080px) {
-  .battle-side-card { display: none; }
 }
