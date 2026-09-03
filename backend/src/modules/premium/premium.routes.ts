@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../../shared/security/auth-middleware'
-import { requireAdminRole } from '../../shared/security/auth-middleware'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { CharactersRepository } from '../characters/characters.repository'
@@ -82,33 +81,9 @@ export async function helpersRoutes(fastify: FastifyInstance) {
 }
 
 /**
- * Выдача и отзыв — только высшей роли: премиум это деньги, и по матрице
- * прав Этапа 5 такие действия закреплены за SUPER_ADMIN.
- * Оплата в первой версии проходит вне игры, в игре появляется только флаг.
+ * Выдача и отзыв подписки переехали в admin-actions (шаг G2 Этапа 5).
+ *
+ * Там они требуют причину и пишут в журнал снимок прежнего срока, по
+ * которому выдачу можно отменить. Здесь их больше нет: ручка без причины
+ * делала правило П2 необязательным для всех остальных.
  */
-const GRANT_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN') }
-
-export async function adminPremiumRoutes(fastify: FastifyInstance) {
-  const Body = z.object({
-    characterId: z.string().uuid(),
-    productCode: z.string().min(3).max(64),
-    days: z.number().int().positive().max(3650).optional(),
-  })
-
-  fastify.post('/premium/grant', GRANT_ADMIN, async (req, reply) => {
-    const parsed = Body.safeParse(req.body)
-    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
-    return reply.send(await PremiumService.grant({
-      characterId: parsed.data.characterId,
-      productCode: parsed.data.productCode,
-      days: parsed.data.days,
-      adminId: req.adminUser?.adminId,
-    }))
-  })
-
-  fastify.post('/premium/revoke', GRANT_ADMIN, async (req, reply) => {
-    const parsed = z.object({ characterId: z.string().uuid() }).safeParse(req.body)
-    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
-    return reply.send(await PremiumService.revoke(parsed.data.characterId))
-  })
-}

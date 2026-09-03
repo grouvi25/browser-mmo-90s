@@ -237,6 +237,33 @@ enum AdminRole {
   SUPPORT
 }
 
+/// Что сделал администратор. Значения парные: у каждого действия есть
+/// обратное, и оно тоже из этого списка — иначе откат нечем выразить.
+/// Действие, для которого пары нет, админу не выдаётся (принцип П1 Этапа 5).
+enum AdminActionKind {
+  GRANT_MONEY
+  TAKE_MONEY
+  GRANT_ITEM
+  DELETE_ITEM
+  LOCK_LISTING
+  UNLOCK_LISTING
+  DEACTIVATE_SHOP_ITEM
+  ACTIVATE_SHOP_ITEM
+  GRANT_PREMIUM
+  REVOKE_PREMIUM
+  RESTORE_PREMIUM
+  ADJUST_AUTHORITY
+  RESET_TERRITORY
+  RESTORE_TERRITORY
+  EXPIRE_CLAIM
+  RESTORE_CLAIM
+  CLEAR_ATTACK_COOLDOWN
+  RESTORE_ATTACK_COOLDOWN
+  SLEEP_HELPER
+  WAKE_HELPER
+  ROLLBACK
+}
+
 enum FarmBuildingType {
   BARREL
   CANOPY
@@ -1465,6 +1492,44 @@ model RepairLog {
 // =============================================================
 // ADMIN
 // =============================================================
+
+/// Журнал административных действий с обратной операцией.
+///
+/// Главная сущность Этапа 5. Без неё админ действует безвозвратно: выдал
+/// миллион — миллион в экономике навсегда. Каждая строка знает не только что
+/// сделано, но и как это отменить.
+model AdminActionLog {
+  id        String          @id @default(uuid())
+  adminId   String          @map("admin_id")
+  /// Роль на момент действия. Роль аккаунта может измениться позже,
+  /// история обязана остаться правдивой.
+  adminRole AdminRole       @map("admin_role")
+  kind      AdminActionKind
+  reason    String
+
+  /// Кого затронуло: тип и id. Свободная пара, потому что цели разнородны —
+  /// персонаж, предмет, лот, клан, район, заявка, помощник.
+  targetType String @map("target_type")
+  targetId   String @map("target_id")
+
+  /// Параметры выполненной операции и параметры обратной к ней.
+  /// Обратная обязательна: действие без неё не заводится.
+  payload     Json
+  undoKind    AdminActionKind @map("undo_kind")
+  undoPayload Json            @map("undo_payload")
+
+  /// Если это откат — ссылка на отменённое действие. Уникальна: одно
+  /// действие нельзя откатить дважды, иначе откат выдачи денег превратился
+  /// бы в списание.
+  rolledBackId String?   @unique @map("rolled_back_id")
+  rolledBackAt DateTime? @map("rolled_back_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([adminId, createdAt])
+  @@index([targetType, targetId])
+  @@map("admin_action_logs")
+}
 
 model AdminUser {
   id           String    @id @default(uuid())

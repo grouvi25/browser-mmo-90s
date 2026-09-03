@@ -99,10 +99,15 @@ describe('admin authentication', () => {
     })
     expect(stats.statusCode).toBe(200)
 
+    // Выдача денег переехала в admin-actions вместе с журналом; проверяем
+    // на новой ручке, что SUPPORT её по-прежнему не откроет.
     const grant = await app.inject({
-      method: 'POST', url: '/api/admin/grant-money',
+      method: 'POST', url: '/api/admin/characters/money',
       headers: { authorization: `Bearer ${token}` },
-      payload: { characterId: '00000000-0000-4000-8000-000000000000', amount: 1, reason: 'test grant' },
+      payload: {
+        characterId: '00000000-0000-4000-8000-000000000000',
+        amount: 1, reason: 'проверка прав роли SUPPORT',
+      },
     })
     expect(grant.statusCode).toBe(403)
     expect(grant.json()).toMatchObject({ code: 'AUTH_006' })
