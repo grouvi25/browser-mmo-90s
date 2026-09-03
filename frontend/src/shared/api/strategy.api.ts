@@ -99,7 +99,8 @@ export const objectWarApi = {
     api.get<{ items: { at: string; type: string; attackerTag: string; durabilityLost: number; moneyTaken: number }[] }>(
       `/api/objects/${id}/attacks`),
   transferPreview: (id: string) =>
-    api.get<{ objectName: string; balanceMovedToTreasury: number; clanObjects: number; clanObjectLimit: number; territories: number; irreversible: true; canTransfer: boolean }>(
+    api.get<{ objectName: string; balanceMovedToTreasury: number; clanObjects: number; clanObjectLimit: number; territories: number; irreversible: true; canTransfer: boolean;
+      blockedReason: 'NO_CLAN' | 'NOT_OWNER' | 'DAMAGED' | 'NO_PERMISSION' | 'LIMIT_REACHED' | null }>(
       `/api/objects/${id}/transfer-preview`),
   transferToClan: (id: string) =>
     api.post<{ objectId: string; clanId: string; balanceMoved: number; treasuryAfter: number; limit: number }>(

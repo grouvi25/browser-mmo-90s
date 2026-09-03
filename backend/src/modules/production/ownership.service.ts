@@ -244,15 +244,31 @@ function permissionsOf(role: { permissions: Prisma.JsonValue }): string[] {
 }
 
 export const ClanOwnershipService = {
-  /** Что будет при переводе. Отдельной ручкой: операция необратима. */
+  /**
+   * Что будет при переводе. Отдельной ручкой: операция необратима.
+   *
+   * Ручка ИНФОРМАЦИОННАЯ и потому не бросает отказ, а возвращает его
+   * причиной. Первая редакция отвечала 404 «вы не в клане», и интерфейс
+   * из-за этого не показывал вообще ничего: игрок без бригады не узнавал,
+   * что такая возможность существует и чего для неё не хватает.
+   */
   async preview(characterId: string, objectId: string) {
+    const object = await prisma.productionObject.findUniqueOrThrow({ where: { id: objectId } })
     const member = await prisma.clanMember.findUnique({
       where: { characterId }, include: { role: true, clan: true },
     })
     if (!member || member.status !== 'ACTIVE') {
-      throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Вы не состоите в клане', 404)
+      return {
+        objectName: object.name,
+        balanceMovedToTreasury: object.balance,
+        clanObjects: 0,
+        clanObjectLimit: 0,
+        territories: 0,
+        irreversible: true as const,
+        canTransfer: false,
+        blockedReason: 'NO_CLAN' as const,
+      }
     }
-    const object = await prisma.productionObject.findUniqueOrThrow({ where: { id: objectId } })
     const territories = await prisma.territory.count({
       where: { ownerClanId: member.clanId, status: 'CONTROLLED' },
     })
@@ -260,6 +276,12 @@ export const ClanOwnershipService = {
       where: { ownerType: 'CLAN', ownerClanId: member.clanId },
     })
     const limit = clanObjectLimit(territories)
+    const notOwner = object.ownerCharacterId !== characterId || object.ownerType !== 'PRIVATE'
+    const blockedReason = notOwner ? 'NOT_OWNER' as const
+      : object.status === 'DAMAGED' ? 'DAMAGED' as const
+      : !permissionsOf(member.role).includes('OBJECTS') ? 'NO_PERMISSION' as const
+      : owned >= limit ? 'LIMIT_REACHED' as const
+      : null
     return {
       objectName: object.name,
       balanceMovedToTreasury: object.balance,
@@ -267,11 +289,8 @@ export const ClanOwnershipService = {
       clanObjectLimit: limit,
       territories,
       irreversible: true as const,
-      canTransfer: object.ownerCharacterId === characterId
-        && object.ownerType === 'PRIVATE'
-        && object.status !== 'DAMAGED'
-        && owned < limit
-        && permissionsOf(member.role).includes('OBJECTS'),
+      canTransfer: blockedReason === null,
+      blockedReason,
     }
   },
 

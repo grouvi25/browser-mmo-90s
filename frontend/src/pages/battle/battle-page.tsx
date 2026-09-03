@@ -28,6 +28,7 @@ import { useViewportSize } from '../../shared/lib/stage'
 import { BattleCommandDock } from './components/battle-command-dock'
 import { EventIcon, getEvent, type RoundRecord, type TurnEvent } from './components/battle-events'
 import { BattlePockets } from './components/battle-pockets'
+import { BattleSwap, type SwapPlan } from './components/battle-swap'
 import { removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
 import './battle-phase-a.css'
 
@@ -187,6 +188,9 @@ export function BattlePage() {
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
   const [pocketsOpen, setPocketsOpen]   = useState(false)
+  const [swapOpen, setSwapOpen]         = useState(false)
+  // План переодевания на текущий ход; после отправки сбрасывается.
+  const [swapPlan, setSwapPlan]         = useState<SwapPlan>({})
   // Чат закрыт по умолчанию: так сцена короче и всё на экране крупнее.
   const [chatOpen, setChatOpen]         = useState(false)
   // ── Раскладка экрана ───────────────────────────────────
@@ -377,7 +381,14 @@ export function BattlePage() {
   const resetPlan = () => { setStance('defense4'); setAttackZones([]); setAttackHands([]); setBlockZones([]); setSelectedMove(null) }
   const submitTurn = () => {
     const action: BattleAction = stance === 'defense4' ? 'block' : 'attack'
-    act(action, { stance, attackZones, attackHands, blockZones, targetParticipantId: ePart?.participantId })
+    act(action, {
+      stance, attackZones, attackHands, blockZones,
+      targetParticipantId: ePart?.participantId,
+      // Переодевание уходит частью обычного хода: цену с бюджета снимает
+      // сервер там же, где считает зоны.
+      ...swapPlan,
+    })
+    setSwapPlan({})
   }
   const submitMove = () => {
     if (!selectedMove) return
@@ -644,8 +655,26 @@ export function BattlePage() {
                 {t.finalDamage > 0 && <span className="log-ev-dmg">-{t.finalDamage} HP</span>}
               </div> })}
             </div>)}
-          </div> : <BattlePockets slots={pocketSlots} canAct={canAct} open
-            onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />}
+          </div> : (
+            <>
+              <BattlePockets slots={pocketSlots} canAct={canAct} open
+                onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />
+              {/* Переодевание живёт в том же ящике, что и карман: макет
+                  боевого экрана его не рисует, и втискивать кнопку в его
+                  геометрию значило бы ломать пиксель-перфект. */}
+              <BattleSwap
+                inventory={items}
+                plan={swapPlan}
+                canAct={canAct}
+                // В ящике раздел всегда развёрнут — как и карман рядом:
+                // ящик и есть раскрытие, второй уровень сворачивания в нём
+                // только прячет содержимое от глаз.
+                open
+                onOpenChange={setSwapOpen}
+                onChange={setSwapPlan}
+              />
+            </>
+          )}
         </section>
       </aside>}
     </div>
