@@ -2,7 +2,7 @@
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PRIVATE_SHOP_RESOURCES } from './economy-data'
+import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PREMIUM_PRODUCTS_DEFERRED, PRIVATE_SHOP_RESOURCES } from './economy-data'
 import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
 import { isGrantImplemented } from '../src/modules/premium/premium.service'
 
@@ -350,9 +350,7 @@ async function main() {
   // Премиум-витрина. update не трогает историю покупок: цена в каталоге
   // меняется, а PremiumPurchase хранит её копией на момент сделки.
   for (const p of PREMIUM_PRODUCTS) {
-    // Товар с нереализованным эффектом заводится, но выключен: витрина
-    // показывает только то, что действительно работает. Долг Этапа 4,
-    // закрывается шагом G0 Этапа 5.
+    // Витрина первой версии — только то, что действительно работает.
     const active = isGrantImplemented(p.grantCode)
     await prisma.premiumProduct.upsert({
       where: { code: p.code },
@@ -360,7 +358,13 @@ async function main() {
       create: { code: p.code, name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: active },
     })
   }
-  console.log(`  Premium products: ${PREMIUM_PRODUCTS.length}`)
+  // Отложенные за первую версию (решение по В8): не заводим, но если строка
+  // уже есть в базе — гасим. Удалять нельзя: на товар ссылаются покупки.
+  const deferred = await prisma.premiumProduct.updateMany({
+    where: { code: { in: PREMIUM_PRODUCTS_DEFERRED.map(p => p.code) }, isActive: true },
+    data: { isActive: false },
+  })
+  console.log(`  Premium products: ${PREMIUM_PRODUCTS.length} active, ${deferred.count} deactivated`)
 
 
   for (const [code, name, basePrice, weight] of BAR_RESOURCES) {

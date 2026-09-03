@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { PremiumService, isPremiumActive, PREMIUM_GRANTS } from '../../modules/premium/premium.service'
 import { BalanceConfig } from '../../config/balance.config'
-import { PREMIUM_PRODUCTS } from '../../../prisma/economy-data'
+import { PREMIUM_PRODUCTS, PREMIUM_PRODUCTS_DEFERRED } from '../../../prisma/economy-data'
 import { cleanDatabase, testPrisma, uid } from './helpers'
 
 const DAY_MS = 24 * 3_600_000
@@ -42,7 +42,9 @@ describe('премиум продаёт время, а не силу', () => {
     // Инвариант 12 модели данных. Это единственное балансное правило
     // этапа, которое не выражается числом, поэтому проверяется кодом:
     // список эффектов закрыт, и предметов в нём нет ни одного.
-    for (const product of PREMIUM_PRODUCTS) {
+    // Проверяются обе витрины: и первой версии, и отложенная. Отложенный
+    // товар когда-нибудь включат, и правило должно держать его тоже.
+    for (const product of [...PREMIUM_PRODUCTS, ...PREMIUM_PRODUCTS_DEFERRED]) {
       expect(PREMIUM_GRANTS, `товар ${product.code}`).toContain(product.grantCode)
     }
     const itemGrants = ['ITEM', 'WEAPON', 'ARMOR', 'GRANT_ITEM', 'TEMPLATE']
@@ -53,9 +55,28 @@ describe('премиум продаёт время, а не силу', () => {
     }
   })
 
-  it('в витрине только три категории', async () => {
-    const kinds = new Set(PREMIUM_PRODUCTS.map(p => p.kind))
+  it('в каталоге только три категории', async () => {
+    const kinds = new Set([...PREMIUM_PRODUCTS, ...PREMIUM_PRODUCTS_DEFERRED].map(p => p.kind))
     expect([...kinds].sort()).toEqual(['CONVENIENCE', 'COSMETIC', 'TIME'])
+  })
+
+  it('отложенный за первую версию товар не выдаётся', async () => {
+    // Решение заказчика по В8 от 03.09.2026: косметика, места в инвентаре
+    // и разовые ускорения переносятся за первую версию. Строки в базе может
+    // и не быть — заводим её сами, чтобы проверить именно отказ по эффекту.
+    const character = await player()
+    const deferred = PREMIUM_PRODUCTS_DEFERRED[0]
+    await testPrisma.premiumProduct.upsert({
+      where: { code: deferred.code },
+      update: { isActive: false },
+      create: {
+        code: deferred.code, name: deferred.name, description: deferred.description,
+        kind: deferred.kind, priceRub: deferred.priceRub, grantCode: deferred.grantCode,
+        grantValue: deferred.grantValue, sortOrder: deferred.sortOrder, isActive: false,
+      },
+    })
+    await expect(PremiumService.grant({ characterId: character.id, productCode: deferred.code }))
+      .rejects.toMatchObject({ code: 'PREM_003' })
   })
 
   it('товар с неизвестным эффектом выдать нельзя', async () => {
