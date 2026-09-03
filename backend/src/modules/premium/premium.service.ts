@@ -25,8 +25,25 @@ export const PREMIUM_GRANTS = [
 ] as const
 export type PremiumGrant = (typeof PREMIUM_GRANTS)[number]
 
+/**
+ * Из восьми эффектов реализован один.
+ *
+ * Остальным семи нужны поля и механики, которых в игре нет: портрет и цвет
+ * ника — колонки персонажа, места в инвентаре — лимит, которого не
+ * существует, мгновенный цикл, полив и сброс отката — разовые действия с
+ * целью. Это долг Этапа 4, закрывается шагом G0 Этапа 5.
+ *
+ * До тех пор товар нельзя ни продать, ни выдать: покупка, которая ничего не
+ * делает и при этом записывается в историю, хуже отсутствующего товара.
+ */
+export const IMPLEMENTED_GRANTS: readonly PremiumGrant[] = ['SUBSCRIPTION_DAYS']
+
 export function isPremiumGrant(code: string): code is PremiumGrant {
   return (PREMIUM_GRANTS as readonly string[]).includes(code)
+}
+
+export function isGrantImplemented(code: string): boolean {
+  return (IMPLEMENTED_GRANTS as readonly string[]).includes(code)
 }
 
 /** Льготы подписки. Числа живут в BalanceConfig, не в клиенте. */
@@ -99,7 +116,7 @@ export const PremiumService = {
   }) {
     return withTransaction(async tx => {
       const product = await tx.premiumProduct.findUnique({ where: { code: params.productCode } })
-      if (!product || !product.isActive) {
+      if (!product) {
         throw new AppError(ErrorCode.PREM_PRODUCT_NOT_FOUND, 'Товар не найден', 404)
       }
       if (!isPremiumGrant(product.grantCode)) {
@@ -108,6 +125,19 @@ export const PremiumService = {
           `Товар выдаёт неизвестный эффект «${product.grantCode}» — запрещено`,
           400,
         )
+      }
+      // Порядок проверок важен: нереализованный товар выключен в витрине, и
+      // без этой проверки раньше сработала бы «товар не найден» — админ
+      // получил бы неверную причину отказа.
+      if (!isGrantImplemented(product.grantCode)) {
+        throw new AppError(
+          ErrorCode.PREM_GRANT_NOT_READY,
+          `Эффект «${product.grantCode}» ещё не реализован — выдавать нечего`,
+          409,
+        )
+      }
+      if (!product.isActive) {
+        throw new AppError(ErrorCode.PREM_PRODUCT_NOT_FOUND, 'Товар снят с витрины', 404)
       }
 
       const character = await tx.character.findUniqueOrThrow({
@@ -185,7 +215,14 @@ export const PremiumService = {
     return state.benefits.dailyShiftCap
   },
 
-  /** Множитель опыта оружейного навыка. */
+  /**
+   * Множитель набора навыка оружия — ТОЛЬКО в боях с ботами.
+   *
+   * В PvP он не применяется намеренно. Навык оружия — это боевая сила, и
+   * ускорять её набор в соревновательной части значило бы продавать силу,
+   * а не время (принцип П4). В PvE подписка экономит гринд и ничего не
+   * решает за игрока. Описание товара в витрине говорит об этом прямо.
+   */
   async skillMultiplier(characterId: string): Promise<number> {
     const state = await this.state(characterId)
     return state.benefits.skillMultiplier

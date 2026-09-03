@@ -3,7 +3,7 @@ import { prisma } from '../../shared/db/prisma'
 import { BattleRedis, AntiFarmRedis } from '../../shared/db/redis'
 import { CharactersRepository } from '../characters/characters.repository'
 import { ItemsRepository } from '../items/item-instance.repository'
-import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repository'
+import { WeaponSkillsRepository, saveWeaponSkillExp } from '../weapon-skills/weapon-skills.repository'
 import { AppError } from '../../shared/errors/app-error'
 import { TerritoriesService } from '../territories/territories.service'
 import { PremiumService } from '../premium/premium.service'
@@ -14,6 +14,7 @@ import { logger } from '../../shared/logger/logger'
 import {
   resolveZonalAttack,
   calcInitiative,
+  weaponExpByType as weaponExpByTypeShared,
   type AttackerSnapshot,
   type DefenderSnapshot,
   type ZonalAttackResult,
@@ -45,8 +46,6 @@ import {
 } from './grid'
 import {
   calcBattleExp,
-  calcWeaponSkillExp,
-  getWeaponSkillLevelFromExp,
 } from '../stats/stats.formulas'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
@@ -86,12 +85,13 @@ function recordWeaponDamage(part: LiveParticipant, weapon: ItemWithTemplate | nu
   part.weaponDamage[weaponType] = (part.weaponDamage[weaponType] ?? 0) + damage
 }
 
+/** Обёртка над общей формулой: сервис держит предмет, а не тип оружия. */
 function weaponExpByType(part: LiveParticipant, fallbackWeapon: ItemWithTemplate | null, targetHpMax: number, won: boolean, levelDiff: number, premiumMultiplier = 1): Array<{ weaponType: PrismaWeaponType; exp: number }> {
-  const tracked = Object.entries(part.weaponDamage ?? {}) as Array<[PrismaWeaponType, number]>
-  const damageEntries = tracked.length > 0 ? tracked : [[(fallbackWeapon?.template.weaponType ?? 'MELEE') as PrismaWeaponType, part.damageDealt] as [PrismaWeaponType, number]]
-  return damageEntries
-    .map(([weaponType, damage]) => ({ weaponType, exp: calcWeaponSkillExp(damage, targetHpMax, won ? 1 : 0, levelDiff, 1.0, premiumMultiplier) }))
-    .filter(entry => entry.exp > 0)
+  return weaponExpByTypeShared(
+    part,
+    (fallbackWeapon?.template.weaponType ?? 'MELEE') as PrismaWeaponType,
+    targetHpMax, won, levelDiff, premiumMultiplier,
+  )
 }
 
 // ---------------------------------------------------------------
@@ -444,54 +444,6 @@ function buildBotDefenderSnapshot(botStats: Record<string, number>): DefenderSna
 // Save weapon skill exp to DB (shared helper)
 // After WSK=20, overflow exp builds antiSkillLevel (WRES)
 // ---------------------------------------------------------------
-async function saveWeaponSkillExp(
-  tx: typeof prisma,
-  characterId: string,
-  weaponType: string,
-  weaponExpGain: number
-): Promise<void> {
-  if (weaponExpGain <= 0) return
-  const existing = await tx.weaponSkill.findUnique({
-    where: { characterId_weaponType: { characterId, weaponType: weaponType as PrismaWeaponType } },
-  })
-  const base = existing ?? { skillLevel: 1, skillExp: 0, antiSkillLevel: 0, antiSkillExp: 0 }
-
-  const MAX_WSK = 20
-  if (base.skillLevel < MAX_WSK) {
-    // Normal WSK progression
-    const newWskExp = base.skillExp + weaponExpGain
-    const newWskLevel = getWeaponSkillLevelFromExp(newWskExp)
-    if (existing) {
-      await tx.weaponSkill.update({
-        where: { characterId_weaponType: { characterId, weaponType: weaponType as PrismaWeaponType } },
-        data: { skillExp: newWskExp, skillLevel: newWskLevel },
-      })
-    } else {
-      await tx.weaponSkill.create({
-        data: { characterId, weaponType: weaponType as PrismaWeaponType, skillExp: newWskExp, skillLevel: newWskLevel },
-      })
-    }
-  } else {
-    // WSK=20 reached → overflow exp goes to antiSkillLevel (WRES)
-    // antiSkill thresholds: each level requires the same table but offset
-    // 20/1=1 antiSkill point, 20/2=2, etc. (simplified: 100 exp per anti-skill level)
-    const ANTI_EXP_PER_LEVEL = 500
-    const MAX_ANTI_LEVEL = 10
-    const newAntiExp = (base.antiSkillExp ?? 0) + weaponExpGain * 0.5 // 50% overflow to anti-skill
-    const newAntiLevel = Math.min(MAX_ANTI_LEVEL, Math.floor(newAntiExp / ANTI_EXP_PER_LEVEL))
-    if (existing) {
-      await tx.weaponSkill.update({
-        where: { characterId_weaponType: { characterId, weaponType: weaponType as PrismaWeaponType } },
-        data: { antiSkillExp: newAntiExp, antiSkillLevel: newAntiLevel },
-      })
-    } else {
-      await tx.weaponSkill.create({
-        data: { characterId, weaponType: weaponType as PrismaWeaponType, skillExp: base.skillExp, skillLevel: MAX_WSK, antiSkillExp: newAntiExp, antiSkillLevel: newAntiLevel },
-      })
-    }
-  }
-}
-
 // ---------------------------------------------------------------
 // BattleService
 // ---------------------------------------------------------------
@@ -789,6 +741,33 @@ export const BattleService = {
     if (!battle.participants.some(p => p.characterId === char.id)) {
       throw new AppError(ErrorCode.BATTLE_NOT_PARTICIPANT, 'Not a participant', 403)
     }
+    const sideOne = battle.participants.filter(p => p.side === 1)
+    const sideTwo = battle.participants.filter(p => p.side === 2)
+    if (sideOne.length === 0 || sideTwo.length === 0) {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Обе стороны должны быть заняты', 409)
+    }
+
+    return this.beginTeamState(battleId)
+  },
+
+  /**
+   * Построить живое состояние командного боя и открыть его.
+   *
+   * Вынесено из startTeamBattle, потому что боёв за территорию касается тот
+   * же код: заявку назначает воркер, и без этого шага бой существовал бы
+   * только строками в базе. Ровно это и случилось в Этапе 4 — участники
+   * оставались IN_BATTLE навсегда, а заявка навсегда в статусе BATTLE.
+   *
+   * Живое состояние помечается типом CLAN независимо от типа боя в базе:
+   * тип в состоянии выбирает резолвер раунда, и командный бой за район
+   * считается тем же кодом, что и клановый. Тип TERRITORY в базе нужен
+   * воркеру заявок, а не боевому движку.
+   */
+  async beginTeamState(battleId: string) {
+    const battle = await prisma.battle.findUnique({
+      where: { id: battleId }, include: { participants: true },
+    })
+    if (!battle) throw AppError.notFound('Battle', battleId)
     const sideOne = battle.participants.filter(p => p.side === 1)
     const sideTwo = battle.participants.filter(p => p.side === 2)
     if (sideOne.length === 0 || sideTwo.length === 0) {

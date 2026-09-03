@@ -14,6 +14,7 @@ import { AuthorityService, AUTHORITY_GAINS } from '../modules/territories/author
 import { releaseTerritory } from '../modules/territories/claims.service'
 import { TERRITORY_PROTECTION_HOURS } from '../modules/territories/territories.formulas'
 import { syncTiers } from './clan-maintenance.worker'
+import { BattleService } from '../modules/battles/battles.service'
 
 export const TERRITORY_CLAIMS_MS = 60 * 1000
 
@@ -72,6 +73,9 @@ async function startDueBattles(now: Date): Promise<number> {
       continue
     }
 
+    // Идентификатор боя нужен после транзакции: живое состояние ложится в
+    // Redis, и делать это внутри транзакции нельзя — откат базы его не снимет.
+    let battleId: string | null = null
     await withTransaction(async tx => {
       const battle = await tx.battle.create({
         data: {
@@ -108,7 +112,13 @@ async function startDueBattles(now: Date): Promise<number> {
         data: { status: 'BATTLE', battleId: battle.id },
       })
       await tx.territory.update({ where: { id: claim.territoryId }, data: { status: 'UNDER_ATTACK' } })
+      battleId = battle.id
     })
+
+    // Без живого состояния бой существует только строками в базе: ходить в
+    // нём нельзя, участники навсегда остаются IN_BATTLE, а заявка навсегда
+    // в статусе BATTLE. Ровно так Этап 4 и работал до этой правки.
+    if (battleId) await BattleService.beginTeamState(battleId)
     started += 1
   }
   return started

@@ -22,11 +22,12 @@ import {
   AuthorityService, AUTHORITY_COSTS, AUTHORITY_GAINS,
 } from '../src/modules/territories/authority.service'
 import { OwnershipService } from '../src/modules/production/ownership.service'
-import { PremiumService } from '../src/modules/premium/premium.service'
+import { PremiumService, isGrantImplemented } from '../src/modules/premium/premium.service'
 import { HelpersService, helperEfficiency } from '../src/modules/premium/helpers.service'
 import { runTerritoryClaims } from '../src/workers/territory-claims.worker'
 import { runClanMaintenance, clanUpkeepPreview } from '../src/workers/clan-maintenance.worker'
 import { normalizeTurn } from '../src/modules/battles/zones'
+import { BattleRedis } from '../src/shared/db/redis'
 import { calcFinalSalary } from '../src/modules/work/work.formulas'
 import { BalanceConfig } from '../src/config/balance.config'
 import { CLAN_MAINTENANCE_DAILY } from '../src/modules/clans/clans.formulas'
@@ -315,7 +316,17 @@ async function run() {
     const actual = claim.battle!.participants.map(row => `${row.characterId}:${row.side}`).sort()
     must(JSON.stringify(expected) === JSON.stringify(actual),
       `состав боя разошёлся с заявкой:\n  заявка ${expected}\n  бой    ${actual}`)
-    return `${expected.length} бойцов, стороны совпали один в один`
+
+    // Бой обязан быть играбельным, а не только существовать строками.
+    // Живое состояние в Redis — то, без чего в бою нельзя сделать ни хода:
+    // раньше воркер его не строил, участники навсегда оставались IN_BATTLE,
+    // а заявка навсегда в статусе BATTLE.
+    const live = await BattleRedis.getState<{ participants: { position: unknown }[] }>(claim.battle!.id)
+    must(live, 'живое состояние боя не создано — в бою нельзя сделать ход')
+    must(live!.participants.length === expected.length,
+      `в живом состоянии ${live!.participants.length} бойцов из ${expected.length}`)
+    must(live!.participants.every(p => p.position), 'бойцы без позиций на сетке')
+    return `${expected.length} бойцов, стороны совпали один в один, бой открыт и играбелен`
   })
 
   await check(8, 'Заявки', 'Неявка обороны: победа без боя, но район под защитой', async () => {
@@ -547,12 +558,22 @@ async function run() {
     const boss = await player('c17')
     const before = await prisma.characterStats.findUnique({ where: { characterId: boss.id } })
     const shop = await PremiumService.shop()
-    must(shop.items.length === PREMIUM_PRODUCTS.length,
-      `в витрине ${shop.items.length} товаров из ${PREMIUM_PRODUCTS.length}`)
+    // Витрина показывает только товары с реализованным эффектом: покупка,
+    // которая ничего не делает, хуже отсутствующего товара.
+    const ready = PREMIUM_PRODUCTS.filter(item => isGrantImplemented(item.grantCode))
+    must(shop.items.length === ready.length,
+      `в витрине ${shop.items.length} товаров, рабочих ${ready.length}`)
+    must(shop.items.every(item => isGrantImplemented(item.grantCode)),
+      'в витрине есть товар с нереализованным эффектом')
 
     for (const product of shop.items) {
       await PremiumService.grant({ characterId: boss.id, productCode: product.code })
     }
+    // Нереализованный товар не выдаётся даже админом.
+    const planned = PREMIUM_PRODUCTS.find(item => !isGrantImplemented(item.grantCode))
+    must(planned, 'все эффекты реализованы — проверку пора упростить')
+    await refuses('PREM_003',
+      () => PremiumService.grant({ characterId: boss.id, productCode: planned!.code }))
     const items = await prisma.itemInstance.count({ where: { ownerId: boss.id } })
     must(items === 0, `после покупки всей витрины у персонажа ${items} предметов`)
     const after = await prisma.characterStats.findUnique({ where: { characterId: boss.id } })
@@ -560,7 +581,7 @@ async function run() {
 
     const unknown = PREMIUM_PRODUCTS.filter(item => !PREMIUM_GRANT_CODES.includes(item.grantCode))
     must(unknown.length === 0, `эффект вне закрытого списка: ${unknown.map(i => i.code).join(', ')}`)
-    return `куплено ${shop.items.length} товаров: 0 предметов, характеристики не изменились`
+    return `куплено ${shop.items.length} рабочих из ${PREMIUM_PRODUCTS.length}: 0 предметов, характеристики не изменились; нереализованные не выдаются`
   })
 
   await check(18, 'Помощники', 'Помощник без подписки на смену не выходит', async () => {

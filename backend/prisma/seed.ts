@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PRIVATE_SHOP_RESOURCES } from './economy-data'
 import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
+import { isGrantImplemented } from '../src/modules/premium/premium.service'
 
 const prisma = new PrismaClient()
 
@@ -349,10 +350,14 @@ async function main() {
   // Премиум-витрина. update не трогает историю покупок: цена в каталоге
   // меняется, а PremiumPurchase хранит её копией на момент сделки.
   for (const p of PREMIUM_PRODUCTS) {
+    // Товар с нереализованным эффектом заводится, но выключен: витрина
+    // показывает только то, что действительно работает. Долг Этапа 4,
+    // закрывается шагом G0 Этапа 5.
+    const active = isGrantImplemented(p.grantCode)
     await prisma.premiumProduct.upsert({
       where: { code: p.code },
-      update: { name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: true },
-      create: { code: p.code, name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder },
+      update: { name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: active },
+      create: { code: p.code, name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: active },
     })
   }
   console.log(`  Premium products: ${PREMIUM_PRODUCTS.length}`)

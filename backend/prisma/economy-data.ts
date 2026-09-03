@@ -198,7 +198,7 @@ export const PREMIUM_PRODUCTS = [
   // ── Подписка ────────────────────────────────────────────────
   { code: 'prem_sub_30', name: 'Подписка на 30 дней', kind: 'TIME', priceRub: 299,
     grantCode: 'SUBSCRIPTION_DAYS', grantValue: 30, sortOrder: 10,
-    description: 'Опыт оружия быстрее в 1.5 раза, два помощника, 16 смен в сутки.' },
+    description: 'Опыт оружия в боях с ботами быстрее в 1.5 раза, два помощника, 16 смен в сутки.' },
   { code: 'prem_sub_90', name: 'Подписка на 90 дней', kind: 'TIME', priceRub: 749,
     grantCode: 'SUBSCRIPTION_DAYS', grantValue: 90, sortOrder: 11,
     description: 'То же на три месяца.' },
