@@ -261,6 +261,8 @@ enum AdminActionKind {
   RESTORE_ATTACK_COOLDOWN
   SLEEP_HELPER
   WAKE_HELPER
+  REVIEW_SIGNAL
+  REOPEN_SIGNAL
   ROLLBACK
 }
 
@@ -1492,6 +1494,96 @@ model RepairLog {
 // =============================================================
 // ADMIN
 // =============================================================
+
+/// Вид сигнала антиабуза. Девять из реестра механик заказчика и пять,
+/// которые принёс стратегический слой Этапа 4.
+enum AbuseSignalKind {
+  MULTI_ACCOUNT
+  MATCH_FIXING
+  DUPLICATION
+  BOT_FARMING
+  WEAK_FARMING
+  MONEY_FUNNEL
+  CLAN_STORAGE_DRAIN
+  MARKET_MANIPULATION
+  AUTOCLICKER
+  HELPER_DRAIN
+  OBJECT_TRANSFER_TRAP
+  WAR_COLLUSION
+  CLAIM_REFUNDED
+  ROBBERY_STREAK
+}
+
+enum AbuseSignalStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
+}
+
+/// Сигнал антиабуза. НЕ наказание: сигнал ничего не делает сам, он
+/// показывается администратору, и решает человек (принцип П3 Этапа 5).
+model AbuseSignal {
+  id       String            @id @default(uuid())
+  kind     AbuseSignalKind
+  status   AbuseSignalStatus @default(OPEN)
+  /// 1..3. Тройка означает «остановить и разобраться», а не «забанить».
+  severity Int
+
+  /// Кого касается. Аккаунтов может быть несколько: граф связей находит пары.
+  userIds String[] @map("user_ids")
+
+  /// Объяснение словами. Сигнал «подозрительная активность у игрока X»
+  /// бесполезен: его нельзя ни проверить, ни отклонить.
+  summary String
+
+  /// Числа, на которых сигнал сработал. Без них отклонённый сигнал
+  /// невозможно перепроверить, когда правило изменится.
+  evidence Json
+
+  /// Ключ повторного срабатывания: один и тот же повод не должен плодить
+  /// сигналы каждые сутки, иначе лента алертов станет нечитаемой.
+  dedupeKey String @map("dedupe_key")
+
+  reviewedByAdminId String?   @map("reviewed_by_admin_id")
+  reviewedAt        DateTime? @map("reviewed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@unique([kind, dedupeKey])
+  @@index([status, severity, createdAt])
+  @@map("abuse_signals")
+}
+
+/// Чем связаны два аккаунта. Рёбра взвешены: общий IP весит больше, чем
+/// одна сделка на рынке.
+enum AccountLinkKind {
+  SHARED_IP
+  MARKET_TRADE
+  SAME_CLAN
+}
+
+/// Ребро графа связей аккаунтов.
+///
+/// Хранятся именно рёбра, а не готовые кластеры: правила кластеризации будут
+/// меняться, а сырые связи останутся верными.
+///
+/// Ребро неориентированное, поэтому в userAId всегда лексикографически
+/// меньший id — иначе одна пара завелась бы дважды.
+model AccountLink {
+  id      String          @id @default(uuid())
+  userAId String          @map("user_a_id")
+  userBId String          @map("user_b_id")
+  kind    AccountLinkKind
+  weight  Float
+  evidence Json
+
+  lastSeenAt DateTime @map("last_seen_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([userAId, userBId, kind])
+  @@index([userAId])
+  @@index([userBId])
+  @@map("account_links")
+}
 
 /// Журнал административных действий с обратной операцией.
 ///

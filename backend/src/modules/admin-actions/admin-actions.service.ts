@@ -394,6 +394,21 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
     })
   },
 
+  REVIEW_SIGNAL: async (tx, payload) => {
+    await tx.abuseSignal.update({
+      where: { id: str(payload, 'signalId') },
+      data: { status: str(payload, 'status') as 'REVIEWED' },
+    })
+  },
+
+  /** Вернуть сигнал в работу: разбор откатывается тривиально. */
+  REOPEN_SIGNAL: async (tx, payload) => {
+    await tx.abuseSignal.update({
+      where: { id: str(payload, 'signalId') },
+      data: { status: 'OPEN', reviewedByAdminId: null, reviewedAt: null },
+    })
+  },
+
   ROLLBACK: async () => {
     // Откат отката не заводится: цепочка отмен превращает журнал в игру
     // «кто последний нажал». Испортил откатом — сделай прямое действие с

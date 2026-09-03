@@ -13,6 +13,9 @@ export const testPrisma = new PrismaClient({
 export async function cleanDatabase(): Promise<void> {
   await testPrisma.$transaction([
     testPrisma.idempotencyKey.deleteMany(),
+    testPrisma.abuseSignal.deleteMany(),
+    testPrisma.accountLink.deleteMany(),
+    testPrisma.adminActionLog.deleteMany(),
     testPrisma.resourceLog.deleteMany(),
     // Территории ссылаются на клан: удалять их надо раньше кланов.
     // Связь стоит SET NULL, но чистим полностью — сид-данные Этапа 4

@@ -16,6 +16,7 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { AdminActionsService, REASON_MIN, type AdminContext } from './admin-actions.service'
 import { AdminTraceService } from './admin-trace.service'
 import { PremiumService } from '../premium/premium.service'
+import { AntiAbuseService } from '../antiabuse/antiabuse.service'
 
 const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
 const MODERATE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }
@@ -83,6 +84,67 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     }).safeParse(req.query)
     if (!parsed.success) return invalid(reply)
     return reply.send(await AdminTraceService.trace(parsed.data))
+  })
+
+  // ── Антиабуз ────────────────────────────────────────────
+  fastify.get('/abuse/signals', READ_ADMIN, async (req, reply) => {
+    const parsed = z.object({
+      status: z.enum(['OPEN', 'REVIEWED', 'DISMISSED']).optional(),
+      kind: z.enum([
+        'MULTI_ACCOUNT', 'MATCH_FIXING', 'DUPLICATION', 'BOT_FARMING', 'WEAK_FARMING',
+        'MONEY_FUNNEL', 'CLAN_STORAGE_DRAIN', 'MARKET_MANIPULATION', 'AUTOCLICKER',
+        'HELPER_DRAIN', 'OBJECT_TRANSFER_TRAP', 'WAR_COLLUSION', 'CLAIM_REFUNDED',
+        'ROBBERY_STREAK',
+      ]).optional(),
+      severity: z.coerce.number().int().min(1).max(3).optional(),
+      cursor: Id.optional(),
+      limit: z.coerce.number().int().positive().max(200).optional(),
+    }).safeParse(req.query)
+    if (!parsed.success) return invalid(reply)
+    return reply.send(await AntiAbuseService.list(parsed.data))
+  })
+
+  fastify.get('/abuse/links', READ_ADMIN, async (req, reply) => {
+    const parsed = z.object({ userId: Id }).safeParse(req.query)
+    if (!parsed.success) return invalid(reply)
+    return reply.send(await AntiAbuseService.linksOf(parsed.data.userId))
+  })
+
+  /**
+   * Разобрать сигнал.
+   *
+   * Отклонение тоже требует причины и попадает в журнал админских действий:
+   * массово отклонённые сигналы одного вида — повод пересмотреть правило, а
+   * не игрока, и увидеть это можно только по причинам отклонений.
+   *
+   * Само действие обратимо тривиально: статус возвращается в OPEN. Поэтому
+   * оно и заведено — правило П1 соблюдено.
+   */
+  fastify.post<{ Params: { id: string } }>('/abuse/signals/:id/review', MODERATE_ADMIN, async (req, reply) => {
+    if (!Id.safeParse(req.params.id).success) return invalid(reply)
+    const reason = reasonOf(req.body)
+    const parsed = z.object({ status: z.enum(['REVIEWED', 'DISMISSED']) }).safeParse(req.body)
+    if (!parsed.success) return invalid(reply)
+
+    const signal = await prisma.abuseSignal.findUnique({ where: { id: req.params.id } })
+    if (!signal) return reply.code(404).send({ code: 'GEN_002', message: 'Signal not found' })
+
+    await prisma.abuseSignal.update({
+      where: { id: signal.id },
+      data: {
+        status: parsed.data.status,
+        reviewedByAdminId: req.adminUser.adminId,
+        reviewedAt: new Date(),
+      },
+    })
+    const recorded = await AdminActionsService.record(ctx(req), reason, {
+      kind: 'REVIEW_SIGNAL',
+      payload: { signalId: signal.id, status: parsed.data.status },
+      targetType: 'signal',
+      targetId: signal.id,
+      undo: { kind: 'REOPEN_SIGNAL', payload: { signalId: signal.id } },
+    })
+    return reply.send({ ...recorded, status: parsed.data.status })
   })
 
   // ── Деньги и предметы ───────────────────────────────────

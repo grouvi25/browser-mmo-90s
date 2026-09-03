@@ -20,6 +20,7 @@ import {
   type ZonalAttackResult,
 } from './battle.formulas'
 import { decayedAlcohol, intoxicationModifiers } from '../bars/bars.formulas'
+import { pairBattlesToday, repeatBattleCoeff } from '../antiabuse/antiabuse.limits'
 import {
   armorOfZone,
   botArmorOfZone,
@@ -2323,14 +2324,25 @@ export const BattleService = {
     const wskExp2 = wskEntries2.reduce((sum, entry) => sum + entry.exp, 0)
 
     return withTransaction(async (tx) => {
+      // Повторный бой той же пары за сутки даёт четверть опыта. Основная и
+      // самая мягкая мера против договорных боёв: друзья, честно
+      // подравшиеся дважды, теряют немного, а пара, гоняющая двадцать боёв
+      // подряд, не получает почти ничего. Бан за это не выдаётся —
+      // договорной бой от дружеского отличается только намерением.
+      //
+      // Текущий бой уже записан участниками, поэтому вычитаем его: пара
+      // «первый бой за сутки» иначе считалась бы повторной.
+      const pairToday = Math.max(0, (await pairBattlesToday(tx, char1.id, char2.id)) - 1)
+      const repeatCoeff = repeatBattleCoeff(pairToday)
+
       const progression1 = await applyBattleProgression(tx, char1, {
-        expGain: exp1,
+        expGain: Math.round(exp1 * repeatCoeff),
         hpCurrentAfterBattle: part1.hpCurrent,
         won: winnerId === char1.id,
       })
 
       const progression2 = await applyBattleProgression(tx, char2, {
-        expGain: exp2,
+        expGain: Math.round(exp2 * repeatCoeff),
         hpCurrentAfterBattle: part2.hpCurrent,
         won: winnerId === char2.id,
       })
