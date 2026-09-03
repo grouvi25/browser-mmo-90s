@@ -213,3 +213,138 @@ export const OwnershipService = {
     } })
   },
 }
+
+// =============================================================
+// ЭТАП 4 — КЛАНОВАЯ СОБСТВЕННОСТЬ НА ОБЪЕКТЫ
+//
+// Закрывает долг Этапа 3: в плане заказчика колхоз значился клановым, а
+// реализован был как частная собственность.
+//
+// Перевод необратим. Это защита от схемы «перевёл в клан, снял через
+// общак, вышел из клана»: обратимый перевод превращает клан в отмывочную.
+//
+// Лимит объектов клана растёт от числа территорий — так территория впервые
+// нужна не ради бонуса, а ради права расширяться, и стратегический слой
+// получает прямую связь с экономикой.
+// ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, часть V.
+// =============================================================
+import { withTransaction } from '../../shared/db/transaction'
+import type { Prisma } from '@prisma/client'
+
+const strategy = BalanceConfig.strategy.clanObjects
+
+export function clanObjectLimit(territories: number): number {
+  return strategy.base + strategy.perTerritory * Math.max(0, territories)
+}
+
+function permissionsOf(role: { permissions: Prisma.JsonValue }): string[] {
+  return Array.isArray(role.permissions)
+    ? role.permissions.filter((value): value is string => typeof value === 'string')
+    : []
+}
+
+export const ClanOwnershipService = {
+  /** Что будет при переводе. Отдельной ручкой: операция необратима. */
+  async preview(characterId: string, objectId: string) {
+    const member = await prisma.clanMember.findUnique({
+      where: { characterId }, include: { role: true, clan: true },
+    })
+    if (!member || member.status !== 'ACTIVE') {
+      throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Вы не состоите в клане', 404)
+    }
+    const object = await prisma.productionObject.findUniqueOrThrow({ where: { id: objectId } })
+    const territories = await prisma.territory.count({
+      where: { ownerClanId: member.clanId, status: 'CONTROLLED' },
+    })
+    const owned = await prisma.productionObject.count({
+      where: { ownerType: 'CLAN', ownerClanId: member.clanId },
+    })
+    const limit = clanObjectLimit(territories)
+    return {
+      objectName: object.name,
+      balanceMovedToTreasury: object.balance,
+      clanObjects: owned,
+      clanObjectLimit: limit,
+      territories,
+      irreversible: true as const,
+      canTransfer: object.ownerCharacterId === characterId
+        && object.ownerType === 'PRIVATE'
+        && object.status !== 'DAMAGED'
+        && owned < limit
+        && permissionsOf(member.role).includes('OBJECTS'),
+    }
+  },
+
+  /** Перевести свой объект в клан. Необратимо. */
+  async transfer(characterId: string, objectId: string) {
+    return withTransaction(async tx => {
+      const member = await tx.clanMember.findUnique({
+        where: { characterId }, include: { role: true },
+      })
+      if (!member || member.status !== 'ACTIVE') {
+        throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Вы не состоите в клане', 404)
+      }
+      if (!permissionsOf(member.role).includes('OBJECTS')) {
+        throw new AppError(ErrorCode.WAR_NO_PERMISSION, 'Нет права управлять объектами клана', 403)
+      }
+      const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
+      if (object.ownerType !== 'PRIVATE' || object.ownerCharacterId !== characterId) {
+        throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Вы не владелец объекта', 403)
+      }
+      // Повреждённый объект нельзя сдать клану: иначе перевод станет
+      // способом переложить ремонт на общак и выйти.
+      if (object.status === 'DAMAGED') {
+        throw new AppError(ErrorCode.WAR_OBJECT_DAMAGED, 'Объект повреждён, сначала восстановите', 409)
+      }
+
+      const territories = await tx.territory.count({
+        where: { ownerClanId: member.clanId, status: 'CONTROLLED' },
+      })
+      const owned = await tx.productionObject.count({
+        where: { ownerType: 'CLAN', ownerClanId: member.clanId },
+      })
+      const limit = clanObjectLimit(territories)
+      if (owned >= limit) {
+        throw new AppError(
+          ErrorCode.WAR_CLAN_OBJECT_LIMIT,
+          `У клана достигнут предел объектов: ${limit}`,
+          409,
+        )
+      }
+
+      const moved = object.balance
+      await tx.productionObject.update({
+        where: { id: objectId },
+        data: {
+          ownerType: 'CLAN', ownerClanId: member.clanId,
+          ownerCharacterId: null, balance: 0,
+        },
+      })
+      let treasuryAfter = 0
+      if (moved !== 0) {
+        const clan = await tx.clan.update({
+          where: { id: member.clanId },
+          data: { treasury: { increment: moved } },
+        })
+        treasuryAfter = clan.treasury
+        await tx.clanTreasuryLog.create({
+          data: {
+            clanId: member.clanId, characterId, amount: moved,
+            balanceAfter: clan.treasury, reason: 'OBJECT_TRANSFERRED',
+          },
+        })
+      } else {
+        treasuryAfter = (await tx.clan.findUniqueOrThrow({
+          where: { id: member.clanId }, select: { treasury: true },
+        })).treasury
+      }
+      await tx.productionLog.create({
+        data: {
+          productionObjectId: objectId, characterId, eventType: 'TRANSFERRED_TO_CLAN',
+          metadataJson: { clanId: member.clanId, balanceMoved: moved },
+        },
+      })
+      return { objectId, clanId: member.clanId, balanceMoved: moved, treasuryAfter, limit }
+    })
+  },
+}

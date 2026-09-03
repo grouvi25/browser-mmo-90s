@@ -145,6 +145,15 @@ export enum ErrorCode {
   WAR_BATTLE_STARTED      = 'WAR_013',
   WAR_CLAIM_NOT_FOUND     = 'WAR_014',
   WAR_OWN_TERRITORY       = 'WAR_015',
+  WAR_OBJECT_COOLDOWN     = 'WAR_020',
+  WAR_NO_CASUS_BELLI      = 'WAR_021',
+  WAR_OWNER_SOLO          = 'WAR_022',
+  WAR_OBJECT_TOO_POOR     = 'WAR_023',
+  WAR_OWN_OBJECT          = 'WAR_024',
+  WAR_WRONG_DISTRICT      = 'WAR_025',
+  WAR_NO_OBJECT_PERM      = 'WAR_030',
+  WAR_CLAN_OBJECT_LIMIT   = 'WAR_032',
+  WAR_OBJECT_DAMAGED      = 'WAR_033',
 
   // Stage 3 production
   PROD_ALREADY_SOLD       = 'PROD_001',

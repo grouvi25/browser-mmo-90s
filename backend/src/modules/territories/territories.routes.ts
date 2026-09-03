@@ -8,6 +8,8 @@ import { prisma } from '../../shared/db/prisma'
 import { TerritoriesService } from './territories.service'
 import { ClaimsService } from './claims.service'
 import { AuthorityService } from './authority.service'
+import { ObjectAttacksService } from './object-attacks.service'
+import { ClanOwnershipService } from '../production/ownership.service'
 
 // Код района — та же строка, что в MENU.districts фронта и в OBJECT_DISTRICTS
 // сида. Формат узкий намеренно: он приходит в путь и уходит в запрос по коду.
@@ -75,6 +77,53 @@ export async function territoriesRoutes(fastify: FastifyInstance) {
       const me = await character(req.authUser.userId)
       return reply.send(await ClaimsService.cancel(me.id, req.params.id))
     })
+}
+
+/**
+ * Бои за объекты и клановая собственность — под /api/objects, рядом с
+ * остальными операциями над объектами (STAGE4_API разделы 3 и 4.2).
+ */
+export async function objectWarRoutes(fastify: FastifyInstance) {
+  const me = async (userId: string) => {
+    const item = await CharactersRepository.findByUserId(userId)
+    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    return item
+  }
+  const valid = (id: string) => Id.safeParse(id).success
+
+  fastify.get('/attackable', { preHandler: authenticate }, async (req, reply) => {
+    const character = await me(req.authUser.userId)
+    return reply.send(await ObjectAttacksService.attackable(character.id))
+  })
+
+  fastify.post<{ Params: { id: string } }>('/:id/sabotage', { preHandler: authenticate }, async (req, reply) => {
+    if (!valid(req.params.id)) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const character = await me(req.authUser.userId)
+    return reply.send(await ObjectAttacksService.sabotage(character.id, req.params.id))
+  })
+
+  fastify.post<{ Params: { id: string } }>('/:id/rob', { preHandler: authenticate }, async (req, reply) => {
+    if (!valid(req.params.id)) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const character = await me(req.authUser.userId)
+    return reply.send(await ObjectAttacksService.rob(character.id, req.params.id))
+  })
+
+  fastify.get<{ Params: { id: string } }>('/:id/attacks', { preHandler: authenticate }, async (req, reply) => {
+    if (!valid(req.params.id)) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    return reply.send(await ObjectAttacksService.history(req.params.id))
+  })
+
+  fastify.get<{ Params: { id: string } }>('/:id/transfer-preview', { preHandler: authenticate }, async (req, reply) => {
+    if (!valid(req.params.id)) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const character = await me(req.authUser.userId)
+    return reply.send(await ClanOwnershipService.preview(character.id, req.params.id))
+  })
+
+  fastify.post<{ Params: { id: string } }>('/:id/transfer-to-clan', { preHandler: authenticate }, async (req, reply) => {
+    if (!valid(req.params.id)) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const character = await me(req.authUser.userId)
+    return reply.send(await ClanOwnershipService.transfer(character.id, req.params.id))
+  })
 }
 
 /** Территории клана висят на /api/clans/:id/territories — см. STAGE4_API 1.3. */

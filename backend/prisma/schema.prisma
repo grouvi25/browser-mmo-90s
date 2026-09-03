@@ -350,6 +350,10 @@ enum ResourceLogReason {
 }
 
 enum ProductionLogEvent {
+  // Этап 4: последствия войны за объекты.
+  SABOTAGED
+  ROBBED
+  TRANSFERRED_TO_CLAN
   SHIFT_STARTED
   SHIFT_READY
   SHIFT_CLAIMED
@@ -944,6 +948,8 @@ model Clan {
   authorityLogs   ClanAuthorityLog[]
   claimsAttacking TerritoryClaim[]   @relation("ClaimAttacker")
   claimsDefending TerritoryClaim[]   @relation("ClaimDefender")
+  attacksMade     ObjectAttack[]     @relation("AttackAttacker")
+  attacksSuffered ObjectAttack[]     @relation("AttackDefender")
 
   @@map("clans")
 }
@@ -1078,6 +1084,7 @@ model ProductionObject {
   inventory               ProductionObjectInventory[]
   cycles                  ProductionCycle[]
   barOffers               BarOffer[]
+  attacks                 ObjectAttack[]
 
   // Индекс создан руками миграцией stage3_equipment_profile, но в схеме
   // объявлен не был: Prisma видела дрейф и норовила снести его первой же
@@ -1611,4 +1618,51 @@ model ClanAuthorityLog {
 
   @@index([clanId, createdAt])
   @@map("clan_authority_logs")
+}
+
+// =============================================================
+// ЭТАП 4 — БОИ ЗА ОБЪЕКТЫ
+//
+// Объект нельзя разрушить насовсем. Можно повредить (диверсия) или снять
+// долю с баланса (ограбление). Основание — разведка GanjaWars: война
+// обязана двигать экономические потоки, но не стирать прогресс игрока.
+// Повреждённый объект чинится восстановительными работами Этапа 3 с
+// тройным опытом профессии, то есть война создаёт работу.
+//
+// ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, часть III.
+// =============================================================
+
+enum ObjectAttackType {
+  SABOTAGE // прочность и простой
+  ROBBERY // доля баланса
+}
+
+model ObjectAttack {
+  id                 String  @id @default(uuid())
+  objectId           String  @map("object_id")
+  attackerClanId     String  @map("attacker_clan_id")
+  defenderClanId     String? @map("defender_clan_id")
+  filedByCharacterId String  @map("filed_by_character_id")
+
+  type ObjectAttackType
+
+  /// Диверсия: сколько прочности снято. Ограбление: 0.
+  durabilityLost   Int     @default(0) @map("durability_lost")
+  /// Ограбление: сколько рублей ушло в общак атакующего. Диверсия: 0.
+  moneyTaken       Int     @default(0) @map("money_taken")
+  /// Отменённый диверсией цикл, если он был. Сырьё по нему возвращено.
+  cancelledCycleId String? @map("cancelled_cycle_id")
+
+  authoritySpent Float    @map("authority_spent")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  object       ProductionObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  attackerClan Clan             @relation("AttackAttacker", fields: [attackerClanId], references: [id], onDelete: Cascade)
+  defenderClan Clan?            @relation("AttackDefender", fields: [defenderClanId], references: [id])
+
+  // Кулдаун в 72 часа считается запросом по этому индексу, а не отдельным
+  // полем на объекте: поле пришлось бы чистить, индекс — нет.
+  @@index([objectId, createdAt])
+  @@index([attackerClanId, createdAt])
+  @@map("object_attacks")
 }
