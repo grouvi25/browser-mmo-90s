@@ -210,3 +210,35 @@
 .s4-roster__lvl { font-size: .72rem; color: oklch(50% .025 55); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .s4-roster__actions { display: flex; gap: 8px; }
 .s4-roster__actions button { min-height: 36px; padding: 5px 12px; }
+
+/* ── Заявка: две стороны рядом ─────────────────────────────── */
+.s4-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: oklch(57% .025 60);
+  border: 1px solid oklch(57% .025 60);
+  margin-bottom: 18px;
+}
+.s4-side { background: oklch(96% .018 76); padding: 14px 16px; }
+/* Стороны различаются полосой, а не заливкой: заливка спорила бы с
+   бумагой, а составы надо читать, а не разглядывать. */
+.s4-side--attack { border-top: 3px solid var(--s3-red); }
+.s4-side--defence { border-top: 3px solid var(--s3-green); }
+.s4-side.is-mine { background: oklch(94% .03 80); }
+.s4-side > header { margin-bottom: 8px; }
+.s4-side > header h4 { margin: 0 0 3px; border: 0; padding: 0; }
+.s4-side > header b { font-size: .84rem; }
+.s4-side__mine {
+  margin-left: 7px; padding: 1px 6px; font-size: .6rem; letter-spacing: .06em;
+  background: var(--s3-ink); color: oklch(96% .018 76);
+}
+.s4-side ol { list-style: none; margin: 0; padding: 0; counter-reset: fighter; }
+.s4-side ol li::before {
+  counter-increment: fighter; content: counter(fighter) '.';
+  margin-right: 6px; color: oklch(55% .025 55); font-variant-numeric: tabular-nums;
+}
+.s4-side ol li { display: flex; }
+.s4-side ol li > span:first-of-type { flex: 1 1 auto; }
+
+@media (max-width: 800px) { .s4-sides { grid-template-columns: 1fr; } }

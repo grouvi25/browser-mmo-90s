@@ -47,7 +47,10 @@ export async function territoriesRoutes(fastify: FastifyInstance) {
       const parsed = Roster.safeParse(req.body)
       if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
       const me = await character(req.authUser.userId)
-      return reply.code(201).send(await ClaimsService.file(me.id, req.params.code, parsed.data.roster))
+      // Сервис отдаёт claimId плоско, контракт STAGE4_API — { claim: { id } }.
+      // Разворачиваем здесь: HTTP-форма живёт в маршруте, а не в сервисе.
+      const { claimId, ...rest } = await ClaimsService.file(me.id, req.params.code, parsed.data.roster)
+      return reply.code(201).send({ claim: { id: claimId, ...rest } })
     })
 
   fastify.get<{ Params: { code: string; id: string } }>(

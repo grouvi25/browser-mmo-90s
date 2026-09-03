@@ -8,6 +8,7 @@
 // =============================================================
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate } from 'react-router-dom'
 import { Flag, Swords, ShieldCheck, Clock, Users } from 'lucide-react'
 import {
   territoriesApi, type TerritoryRow, type ClaimBlockedReason,
@@ -56,6 +57,7 @@ export function TerritoryMapSection() {
   // отказ на каждой заявке.
   const clan = useMyClan()
   const members = clan.clan?.members ?? []
+  const navigate = useNavigate()
 
   const finish = (text: string) => {
     setBad(false); setMsg(text); setRosterFor(null)
@@ -63,10 +65,16 @@ export function TerritoryMapSection() {
   }
   const fail = (e: Error) => { setBad(true); setMsg(e.message) }
 
+  // После подачи уводим на карточку заявки: там видно обе стороны и отсчёт
+  // до боя. Оставлять человека на карте значило бы прятать то, ради чего
+  // он платил взнос.
   const claim = useMutation({
     mutationFn: ({ code, roster }: { code: string; roster: string[] }) =>
       territoriesApi.claim(code, roster),
-    onSuccess: () => finish('Заявка подана. Бой назначен, обороняющиеся уже видят ваш состав.'),
+    onSuccess: (result, vars) => {
+      finish('Заявка подана. Бой назначен, обороняющиеся уже видят ваш состав.')
+      navigate(`/territories/${vars.code}/claims/${result.claim.id}`)
+    },
     onError: fail,
   })
   const defence = useMutation({
@@ -136,6 +144,10 @@ export function TerritoryMapSection() {
                 <p className="s4-district__claim">
                   <Swords size={13} /> Заявка от [{territory.activeClaim.attackerTag}],
                   бой через {remaining(territory.activeClaim.battleStartsAt)}
+                  {' · '}
+                  <Link to={`/territories/${territory.code}/claims/${territory.activeClaim.id}`}>
+                    кто идёт
+                  </Link>
                 </p>
               )}
 

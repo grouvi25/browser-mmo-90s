@@ -22,7 +22,7 @@ import { BattleFighterPanel } from './components/battle-fighter-panel'
 import { BattleChat, CHAT_SCENE_TOP } from './components/battle-chat'
 import { CardCutout } from '../../widgets/character-card/card-cutout'
 import { NavCutout } from '../../widgets/city-nav/nav-cutout'
-import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
+import { MENU } from '../../shared/lib/layout-map'
 import { PLATES } from '../../shared/ui/sprite'
 import { useViewportSize } from '../../shared/lib/stage'
 import { BattleCommandDock } from './components/battle-command-dock'
@@ -188,7 +188,6 @@ export function BattlePage() {
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
   const [pocketsOpen, setPocketsOpen]   = useState(false)
-  const [swapOpen, setSwapOpen]         = useState(false)
   // План переодевания на текущий ход; после отправки сбрасывается.
   const [swapPlan, setSwapPlan]         = useState<SwapPlan>({})
   // Чат закрыт по умолчанию: так сцена короче и всё на экране крупнее.
@@ -670,7 +669,6 @@ export function BattlePage() {
                 // ящик и есть раскрытие, второй уровень сворачивания в нём
                 // только прячет содержимое от глаз.
                 open
-                onOpenChange={setSwapOpen}
                 onChange={setSwapPlan}
               />
             </>

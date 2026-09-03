@@ -32,7 +32,8 @@ export function BattleSwap({
   plan: SwapPlan
   canAct: boolean
   open: boolean
-  onOpenChange: (open: boolean) => void
+  /** Нет обработчика — нечего сворачивать: подпись остаётся заголовком. */
+  onOpenChange?: (open: boolean) => void
   onChange: (plan: SwapPlan) => void
 }) {
   const weapons = inventory.filter(item => item.template.type === 'WEAPON' && !item.isEquipped)
@@ -43,14 +44,20 @@ export function BattleSwap({
 
   return (
     <section className="battle-disclosure battle-swap-block">
-      <button
-        type="button"
-        className="battle-disclosure__toggle"
-        aria-expanded={open}
-        onClick={() => onOpenChange(!open)}
-      >
-        <Repeat size={14} /> <span>Переодеться{picked > 0 ? ` · ${picked}` : ''}</span>
-      </button>
+      {onOpenChange ? (
+        <button
+          type="button"
+          className="battle-disclosure__toggle"
+          aria-expanded={open}
+          onClick={() => onOpenChange(!open)}
+        >
+          <Repeat size={14} /> <span>Переодеться{picked > 0 ? ` · ${picked}` : ''}</span>
+        </button>
+      ) : (
+        <h4 className="battle-disclosure__toggle">
+          <Repeat size={14} /> <span>Переодеться{picked > 0 ? ` · ${picked}` : ''}</span>
+        </h4>
+      )}
 
       {open && (
         <div className="battle-pocket-list battle-swap">

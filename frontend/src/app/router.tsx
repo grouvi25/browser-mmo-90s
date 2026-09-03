@@ -160,6 +160,7 @@ export function AppRouter() {
         <Route path="/territories" element={<Stage4Page section="territories" />} />
         <Route path="/territories/raids" element={<Stage4Page section="raids" />} />
         <Route path="/territories/wars" element={<Stage4Page section="wars" />} />
+        <Route path="/territories/:code/claims/:id" element={<Stage4Page section="claim" />} />
         <Route path="/premium" element={<Stage4Page section="premium" />} />
         <Route path="/premium/helpers" element={<Stage4Page section="helpers" />} />
 

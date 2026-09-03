@@ -35,21 +35,39 @@ export interface TerritoryCard extends TerritoryRow {
   history: { at: string; event: string; clanTag: string }[]
 }
 
+export type ClaimStatus = 'PENDING' | 'BATTLE' | 'WON' | 'LOST' | 'CANCELLED' | 'EXPIRED'
+
+export interface ClaimSide {
+  clanTag: string
+  name: string
+  roster: { nickname: string; battleLevel: number }[]
+}
+
+/** Ответ на подачу заявки: подтверждение списаний, а не карточка боя. */
+export interface ClaimFiled {
+  id: string
+  status: ClaimStatus
+  battleStartsAt: string
+  feePaid: number
+  authoritySpent: number
+}
+
 export interface ClaimView {
   id: string
-  status: 'PENDING' | 'BATTLE' | 'WON' | 'LOST' | 'CANCELLED' | 'EXPIRED'
+  territory: { code: string; name: string }
+  status: ClaimStatus
   battleStartsAt: string
   battleId: string | null
   walkover: boolean
-  attacker: { clanTag: string; roster: { nickname: string; battleLevel: number }[] }
-  defender: { clanTag: string; roster: { nickname: string; battleLevel: number }[] } | null
+  attacker: ClaimSide
+  defender: ClaimSide | null
 }
 
 export const territoriesApi = {
   list: () => api.get<{ items: TerritoryRow[] }>('/api/territories'),
   card: (code: string) => api.get<TerritoryCard>(`/api/territories/${code}`),
   claim: (code: string, roster: string[]) =>
-    api.post<{ claim: ClaimView }>(`/api/territories/${code}/claims`, { roster }, idem()),
+    api.post<{ claim: ClaimFiled }>(`/api/territories/${code}/claims`, { roster }, idem()),
   defence: (code: string, claimId: string, roster: string[]) =>
     api.post<{ roster: unknown[] }>(`/api/territories/${code}/claims/${claimId}/defence`, { roster }, idem()),
   claimView: (code: string, claimId: string) =>

@@ -352,8 +352,7 @@
 .battle-drawer .battle-swap-block .battle-disclosure__toggle {
   display: flex; align-items: center; gap: 6px; width: 100%;
   padding: 7px 8px; border-top: 1px solid oklch(58% .035 55);
-  background: oklch(87% .032 70); font: 700 12px/1 var(--font-ui);
-  pointer-events: none;
+  margin: 0; background: oklch(87% .032 70); font: 700 12px/1 var(--font-ui);
 }
 .battle-drawer .battle-pocket-list { grid-template-columns: repeat(4,1fr); }
 .battle-drawer__empty { margin: 0; padding: 18px; text-align: center; color: oklch(45% .025 55); }

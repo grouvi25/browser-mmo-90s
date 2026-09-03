@@ -21,12 +21,13 @@ import { ViewportPanel } from '../../shared/ui/viewport-panel'
 import { TerritoryMapSection } from './territory-map-section'
 import { RaidsSection } from './raids-section'
 import { WarsSection } from './wars-section'
+import { ClaimSection } from './claim-section'
 import { PremiumShopSection } from './premium-shop-section'
 import { HelpersSection } from './helpers-section'
 import '../stage3/stage3.css'
 import './stage4.css'
 
-export type Stage4Section = 'territories' | 'raids' | 'wars' | 'premium' | 'helpers'
+export type Stage4Section = 'territories' | 'raids' | 'wars' | 'claim' | 'premium' | 'helpers'
 
 interface SectionMeta { title: string; kicker: string; group: Stage4Section[] }
 
@@ -37,6 +38,9 @@ const SECTIONS: Record<Stage4Section, SectionMeta> = {
   territories: { title: 'Территории', kicker: 'Районы и война', group: WAR_GROUP },
   raids: { title: 'Налёты', kicker: 'Районы и война', group: WAR_GROUP },
   wars: { title: 'Войны бригады', kicker: 'Районы и война', group: WAR_GROUP },
+  // Заявка — не вкладка: попадают в неё с карты, и в полосе она была бы
+  // пунктом, который никуда не ведёт, пока заявки нет.
+  claim: { title: 'Заявка на район', kicker: 'Районы и война', group: WAR_GROUP },
   premium: { title: 'Премиум', kicker: 'Подписка', group: PREMIUM_GROUP },
   helpers: { title: 'Помощники', kicker: 'Подписка', group: PREMIUM_GROUP },
 }
@@ -45,6 +49,7 @@ const ROUTES: Record<Stage4Section, string> = {
   territories: '/territories',
   raids: '/territories/raids',
   wars: '/territories/wars',
+  claim: '/territories',
   premium: '/premium',
   helpers: '/premium/helpers',
 }
@@ -54,6 +59,7 @@ function Body({ section }: { section: Stage4Section }) {
     case 'territories': return <TerritoryMapSection />
     case 'raids': return <RaidsSection />
     case 'wars': return <WarsSection />
+    case 'claim': return <ClaimSection />
     case 'premium': return <PremiumShopSection />
     case 'helpers': return <HelpersSection />
   }
