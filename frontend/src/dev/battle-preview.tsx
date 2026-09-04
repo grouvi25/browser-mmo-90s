@@ -6,7 +6,7 @@ import ReactDOM from 'react-dom/client'
 import { Backpack, CircleDot, Flag, Sword } from 'lucide-react'
 import { BattleFighterPanel } from '../pages/battle/components/battle-fighter-panel'
 import { BattleCommandDock } from '../pages/battle/components/battle-command-dock'
-import { BattleChat, CHAT_SCENE_TOP } from '../pages/battle/components/battle-chat'
+import { BattleChat, BATTLE_SCENE_H } from '../pages/battle/components/battle-chat'
 import { useViewportScale } from '../shared/lib/stage'
 import type { RoundRecord, TurnEvent } from '../pages/battle/components/battle-events'
 import { toggleAutomaticBlockSlot, selectAutomaticAttack, removeAutomaticAttack, type AutomaticTurnPlan } from '../pages/battle/battle-view-model'
@@ -79,13 +79,13 @@ function Preview() {
   const blockLimit = hands.length > 0 ? 2 : 4
   // Стенд повторяет разметку страницы, включая сцену: иначе на нём
   const [chatOpen, setChatOpen] = useState(false)
-  const sceneScale = useViewportScale(900, chatOpen ? 1600 : CHAT_SCENE_TOP, 'contain', 1)
+  const sceneScale = useViewportScale(900, BATTLE_SCENE_H, 'contain', 1)
 
   return <div className="battle-page-v3">
     <div className="battle-mockup-scene-holder"
-      style={{ width: 900 * sceneScale, height: (chatOpen ? 1600 : CHAT_SCENE_TOP) * sceneScale }}>
+      style={{ width: 900 * sceneScale, height: BATTLE_SCENE_H * sceneScale }}>
     <div className="battle-mockup-scene"
-      style={{ height: chatOpen ? 1600 : CHAT_SCENE_TOP, transform: `scale(${sceneScale})` }}>
+      style={{ height: BATTLE_SCENE_H, transform: `scale(${sceneScale})` }}>
     <header className="battle-header-v3">
       <div><Sword size={13} /><b>Бой</b><b className="battle-header-timer">00:47</b></div>
       <strong>Раунд 3 / 30</strong>
@@ -126,9 +126,10 @@ function Preview() {
       onSubmitTurn={() => undefined} onSubmitMove={() => undefined}
       onReset={() => setPlan({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] })}
       onToggleLog={() => undefined} onTogglePockets={() => undefined} onSurrender={() => undefined} />
-
-    <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
     </div>
+
+    {/* Как и на боевой странице: чат в держателе, а не в сцене. */}
+    <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
     </div>
   </div>
 }

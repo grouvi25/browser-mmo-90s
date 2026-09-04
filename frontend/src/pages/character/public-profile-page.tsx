@@ -62,7 +62,7 @@ export function PublicProfilePage() {
             </div>
             <div>
               <div style={{ fontSize: 20, fontWeight: 'bold' }}>{data.nickname}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+              <div style={{ fontSize: 13.25, color: 'var(--text-dim)' }}>
                 {ARCHETYPE_LABEL[data.archetype ?? ''] ?? data.archetype} · уровень {data.battleLevel}
               </div>
             </div>
@@ -81,7 +81,7 @@ export function PublicProfilePage() {
         </div>
       )}
 
-      <div style={{ marginTop: 12, textAlign: 'center', fontSize: 11, color: 'var(--text-dim)' }}>
+      <div style={{ marginTop: 12, textAlign: 'center', fontSize: 12.75, color: 'var(--text-dim)' }}>
         <Link to="/profile" style={{ color: 'var(--accent, #6a9ad0)' }}>Мой профиль</Link>
       </div>
     </div>
@@ -97,7 +97,7 @@ function winRate(d: { battlesTotal?: number; battlesWon?: number }): number {
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div style={{ background: 'var(--bg-2, #222)', border: '1px solid var(--border, #333)', borderRadius: 6, padding: '8px 10px' }}>
-      <div style={{ fontSize: 10, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 4 }}>{icon}{label}</div>
+      <div style={{ fontSize: 12, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 4 }}>{icon}{label}</div>
       <div style={{ fontSize: 15, fontWeight: 'bold', marginTop: 2 }}>{value}</div>
     </div>
   )

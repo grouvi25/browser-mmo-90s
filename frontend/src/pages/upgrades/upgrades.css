@@ -15,7 +15,7 @@
    ============================================================= */
 
 .upg {
-  font-size: 12px;
+  font-size: 13.25px;
 }
 
 /* Панель прозрачна: у «Плашки 1» заливка отключена, сквозь неё виден
@@ -37,7 +37,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .03em;
-  font-size: 13px;
+  font-size: 13.75px;
   color: var(--upg-accent, #ff9c00);
   -webkit-text-stroke: .6px #1c1318;
   paint-order: stroke fill;
@@ -99,8 +99,11 @@ button.upg-price__row:hover { text-decoration: underline; }
 /* Три слота в ряд: 148x136 холста — 74x68 сцены. */
 .upg-slots {
   display: grid;
-  grid-template-columns: repeat(3, 74px);
-  gap: 30px;
+  /* Ширина ряда та же, что в макете (288 внутри плашки), но поделена
+     иначе: коробки шире, промежутки уже. С читаемым кеглем подпись
+     «не выбрано» в 74 px уже не помещалась и обрезалась на половине. */
+  grid-template-columns: repeat(3, 86px);
+  gap: 14px;
   margin-bottom: 10px;
 }
 .upg-slot { display: grid; gap: 3px; }
@@ -108,7 +111,7 @@ button.upg-price__row:hover { text-decoration: underline; }
   font-family: var(--font-sign);
   font-weight: 700;
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: 12.75px;
   color: #17130f;
 }
 /* Селектор с двумя классами: иначе побеждает общее
@@ -119,7 +122,7 @@ button.upg-price__row:hover { text-decoration: underline; }
    стоит настоящая картинка выбранной вещи, поэтому подпись под ней. */
 .upg .upg-slot__box {
   position: relative;
-  width: 74px;
+  width: 86px;
   height: 68px;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -132,7 +135,7 @@ button.upg-price__row:hover { text-decoration: underline; }
   background: #564f56;
   color: #f3ece7;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 .upg .upg-slot__box img { max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -147,7 +150,7 @@ button.upg-price__row:hover { text-decoration: underline; }
 .upg .upg-slot__box.is-empty { color: #cbc2c8; }
 /* Закрытый слот: рамка макета на месте, но внутрь класть нечего. */
 .upg .upg-slot__box.is-locked { opacity: .55; cursor: help; }
-.upg .upg-slot__box.is-locked .upg-slot__mark { font-size: 9px; color: #d8d0d4; }
+.upg .upg-slot__box.is-locked .upg-slot__mark { font-size: 11.5px; color: #d8d0d4; }
 /* Два класса: иначе побеждает общее «.viewport__content select» и
    выбор уходит в бежевый инпут со своей рамкой. */
 .upg .upg-slot__pick {
@@ -159,9 +162,17 @@ button.upg-price__row:hover { text-decoration: underline; }
   background: transparent;
   color: #f3ece7;
   font: inherit;
-  font-size: 9px;
+  font-size: 11.5px;
   text-align: center;
   cursor: pointer;
+  /* Системная стрелка съедает под себя восемнадцать пикселей из
+     восьмидесяти — на подпись не остаётся. Рисуем свою, вдвое уже. */
+  appearance: none;
+  padding-right: 11px;
+  background-repeat: no-repeat;
+  background-position: right 1px center;
+  background-size: 8px 5px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M0 0h8L4 5z' fill='%23f3ece7'/%3E%3C/svg%3E");
 }
 .upg .upg-slot__pick:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
 
@@ -175,14 +186,14 @@ button.upg-price__row:hover { text-decoration: underline; }
   background: #f1eeec;
   color: inherit;
   font: inherit;
-  font-size: 11px;
+  font-size: 12.75px;
   cursor: pointer;
 }
 .upg-commit > span { position: relative; z-index: 1; }
 .upg-commit:disabled { opacity: .4; cursor: not-allowed; }
 .upg-commit:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
 
-.upg-note { margin: 8px 0 0; font-size: 11px; color: #4a4345; }
+.upg-note { margin: 8px 0 0; font-size: 12.75px; color: #4a4345; }
 .upg-lack { color: var(--red, #b81e2c); }
 
 /* Три строки состояния под панелью — в макете они того же оранжевого
@@ -192,7 +203,7 @@ button.upg-price__row:hover { text-decoration: underline; }
   padding: 0;
   list-style: none;
   font-family: var(--font-sign);
-  font-size: 11px;
+  font-size: 12.75px;
   line-height: 1.5;
   color: var(--upg-accent, #ff9c00);
   -webkit-text-stroke: .5px #1c1318;

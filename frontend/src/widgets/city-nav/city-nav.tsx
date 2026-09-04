@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { MENU } from '../../shared/lib/layout-map'
 import { FitText, type StageBox } from '../../shared/lib/stage'
 import { useAuth } from '../../app/providers/auth-provider'
 import { authApi } from '../../shared/api/auth.api'
+import { charactersApi } from '../../shared/api/characters.api'
 
 interface StageTab {
   key: string
@@ -102,6 +103,32 @@ function FramedTabs({
   )
 }
 
+/** Наличные в шапке. Тот же запрос, что у карточки персонажа, поэтому
+ *  сумма и в шапке, и в «личном деле» обновляется одним ответом сервера. */
+function NavMoney() {
+  const { data: char } = useQuery({
+    queryKey: ['character', 'me'],
+    queryFn: () => charactersApi.getMe(),
+    retry: false,
+    refetchInterval: 30_000,
+  })
+  if (!char) return null
+  return (
+    <div
+      className="t-sign stage-money"
+      style={{
+        left: MENU.navMoney.x, top: MENU.navMoney.y,
+        width: MENU.navMoney.w, height: MENU.navMoney.h,
+        fontSize: MENU.navFontSize,
+      }}
+      title={'Наличные: ' + char.money.toLocaleString('ru') + ' рублей'}
+    >
+      <span className="stage-money__sum">{char.money.toLocaleString('ru')}</span>
+      <span className="stage-money__cur">&#8381;</span>
+    </div>
+  )
+}
+
 export function TopNav() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -144,6 +171,7 @@ export function TopNav() {
       >
         {MENU.navExit.label}
       </FitText>
+      <NavMoney />
     </>
   )
 }

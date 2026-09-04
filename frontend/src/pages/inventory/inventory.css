@@ -21,7 +21,7 @@
    доли: две трети под карточки, треть под манекен.
    ============================================================= */
 
-.inv { font-size: 12px; }
+.inv { font-size: 13.25px; }
 
 /* Два ряда вкладок, как нарисовано. Плашка и рамка — те же, что
    у вкладок магазина: в макете это один и тот же слой. */
@@ -38,7 +38,7 @@
   border: 0;
   background: #fffffe;
   font: inherit;
-  font-size: 11px;
+  font-size: 12.75px;
   cursor: pointer;
 }
 .inv-tabs button > span { position: relative; z-index: 1; }
@@ -77,12 +77,15 @@
    тегом, и общее правило растягивало их до 52 на 52. */
 .inv-card > img { width: 56px; height: 41px; object-fit: contain; align-self: center; }
 .inv-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.inv-card__head h3 { margin: 0; font-size: 11px; text-transform: uppercase; }
+.inv-card__head h3 { margin: 0; font-size: 12.75px; text-transform: uppercase; }
 .inv-card__count { color: #4a4345; white-space: nowrap; }
 /* В макете кнопка стоит СПРАВА от характеристик, на одной с ними
    высоте, а не под ними — потому карточка там и плоская, 960 на 272.
    Держим тот же ряд, иначе кнопки добавляют карточке лишний этаж. */
-.inv-card__body { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+/* Кнопки переносятся на строку ниже, только если в ряд уже не влезают:
+   с читаемым кеглем длинное название вещи иначе выдавливало бы их
+   за обрез карточки. Пока влезает — ряд тот же, что в макете. */
+.inv-card__body { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px; }
 .inv-card__side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 /* Столбец характеристик держит свою ширину и не переносится: иначе
    кнопки его сжимают и «требуемый уровень» ломается пополам. */
@@ -91,7 +94,7 @@
   flex: 0 0 auto;
   gap: 0;
   margin: 3px 0 0;
-  font-size: 9.5px;
+  font-size: 11.75px;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -108,7 +111,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -179,29 +182,33 @@
   pointer-events: none;
 }
 
+/* Кнопка привязана к низу панели, а не к верхней координате макета:
+   при читаемом кегле подпись выше нарисованной в макете полоски, и
+   с фиксированной высотой её срезало. Растёт вверх, низ на месте. */
 .inv-doll__all {
   position: absolute;
-  left: 30.75%; top: 95.36%; width: 38.5%; height: 3.44%;
+  left: 30.75%; bottom: 1.2%; width: 38.5%; min-height: 3.44%;
+  padding: 1px 2px;
   display: grid;
   place-items: center;
   border: 2px solid #07090a;
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 9px;
+  font-size: 11.5px;
   text-transform: uppercase;
   cursor: pointer;
 }
 .inv-doll__all:disabled { opacity: .45; cursor: not-allowed; }
 .inv-doll__all:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
 
-.inv-empty { font-size: 12px; opacity: .8; }
+.inv-empty { font-size: 13.25px; opacity: .8; }
 
 /* Карманы — наша механика, в макете её нет: держим отдельной полосой
    под карточками, чтобы не спорить с его композицией. */
 .inv-pockets { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(1, 2, 3, .35); }
 .inv-pockets__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
-.inv-pockets__head b { font-family: var(--font-sign); text-transform: uppercase; font-size: 11px; }
+.inv-pockets__head b { font-family: var(--font-sign); text-transform: uppercase; font-size: 12.75px; }
 .inv-pockets__head small { color: #4a4345; }
 .inv-pockets__list { display: flex; gap: 5px; flex-wrap: wrap; }
 
