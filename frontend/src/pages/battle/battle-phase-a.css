@@ -528,6 +528,41 @@
 }
 .battle-field-v3 .fighter-token > img { width: auto; height: 100%; display: block; filter: drop-shadow(0 2px 2px oklch(12% .02 245 / .55)); }
 .battle-field-v3 .fighter-token .token-label { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); }
+
+/* ── Боевые анимации ─────────────────────────────────────────────
+   Токен уже центрирован translate(-50%, 0); все кадры сохраняют этот
+   -50%, иначе фигура прыгает к краю клетки. Игрок стоит слева и бьёт
+   вправо, противник — справа и бьёт влево, поэтому выпады зеркальны.
+   Замах есть на любом ударе; вздрагивание — только по попаданию. */
+@keyframes token-lunge-right {
+  0%   { transform: translate(-50%, 0); }
+  45%  { transform: translate(calc(-50% + 66%), -5px); }
+  100% { transform: translate(-50%, 0); }
+}
+@keyframes token-lunge-left {
+  0%   { transform: translate(-50%, 0); }
+  45%  { transform: translate(calc(-50% - 66%), -5px); }
+  100% { transform: translate(-50%, 0); }
+}
+.battle-field-v3 .token-player.token-attacking { animation: token-lunge-right 440ms cubic-bezier(.34, 1.15, .5, 1); z-index: 6; }
+.battle-field-v3 .token-enemy.token-attacking  { animation: token-lunge-left  440ms cubic-bezier(.34, 1.15, .5, 1); z-index: 6; }
+
+/* Попадание: короткий отскок от противника плюс красная вспышка. */
+@keyframes token-recoil-left {
+  0%, 100% { transform: translate(-50%, 0); filter: none; }
+  35%      { transform: translate(calc(-50% - 12%), 0); filter: brightness(1.35) drop-shadow(0 0 5px oklch(58% .2 25)); }
+}
+@keyframes token-recoil-right {
+  0%, 100% { transform: translate(-50%, 0); filter: none; }
+  35%      { transform: translate(calc(-50% + 12%), 0); filter: brightness(1.35) drop-shadow(0 0 5px oklch(58% .2 25)); }
+}
+.battle-field-v3 .token-player.token-hit { animation: token-recoil-left 380ms ease-out; }
+.battle-field-v3 .token-enemy.token-hit  { animation: token-recoil-right 380ms ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .battle-field-v3 .token-attacking,
+  .battle-field-v3 .token-hit { animation: none; }
+}
 .battle-field-v3 .token-target-label { top: calc(100% + 12px); }
 @media (max-width: 900px) {
   .battle-field-v3 .hex-board { padding-bottom: 22px; }

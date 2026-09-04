@@ -54,14 +54,17 @@ const PLAYER_COL = 1
 
 function BattleGrid({
   playerName, enemyName,
-  playerHit, enemyHit, lastEvent,
+  playerHit, enemyHit, playerAttack, enemyAttack, lastEvent,
   playerPosition, selectedMove, onSelectMove,
   participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget,
 }: {
   playerName: string
   enemyName: string
   playerDefeated: boolean; enemyDefeated: boolean
-  playerHit: boolean; enemyHit: boolean; lastEvent: TurnEvent | null
+  playerHit: boolean; enemyHit: boolean
+  // Выпад атакующего: своя фигура делает рывок к цели и возвращается.
+  playerAttack: boolean; enemyAttack: boolean
+  lastEvent: TurnEvent | null
   distance?: number
   playerPosition?: { x: number; y: number }
   enemyPosition?: { x: number; y: number }
@@ -128,13 +131,13 @@ function BattleGrid({
               >
                 <span className="designer-cell-hit" style={{ clipPath: designerCell.polygon }} />
                 {(isPlayer || isAlly) && occupant && (
-                  <div style={fighterStyle} className={`fighter-token token-player ${isPlayer && playerHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
+                  <div style={fighterStyle} className={`fighter-token token-player ${isPlayer && playerHit ? 'token-hit' : ''} ${isPlayer && playerAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
                     {!occupant.isAlive ? <Skull size={16} /> : <img src={fighterBlue} srcSet={`${fighterBlue2x} 2x`} alt="" />}
                     <span className="token-label">{isPlayer ? playerName.slice(0, 5) : 'Союзн.'}</span>
                   </div>
                 )}
                 {isEnemy && occupant && (
-                  <div style={fighterStyle} className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
+                  <div style={fighterStyle} className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${isTarget && enemyAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
                     {!occupant.isAlive ? <Skull size={16} /> : <img src={fighterRed} srcSet={`${fighterRed2x} 2x`} alt="" />}
                     <span className="token-label">{isTarget ? enemyName.slice(0, 5) : 'Враг'}</span>
                     {isTarget && <span className="token-target-label">ЦЕЛЬ</span>}
@@ -231,6 +234,10 @@ export function BattlePage() {
   const actionPendingRef = useRef(false)
   const [playerHit, setPlayerHit]       = useState(false)
   const [enemyHit, setEnemyHit]         = useState(false)
+  // Выпад атакующего: рывок к цели и назад. Флаг на 460 мс — длину
+  // ставим чуть больше кадра анимации, чтобы она успела доиграть.
+  const [playerAttack, setPlayerAttack] = useState(false)
+  const [enemyAttack, setEnemyAttack]   = useState(false)
   const [lastEvent, setLastEvent]       = useState<TurnEvent | null>(null)
   // loadout IDs читается при mount и не меняется в течение боя
   const [loadoutIds] = useState<string[]>(() => getLoadout())
@@ -320,6 +327,12 @@ export function BattlePage() {
         rawDamage: t.rawDamage, finalDamage: t.finalDamage, logParts: t.logParts,
       })) ?? []
       events.forEach(t => {
+        // Атакующий делает выпад на любом ударе — попал или промахнулся,
+        // замах есть всегда. Защищающийся вздрагивает только по попаданию.
+        if (t.action === 'attack') {
+          if (t.actor === 'player') { setPlayerAttack(true); setTimeout(() => setPlayerAttack(false), 460) }
+          else                      { setEnemyAttack(true); setTimeout(() => setEnemyAttack(false), 460) }
+        }
         if (t.hit && !t.dodge) {
           if (t.actor === 'player') { setEnemyHit(true); setTimeout(() => setEnemyHit(false), 500) }
           else                      { setPlayerHit(true); setTimeout(() => setPlayerHit(false), 500) }
@@ -575,7 +588,8 @@ export function BattlePage() {
         <div className="battle-field-v3">
           <BattleGrid playerName={playerName} enemyName={enemyName}
             playerDefeated={false} enemyDefeated={false}
-            playerHit={playerHit} enemyHit={enemyHit} lastEvent={lastEvent}
+            playerHit={playerHit} enemyHit={enemyHit}
+            playerAttack={playerAttack} enemyAttack={enemyAttack} lastEvent={lastEvent}
             distance={distance ?? live?.distance ?? undefined} playerPosition={pPart?.position}
             enemyPosition={ePart?.position} selectedMove={selectedMove} onSelectMove={selectMove}
             participants={live?.participants} playerParticipantId={pPart?.participantId}
