@@ -126,9 +126,10 @@ function Preview() {
       onSubmitTurn={() => undefined} onSubmitMove={() => undefined}
       onReset={() => setPlan({ stance: 'defense4', attackZones: [], attackHands: [], blockZones: [] })}
       onToggleLog={() => undefined} onTogglePockets={() => undefined} onSurrender={() => undefined} />
-
-    <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
     </div>
+
+    {/* Как и на боевой странице: чат в держателе, а не в сцене. */}
+    <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
     </div>
   </div>
 }
