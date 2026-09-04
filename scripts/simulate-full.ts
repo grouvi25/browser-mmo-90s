@@ -63,14 +63,17 @@ const resourcePrice = new Map<string, number>([
   ...RESOURCES.map(row => [row[0] as string, row[4] as number] as const),
   ...BAR_RESOURCES.map(row => [row[0] as string, row[2] as number] as const),
 ])
-/** Цены объектов живут в сиде рядом с созданием: здесь только копия чисел. */
+/**
+ * Цены объектов живут в сиде рядом с созданием: здесь только копия чисел.
+ * Пересчитаны под В1· 04.09.2026 — см. комментарий у purchasePrices в seed.ts.
+ */
 const OBJECT_PRICES: Record<string, number> = {
-  obj_scrapyard: 12_000, obj_garage_workshop: 20_000, obj_small_factory: 32_000,
-  obj_parts_factory: 55_000, obj_cooperative_site: 55_000, obj_kolhoz_zarya: 45_000,
-  obj_sawmill: 16_000, obj_textile: 30_000, obj_herb_point: 12_000,
-  obj_pharmacy: 28_000, obj_chem_lab: 52_000,
+  obj_scrapyard: 6_500, obj_garage_workshop: 3_800, obj_small_factory: 2_000,
+  obj_parts_factory: 55_000, obj_cooperative_site: 5_500, obj_kolhoz_zarya: 64_000,
+  obj_sawmill: 3_600, obj_textile: 13_000, obj_herb_point: 16_000,
+  obj_pharmacy: 28_000, obj_chem_lab: 6_500,
 }
-const BAR_PRICE = 40_000
+const BAR_PRICE = 100_000
 const RECIPES = PRODUCTION_RECIPES as unknown as Array<{
   code: string; productionObjectCode: string; outputResourceCode: string | null
   outputAmount: number; laborRequired: number; outputItemTemplateCode?: string | null

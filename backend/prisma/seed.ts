@@ -269,18 +269,25 @@ async function main() {
   console.log(`  Private shop entries: ${privateItemRows.length+privateResourceRows.length}`)
 
   const productionObjects = PRODUCTION_OBJECTS
+  // Цены пересчитаны под В1· (04.09.2026): владелец работает на объекте сам,
+  // не нанимает штат — прежняя таблица (STAGE3_BALANCE.md 2.1) считала
+  // прибыль от полного штата на всех workerSlots и ни разу не пересчитывалась
+  // под собственное решение заказчика об одиночном труде. Каждая цена —
+  // ~16 суток окупаемости (коридор 12-20) от честной прибыли одиночки,
+  // посчитанной scripts/simulate-full.ts::ownerDay(). obj_parts_factory и
+  // obj_pharmacy уже попадали в коридор и не тронуты.
   const purchasePrices: Record<string, number> = {
-    obj_scrapyard: 12000,
-    obj_garage_workshop: 20000,
-    obj_small_factory: 32000,
+    obj_scrapyard: 6500,
+    obj_garage_workshop: 3800,
+    obj_small_factory: 2000,
     obj_parts_factory: 55000,
-    obj_cooperative_site: 55000,
-    obj_kolhoz_zarya: 45000,
-    obj_sawmill: 16000,
-    obj_textile: 30000,
-    obj_herb_point: 12000,
+    obj_cooperative_site: 5500,
+    obj_kolhoz_zarya: 64000,
+    obj_sawmill: 3600,
+    obj_textile: 13000,
+    obj_herb_point: 16000,
     obj_pharmacy: 28000,
-    obj_chem_lab: 52000,
+    obj_chem_lab: 6500,
   }
   const objectProfessions = OBJECT_PROFESSIONS
   for(const {code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward} of productionObjects){
@@ -394,8 +401,11 @@ async function main() {
   }
   const bar = await prisma.productionObject.upsert({
     where: { code: 'obj_bar_station' },
-    update: { name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, locationId: OBJECT_DISTRICTS.obj_bar_station, isActive: true },
-    create: { code: 'obj_bar_station', name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 40000, isForSale: true, storageCapacity: 1000, locationId: OBJECT_DISTRICTS.obj_bar_station },
+    update: { name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 100000, isForSale: true, storageCapacity: 1000, locationId: OBJECT_DISTRICTS.obj_bar_station, isActive: true },
+    // 100000 ₽ (04.09.2026, было 40000): под В1· честная прибыль владельца,
+    // варящего сам, даёт ~18.5 суток окупаемости — коридор 18-25, выше
+    // производственных объектов намеренно (доход зависит от чужого спроса).
+    create: { code: 'obj_bar_station', name: 'Пивная «У вокзала»', type: 'BAR', requiredProfessionCode: 'procurer', requiredProfessionLevel: 0, shiftDurationMinutes: 60, baseSalary: 180, baseProductionExp: 18, purchasePrice: 100000, isForSale: true, storageCapacity: 1000, locationId: OBJECT_DISTRICTS.obj_bar_station },
   })
   let firstBarRecipeId: string | null = null
   for (const row of BAR_RECIPES) {

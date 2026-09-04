@@ -19,8 +19,8 @@ describe('farm formulas', () => {
   })
 
   it('keeps harvest inside configured range', () => {
-    expect(harvestAmount('potato', 0)).toBe(3)
-    expect(harvestAmount('potato', 0.999)).toBe(5)
+    expect(harvestAmount('potato', 0)).toBe(5)
+    expect(harvestAmount('potato', 0.999)).toBe(7)
   })
   it('applies barrel and canopy only to horizontal neighbours', () => {
     expect(adjacentSlots(4)).toEqual([3])

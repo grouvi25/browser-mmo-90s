@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generatedAt": "2026-09-03T22:47:18.843Z",
+    "generatedAt": "2026-09-04T04:44:34.184Z",
     "days": 30,
     "seed": 4242
   },
@@ -13,37 +13,37 @@
     "ownerPerDay": 128.31545336807147,
     "ownerTotalDay": 875.3154533680715,
     "ownerShareOfShift": 1.2433458144432834,
-    "farmerPerHour": 37.60523923393339,
-    "farmerShareOfShift": 0.32049919801647775,
+    "farmerPerHour": 78.97100239126011,
+    "farmerShareOfShift": 0.6730483158346032,
     "barmanPerDay": 5412.655449680327,
     "premiumPerDay": 841,
     "premiumRatio": 1.127757492560654
   },
   "payback": {
     "objects": {
-      "obj_scrapyard": 29.761904761904763,
-      "obj_garage_workshop": 85.03401360544224,
-      "obj_small_factory": 253.96825396825398,
+      "obj_scrapyard": 16.121031746031747,
+      "obj_garage_workshop": 16.156462585034028,
+      "obj_small_factory": 15.873015873015873,
       "obj_parts_factory": 15.063540753724801,
-      "obj_cooperative_site": 159.69802555168425,
-      "obj_kolhoz_zarya": 11.278195488721805,
-      "obj_sawmill": 71.42857142857143,
-      "obj_textile": 37.202380952380956,
-      "obj_herb_point": 11.904761904761905,
+      "obj_cooperative_site": 15.969802555168426,
+      "obj_kolhoz_zarya": 16.040100250626566,
+      "obj_sawmill": 16.071428571428573,
+      "obj_textile": 16.12103174603175,
+      "obj_herb_point": 15.873015873015873,
       "obj_pharmacy": 16.025641025641026,
-      "obj_chem_lab": 128.96825396825403
+      "obj_chem_lab": 16.121031746031754
     },
-    "bar": 7.390087983960333
+    "bar": 18.475219959900834
   },
   "shares": {
     "clan": 0.015000000000000001,
     "territory": 0.01
   },
   "money": {
-    "minted": 235449.90112469677,
-    "burned": 266772.4950562348,
-    "m2Final": 43677.406068461925,
-    "dailyGrowth": -0.017534657044992907,
+    "minted": 242895.73849301558,
+    "burned": 267144.7869246508,
+    "m2Final": 50750.9515683648,
+    "dailyGrowth": -0.01270563206177533,
     "m2Positive": true
   },
   "valueAdded": [
@@ -241,9 +241,9 @@
   "verdicts": {
     "workerDayCorridor": true,
     "ownerCorridor": true,
-    "farmCorridor": false,
-    "paybackCorridor": false,
-    "barPaybackCorridor": false,
+    "farmCorridor": true,
+    "paybackCorridor": true,
+    "barPaybackCorridor": true,
     "clanShareCorridor": true,
     "territoryShareCorridor": true,
     "premiumCorridor": true,
@@ -251,9 +251,9 @@
     "chainAddsValue": true
   },
   "observations": {
-    "m2DailyGrowth": -0.017534657044992907,
+    "m2DailyGrowth": -0.01270563206177533,
     "m2Positive": true,
     "note": "денежная масса измерена по неполному набору стоков"
   },
-  "passed": false
+  "passed": true
 }

@@ -5,7 +5,11 @@ export const FARM_WITHER_BASE_HOURS = 6
 
 export const CROPS = {
   dill: { name: 'Укроп', minutes: 15, yieldMin: 2, yieldMax: 3, seedPrice: 20, resourceCode: 'res_greens', requiredLevel: 0 },
-  potato: { name: 'Картошка', minutes: 45, yieldMin: 3, yieldMax: 5, seedPrice: 45, resourceCode: 'res_vegetables', requiredLevel: 0 },
+  // yieldMin/Max подняты с 3-5 (04.09.2026): при честном расчёте (одна
+  // грядка — только она бесплатна новичку, см. STAGE5_FULL_RUN_REPORT.md)
+  // старый выход давал 32% от смены вместо коридора 60-80%. Цену
+  // res_vegetables не трогаем — её же берут госскупка, колхоз и бар.
+  potato: { name: 'Картошка', minutes: 45, yieldMin: 5, yieldMax: 7, seedPrice: 45, resourceCode: 'res_vegetables', requiredLevel: 0 },
   hops: { name: 'Хмель', minutes: 90, yieldMin: 2, yieldMax: 4, seedPrice: 110, resourceCode: 'res_hops', requiredLevel: 1 },
   sunflower: { name: 'Подсолнух', minutes: 150, yieldMin: 2, yieldMax: 3, seedPrice: 200, resourceCode: 'res_seeds', requiredLevel: 2 },
   tobacco: { name: 'Табак', minutes: 240, yieldMin: 1, yieldMax: 2, seedPrice: 380, resourceCode: 'res_tobacco', requiredLevel: 3 },
