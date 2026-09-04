@@ -19,7 +19,7 @@ import fighterBlue2x from '../../shared/assets/battle/fighter-blue@2x.webp'
 import fighterRed from '../../shared/assets/battle/fighter-red.webp'
 import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
 import { BattleFighterPanel } from './components/battle-fighter-panel'
-import { BattleChat, CHAT_SCENE_TOP } from './components/battle-chat'
+import { BattleChat, BATTLE_SCENE_H } from './components/battle-chat'
 import { CardCutout } from '../../widgets/character-card/card-cutout'
 import { NavCutout } from '../../widgets/city-nav/nav-cutout'
 import { MENU } from '../../shared/lib/layout-map'
@@ -160,12 +160,12 @@ function BattleGrid({
         return (
           <div className="grid-last-event" style={{ borderColor: e.color }}>
             <span style={{ color: e.color }}><EventIcon type={e.type} /></span>
-            <span style={{ color: lastEvent.actor === 'player' ? 'var(--accent-light)' : 'var(--danger)', fontWeight: 'bold', fontSize: 11 }}>
+            <span style={{ color: lastEvent.actor === 'player' ? 'var(--accent-light)' : 'var(--danger)', fontWeight: 'bold', fontSize: 12.75 }}>
               {lastEvent.actor === 'player' ? playerName : enemyName}
             </span>
-            <span style={{ color: e.color, fontWeight: 'bold', fontSize: 11 }}>{e.label}</span>
+            <span style={{ color: e.color, fontWeight: 'bold', fontSize: 12.75 }}>{e.label}</span>
             {lastEvent.finalDamage > 0 && (
-              <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+              <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 12.75 }}>
                 -{lastEvent.finalDamage} HP
               </span>
             )}
@@ -201,7 +201,10 @@ export function BattlePage() {
   // расчёт от габаритов окна, поэтому берём сами габариты, а не
   // готовый коэффициент.
   const view = useViewportSize()
-  const sceneH = chatOpen ? 1600 : CHAT_SCENE_TOP
+  // Высота сцены не зависит от чата: развёрнутый он ложится поверх
+  // журнала, а не удлиняет её. Иначе масштаб менялся на лету
+  // и всё содержимое дёргалось при каждом открытии.
+  const sceneH = BATTLE_SCENE_H
   // Шапка — вырез полосы меню во всю ширину окна. Она масштабируется
   // вместе со сценой города, поэтому на узком экране сжимается до
   // нечитаемой полоски в несколько пикселей: ниже 1000 не показываем
@@ -215,8 +218,8 @@ export function BattlePage() {
   // а карточки делят остаток ширины.
   const sceneGap = 10
   const freeH = view.h - navH
-  // Сцена макета — 900x1600. Свёрнутый чат обрезает её по своему верху,
-  // и та же сцена помещается в окно крупнее. Верхняя граница 1:
+  // Сцена макета — 900x1312: полный холст 900x1600 минус полоса чата,
+  // которая теперь всплывает поверх, а не занимает своё место. Верхняя граница 1:
   // увеличивать сверх исходного размера нечего, ассеты нарезаны под него.
   const sceneScaleByHeight = Math.min(freeH / sceneH, 1)
   const freeHalf = (view.w - 900 * sceneScaleByHeight) / 2 - 2 * sceneGap
@@ -509,10 +512,9 @@ export function BattlePage() {
         в окно целиком, по краям остаётся поле; прокрутки нет ни на
         десктопе, ни на телефоне.
 
-        Свёрнутый чат укорачивает сцену до 1312 — до его собственного
-        верха. Высота меньше, значит масштаб больше: на 1440x900 сцена
-        растёт с 506 до 617 px по ширине. Это и есть «больше места»,
-        которое даёт сворачивание. */}
+        Чат из композиции вынут: сцена всегда 1312 в высоту, поэтому
+        поле и панели всегда идут по крупному масштабу. Развёрнутый чат
+        всплывает от нижнего края сцены поверх журнала. */}
     {/* Поле по краям сцены — та же размытая плашка, что подстилает
         главный экран. Плоская тёмная заливка, стоявшая тут раньше,
         и делала бой не похожим на остальную игру: в городе пустое
@@ -546,9 +548,9 @@ export function BattlePage() {
     }} />}
 
     <div className="battle-mockup-scene-holder"
-      style={{ width: 900 * sceneScale, height: (chatOpen ? 1600 : CHAT_SCENE_TOP) * sceneScale }}>
+      style={{ width: 900 * sceneScale, height: sceneH * sceneScale }}>
     <div className="battle-mockup-scene"
-      style={{ height: chatOpen ? 1600 : CHAT_SCENE_TOP, transform: `scale(${sceneScale})` }}>
+      style={{ height: sceneH, transform: `scale(${sceneScale})` }}>
       <header className="battle-header-v3">
         <div><Sword size={13} /><b>Бой</b><b className="battle-header-timer">{timerText}</b></div>
         <strong>Раунд {currentRound} / 30</strong>
@@ -629,9 +631,12 @@ export function BattlePage() {
         onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
         onToggleLog={() => setShowLog(value => !value)} onTogglePockets={() => setPocketsOpen(value => !value)}
         onSurrender={() => act('surrender')} />
-
-      <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
     </div>
+
+      {/* Чат живёт в держателе, а не в сцене: внутри сцены он ужимался
+          вместе с ней, и на ноутбуке 1366x768 подписи выходили в семь
+          пикселей. Снаружи кегль настоящий, а нижняя кромка та же. */}
+      <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
     </div>
 
     {showCards && <CardCutout width={cardW} className="is-enemy" profile={{

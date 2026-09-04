@@ -25,7 +25,7 @@ function SkillCard({ skill }: { skill: WeaponSkill }) {
     <div className="panel" style={{ marginBottom: 0 }}>
       <div className="panel-body" style={{ padding: '8px 10px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-bright)' }}>{label}</span>
+          <span style={{ fontSize: 13.25, fontWeight: 'bold', color: 'var(--text-bright)' }}>{label}</span>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--gold)', fontWeight: 'bold' }}>
             Ур. {skill.skillLevel}
           </span>
@@ -38,7 +38,7 @@ function SkillCard({ skill }: { skill: WeaponSkill }) {
           <span className="wskill-level">{pct.toFixed(0)}%</span>
         </div>
 
-        <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 3, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 3, display: 'flex', justifyContent: 'space-between' }}>
           <span>Опыт: <span style={{ fontFamily: 'var(--font-mono)' }}>{skill.skillExp.toFixed(1)}</span></span>
           {skill.antiSkillLevel > 0 && (
             <span style={{ color: 'var(--accent)' }}>Защита: {skill.antiSkillLevel}</span>
@@ -115,7 +115,7 @@ export function SkillsPage() {
                 <tr key={lv}>
                   <td style={{ color: 'var(--gold)' }}>{lv}</td>
                   <td className="num text-mono">{WSK_THRESHOLDS[lv - 1]?.toLocaleString('ru') ?? '—'}</td>
-                  <td style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+                  <td style={{ fontSize: 12, color: 'var(--text-dim)' }}>
                     {lv === 1  && 'Базовый урон 100% — новичок наносит полный урон'}
                     {lv === 5  && 'Урон 112.5%, +крит, +точность'}
                     {lv === 10 && 'Урон 125%, стабильность и эффективность'}

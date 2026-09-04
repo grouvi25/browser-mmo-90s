@@ -86,7 +86,7 @@ export function PvpPage() {
             </span>
           </div>
           <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
               Уровневый диапазон (необязательно):
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -106,7 +106,7 @@ export function PvpPage() {
                 onChange={e => setLevelMax(e.target.value ? Number(e.target.value) : '')}
               />
             </div>
-            <div style={{ fontSize: 9, color: 'var(--text-dim)', fontStyle: 'italic' }}>
+            <div style={{ fontSize: 11.5, color: 'var(--text-dim)', fontStyle: 'italic' }}>
               По умолчанию: ±2 уровня от вас (Ур. {Math.max(1, charLevel - 2)}–{Math.min(99, charLevel + 2)})
             </div>
             <button
@@ -136,7 +136,7 @@ export function PvpPage() {
             {duelsLoading ? (
               <div className="loading"><span className="spinner" />Загрузка...</div>
             ) : openDuels.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px 12px', color: 'var(--text-dim)', fontSize: 11 }}>
+              <div style={{ textAlign: 'center', padding: '20px 12px', color: 'var(--text-dim)', fontSize: 12.75 }}>
                 Нет открытых дуэлей. Создай первую!
               </div>
             ) : (
@@ -162,17 +162,17 @@ export function PvpPage() {
                         ) : (
                           <span style={{ fontWeight: 'bold', color: 'var(--text-bright)' }}>?</span>
                         )}
-                        <div style={{ fontSize: 9, color: 'var(--text-dim)' }}>
+                        <div style={{ fontSize: 11.5, color: 'var(--text-dim)' }}>
                           {ARCHETYPE_LABELS[duel.creator?.archetype ?? ''] ?? ''}
                         </div>
                       </td>
                       <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--gold)' }}>
                         {duel.creator?.level ?? '?'}
                       </td>
-                      <td style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+                      <td style={{ fontSize: 12, color: 'var(--text-dim)' }}>
                         {duel.levelMin}–{duel.levelMax}
                       </td>
-                      <td style={{ fontSize: 10, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                      <td style={{ fontSize: 12, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                         <Clock size={9} style={{ marginRight: 3, verticalAlign: 'middle' }} />
                         {formatAge(duel.createdAt)}
                       </td>
@@ -186,7 +186,7 @@ export function PvpPage() {
                             Принять
                           </button>
                         ) : (
-                          <span style={{ fontSize: 9, color: 'var(--text-dim)' }}>
+                          <span style={{ fontSize: 11.5, color: 'var(--text-dim)' }}>
                             Нужен ур.{duel.levelMin}–{duel.levelMax}
                           </span>
                         )}

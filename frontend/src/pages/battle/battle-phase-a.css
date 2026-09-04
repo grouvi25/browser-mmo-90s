@@ -77,11 +77,11 @@
   padding: 0 10px;
   border-bottom: 1px solid oklch(51% 0.035 55);
   background: oklch(87% 0.032 70);
-  font-size: 10px;
+  font-size: 12px;
 }
 .battle-header-v3 > div,.battle-header-v3 > span { display: flex; align-items: center; gap: 5px; }
 .battle-header-v3 > div { color: oklch(39% 0.08 25); text-transform: uppercase; letter-spacing: .08em; }
-.battle-header-v3 > strong { font: 700 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.battle-header-v3 > strong { font: 700 12.75px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
 .battle-header-v3 > span { justify-self: end; }
 .battle-header-v3 .is-ready { color: oklch(39% 0.09 135); }
 .battle-header-v3 .is-pending { color: oklch(45% 0.09 75); }
@@ -108,14 +108,14 @@
 .battle-fighter-panel.is-enemy { border-left: 1px solid oklch(51% .035 55); }
 .battle-fighter-panel__head { padding: 6px 8px 5px; border-bottom: 1px solid oklch(68% .025 60); background: oklch(96% .017 75 / .72); }
 .battle-fighter-panel__head > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; }
-.battle-fighter-panel__head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12px/1 var(--font-sign); text-transform: uppercase; }
-.battle-fighter-panel__head small { color: oklch(43% .026 55); font-size: 9px; white-space: nowrap; }
+.battle-fighter-panel__head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 13.25px/1 var(--font-sign); text-transform: uppercase; }
+.battle-fighter-panel__head small { color: oklch(43% .026 55); font-size: 11.5px; white-space: nowrap; }
 /* Цифры здоровья у имени нужны только там, где полоса чистая, то есть
    на телефоне: на десктопе они остаются на самой полосе. */
 .battle-fighter-panel__hp-num { display: none; }
 /* Полосы ХП с макета: слои «Хп зеленое» и «Хп красное» 868x36,
    заливка #3b7f39 и #ce1818, дорожка под ними #dccbca. */
-.battle-fighter-panel__hp { position: relative; height: 13px; margin-top: 5px; overflow: hidden; border: 1px solid #a8918f; background: #dccbca; font: 700 8px/11px var(--font-mono); text-align: center; font-variant-numeric: tabular-nums; }
+.battle-fighter-panel__hp { position: relative; height: 13px; margin-top: 5px; overflow: hidden; border: 1px solid #a8918f; background: #dccbca; font: 700 11px/11px var(--font-mono); text-align: center; font-variant-numeric: tabular-nums; }
 /* Заливка светлее текста: цифры на полосе читаются на любой её длине. */
 .battle-fighter-panel__hp i { position: absolute; inset: 0; transform-origin: left; background: #3b7f39; transition: transform 300ms cubic-bezier(.22,1,.36,1); }
 .is-enemy .battle-fighter-panel__hp i { background: #ce1818; }
@@ -124,13 +124,13 @@
    Ставим цифры на светлую плашку, тогда фон под ними всегда один. */
 .battle-fighter-panel__hp span { position: relative; padding: 0 5px; border-radius: 7px;
   background: rgba(255, 252, 245, .88); color: #1e1a17; }
-.battle-fighter-panel__mode { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; background: oklch(91% .025 70); border-bottom: 1px solid oklch(68% .025 60); font-size: 8px; text-transform: uppercase; letter-spacing: .07em; color: oklch(43% .026 55); }
-.battle-fighter-panel__mode b { font: 700 9px/1 var(--font-mono); }
+.battle-fighter-panel__mode { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; background: oklch(91% .025 70); border-bottom: 1px solid oklch(68% .025 60); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: oklch(43% .026 55); }
+.battle-fighter-panel__mode b { font: 700 11.5px/1 var(--font-mono); }
 
 .battle-fighter-panel__stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; margin: 0; padding: 5px 6px; border-bottom: 1px solid oklch(68% .025 60); background: oklch(93% .018 75); }
 .battle-fighter-panel__stats > div { min-width: 0; display: flex; align-items: baseline; justify-content: center; gap: 3px; }
-.battle-fighter-panel__stats dt { color: oklch(43% .026 55); font: 700 7px/1 var(--font-mono); }
-.battle-fighter-panel__stats dd { margin: 0; color: oklch(24% .025 55); font: 700 10px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.battle-fighter-panel__stats dt { color: oklch(43% .026 55); font: 700 10.5px/1 var(--font-mono); }
+.battle-fighter-panel__stats dd { margin: 0; color: oklch(24% .025 55); font: 700 12px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
 .is-self .battle-fighter-panel__mode b { color: oklch(38% .09 135); }
 .is-enemy .battle-fighter-panel__mode b { color: oklch(42% .14 25); }
 
@@ -139,17 +139,17 @@
    Когда окно низкое, полосы нет: там хроника съела бы само поле, поэтому
    ниже она скрывается, а последнее событие снова всплывает над полем. */
 .battle-chronicle { min-height: 0; height: 106px; display: grid; grid-template-rows: 18px minmax(0,1fr); border-top: 1px solid oklch(62% .04 55); background: oklch(93% .022 70); }
-.battle-chronicle > header { display: flex; align-items: center; justify-content: space-between; padding: 0 7px; background: oklch(88% .03 70); color: oklch(40% .03 55); font-size: 8px; text-transform: uppercase; letter-spacing: .07em; }
+.battle-chronicle > header { display: flex; align-items: center; justify-content: space-between; padding: 0 7px; background: oklch(88% .03 70); color: oklch(40% .03 55); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
 .battle-chronicle > header button { padding: 0; border: 0; background: none; color: oklch(41% .09 25); font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; text-decoration: underline; }
-.battle-chronicle__empty { margin: 0; padding: 8px; color: oklch(48% .025 55); font-size: 9px; }
+.battle-chronicle__empty { margin: 0; padding: 8px; color: oklch(48% .025 55); font-size: 11.5px; }
 .battle-chronicle ol { margin: 0; padding: 3px 6px; list-style: none; overflow-y: auto; scrollbar-width: thin; }
-.battle-chronicle li { display: flex; align-items: center; gap: 5px; padding: 1px 0; font-size: 9px; line-height: 1.35; }
-.battle-chronicle li i { flex: none; width: 13px; color: oklch(52% .02 55); font: 700 8px/1 var(--font-mono); font-style: normal; text-align: right; }
+.battle-chronicle li { display: flex; align-items: center; gap: 5px; padding: 1px 0; font-size: 11.5px; line-height: 1.35; }
+.battle-chronicle li i { flex: none; width: 13px; color: oklch(52% .02 55); font: 700 11px/1 var(--font-mono); font-style: normal; text-align: right; }
 .battle-chronicle__icon { flex: none; display: flex; }
 .battle-chronicle li b { flex: none; max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .battle-chronicle li.is-mine b { color: oklch(37% .09 135); }
 .battle-chronicle li.is-theirs b { color: oklch(41% .13 25); }
-.battle-chronicle li em { margin-left: auto; color: oklch(38% .13 25); font: 700 9px/1 var(--font-mono); font-style: normal; font-variant-numeric: tabular-nums; }
+.battle-chronicle li em { margin-left: auto; color: oklch(38% .13 25); font: 700 11.5px/1 var(--font-mono); font-style: normal; font-variant-numeric: tabular-nums; }
 .battle-chronicle__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: oklch(38% .05 55); }
 .battle-chronicle__label.is-hit { color: oklch(44% .16 27); }
 .battle-chronicle__label.is-crit { color: oklch(45% .11 70); }
@@ -258,7 +258,7 @@
 .battle-zone-cell__caption {
   position: absolute;
   left: 0; right: 0; top: 12.6%;
-  font: 700 clamp(7px, 2.32cqw, 13px)/1 var(--font-ui);
+  font: 700 clamp(10.5px, 2.32cqw, 13px)/1 var(--font-ui);
   white-space: nowrap;
   text-align: center;
   pointer-events: none;
@@ -282,7 +282,7 @@
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
-.battle-zone-cell .zone-hand { font: 700 clamp(7px, 2.1cqw, 12px)/1 var(--font-mono); color: #6b5c4e; }
+.battle-zone-cell .zone-hand { font: 700 clamp(10.5px, 2.1cqw, 12px)/1 var(--font-mono); color: #6b5c4e; }
 .battle-zone-cell .zone-dot { width: 12%; height: 0; padding-top: 12%; border-radius: 50%; background: #b7a99f; }
 /* Занятая ячейка: сплошная рамка вместо пунктира. Заливку держим
    светлой — поверх неё ложится чёрная иконка брони или кулака
@@ -295,50 +295,50 @@
 .battle-zone-cell:focus-visible,.battle-command-dock button:focus-visible,.battle-drawer button:focus-visible { outline: 2px solid oklch(45% .14 25); outline-offset: 2px; }
 /* Плашка причины лежит в своём ряду сетки — под манекеном. Абсолютом
    по центру она накрывала ячейки корпуса, а по верху — имя бойца. */
-.battle-fighter-panel__reason { justify-self: center; align-self: end; margin: 0 0 4px; padding: 3px 6px; background: oklch(91% .05 70); border: 1px solid oklch(55% .06 55); color: oklch(38% .10 25); font-size: 8px; }
+.battle-fighter-panel__reason { justify-self: center; align-self: end; margin: 0 0 4px; padding: 3px 6px; background: oklch(91% .05 70); border: 1px solid oklch(55% .06 55); color: oklch(38% .10 25); font-size: 11px; }
 .battle-fighter-panel__hands { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid oklch(68% .025 60); }
 .battle-fighter-panel__hands > div { min-width: 0; padding: 4px 6px; }
 .battle-fighter-panel__hands > div + div { border-left: 1px solid oklch(68% .025 60); }
 .battle-fighter-panel__hands span,.battle-fighter-panel__hands b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.battle-fighter-panel__hands span { font-size: 7px; text-transform: uppercase; letter-spacing: .06em; color: oklch(45% .025 55); }
-.battle-fighter-panel__hands b { margin-top: 2px; font-size: 8px; }
+.battle-fighter-panel__hands span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: oklch(45% .025 55); }
+.battle-fighter-panel__hands b { margin-top: 2px; font-size: 11px; }
 
 /* Колонка поля: арена тянется, под ней хроника и полоса с дистанцией. */
 .battle-field-v3 { position: relative; min-width: 0; min-height: 0; overflow: hidden; display: grid; grid-template-rows: minmax(0,1fr) auto 22px; background: oklch(90% .028 70); }
 .battle-field-v3 .grid-arena { min-height: 0; display: flex; flex-direction: column; border: 0; background: transparent; }
 .battle-field-v3 .hex-board { flex: 1; min-height: 0; display: grid; place-items: center; padding: 6px 8px; border: 0; background: transparent; }
 .battle-field-v3 .grid-last-event { display: none; position: absolute; z-index: 5; left: 8px; right: 8px; bottom: 24px; min-height: 22px; padding: 3px 6px; border: 1px solid oklch(60% .04 55); background: oklch(93% .022 70 / .94); color: oklch(28% .03 55); }
-.battle-field-v3__meta { display: flex; align-items: center; justify-content: space-between; padding: 0 7px; background: oklch(88% .03 70); color: oklch(34% .03 55); border-top: 1px solid oklch(62% .04 55); font-size: 8px; }
+.battle-field-v3__meta { display: flex; align-items: center; justify-content: space-between; padding: 0 7px; background: oklch(88% .03 70); color: oklch(34% .03 55); border-top: 1px solid oklch(62% .04 55); font-size: 11px; }
 .battle-field-v3__meta b { color: oklch(40% .12 40); font-variant-numeric: tabular-nums; }
 
 .battle-command-dock { min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 190px; border-top: 1px solid oklch(51% .035 55); background: oklch(89% .03 70); }
 .battle-command-dock__plan { min-width: 0; display: grid; grid-template-rows: 16px 1fr 14px; gap: 2px; padding: 7px 9px; }
-.battle-command-dock__meta { display: flex; justify-content: space-between; text-transform: uppercase; letter-spacing: .07em; font-size: 8px; color: oklch(45% .025 55); }
-.battle-command-dock__meta span { color: oklch(42% .14 25); font: 700 10px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.battle-command-dock__meta { display: flex; justify-content: space-between; text-transform: uppercase; letter-spacing: .07em; font-size: 11px; color: oklch(45% .025 55); }
+.battle-command-dock__meta span { color: oklch(42% .14 25); font: 700 12px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
 .battle-plan-slots { min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .battle-plan-slots > div { min-width: 0; padding: 4px 6px; border: 1px solid oklch(65% .03 60); background: oklch(96% .017 75); }
-.battle-plan-slots > div > span { display: flex; align-items: center; gap: 3px; color: oklch(43% .026 55); font-size: 7px; text-transform: uppercase; }
+.battle-plan-slots > div > span { display: flex; align-items: center; gap: 3px; color: oklch(43% .026 55); font-size: 10.5px; text-transform: uppercase; }
 .battle-plan-chips { display: flex; gap: 3px; margin-top: 3px; min-width: 0; }
-.battle-plan-chips button,.battle-plan-chips b,.battle-plan-chips i { min-width: 0; max-width: 100%; display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid oklch(65% .03 60); background: oklch(92% .025 70); color: oklch(32% .025 55); font: 700 8px/1.2 var(--font-ui); font-style: normal; }
+.battle-plan-chips button,.battle-plan-chips b,.battle-plan-chips i { min-width: 0; max-width: 100%; display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid oklch(65% .03 60); background: oklch(92% .025 70); color: oklch(32% .025 55); font: 700 11px/1.2 var(--font-ui); font-style: normal; }
 .battle-plan-chips button { cursor: pointer; border-color: oklch(55% .09 25); color: oklch(37% .12 25); }
-.battle-command-dock__plan > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: oklch(42% .12 25); font-size: 8px; }
+.battle-command-dock__plan > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: oklch(42% .12 25); font-size: 11px; }
 .battle-command-dock__plan > small.is-ready { color: oklch(38% .09 135); }
-.battle-plan-move { display: grid; place-items: center; border: 1px solid oklch(58% .035 55); background: oklch(96% .017 75); font-size: 10px; }
+.battle-plan-move { display: grid; place-items: center; border: 1px solid oklch(58% .035 55); background: oklch(96% .017 75); font-size: 12px; }
 .battle-command-dock__actions { min-width: 0; display: grid; grid-template-rows: 1fr 34px; gap: 5px; padding: 8px; border-left: 1px solid oklch(58% .035 55); }
 /* Кнопки боя сняты со слоёв «Плашка Применить» и «Плашка Закрыть» макета
    «Профиль игрока Боевка»: 235x46, заливка #fad5c8, рамка 1px тушью #07090a,
    скруглённый угол. Прежняя красная плашка в макете отсутствует — там обе
    кнопки одинаковые, бледно-розовые, и различаются только подписью. */
 :root { --battle-btn-face: #fad5c8; --battle-btn-ink: #07090a; }
-.battle-submit-turn { min-height: 44px; border: 1px solid var(--battle-btn-ink); border-radius: 5px; background: var(--battle-btn-face); color: var(--battle-btn-ink); cursor: pointer; font: 700 11px/1 var(--font-sign); text-transform: uppercase; letter-spacing: .04em; }
+.battle-submit-turn { min-height: 44px; border: 1px solid var(--battle-btn-ink); border-radius: 5px; background: var(--battle-btn-face); color: var(--battle-btn-ink); cursor: pointer; font: 700 12.75px/1 var(--font-sign); text-transform: uppercase; letter-spacing: .04em; }
 .battle-submit-turn:hover:not(:disabled) { background: color-mix(in srgb, var(--battle-btn-face) 88%, var(--battle-btn-ink)); }
 .battle-submit-turn:disabled { opacity: .42; cursor: not-allowed; }
 .battle-command-tools { display: flex; gap: 4px; }
-.battle-command-tools button { min-width: 0; flex: 1; border: 1px solid var(--battle-btn-ink); border-radius: 5px; background: var(--battle-btn-face); color: var(--battle-btn-ink); cursor: pointer; font-size: 8px; }
+.battle-command-tools button { min-width: 0; flex: 1; border: 1px solid var(--battle-btn-ink); border-radius: 5px; background: var(--battle-btn-face); color: var(--battle-btn-ink); cursor: pointer; font-size: 11px; }
 .battle-command-tools button small { color: oklch(45% .025 55); }
 .battle-command-tools button.is-surrender { flex: 0 0 30px; color: oklch(39% .08 25); }
 
-.battle-error-v3 { position: absolute; z-index: 12; left: 50%; bottom: 121px; transform: translateX(-50%); display: flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid oklch(42% .13 25); background: oklch(91% .06 25); color: oklch(34% .13 25); font-size: 9px; }
+.battle-error-v3 { position: absolute; z-index: 12; left: 50%; bottom: 121px; transform: translateX(-50%); display: flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid oklch(42% .13 25); background: oklch(91% .06 25); color: oklch(34% .13 25); font-size: 11.5px; }
 .battle-drawer { position: absolute; inset: 34px 0 118px; z-index: 20; display: flex; align-items: flex-end; }
 .battle-drawer__scrim { position: absolute; inset: 0; border: 0; background: oklch(15% .02 250 / .58); cursor: pointer; }
 .battle-drawer > section { position: relative; width: min(100%, 620px); max-height: 90%; margin: 0 auto; overflow: auto; border: 1px solid oklch(38% .035 55); background: oklch(92% .025 70); }
@@ -352,13 +352,13 @@
 .battle-drawer .battle-swap-block .battle-disclosure__toggle {
   display: flex; align-items: center; gap: 6px; width: 100%;
   padding: 7px 8px; border-top: 1px solid oklch(58% .035 55);
-  margin: 0; background: oklch(87% .032 70); font: 700 12px/1 var(--font-ui);
+  margin: 0; background: oklch(87% .032 70); font: 700 13.25px/1 var(--font-ui);
 }
 .battle-drawer .battle-pocket-list { grid-template-columns: repeat(4,1fr); }
 .battle-drawer__empty { margin: 0; padding: 18px; text-align: center; color: oklch(45% .025 55); }
 
 .hex-cell[role="button"]:focus-visible { outline: 2px solid oklch(82% .12 80); outline-offset: 2px; z-index: 4; }
-.token-target-label { position: absolute; top: calc(100% + 2px); left: 50%; transform: translateX(-50%); padding: 1px 3px; background: oklch(42% .14 25); color: oklch(96% .01 70); font: 700 7px/1 var(--font-mono); letter-spacing: .06em; }
+.token-target-label { position: absolute; top: calc(100% + 2px); left: 50%; transform: translateX(-50%); padding: 1px 3px; background: oklch(42% .14 25); color: oklch(96% .01 70); font: 700 10.5px/1 var(--font-mono); letter-spacing: .06em; }
 
 /* Компактный режим — по узкому окну ИЛИ по низкому: ландшафтный телефон
    бывает шире 900 px, и без второго условия он получал настольную вёрстку
@@ -366,8 +366,8 @@
 @media (max-width: 900px), (max-height: 620px) {
   .battle-page-v3 { position: fixed; z-index: 50; }
   .battle-header-v3 { padding: 0 6px; }
-  .battle-header-v3 > div b { font-size: 9px; }
-  .battle-header-v3 > strong { font-size: 9px; }
+  .battle-header-v3 > div b { font-size: 11.5px; }
+  .battle-header-v3 > strong { font-size: 11.5px; }
   .battle-header-v3 > span { font-size: 0; }
   .battle-header-v3 > span svg { width: 10px; height: 10px; }
   /* Колонка не уже суммы зон: при 108 px «Л.рук.» налезала на «Корп.». */
@@ -376,17 +376,17 @@
      скрыта контейнерным запросом, читается метка. */
   .battle-duel-stage { grid-template-columns: clamp(190px, 24vw, 300px) minmax(0,1fr) clamp(190px, 24vw, 300px); }
   .battle-fighter-panel__head { padding: 4px; }
-  .battle-fighter-panel__head b { font-size: 9px; }
-  .battle-fighter-panel__head small { font-size: 7px; }
-  .battle-fighter-panel__mode { padding: 0 4px; font-size: 7px; }
+  .battle-fighter-panel__head b { font-size: 11.5px; }
+  .battle-fighter-panel__head small { font-size: 10.5px; }
+  .battle-fighter-panel__mode { padding: 0 4px; font-size: 10.5px; }
   .battle-fighter-panel__stats { grid-template-columns: repeat(4,1fr); padding: 4px 3px; }
-  .battle-fighter-panel__stats dt { font-size: 6px; }
-  .battle-fighter-panel__stats dd { font-size: 9px; }
+  .battle-fighter-panel__stats dt { font-size: 10px; }
+  .battle-fighter-panel__stats dd { font-size: 11.5px; }
   .battle-fighter-panel__hands { grid-template-columns: 1fr; }
   .battle-fighter-panel__hands > div { padding: 2px 4px; }
   .battle-fighter-panel__hands > div + div { border-left: 0; border-top: 1px solid oklch(68% .025 60); }
-  .battle-fighter-panel__hands span { font-size: 6px; }
-  .battle-fighter-panel__hands b { font-size: 7px; }
+  .battle-fighter-panel__hands span { font-size: 10px; }
+  .battle-fighter-panel__hands b { font-size: 10.5px; }
   .battle-field-v3 .hex-board { padding-inline: 1px; }
   /* Рост задан долей клетки, а при border-box отступ вычитался из него:
      на телефоне сота высотой ~16 px теряла 4 px и боец сжимался до 57 %. */
@@ -421,7 +421,7 @@
   .battle-command-dock { grid-template-columns: minmax(0,1fr) 180px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .battle-zone-cell,.battle-fighter-panel__hp i { transition: none; }
+  .battle-zone-cell,.battle-fighter-panel__hp i,.bs-chat { transition: none; }
 }
 .battle-page-v3 .fighter-token .token-label {
   color: oklch(97% .01 70);
@@ -586,11 +586,11 @@
   .battle-fighter-panel.is-self { grid-area: self; border-right: 1px solid oklch(51% .035 55); border-top: 1px solid oklch(51% .035 55); }
   .battle-fighter-panel.is-enemy { grid-area: enemy; border-left: 0; border-top: 1px solid oklch(51% .035 55); }
   .battle-field-v3 { grid-area: field; }
-  .battle-fighter-panel__head b { font-size: 10px; }
-  .battle-fighter-panel__head small { font-size: 8px; }
-  .battle-fighter-panel__mode { font-size: 8px; }
-  .battle-fighter-panel__hands span { font-size: 7px; }
-  .battle-fighter-panel__hands b { font-size: 8px; }
+  .battle-fighter-panel__head b { font-size: 12px; }
+  .battle-fighter-panel__head small { font-size: 11px; }
+  .battle-fighter-panel__mode { font-size: 11px; }
+  .battle-fighter-panel__hands span { font-size: 10.5px; }
+  .battle-fighter-panel__hands b { font-size: 11px; }
   /* Манекен на телефоне остаётся: панель занимает половину экрана, и
      трёх коробок в ряд хватает, если не раздувать их. Ширины задаются
      тем же селектором с .is-*, что и в компактном блоке, иначе те
@@ -673,7 +673,7 @@
 .battle-profile-weapon > span {
   grid-column: 2;
   color: oklch(45% .025 55);
-  font-size: 7px;
+  font-size: 10.5px;
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: .06em;
@@ -689,7 +689,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 8px;
+  font-size: 11px;
 }
 .battle-block-zone em {
   display: inline-flex;
@@ -730,8 +730,8 @@
   .battle-profile-weapons { grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr 1fr; }
   .battle-profile-weapon { grid-template-columns: 22px minmax(0, 1fr); column-gap: 2px; padding: 2px; }
   .battle-profile-weapon > img { width: 22px; height: 22px; }
-  .battle-profile-weapon > span { font-size: 5px; }
-  .battle-profile-weapon > b { font-size: 6px; }
+  .battle-profile-weapon > span { font-size: 9.25px; }
+  .battle-profile-weapon > b { font-size: 10px; }
   .battle-field-v3 .fighter-token { height: calc(52px * var(--fighter-depth, 1)); }
 }
 
@@ -747,8 +747,8 @@
   .battle-profile-weapons { grid-template-columns: 1fr 1fr; grid-template-rows: none; }
   .battle-profile-weapon { grid-template-columns: 26px minmax(0, 1fr); column-gap: 4px; padding: 3px; }
   .battle-profile-weapon > img { width: 26px; height: 26px; }
-  .battle-profile-weapon > span { font-size: 6px; }
-  .battle-profile-weapon > b { font-size: 7px; }
+  .battle-profile-weapon > span { font-size: 10px; }
+  .battle-profile-weapon > b { font-size: 10.5px; }
 }
 
 /* Фигура живёт внутри своей соты и не налезает на соседние.
@@ -776,10 +776,10 @@
    бьём, иконкой не передать, а информация нужна. */
 .zone-mark { display: block; width: auto; height: 76%; max-height: 22px; margin: 0 auto; object-fit: contain; }
 .zone-dot { display: block; width: 4px; height: 4px; margin: 0 auto; border-radius: 50%; background: oklch(58% .03 55); }
-.zone-hand { font: 700 8px/1 var(--font-mono); }
+.zone-hand { font: 700 11px/1 var(--font-mono); }
 @media (max-width: 900px), (max-height: 620px) {
   .zone-mark { max-height: 20px; }
-  .zone-hand { font-size: 9px; }
+  .zone-hand { font-size: 11.5px; }
 }
 
 /* Низкая панель (маленький телефон, 320×568 и подобные).
@@ -981,7 +981,7 @@
   min-width: 104px; min-height: 34px; padding: 0 10px;
   border: 1px solid var(--battle-btn-ink); border-radius: 5px;
   background: var(--battle-btn-face); color: var(--battle-btn-ink);
-  font: 700 11px/1 var(--font-sign); text-transform: uppercase; letter-spacing: .04em;
+  font: 700 12.75px/1 var(--font-sign); text-transform: uppercase; letter-spacing: .04em;
   cursor: pointer;
 }
 .battle-dock-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--battle-btn-face) 88%, var(--battle-btn-ink)); }
@@ -993,10 +993,10 @@
 .battle-dock-hint {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   margin: 0; padding: 0 10px 4px;
-  color: oklch(42% .12 25); font-size: 8px;
+  color: oklch(42% .12 25); font-size: 11px;
 }
 .battle-dock-hint .is-ready { color: oklch(38% .09 135); }
-.battle-dock-hint b { color: oklch(30% .025 55); font: 700 9px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.battle-dock-hint b { color: oklch(30% .025 55); font: 700 11.5px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
 /* Хронику под полем прячет мобильное правило выше; здесь она нужна,
    поэтому селектор с двумя классами перебивает его по весу. */
 .battle-command-dock.is-compact .battle-chronicle {
@@ -1055,7 +1055,7 @@
   background: var(--battle-btn-face); color: var(--battle-btn-ink); cursor: pointer;
 }
 .battle-header-tools button:disabled { opacity: .42; cursor: not-allowed; }
-.battle-header-tools button i { font-style: normal; font: 700 8px/1 var(--font-mono); }
+.battle-header-tools button i { font-style: normal; font: 700 11px/1 var(--font-mono); }
 .battle-header-tools .is-surrender { color: oklch(39% .08 25); }
 
 /* Портретная раскладка: тот же запрос, что у стопки «поле — панели». */
@@ -1086,7 +1086,7 @@
     border-top: 3px solid var(--battle-btn-ink);
     border-bottom: 3px solid var(--battle-btn-ink);
     background: #f9d8cf; color: var(--battle-btn-ink);
-    font: 700 10px/1 var(--font-sign); text-transform: uppercase; letter-spacing: .04em;
+    font: 700 12px/1 var(--font-sign); text-transform: uppercase; letter-spacing: .04em;
   }
   .battle-field-v3__meta b { color: var(--battle-btn-ink); }
 
@@ -1101,7 +1101,7 @@
   /* Имя по центру и полоса ХП во всю ширину половины. */
   .battle-fighter-panel__head { padding: 5px 6px 0; border-bottom: 0; background: transparent; }
   .battle-fighter-panel__head > div:first-child { justify-content: center; }
-  .battle-fighter-panel__head b { font: 700 11px/1 var(--font-sign); letter-spacing: .04em; }
+  .battle-fighter-panel__head b { font: 700 12.75px/1 var(--font-sign); letter-spacing: .04em; }
   /* «Цель:» перед именем противника — как подписано в макете. */
   .is-enemy .battle-fighter-panel__head b::before { content: 'Цель: '; color: #b01e1e; }
   /* Цвета полос ХП не трогаем: они уже сняты с макета выше
@@ -1112,9 +1112,9 @@
   .battle-fighter-panel__mode {
     position: relative; justify-content: center; padding: 4px 0 2px;
     border-bottom: 0; background: transparent;
-    color: var(--battle-btn-ink); font: 700 10px/1 var(--font-sign); letter-spacing: .06em;
+    color: var(--battle-btn-ink); font: 700 12px/1 var(--font-sign); letter-spacing: .06em;
   }
-  .battle-fighter-panel__mode b { position: absolute; right: 5px; font-size: 8px; }
+  .battle-fighter-panel__mode b { position: absolute; right: 5px; font-size: 11px; }
 
   /* Ячейки, силуэт и индикатор заданы разбором макета в
      battle-fighter-panel.tsx: их доли отсюда не трогаем. Замеры на
@@ -1217,7 +1217,7 @@
 .battle-mockup-scene .battle-header-tools i {
   position: absolute; right: -4px; top: -5px; min-width: 15px; height: 15px;
   border-radius: 8px; background: #b81e2c; color: #fff;
-  font: 700 11px/15px var(--font-mono); font-style: normal; text-align: center;
+  font: 700 12.75px/15px var(--font-mono); font-style: normal; text-align: center;
 }
 
 /* Карта боя. Поле рисуется по ширине, высоту даёт пропорция арта. */
@@ -1261,7 +1261,7 @@
   border: 0; background: transparent;
 }
 .battle-mockup-scene .battle-dock-actions { padding: 6px 0 0; gap: 15px; }
-.battle-mockup-scene .battle-dock-btn { min-width: 117.5px; height: 23px; font-size: 13px; }
+.battle-mockup-scene .battle-dock-btn { min-width: 117.5px; height: 23px; font-size: 13.75px; }
 .battle-mockup-scene .battle-dock-hint { display: none; }
 /* Шапка журнала занимает его верх: блок журнала начинается на 1988
    холста, то есть на 994 сцены — это и есть 39 от верха колодки (955).
@@ -1270,32 +1270,52 @@
 .battle-mockup-scene .battle-command-dock .battle-journal-head {
   position: absolute; left: 0; top: 39px; width: 900px; height: 60px;
   background: #e6dbda; border-top: 1px solid #a8918f;
-  font-size: 13px;
+  font-size: 13.75px;
 }
 .battle-mockup-scene .battle-command-dock .battle-chronicle {
   position: absolute; left: 0; top: 99px; width: 900px; height: 238px;
   background: #e6dbda; border-top: 0;
 }
 
-/* Чат. Свёрнутый — узкая полоска по низу укороченной сцены; открытый
-   ложится поверх журнала, а не раздвигает его. */
+/* Чат — шторка по нижнему краю сцены. Свёрнутый: одна полоска с
+   кнопкой. Развёрнутый: та же полоска уезжает вверх, а под ней
+   раскрывается лента — ПОВЕРХ журнала боя. Сцена при этом не меняет
+   ни высоты, ни масштаба, поэтому ничего под чатом не шевелится. */
+/* Чат лежит в держателе сцены, а не внутри неё: сцена ужимается под
+   окно (на 1366x768 — до 0,56), и вместе с ней ужимался бы текст ленты.
+   Тот же приём, что у журнала и плашки ошибки чуть ниже. Поэтому здесь
+   не координаты макета, а проценты и настоящие пиксели. */
 .bs-chat {
-  position: absolute; left: 0; width: 900px; z-index: 5;
-  font-size: 13px;
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 6;
+  height: 30px;
+  overflow: hidden;
+  background: #ddd0cf;
+  font-size: 13.5px;
+  transition: height 200ms cubic-bezier(.22, 1, .36, 1);
 }
-.bs-chat { top: 1284px; height: 28px; }
-.bs-chat.is-open { top: 1284px; height: 316px; }
+.bs-chat.is-open {
+  /* Ровно доля журнала боя в сцене: он занимает 994…1312 из 1312, то есть
+     24,2%. Шторка накрывает его целиком и не поднимается выше — кнопки
+     хода и поле с фигурами обязаны остаться на виду при любом размере
+     окна, иначе ходить будет нечем. */
+  height: 24.2%;
+  /* Тень нужна по делу: без неё непонятно, что лента легла ПОВЕРХ
+     журнала, а не заменила его. */
+  box-shadow: 0 -7px 16px rgba(36, 28, 23, .32);
+}
 .bs-chat__toggle {
-  display: block; width: 100%; height: 28px;
+  display: block; width: 100%; height: 30px;
   border: 0; border-top: 1px solid #a8918f;
   background: #ddd0cf; color: #241c17; cursor: pointer;
-  font: 700 13px/28px var(--font-sign, sans-serif);
+  font: 700 14px/30px var(--font-sign, sans-serif);
   text-transform: uppercase; letter-spacing: .04em;
 }
 .bs-chat__toggle:hover { background: #e9dedd; }
 .bs-chat__body {
-  position: absolute; left: 0; top: 28px; width: 900px; height: 288px;
-  display: grid; grid-template-columns: 633px 267px;
+  /* Лента прибита к низу шторки: пока та растёт, лента уже на месте и
+     выезжает из-под нижней кромки, а не растягивается вместе с ней. */
+  position: absolute; left: 0; right: 0; top: 30px; bottom: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(118px, 30%);
   background: #ddd0cf; border-top: 1px solid #a8918f;
 }
 .bs-chat__feed { overflow-y: auto; padding: 8px 9px; }
@@ -1312,7 +1332,7 @@
    лога сжался бы до нечитаемого. Прежние отступы 34/118 были под
    старую раскладку с шапкой и колодкой — теперь во весь экран. */
 .battle-page-v3 > .battle-drawer { position: absolute; inset: 0; z-index: 20; }
-.battle-page-v3 > .battle-error-v3 { bottom: 24px; z-index: 22; font-size: 13px; }
+.battle-page-v3 > .battle-error-v3 { bottom: 24px; z-index: 22; font-size: 13.75px; }
 
 /* =============================================================
    КЕГЛИ ПО МАКЕТУ
@@ -1333,32 +1353,30 @@
 .battle-mockup-scene .battle-fighter-panel__head { padding: 8px 10px 6px; }
 .battle-mockup-scene .battle-fighter-panel__head b { font-size: 20.83px; }
 .battle-mockup-scene .battle-fighter-panel__head small { font-size: 14px; }
-.battle-mockup-scene .battle-fighter-panel__hp { height: 18px; font-size: 12px; line-height: 16px; }
+.battle-mockup-scene .battle-fighter-panel__hp { height: 18px; font-size: 13.25px; line-height: 16px; }
 .battle-mockup-scene .battle-fighter-panel__hp span { padding: 0 7px; border-radius: 9px; }
 .battle-mockup-scene .battle-field-v3__meta { font-size: 20.83px; }
 .battle-mockup-scene .battle-dock-btn { font-size: 16.67px; }
-.battle-mockup-scene .battle-chronicle { font-size: 10.77px; }
+.battle-mockup-scene .battle-chronicle { font-size: 12.5px; }
 .battle-mockup-scene .battle-chronicle li,
-.battle-mockup-scene .battle-chronicle__empty { font-size: 10.77px; }
-.battle-mockup-scene .battle-chronicle > header { font-size: 11px; }
-.battle-mockup-scene .battle-chronicle li i { width: 16px; font-size: 10px; }
+.battle-mockup-scene .battle-chronicle__empty { font-size: 12.5px; }
+.battle-mockup-scene .battle-chronicle > header { font-size: 12.75px; }
+.battle-mockup-scene .battle-chronicle li i { width: 16px; font-size: 12px; }
 .battle-mockup-scene .battle-chronicle li b { max-width: 120px; }
-.battle-mockup-scene .battle-chronicle li em { font-size: 11px; }
-.bs-chat { font-size: 13.89px; }
-.bs-chat__toggle { font-size: 15px; }
+.battle-mockup-scene .battle-chronicle li em { font-size: 12.75px; }
 /* Подпись ячейки: 10.42 в сцене — это 2.32% ширины панели, ровно то,
    что уже считает cqw. Оставляем долю, но снимаем потолок в 13 px:
    он срабатывал раньше, чем доля успевала дорасти. */
-.battle-mockup-scene .battle-zone-cell__caption { font: 700 10.42px/1 var(--font-ui); }
-.battle-mockup-scene .battle-zone-cell .zone-hand { font: 700 11px/1 var(--font-mono); }
+.battle-mockup-scene .battle-zone-cell__caption { font: 700 12.25px/1 var(--font-ui); }
+.battle-mockup-scene .battle-zone-cell .zone-hand { font: 700 12.75px/1 var(--font-mono); }
 
 /* Подписи бойцов на карте и номера раундов в журнале — не из макета,
    там фигуры нарисованы, а журнал набран одним кеглем. Свои размеры
    они получили под прежнюю раскладку 1:1 и после ужатия сцены падали
    до 5 px. Поднимаем до читаемых. */
-.battle-mockup-scene .token-label { font-size: 11px; }
-.battle-mockup-scene .token-target-label { font-size: 10px; }
-.battle-mockup-scene .battle-chronicle li i { font-size: 10.77px; }
+.battle-mockup-scene .token-label { font-size: 12.75px; }
+.battle-mockup-scene .token-target-label { font-size: 12px; }
+.battle-mockup-scene .battle-chronicle li i { font-size: 12.5px; }
 
 /* =============================================================
    БОКОВЫЕ КАРТОЧКИ БОЙЦОВ
@@ -1393,7 +1411,7 @@
   border: 1px solid #6d1a1e;
   background: #a4232a;
   color: #fff8f0;
-  font: 700 clamp(9px, 3.2%, 14px)/1 var(--font-sign);
+  font: 700 clamp(11.5px, 3.2%, 14px)/1 var(--font-sign);
   letter-spacing: .14em;
 }
 .card-cutout.is-enemy .portrait-hot .sprite-btn__img {
@@ -1411,7 +1429,7 @@
   display: grid;
   gap: 2px;
   padding: 3px 8px 0;
-  font-size: 11px;
+  font-size: 12.75px;
 }
 .battle-journal-head__meta {
   margin: 0;
@@ -1456,7 +1474,7 @@
   width: 14px; height: 14px; flex: none;
   border: 1px solid var(--battle-btn-ink); border-radius: 50%;
   background: #fad5c8;
-  color: #b01e1e; font: 700 9px/1 var(--font-mono); font-style: normal;
+  color: #b01e1e; font: 700 11.5px/1 var(--font-mono); font-style: normal;
 }
 .battle-journal-head__flag.is-done { background: transparent; color: oklch(45% .02 55); }
 
@@ -1467,9 +1485,9 @@
    Живёт в выдвижном ящике рядом с карманом: макет боевого экрана
    переодевания не рисует, и его геометрию это не трогает. */
 .battle-swap { display: grid; gap: 9px; }
-.battle-swap__row { display: grid; gap: 4px; font-size: 12px; }
+.battle-swap__row { display: grid; gap: 4px; font-size: 13.25px; }
 .battle-swap__row > span { display: inline-flex; align-items: center; gap: 5px; color: oklch(45% .02 55); }
 .battle-swap__row select { width: 100%; min-height: 32px; font: inherit; }
 /* Цена размена стоит текстом: игрок должен видеть её до нажатия. */
-.battle-swap__hint { margin: 0; font-size: 11.5px; color: oklch(48% .02 55); }
+.battle-swap__hint { margin: 0; font-size: 13px; color: oklch(48% .02 55); }
 .battle-swap__hint--warn { color: #a12a2a; }

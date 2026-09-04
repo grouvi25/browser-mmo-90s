@@ -68,7 +68,7 @@ export function StatsPage() {
             <BarChart2 size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
             Характеристики — {char.nickname}
           </span>
-          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+          <span style={{ fontSize: 12.75, color: 'var(--text-dim)' }}>
             Боевой уровень: {char.battleLevel}
           </span>
         </div>
@@ -79,7 +79,7 @@ export function StatsPage() {
               Нажми «+» рядом с нужной характеристикой.
             </div>
           ) : (
-            <div className="alert alert-info mb12" style={{ fontSize: 11 }}>
+            <div className="alert alert-info mb12" style={{ fontSize: 12.75 }}>
               Очки характеристик начисляются за повышение боевого уровня (+1 за уровень).
               Архетип «Студент» даёт +2 очка при создании персонажа.
             </div>
@@ -103,7 +103,7 @@ export function StatsPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 13, fontWeight: 'bold', color: 'var(--text-title)' }}>
+                      <span style={{ fontSize: 13.75, fontWeight: 'bold', color: 'var(--text-title)' }}>
                         {STAT_FULL[key]}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -122,11 +122,11 @@ export function StatsPage() {
                           </button>
                         )}
                         {isMax && (
-                          <span style={{ fontSize: 10, color: 'var(--gold)', opacity: 0.7 }}>МАКС</span>
+                          <span style={{ fontSize: 12, color: 'var(--gold)', opacity: 0.7 }}>МАКС</span>
                         )}
                       </div>
                     </div>
-                    <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
                       {STAT_DESCRIPTIONS[key]}
                     </div>
                   </div>
@@ -137,10 +137,10 @@ export function StatsPage() {
 
           {/* HP & derived stats */}
           <div style={{ marginTop: 16, padding: 10, background: 'var(--bg-panel2)', border: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-bright)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 13.25, fontWeight: 'bold', color: 'var(--text-bright)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
               <BarChart2 size={12} /> Производные параметры
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 11 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 12.75 }}>
               <div>
                 <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 3 }}>
                   <Heart size={11} /> HP
@@ -148,7 +148,7 @@ export function StatsPage() {
                 <div style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
                   {char.hpCurrent} / {char.hpMax}
                 </div>
-                <div style={{ color: 'var(--text-dim)', fontSize: 10 }}>60 + ВЫН×6 + Ур.×2</div>
+                <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>60 + ВЫН×6 + Ур.×2</div>
               </div>
               <div>
                 <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -157,7 +157,7 @@ export function StatsPage() {
                 <div style={{ fontFamily: 'var(--font-mono)' }}>
                   {20 + s.str * 6} кг
                 </div>
-                <div style={{ color: 'var(--text-dim)', fontSize: 10 }}>20 + СИЛ×6</div>
+                <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>20 + СИЛ×6</div>
               </div>
               <div>
                 <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -166,7 +166,7 @@ export function StatsPage() {
                 <div style={{ fontFamily: 'var(--font-mono)' }}>
                   ~{(s.rea * 1.2 + s.agi * 0.6).toFixed(1)}
                 </div>
-                <div style={{ color: 'var(--text-dim)', fontSize: 10 }}>РЕА×1.2 + ЛВК×0.6</div>
+                <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>РЕА×1.2 + ЛВК×0.6</div>
               </div>
             </div>
           </div>

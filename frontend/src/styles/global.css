@@ -55,7 +55,7 @@
   --font-ui:   'Tahoma', 'Arial', sans-serif;
   --font-mono: 'Courier New', 'Consolas', monospace;
 
-  font-size: 12px;
+  font-size: 13.25px;
   line-height: 1.4;
 }
 
@@ -94,7 +94,7 @@ button { font-family: inherit; }
   padding: 0 14px;
   display: flex;
   align-items: center;
-  font-size: 13px;
+  font-size: 13.75px;
   font-weight: bold;
   color: var(--gold);
   letter-spacing: 1px;
@@ -117,7 +117,7 @@ button { font-family: inherit; }
   padding: 0 8px;
   border-right: 1px solid var(--border);
   height: 100%;
-  font-size: 11px;
+  font-size: 12.75px;
   white-space: nowrap;
   gap: 4px;
 }
@@ -178,7 +178,7 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   padding: 0 8px;
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--gold-dim);
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -192,7 +192,7 @@ button { font-family: inherit; }
   align-items: center;
   gap: 4px;
   padding: 0 11px;
-  font-size: 11px;
+  font-size: 12.75px;
   color: var(--text);
   text-decoration: none;
   border-right: 1px solid var(--border);
@@ -223,7 +223,7 @@ button { font-family: inherit; }
 .tabbar-link.disabled {
   opacity: 0.3;
   cursor: not-allowed;
-  font-size: 11px;
+  font-size: 12.75px;
 }
 
 .tabbar-sep {
@@ -245,7 +245,7 @@ button { font-family: inherit; }
   background: var(--bg-panel2);
   border-bottom: 1px solid var(--border);
   padding: 8px 10px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -255,7 +255,7 @@ button { font-family: inherit; }
 
 .sidebar-section-title {
   padding: 5px 10px 3px;
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--gold-dim);
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -266,7 +266,7 @@ button { font-family: inherit; }
   display: block;
   padding: 5px 10px;
   color: var(--text);
-  font-size: 11px;
+  font-size: 12.75px;
   border-left: 3px solid transparent;
   text-decoration: none;
   transition: background 0.1s;
@@ -288,7 +288,7 @@ button { font-family: inherit; }
   flex: 1;
 }
 .sidebar-stats-title {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--gold-dim);
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -300,12 +300,12 @@ button { font-family: inherit; }
   margin-bottom: 2px;
 }
 .sidebar-stat-row .s-key {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
 }
 .sidebar-stat-row .s-val {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-bright);
   font-weight: bold;
 }
@@ -333,7 +333,7 @@ button { font-family: inherit; }
 }
 
 .panel-title {
-  font-size: 11px;
+  font-size: 12.75px;
   color: var(--text-title);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -341,7 +341,7 @@ button { font-family: inherit; }
 }
 
 .panel-subtitle {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
 }
 
@@ -361,7 +361,7 @@ button { font-family: inherit; }
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 12.75px;
 }
 .data-table th {
   background: var(--bg-panel2);
@@ -370,7 +370,7 @@ button { font-family: inherit; }
   text-align: left;
   color: var(--text-dim);
   font-weight: normal;
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -389,7 +389,7 @@ button { font-family: inherit; }
 .btn {
   display: inline-block;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: 12.75px;
   border: 1px solid var(--border-light);
   background: var(--bg-panel2);
   color: var(--text);
@@ -438,8 +438,8 @@ button { font-family: inherit; }
   border-color: var(--gold);
 }
 
-.btn-sm   { padding: 3px 8px; font-size: 10px; }
-.btn-lg   { padding: 6px 16px; font-size: 12px; }
+.btn-sm   { padding: 3px 8px; font-size: 12px; }
+.btn-lg   { padding: 6px 16px; font-size: 13.25px; }
 .btn-block { display: block; width: 100%; text-align: center; }
 
 .market-create, .market-filters, .location-room-list {
@@ -462,7 +462,7 @@ button { font-family: inherit; }
 .form-group { margin-bottom: 10px; }
 .form-label {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   margin-bottom: 3px;
   text-transform: uppercase;
@@ -475,7 +475,7 @@ button { font-family: inherit; }
   border: 1px solid var(--border-light);
   color: var(--text);
   font-family: var(--font-ui);
-  font-size: 11px;
+  font-size: 12.75px;
 }
 .form-input:focus, .form-select:focus {
   outline: none;
@@ -528,7 +528,7 @@ button { font-family: inherit; }
 }
 
 .auth-subtitle {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   margin-top: 4px;
   text-transform: uppercase;
@@ -539,7 +539,7 @@ button { font-family: inherit; }
 .auth-footer {
   padding: 10px 20px;
   border-top: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 12.75px;
   color: var(--text-dim);
   text-align: center;
   background: var(--bg-panel2);
@@ -587,7 +587,7 @@ button { font-family: inherit; }
 }
 
 .avatar-level {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--gold-dim);
   text-align: center;
 }
@@ -604,7 +604,7 @@ button { font-family: inherit; }
 }
 .stat-bar-label {
   width: 70px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   flex-shrink: 0;
   text-transform: uppercase;
@@ -638,7 +638,7 @@ button { font-family: inherit; }
   width: 54px;
   text-align: right;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   flex-shrink: 0;
 }
@@ -656,7 +656,7 @@ button { font-family: inherit; }
   text-align: center;
 }
 .stat-cell .abbr {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--gold-dim);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -691,7 +691,7 @@ button { font-family: inherit; }
 .equip-slot.weapon { border-color: var(--red-dim); }
 
 .equip-slot-label {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -699,13 +699,13 @@ button { font-family: inherit; }
 }
 
 .equip-slot-item {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-bright);
   line-height: 1.3;
 }
 
 .equip-slot-empty {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   font-style: italic;
 }
@@ -773,7 +773,7 @@ button { font-family: inherit; }
 .fighter.enemy  { border-color: var(--red-dim); }
 
 .fighter-name {
-  font-size: 11px;
+  font-size: 12.75px;
   font-weight: bold;
   margin-bottom: 4px;
   display: flex;
@@ -822,7 +822,7 @@ button { font-family: inherit; }
 
 .fighter-hp-text {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   white-space: nowrap;
   width: 52px;
@@ -831,7 +831,7 @@ button { font-family: inherit; }
 }
 
 .fighter-status {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--text-dim);
   margin-top: 3px;
 }
@@ -839,7 +839,7 @@ button { font-family: inherit; }
 /* ─── Round indicator ─────────────────────────── */
 .round-indicator {
   text-align: center;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--gold-dim);
   margin-bottom: 6px;
   text-transform: uppercase;
@@ -851,7 +851,7 @@ button { font-family: inherit; }
   background: #070706;
   border: 1px solid var(--border);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12.75px;
   line-height: 1.6;
   height: 260px;
   overflow-y: auto;
@@ -865,7 +865,7 @@ button { font-family: inherit; }
 
 .log-line .round-num {
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: 12px;
   margin-right: 4px;
 }
 
@@ -906,7 +906,7 @@ button { font-family: inherit; }
   margin-top: 4px;
 }
 .weapon-select-row label {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   white-space: nowrap;
 }
@@ -922,7 +922,7 @@ button { font-family: inherit; }
 .q-UNIQUE  { color: var(--q-unique); }
 
 .item-name-cell { font-weight: bold; }
-.item-meta { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.item-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
 
 .dur-bar-inline {
   display: flex;
@@ -956,8 +956,8 @@ button { font-family: inherit; }
 }
 .arch-card:hover { border-color: var(--gold-dim); background: var(--bg-hover); }
 .arch-card.selected { border-color: var(--gold); background: #1c1600; }
-.arch-card .name { font-size: 11px; font-weight: bold; color: var(--text-bright); margin-bottom: 3px; }
-.arch-card .bonus { font-size: 9px; color: var(--success); }
+.arch-card .name { font-size: 12.75px; font-weight: bold; color: var(--text-bright); margin-bottom: 3px; }
+.arch-card .bonus { font-size: 11.5px; color: var(--success); }
 
 /* ═══════════════════════════════════════════════════
    SHOP
@@ -980,7 +980,7 @@ button { font-family: inherit; }
 .alert {
   padding: 7px 10px;
   border-left: 3px solid;
-  font-size: 11px;
+  font-size: 12.75px;
   margin-bottom: 8px;
 }
 .alert-error   { border-color: var(--danger);  background: #1c0808; color: #e08080; }
@@ -996,7 +996,7 @@ button { font-family: inherit; }
   font-family: var(--font-mono);
   font-weight: bold;
 }
-.money::before { content: '₽ '; font-size: 10px; }
+.money::before { content: '₽ '; font-size: 12px; }
 
 .row { display: flex; gap: 10px; }
 .col { flex: 1; min-width: 0; }
@@ -1007,7 +1007,7 @@ button { font-family: inherit; }
 .text-green  { color: var(--success); }
 .text-bright { color: var(--text-bright); }
 .text-mono   { font-family: var(--font-mono); }
-.text-sm     { font-size: 10px; }
+.text-sm     { font-size: 12px; }
 
 .mt4  { margin-top: 4px; }
 .mt8  { margin-top: 8px; }
@@ -1020,7 +1020,7 @@ button { font-family: inherit; }
   text-align: center;
   padding: 40px;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 13.25px;
 }
 .spinner {
   display: inline-block;
@@ -1043,7 +1043,7 @@ button { font-family: inherit; }
 }
 .wskill-label {
   width: 100px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   flex-shrink: 0;
 }
@@ -1057,7 +1057,7 @@ button { font-family: inherit; }
 .wskill-fill { height: 100%; background: var(--gold-dim); }
 .wskill-level {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--gold);
   width: 24px;
   text-align: right;
@@ -1074,7 +1074,7 @@ button { font-family: inherit; }
   display: inline-block;
   background: var(--red-dim);
   color: #ff6060;
-  font-size: 9px;
+  font-size: 11.5px;
   padding: 1px 5px;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1109,7 +1109,7 @@ button { font-family: inherit; }
 
 .city-map-title {
   padding: 5px 8px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   color: var(--gold);
   background: var(--bg-panel3);
@@ -1133,7 +1133,7 @@ button { font-family: inherit; }
   cursor: pointer;
   text-decoration: none;
   color: var(--text);
-  font-size: 10px;
+  font-size: 12px;
   transition: all 0.1s;
   position: relative;
 }
@@ -1145,8 +1145,8 @@ button { font-family: inherit; }
 .city-zone.locked { opacity: 0.45; cursor: not-allowed; }
 .city-zone.hot { border-color: var(--red-dim); }
 .city-zone.hot:hover { border-color: var(--red); }
-.zone-label { display: block; font-size: 10px; line-height: 1.3; }
-.zone-lock { position: absolute; top: 1px; right: 2px; font-size: 8px; }
+.zone-label { display: block; font-size: 12px; line-height: 1.3; }
+.zone-lock { position: absolute; top: 1px; right: 2px; font-size: 11px; }
 
 /* ─── Активный бой в сайдбаре ───────────────────── */
 .sidebar-link.active-battle {
@@ -1198,7 +1198,7 @@ button { font-family: inherit; }
 }
 
 .pch-name { font-size: 14px; font-weight: bold; color: var(--text-title); letter-spacing: 0.5px; }
-.pch-sub  { font-size: 9px; color: var(--text-dim); }
+.pch-sub  { font-size: 11.5px; color: var(--text-dim); }
 .pch-status.in-battle { color: var(--danger); font-weight: bold; }
 
 .pch-badge {
@@ -1207,7 +1207,7 @@ button { font-family: inherit; }
   display: flex; flex-direction: column; align-items: center; line-height: 1.2;
 }
 .pch-lvl-num { font-size: 20px; font-weight: bold; font-family: var(--font-mono); color: var(--gold); }
-.pch-lvl-lbl { font-size: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.pch-lvl-lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
 
 /* HP / EXP */
 .pch-bars {
@@ -1222,7 +1222,7 @@ button { font-family: inherit; }
   background: var(--bg); border: 1px solid var(--border); overflow: hidden;
 }
 .pch-bar-fill { height: 100%; transition: width 0.4s; }
-.pch-bar-val  { font-size: 10px; font-family: var(--font-mono); color: var(--text-dim); white-space: nowrap; min-width: 64px; text-align: right; }
+.pch-bar-val  { font-size: 12px; font-family: var(--font-mono); color: var(--text-dim); white-space: nowrap; min-width: 64px; text-align: right; }
 
 /* Мини-статы */
 .pch-stats-grid {
@@ -1235,15 +1235,15 @@ button { font-family: inherit; }
 .pch-stat-row {
   display: flex; align-items: center; gap: 4px; cursor: help;
 }
-.pch-stat-abbr { font-size: 9px; color: var(--text-dim); width: 24px; text-align: right; flex-shrink: 0; }
+.pch-stat-abbr { font-size: 11.5px; color: var(--text-dim); width: 24px; text-align: right; flex-shrink: 0; }
 .pch-stat-track {
   flex: 1; height: 8px;
   background: var(--bg); border: 1px solid var(--border); overflow: hidden;
 }
-.pch-stat-val  { font-size: 10px; font-family: var(--font-mono); color: var(--gold); width: 14px; text-align: right; flex-shrink: 0; }
+.pch-stat-val  { font-size: 12px; font-family: var(--font-mono); color: var(--gold); width: 14px; text-align: right; flex-shrink: 0; }
 .pch-pts {
   grid-column: 1 / -1; text-align: center;
-  font-size: 10px; color: var(--gold);
+  font-size: 12px; color: var(--gold);
   background: rgba(212,160,23,0.1); border: 1px solid var(--gold-dim);
   padding: 2px 0; text-decoration: none; margin-top: 2px;
 }
@@ -1312,7 +1312,7 @@ button { font-family: inherit; }
   opacity: 0.8;
 }
 .cd-fig-name {
-  font-size: 9px;
+  font-size: 11.5px;
   font-weight: bold;
   color: var(--text-bright);
   text-align: center;
@@ -1323,7 +1323,7 @@ button { font-family: inherit; }
   white-space: nowrap;
 }
 .cd-fig-count {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--text-dim);
 }
 
@@ -1347,29 +1347,29 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.esc-pockets { color: var(--accent);   font-size: 9px; margin-left: auto; }
-.esc-rings   { color: var(--gold-dim); font-size: 9px; margin-left: auto; }
+.esc-pockets { color: var(--accent);   font-size: 11.5px; margin-left: auto; }
+.esc-rings   { color: var(--gold-dim); font-size: 11.5px; margin-left: auto; }
 
 .esc-body { display: flex; flex-direction: column; gap: 2px; }
 
 .esc-name {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.esc-broken-label { color: var(--danger); font-weight: normal; font-size: 8px; }
+.esc-broken-label { color: var(--danger); font-weight: normal; font-size: 11px; }
 
 .esc-stats-row { display: flex; gap: 3px; flex-wrap: wrap; }
 .esc-stat {
-  font-size: 8px; padding: 1px 3px;
+  font-size: 11px; padding: 1px 3px;
   background: var(--bg); border: 1px solid var(--border);
   font-family: var(--font-mono);
 }
@@ -1384,12 +1384,12 @@ button { font-family: inherit; }
   background: var(--bg); border: 1px solid var(--border); overflow: hidden;
 }
 .esc-dur-fill { height: 100%; transition: width 0.3s; }
-.esc-dur-num  { font-size: 8px; color: var(--text-dim); font-family: var(--font-mono); white-space: nowrap; }
+.esc-dur-num  { font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); white-space: nowrap; }
 
-.esc-unequip { margin-top: 3px; font-size: 9px; padding: 1px 6px; }
+.esc-unequip { margin-top: 3px; font-size: 11.5px; padding: 1px 6px; }
 
 .esc-empty {
-  font-size: 9px; color: var(--text-dim);
+  font-size: 11.5px; color: var(--text-dim);
   font-style: italic; text-align: center;
   margin: auto 0; padding: 6px 0;
 }
@@ -1422,7 +1422,7 @@ button { font-family: inherit; }
 }
 
 .profile-stat-label {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--text-dim);
   width: 22px;
   text-align: right;
@@ -1431,7 +1431,7 @@ button { font-family: inherit; }
 
 .profile-stat-val {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12.75px;
   color: var(--text-bright);
   width: 16px;
   text-align: right;
@@ -1503,7 +1503,7 @@ button { font-family: inherit; }
 }
 
 .figure-name {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--text-dim);
   text-align: center;
 }
@@ -1533,17 +1533,17 @@ button { font-family: inherit; }
   margin-bottom: 3px;
 }
 
-.equip-slot-icon { font-size: 11px; }
+.equip-slot-icon { font-size: 12.75px; }
 
 .equip-slot-label {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .equip-slot-item {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   margin-bottom: 2px;
   line-height: 1.2;
@@ -1558,7 +1558,7 @@ button { font-family: inherit; }
 }
 
 .equip-stat {
-  font-size: 9px;
+  font-size: 11.5px;
   padding: 1px 3px;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1582,7 +1582,7 @@ button { font-family: inherit; }
 }
 
 .equip-slot-empty-text {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   font-style: italic;
   text-align: center;
@@ -1606,7 +1606,7 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 13.25px;
   color: var(--gold-dim);
   cursor: pointer;
   opacity: 0.5;
@@ -1631,7 +1631,7 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12.75px;
   color: var(--accent);
   cursor: pointer;
   opacity: 0.5;
@@ -1674,14 +1674,14 @@ button { font-family: inherit; }
   padding: 3px 10px;
   background: var(--bg-panel3);
   border: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 12.75px;
   color: var(--text-dim);
 }
 
 .battle-status-badge {
   margin-left: auto;
   padding: 3px 10px;
-  font-size: 11px;
+  font-size: 12.75px;
   font-weight: bold;
   border: 1px solid;
 }
@@ -1730,13 +1730,13 @@ button { font-family: inherit; }
 .fighter-card-icon { font-size: 28px; }
 
 .fighter-card-name {
-  font-size: 13px;
+  font-size: 13.75px;
   font-weight: bold;
   color: var(--text-title);
 }
 
 .fighter-card-weapon {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
 }
 
@@ -1757,7 +1757,7 @@ button { font-family: inherit; }
   position: absolute;
   right: 4px;
   top: 0;
-  font-size: 10px;
+  font-size: 12px;
   font-family: var(--font-mono);
   line-height: 16px;
   text-shadow: 0 0 4px rgba(0,0,0,0.8);
@@ -1767,7 +1767,7 @@ button { font-family: inherit; }
 .fighter-card-stats {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   margin-top: 4px;
 }
@@ -1782,7 +1782,7 @@ button { font-family: inherit; }
   font-size: 22px;
 }
 .vs-text {
-  font-size: 11px;
+  font-size: 12.75px;
   color: var(--text-dim);
   font-weight: bold;
   letter-spacing: 1px;
@@ -1805,7 +1805,7 @@ button { font-family: inherit; }
   padding: 2px 8px;
   background: var(--bg-panel3);
   border: 1px solid var(--border-accent);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--gold-dim);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1823,7 +1823,7 @@ button { font-family: inherit; }
   gap: 8px;
   padding: 6px 10px;
   border-radius: 0;
-  font-size: 12px;
+  font-size: 13.25px;
 }
 
 .event-icon { font-size: 16px; flex-shrink: 0; }
@@ -1834,7 +1834,7 @@ button { font-family: inherit; }
   padding: 12px;
   text-align: center;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 13.25px;
   background: var(--bg-panel2);
   border: 1px solid var(--border);
 }
@@ -1852,7 +1852,7 @@ button { font-family: inherit; }
   border: none;
   border-bottom: 1px solid var(--border);
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: 12.75px;
   text-align: left;
   cursor: pointer;
   font-family: var(--font-ui);
@@ -1874,7 +1874,7 @@ button { font-family: inherit; }
 }
 
 .history-round-header {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1882,7 +1882,7 @@ button { font-family: inherit; }
 }
 
 .history-event {
-  font-size: 11px;
+  font-size: 12.75px;
   line-height: 1.5;
 }
 
@@ -1958,8 +1958,8 @@ button { font-family: inherit; }
 }
 
 .action-btn-icon { font-size: 22px; }
-.action-btn-label { font-size: 12px; font-weight: bold; }
-.action-btn-hint { font-size: 9px; color: var(--text-dim); }
+.action-btn-label { font-size: 13.25px; font-weight: bold; }
+.action-btn-hint { font-size: 11.5px; color: var(--text-dim); }
 
 .battle-consumables {
   display: flex;
@@ -2019,7 +2019,7 @@ button { font-family: inherit; }
   min-width: 80px;
 }
 
-.reward-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
+.reward-label { font-size: 11.5px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
 .reward-value { font-size: 18px; font-family: var(--font-mono); font-weight: bold; }
 .reward-value.xp     { color: var(--xp); }
 .reward-value.skill  { color: var(--accent-light); }
@@ -2321,7 +2321,7 @@ button { font-family: inherit; }
   background: rgba(0,0,0,0.75);
   border: 1px solid var(--border-accent);
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: 12.75px;
   font-weight: bold;
   color: var(--text-title);
   white-space: nowrap;
@@ -2331,7 +2331,7 @@ button { font-family: inherit; }
   background: rgba(0,0,0,0.6);
   border: 1px solid var(--border);
   padding: 1px 6px;
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--text-dim);
   white-space: nowrap;
 }
@@ -2356,7 +2356,7 @@ button { font-family: inherit; }
   transition: width 0.5s ease, background 0.5s;
 }
 .fhp-text {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--text-dim);
   font-family: var(--font-mono);
   margin-top: 1px;
@@ -2367,7 +2367,7 @@ button { font-family: inherit; }
 .fighter-dmg-badge {
   position: absolute;
   top: calc(100% + 30px);
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--text-dim);
   white-space: nowrap;
 }
@@ -2390,7 +2390,7 @@ button { font-family: inherit; }
   background: rgba(0,0,0,0.8);
   border: 1px solid var(--border-accent);
   padding: 3px 12px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--gold-dim);
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -2450,7 +2450,7 @@ button { font-family: inherit; }
   background: rgba(0,0,0,0.85);
   border: 1px solid currentColor;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: 12.75px;
   font-weight: bold;
   white-space: nowrap;
   animation: pop-in 0.3s ease-out;
@@ -2459,7 +2459,7 @@ button { font-family: inherit; }
   from { transform: scale(0.7); opacity: 0; }
   to   { transform: scale(1);   opacity: 1; }
 }
-.se-actor { color: var(--text-dim); font-weight: normal; font-size: 10px; }
+.se-actor { color: var(--text-dim); font-weight: normal; font-size: 12px; }
 .se-label { font-weight: bold; }
 .se-dmg   { font-family: var(--font-mono); }
 
@@ -2475,7 +2475,7 @@ button { font-family: inherit; }
   background: rgba(196,48,48,0.15);
   border: 1px solid var(--red-dim);
   padding: 5px 10px;
-  font-size: 11px;
+  font-size: 12.75px;
   color: var(--danger);
   margin-bottom: 8px;
 }
@@ -2508,7 +2508,7 @@ button { font-family: inherit; }
 .hud-btn:active:not(:disabled) { transform: translateY(0); }
 
 .hud-btn-icon { font-size: 20px; }
-.hud-btn-label { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.hud-btn-label { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
 
 .hud-attack { border-color: var(--red-dim); }
 .hud-attack:hover:not(:disabled) { background: rgba(196,48,48,0.15); border-color: var(--red); box-shadow: 0 0 12px rgba(196,48,48,0.3); }
@@ -2523,8 +2523,8 @@ button { font-family: inherit; }
 .hud-heal .hud-btn-label { color: var(--success); }
 
 .hud-weapon-switch { display: flex; gap: 4px; align-items: center; }
-.hud-select { background: var(--bg-panel2); border: 1px solid var(--border); color: var(--text); font-family: var(--font-ui); font-size: 10px; padding: 4px 6px; }
-.hud-switch-confirm { min-width: 36px; min-height: 36px; padding: 4px 8px; font-size: 11px; }
+.hud-select { background: var(--bg-panel2); border: 1px solid var(--border); color: var(--text); font-family: var(--font-ui); font-size: 12px; padding: 4px 6px; }
+.hud-switch-confirm { min-width: 36px; min-height: 36px; padding: 4px 8px; font-size: 12.75px; }
 
 .hud-surrender { min-width: 44px; min-height: 44px; border-color: transparent; opacity: 0.45; margin-left: auto; }
 .hud-surrender:hover:not(:disabled) { opacity: 0.8; }
@@ -2535,7 +2535,7 @@ button { font-family: inherit; }
   padding: 5px 8px;
   background: var(--bg-panel3);
   border: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   cursor: pointer;
   user-select: none;
@@ -2555,14 +2555,14 @@ button { font-family: inherit; }
 }
 
 .log-round-row {
-  font-size: 11px;
+  font-size: 12.75px;
   display: flex;
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
 }
 .log-rn { color: var(--gold-dim); font-family: var(--font-mono); min-width: 28px; }
-.log-ev { font-size: 11px; }
+.log-ev { font-size: 12.75px; }
 
 /* ══ ФИНАЛЬНЫЙ ЭКРАН ════════════════════════════════════════ */
 .battle-result-screen {
@@ -2602,7 +2602,7 @@ button { font-family: inherit; }
 }
 .brs-reward span { font-size: 20px; }
 .brs-reward strong { font-family: var(--font-mono); font-size: 18px; color: var(--gold); }
-.brs-reward small { font-size: 9px; color: var(--text-dim); text-transform: uppercase; }
+.brs-reward small { font-size: 11.5px; color: var(--text-dim); text-transform: uppercase; }
 
 .brs-levelup {
   padding: 8px 20px;
@@ -2649,7 +2649,7 @@ button { font-family: inherit; }
 }
 
 .bp-title {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--gold-dim);
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -2673,24 +2673,24 @@ button { font-family: inherit; }
 .bp-slot.bp-empty  { opacity: 0.5; }
 
 .bp-slot-num {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--gold-dim);
   font-family: var(--font-mono);
   margin-bottom: 2px;
 }
 .bp-slot-name {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-bright);
   font-weight: bold;
   line-height: 1.3;
 }
 .bp-slot-hp {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--success);
   font-family: var(--font-mono);
 }
 .bp-slot-empty-text {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   font-style: italic;
   margin: auto 0;
@@ -2698,7 +2698,7 @@ button { font-family: inherit; }
 .bp-use-btn {
   width: 100%;
   padding: 4px 6px;
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 2px;
 }
 
@@ -2712,9 +2712,9 @@ button { font-family: inherit; }
   border: 1px solid var(--border-accent);
   border-bottom: 0;
 }
-.bh-left  { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: bold; color: var(--gold-dim); letter-spacing: 2px; }
-.bh-center { flex: 1; text-align: center; font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); letter-spacing: 1px; }
-.bh-right { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-dim); }
+.bh-left  { display: flex; align-items: center; gap: 6px; font-size: 12.75px; font-weight: bold; color: var(--gold-dim); letter-spacing: 2px; }
+.bh-center { flex: 1; text-align: center; font-size: 12px; color: var(--text-dim); font-family: var(--font-mono); letter-spacing: 1px; }
+.bh-right { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); }
 .spin { animation: spin-anim 1s linear infinite; }
 @keyframes spin-anim { to { transform: rotate(360deg); } }
 
@@ -2791,7 +2791,7 @@ button { font-family: inherit; }
   gap: 1px;
   padding: 4px 5px;
   border: 1px solid;
-  font-size: 9px;
+  font-size: 11.5px;
   cursor: default;
   transition: all 0.15s;
   z-index: 2;
@@ -2812,7 +2812,7 @@ button { font-family: inherit; }
 }
 
 .token-label {
-  font-size: 8px;
+  font-size: 11px;
   font-weight: bold;
   letter-spacing: 0.5px;
   white-space: nowrap;
@@ -2881,7 +2881,7 @@ button { font-family: inherit; }
 .grid-hp-right { align-items: flex-end; }
 
 .grid-hp-name {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   font-weight: bold;
   text-transform: uppercase;
@@ -2899,7 +2899,7 @@ button { font-family: inherit; }
   transition: width 0.5s ease, background 0.5s;
 }
 .grid-hp-num {
-  font-size: 9px;
+  font-size: 11.5px;
   font-family: var(--font-mono);
   color: var(--text-dim);
 }
@@ -2942,7 +2942,7 @@ button { font-family: inherit; }
   background: rgba(196,48,48,0.1);
   border: 1px solid var(--red-dim);
   color: var(--danger);
-  font-size: 11px;
+  font-size: 12.75px;
 }
 
 .hud-v2-actions {
@@ -2965,7 +2965,7 @@ button { font-family: inherit; }
   border: 1px solid var(--border);
   cursor: pointer;
   font-family: var(--font-ui);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text);
   transition: all 0.12s;
   user-select: none;
@@ -3026,7 +3026,7 @@ button { font-family: inherit; }
   border: 1px solid var(--border);
   color: var(--text);
   font-family: var(--font-ui);
-  font-size: 10px;
+  font-size: 12px;
   padding: 4px 6px;
   height: 32px;
 }
@@ -3040,7 +3040,7 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   padding: 2px 0;
   border-top: 1px solid var(--border);
@@ -3062,7 +3062,7 @@ button { font-family: inherit; }
   background: var(--bg-panel2);
   border: none;
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
   font-family: var(--font-ui);
   text-align: left;
@@ -3085,7 +3085,7 @@ button { font-family: inherit; }
   padding: 3px 10px 4px;
 }
 .log-round-header {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--gold-dim);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -3099,18 +3099,18 @@ button { font-family: inherit; }
   align-items: center;
   gap: 5px;
   padding: 1px 0;
-  font-size: 11px;
+  font-size: 12.75px;
   line-height: 1.5;
 }
 .log-ev-player .log-ev-actor { color: var(--accent-light); font-weight: bold; }
 .log-ev-enemy  .log-ev-actor { color: var(--danger);       font-weight: bold; }
 .log-ev-actor  { min-width: 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.log-ev-arrow  { color: var(--text-dim); font-size: 10px; }
+.log-ev-arrow  { color: var(--text-dim); font-size: 12px; }
 .log-ev-icon   { display: flex; align-items: center; }
-.log-ev-label  { font-size: 11px; }
-.log-ev-dmg    { font-family: var(--font-mono); font-size: 11px; font-weight: bold; }
+.log-ev-label  { font-size: 12.75px; }
+.log-ev-dmg    { font-family: var(--font-mono); font-size: 12.75px; font-weight: bold; }
 .log-ev-crit   {
-  font-size: 9px;
+  font-size: 11.5px;
   font-weight: bold;
   color: var(--gold);
   background: rgba(212,160,23,0.12);
@@ -3165,14 +3165,14 @@ button { font-family: inherit; }
   color: var(--gold);
 }
 .brv2-reward span { font-family: var(--font-mono); font-size: 16px; font-weight: bold; }
-.brv2-reward small { font-size: 9px; color: var(--text-dim); text-transform: uppercase; }
+.brv2-reward small { font-size: 11.5px; color: var(--text-dim); text-transform: uppercase; }
 
 .brv2-levelup {
   padding: 8px 18px;
   border: 1px solid var(--gold-dim);
   color: var(--gold);
   font-weight: bold;
-  font-size: 13px;
+  font-size: 13.75px;
   letter-spacing: 2px;
   background: rgba(212,160,23,0.08);
 }
@@ -3203,7 +3203,7 @@ button { font-family: inherit; }
   gap: 5px;
   min-height: 32px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   transition: border-color 0.1s;
 }
 .loadout-slot.filled {
@@ -3214,7 +3214,7 @@ button { font-family: inherit; }
 .loadout-slot.empty  { color: var(--text-dim); font-style: italic; }
 
 .loadout-slot-num {
-  font-size: 9px;
+  font-size: 11.5px;
   color: var(--gold-dim);
   font-family: var(--font-mono);
   min-width: 12px;
@@ -3236,7 +3236,7 @@ button { font-family: inherit; }
   background: var(--bg-panel3);
   border: 1px solid var(--border);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   transition: border-color 0.1s;
 }
 .consumable-pick-row:hover { border-color: var(--gold-dim); background: var(--bg-hover); }
@@ -3264,7 +3264,7 @@ button { font-family: inherit; }
 .hud-timer-num {
   position: relative;
   z-index: 1;
-  font-size: 10px;
+  font-size: 12px;
   font-family: var(--font-mono);
   font-weight: bold;
   margin-left: auto;
@@ -3283,8 +3283,8 @@ button { font-family: inherit; }
 .work-empty-line a { color:var(--red); font-weight:700; }
 .work-xp { min-width:150px; }
 .work-xp>div { margin-top:0; height:5px; }
-.work-xp small { display:block; margin-top:3px; color:var(--text-dim); font-size:9px; }
-.work-reason { display:block; margin-top:3px; color:var(--danger); font-size:9px; }
+.work-xp small { display:block; margin-top:3px; color:var(--text-dim); font-size:11.5px; }
+.work-reason { display:block; margin-top:3px; color:var(--danger); font-size:11.5px; }
 .work-award .panel-header { border-bottom-style:double; border-bottom-width:3px; }
 .work-award tbody tr:last-child td { border-top:2px solid var(--border); font-weight:700; }
 .is-muted { background: rgba(96, 76, 60, .08); }
