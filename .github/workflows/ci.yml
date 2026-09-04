@@ -281,6 +281,60 @@ jobs:
             docs/stage5-acceptance-report.json
           if-no-files-found: warn
 
+  # accept:stage4/5 гоняются на ubuntu-latest через tsx — это раннер CI, не то,
+  # что реально едет на прод. Этот job строит backend из той же builder-стадии
+  # infra/docker/backend.Dockerfile, из которой собирается релизный образ (тот
+  # же node:20-alpine, тот же npm ci по тому же lock-файлу), и гоняет ту же
+  # приёмку внутри контейнера — закрывает разрыв между «прошло на раннере» и
+  # «пройдёт в среде, где реально живёт релизный образ».
+  docker-image-acceptance:
+    name: Stage 4 & 5 Acceptance on Release Docker Image
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mmo90s_docker_acceptance
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_docker_acceptance
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres_docker_acceptance@localhost:5432/mmo90s_docker_acceptance
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: docker_acceptance_secret_32_chars_minimum
+      NODE_ENV: test
+      BCRYPT_ROUNDS: '4'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend builder stage (same stage the release image is built from)
+        run: docker build --target builder -f infra/docker/backend.Dockerfile -t mmo90s-backend-builder:ci ./backend
+      # --network host: контейнер видит сервисы раннера на localhost, как и
+      # обычные шаги job. Отчёты приёмки пишутся внутри контейнера и пропадают
+      # вместе с ним — этот job проверяет код возврата, а не хранит артефакт.
+      - name: Run Stage 4 & 5 acceptance inside the container
+        run: |
+          docker run --rm --network host \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e JWT_SECRET="$JWT_SECRET" \
+            -e NODE_ENV="$NODE_ENV" \
+            -e BCRYPT_ROUNDS="$BCRYPT_ROUNDS" \
+            mmo90s-backend-builder:ci \
+            sh -c "npx prisma db push --force-reset --accept-data-loss && npx tsx prisma/apply-raw-indexes.ts && npx tsx prisma/seed.ts && npm run accept:stage4 && npm run accept:stage5"
+
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
