@@ -324,16 +324,22 @@ jobs:
       # --network host: контейнер видит сервисы раннера на localhost, как и
       # обычные шаги job. Отчёты приёмки пишутся внутри контейнера и пропадают
       # вместе с ним — этот job проверяет код возврата, а не хранит артефакт.
+      # accept:stage5 запускает симуляторы из ../scripts (корень репозитория,
+      # не входит в Docker-контекст backend.Dockerfile) — примонтирован снаружи.
+      # Сами симуляторы импортируют ../backend/src относительно своего файла —
+      # /backend внутри контейнера не существует (backend лежит в /app), отсюда
+      # симлинк. Ни Dockerfile, ни релизный образ этим не затронуты.
       - name: Run Stage 4 & 5 acceptance inside the container
         run: |
           docker run --rm --network host \
+            -v "${{ github.workspace }}/scripts:/scripts:ro" \
             -e DATABASE_URL="$DATABASE_URL" \
             -e REDIS_URL="$REDIS_URL" \
             -e JWT_SECRET="$JWT_SECRET" \
             -e NODE_ENV="$NODE_ENV" \
             -e BCRYPT_ROUNDS="$BCRYPT_ROUNDS" \
             mmo90s-backend-builder:ci \
-            sh -c "npx prisma db push --force-reset --accept-data-loss && npx tsx prisma/apply-raw-indexes.ts && npx tsx prisma/seed.ts && npm run accept:stage4 && npm run accept:stage5"
+            sh -c "ln -s /app /backend && npx prisma db push --force-reset --accept-data-loss && npx tsx prisma/apply-raw-indexes.ts && npx tsx prisma/seed.ts && npm run accept:stage4 && npm run accept:stage5"
 
   e2e-tests:
     name: E2E Tests
