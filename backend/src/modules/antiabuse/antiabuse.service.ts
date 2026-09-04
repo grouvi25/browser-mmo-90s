@@ -15,6 +15,7 @@
 import type { AbuseSignalKind, Prisma } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { BalanceConfig } from '../../config/balance.config'
+import { priceRatio, suspiciousPriceReason } from '../market/market-abuse.formulas'
 
 const DAY = 24 * 3_600_000
 
@@ -469,10 +470,96 @@ export async function detectLedgerMismatch(now = new Date()): Promise<number> {
   return raised
 }
 
+/**
+ * Рыночные махинации: пара аккаунтов гоняет сделки по краю ценового
+ * коридора — по дну (слив связанному аккаунту) или по потолку (отмывание
+ * встречной переплатой).
+ *
+ * Считаем по паре продавец→покупатель, а не по продавцу в одиночку:
+ * честно низкая цена для всех подряд — это ценовая политика, а не махинация;
+ * махинация — это когда одному и тому же адресату уходит партия по краю.
+ * Пять таких сделок за неделю (правило STAGE5_ANTIABUSE 3.2a) — повод
+ * показать админу. Граф связей и поток денег ловят пару под другим углом;
+ * здесь — именно ценовая аномалия.
+ *
+ * Порог самого коридора живёт с Этапа 2: `suspiciousPriceReason` уже метит
+ * сделку по краю, и каждая пишется в аудит-лог. Здесь эти метки впервые
+ * складываются в сигнал. Считаем не по логу (он не в базе), а прямо по
+ * проданным лотам — эталон тот же, что метит подозрительную цену:
+ * `priceBase` вещи или `basePrice × количество` ресурса.
+ */
+export async function detectMarketManipulation(now = new Date()): Promise<number> {
+  const since = new Date(now.getTime() - 7 * DAY)
+  const trades = await prisma.marketListing.findMany({
+    where: { status: 'SOLD', soldAt: { gte: since }, buyerCharacterId: { not: null } },
+    select: {
+      sellerCharacterId: true, buyerCharacterId: true, price: true, type: true,
+      resourceAmount: true, itemInstanceId: true, resourceTemplateId: true,
+    },
+    take: 20_000,
+  })
+  if (trades.length === 0) return 0
+
+  // Эталоны берём отдельными запросами, а не связью лота: money-funnel по
+  // тому же образцу читает только скаляры, и имена связей тут гадать незачем.
+  const itemIds = [...new Set(trades.flatMap(t => (t.itemInstanceId ? [t.itemInstanceId] : [])))]
+  const resIds = [...new Set(trades.flatMap(t => (t.resourceTemplateId ? [t.resourceTemplateId] : [])))]
+  const [items, resources] = await Promise.all([
+    prisma.itemInstance.findMany({ where: { id: { in: itemIds } }, select: { id: true, template: { select: { priceBase: true } } } }),
+    prisma.resourceTemplate.findMany({ where: { id: { in: resIds } }, select: { id: true, basePrice: true } }),
+  ])
+  const itemRef = new Map(items.map(row => [row.id, row.template.priceBase]))
+  const resRef = new Map(resources.map(row => [row.id, row.basePrice]))
+
+  interface Tally { seller: string; buyer: string; low: number; high: number; worstLow: number; worstHigh: number }
+  const byPair = new Map<string, Tally>()
+  for (const t of trades) {
+    const reference = t.type === 'ITEM'
+      ? (t.itemInstanceId ? itemRef.get(t.itemInstanceId) ?? 0 : 0)
+      : (t.resourceTemplateId ? (resRef.get(t.resourceTemplateId) ?? 0) * (t.resourceAmount ?? 0) : 0)
+    if (reference <= 0) continue
+    const reason = suspiciousPriceReason(t.price, reference)
+    if (!reason) continue
+    const buyer = t.buyerCharacterId!
+    const key = `${t.sellerCharacterId}|${buyer}`
+    const entry = byPair.get(key) ?? { seller: t.sellerCharacterId, buyer, low: 0, high: 0, worstLow: 1, worstHigh: 1 }
+    const ratio = priceRatio(t.price, reference)
+    if (reason === 'PRICE_TOO_LOW') { entry.low += 1; entry.worstLow = Math.min(entry.worstLow, ratio) }
+    else { entry.high += 1; entry.worstHigh = Math.max(entry.worstHigh, ratio) }
+    byPair.set(key, entry)
+  }
+
+  const EDGE_MIN = 5
+  let raised = 0
+  for (const s of byPair.values()) {
+    const edges = s.low + s.high
+    if (edges < EDGE_MIN) continue
+    const characters = await prisma.character.findMany({
+      where: { id: { in: [s.seller, s.buyer] } }, select: { id: true, nickname: true, userId: true },
+    })
+    const seller = characters.find(row => row.id === s.seller)
+    const buyer = characters.find(row => row.id === s.buyer)
+    if (!seller || !buyer) continue
+    const side = s.low >= s.high
+      ? `по дну коридора (мин ×${s.worstLow.toFixed(2)})`
+      : `по потолку (макс ×${s.worstHigh.toFixed(2)})`
+    const created = await raise({
+      kind: 'MARKET_MANIPULATION',
+      severity: 2,
+      userIds: [seller.userId, buyer.userId],
+      summary: `${seller.nickname} → ${buyer.nickname}: ${edges} сделок за неделю ${side}`,
+      evidence: { seller: s.seller, buyer: s.buyer, low: s.low, high: s.high, worstLow: s.worstLow, worstHigh: s.worstHigh },
+      dedupeKey: `${s.seller}|${s.buyer}|${day(now)}`,
+    })
+    if (created) raised += 1
+  }
+  return raised
+}
+
 /** Полный разбор. Возвращает, сколько сигналов поднято по каждому виду. */
 export async function runDetectors(now = new Date()) {
   const edges = await rebuildAccountGraph(now)
-  const [multi, fixing, funnel, robbery, refunded, trap, ledger] = [
+  const [multi, fixing, funnel, robbery, refunded, trap, ledger, market] = [
     await detectMultiAccounts(now),
     await detectMatchFixing(now),
     await detectMoneyFunnel(now),
@@ -480,6 +567,7 @@ export async function runDetectors(now = new Date()) {
     await detectRefundedClaims(now),
     await detectObjectTransferTrap(now),
     await detectLedgerMismatch(now),
+    await detectMarketManipulation(now),
   ]
   return {
     edges,
@@ -490,6 +578,7 @@ export async function runDetectors(now = new Date()) {
     CLAIM_REFUNDED: refunded,
     OBJECT_TRANSFER_TRAP: trap,
     DUPLICATION: ledger,
+    MARKET_MANIPULATION: market,
   }
 }
 
