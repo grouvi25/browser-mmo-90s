@@ -26,7 +26,6 @@ export interface DefenderSnapshot {
   armor: number
   dodgeBonus: number; antiCrit: number; blockBonus: number
   armorWeight: number
-  weaponTypeResistance?: number
   antiSkillLevel: number
   antiCounterDefense: number
   antiLuck: number
@@ -197,20 +196,20 @@ export function calcWeaponSkillMultiplier(effectiveSkillLevel: number): number {
 }
 
 // ---------------------------------------------------------------
-// Weapon type resistance multiplier (ТЗ раздел 10.2)
-// Reduces damage when defender has anti-skill for this weapon type
-// weaponResistanceMultiplier = 1 - min(WRES Г— 0.02, 0.4)
-// ---------------------------------------------------------------
-export function calcWeaponResistanceMult(defenderAntiSkillLevel: number): number {
-  const reduction = Math.min(
-    defenderAntiSkillLevel * B.weaponSkill.weaponResistPerLevel,
-    B.weaponSkill.weaponResistMaxReduction
-  )
-  return 1 - reduction
-}
-
-// ---------------------------------------------------------------
 // Raw damage (ТЗ раздел 9.1)
+//
+// Раньше здесь ещё стоял отдельный «weaponResistanceMult» — та же
+// antiSkillLevel, применённая ВТОРОЙ раз как самостоятельный флэт-резист
+// сверху уже честного снижения эффективного навыка. Симулятор
+// scripts/simulate-antimastery.ts (04.09.2026) поймал задвоение: в сценарии
+// из STAGE5_ACCEPTANCE.md (навык 20 без антимастерства против навыка 10 с
+// антимастерством 20) эффективный навык обеих сторон после
+// calcEffectiveWeaponSkill честно выравнивался в 10/10 — но вторая, лишняя
+// скидка на 40% давала специалисту без антимастерства урон в 1.67 раза
+// меньше оппонента. Доля побед контр-специалиста доходила до 91% при
+// требуемых ≤60% — специализация оказывалась проигрышной стратегией.
+// calcEffectiveWeaponSkill уже полностью реализует антимастерство; второй
+// слой был чистым дублированием одного и того же входа.
 // ---------------------------------------------------------------
 export function calcRawDamage(
   attacker: Pick<AttackerSnapshot, 'str' | 'minDamage' | 'maxDamage' | 'weaponSkillLevel' | 'flatDamageBonus' | 'outgoingDamageMultiplier'>,
@@ -224,10 +223,7 @@ export function calcRawDamage(
   const effectiveSkill = calcEffectiveWeaponSkill(attacker.weaponSkillLevel, defenderAntiSkillLevel)
   const wskMult = calcWeaponSkillMultiplier(effectiveSkill)
 
-  // Apply weapon type resistance
-  const resistMult = calcWeaponResistanceMult(defenderAntiSkillLevel)
-
-  return (weaponRoll * wskMult * resistMult + attacker.str * C.strCoeff + attacker.flatDamageBonus) * (attacker.outgoingDamageMultiplier ?? 1)
+  return (weaponRoll * wskMult + attacker.str * C.strCoeff + attacker.flatDamageBonus) * (attacker.outgoingDamageMultiplier ?? 1)
 }
 
 // ---------------------------------------------------------------

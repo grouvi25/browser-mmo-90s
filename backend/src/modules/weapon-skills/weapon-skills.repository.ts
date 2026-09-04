@@ -76,11 +76,13 @@ export async function saveWeaponSkillExp(
       })
     }
   } else {
-    // WSK=20 reached → overflow exp goes to antiSkillLevel (WRES)
-    // antiSkill thresholds: each level requires the same table but offset
-    // 20/1=1 antiSkill point, 20/2=2, etc. (simplified: 100 exp per anti-skill level)
+    // WSK=20 reached → overflow exp goes to antiSkillLevel (WRES), 500 exp
+    // per anti-skill level, symmetric with WSK's own 20-level cap (the
+    // "20/1-20/20" structure from STAGE5_OVERVIEW.md). Was capped at 10 -
+    // half the documented ceiling, for no stated reason - fixed 04.09.2026
+    // alongside the anti-mastery damage double-count in battle.formulas.ts.
     const ANTI_EXP_PER_LEVEL = 500
-    const MAX_ANTI_LEVEL = 10
+    const MAX_ANTI_LEVEL = 20
     const newAntiExp = (base.antiSkillExp ?? 0) + weaponExpGain * 0.5 // 50% overflow to anti-skill
     const newAntiLevel = Math.min(MAX_ANTI_LEVEL, Math.floor(newAntiExp / ANTI_EXP_PER_LEVEL))
     if (existing) {

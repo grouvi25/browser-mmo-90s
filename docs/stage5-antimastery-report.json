@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "generatedAt": "2026-09-04T08:41:13.540Z",
+    "duels": 3000,
+    "seed": 4242,
+    "source": "docs/specs/stage-5/STAGE5_ACCEPTANCE.md, раздел 2"
+  },
+  "duel": {
+    "winsA": 1999,
+    "winsB": 1001,
+    "draws": 0,
+    "bSharePercent": 33.4,
+    "corridorOk": true
+  },
+  "group": {
+    "avgGroupDamage": 230.584,
+    "avgAllPistolDamage": 195.03,
+    "antiSkillScoped": true
+  },
+  "ok": true
+}

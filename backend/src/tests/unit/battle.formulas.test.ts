@@ -3,7 +3,6 @@ import {
   calcHitChance, calcDodgeChance, calcBlockChance, calcCritChance,
   calcWeaponSkillMultiplier, applyArmor, applyEndurance,
   calcInitiative, resolveAttack, calcEffectiveWeaponSkill,
-  calcWeaponResistanceMult,
   type AttackerSnapshot, type DefenderSnapshot,
 } from '../../modules/battles/battle.formulas'
 
@@ -366,24 +365,7 @@ describe('calcEffectiveWeaponSkill (anti-mastery)', () => {
   })
 })
 
-describe('calcWeaponResistanceMult (WRES damage reduction)', () => {
-  it('no WRES = no reduction (multiplier = 1.0)', () => {
-    expect(calcWeaponResistanceMult(0)).toBe(1.0)
-  })
-
-  it('WRES reduces damage by 2% per level', () => {
-    // 5 levels ? 2% = 10% reduction > multiplier = 0.90
-    expect(calcWeaponResistanceMult(5)).toBeCloseTo(0.90)
-  })
-
-  it('capped at 40% max reduction', () => {
-    // Even with very high WRES, max reduction is 40%
-    expect(calcWeaponResistanceMult(100)).toBeCloseTo(0.60)
-    expect(calcWeaponResistanceMult(20)).toBeCloseTo(0.60) // 20 ? 0.02 = 0.4 > cap
-  })
-})
-
-describe('Anti-mastery integration: high defender WRES reduces damage', () => {
+describe('Anti-mastery integration: high defender anti-skill reduces damage', () => {
   it('high anti-skill level reduces final damage', () => {
     const attacker: AttackerSnapshot = {
       str: 5, acc: 8, agi: 3, rea: 2, luck: 1, agr: 2, end: 3,
