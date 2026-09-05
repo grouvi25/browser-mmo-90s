@@ -8,6 +8,7 @@
 //
 // ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, часть II.
 // =============================================================
+import type { TerritoryClaimStatus } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { claimEligibility } from './claims.service'
 import { AppError } from '../../shared/errors/app-error'
@@ -19,6 +20,16 @@ import {
 
 /** Активные бонусы клана: код бонуса -> величина. */
 export type TerritoryBonuses = Partial<Record<TerritoryBonusCode, number>>
+
+/** Чем кончилась заявка — словами, от лица района, а не кодом статуса.
+    Описаны только решённые: PENDING и BATTLE в историю не попадают —
+    это настоящее района, а не его прошлое. */
+const CLAIM_EVENT_TEXT: Partial<Record<TerritoryClaimStatus, string>> = {
+  WON: 'Район захвачен',
+  LOST: 'Атака отбита',
+  CANCELLED: 'Заявка отозвана',
+  EXPIRED: 'Заявка сорвалась',
+}
 
 async function clanIdOf(characterId: string): Promise<string | null> {
   const member = await prisma.clanMember.findUnique({
@@ -149,6 +160,26 @@ export const TerritoriesService = {
         })).map(clan => [clan.id, clan.tag]))
       : new Map<string, string>()
 
+    // История района: чем кончались заявки на него. Раздел «Последние
+    // события» на карточке ждал это поле с самого начала, но ручка его
+    // не отдавала — фронт падал на data.history.length и уносил с собой
+    // всю карточку. Берём только решённые заявки: PENDING и BATTLE — это
+    // не событие прошлого, они уже показаны отдельной строкой карточки.
+    const claims = await prisma.territoryClaim.findMany({
+      where: { territoryId: territory.id, status: { in: ['WON', 'LOST', 'CANCELLED', 'EXPIRED'] } },
+      select: {
+        status: true, walkover: true, createdAt: true, resolvedAt: true,
+        attackerClan: { select: { tag: true } },
+      },
+      orderBy: [{ resolvedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 10,
+    })
+    const history = claims.map(claim => ({
+      at: (claim.resolvedAt ?? claim.createdAt).toISOString(),
+      event: (CLAIM_EVENT_TEXT[claim.status] ?? 'Заявка закрыта') + (claim.walkover ? ' без боя' : ''),
+      clanTag: claim.attackerClan.tag,
+    }))
+
     let upkeep: { tier: number; perDay: number; debt: number; bonusSuspended: boolean } | null = null
     if (mine && territory.ownerClanId) {
       const owned = await prisma.territory.findMany({
@@ -189,6 +220,7 @@ export const TerritoriesService = {
         ownerTag: object.ownerType === 'CLAN' && object.ownerClanId
           ? clanTags.get(object.ownerClanId) ?? null : null,
       })),
+      history,
     }
   },
 

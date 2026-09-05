@@ -159,6 +159,25 @@ for (const [path, title, tabs] of STAGE4_SCREENS) {
   })
 }
 
+// «Подробнее» роняла карточку района целиком: ручка не отдавала history,
+// а компонент читал у неё length. Раскрытие тут проверяется кликом, а не
+// наличием кнопки, — иначе дефект снова пройдёт мимо тестов.
+test('«Подробнее» раскрывает карточку района, а не роняет её', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'Карта районов проверяется на широком экране')
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await authPage(page, owner)
+  await page.goto('/territories')
+
+  await page.locator('button', { hasText: 'Подробнее' }).first().click()
+
+  const details = page.locator('.s4-district__details').first()
+  await expect(details).toBeVisible()
+  await expect(details).toContainText('Объекты района')
+  await expect(page.getByText('Раздел не открылся')).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
 test('состав на бой собирается из бригады и отсекает слабых', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name.startsWith('mobile'), 'Карта районов проверяется на широком экране')
   await authPage(page, owner)

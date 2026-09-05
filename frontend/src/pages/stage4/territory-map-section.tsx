@@ -228,12 +228,16 @@ function DistrictDetails({ code }: { code: string }) {
         </p>
       )}
 
+      {/* Списки читаем через запасной пустой массив: тип ответа объявлен
+          на фронте вручную и ничем не проверяется, а отсутствие одного
+          необязательного поля роняло весь раздел — так и случилось с
+          history, которую ручка не отдавала. */}
       <h4><Users size={12} /> Объекты района</h4>
-      {data.objects.length === 0
+      {(data.objects ?? []).length === 0
         ? <p className="s4-muted">В районе нет объектов.</p>
         : (
           <ul className="s4-list">
-            {data.objects.map(object => (
+            {(data.objects ?? []).map(object => (
               <li key={object.id}>
                 <span>{object.name}</span>
                 <span className="s4-muted">
@@ -245,11 +249,11 @@ function DistrictDetails({ code }: { code: string }) {
           </ul>
         )}
 
-      {data.history.length > 0 && (
+      {(data.history ?? []).length > 0 && (
         <>
           <h4>Последние события</h4>
           <ul className="s4-list s4-list--log">
-            {data.history.map((row, index) => (
+            {(data.history ?? []).map((row, index) => (
               <li key={index}>
                 <span className="s4-muted">{new Date(row.at).toLocaleString('ru-RU')}</span>
                 <span>{row.event} · [{row.clanTag}]</span>
