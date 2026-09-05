@@ -23,14 +23,16 @@ import { OverviewSection } from './sections/overview-section'
 import { BalanceSection } from './sections/balance-section'
 import { BalanceSandboxPage } from '../balance-sandbox/balance-sandbox-page'
 import { CombatSandboxSection, ItemsSection } from './sections/combat-sandbox-section'
+import { PlayersSection } from './sections/players-section'
 import '../stage3/stage3.css'
 import './admin.css'
 
 type Tab = 'overview' | 'clans' | 'territories' | 'claims' | 'signals' | 'actions' | 'trace'
-  | 'balance' | 'sandbox' | 'duel' | 'items'
+  | 'balance' | 'sandbox' | 'duel' | 'items' | 'players'
 
 const TABS: { key: Tab; title: string }[] = [
   { key: 'overview', title: 'Обзор' },
+  { key: 'players', title: 'Игроки' },
   { key: 'clans', title: 'Бригады' },
   { key: 'territories', title: 'Районы' },
   { key: 'claims', title: 'Заявки' },
@@ -49,6 +51,11 @@ export function AdminPage() {
   const [token, setTokenState] = useState(adminToken.get())
   const [role, setRole] = useState<AdminRole | null>(adminToken.role())
   const [tab, setTab] = useState<Tab>('overview')
+  // Куда именно вести на целевой вкладке: алерт присылает и вкладку, и
+  // что там открыть, — иначе кнопка приводила бы на список из 29 формул.
+  const [focus, setFocus] = useState<string | undefined>()
+
+  const go = (next: string, target?: string) => { setTab(next as Tab); setFocus(target) }
   const qc = useQueryClient()
 
   // Игровые экраны держат html и body ровно в высоту окна: сцена вписывается
@@ -98,14 +105,15 @@ export function AdminPage() {
         ))}
       </nav>
 
-      {tab === 'overview' && <OverviewSection onGo={next => setTab(next as Tab)} />}
+      {tab === 'overview' && <OverviewSection onGo={go} />}
+      {tab === 'players' && <PlayersSection focusId={focus} />}
       {tab === 'clans' && <ClansSection />}
       {tab === 'territories' && <TerritoriesSection role={role} />}
       {tab === 'claims' && <ClaimsSection role={role} />}
       {tab === 'signals' && <SignalsSection />}
       {tab === 'actions' && <ActionsSection role={role} />}
       {tab === 'trace' && <TraceSection />}
-      {tab === 'balance' && <BalanceSection />}
+      {tab === 'balance' && <BalanceSection role={role} focus={focus} />}
       {/* Расчёт тот же, что на игровой ручке, но под админским токеном:
           требовать от администратора игровой аккаунт незачем. */}
       {tab === 'sandbox' && <BalanceSandboxPage simulate={adminApi.simulateBalance} />}

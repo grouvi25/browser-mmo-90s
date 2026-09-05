@@ -2,7 +2,6 @@ import type { FastifyInstance } from 'fastify'
 import { requireAdminRole } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
 import { getEconomyMetricsHistory, getLatestEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
-import { balanceRegistry } from '../admin-balance/balance-registry'
 import { BalanceSandboxSchema, simulateBalanceSandbox } from '../balance-sandbox/balance-sandbox.service'
 import { CombatSandboxSchema, simulateCombat } from '../admin-balance/combat-sandbox.service'
 
@@ -83,13 +82,6 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
   fastify.get('/economy/history', READ_ADMIN, async (req, reply) => {
     const days = Number((req.query as { days?: string }).days ?? 30)
     return reply.send({ items: await getEconomyMetricsHistory(Number.isFinite(days) ? days : 30) })
-  })
-
-  // Реестр формул: что игра считает и какими коэффициентами это управляется.
-  // Значения берутся из BalanceConfig на каждый запрос, поэтому разойтись с
-  // игрой панель не может.
-  fastify.get('/balance', READ_ADMIN, async (_req, reply) => {
-    return reply.send({ groups: balanceRegistry() })
   })
 
   // Песочница баланса под админским токеном. Считает та же функция, что и на

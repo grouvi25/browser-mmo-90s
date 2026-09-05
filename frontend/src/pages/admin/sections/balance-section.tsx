@@ -13,10 +13,11 @@
 // разложено: у каждого коэффициента есть путь в конфиге.
 // =============================================================
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Search } from 'lucide-react'
-import { adminApi, type BalanceFormula, type BalanceGroup } from '../admin-api'
-import { Skeleton, Fault } from '../../stage3/stage3-ui'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { RotateCcw, Search } from 'lucide-react'
+import { adminApi, type BalanceFormula, type BalanceGroup, type BalanceParam } from '../admin-api'
+import { Skeleton, Fault, Note } from '../../stage3/stage3-ui'
+import { REASON_MIN } from '../admin-api'
 
 /** Значение коэффициента: числа и строки словами, структуры — как есть. */
 function show(value: unknown): string {
@@ -30,10 +31,13 @@ function show(value: unknown): string {
   return JSON.stringify(value)
 }
 
-export function BalanceSection() {
+export function BalanceSection({ role, focus }: { role?: string | null; focus?: string }) {
   const balance = useQuery({ queryKey: ['admin', 'balance'], queryFn: adminApi.balance })
   const [query, setQuery] = useState('')
-  const [openId, setOpenId] = useState<string | null>(null)
+  // focus приходит из алерта: он говорит, какую формулу открыть — иначе
+  // кнопка «к порогам» приводила бы просто на список из 29 штук.
+  const [openId, setOpenId] = useState<string | null>(focus ?? null)
+  const canEdit = role === 'SUPER_ADMIN'
 
   const groups = balance.data?.groups ?? []
   const needle = query.trim().toLowerCase()
@@ -66,8 +70,10 @@ export function BalanceSection() {
     <>
       <p className="s4-lead">
         {total} формул и {params} коэффициентов, которыми считается игра. Значения
-        живые — читаются из конфигурации сервера, а не переписаны сюда. Правка
-        значений появится следующим шагом; пути в конфиге уже указаны у каждого.
+        живые — читаются из конфигурации сервера.{' '}
+        {canEdit
+          ? 'Любое можно поправить прямо здесь: правка применяется к игре сразу, без выката, записывается в журнал с причиной и снимается оттуда же.'
+          : 'Править может только SUPER_ADMIN.'}
       </p>
 
       <label className="adm-find">
@@ -92,6 +98,7 @@ export function BalanceSection() {
             <Formula
               key={formula.id}
               formula={formula}
+              canEdit={canEdit}
               open={openId === formula.id || needle.length > 0}
               onToggle={() => setOpenId(openId === formula.id ? null : formula.id)}
             />
@@ -103,8 +110,8 @@ export function BalanceSection() {
 }
 
 function Formula({
-  formula, open, onToggle,
-}: { formula: BalanceFormula; open: boolean; onToggle: () => void }) {
+  formula, open, onToggle, canEdit,
+}: { formula: BalanceFormula; open: boolean; onToggle: () => void; canEdit: boolean }) {
   return (
     <article className={open ? 'adm-formula is-open' : 'adm-formula'}>
       <button type="button" className="adm-formula__head" onClick={onToggle} aria-expanded={open}>
@@ -159,16 +166,96 @@ function Formula({
             </thead>
             <tbody>
               {formula.params.map(param => (
-                <tr key={param.path}>
-                  <td><code>{param.path}</code></td>
-                  <td className="num">{show(param.value)}</td>
-                  <td>{param.note}</td>
-                </tr>
+                <ParamRow key={param.path} param={param} canEdit={canEdit} />
               ))}
             </tbody>
           </table>
         </div>
       )}
     </article>
+  )
+}
+
+
+/**
+ * Строка коэффициента с правкой.
+ *
+ * Правятся только числа: за таблицами порогов и наборами архетипов стоят
+ * связанные решения, и менять их полем ввода в один клик — способ сломать
+ * баланс молча. Их видно, но не тронуть.
+ */
+function ParamRow({ param, canEdit }: { param: BalanceParam; canEdit: boolean }) {
+  const qc = useQueryClient()
+  const numeric = typeof param.value === 'number'
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(String(param.value ?? ''))
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
+
+  const save = useMutation({
+    mutationFn: () => adminApi.setBalanceParam(param.path, Number(draft), reason.trim()),
+    onSuccess: () => { setEditing(false); setReason(''); setError(''); void qc.invalidateQueries({ queryKey: ['admin'] }) },
+    onError: (err: Error) => setError(err.message),
+  })
+  const reset = useMutation({
+    mutationFn: () => adminApi.clearBalanceParam(param.path, `возврат к значению из кода: ${param.path}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['admin'] }),
+    onError: (err: Error) => setError(err.message),
+  })
+
+  const changed = param.override != null
+
+  return (
+    <tr className={changed ? 'adm-param is-changed' : 'adm-param'}>
+      <td><code>{param.path}</code></td>
+      <td className="num">
+        {editing ? (
+          <div className="adm-param__edit">
+            <input
+              type="number" step="any" value={draft} autoFocus
+              onChange={event => setDraft(event.target.value)}
+              aria-label={`Новое значение ${param.path}`}
+            />
+            <input
+              value={reason}
+              onChange={event => setReason(event.target.value)}
+              placeholder={`Причина, от ${REASON_MIN} символов`}
+              aria-label="Причина правки"
+            />
+            <button type="button" disabled={save.isPending || reason.trim().length < REASON_MIN}
+              onClick={() => save.mutate()}>Применить</button>
+            <button type="button" className="adm-link" onClick={() => { setEditing(false); setError('') }}>отмена</button>
+            {error && <Note text={error} kind="bad" />}
+          </div>
+        ) : (
+          <>
+            {show(param.value)}
+            {changed && (
+              <span className="adm-param__was" title={param.override?.reason}>
+                было {show(param.defaultValue)}
+              </span>
+            )}
+            {canEdit && numeric && (
+              <button type="button" className="adm-link" onClick={() => { setDraft(String(param.value)); setEditing(true) }}>
+                править
+              </button>
+            )}
+            {canEdit && changed && (
+              <button type="button" className="adm-link" onClick={() => reset.mutate()} disabled={reset.isPending}>
+                <RotateCcw size={11} /> вернуть
+              </button>
+            )}
+          </>
+        )}
+      </td>
+      <td>
+        {param.note}
+        {changed && (
+          <div className="adm-param__reason">
+            Правка: {param.override?.reason}
+          </div>
+        )}
+      </td>
+    </tr>
   )
 }

@@ -19,6 +19,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { audit } from '../../shared/logger/audit-logger'
 import { EconomyService } from '../economy/economy.service'
+import { clearOverride, setOverride } from '../admin-balance/balance-overrides.service'
 
 /** Минимальная длина причины. Правило П2 в числе. */
 export const REASON_MIN = 10
@@ -407,6 +408,110 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
       where: { id: str(payload, 'signalId') },
       data: { status: 'OPEN', reviewedByAdminId: null, reviewedAt: null },
     })
+  },
+
+  // ── Баланс ───────────────────────────────────────────────────
+  //
+  // Правка коэффициента живёт не в игровых таблицах, а в отдельном
+  // хранилище переопределений, поэтому исполнители ходят мимо транзакции:
+  // конфиг — это состояние процесса, откатывать его вместе с рядами базы
+  // нечего. Пара честная: поставить значение и вернуть прежнее.
+
+  SET_BALANCE_PARAM: async (_tx, payload) => {
+    await setOverride(
+      str(payload, 'path'),
+      payload.value,
+      String(payload.reason ?? 'правка из панели'),
+      String(payload.adminId ?? 'admin'),
+    )
+  },
+
+  /** Вернуть как было: если прежним было значение из кода — снять правку. */
+  RESTORE_BALANCE_PARAM: async (_tx, payload) => {
+    const path = str(payload, 'path')
+    if (payload.value === undefined || payload.value === null) {
+      await clearOverride(path)
+      return
+    }
+    await setOverride(path, payload.value,
+      String(payload.reason ?? 'откат правки'), String(payload.adminId ?? 'admin'))
+  },
+
+  // ── Предметы ─────────────────────────────────────────────────
+
+  SET_ITEM_TEMPLATE: async (tx, payload) => {
+    const code = str(payload, 'code')
+    must(await tx.itemTemplate.findUnique({ where: { code } }), `Предмета «${code}» больше нет`)
+    await tx.itemTemplate.update({
+      where: { code },
+      data: payload.fields as Prisma.ItemTemplateUpdateInput,
+    })
+  },
+
+  /** Обратная операция та же по сути: вернуть прежние поля. */
+  RESTORE_ITEM_TEMPLATE: async (tx, payload) => {
+    const code = str(payload, 'code')
+    must(await tx.itemTemplate.findUnique({ where: { code } }), `Предмета «${code}» больше нет`)
+    await tx.itemTemplate.update({
+      where: { code },
+      data: payload.fields as Prisma.ItemTemplateUpdateInput,
+    })
+  },
+
+  CREATE_ITEM_TEMPLATE: async (tx, payload) => {
+    await tx.itemTemplate.create({ data: payload.fields as Prisma.ItemTemplateCreateInput })
+  },
+
+  /**
+   * Удаление шаблона — обратная операция к созданию.
+   *
+   * Только если по нему ничего не выдано: у существующих экземпляров
+   * шаблон это происхождение вещи, и стирать его значит ломать чужой
+   * инвентарь. Поэтому здесь именно «не создавали ли уже предметы».
+   */
+  DELETE_ITEM_TEMPLATE: async (tx, payload) => {
+    const code = str(payload, 'code')
+    const template = must(await tx.itemTemplate.findUnique({ where: { code } }),
+      `Предмета «${code}» больше нет`)
+    const issued = await tx.itemInstance.count({ where: { templateId: template.id } })
+    if (issued > 0) {
+      throw new AppError(
+        ErrorCode.ADMIN_STATE_CHANGED,
+        `По этому шаблону уже выдано ${issued} предметов — удаление сломало бы их`,
+        409,
+      )
+    }
+    await tx.itemTemplate.delete({ where: { code } })
+  },
+
+  // ── Игроки ───────────────────────────────────────────────────
+
+  BAN_USER: async (tx, payload) => {
+    const userId = str(payload, 'userId')
+    must(await tx.user.findUnique({ where: { id: userId } }), 'Учётной записи больше нет')
+    await tx.user.update({
+      where: { id: userId },
+      data: { status: 'BANNED', banReason: String(payload.banReason ?? '') },
+    })
+  },
+
+  UNBAN_USER: async (tx, payload) => {
+    const userId = str(payload, 'userId')
+    must(await tx.user.findUnique({ where: { id: userId } }), 'Учётной записи больше нет')
+    await tx.user.update({ where: { id: userId }, data: { status: 'ACTIVE', banReason: null } })
+  },
+
+  MUTE_USER: async (tx, payload) => {
+    const userId = str(payload, 'userId')
+    must(await tx.user.findUnique({ where: { id: userId } }), 'Учётной записи больше нет')
+    await tx.user.update({ where: { id: userId }, data: { mutedUntil: date(payload, 'mutedUntil') } })
+  },
+
+  /** Снятие немоты — то же поле, только пустое. */
+  UNMUTE_USER: async (tx, payload) => {
+    const userId = str(payload, 'userId')
+    must(await tx.user.findUnique({ where: { id: userId } }), 'Учётной записи больше нет')
+    await tx.user.update({ where: { id: userId }, data: { mutedUntil: date(payload, 'mutedUntil') } })
   },
 
   ROLLBACK: async () => {

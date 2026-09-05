@@ -20,6 +20,7 @@ import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
 import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { watchOverrides } from './modules/admin-balance/balance-overrides.service'
 
 async function startWorker(): Promise<void> {
   logger.info('🔧 Starting MMO 90s BullMQ workers...')
@@ -106,6 +107,10 @@ async function startWorker(): Promise<void> {
   }
   await runIdempotencyCleanup()
   const idempotencyCleanupTimer = setInterval(runIdempotencyCleanup, IDEMPOTENCY_CLEANUP_MS)
+
+  // Воркер считает метрики и содержание по тем же коэффициентам, что и
+  // сервер, — значит правки из админки обязан видеть и он.
+  await watchOverrides()
 
   try { await collectEconomyMetrics() }
   catch (err) { logger.error({ err }, '[EconomyMetrics] Initial collection failed') }

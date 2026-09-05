@@ -1,0 +1,322 @@
+// =============================================================
+// РУЧКИ УПРАВЛЕНИЯ: баланс, предметы, игроки, алерты.
+//
+// Читать может любой администратор, менять — только SUPER_ADMIN, и всё
+// через журнал с обратной операцией: правило Этапа 5 «ничего без причины
+// и ничего без отмены» распространяется и на правку баланса.
+// =============================================================
+import type { FastifyInstance, FastifyRequest } from 'fastify'
+import type { Prisma } from '@prisma/client'
+import { z } from 'zod'
+import { requireAdminRole } from '../../shared/security/auth-middleware'
+import { prisma } from '../../shared/db/prisma'
+import { AdminActionsService, type AdminContext } from '../admin-actions/admin-actions.service'
+import { getLatestEconomyMetrics, collectEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
+import { describeAlerts } from './alerts-registry'
+import { balanceRegistry } from './balance-registry'
+import {
+  currentValue, defaultValue, listOverrides, validatePath,
+} from './balance-overrides.service'
+
+const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
+const WRITE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN') }
+const MODERATE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }
+
+const REASON = z.string().min(10).max(500)
+
+function admin(req: FastifyRequest): AdminContext {
+  return { adminId: req.adminUser.adminId, adminRole: req.adminUser.role }
+}
+
+export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void> {
+
+  // ── Алерты ───────────────────────────────────────────────────
+  //
+  // Не список кодов, а разбор: что случилось, чем грозит, на кого именно
+  // смотреть и что нажать. Код «HIGH_MONEY_GINI» сам по себе не говорит
+  // администратору ничего.
+  fastify.get('/alerts', READ_ADMIN, async (_req, reply) => {
+    const snapshot = await getLatestEconomyMetrics()
+    if (!snapshot) {
+      return reply.send({ cards: [], snapshotDate: null })
+    }
+    return reply.send({ cards: await describeAlerts(snapshot), snapshotDate: snapshot.date })
+  })
+
+  /** Пересчитать метрики сейчас, не дожидаясь ночного воркера. */
+  fastify.post('/alerts/recheck', MODERATE_ADMIN, async (_req, reply) => {
+    const snapshot = await collectEconomyMetrics()
+    return reply.send({ cards: await describeAlerts(snapshot), snapshotDate: snapshot.date })
+  })
+
+  // ── Баланс ───────────────────────────────────────────────────
+
+  fastify.get('/balance', READ_ADMIN, async (_req, reply) => {
+    const overrides = await listOverrides()
+    const byPath = new Map(overrides.map(row => [row.path, row]))
+    // К каждому коэффициенту прикладываем, правился ли он: без этого
+    // администратор не отличит значение из кода от чьей-то вчерашней правки.
+    const groups = balanceRegistry().map(group => ({
+      ...group,
+      formulas: group.formulas.map(formula => ({
+        ...formula,
+        params: formula.params.map(param => {
+          const override = byPath.get(param.path)
+          return {
+            ...param,
+            value: currentValue(param.path) ?? param.value,
+            defaultValue: defaultValue(param.path),
+            override: override
+              ? { reason: override.reason, updatedAt: override.updatedAt, adminId: override.adminId }
+              : null,
+          }
+        }),
+      })),
+    }))
+    return reply.send({ groups, overrides })
+  })
+
+  const ParamBody = z.object({
+    path: z.string().min(3).max(120),
+    value: z.union([z.number(), z.string(), z.boolean(), z.record(z.unknown()), z.array(z.unknown())]),
+    reason: REASON,
+  })
+
+  fastify.patch('/balance/param', WRITE_ADMIN, async (req, reply) => {
+    const parsed = ParamBody.safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    const { path, value, reason } = parsed.data
+
+    const problem = validatePath(path, value)
+    if (problem) return reply.code(422).send({ code: 'GEN_001', message: problem })
+
+    const previous = currentValue(path)
+    const isDefault = JSON.stringify(previous) === JSON.stringify(defaultValue(path))
+    const context = admin(req)
+
+    const action = await AdminActionsService.perform(context, reason, {
+      kind: 'SET_BALANCE_PARAM',
+      targetType: 'balance_param',
+      targetId: path,
+      payload: { path, value: value as Prisma.InputJsonValue, reason, adminId: context.adminId },
+      // Откат: если правки раньше не было — снять её вовсе, иначе вернуть
+      // прежнее значение. Пустое value читается исполнителем как «снять».
+      undo: {
+        kind: 'RESTORE_BALANCE_PARAM',
+        payload: { path, value: (isDefault ? null : previous) as Prisma.InputJsonValue, reason, adminId: context.adminId },
+      },
+    })
+    return reply.send({ actionId: action.actionId, path, value, previous })
+  })
+
+  /** Снять правку: значение возвращается к тому, что стоит в коде. */
+  fastify.delete('/balance/param', WRITE_ADMIN, async (req, reply) => {
+    const parsed = z.object({ path: z.string().min(3), reason: REASON }).safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    const { path, reason } = parsed.data
+    const previous = currentValue(path)
+    const context = admin(req)
+
+    const action = await AdminActionsService.perform(context, reason, {
+      kind: 'RESTORE_BALANCE_PARAM',
+      targetType: 'balance_param',
+      targetId: path,
+      payload: { path, value: null, reason, adminId: context.adminId },
+      undo: {
+        kind: 'SET_BALANCE_PARAM',
+        payload: { path, value: previous as Prisma.InputJsonValue, reason, adminId: context.adminId },
+      },
+    })
+    return reply.send({ actionId: action.actionId, path, restored: defaultValue(path) })
+  })
+
+  // ── Предметы ─────────────────────────────────────────────────
+
+  const ITEM_FIELDS = z.object({
+    name: z.string().min(1).max(60).optional(),
+    priceBase: z.number().int().min(0).max(10_000_000).optional(),
+    levelReq: z.number().int().min(0).max(30).optional(),
+    minDamage: z.number().int().min(0).max(1000).nullable().optional(),
+    maxDamage: z.number().int().min(0).max(1000).nullable().optional(),
+    weaponAccuracy: z.number().min(0).max(1).nullable().optional(),
+    armor: z.number().int().min(0).max(500).nullable().optional(),
+    durabilityMax: z.number().int().min(1).max(10_000).optional(),
+    weight: z.number().min(0).max(100).optional(),
+  })
+
+  fastify.patch<{ Params: { code: string } }>('/items/:code', WRITE_ADMIN, async (req, reply) => {
+    const parsed = z.object({ fields: ITEM_FIELDS, reason: REASON }).safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    const code = req.params.code
+    const before = await prisma.itemTemplate.findUnique({ where: { code } })
+    if (!before) return reply.code(404).send({ code: 'GEN_002', message: 'Предмет не найден' })
+
+    // Обратная операция — прежние значения ровно тех полей, что меняем.
+    // Писать всю строку целиком нельзя: соседние поля мог изменить кто-то
+    // другой, и откат затёр бы чужую правку.
+    const fields = parsed.data.fields as Record<string, unknown>
+    const previous: Record<string, unknown> = {}
+    for (const key of Object.keys(fields)) previous[key] = (before as Record<string, unknown>)[key]
+
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'SET_ITEM_TEMPLATE',
+      targetType: 'item_template',
+      targetId: code,
+      payload: { code, fields: fields as Prisma.InputJsonValue },
+      undo: { kind: 'RESTORE_ITEM_TEMPLATE', payload: { code, fields: previous as Prisma.InputJsonValue } },
+    })
+    return reply.send({ actionId: action.actionId, code, fields, previous })
+  })
+
+  const NEW_ITEM = z.object({
+    code: z.string().min(3).max(60).regex(/^[a-z0-9_]+$/, 'только строчные латинские, цифры и подчёркивание'),
+    name: z.string().min(1).max(60),
+    type: z.enum(['WEAPON', 'ARMOR', 'CONSUMABLE', 'TOOL', 'RESOURCE', 'MISC']),
+    priceBase: z.number().int().min(0).max(10_000_000),
+    levelReq: z.number().int().min(0).max(30),
+    durabilityMax: z.number().int().min(1).max(10_000),
+    weight: z.number().min(0).max(100),
+    minDamage: z.number().int().min(0).max(1000).nullable(),
+    maxDamage: z.number().int().min(0).max(1000).nullable(),
+    weaponAccuracy: z.number().min(0).max(1).nullable(),
+    armor: z.number().int().min(0).max(500).nullable(),
+  })
+
+  fastify.post('/items', WRITE_ADMIN, async (req, reply) => {
+    const parsed = z.object({ item: NEW_ITEM, reason: REASON }).safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    const { item, reason } = parsed.data
+    if (await prisma.itemTemplate.findUnique({ where: { code: item.code } })) {
+      return reply.code(409).send({ code: 'GEN_005', message: `Предмет «${item.code}» уже есть` })
+    }
+
+    const action = await AdminActionsService.perform(admin(req), reason, {
+      kind: 'CREATE_ITEM_TEMPLATE',
+      targetType: 'item_template',
+      targetId: item.code,
+      payload: { fields: item },
+      undo: { kind: 'DELETE_ITEM_TEMPLATE', payload: { code: item.code } },
+    })
+    return reply.code(201).send({ actionId: action.actionId, code: item.code })
+  })
+
+  // ── Игроки ───────────────────────────────────────────────────
+
+  fastify.get('/players', READ_ADMIN, async (req, reply) => {
+    const query = req.query as { search?: string; sort?: string; limit?: string }
+    const search = (query.search ?? '').trim()
+    const take = Math.min(100, Math.max(1, Number(query.limit ?? 50)))
+    const order = query.sort === 'level'
+      ? { battleLevel: 'desc' as const }
+      : query.sort === 'new'
+        ? { createdAt: 'desc' as const }
+        : { money: 'desc' as const }
+
+    const characters = await prisma.character.findMany({
+      where: search
+        ? { OR: [{ nickname: { contains: search, mode: 'insensitive' } }, { user: { login: { contains: search, mode: 'insensitive' } } }] }
+        : {},
+      select: {
+        id: true, nickname: true, money: true, battleLevel: true, economicLevel: true,
+        createdAt: true,
+        user: { select: { id: true, login: true, status: true, mutedUntil: true, lastLoginAt: true } },
+      },
+      orderBy: order,
+      take,
+    })
+    return reply.send({ items: characters })
+  })
+
+  fastify.get<{ Params: { id: string } }>('/players/:id', READ_ADMIN, async (req, reply) => {
+    const character = await prisma.character.findUnique({
+      where: { id: req.params.id },
+      include: {
+        stats: true,
+        user: { select: { id: true, login: true, email: true, status: true, banReason: true, mutedUntil: true, registeredAt: true, lastLoginAt: true, lastIp: true } },
+        weaponSkills: true,
+      },
+    })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
+
+    const [money, items, battles, clan] = await Promise.all([
+      prisma.currencyLog.findMany({
+        where: { characterId: character.id }, orderBy: { createdAt: 'desc' }, take: 20,
+      }),
+      prisma.itemInstance.findMany({
+        where: { ownerId: character.id, status: 'NORMAL' },
+        select: { id: true, isEquipped: true, quality: true, durabilityCurrent: true, template: { select: { name: true, type: true, priceBase: true } } },
+        take: 60,
+      }),
+      prisma.battleParticipant.count({ where: { characterId: character.id } }),
+      prisma.clanMember.findFirst({
+        where: { characterId: character.id, status: 'ACTIVE' },
+        select: { role: true, clan: { select: { id: true, name: true, tag: true } } },
+      }),
+    ])
+    return reply.send({ character, money, items, battles, clan })
+  })
+
+  const BanBody = z.object({ reason: REASON })
+
+  fastify.post<{ Params: { id: string } }>('/players/:id/ban', MODERATE_ADMIN, async (req, reply) => {
+    const parsed = BanBody.safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Нужна причина от 10 символов' })
+    const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, status: true } })
+    if (!user) return reply.code(404).send({ code: 'GEN_002', message: 'Учётная запись не найдена' })
+
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'BAN_USER',
+      targetType: 'user',
+      targetId: user.id,
+      payload: { userId: user.id, banReason: parsed.data.reason },
+      undo: { kind: 'UNBAN_USER', payload: { userId: user.id } },
+    })
+    return reply.send({ actionId: action.actionId })
+  })
+
+  fastify.post<{ Params: { id: string } }>('/players/:id/unban', MODERATE_ADMIN, async (req, reply) => {
+    const parsed = BanBody.safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Нужна причина от 10 символов' })
+    const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, banReason: true } })
+    if (!user) return reply.code(404).send({ code: 'GEN_002', message: 'Учётная запись не найдена' })
+
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'UNBAN_USER',
+      targetType: 'user',
+      targetId: user.id,
+      payload: { userId: user.id },
+      undo: { kind: 'BAN_USER', payload: { userId: user.id, banReason: user.banReason ?? '' } },
+    })
+    return reply.send({ actionId: action.actionId })
+  })
+
+  fastify.post<{ Params: { id: string } }>('/players/:id/mute', MODERATE_ADMIN, async (req, reply) => {
+    const parsed = z.object({ reason: REASON, hours: z.number().int().min(1).max(720) }).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Нужны причина и срок в часах' })
+    const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, mutedUntil: true } })
+    if (!user) return reply.code(404).send({ code: 'GEN_002', message: 'Учётная запись не найдена' })
+
+    const until = new Date(Date.now() + parsed.data.hours * 60 * 60 * 1000)
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'MUTE_USER',
+      targetType: 'user',
+      targetId: user.id,
+      payload: { userId: user.id, mutedUntil: until.toISOString() },
+      // Возврат к прежнему сроку, а не к пустому: игрок мог быть в немоте
+      // и до этого, и снимать её целиком было бы подарком.
+      undo: {
+        kind: 'UNMUTE_USER',
+        payload: { userId: user.id, mutedUntil: user.mutedUntil ? user.mutedUntil.toISOString() : null },
+      },
+    })
+    return reply.send({ actionId: action.actionId, mutedUntil: until })
+  })
+}

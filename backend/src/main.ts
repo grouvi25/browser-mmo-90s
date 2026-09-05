@@ -6,6 +6,7 @@ import { connectDb, disconnectDb } from './shared/db/prisma'
 import { disconnectRedis } from './shared/db/redis'
 import { AppConfig } from './config/app.config'
 import { logger } from './shared/logger/logger'
+import { watchOverrides } from './modules/admin-balance/balance-overrides.service'
 
 // Increase libuv thread pool for native bcrypt + filesystem ops.
 // Default is 4; with clustering each worker gets its own pool.
@@ -41,6 +42,11 @@ async function startServer() {
 
   await connectDb()
   logger.info('✅ PostgreSQL connected')
+
+  // Правки коэффициентов из админки живут в базе и накладываются на
+  // BalanceConfig в памяти. Подписка нужна каждому процессу отдельно:
+  // память у них своя, и правка в одном без этого не видна другому.
+  await watchOverrides()
 
   const app = await buildApp()
 

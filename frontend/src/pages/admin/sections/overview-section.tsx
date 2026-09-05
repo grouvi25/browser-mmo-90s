@@ -9,8 +9,9 @@
 // карточка либо ведёт в свой раздел, либо объясняет, почему она такая.
 // =============================================================
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { adminApi, type EconomySnapshot } from '../admin-api'
+import { AlertsPanel } from './alerts-panel'
 import { Skeleton, Fault } from '../../stage3/stage3-ui'
 import { Chart, rub } from '../admin-ui'
 
@@ -22,7 +23,7 @@ const MAX_GINI = 0.75
 const pct = (value: number) => `${Math.round(value * 100)}%`
 const day = (iso: string) => iso.slice(8, 10) + '.' + iso.slice(5, 7)
 
-export function OverviewSection({ onGo }: { onGo: (tab: string) => void }) {
+export function OverviewSection({ onGo }: { onGo: (tab: string, focus?: string) => void }) {
   const stats = useQuery({ queryKey: ['admin', 'stats'], queryFn: adminApi.stats })
   const economy = useQuery({ queryKey: ['admin', 'economy'], queryFn: adminApi.economyOverview })
   const history = useQuery({ queryKey: ['admin', 'economy', 'history'], queryFn: () => adminApi.economyHistory(30) })
@@ -40,7 +41,19 @@ export function OverviewSection({ onGo }: { onGo: (tab: string) => void }) {
 
   return (
     <>
-      <Verdict latest={latest} heavy={heavy.length} open={open.length} onGo={onGo} />
+      {/* Разбор алертов с уликами и кнопками — вместо прежней строки с
+          кодом, из которой нельзя было понять, что смотреть. */}
+      <AlertsPanel onGo={onGo} openPlayers={id => onGo('players', id)} />
+
+      {heavy.length > 0 && (
+        <p className="adm-verdict adm-verdict--bad">
+          <AlertTriangle size={15} />
+          Тяжёлых сигналов антиабуза: {heavy.length}. Это «остановить и разобраться», а не «забанить».
+          <button type="button" className="adm-link" onClick={() => onGo('signals')}>
+            к сигналам <ArrowRight size={11} />
+          </button>
+        </p>
+      )}
 
       <div className="adm-cards adm-cards--wide">
         <Tile
@@ -116,61 +129,6 @@ export function OverviewSection({ onGo }: { onGo: (tab: string) => void }) {
         </p>
       )}
     </>
-  )
-}
-
-/**
- * Вердикт — первое, что читает администратор.
- *
- * Не «вот вам метрики, разбирайтесь», а прямой ответ: всё в порядке или нет,
- * и если нет — что именно и куда идти.
- */
-function Verdict({
-  latest, heavy, open, onGo,
-}: { latest: EconomySnapshot | null; heavy: number; open: number; onGo: (tab: string) => void }) {
-  const problems: { text: string; tab?: string; action?: string }[] = []
-
-  if (heavy > 0) {
-    problems.push({
-      text: `Тяжёлых сигналов антиабуза: ${heavy}. Это «остановить и разобраться», а не «забанить».`,
-      tab: 'signals', action: 'к сигналам',
-    })
-  }
-  for (const alert of latest?.alerts ?? []) {
-    problems.push({ text: alert, tab: 'balance', action: 'к порогам' })
-  }
-  if (latest === null) {
-    problems.push({
-      text: 'Снимка экономики за сегодня ещё нет — воркер собирает его в 03:00 UTC.',
-    })
-  }
-
-  if (problems.length === 0) {
-    return (
-      <p className="adm-verdict adm-verdict--ok">
-        <CheckCircle2 size={15} />
-        Экономика в норме, тяжёлых сигналов нет
-        {open > 0 && <>, открытых сигналов {open} — их можно разобрать спокойно</>}.
-      </p>
-    )
-  }
-
-  return (
-    <div className="adm-verdict adm-verdict--bad">
-      <p><AlertTriangle size={15} /> Требует внимания:</p>
-      <ul>
-        {problems.map((problem, index) => (
-          <li key={index}>
-            {problem.text}{' '}
-            {problem.tab && (
-              <button type="button" className="adm-link" onClick={() => onGo(problem.tab!)}>
-                {problem.action} <ArrowRight size={11} />
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
   )
 }
 

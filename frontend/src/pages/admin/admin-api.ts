@@ -168,7 +168,31 @@ export interface EconomyOverview {
   latestMetrics: EconomySnapshot | null
 }
 
-export interface BalanceParam { path: string; value: unknown; note: string }
+export interface BalanceParam {
+  path: string; value: unknown; note: string
+  /** Что стоит в коде — чтобы отличить правку от исходного значения. */
+  defaultValue?: unknown
+  override?: { reason: string; updatedAt: string; adminId: string } | null
+}
+
+/** Разбор алерта: что случилось, на кого смотреть и что нажать. */
+export interface AlertCard {
+  code: string
+  title: string
+  severity: 'watch' | 'act'
+  what: string
+  why: string
+  threshold: { path: string; limit: string; actual: string }
+  evidenceTitle: string
+  evidence: { label: string; value: string; characterId?: string }[]
+  actions: { label: string; tab: string; focus?: string }[]
+}
+
+export interface PlayerRow {
+  id: string; nickname: string; money: number
+  battleLevel: number; economicLevel: number; createdAt: string
+  user: { id: string; login: string; status: string; mutedUntil: string | null; lastLoginAt: string | null }
+}
 export interface BalanceExample {
   given: string[]
   steps: { text: string; value: string }[]
@@ -229,7 +253,37 @@ export const adminApi = {
 
   economyOverview: () => request<EconomyOverview>('/api/admin/economy/overview'),
   economyHistory: (days = 30) => request<{ items: EconomySnapshot[] }>(`/api/admin/economy/history?days=${days}`),
-  balance: () => request<{ groups: BalanceGroup[] }>('/api/admin/balance'),
+  balance: () => request<{ groups: BalanceGroup[]; overrides: unknown[] }>('/api/admin/balance'),
+  alerts: () => request<{ cards: AlertCard[]; snapshotDate: string | null }>('/api/admin/alerts'),
+  recheckAlerts: () => request<{ cards: AlertCard[]; snapshotDate: string }>('/api/admin/alerts/recheck', { method: 'POST' }),
+
+  setBalanceParam: (path: string, value: unknown, reason: string) =>
+    request<{ actionId: string; previous: unknown }>('/api/admin/balance/param', {
+      method: 'PATCH', body: { path, value, reason },
+    }),
+  clearBalanceParam: (path: string, reason: string) =>
+    request<{ actionId: string; restored: unknown }>('/api/admin/balance/param', {
+      method: 'DELETE', body: { path, reason },
+    }),
+
+  players: (params: { search?: string; sort?: string } = {}) => {
+    const query = new URLSearchParams()
+    if (params.search) query.set('search', params.search)
+    if (params.sort) query.set('sort', params.sort)
+    return request<{ items: PlayerRow[] }>(`/api/admin/players?${query}`)
+  },
+  player: (id: string) => request<Record<string, unknown>>(`/api/admin/players/${id}`),
+  banPlayer: (userId: string, reason: string) =>
+    request<{ actionId: string }>(`/api/admin/players/${userId}/ban`, { method: 'POST', body: { reason } }),
+  unbanPlayer: (userId: string, reason: string) =>
+    request<{ actionId: string }>(`/api/admin/players/${userId}/unban`, { method: 'POST', body: { reason } }),
+  mutePlayer: (userId: string, reason: string, hours: number) =>
+    request<{ actionId: string }>(`/api/admin/players/${userId}/mute`, { method: 'POST', body: { reason, hours } }),
+
+  updateItem: (code: string, fields: Record<string, unknown>, reason: string) =>
+    request<{ actionId: string }>(`/api/admin/items/${code}`, { method: 'PATCH', body: { fields, reason } }),
+  createItem: (item: Record<string, unknown>, reason: string) =>
+    request<{ actionId: string; code: string }>('/api/admin/items', { method: 'POST', body: { item, reason } }),
   /** Та же симуляция, что на игровой ручке, но под админским токеном. */
   simulateBalance: <TIn, TOut>(input: TIn) =>
     request<TOut>('/api/admin/balance/simulate', { method: 'POST', body: input }),

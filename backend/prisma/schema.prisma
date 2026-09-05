@@ -240,6 +240,26 @@ enum AdminRole {
 /// Что сделал администратор. Значения парные: у каждого действия есть
 /// обратное, и оно тоже из этого списка — иначе откат нечем выразить.
 /// Действие, для которого пары нет, админу не выдаётся (принцип П1 Этапа 5).
+/// Переопределение коэффициента баланса.
+///
+/// Хранится только разница с кодом: путь в BalanceConfig и новое значение.
+/// Пустая таблица означает, что игра работает ровно так, как написано в
+/// коде, — поэтому «вернуть исходное» это удаление строки.
+model BalanceOverride {
+  path         String   @id
+  valueJson    Json     @map("value_json")
+  /// Что стояло в коде на момент правки: код мог уехать деплоем, а откат
+  /// должен возвращать конкретное число, а не «что-то тогдашнее».
+  previousJson Json     @map("previous_json")
+  reason       String
+  adminId      String   @map("admin_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  @@index([updatedAt(sort: Desc)])
+  @@map("balance_overrides")
+}
+
 enum AdminActionKind {
   GRANT_MONEY
   TAKE_MONEY
@@ -263,6 +283,17 @@ enum AdminActionKind {
   WAKE_HELPER
   REVIEW_SIGNAL
   REOPEN_SIGNAL
+  // Правка баланса и предметов из панели — парные, как и всё остальное.
+  SET_BALANCE_PARAM
+  RESTORE_BALANCE_PARAM
+  SET_ITEM_TEMPLATE
+  RESTORE_ITEM_TEMPLATE
+  CREATE_ITEM_TEMPLATE
+  DELETE_ITEM_TEMPLATE
+  BAN_USER
+  UNBAN_USER
+  MUTE_USER
+  UNMUTE_USER
   ROLLBACK
 }
 
@@ -1570,11 +1601,11 @@ enum AccountLinkKind {
 /// Ребро неориентированное, поэтому в userAId всегда лексикографически
 /// меньший id — иначе одна пара завелась бы дважды.
 model AccountLink {
-  id      String          @id @default(uuid())
-  userAId String          @map("user_a_id")
-  userBId String          @map("user_b_id")
-  kind    AccountLinkKind
-  weight  Float
+  id       String          @id @default(uuid())
+  userAId  String          @map("user_a_id")
+  userBId  String          @map("user_b_id")
+  kind     AccountLinkKind
+  weight   Float
   evidence Json
 
   lastSeenAt DateTime @map("last_seen_at")
@@ -1932,16 +1963,16 @@ enum ChatChannel {
 }
 
 model ChatMessage {
-  id          String      @id @default(uuid())
-  channel     ChatChannel
-  scope       String      @default("")
-  authorId    String      @map("author_id")
-  body        String      @db.VarChar(400)
-  createdAt   DateTime    @default(now()) @map("created_at")
+  id        String      @id @default(uuid())
+  channel   ChatChannel
+  scope     String      @default("")
+  authorId  String      @map("author_id")
+  body      String      @db.VarChar(400)
+  createdAt DateTime    @default(now()) @map("created_at")
   // Мягкое удаление: модератор прячет сообщение, но след остаётся —
   // разбирать жалобы по пустому месту невозможно.
-  deletedAt   DateTime?   @map("deleted_at")
-  deletedBy   String?     @map("deleted_by")
+  deletedAt DateTime?   @map("deleted_at")
+  deletedBy String?     @map("deleted_by")
 
   author Character @relation(fields: [authorId], references: [id], onDelete: Cascade)
 

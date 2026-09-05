@@ -28,6 +28,7 @@ import { adminBasicRoutes } from './modules/admin-basic/admin-basic.routes'
 import { adminStrategyRoutes } from './modules/admin-strategy/admin-strategy.routes'
 import { adminActionsRoutes } from './modules/admin-actions/admin-actions.routes'
 import { adminAuthRoutes } from './modules/admin-auth/admin-auth.routes'
+import { adminBalanceRoutes } from './modules/admin-balance/admin-balance.routes'
 import { resourcesRoutes } from './modules/resources/resources.routes'
 import { workRoutes } from './modules/work/work.routes'
 import { privateShopsRoutes } from './modules/private-shops/private-shops.routes'
@@ -55,6 +56,12 @@ export async function buildApp() {
   await fastify.register(fastifyCors, {
     origin: AppConfig.server.corsOrigin,
     credentials: true,
+    // По умолчанию @fastify/cors отдаёт браузеру только GET, HEAD и POST,
+    // и предполётный запрос на PATCH или DELETE отклоняется ещё до ручки —
+    // на клиенте это выглядит как «Failed to fetch» без единой строчки в
+    // логах сервера. Игровые ручки этими методами не пользовались, а
+    // админские правки (коэффициент, предмет) — как раз PATCH и DELETE.
+    methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   })
 
   await fastify.register(fastifyRateLimit, {
@@ -152,6 +159,7 @@ export async function buildApp() {
   await fastify.register(adminBasicRoutes,     { prefix: '/api/admin' })
   await fastify.register(adminStrategyRoutes, { prefix: '/api/admin' })
   await fastify.register(adminActionsRoutes,  { prefix: '/api/admin' })
+  await fastify.register(adminBalanceRoutes,  { prefix: '/api/admin' })
 
   return fastify
 }
