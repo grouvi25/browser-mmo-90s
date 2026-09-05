@@ -131,6 +131,18 @@ html, body {
   transform: scale(1.035);
   pointer-events: none;
 }
+/* Подложка ниже сцены: тот же холст, тот же масштаб, без размытия. */
+.stage-bleed {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+
 .stage {
   position: absolute;
   z-index: 1;

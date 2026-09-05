@@ -30,7 +30,14 @@ export function GameShell() {
   // Сцена считается по игровой части, без полосы чата: чат выдвигается
   // поверх неё и на масштаб не влияет — см. CityChatDock.
   return (
-    <Stage width={MENU_STAGE.w} height={MENU_GAME_H} fit="contain" backdrop={plate} className="stage--menu">
+    <Stage
+      width={MENU_STAGE.w} height={MENU_GAME_H} fit="contain"
+      backdrop={plate}
+      // Ниже сцены дорисовываем тот же холст целиком: игровая часть
+      // короче окна по пропорциям, и в остаток смотрел фон страницы.
+      bleed={{ image: plate, width: MENU_STAGE.w, height: MENU_STAGE.h }}
+      className="stage--menu"
+    >
       {/* Подложка держит полный холст 1550x900 и обрезается сценой снизу:
           растягивать её по укороченной сцене нельзя — рисунок сплющится. */}
       <div
