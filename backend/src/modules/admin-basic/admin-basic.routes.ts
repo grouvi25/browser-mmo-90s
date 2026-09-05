@@ -4,6 +4,7 @@ import { prisma } from '../../shared/db/prisma'
 import { getEconomyMetricsHistory, getLatestEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
 import { balanceRegistry } from '../admin-balance/balance-registry'
 import { BalanceSandboxSchema, simulateBalanceSandbox } from '../balance-sandbox/balance-sandbox.service'
+import { CombatSandboxSchema, simulateCombat } from '../admin-balance/combat-sandbox.service'
 
 const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
 
@@ -100,6 +101,25 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
       return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
     }
     return reply.send(simulateBalanceSandbox(parsed.data))
+  })
+
+  // Песочница боя: те же функции, что считают настоящую схватку.
+  fastify.post('/sandbox/combat', READ_ADMIN, async (req, reply) => {
+    const parsed = CombatSandboxSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    return reply.send(simulateCombat(parsed.data))
+  })
+
+  // Справочник предметов: что вообще есть в игре и с какими числами.
+  // Берётся из базы, а не из сида — на проде важно видеть то, что стоит
+  // там, включая правки, сделанные после последнего посева.
+  fastify.get('/sandbox/items', READ_ADMIN, async (_req, reply) => {
+    const items = await prisma.itemTemplate.findMany({
+      orderBy: [{ type: 'asc' }, { levelReq: 'asc' }, { priceBase: 'asc' }],
+    })
+    return reply.send({ items })
   })
 
   fastify.get('/work/shifts', READ_ADMIN, async (req, reply) => {

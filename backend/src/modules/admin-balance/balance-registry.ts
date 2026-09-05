@@ -14,6 +14,7 @@
 // панель объясняет механику, а не заменяет чтение кода.
 // =============================================================
 import { BalanceConfig as B } from '../../config/balance.config'
+import { BALANCE_EXAMPLES, type BalanceExample } from './balance-examples'
 
 /** Один коэффициент: путь в BalanceConfig, значение и зачем он такой. */
 export interface BalanceParam {
@@ -38,6 +39,8 @@ export interface BalanceFormula {
   params: BalanceParam[]
   /** Файл, где формула живёт. */
   source: string
+  /** Разбор на живых числах — считается настоящими функциями игры. */
+  example?: BalanceExample
 }
 
 export interface BalanceGroup {
@@ -51,7 +54,9 @@ export interface BalanceGroup {
 const p = (path: string, value: unknown, note: string): BalanceParam => ({ path, value, note })
 
 export function balanceRegistry(): BalanceGroup[] {
-  return [
+  // Примеры считаются на месте, теми же функциями, что работают в игре:
+  // разойтись с ней разбор не может.
+  return withExamples([
     {
       id: 'character',
       title: 'Персонаж',
@@ -565,5 +570,16 @@ export function balanceRegistry(): BalanceGroup[] {
         },
       ],
     },
-  ]
+  ])
+}
+
+/** Подставляет разборы к тем формулам, для которых они описаны. */
+function withExamples(groups: BalanceGroup[]): BalanceGroup[] {
+  return groups.map(group => ({
+    ...group,
+    formulas: group.formulas.map(formula => {
+      const build = BALANCE_EXAMPLES[formula.id]
+      return build ? { ...formula, example: build() } : formula
+    }),
+  }))
 }

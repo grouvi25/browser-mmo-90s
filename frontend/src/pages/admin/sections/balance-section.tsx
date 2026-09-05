@@ -114,7 +114,29 @@ function Formula({
 
       {open && (
         <div className="adm-formula__body">
-          <code className="adm-formula__math">{formula.formula}</code>
+          <div className="adm-formula__block">
+            <h5>Как считается</h5>
+            <code className="adm-formula__math">{formula.formula}</code>
+          </div>
+
+          {/* Разбор на живых числах. Считает его сервер теми же функциями,
+              что работают в игре, — это не пересказ формулы, а её прогон. */}
+          {formula.example && (
+            <div className="adm-formula__block">
+              <h5>Пример расчёта</h5>
+              <p className="adm-example__given">Дано: {formula.example.given.join(' · ')}</p>
+              <ol className="adm-example__steps">
+                {formula.example.steps.map((step, index) => (
+                  <li key={index}>
+                    <span>{step.text}</span>
+                    <b>{step.value}</b>
+                  </li>
+                ))}
+              </ol>
+              <p className="adm-example__result">= {formula.example.result}</p>
+              <p className="adm-example__meaning">{formula.example.meaning}</p>
+            </div>
+          )}
 
           <dl className="adm-formula__facts">
             <div>

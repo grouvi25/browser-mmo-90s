@@ -169,11 +169,51 @@ export interface EconomyOverview {
 }
 
 export interface BalanceParam { path: string; value: unknown; note: string }
+export interface BalanceExample {
+  given: string[]
+  steps: { text: string; value: string }[]
+  result: string
+  meaning: string
+}
 export interface BalanceFormula {
   id: string; title: string; formula: string; what: string; affects: string
   inputs: string[]; params: BalanceParam[]; source: string
+  example?: BalanceExample
 }
 export interface BalanceGroup { id: string; title: string; intro: string; formulas: BalanceFormula[] }
+
+/** Боец песочницы — те же поля, что принимает боевая ручка. */
+export interface Fighter {
+  name: string
+  str: number; agi: number; rea: number; acc: number; end: number; luck: number; agr: number
+  battleLevel: number; weaponSkill: number; antiSkill: number
+  minDamage: number; maxDamage: number; weaponAccuracy: number
+  armor: number; equipmentWeight: number
+}
+
+export interface CombatSide {
+  name: string
+  hp: number
+  odds: {
+    initiative: number; initiativeSpread: number
+    hit: number; dodge: number; block: number; crit: number
+    effectiveSkill: number; skillMultiplier: number
+  }
+  wins: number; winShare: number
+  averageDamagePerSwing: number; landedShare: number
+}
+
+export interface CombatResult {
+  a: CombatSide; b: CombatSide
+  draws: number; duels: number; averageRounds: number
+}
+
+export interface ItemTemplateRow {
+  code: string; name: string; type: string
+  levelReq: number | null; priceBase: number | null
+  minDamage: number | null; maxDamage: number | null; weaponAccuracy: number | null
+  armor: number | null; durabilityMax: number | null; weight: number | null
+}
 
 // ── Ручки ────────────────────────────────────────────────────
 
@@ -193,6 +233,9 @@ export const adminApi = {
   /** Та же симуляция, что на игровой ручке, но под админским токеном. */
   simulateBalance: <TIn, TOut>(input: TIn) =>
     request<TOut>('/api/admin/balance/simulate', { method: 'POST', body: input }),
+  simulateCombat: (input: { a: Fighter; b: Fighter; duels: number; seed: number }) =>
+    request<CombatResult>('/api/admin/sandbox/combat', { method: 'POST', body: input }),
+  sandboxItems: () => request<{ items: ItemTemplateRow[] }>('/api/admin/sandbox/items'),
 
   clans: (query?: string) =>
     request<{ items: ClanRow[]; nextCursor: string | null }>(

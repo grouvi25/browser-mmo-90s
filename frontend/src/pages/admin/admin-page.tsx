@@ -22,11 +22,12 @@ import { TraceSection } from './sections/trace-section'
 import { OverviewSection } from './sections/overview-section'
 import { BalanceSection } from './sections/balance-section'
 import { BalanceSandboxPage } from '../balance-sandbox/balance-sandbox-page'
+import { CombatSandboxSection, ItemsSection } from './sections/combat-sandbox-section'
 import '../stage3/stage3.css'
 import './admin.css'
 
 type Tab = 'overview' | 'clans' | 'territories' | 'claims' | 'signals' | 'actions' | 'trace'
-  | 'balance' | 'sandbox'
+  | 'balance' | 'sandbox' | 'duel' | 'items'
 
 const TABS: { key: Tab; title: string }[] = [
   { key: 'overview', title: 'Обзор' },
@@ -39,7 +40,9 @@ const TABS: { key: Tab; title: string }[] = [
   // Устройство игры — рядом с её состоянием: администратор видит и
   // последствия, и причину, не уходя с экрана.
   { key: 'balance', title: 'Баланс' },
-  { key: 'sandbox', title: 'Песочница' },
+  { key: 'sandbox', title: 'Экономика' },
+  { key: 'duel', title: 'Бой' },
+  { key: 'items', title: 'Предметы' },
 ]
 
 export function AdminPage() {
@@ -106,6 +109,8 @@ export function AdminPage() {
       {/* Расчёт тот же, что на игровой ручке, но под админским токеном:
           требовать от администратора игровой аккаунт незачем. */}
       {tab === 'sandbox' && <BalanceSandboxPage simulate={adminApi.simulateBalance} />}
+      {tab === 'duel' && <CombatSandboxSection />}
+      {tab === 'items' && <ItemsSection />}
     </main>
   )
 }

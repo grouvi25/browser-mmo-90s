@@ -245,3 +245,81 @@
 /* Бумага админки идёт до низа: html и body держат height:100%, поэтому под
    длинным разделом (баланс — это 29 формул) открывался тёмный фон страницы. */
 .adm { min-height: 100vh; }
+
+/* =============================================================
+   ШРИФТ АДМИНКИ
+   =============================================================
+   Игра набрана шрифтом из макета — узким моноширинным B52 («Doc»). Для
+   вывесок и коротких подписей он и рисовался, но админка это сплошной
+   текст: пояснения формул, причины действий, ленты журналов. В нём такой
+   текст не читается, а разбирается.
+
+   Поэтому здесь обычный системный шрифт. Моноширинный остаётся там, где
+   он несёт смысл: числа в колонку, пути в конфиге, идентификаторы. */
+.adm,
+.adm h1, .adm h2, .adm h3, .adm h4, .adm h5,
+.adm b, .adm strong, .adm th, .adm td, .adm label, .adm p, .adm li,
+.adm input, .adm button, .adm select, .adm textarea,
+.adm .balance-sandbox, .adm .balance-sandbox input, .adm .balance-sandbox button {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+/* Кегль в игре подогнан под ужатие сцены; админка не масштабируется, и
+   ей нужен обычный размер интерфейсного текста. */
+.adm { font-size: 14px; line-height: 1.5; }
+.adm .adm-table { font-size: 13.5px; }
+
+/* Цифры, коды и пути — моноширинными: так они выравниваются в колонку и
+   отличимы от прозы. */
+.adm code,
+.adm .num,
+.adm .adm-card b,
+.adm .adm-chart__legend,
+.adm .adm-formula__math {
+  font-family: 'PT Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+
+/* Разбор формулы на живых числах: шаги идут колонкой «что считаем — что
+   получилось», чтобы взгляд шёл сверху вниз по одному столбцу значений. */
+.adm-formula__block { margin-bottom: 12px; }
+.adm-formula__block h5 {
+  margin: 0 0 5px; font-size: 12px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--s3-dim, #6b5b4a);
+}
+.adm-example__given { margin: 0 0 6px; color: var(--s3-dim, #6b5b4a); }
+.adm-example__steps { margin: 0; padding: 0; list-style: none; }
+.adm-example__steps li {
+  display: flex; justify-content: space-between; gap: 16px;
+  padding: 4px 0; border-bottom: 1px dotted oklch(78% .018 60);
+}
+.adm-example__steps b { white-space: nowrap; font-family: 'PT Mono', ui-monospace, Consolas, monospace; }
+.adm-example__result {
+  margin: 8px 0 4px; font-size: 15px; font-weight: 700;
+  font-family: 'PT Mono', ui-monospace, Consolas, monospace;
+}
+.adm-example__meaning { margin: 0; line-height: 1.5; color: var(--s3-dim, #6b5b4a); }
+
+/* =============================================================
+   ПЕСОЧНИЦА БОЯ
+   ============================================================= */
+
+.adm-duel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.adm-duel__gear { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.adm-duel__gear label { display: grid; gap: 3px; font-size: 12.5px; color: var(--s3-dim, #6b5b4a); }
+.adm-duel__gear select { min-height: 32px; max-width: 100%; }
+
+/* Характеристики идут плиткой: так их видно все разом и можно сравнить
+   две колонки бойцов построчно. */
+.adm-duel__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 6px; }
+.adm-duel__stats label { display: grid; gap: 2px; }
+.adm-duel__stats span { font-size: 12px; color: var(--s3-dim, #6b5b4a); }
+.adm-duel__stats input { min-height: 32px; width: 100%; padding: 3px 6px; }
+
+.adm-duel__run { display: flex; align-items: end; gap: 10px; margin: 14px 0; flex-wrap: wrap; }
+.adm-duel__run label { display: grid; gap: 3px; font-size: 12.5px; }
+.adm-duel__run input { min-height: 34px; width: 110px; padding: 3px 6px; }
+.adm-duel__result { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.adm-duel__result td:last-child { text-align: right; white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .adm-duel, .adm-duel__result { grid-template-columns: 1fr; }
+}
