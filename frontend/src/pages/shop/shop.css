@@ -186,7 +186,7 @@
   justify-content: space-between;
   gap: 10px;
 }
-.gshop-card-count { font-size: 12.5px; color: #4a4345; white-space: nowrap; }
+.gshop-card-count { font-size: 13.82px; color: #4a4345; white-space: nowrap; }
 /* Строка «прочность / цена» в макете идёт во всю ширину плитки: цена
    кончается на 666-м пикселе из 691, то есть заходит правее кнопки —
    они просто на разных этажах. Поэтому кнопки живут не отдельной
@@ -203,15 +203,18 @@
   flex-wrap: wrap;
   gap: 2px 14px;
   margin: 3px 0 6px;
-  font-size: 12.5px;
+  font-size: 13.82px;
 }
-.gshop-bar-name { font-size: 12px; opacity: .7; }
-.gshop-card dl { display: grid; gap: 0; margin: 0 0 2px; font-size: 12.5px; line-height: 1.25; }
-.gshop-card dl > div { display: flex; justify-content: flex-start; gap: 5px; }
+.gshop-bar-name { font-size: 13.65px; opacity: .7; }
+.gshop-card dl { display: grid; gap: 0; margin: 0 0 2px; font-size: 13.82px; line-height: 1.25; }
+.gshop-card dl > div { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 0 5px; }
 .gshop-card dt::after { content: ":"; }
-.gshop-card dt { color: #4a4345; }
+/* Подпись не рвём по словам: с читаемым кеглем «Требуемый уровень» пере-
+   носился на две строки, а значение оставалось на первой — строка читалась
+   как «Требуемый — уровень». Не влезло по ширине — переносим целиком. */
+.gshop-card dt { color: #4a4345; white-space: nowrap; }
 .gshop-card dd { margin: 0; font-variant-numeric: tabular-nums; }
-.gshop-bonuses { list-style: none; margin: 0; padding: 0; font-size: 12.5px; color: #3a3436; }
+.gshop-bonuses { list-style: none; margin: 0; padding: 0; font-size: 13.82px; color: #3a3436; }
 /* Кнопки стоят колонкой у правого края плитки, как в макете. */
 /* Кнопки в макете стоят в нижней половине плитки: «купить» на 48% её
    высоты, «в корзину» на 73%. Прижимаем к низу и растягиваем колонку —
@@ -227,7 +230,7 @@
 .gshop-btn {
   position: relative;
   font: inherit;
-  font-size: 12.75px;
+  font-size: 13.9px;
   padding: 4px 12px;
   border: 0;
   background: transparent;

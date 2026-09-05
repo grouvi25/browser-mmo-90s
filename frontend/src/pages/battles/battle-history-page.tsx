@@ -35,14 +35,14 @@ export function BattleHistoryPage() {
             История боёв
           </span>
           {data && (
-            <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+            <span style={{ fontSize: 13.65, color: 'var(--text-dim)' }}>
               Всего: {data.total}
             </span>
           )}
         </div>
         <div className="panel-body" style={{ padding: 0 }}>
           {!data || data.items.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '20px 12px', color: 'var(--text-dim)', fontSize: 12.75 }}>
+            <div style={{ textAlign: 'center', padding: '20px 12px', color: 'var(--text-dim)', fontSize: 13.9 }}>
               Боёв ещё не было. <a href="#" onClick={e => { e.preventDefault(); navigate('/pvp') }}>В бой →</a>
             </div>
           ) : (
@@ -60,10 +60,10 @@ export function BattleHistoryPage() {
                 <tbody>
                   {data.items.map(b => (
                     <tr key={b.id}>
-                      <td style={{ fontSize: 12, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                      <td style={{ fontSize: 13.65, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                         {formatDate(b.finishedAt)}
                       </td>
-                      <td style={{ fontSize: 12 }}>
+                      <td style={{ fontSize: 13.65 }}>
                         {b.type === 'PVE_BOT' ? (
                           <span className="tag">PvE</span>
                         ) : (
@@ -71,11 +71,11 @@ export function BattleHistoryPage() {
                         )}
                       </td>
                       <td>
-                        <span style={{ fontWeight: 'bold', fontSize: 12.75 }}>{b.opponent}</span>
-                        <span style={{ fontSize: 11.5, color: 'var(--text-dim)', marginLeft: 4 }}>Ур.{b.opponentLevel}</span>
+                        <span style={{ fontWeight: 'bold', fontSize: 13.9 }}>{b.opponent}</span>
+                        <span style={{ fontSize: 13.49, color: 'var(--text-dim)', marginLeft: 4 }}>Ур.{b.opponentLevel}</span>
                       </td>
                       <td><ResultBadge result={b.result} /></td>
-                      <td className="num" style={{ fontFamily: 'var(--font-mono)', fontSize: 12.75 }}>{b.rounds}</td>
+                      <td className="num" style={{ fontFamily: 'var(--font-mono)', fontSize: 13.9 }}>{b.rounds}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -85,7 +85,7 @@ export function BattleHistoryPage() {
               {data.pages > 1 && (
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 6, padding: '8px 12px', borderTop: '1px solid var(--border)' }}>
                   <button className="btn btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>←</button>
-                  <span style={{ fontSize: 12.75, color: 'var(--text-dim)', alignSelf: 'center' }}>
+                  <span style={{ fontSize: 13.9, color: 'var(--text-dim)', alignSelf: 'center' }}>
                     {page} / {data.pages}
                   </span>
                   <button className="btn btn-sm" disabled={page >= data.pages} onClick={() => setPage(p => p + 1)}>→</button>

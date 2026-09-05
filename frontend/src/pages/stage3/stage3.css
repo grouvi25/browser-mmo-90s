@@ -19,7 +19,7 @@
    чтобы страница целиком не ехала вбок на узком экране. */
 .s3-scroll{overflow-x:auto;max-width:100%}
 .s3-table{width:100%;border-collapse:collapse;font-size:.88rem}
-.s3-table th{text-align:left;font: 0.781rem/1 'Doc';text-transform:uppercase;letter-spacing:.07em;padding:0 12px 9px 0;border-bottom:2px solid var(--s3-ink);white-space:nowrap}
+.s3-table th{text-align:left;font: 0.82rem/1 'Doc';text-transform:uppercase;letter-spacing:.07em;padding:0 12px 9px 0;border-bottom:2px solid var(--s3-ink);white-space:nowrap}
 .s3-table td{padding:10px 12px 10px 0;border-bottom:1px solid oklch(78% .018 60);vertical-align:top}
 .s3-table tr.is-locked{opacity:.55}
 .s3-table input{max-width:110px}
@@ -28,7 +28,7 @@
 .object-list article.is-open{grid-template-columns:minmax(220px,1.2fr) 1fr minmax(220px,1fr) auto}
 .object-controls{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:14px;margin-top:16px;padding-top:16px;border-top:1px solid oklch(72% .025 60)}
 .object-controls fieldset{border:1px solid oklch(72% .025 60);padding:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.object-controls legend{display:flex;align-items:center;gap:6px;font: 0.781rem/1 'Doc';text-transform:uppercase;letter-spacing:.07em;padding:0 6px}
+.object-controls legend{display:flex;align-items:center;gap:6px;font: 0.82rem/1 'Doc';text-transform:uppercase;letter-spacing:.07em;padding:0 6px}
 .object-controls input,.object-controls select{flex:1 1 110px;min-width:0}
 .object-controls small{flex:1 1 100%;font-size:0.813rem;color:oklch(50% .025 55)}
 .s3 button.danger{border-color:oklch(45% .14 28);color:oklch(38% .13 28)}
@@ -39,7 +39,7 @@
 .mybar>header>div{display:flex;align-items:center;gap:10px}
 .mybar h2{font: 700 1.6rem/1 'Sign';text-transform:uppercase}
 .mybar dl{display:flex;gap:22px}
-.mybar dt{font-size:0.781rem;text-transform:uppercase;letter-spacing:.07em}
+.mybar dt{font-size:0.82rem;text-transform:uppercase;letter-spacing:.07em}
 .mybar dd{font-weight:700;font-variant-numeric:tabular-nums}
 
 /* Бригада */
@@ -47,9 +47,9 @@
 .clan-head h2{font: 700 2rem/1 'Sign';text-transform:uppercase}
 .clan-tag{font-size:0.859rem;color:var(--s3-red);font-weight:700}
 .clan-row{display:grid;grid-template-columns:auto 1fr auto;gap:6px;padding:9px 0;border-bottom:1px solid oklch(78% .018 60);font-size:0.859rem}
-.clan-row span{font-size:0.797rem;color:oklch(52% .025 55)}
+.clan-row span{font-size:0.83rem;color:oklch(52% .025 55)}
 .clan-leave{margin-top:22px}
-.create-clan small{font-size:0.797rem}
+.create-clan small{font-size:0.83rem}
 .roles-editor{margin-top:26px}
 .role-form{display:grid;gap:12px;border:1px solid oklch(72% .025 60);padding:14px}
 .role-form label{display:grid;gap:4px;font-size:0.828rem;letter-spacing:.05em}
@@ -58,7 +58,7 @@
 .perm-list input{min-height:auto;width:16px;height:16px}
 .treasury-forms{display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:14px}
 .treasury-forms fieldset{border:1px solid oklch(72% .025 60);padding:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.treasury-forms legend{display:flex;align-items:center;gap:6px;font: 0.781rem/1 'Doc';text-transform:uppercase;letter-spacing:.07em;padding:0 6px}
+.treasury-forms legend{display:flex;align-items:center;gap:6px;font: 0.82rem/1 'Doc';text-transform:uppercase;letter-spacing:.07em;padding:0 6px}
 .treasury-forms input{flex:1 1 120px;min-width:0}
 .treasury-forms small{flex:1 1 100%;font-size:0.813rem}
 .relation-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:0.813rem;color:oklch(48% .025 55);padding-bottom:14px;border-bottom:1px solid oklch(78% .018 60);margin-bottom:16px}

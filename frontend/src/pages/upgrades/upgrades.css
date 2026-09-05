@@ -111,7 +111,7 @@ button.upg-price__row:hover { text-decoration: underline; }
   font-family: var(--font-sign);
   font-weight: 700;
   text-transform: uppercase;
-  font-size: 12.75px;
+  font-size: 13.9px;
   color: #17130f;
 }
 /* Селектор с двумя классами: иначе побеждает общее
@@ -135,7 +135,7 @@ button.upg-price__row:hover { text-decoration: underline; }
   background: #564f56;
   color: #f3ece7;
   font: inherit;
-  font-size: 12px;
+  font-size: 13.65px;
   text-align: center;
 }
 .upg .upg-slot__box img { max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -150,7 +150,7 @@ button.upg-price__row:hover { text-decoration: underline; }
 .upg .upg-slot__box.is-empty { color: #cbc2c8; }
 /* Закрытый слот: рамка макета на месте, но внутрь класть нечего. */
 .upg .upg-slot__box.is-locked { opacity: .55; cursor: help; }
-.upg .upg-slot__box.is-locked .upg-slot__mark { font-size: 11.5px; color: #d8d0d4; }
+.upg .upg-slot__box.is-locked .upg-slot__mark { font-size: 13.49px; color: #d8d0d4; }
 /* Два класса: иначе побеждает общее «.viewport__content select» и
    выбор уходит в бежевый инпут со своей рамкой. */
 .upg .upg-slot__pick {
@@ -162,7 +162,7 @@ button.upg-price__row:hover { text-decoration: underline; }
   background: transparent;
   color: #f3ece7;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 13.49px;
   text-align: center;
   cursor: pointer;
   /* Системная стрелка съедает под себя восемнадцать пикселей из
@@ -186,14 +186,14 @@ button.upg-price__row:hover { text-decoration: underline; }
   background: #f1eeec;
   color: inherit;
   font: inherit;
-  font-size: 12.75px;
+  font-size: 13.9px;
   cursor: pointer;
 }
 .upg-commit > span { position: relative; z-index: 1; }
 .upg-commit:disabled { opacity: .4; cursor: not-allowed; }
 .upg-commit:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
 
-.upg-note { margin: 8px 0 0; font-size: 12.75px; color: #4a4345; }
+.upg-note { margin: 8px 0 0; font-size: 13.9px; color: #4a4345; }
 .upg-lack { color: var(--red, #b81e2c); }
 
 /* Три строки состояния под панелью — в макете они того же оранжевого
@@ -203,7 +203,7 @@ button.upg-price__row:hover { text-decoration: underline; }
   padding: 0;
   list-style: none;
   font-family: var(--font-sign);
-  font-size: 12.75px;
+  font-size: 13.9px;
   line-height: 1.5;
   color: var(--upg-accent, #ff9c00);
   -webkit-text-stroke: .5px #1c1318;

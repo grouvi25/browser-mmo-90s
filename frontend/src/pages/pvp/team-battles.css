@@ -26,7 +26,7 @@
 .team-create label {
   display: grid;
   gap: 3px;
-  font-size: 12.75px;
+  font-size: 13.9px;
 }
 .team-create select { font: inherit; padding: 2px 4px; }
 
@@ -57,13 +57,13 @@
 .team-side {
   border: 1px solid rgba(0, 0, 0, .15);
   padding: 6px;
-  font-size: 12.75px;
+  font-size: 13.9px;
 }
 .team-side-name {
   display: block;
   font-weight: 700;
   text-transform: uppercase;
-  font-size: 12px;
+  font-size: 13.65px;
   margin-bottom: 4px;
 }
 .team-side ul { list-style: none; margin: 0 0 5px; padding: 0; }

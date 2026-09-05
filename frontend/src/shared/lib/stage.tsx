@@ -160,9 +160,21 @@ export function Layer({
 }
 
 /**
+ * Предел горизонтального сжатия. До него буквы «худеют» незаметно и
+ * вёрстка макета сохраняется точно; глубже начинается не подгонка
+ * шрифта, а нечитаемая гармошка — ник в 16 знаков ужимался втрое и
+ * превращался в 8-пиксельную полоску при заявленных 22.7px.
+ */
+const MIN_SQUEEZE = 0.82
+
+/**
  * Надпись из макета. Подменные шрифты имеют другие метрики, поэтому
  * текст ужимается ровно в ту ширину, которая была в PSD, — тогда
  * вёрстка совпадает с макетом при любом шрифте.
+ *
+ * Если одним сжатием в отведённую ширину не уложиться, дальше уменьшается
+ * кегль: буквы остаются пропорциональными, а строка — читаемой. Ширина
+ * из макета соблюдается в обоих случаях.
  */
 export function FitText({
   x, y, w, size, className = '', dy = 0, children, onClick, title, as = 'div', href,
@@ -177,6 +189,7 @@ export function FitText({
 }) {
   const ref = useRef<HTMLElement>(null)
   const [k, setK] = useState(1)
+  const [fontScale, setFontScale] = useState(1)
 
   useEffect(() => {
     const el = ref.current
@@ -184,19 +197,35 @@ export function FitText({
     let cancelled = false
     const measure = () => {
       if (cancelled || !el) return
-      const prev = el.style.transform
+      // Меряем в исходном виде: без сжатия и в макетном кегле, иначе
+      // второй замер считал бы ширину уже подогнанной строки.
+      const prevTransform = el.style.transform
+      const prevFont = el.style.fontSize
       el.style.transform = 'none'
+      el.style.fontSize = `${size}px`
       const natural = el.offsetWidth
-      el.style.transform = prev
-      if (natural > 0) setK(Math.min(1, w / natural))
+      el.style.transform = prevTransform
+      el.style.fontSize = prevFont
+      if (natural <= 0) return
+
+      const fit = Math.min(1, w / natural)
+      if (fit >= MIN_SQUEEZE) {
+        // Влезает одним сжатием — ведём себя как раньше, кегль макетный.
+        setK(fit)
+        setFontScale(1)
+      } else {
+        // Дальше сжимать нельзя: остаток добираем кеглем.
+        setK(MIN_SQUEEZE)
+        setFontScale(fit / MIN_SQUEEZE)
+      }
     }
     measure()
     if (document.fonts?.ready) void document.fonts.ready.then(measure)
     return () => { cancelled = true }
-  }, [w, children])
+  }, [w, size, children])
 
   const style: CSSProperties = {
-    position: 'absolute', left: x, top: y, fontSize: size,
+    position: 'absolute', left: x, top: y, fontSize: size * fontScale,
     lineHeight: 1, whiteSpace: 'nowrap', display: 'inline-block',
     transformOrigin: 'left top',
     transform: `translateY(${dy}px) scaleX(${k})`,

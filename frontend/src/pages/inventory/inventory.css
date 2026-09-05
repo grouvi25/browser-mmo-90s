@@ -38,7 +38,7 @@
   border: 0;
   background: #fffffe;
   font: inherit;
-  font-size: 12.75px;
+  font-size: 13.9px;
   cursor: pointer;
 }
 .inv-tabs button > span { position: relative; z-index: 1; }
@@ -77,7 +77,7 @@
    тегом, и общее правило растягивало их до 52 на 52. */
 .inv-card > img { width: 56px; height: 41px; object-fit: contain; align-self: center; }
 .inv-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.inv-card__head h3 { margin: 0; font-size: 12.75px; text-transform: uppercase; }
+.inv-card__head h3 { margin: 0; font-size: 13.9px; text-transform: uppercase; }
 .inv-card__count { color: #4a4345; white-space: nowrap; }
 /* В макете кнопка стоит СПРАВА от характеристик, на одной с ними
    высоте, а не под ними — потому карточка там и плоская, 960 на 272.
@@ -94,14 +94,15 @@
   flex: 0 0 auto;
   gap: 0;
   margin: 3px 0 0;
-  font-size: 11.75px;
+  font-size: 13.57px;
   line-height: 1.2;
   white-space: nowrap;
 }
-.inv-card dl > div { display: flex; justify-content: flex-start; gap: 5px; }
+.inv-card dl > div { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 0 5px; }
 .inv-card dt::after { content: ":"; }
 .inv-card dl > div:first-child { margin-bottom: 4px; }
-.inv-card dt { color: #4a4345; }
+/* Не рвём подпись по словам — см. пояснение у .gshop-card dt. */
+.inv-card dt { color: #4a4345; white-space: nowrap; }
 .inv-card dd { margin: 0; font-variant-numeric: tabular-nums; }
 .inv-card__actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
 .inv-btn {
@@ -111,7 +112,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 12px;
+  font-size: 13.65px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -187,7 +188,10 @@
    с фиксированной высотой её срезало. Растёт вверх, низ на месте. */
 .inv-doll__all {
   position: absolute;
-  left: 30.75%; bottom: 1.2%; width: 38.5%; min-height: 3.44%;
+  /* Ширина считалась под мелкий кегль: с читаемым «Снять всё» больше не
+     помещалось в строку и вылезало за рамку. Кнопка расширена и оставлена
+     по центру манекена (left = (100 - width) / 2). */
+  left: 19%; bottom: 1.2%; width: 62%; min-height: 4.6%;
   padding: 1px 2px;
   display: grid;
   place-items: center;
@@ -195,7 +199,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 13.49px;
   text-transform: uppercase;
   cursor: pointer;
 }
@@ -208,8 +212,10 @@
    под карточками, чтобы не спорить с его композицией. */
 .inv-pockets { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(1, 2, 3, .35); }
 .inv-pockets__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
-.inv-pockets__head b { font-family: var(--font-sign); text-transform: uppercase; font-size: 12.75px; }
-.inv-pockets__head small { color: #4a4345; }
+.inv-pockets__head b { font-family: var(--font-sign); text-transform: uppercase; font-size: 13.9px; }
+/* Кегль задан явно: у <small> по умолчанию 0.8 от родителя, и подсказка
+   уезжала к 11px, а после ужатия сцены — к 10.2. */
+.inv-pockets__head small { color: #4a4345; font-size: 13.25px; }
 .inv-pockets__list { display: flex; gap: 5px; flex-wrap: wrap; }
 
 @media (max-width: 900px) {
