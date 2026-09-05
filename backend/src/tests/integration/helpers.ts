@@ -18,6 +18,9 @@ export async function cleanDatabase(): Promise<void> {
     testPrisma.adminActionLog.deleteMany(),
     // Реплики ссылаются на персонажа: чистить их надо раньше него.
     testPrisma.chatMessage.deleteMany(),
+    // Объявления ни на кого не ссылаются, но копиться между наборами
+    // тестов им незачем — лента общая на всю игру.
+    testPrisma.announcement.deleteMany(),
     testPrisma.resourceLog.deleteMany(),
     // Территории ссылаются на клан: удалять их надо раньше кланов.
     // Связь стоит SET NULL, но чистим полностью — сид-данные Этапа 4

@@ -1980,3 +1980,38 @@ model ChatMessage {
   @@index([authorId, createdAt])
   @@map("chat_messages")
 }
+
+// =============================================================
+// ANNOUNCEMENTS — городские объявления
+//
+// Вторая половина «Радио»: то, что говорит сам город, а не игроки.
+// Три источника в одной ленте, потому что читают её подряд:
+//   PATCH — что изменилось в игре (закрывает «Обновления»),
+//   NEWS  — от администрации (закрывает «Новости»),
+//   WORLD — события мира: захваты территорий, итоги войн бригад.
+//
+// WORLD пишет сама игра, остальные два — администратор. Поэтому
+// автора нет в обязательных полях: у события мира его и не бывает.
+// =============================================================
+enum AnnouncementKind {
+  PATCH
+  NEWS
+  WORLD
+}
+
+model Announcement {
+  id          String           @id @default(uuid())
+  kind        AnnouncementKind
+  title       String           @db.VarChar(120)
+  body        String           @db.VarChar(2000)
+  // Закреплённое висит сверху ленты, сколько бы нового ни пришло.
+  pinned      Boolean          @default(false)
+  // Кто написал. Пусто у событий мира — их пишет игра.
+  authorLogin String?          @map("author_login")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  // Мягкое снятие: объявление уходит из ленты, но остаётся в истории.
+  removedAt   DateTime?        @map("removed_at")
+
+  @@index([removedAt, pinned, createdAt])
+  @@map("announcements")
+}

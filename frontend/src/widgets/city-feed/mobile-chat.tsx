@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { charactersApi } from '../../shared/api/characters.api'
 import { districtKey } from '../city-nav/city-nav'
 import { nickTone, useChat, useOnline } from '../../shared/lib/use-chat'
-import { chatTime, levelTone } from './city-feed'
+import { chatTime, levelTone } from '../../shared/lib/chat-format'
 
 export function MobileChat() {
   const navigate = useNavigate()
