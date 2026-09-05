@@ -309,10 +309,21 @@ html, body {
    между «радио» и «выходом», и никогда не подъезжает под кнопку выхода. */
 .stage-money {
   position: absolute;
-  display: flex; align-items: center; justify-content: flex-end; gap: .28em;
+  /* Строка без собственной высоты: коробка равна кеглю, как у пунктов меню,
+     и низ текста совпадает с ними до пикселя. С заданной высотой и
+     выравниванием по центру сумма съезжала под кромку нарисованной полосы. */
+  display: flex; justify-content: flex-end;
   line-height: 1; white-space: nowrap; pointer-events: none;
   font-variant-numeric: tabular-nums;
 }
+/* Ужимается только текст, а не коробка: правый край строки обязан
+   остаться на месте, поэтому и точка отсчёта преобразования правая. */
+.stage-money__text {
+  flex: none;
+  transform-origin: right top;
+  white-space: nowrap;
+}
+.stage-money__cur { margin-left: .28em; }
 .stage-money__sum { color: var(--text); font-weight: 600; letter-spacing: .01em; }
 .stage-money__cur { color: var(--red); font-weight: 700; }
 
