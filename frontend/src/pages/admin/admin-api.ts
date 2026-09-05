@@ -138,6 +138,43 @@ export interface TraceEvent {
   details: unknown
 }
 
+/** Ежедневный снимок экономики — то, на чём дашборд строит динамику. */
+export interface EconomySnapshot {
+  date: string
+  m2: number
+  characters: number
+  gini: number
+  faucets: number
+  sinks: number
+  netEmission: number
+  sinkShare: number
+  m2Growth: number | null
+  activeListings: number
+  medianListingPrice: number
+  completedShifts: number
+  shiftReadyLagMedianSeconds: number | null
+  tools: { usesConsumed: number; missingToolBlocks: number }
+  upgrades: { total: number; successful: number; successRate: number }
+  alerts: string[]
+}
+
+export interface EconomyOverview {
+  m2Total: number
+  characters: number
+  activeListings: number
+  activeShifts: number
+  resources: { amount: number | null; reservedAmount: number | null }
+  upgrades: { result: string; _count: number }[]
+  latestMetrics: EconomySnapshot | null
+}
+
+export interface BalanceParam { path: string; value: unknown; note: string }
+export interface BalanceFormula {
+  id: string; title: string; formula: string; what: string; affects: string
+  inputs: string[]; params: BalanceParam[]; source: string
+}
+export interface BalanceGroup { id: string; title: string; intro: string; formulas: BalanceFormula[] }
+
 // ── Ручки ────────────────────────────────────────────────────
 
 export const adminApi = {
@@ -149,6 +186,13 @@ export const adminApi = {
   },
 
   stats: () => request<{ users: number; characters: number; battles: number; items: number }>('/api/admin/stats'),
+
+  economyOverview: () => request<EconomyOverview>('/api/admin/economy/overview'),
+  economyHistory: (days = 30) => request<{ items: EconomySnapshot[] }>(`/api/admin/economy/history?days=${days}`),
+  balance: () => request<{ groups: BalanceGroup[] }>('/api/admin/balance'),
+  /** Та же симуляция, что на игровой ручке, но под админским токеном. */
+  simulateBalance: <TIn, TOut>(input: TIn) =>
+    request<TOut>('/api/admin/balance/simulate', { method: 'POST', body: input }),
 
   clans: (query?: string) =>
     request<{ items: ClanRow[]; nextCursor: string | null }>(

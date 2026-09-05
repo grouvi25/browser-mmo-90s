@@ -3,6 +3,7 @@ import { useState } from 'react'
 import {
   balanceSandboxApi,
   type SandboxInput,
+  type SandboxResult,
   type SandboxRow,
 } from '../../shared/api/balance-sandbox.api'
 import './balance-sandbox.css'
@@ -24,11 +25,21 @@ const presets: Record<string, SandboxInput> = {
 const money = (value: number) => `${Math.round(value).toLocaleString('ru')} ₽`
 const percent = (value: number, digits = 0) => `${(value * 100).toFixed(digits)}%`
 
-export function BalanceSandboxPage() {
+/**
+ * Песочница баланса.
+ *
+ * Считает всегда сервер, но дверей к расчёту две: игровая ручка и админская.
+ * Поэтому запрос приходит параметром — экран один, вёрстка одна, а токен
+ * подставляет тот, кто открыл: у администратора игрового аккаунта может и
+ * не быть.
+ */
+export function BalanceSandboxPage({
+  simulate = balanceSandboxApi.simulate,
+}: { simulate?: (input: SandboxInput) => Promise<SandboxResult> } = {}) {
   const [input, setInput] = useState<SandboxInput>(presets.Базовый)
   const result = useQuery({
     queryKey: ['balance-sandbox', input],
-    queryFn: () => balanceSandboxApi.simulate(input),
+    queryFn: () => simulate(input),
     placeholderData: previous => previous,
   })
   const data = result.data

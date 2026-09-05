@@ -115,6 +115,28 @@ export async function getLatestEconomyMetrics(now = new Date()): Promise<Economy
   return raw ? JSON.parse(raw) as EconomyMetricsSnapshot : null
 }
 
+/**
+ * История снимков за последние дни — от старых к новым.
+ *
+ * Снимки уже лежат в Redis по суткам и живут 40 дней; отдельного хранилища
+ * заводить не нужно. Пропуски (день, когда воркер не отработал) просто
+ * выпадают из ряда: дорисовывать их нулями нельзя — ноль в графике денежной
+ * массы читается как обвал, которого не было.
+ */
+export async function getEconomyMetricsHistory(
+  days = 30, now = new Date(),
+): Promise<EconomyMetricsSnapshot[]> {
+  const span = Math.min(40, Math.max(1, days))
+  const keys: string[] = []
+  for (let back = span - 1; back >= 0; back--) {
+    keys.push(economyMetricsKey(utcDate(new Date(now.getTime() - back * DAY_MS))))
+  }
+  const rows = await getRedis().mget(...keys)
+  return rows
+    .filter((row): row is string => row !== null)
+    .map(row => JSON.parse(row) as EconomyMetricsSnapshot)
+}
+
 export function startEconomyMetricsDaily(hourUtc = 3): () => void {
   let timer: NodeJS.Timeout | null = null
   let stopped = false

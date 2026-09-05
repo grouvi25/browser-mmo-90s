@@ -1,6 +1,20 @@
+import { z } from 'zod'
 import { BalanceConfig } from '../../config/balance.config'
 import { calcListingFee, calcSaleTax } from '../market/market.formulas'
 import { dailyShiftSalaryCoeff } from '../work/work.formulas'
+
+/** Границы входа. Живут рядом с расчётом, потому что дверей две — игровая
+    ручка и админская, — а правило проверки должно быть одно. */
+export const BalanceSandboxSchema = z.object({
+  days: z.number().int().min(8).max(365),
+  players: z.number().int().min(3).max(10_000),
+  salary: z.number().int().min(1).max(5_000),
+  battleReward: z.number().int().min(0).max(5_000),
+  repairCost: z.number().int().min(0).max(10_000),
+  marketPrice: z.number().int().min(1).max(1_000_000),
+  shiftMinutes: z.number().int().min(30).max(90),
+  winRate: z.number().int().min(10).max(95),
+})
 
 export interface BalanceSandboxInput {
   days: number

@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify'
 import { requireAdminRole } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
-import { getLatestEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
+import { getEconomyMetricsHistory, getLatestEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
+import { balanceRegistry } from '../admin-balance/balance-registry'
+import { BalanceSandboxSchema, simulateBalanceSandbox } from '../balance-sandbox/balance-sandbox.service'
 
 const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
 
@@ -73,6 +75,31 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
     ])
     const latestMetrics = await getLatestEconomyMetrics()
     return reply.send({ m2Total: money._sum.money ?? 0, characters: money._count, activeListings, activeShifts, resources: resourceStacks._sum, upgrades, latestMetrics })
+  })
+
+  // Ряд ежедневных снимков — то, на чём дашборд рисует динамику. Снимки уже
+  // лежат в Redis сорок суток, отдельного хранилища заводить не нужно.
+  fastify.get('/economy/history', READ_ADMIN, async (req, reply) => {
+    const days = Number((req.query as { days?: string }).days ?? 30)
+    return reply.send({ items: await getEconomyMetricsHistory(Number.isFinite(days) ? days : 30) })
+  })
+
+  // Реестр формул: что игра считает и какими коэффициентами это управляется.
+  // Значения берутся из BalanceConfig на каждый запрос, поэтому разойтись с
+  // игрой панель не может.
+  fastify.get('/balance', READ_ADMIN, async (_req, reply) => {
+    return reply.send({ groups: balanceRegistry() })
+  })
+
+  // Песочница баланса под админским токеном. Считает та же функция, что и на
+  // игровой ручке, — дублируется только дверь: у администратора свой токен, и
+  // требовать от него ещё и игровой аккаунт ради симуляции неправильно.
+  fastify.post('/balance/simulate', READ_ADMIN, async (req, reply) => {
+    const parsed = BalanceSandboxSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    return reply.send(simulateBalanceSandbox(parsed.data))
   })
 
   fastify.get('/work/shifts', READ_ADMIN, async (req, reply) => {

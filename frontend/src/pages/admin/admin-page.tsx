@@ -8,7 +8,7 @@
 // причину и каждое можно отменить. Поэтому журнал действий — такой же
 // раздел, как остальные, а не спрятанная страница логов.
 // =============================================================
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ShieldAlert, LogOut } from 'lucide-react'
 import { adminApi, adminToken, AdminApiError, type AdminRole } from './admin-api'
@@ -20,10 +20,13 @@ import { SignalsSection } from './sections/signals-section'
 import { ActionsSection } from './sections/actions-section'
 import { TraceSection } from './sections/trace-section'
 import { OverviewSection } from './sections/overview-section'
+import { BalanceSection } from './sections/balance-section'
+import { BalanceSandboxPage } from '../balance-sandbox/balance-sandbox-page'
 import '../stage3/stage3.css'
 import './admin.css'
 
 type Tab = 'overview' | 'clans' | 'territories' | 'claims' | 'signals' | 'actions' | 'trace'
+  | 'balance' | 'sandbox'
 
 const TABS: { key: Tab; title: string }[] = [
   { key: 'overview', title: 'Обзор' },
@@ -33,6 +36,10 @@ const TABS: { key: Tab; title: string }[] = [
   { key: 'signals', title: 'Сигналы' },
   { key: 'actions', title: 'Журнал' },
   { key: 'trace', title: 'Цепочка' },
+  // Устройство игры — рядом с её состоянием: администратор видит и
+  // последствия, и причину, не уходя с экрана.
+  { key: 'balance', title: 'Баланс' },
+  { key: 'sandbox', title: 'Песочница' },
 ]
 
 export function AdminPage() {
@@ -40,6 +47,18 @@ export function AdminPage() {
   const [role, setRole] = useState<AdminRole | null>(adminToken.role())
   const [tab, setTab] = useState<Tab>('overview')
   const qc = useQueryClient()
+
+  // Игровые экраны держат html и body ровно в высоту окна: сцена вписывается
+  // в неё и скроллиться не должна. Админка — обычная длинная страница (один
+  // «Баланс» это 29 формул), и под тем же правилом прокрутка уезжала внутрь
+  // body: документ оставался 1000 px при содержимом в 2500. Отпускаем высоту
+  // на время, пока открыта админка, и возвращаем при уходе.
+  useEffect(() => {
+    const targets = [document.documentElement, document.body]
+    const previous = targets.map(element => element.style.height)
+    for (const element of targets) element.style.height = 'auto'
+    return () => { targets.forEach((element, index) => { element.style.height = previous[index] }) }
+  }, [])
 
   if (!token) {
     return <AdminLogin onDone={(next, nextRole) => { setTokenState(next); setRole(nextRole) }} />
@@ -76,13 +95,17 @@ export function AdminPage() {
         ))}
       </nav>
 
-      {tab === 'overview' && <OverviewSection />}
+      {tab === 'overview' && <OverviewSection onGo={next => setTab(next as Tab)} />}
       {tab === 'clans' && <ClansSection />}
       {tab === 'territories' && <TerritoriesSection role={role} />}
       {tab === 'claims' && <ClaimsSection role={role} />}
       {tab === 'signals' && <SignalsSection />}
       {tab === 'actions' && <ActionsSection role={role} />}
       {tab === 'trace' && <TraceSection />}
+      {tab === 'balance' && <BalanceSection />}
+      {/* Расчёт тот же, что на игровой ручке, но под админским токеном:
+          требовать от администратора игровой аккаунт незачем. */}
+      {tab === 'sandbox' && <BalanceSandboxPage simulate={adminApi.simulateBalance} />}
     </main>
   )
 }

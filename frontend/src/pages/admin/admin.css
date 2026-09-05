@@ -134,3 +134,114 @@
   .adm-cards { grid-template-columns: repeat(2, 1fr); }
   .adm-facts { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* =============================================================
+   ДАШБОРД И БАЛАНС
+   ============================================================= */
+
+/* Вердикт — первое, что читает администратор: не метрики, а ответ. */
+.adm-verdict {
+  margin: 0 0 14px; padding: 10px 12px;
+  border-left: 3px solid var(--s3-green, #2f6b2a);
+  background: oklch(94% .03 140);
+  line-height: 1.5;
+}
+.adm-verdict p { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 700; }
+.adm-verdict ul { margin: 6px 0 0; padding-left: 18px; }
+.adm-verdict li { margin: 3px 0; }
+.adm-verdict--bad { border-left-color: var(--s3-red, #ab0303); background: oklch(93% .04 35); }
+
+.adm-cards--wide { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.adm-card__note { display: block; margin-top: 3px; font-style: normal; font-size: 13.25px; color: var(--s3-dim, #6b5b4a); }
+.adm-card--bad { border-color: var(--s3-red, #ab0303); }
+.adm-card--bad b { color: var(--s3-red, #ab0303); }
+
+/* Ссылка-действие внутри карточки: число, из которого есть куда пойти. */
+.adm-link {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-top: 6px; padding: 0;
+  border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 13.25px; color: var(--s3-red, #ab0303);
+  text-decoration: underline;
+}
+.adm-link:hover { text-decoration: none; }
+
+.adm-graphs { margin-top: 18px; }
+.adm-graphs h4 { margin: 0 0 10px; font: 700 15px/1.2 var(--font-ui); }
+.adm-graphs__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.adm-graph { margin: 0; padding: 10px; border: 1px solid var(--s4-line, oklch(72% .025 60)); }
+.adm-graph figcaption { font-weight: 700; margin-bottom: 6px; }
+.adm-graph__hint { margin: 6px 0 0; font-size: 13.25px; line-height: 1.45; color: var(--s3-dim, #6b5b4a); }
+
+.adm-chart svg { display: block; width: 100%; height: 64px; overflow: visible; }
+.adm-chart__area { fill: oklch(70% .06 140 / .18); stroke: none; }
+.adm-chart__line { fill: none; stroke: var(--s3-green, #2f6b2a); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.adm-chart__line.is-bad { stroke: var(--s3-red, #ab0303); }
+.adm-chart__limit { stroke: var(--s3-red, #ab0303); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.adm-chart__legend {
+  display: flex; justify-content: space-between; gap: 8px;
+  margin-top: 4px; font-size: 13.25px; color: var(--s3-dim, #6b5b4a);
+}
+.adm-chart__limit-label { color: var(--s3-red, #ab0303); }
+
+.adm-find {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%;
+  margin: 12px 0; padding: 6px 10px;
+  border: 1px solid var(--s4-line, oklch(72% .025 60));
+}
+.adm-find input { flex: 1; min-height: 32px; border: 0; background: none; font: inherit; }
+.adm-find input:focus { outline: none; }
+
+.adm-balance-group { margin-top: 20px; }
+.adm-balance-group h4 { margin: 0 0 4px; font: 700 15px/1.2 var(--font-ui); }
+.adm-balance-group__intro { margin: 0 0 10px; max-width: 78ch; line-height: 1.5; color: var(--s3-dim, #6b5b4a); }
+
+.adm-formula { border: 1px solid var(--s4-line, oklch(72% .025 60)); margin-bottom: 6px; }
+.adm-formula__head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+  width: 100%; padding: 8px 10px; min-height: 36px;
+  border: 0; background: none; cursor: pointer; text-align: left; font: inherit;
+}
+.adm-formula__head:hover { background: oklch(93% .02 75); }
+.adm-formula__what { color: var(--s3-dim, #6b5b4a); }
+.adm-formula__body { padding: 0 10px 10px; }
+.adm-formula__math {
+  display: block; padding: 8px 10px; margin-bottom: 10px;
+  background: oklch(93% .015 75); line-height: 1.5;
+}
+.adm-formula__facts { display: grid; gap: 6px; margin-bottom: 10px; }
+.adm-formula__facts > div { display: grid; grid-template-columns: 130px 1fr; gap: 10px; }
+.adm-formula__facts dt { color: var(--s3-dim, #6b5b4a); }
+.adm-formula__facts dd { margin: 0; line-height: 1.45; }
+.adm-formula__params td:first-child { white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .adm-graphs__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .adm-cards--wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adm-graphs__grid { grid-template-columns: 1fr; }
+  .adm-formula__facts > div { grid-template-columns: 1fr; gap: 2px; }
+}
+
+/* Специфичность: общие правила .s3 button / .s3 input перебивают классы
+   админки, поэтому ссылки-действия выглядели кнопками, а поиск не тянулся
+   на всю ширину. Поднимаем вес селектора, а не переписываем разметку. */
+.s3 .adm-link {
+  min-height: 0; padding: 0;
+  border: 0; background: none;
+  color: var(--s3-red, #ab0303);
+  text-align: left;
+}
+.s3 .adm-link:hover { background: none; transform: none; text-decoration: none; }
+.s3 .adm-find input { min-height: 34px; border: 0; background: none; padding: 0; }
+/* Своё имя класса, а не .adm-search: тот уже занят поиском по идентификатору
+   в других разделах и ограничен max-width: 280px — под ним поле баланса
+   сжималось до трети строки. */
+
+/* Бумага админки идёт до низа окна: под коротким разделом иначе видно
+   тёмный фон страницы, будто экран оборвался. */
+/* Бумага админки идёт до низа: html и body держат height:100%, поэтому под
+   длинным разделом (баланс — это 29 формул) открывался тёмный фон страницы. */
+.adm { min-height: 100vh; }
