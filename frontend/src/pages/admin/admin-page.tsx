@@ -117,7 +117,7 @@ export function AdminPage() {
       {tab === 'balance' && <BalanceSection role={role} focus={focus} />}
       {/* Расчёт тот же, что на игровой ручке, но под админским токеном:
           требовать от администратора игровой аккаунт незачем. */}
-      {tab === 'sandbox' && <BalanceSandboxPage simulate={adminApi.simulateBalance} />}
+      {tab === 'sandbox' && <BalanceSandboxPage simulate={adminApi.simulateBalance} onGoFormula={id => go('balance', id)} />}
       {tab === 'duel' && <CombatSandboxSection />}
       {tab === 'items' && <CatalogSection role={role} />}
     </main>

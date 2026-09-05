@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
   balanceSandboxApi,
+  type CropCode,
   type SandboxInput,
   type SandboxResult,
   type SandboxRow,
@@ -16,10 +17,16 @@ const verdictLabels = {
   nonNegative: 'Нет банкротств',
 }
 
+const farmDefaults = { farmPlots: 1, farmCrop: 'potato' as CropCode, farmChecksPerDay: 3, cropPrice: 25 }
+
 const presets: Record<string, SandboxInput> = {
-  Базовый: { days: 30, players: 300, salary: 100, battleReward: 55, repairCost: 200, marketPrice: 160, shiftMinutes: 45, winRate: 60 },
-  'Долгий цикл': { days: 180, players: 1_500, salary: 90, battleReward: 45, repairCost: 260, marketPrice: 220, shiftMinutes: 60, winRate: 55 },
-  'Щедрый мир': { days: 30, players: 600, salary: 180, battleReward: 90, repairCost: 120, marketPrice: 150, shiftMinutes: 30, winRate: 70 },
+  Базовый: { days: 30, players: 300, salary: 100, battleReward: 55, repairCost: 200, marketPrice: 160, shiftMinutes: 45, winRate: 60, ...farmDefaults },
+  'Долгий цикл': { days: 180, players: 1_500, salary: 90, battleReward: 45, repairCost: 260, marketPrice: 220, shiftMinutes: 60, winRate: 55, ...farmDefaults },
+  'Щедрый мир': { days: 30, players: 600, salary: 180, battleReward: 90, repairCost: 120, marketPrice: 150, shiftMinutes: 30, winRate: 70, ...farmDefaults, farmPlots: 3 },
+  // Новичок: одна бесплатная грядка, ни боёв, ни рынка. Ради этого
+  // сценария огород в модели и появился — по нему видно, на что живёт
+  // человек в первый день.
+  Новичок: { days: 14, players: 100, salary: 100, battleReward: 55, repairCost: 200, marketPrice: 60, shiftMinutes: 45, winRate: 40, ...farmDefaults },
 }
 
 const money = (value: number) => `${Math.round(value).toLocaleString('ru')} ₽`
@@ -35,7 +42,13 @@ const percent = (value: number, digits = 0) => `${(value * 100).toFixed(digits)}
  */
 export function BalanceSandboxPage({
   simulate = balanceSandboxApi.simulate,
-}: { simulate?: (input: SandboxInput) => Promise<SandboxResult> } = {}) {
+  onGoFormula,
+}: {
+  simulate?: (input: SandboxInput) => Promise<SandboxResult>
+  /** Переход к формуле в разделе «Баланс». Есть только в админке: на
+   *  игровом маршруте раздела баланса нет, и кнопка вела бы в пустоту. */
+  onGoFormula?: (formulaId: string) => void
+} = {}) {
   const [input, setInput] = useState<SandboxInput>(presets.Базовый)
   const result = useQuery({
     queryKey: ['balance-sandbox', input],
@@ -62,7 +75,12 @@ export function BalanceSandboxPage({
       <div>
         <span className="sandbox-kicker">ТЕХНИЧЕСКАЯ ПЕСОЧНИЦА · ЭТАП 2</span>
         <h1>Баланс-лаборатория</h1>
-        <p>Прогоняет бой, работу, рынок, ремонт и денежные стоки теми же формулами, что использует игра.</p>
+        <p>
+          Прогоняет бой, работу, огород, рынок, ремонт и денежные стоки теми же
+          формулами, что использует игра. Каждый профиль раскрывается в статьи
+          дохода и расхода, а «Чувствительность» показывает, какая ручка вообще
+          двигает итог.
+        </p>
       </div>
       <div className="sandbox-head-actions">
         <span className={`sandbox-stamp ${stable ? 'is-ok' : 'is-fail'}`}>{stable ? 'КОНТУР СТАБИЛЕН' : 'НУЖНА НАСТРОЙКА'}</span>
@@ -84,6 +102,23 @@ export function BalanceSandboxPage({
       <Control label="Победы" value={input.winRate} min={10} max={95} step={5} suffix="%" set={set('winRate')} />
       <Control label="Ремонт" value={input.repairCost} min={50} max={800} step={10} suffix=" ₽" set={set('repairCost')} />
       <Control label="Цена сделки" value={input.marketPrice} min={50} max={1_000} step={10} suffix=" ₽" set={set('marketPrice')} />
+      {/* Огород — единственный доход, доступный без смены и без боя, и
+          первая грядка бесплатна. Без него модель занижала доход всех
+          профилей, а сценарий новичка вообще не собирался. */}
+      <Control label="Грядок" value={input.farmPlots ?? 1} min={0} max={12} set={set('farmPlots')} />
+      <Control label="Заходов в день" value={input.farmChecksPerDay ?? 3} min={0} max={12} set={set('farmChecksPerDay')} />
+      <Control label="Цена урожая" value={input.cropPrice ?? 25} min={5} max={400} step={5} suffix=" ₽" set={set('cropPrice')} />
+      <label className="sandbox-select">
+        <span>Культура</span>
+        <select value={input.farmCrop ?? 'potato'}
+          onChange={event => setInput(current => ({ ...current, farmCrop: event.target.value as CropCode }))}>
+          {(data?.meta.crops ?? []).map(crop => (
+            <option key={crop.code} value={crop.code}>
+              {crop.name} — {crop.minutes} мин, семена {crop.seedPrice} ₽
+            </option>
+          ))}
+        </select>
+      </label>
     </section>
 
     {result.isError ? <div className="sandbox-error">Симуляция не запустилась. Проверь соединение и повтори.</div> : <>
@@ -101,13 +136,32 @@ export function BalanceSandboxPage({
         </div>
         <div className="sandbox-ruler" aria-hidden="true"><span>Профиль</span><span>Динамика</span><span>Итог</span><span>В день</span><span>Нагрузка</span></div>
         <div className="sandbox-results" aria-busy={result.isFetching}>
-          {rows.map(row => <article key={row.profile}>
-            <div className="sandbox-profile"><strong>{profileLabels[row.profile]}</strong><small>стоки {percent(row.sinkShare)}</small></div>
-            <Sparkline row={row} />
-            <b>{money(row.money)}</b>
-            <span className={row.netPerDay >= 0 ? 'positive' : 'negative'}>{row.netPerDay >= 0 ? '+' : ''}{money(row.netPerDay)} / день</span>
-            <span>{row.shiftsPerDay} смен · {row.minutesPerDay} мин</span>
-          </article>)}
+          {rows.map(row => <Profile key={row.profile} row={row} onGoFormula={onGoFormula} />)}
+        </div>
+      </section>
+
+      {/* «Стоков мало» не говорит, за какую ручку тянуть. Здесь ровно это:
+          прогон повторён с каждым параметром на ±20%, сверху то, что
+          двигает долю стоков сильнее всего. */}
+      <section className="sandbox-sheet">
+        <div className="sandbox-section-title">
+          <div><span>ЧУВСТВИТЕЛЬНОСТЬ</span><h2>Какая ручка решает</h2></div>
+          <small>каждый параметр сдвинут на ±20%</small>
+        </div>
+        <div className="sandbox-levers">
+          {(data?.sensitivity ?? []).map(lever => (
+            <article key={lever.key}>
+              <strong>{lever.label}</strong>
+              <span className="sandbox-lever-now">сейчас {lever.current.toLocaleString('ru')}</span>
+              <span className="sandbox-lever-range">
+                −20% → стоки {percent(lever.sinkShareDown)} · +20% → {percent(lever.sinkShareUp)}
+              </span>
+              <div className="sandbox-lever-bar" aria-hidden="true">
+                <i style={{ width: `${Math.min(100, lever.impact / Math.max(0.0001, data!.sensitivity[0].impact) * 100)}%` }} />
+              </div>
+            </article>
+          ))}
+          {data?.sensitivity.length === 0 && <p>Ни один параметр не двигает долю стоков — проверьте сценарий.</p>}
         </div>
       </section>
 
@@ -124,6 +178,64 @@ export function BalanceSandboxPage({
       </section>
     </>}
   </main>
+}
+
+/**
+ * Профиль со статьями дохода и расхода.
+ *
+ * Раньше строка давала итог и всё: увидев перекос, администратор не мог
+ * узнать, какая статья его создала. Разбивка раскрывается по клику —
+ * держать её открытой у трёх профилей сразу значит утопить итог.
+ */
+function Profile({ row, onGoFormula }: {
+  row: SandboxRow
+  onGoFormula?: (formulaId: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return <>
+    <article>
+      <div className="sandbox-profile">
+        <strong>{profileLabels[row.profile]}</strong>
+        <small>стоки {percent(row.sinkShare)}</small>
+        <button type="button" className="sandbox-more" onClick={() => setOpen(!open)} aria-expanded={open}>
+          {open ? 'свернуть' : 'из чего складывается'}
+        </button>
+      </div>
+      <Sparkline row={row} />
+      <b>{money(row.money)}</b>
+      <span className={row.netPerDay >= 0 ? 'positive' : 'negative'}>{row.netPerDay >= 0 ? '+' : ''}{money(row.netPerDay)} / день</span>
+      <span>{row.shiftsPerDay} смен · {row.minutesPerDay} мин</span>
+    </article>
+    {open && <div className="sandbox-ledger-detail">
+      <Ledger title="Откуда деньги" lines={row.faucets} onGoFormula={onGoFormula} />
+      <Ledger title="Куда уходят" lines={row.sinks} onGoFormula={onGoFormula} />
+    </div>}
+  </>
+}
+
+function Ledger({ title, lines, onGoFormula }: {
+  title: string
+  lines: SandboxRow['faucets']
+  onGoFormula?: (formulaId: string) => void
+}) {
+  const total = lines.reduce((sum, line) => sum + line.perDay, 0)
+  return <div>
+    <h3>{title} <small>{money(total)} / день</small></h3>
+    <ul>
+      {lines.map(line => <li key={line.label}>
+        <span>{line.label}</span>
+        <b>{money(line.perDay)}</b>
+        {/* Из статьи — сразу к формуле, которой она управляется: иначе
+            «поднимите стоки» остаётся советом без адреса. */}
+        {onGoFormula && (
+          <button type="button" className="sandbox-more" onClick={() => onGoFormula(line.formula)}>
+            к формуле
+          </button>
+        )}
+      </li>)}
+    </ul>
+  </div>
 }
 
 function Metric({ label, value, tone, note }: { label: string; value: string; tone?: 'ok' | 'fail'; note?: string }) {
