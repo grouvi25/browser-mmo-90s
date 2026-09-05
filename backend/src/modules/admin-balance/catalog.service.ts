@@ -17,6 +17,10 @@
 // =============================================================
 import { prisma } from '../../shared/db/prisma'
 import { CROPS, FARM_BUILDINGS, FARM_MAX_PLOTS, plotPrice } from '../farm/farm.formulas'
+import {
+  PROFESSION_CHAINS, PROFESSION_CUMULATIVE_XP, PROFESSION_NAMES,
+  professionEfficiency, type ProfessionCode,
+} from '../professions/professions'
 
 /** Ссылка в цепочке: человеку нужно имя, а не код. */
 export interface ChainLink {
@@ -64,7 +68,7 @@ export interface CatalogRecipe {
 }
 
 export async function buildCatalog() {
-  const [resources, recipes, objects, items, shop, bar, bots, stacks] = await Promise.all([
+  const [resources, recipes, objects, items, shop, bar, bots, stacks, premium] = await Promise.all([
     prisma.resourceTemplate.findMany({ orderBy: [{ category: 'asc' }, { tier: 'asc' }, { name: 'asc' }] }),
     prisma.productionRecipe.findMany({ include: { inputs: true }, orderBy: { name: 'asc' } }),
     prisma.productionObject.findMany({
@@ -90,6 +94,7 @@ export async function buildCatalog() {
       orderBy: { battleLevel: 'asc' },
     }),
     prisma.resourceStack.groupBy({ by: ['resourceTemplateId'], _sum: { amount: true } }),
+    prisma.premiumProduct.findMany({ orderBy: { sortOrder: 'asc' } }),
   ])
 
   const resourceName = new Map(resources.map(row => [row.code, row.name]))
@@ -281,5 +286,32 @@ export async function buildCatalog() {
       isActive: offer.isActive,
     })),
     bots,
+    premium: premium.map(row => ({
+      code: row.code,
+      name: row.name,
+      description: row.description,
+      kind: row.kind,
+      priceRub: row.priceRub,
+      grantCode: row.grantCode,
+      grantValue: row.grantValue,
+      isActive: row.isActive,
+    })),
+    // Профессии — лестница допуска к объектам, и без неё непонятно,
+    // почему половина производства игроку недоступна. Живут в коде,
+    // а не в базе, поэтому собираются здесь.
+    professions: Object.entries(PROFESSION_CHAINS).flatMap(([chain, codes]) =>
+      codes.map((code, step) => ({
+        code,
+        name: PROFESSION_NAMES[code as ProfessionCode],
+        chain,
+        step: step + 1,
+        /** Кто должен быть прокачан, чтобы открылась эта. */
+        requires: step === 0 ? null : PROFESSION_NAMES[codes[step - 1] as ProfessionCode],
+        objects: objects.filter(object => object.requiredProfessionCode === code).map(object => object.name),
+      })),
+    ),
+    professionLevels: PROFESSION_CUMULATIVE_XP.map((exp, level) => ({
+      level, exp, efficiency: professionEfficiency(level),
+    })),
   }
 }

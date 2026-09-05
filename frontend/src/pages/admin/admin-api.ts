@@ -219,6 +219,15 @@ export interface Catalog {
     code: string; name: string; battleLevel: number; power: number; hpMax: number
     expReward: number; moneyRewardMin: number; moneyRewardMax: number; isActive: boolean
   }[]
+  premium: {
+    code: string; name: string; description: string; kind: string
+    priceRub: number; grantCode: string; grantValue: number; isActive: boolean
+  }[]
+  professions: {
+    code: string; name: string; chain: string; step: number
+    requires: string | null; objects: string[]
+  }[]
+  professionLevels: { level: number; exp: number; efficiency: number }[]
 }
 
 export interface EconomyOverview {

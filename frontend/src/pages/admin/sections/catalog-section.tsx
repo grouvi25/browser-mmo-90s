@@ -20,19 +20,26 @@ import { Skeleton, Fault } from '../../stage3/stage3-ui'
 import { Table, rub } from '../admin-ui'
 import { ItemsSection } from './combat-sandbox-section'
 
-type Page = 'items' | 'resources' | 'farm' | 'production' | 'trade' | 'bots'
+type Page = 'all' | 'items' | 'resources' | 'objects' | 'production' | 'farm' | 'trade' | 'professions' | 'bots' | 'premium'
 
 const PAGES: { key: Page; title: string }[] = [
+  // «Всё» первым: искать по названию проще, чем помнить, в какой из
+  // девяти вкладок лежит нужное. Раздел разросся ровно до размера, при
+  // котором вкладки начинают прятать содержимое.
+  { key: 'all', title: 'Всё' },
   { key: 'items', title: 'Вещи' },
-  { key: 'resources', title: 'Ресурсы' },
+  { key: 'resources', title: 'Ресурсы и материалы' },
+  { key: 'objects', title: 'Объекты' },
   { key: 'production', title: 'Производство' },
   { key: 'farm', title: 'Огород' },
   { key: 'trade', title: 'Госскупка и бар' },
+  { key: 'professions', title: 'Профессии' },
   { key: 'bots', title: 'Боты' },
+  { key: 'premium', title: 'Премиум' },
 ]
 
 export function CatalogSection({ role }: { role?: string | null }) {
-  const [page, setPage] = useState<Page>('items')
+  const [page, setPage] = useState<Page>('all')
   const catalog = useQuery({ queryKey: ['admin', 'catalog'], queryFn: adminApi.catalog })
 
   return (
@@ -53,11 +60,15 @@ export function CatalogSection({ role }: { role?: string | null }) {
       {page !== 'items' && catalog.isError && <Fault retry={() => catalog.refetch()} />}
       {page !== 'items' && catalog.data && (
         <>
+          {page === 'all' && <Everything data={catalog.data} onGo={setPage} />}
           {page === 'resources' && <Resources data={catalog.data} />}
+          {page === 'objects' && <Objects data={catalog.data} />}
           {page === 'production' && <Production data={catalog.data} />}
           {page === 'farm' && <Farm data={catalog.data} />}
           {page === 'trade' && <Trade data={catalog.data} />}
+          {page === 'professions' && <Professions data={catalog.data} />}
           {page === 'bots' && <Bots data={catalog.data} />}
+          {page === 'premium' && <Premium data={catalog.data} />}
         </>
       )}
     </>
@@ -372,6 +383,236 @@ function Bots({ data }: { data: Catalog }) {
               <td className="num">{bot.expReward}</td>
               <td className="num">{rub(bot.moneyRewardMin)}–{rub(bot.moneyRewardMax)} ₽</td>
               <td>{bot.isActive ? 'да' : 'нет'}</td>
+            </tr>
+          ))}
+        </Table>
+      </div>
+    </>
+  )
+}
+
+// ── Всё разом ──────────────────────────────────────────────────
+
+/** Строка сводного поиска: что это, как называется и куда за подробностями. */
+interface AnyRow { kind: string; page: Page; name: string; code: string; note: string }
+
+/**
+ * Поиск по всему справочнику.
+ *
+ * Девять вкладок — это девять мест, в которых надо помнить, что лежит.
+ * Спрашивают же обычно про конкретную вещь: «где ткань», «что даёт
+ * бочка». Здесь ищется всё сразу, а строка говорит, в каком разделе
+ * смотреть подробности.
+ */
+function Everything({ data, onGo }: { data: Catalog; onGo: (page: Page) => void }) {
+  const [query, setQuery] = useState('')
+  const needle = query.trim().toLowerCase()
+
+  const rows = useMemo<AnyRow[]>(() => [
+    ...data.resources.map(row => ({
+      kind: 'Ресурс', page: 'resources' as Page, name: row.name, code: row.code,
+      note: `${CATEGORY[row.category] ?? row.category}, ${row.basePrice} ₽ · источников ${row.sources.length}, применений ${row.uses.length}`,
+    })),
+    ...data.recipes.map(row => ({
+      kind: 'Рецепт', page: 'production' as Page, name: row.name, code: row.code,
+      note: `${row.objectName}: ${row.inputs.map(input => `${input.name} ×${input.amount}`).join(' + ') || 'без сырья'} → ${row.output.name} ×${row.output.amount}`,
+    })),
+    ...data.objects.map(row => ({
+      kind: 'Объект', page: 'objects' as Page, name: row.name, code: row.code,
+      note: `смена ${row.shiftDurationMinutes} мин, оклад ${row.baseSalary} ₽, мест ${row.workerSlots}`,
+    })),
+    ...data.crops.map(row => ({
+      kind: 'Культура', page: 'farm' as Page, name: row.name, code: row.code,
+      note: `${row.minutes} мин, даёт ${row.resourceName}, выгода ${row.profitPerCycle} ₽`,
+    })),
+    ...data.farm.buildings.map(row => ({
+      kind: 'Постройка', page: 'farm' as Page, name: row.name, code: row.code,
+      note: `${row.price} ₽ · ${BUILDING_EFFECT[row.code] ?? ''}`,
+    })),
+    ...data.shop.map(row => ({
+      kind: 'Госмагазин', page: 'trade' as Page, name: row.name, code: row.code,
+      note: `${row.price} ₽${row.isAvailable ? '' : ' · не продаётся'}`,
+    })),
+    ...data.bar.map(row => ({
+      kind: 'Бар', page: 'trade' as Page, name: row.name, code: row.code,
+      note: `${row.price} ₽, из «${row.resourceName}»`,
+    })),
+    ...data.professions.map(row => ({
+      kind: 'Профессия', page: 'professions' as Page, name: row.name, code: row.code,
+      note: `${CHAIN_TITLE[row.chain] ?? row.chain}, передел ${row.step}${row.requires ? `, после «${row.requires}»` : ''}`,
+    })),
+    ...data.bots.map(row => ({
+      kind: 'Бот', page: 'bots' as Page, name: row.name, code: row.code,
+      note: `уровень ${row.battleLevel}, награда ${row.moneyRewardMin}–${row.moneyRewardMax} ₽`,
+    })),
+    ...data.premium.map(row => ({
+      kind: 'Премиум', page: 'premium' as Page, name: row.name, code: row.code,
+      note: `${row.priceRub} ₽ · ${row.description}`,
+    })),
+  ], [data])
+
+  const shown = needle
+    ? rows.filter(row => `${row.name} ${row.code} ${row.kind} ${row.note}`.toLowerCase().includes(needle))
+    : rows
+
+  return (
+    <>
+      <p className="s4-lead">
+        Всё, из чего состоит игра: {rows.length} записей. Вещи правятся на своей
+        вкладке, остальное пока только для чтения.
+      </p>
+
+      <label className="adm-find">
+        <Search size={13} />
+        <input value={query} onChange={event => setQuery(event.target.value)}
+          placeholder="Что угодно: «ткань», «бочка», «пиво», «химик»"
+          aria-label="Поиск по справочнику" />
+      </label>
+
+      <div className="adm-scroll">
+        <Table head={['Что это', 'Название', 'Код', 'Кратко', '']}>
+          {shown.slice(0, 200).map((row, index) => (
+            <tr key={`${row.kind}-${row.code}-${index}`}>
+              <td>{row.kind}</td>
+              <td>{row.name}</td>
+              <td><code>{row.code}</code></td>
+              <td>{row.note}</td>
+              <td>
+                <button type="button" className="adm-link" onClick={() => onGo(row.page)}>подробнее</button>
+              </td>
+            </tr>
+          ))}
+        </Table>
+      </div>
+      {shown.length === 0 && <p className="adm-hint">Ничего не нашлось. Попробуйте часть слова.</p>}
+      {shown.length > 200 && <p className="adm-hint">Показаны первые 200 из {shown.length} — уточните запрос.</p>}
+    </>
+  )
+}
+
+// ── Объекты ────────────────────────────────────────────────────
+
+function Objects({ data }: { data: Catalog }) {
+  const idle = data.objects.filter(row => !row.isActive || row.status !== 'ACTIVE')
+
+  return (
+    <>
+      <p className="s4-lead">
+        {data.objects.length} объектов — это рабочие места игроков и точки входа в
+        производство. Оклад и длительность смены отсюда попадают прямо в денежную
+        массу, а профессия решает, кого на объект вообще пустят.
+      </p>
+
+      {idle.length > 0 && (
+        <p className="adm-verdict adm-verdict--bad">
+          Не работают: {idle.map(row => row.name).join(', ')}.
+        </p>
+      )}
+
+      <div className="adm-scroll">
+        <Table head={['Объект', 'Тип', 'Смена', 'Оклад', 'Мест', 'Профессия', 'Выдаёт', 'Склад', 'Состояние']}>
+          {data.objects.map(row => (
+            <tr key={row.code} className={!row.isActive || row.status !== 'ACTIVE' ? 'adm-dead' : undefined}>
+              <td>{row.name}<em className="adm-row__hint">{row.code}</em></td>
+              <td>{row.type}</td>
+              <td className="num">{row.shiftDurationMinutes} мин</td>
+              <td className="num">{rub(row.baseSalary)} ₽</td>
+              <td className="num">{row.workerSlots}</td>
+              <td>{row.requiredProfessionCode}{row.requiredProfessionLevel > 0 ? ` ур.${row.requiredProfessionLevel}` : ''}</td>
+              <td>
+                {row.producesResourceCode
+                  ? <>{row.producesResourceCode}<em className="adm-row__hint">{row.outputAmountMin}–{row.outputAmountMax} шт.</em></>
+                  : <span className="adm-hint">по рецепту</span>}
+              </td>
+              <td className="num">{row.storageCapacity || '—'}</td>
+              <td>{row.status === 'ACTIVE' && row.isActive ? 'работает' : <span className="adm-bad">{row.status}</span>}</td>
+            </tr>
+          ))}
+        </Table>
+      </div>
+    </>
+  )
+}
+
+// ── Профессии ──────────────────────────────────────────────────
+
+const CHAIN_TITLE: Record<string, string> = {
+  metal: 'Металл', construction: 'Стройка', chemistry: 'Химия',
+}
+
+function Professions({ data }: { data: Catalog }) {
+  const orphans = data.professions.filter(row => row.objects.length === 0)
+
+  return (
+    <>
+      <p className="s4-lead">
+        Три направления по три передела. Следующий передел открывается уровнем
+        предыдущего, а не своим собственным — иначе объект был бы заперт
+        требованием, которое сам же и качает.
+      </p>
+
+      {orphans.length > 0 && (
+        <p className="adm-verdict adm-verdict--bad">
+          Профессии без единого объекта: {orphans.map(row => row.name).join(', ')} —
+          качать их негде.
+        </p>
+      )}
+
+      <div className="adm-scroll">
+        <Table head={['Профессия', 'Направление', 'Передел', 'Открывается после', 'Где работать']}>
+          {data.professions.map(row => (
+            <tr key={row.code} className={row.objects.length === 0 ? 'adm-dead' : undefined}>
+              <td>{row.name}<em className="adm-row__hint">{row.code}</em></td>
+              <td>{CHAIN_TITLE[row.chain] ?? row.chain}</td>
+              <td className="num">{row.step}</td>
+              <td>{row.requires ?? <span className="adm-hint">с начала игры</span>}</td>
+              <td>{row.objects.length === 0 ? <span className="adm-bad">негде</span> : row.objects.join(', ')}</td>
+            </tr>
+          ))}
+        </Table>
+      </div>
+
+      <h5 className="adm-sub">Уровни и опыт</h5>
+      <p className="adm-hint">
+        Каждый уровень добавляет 3% к выработке — за шесть уровней это +18%.
+      </p>
+      <div className="adm-scroll">
+        <Table head={['Уровень', 'Нужно опыта', 'Выработка']}>
+          {data.professionLevels.map(row => (
+            <tr key={row.level}>
+              <td className="num">{row.level}</td>
+              <td className="num">{rub(row.exp)}</td>
+              <td className="num">×{row.efficiency.toFixed(2)}</td>
+            </tr>
+          ))}
+        </Table>
+      </div>
+    </>
+  )
+}
+
+// ── Премиум ────────────────────────────────────────────────────
+
+function Premium({ data }: { data: Catalog }) {
+  if (data.premium.length === 0) {
+    return <p className="adm-hint">Премиум-товаров в базе нет.</p>
+  }
+  return (
+    <>
+      <p className="s4-lead">
+        Премиум продаётся за рубли и выдаётся администратором вручную. Каждая
+        позиция — обещание игроку, и её надо уметь объяснить: что именно даёт и
+        не ломает ли это баланс остальным.
+      </p>
+      <div className="adm-scroll">
+        <Table head={['Товар', 'Что это', 'Цена', 'Что выдаёт', 'Активен']}>
+          {data.premium.map(row => (
+            <tr key={row.code} className={row.isActive ? undefined : 'adm-dead'}>
+              <td>{row.name}<em className="adm-row__hint">{row.code}</em></td>
+              <td>{row.description}<em className="adm-row__hint">{row.kind}</em></td>
+              <td className="num">{rub(row.priceRub)} ₽</td>
+              <td>{row.grantCode}{row.grantValue ? ` ×${row.grantValue}` : ''}</td>
+              <td>{row.isActive ? 'да' : <span className="adm-bad">нет</span>}</td>
             </tr>
           ))}
         </Table>
