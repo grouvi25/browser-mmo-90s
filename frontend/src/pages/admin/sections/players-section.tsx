@@ -33,10 +33,22 @@ export function PlayersSection({ focusId }: { focusId?: string }) {
     queryFn: () => adminApi.players({ search, sort }),
   })
 
+  const items = players.data?.items ?? []
+  const inList = items.some(player => player.id === focusId)
+
+  // Список — первая полусотня по деньгам, и игрок из улик алерта в неё
+  // обычно не попадает. Раньше переход «открыть» просто высаживал на
+  // список без него — то же самое, за что ругали кнопку «к порогам».
+  // Поэтому недостающего догружаем отдельно и прикалываем сверху.
+  const pinned = useQuery({
+    queryKey: ['admin', 'player', 'pinned', focusId],
+    queryFn: () => adminApi.player(focusId!),
+    enabled: Boolean(focusId) && !inList && !players.isLoading,
+  })
+  const pinnedRow = (pinned.data as { character?: PlayerRow } | undefined)?.character ?? null
+
   if (players.isLoading) return <Skeleton rows={5} />
   if (players.isError) return <Fault retry={() => players.refetch()} />
-
-  const items = players.data?.items ?? []
 
   return (
     <>
@@ -67,7 +79,22 @@ export function PlayersSection({ focusId }: { focusId?: string }) {
         </div>
       </div>
 
+      {pinnedRow && (
+        <p className="adm-hint">
+          {pinnedRow.nickname} — из перехода по улике; в текущей сортировке его нет,
+          поэтому он показан отдельной строкой сверху.
+        </p>
+      )}
+
       <Table head={['Ник', 'Логин', 'Деньги', 'Бой', 'Эконом.', 'Состояние', 'Заходил', '']}>
+        {pinnedRow && (
+          <PlayerLine
+            key={pinnedRow.id}
+            player={pinnedRow}
+            open={openId === pinnedRow.id}
+            onToggle={() => setOpenId(openId === pinnedRow.id ? null : pinnedRow.id)}
+          />
+        )}
         {items.map(player => (
           <PlayerLine
             key={player.id}
@@ -139,8 +166,8 @@ function PlayerCard({ player }: { player: PlayerRow }) {
   if (card.isLoading) return <Skeleton rows={2} />
 
   const data = card.data as {
-    money?: { createdAt: string; amount: number; balanceAfter: number; reasonCode: string; note: string | null }[]
-    items?: { id: string; isEquipped: boolean; quality: string; durabilityCurrent: number; template: { name: string; type: string; priceBase: number } }[]
+    money?: { createdAt: string; amount: number; balanceAfter: number; reasonCode: string; reasonTitle: string; note: string | null }[]
+    items?: { id: string; isEquipped: boolean; status: string; quality: string; durabilityCurrent: number; template: { name: string; type: string; priceBase: number } }[]
     battles?: number
     clan?: { role: string; clan: { name: string; tag: string } } | null
   } | undefined
@@ -172,7 +199,10 @@ function PlayerCard({ player }: { player: PlayerRow }) {
                   {row.amount >= 0 ? '+' : ''}{rub(row.amount)}
                 </td>
                 <td className="num">{rub(row.balanceAfter)}</td>
-                <td>{row.reasonCode}{row.note ? ` · ${row.note}` : ''}</td>
+                <td>
+                  {row.reasonTitle || row.reasonCode}
+                  <em className="adm-row__hint">{row.reasonCode}{row.note ? ` · ${row.note}` : ''}</em>
+                </td>
               </tr>
             ))}
           </Table>
@@ -184,7 +214,10 @@ function PlayerCard({ player }: { player: PlayerRow }) {
           <Table head={['Предмет', 'Тип', 'Качество', 'Прочн.', 'Цена']}>
             {items.slice(0, 12).map(item => (
               <tr key={item.id}>
-                <td>{item.template.name}{item.isEquipped ? ' (надето)' : ''}</td>
+                <td>
+                  {item.template.name}
+                  {item.isEquipped ? ' (надето)' : item.status === 'ON_MARKET' ? ' (на рынке)' : ''}
+                </td>
                 <td>{item.template.type}</td>
                 <td>{item.quality}</td>
                 <td className="num">{item.durabilityCurrent}</td>

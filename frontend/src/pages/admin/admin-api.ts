@@ -158,6 +158,19 @@ export interface EconomySnapshot {
   alerts: string[]
 }
 
+/**
+ * Разбивка под карточкой дашборда.
+ *
+ * `characterId` есть только у строк про конкретного игрока — по нему строка
+ * превращается в кнопку «открыть», иначе его пришлось бы искать руками.
+ */
+export interface OverviewDetail {
+  title: string
+  rows: { label: string; value: string; hint?: string }[]
+  secondTitle: string
+  second: { label: string; value: string; characterId?: string }[]
+}
+
 export interface EconomyOverview {
   m2Total: number
   characters: number
@@ -253,6 +266,7 @@ export const adminApi = {
 
   economyOverview: () => request<EconomyOverview>('/api/admin/economy/overview'),
   economyHistory: (days = 30) => request<{ items: EconomySnapshot[] }>(`/api/admin/economy/history?days=${days}`),
+  overviewDetail: (kind: string) => request<OverviewDetail>(`/api/admin/overview/${kind}`),
   balance: () => request<{ groups: BalanceGroup[]; overrides: unknown[] }>('/api/admin/balance'),
   alerts: () => request<{ cards: AlertCard[]; snapshotDate: string | null }>('/api/admin/alerts'),
   recheckAlerts: () => request<{ cards: AlertCard[]; snapshotDate: string }>('/api/admin/alerts/recheck', { method: 'POST' }),

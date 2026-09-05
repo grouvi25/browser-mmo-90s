@@ -17,6 +17,7 @@ import { balanceRegistry } from './balance-registry'
 import {
   currentValue, defaultValue, limitsFor, listOverrides, validatePath,
 } from './balance-overrides.service'
+import { reasonFlowLabel, reasonTitle } from './reason-codes'
 import { sendTelegram, telegramConfigured } from './telegram.service'
 
 const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
@@ -24,6 +25,25 @@ const WRITE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN') }
 const MODERATE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }
 
 const REASON = z.string().min(10).max(500)
+
+// Состояния из enum'ов Prisma по-русски. Код рядом остаётся: по нему
+// ищут в базе, а вот считать «CANCELLED» с экрана и понимать, отменил ли
+// смену игрок или воркер, — работа, которой быть не должно.
+const SHIFT_STATUS: Record<string, string> = {
+  ACTIVE: 'Идут сейчас',
+  READY_TO_CLAIM: 'Готовы, ждут выдачи',
+  CLAIMED: 'Забраны игроком',
+  CANCELLED: 'Отменены',
+  FAILED: 'Сорвались',
+}
+
+const LISTING_STATUS: Record<string, string> = {
+  ACTIVE: 'Выставлены',
+  LOCKED: 'В сделке',
+  SOLD: 'Проданы',
+  CANCELLED: 'Сняты продавцом',
+  EXPIRED: 'Просрочены',
+}
 
 function admin(req: FastifyRequest): AdminContext {
   return { adminId: req.adminUser.adminId, adminRole: req.adminUser.role }
@@ -63,6 +83,160 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
       `✅ Проверка связи из админки «Кооператива». Отправил ${admin(req).adminId.slice(0, 8)}.`,
     )
     return reply.send(result)
+  })
+
+  /**
+   * Подробности за карточкой обзора.
+   *
+   * Число на дашборде без разбивки — та самая «информация ради
+   * информации»: «смен идёт 12» не говорит, где они идут и не застряли
+   * ли. Здесь то, что стоит за числом, и куда с ним идти.
+   */
+  fastify.get<{ Params: { kind: string } }>('/overview/:kind', READ_ADMIN, async (req, reply) => {
+    const kind = req.params.kind
+
+    if (kind === 'money') {
+      const [top, byReason] = await Promise.all([
+        prisma.character.findMany({
+          select: { id: true, nickname: true, money: true },
+          orderBy: { money: 'desc' }, take: 8,
+        }),
+        prisma.currencyLog.groupBy({
+          by: ['reasonCode'],
+          where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+          _sum: { amount: true },
+          orderBy: { _sum: { amount: 'desc' } },
+          take: 10,
+        }),
+      ])
+      return reply.send({
+        title: 'Куда движутся деньги за сутки',
+        rows: byReason.map(row => ({
+          // Название человеческое, но код рядом: по нему ищут в журнале
+          // и в коде, а «кран/сток» сразу говорит, меняет ли строка
+          // денежную массу или это перекладывание между игроками.
+          label: reasonTitle(row.reasonCode),
+          hint: [row.reasonCode, reasonFlowLabel(row.reasonCode)].filter(Boolean).join(' · '),
+          value: `${(row._sum?.amount ?? 0) >= 0 ? '+' : ''}${Math.round(row._sum?.amount ?? 0).toLocaleString('ru-RU')} ₽`,
+        })),
+        secondTitle: 'У кого больше всего',
+        second: top.map(row => ({
+          label: row.nickname, value: `${row.money.toLocaleString('ru-RU')} ₽`, characterId: row.id,
+        })),
+      })
+    }
+
+    if (kind === 'shifts') {
+      const [byStatus, stuck] = await Promise.all([
+        prisma.workShift.groupBy({ by: ['status'], _count: true }),
+        prisma.workShift.findMany({
+          where: { status: 'READY_TO_CLAIM' },
+          select: { id: true, endsAt: true, character: { select: { id: true, nickname: true } } },
+          orderBy: { endsAt: 'asc' }, take: 8,
+        }),
+      ])
+      return reply.send({
+        title: 'Смены по состояниям',
+        rows: byStatus.map(row => ({
+          label: SHIFT_STATUS[row.status] ?? row.status,
+          hint: row.status,
+          value: String(row._count),
+        })),
+        secondTitle: stuck.length ? 'Ждут выдачи дольше всех — если их много, проверьте воркер' : 'Ничего не зависло',
+        second: stuck.map(row => ({
+          label: `${row.character.nickname} · закончилась ${new Date(row.endsAt).toLocaleString('ru-RU')}`,
+          value: '', characterId: row.character.id,
+        })),
+      })
+    }
+
+    if (kind === 'market') {
+      const [byStatus, priciest] = await Promise.all([
+        prisma.marketListing.groupBy({ by: ['status'], _count: true }),
+        prisma.marketListing.findMany({
+          where: { status: 'ACTIVE' },
+          select: {
+            id: true, price: true, sellerCharacterId: true,
+            itemInstanceId: true, resourceTemplateId: true, resourceAmount: true,
+          },
+          orderBy: { price: 'desc' }, take: 8,
+        }),
+      ])
+
+      // MarketListing хранит голые идентификаторы без связей Prisma, так
+      // что имена подтягиваем отдельно. Оно того стоит: дорогой лот
+      // смотрят, чтобы понять, не разгоняют ли цену, а по «лот dc7ece9e»
+      // этого не видно — нужны вещь и продавец.
+      const [sellers, instances, resources] = await Promise.all([
+        prisma.character.findMany({
+          where: { id: { in: priciest.map(row => row.sellerCharacterId) } },
+          select: { id: true, nickname: true },
+        }),
+        prisma.itemInstance.findMany({
+          where: { id: { in: priciest.flatMap(row => row.itemInstanceId ? [row.itemInstanceId] : []) } },
+          select: { id: true, template: { select: { name: true } } },
+        }),
+        prisma.resourceTemplate.findMany({
+          where: { id: { in: priciest.flatMap(row => row.resourceTemplateId ? [row.resourceTemplateId] : []) } },
+          select: { id: true, name: true },
+        }),
+      ])
+      const sellerName = new Map(sellers.map(row => [row.id, row.nickname]))
+      const itemName = new Map(instances.map(row => [row.id, row.template.name]))
+      const resourceName = new Map(resources.map(row => [row.id, row.name]))
+      return reply.send({
+        title: 'Лоты по состояниям',
+        rows: byStatus.map(row => ({
+          label: LISTING_STATUS[row.status] ?? row.status,
+          hint: row.status,
+          value: String(row._count),
+        })),
+        secondTitle: 'Самые дорогие активные лоты',
+        second: priciest.map(row => {
+          const resource = row.resourceTemplateId ? resourceName.get(row.resourceTemplateId) : undefined
+          const what = (row.itemInstanceId ? itemName.get(row.itemInstanceId) : undefined)
+            ?? (resource ? `${resource} ×${row.resourceAmount ?? 0}` : `лот ${row.id.slice(0, 8)}`)
+          return {
+            label: `${what} — ${sellerName.get(row.sellerCharacterId) ?? 'продавец удалён'}`,
+            value: `${row.price.toLocaleString('ru-RU')} ₽`,
+            characterId: row.sellerCharacterId,
+          }
+        }),
+      })
+    }
+
+    if (kind === 'players') {
+      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      const [total, active, banned, fresh, newest] = await Promise.all([
+        prisma.character.count(),
+        prisma.user.count({ where: { lastLoginAt: { gte: dayAgo } } }),
+        prisma.user.count({ where: { status: 'BANNED' } }),
+        prisma.character.count({ where: { createdAt: { gte: dayAgo } } }),
+        // Новички — единственное в этой карточке, с чем что-то делают:
+        // накрутку и мультиаккаунт ищут именно среди свежих регистраций.
+        prisma.character.findMany({
+          select: { id: true, nickname: true, createdAt: true },
+          orderBy: { createdAt: 'desc' }, take: 8,
+        }),
+      ])
+      return reply.send({
+        title: 'Кто в игре',
+        rows: [
+          { label: 'Персонажей всего', value: String(total) },
+          { label: 'Заходили за сутки', value: String(active) },
+          { label: 'Новых за сутки', value: String(fresh) },
+          { label: 'Забанено', value: String(banned) },
+        ],
+        secondTitle: 'Последние регистрации',
+        second: newest.map(row => ({
+          label: row.nickname,
+          value: new Date(row.createdAt).toLocaleString('ru-RU'),
+          characterId: row.id,
+        })),
+      })
+    }
+
+    return reply.code(404).send({ code: 'GEN_002', message: 'Нет такой карточки' })
   })
 
   // ── Баланс ───────────────────────────────────────────────────
@@ -268,8 +442,11 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
         where: { characterId: character.id }, orderBy: { createdAt: 'desc' }, take: 20,
       }),
       prisma.itemInstance.findMany({
-        where: { ownerId: character.id, status: 'NORMAL' },
-        select: { id: true, isEquipped: true, quality: true, durabilityCurrent: true, template: { select: { name: true, type: true, priceBase: true } } },
+        // Выставленное на рынок тоже принадлежит игроку. Показывать
+        // «вещей нет» человеку, у которого висит десяток лотов, — прямой
+        // обман: именно эти лоты и смотрят, разбирая перекачку денег.
+        where: { ownerId: character.id, status: { in: ['NORMAL', 'ON_MARKET'] } },
+        select: { id: true, isEquipped: true, status: true, quality: true, durabilityCurrent: true, template: { select: { name: true, type: true, priceBase: true } } },
         take: 60,
       }),
       prisma.battleParticipant.count({ where: { characterId: character.id } }),
@@ -278,7 +455,13 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
         select: { role: true, clan: { select: { id: true, name: true, tag: true } } },
       }),
     ])
-    return reply.send({ character, money, items, battles, clan })
+    return reply.send({
+      character,
+      // Код причины оставляем — по нему ищут в журнале, — но рядом кладём
+      // название: строка «UPGRADE_USE −450 ₽» без словаря нечитаема.
+      money: money.map(row => ({ ...row, reasonTitle: reasonTitle(row.reasonCode) })),
+      items, battles, clan,
+    })
   })
 
   const BanBody = z.object({ reason: REASON })

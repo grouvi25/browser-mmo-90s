@@ -8,8 +8,9 @@
 // Правило раздела: ни одного числа, из которого некуда пойти. Каждая
 // карточка либо ведёт в свой раздел, либо объясняет, почему она такая.
 // =============================================================
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ArrowRight } from 'lucide-react'
+import { AlertTriangle, ArrowRight, ChevronDown } from 'lucide-react'
 import { adminApi, type EconomySnapshot } from '../admin-api'
 import { AlertsPanel } from './alerts-panel'
 import { Skeleton, Fault } from '../../stage3/stage3-ui'
@@ -55,31 +56,41 @@ export function OverviewSection({ onGo }: { onGo: (tab: string, focus?: string) 
         </p>
       )}
 
+      {/* Каждая карточка раскрывается в разбивку: число без «из чего оно
+          состоит» ничего не говорит, а идти за этим в базу — не работа
+          администратора. */}
       <div className="adm-cards adm-cards--wide">
         <Tile
+          kind="money"
           label="Денег у игроков"
           value={rub(economy.data!.m2Total) + ' ₽'}
           note={latest?.m2Growth != null
             ? `за сутки ${latest.m2Growth >= 0 ? '+' : ''}${pct(latest.m2Growth)}`
             : 'динамика появится после первого снимка'}
           bad={latest?.m2Growth != null && latest.m2Growth > MAX_M2_GROWTH}
+          onGo={onGo}
         />
         <Tile
+          kind="players"
           label="Персонажей"
           value={rub(economy.data!.characters)}
           note={`учётных записей ${rub(stats.data!.users)}`}
-          onClick={() => onGo('clans')}
-          action="к бригадам"
+          onGo={onGo}
+          action={{ label: 'к игрокам', tab: 'players' }}
         />
         <Tile
+          kind="shifts"
           label="Смен идёт"
           value={rub(economy.data!.activeShifts)}
           note={latest ? `закрыто за сутки ${rub(latest.completedShifts)}` : 'сейчас на объектах'}
+          onGo={onGo}
         />
         <Tile
+          kind="market"
           label="Лотов на рынке"
           value={rub(economy.data!.activeListings)}
           note={latest ? `медиана цены ${rub(latest.medianListingPrice)} ₽` : 'активные и заблокированные'}
+          onGo={onGo}
         />
       </div>
 
@@ -133,20 +144,77 @@ export function OverviewSection({ onGo }: { onGo: (tab: string, focus?: string) 
 }
 
 function Tile({
-  label, value, note, onClick, action, bad,
+  kind, label, value, note, action, bad, onGo,
 }: {
+  kind: string
   label: string; value: string; note?: string
-  onClick?: () => void; action?: string; bad?: boolean
+  action?: { label: string; tab: string }
+  bad?: boolean
+  onGo: (tab: string, focus?: string) => void
 }) {
+  const [open, setOpen] = useState(false)
+  const detail = useQuery({
+    queryKey: ['admin', 'overview', kind],
+    queryFn: () => adminApi.overviewDetail(kind),
+    enabled: open,
+  })
+
   return (
     <div className={bad ? 'adm-card adm-card--bad' : 'adm-card'}>
       <span>{label}</span>
       <b>{value}</b>
       {note && <i className="adm-card__note">{note}</i>}
-      {onClick && (
-        <button type="button" className="adm-link" onClick={onClick}>
-          {action} <ArrowRight size={11} />
+
+      <div className="adm-card__links">
+        <button type="button" className="adm-link" onClick={() => setOpen(!open)} aria-expanded={open}>
+          <ChevronDown size={11} /> {open ? 'свернуть' : 'из чего состоит'}
         </button>
+        {action && (
+          <button type="button" className="adm-link" onClick={() => onGo(action.tab)}>
+            {action.label} <ArrowRight size={11} />
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="adm-card__detail">
+          {detail.isLoading && <span className="adm-hint">Считаю…</span>}
+          {/* Пустая раскрытая карточка выглядит как «данных нет», хотя на
+              деле упал запрос: показываем причину и даём повторить. */}
+          {detail.isError && <Fault retry={() => detail.refetch()} />}
+          {detail.data && (
+            <>
+              <h5>{detail.data.title}</h5>
+              <ul>
+                {detail.data.rows.map((row, index) => (
+                  <li key={index}>
+                    <span>{row.label}{row.hint && <em className="adm-row__hint">{row.hint}</em>}</span>
+                    <b>{row.value}</b>
+                  </li>
+                ))}
+              </ul>
+              {detail.data.second.length > 0 && (
+                <>
+                  <h5>{detail.data.secondTitle}</h5>
+                  <ul>
+                    {detail.data.second.map((row, index) => (
+                      <li key={index}>
+                        <span>{row.label}</span>
+                        <b>{row.value}</b>
+                        {/* Строка про конкретного игрока открывает его карточку:
+                            иначе его пришлось бы искать в списке руками. */}
+                        {row.characterId && (
+                          <button type="button" className="adm-link"
+                            onClick={() => onGo('players', row.characterId)}>открыть</button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
+          )}
+        </div>
       )}
     </div>
   )

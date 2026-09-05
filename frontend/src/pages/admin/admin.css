@@ -156,6 +156,30 @@
 .adm-card--bad { border-color: var(--s3-red, #ab0303); }
 .adm-card--bad b { color: var(--s3-red, #ab0303); }
 
+/* Раскрытая разбивка: карточка перестаёт быть плиткой и растягивается
+   на всю ширину сетки — иначе разбор ужимался бы в четверть экрана. */
+.adm-card__links { display: flex; flex-wrap: wrap; gap: 12px; }
+.adm-card:has(.adm-card__detail) { grid-column: 1 / -1; }
+.adm-card__detail { margin-top: 8px; border-top: 1px solid var(--s3-line, #c9b79f); padding-top: 8px; }
+.adm-card__detail h5 { margin: 0 0 5px; font: 700 13.25px/1.3 var(--font-ui); }
+.adm-card__detail h5 + ul + h5 { margin-top: 10px; }
+.adm-card__detail ul { margin: 0; padding: 0; list-style: none; }
+.adm-card__detail li {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 3px 0; border-bottom: 1px dotted var(--s3-line, #c9b79f);
+  font-size: 13.82px;
+}
+.adm-card__detail li span { flex: 1; min-width: 0; color: var(--s3-ink, #2b2118); }
+.adm-card__detail li b { font: 700 13.82px/1 var(--font-mono, monospace); }
+.adm-card__detail li .adm-link { margin-top: 0; }
+
+/* Технический код рядом с человеческим названием: по нему ищут в журнале,
+   но читать строку он мешать не должен — отсюда размер и цвет. */
+.adm-row__hint {
+  display: block; margin-top: 1px;
+  font-style: normal; font-size: 12.5px; color: var(--s3-dim, #6b5b4a);
+}
+
 /* Ссылка-действие внутри карточки: число, из которого есть куда пойти. */
 .adm-link {
   display: inline-flex; align-items: center; gap: 3px;
