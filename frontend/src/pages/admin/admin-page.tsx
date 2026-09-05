@@ -118,7 +118,7 @@ export function AdminPage() {
           требовать от администратора игровой аккаунт незачем. */}
       {tab === 'sandbox' && <BalanceSandboxPage simulate={adminApi.simulateBalance} />}
       {tab === 'duel' && <CombatSandboxSection />}
-      {tab === 'items' && <ItemsSection />}
+      {tab === 'items' && <ItemsSection role={role} />}
     </main>
   )
 }

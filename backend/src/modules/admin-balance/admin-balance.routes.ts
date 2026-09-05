@@ -15,8 +15,9 @@ import { getLatestEconomyMetrics, collectEconomyMetrics } from '../../workers/ec
 import { describeAlerts } from './alerts-registry'
 import { balanceRegistry } from './balance-registry'
 import {
-  currentValue, defaultValue, listOverrides, validatePath,
+  currentValue, defaultValue, limitsFor, listOverrides, validatePath,
 } from './balance-overrides.service'
+import { sendTelegram, telegramConfigured } from './telegram.service'
 
 const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
 const WRITE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN') }
@@ -49,6 +50,21 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     return reply.send({ cards: await describeAlerts(snapshot), snapshotDate: snapshot.date })
   })
 
+  // ── Оповещения ───────────────────────────────────────────────
+
+  /** Настроен ли бот. Токен наружу не отдаётся — только факт наличия. */
+  fastify.get('/telegram', READ_ADMIN, async (_req, reply) => {
+    return reply.send({ configured: telegramConfigured() })
+  })
+
+  /** Проверка связи: одно сообщение в тот же чат, куда уходят алерты. */
+  fastify.post('/telegram/test', WRITE_ADMIN, async (req, reply) => {
+    const result = await sendTelegram(
+      `✅ Проверка связи из админки «Кооператива». Отправил ${admin(req).adminId.slice(0, 8)}.`,
+    )
+    return reply.send(result)
+  })
+
   // ── Баланс ───────────────────────────────────────────────────
 
   fastify.get('/balance', READ_ADMIN, async (_req, reply) => {
@@ -66,6 +82,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
             ...param,
             value: currentValue(param.path) ?? param.value,
             defaultValue: defaultValue(param.path),
+            limits: limitsFor(param.path),
             override: override
               ? { reason: override.reason, updatedAt: override.updatedAt, adminId: override.adminId }
               : null,

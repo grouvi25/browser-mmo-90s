@@ -18,6 +18,13 @@ const EnvSchema = z.object({
 
   // Worker mode flag
   WORKER_MODE:      z.string().optional().transform(v => v === 'true'),
+
+  // Оповещения в Telegram. Необязательны: без них всё работает как
+  // раньше, алерты просто остаются в админке. Токен живёт только в
+  // окружении — ни в базе, ни в ответах API его нет, иначе доступ к
+  // админке означал бы и доступ к боту.
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_CHAT_ID:   z.string().optional(),
 })
 
 function loadEnv() {

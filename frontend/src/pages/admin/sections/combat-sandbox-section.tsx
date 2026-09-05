@@ -14,10 +14,10 @@
 // лежит в базе.
 // =============================================================
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { Swords } from 'lucide-react'
-import { adminApi, type CombatResult, type CombatSide, type Fighter, type ItemTemplateRow } from '../admin-api'
-import { Skeleton, Fault } from '../../stage3/stage3-ui'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Swords } from 'lucide-react'
+import { adminApi, REASON_MIN, type CombatResult, type CombatSide, type Fighter, type ItemTemplateRow } from '../admin-api'
+import { Skeleton, Fault, Note } from '../../stage3/stage3-ui'
 
 const pct = (value: number) => `${(value * 100).toFixed(1)}%`
 
@@ -239,10 +239,20 @@ function FighterForm({
   )
 }
 
-/** Справочник предметов — что вообще есть в игре и с какими числами. */
-export function ItemsSection() {
+/**
+ * Предметы игры: справочник и правка.
+ *
+ * Цены и характеристики правятся прямо здесь — с причиной и через журнал,
+ * как всякое админское действие. Смотреть на таблицу и не мочь поменять
+ * цену, ради которой в неё и заглянули, — ровно то, чего в панели быть
+ * не должно.
+ */
+export function ItemsSection({ role }: { role?: string | null }) {
+  const qc = useQueryClient()
   const items = useQuery({ queryKey: ['admin', 'items'], queryFn: adminApi.sandboxItems })
   const [type, setType] = useState<string>('WEAPON')
+  const [adding, setAdding] = useState(false)
+  const canEdit = role === 'SUPER_ADMIN'
 
   if (items.isLoading) return <Skeleton rows={4} />
   if (items.isError) return <Fault retry={() => items.refetch()} />
@@ -254,17 +264,33 @@ export function ItemsSection() {
   return (
     <>
       <p className="s4-lead">
-        {all.length} предметов в игре — то, что реально лежит в базе, а не в сиде:
-        правки, сделанные после последнего посева, тут тоже видны.
+        {all.length} предметов — то, что реально лежит в базе, а не в сиде.{' '}
+        {canEdit
+          ? 'Цену и характеристики можно поправить прямо в строке, а новый предмет завести кнопкой рядом.'
+          : 'Править может только SUPER_ADMIN.'}
       </p>
 
-      <div className="s3-tabs">
-        {types.map(kind => (
-          <button key={kind} type="button" className={kind === type ? 'active' : ''} onClick={() => setType(kind)}>
-            {kind} ({all.filter(item => item.type === kind).length})
+      <div className="adm-items__head">
+        <div className="s3-tabs">
+          {types.map(kind => (
+            <button key={kind} type="button" className={kind === type ? 'active' : ''} onClick={() => setType(kind)}>
+              {kind} ({all.filter(item => item.type === kind).length})
+            </button>
+          ))}
+        </div>
+        {canEdit && (
+          <button type="button" className="adm-link" onClick={() => setAdding(!adding)}>
+            <Plus size={12} /> {adding ? 'скрыть форму' : 'Добавить предмет'}
           </button>
-        ))}
+        )}
       </div>
+
+      {adding && (
+        <NewItemForm onDone={() => {
+          setAdding(false)
+          void qc.invalidateQueries({ queryKey: ['admin', 'items'] })
+        }} />
+      )}
 
       <div className="adm-scroll">
         <table className="adm-table">
@@ -272,25 +298,193 @@ export function ItemsSection() {
             <tr>
               <th>Название</th><th>Код</th><th>Ур.</th><th>Цена</th>
               <th>Урон</th><th>Точность</th><th>Броня</th><th>Прочность</th><th>Вес</th>
+              {canEdit && <th></th>}
             </tr>
           </thead>
           <tbody>
             {shown.map(item => (
-              <tr key={item.code}>
-                <td>{item.name}</td>
-                <td><code>{item.code}</code></td>
-                <td className="num">{item.levelReq ?? '—'}</td>
-                <td className="num">{item.priceBase?.toLocaleString('ru-RU') ?? '—'}</td>
-                <td className="num">{item.minDamage != null ? `${item.minDamage}–${item.maxDamage}` : '—'}</td>
-                <td className="num">{item.weaponAccuracy ?? '—'}</td>
-                <td className="num">{item.armor ?? '—'}</td>
-                <td className="num">{item.durabilityMax ?? '—'}</td>
-                <td className="num">{item.weight ?? '—'}</td>
-              </tr>
+              <ItemRow key={item.code} item={item} canEdit={canEdit} />
             ))}
           </tbody>
         </table>
       </div>
     </>
+  )
+}
+
+/** Числовые поля, которые имеет смысл править из панели. */
+const EDITABLE: { key: keyof ItemTemplateRow; label: string; step?: number }[] = [
+  { key: 'priceBase', label: 'Цена' },
+  { key: 'levelReq', label: 'Уровень' },
+  { key: 'minDamage', label: 'Урон от' },
+  { key: 'maxDamage', label: 'Урон до' },
+  { key: 'weaponAccuracy', label: 'Точность', step: 0.01 },
+  { key: 'armor', label: 'Броня' },
+  { key: 'durabilityMax', label: 'Прочность' },
+  { key: 'weight', label: 'Вес', step: 0.1 },
+]
+
+function ItemRow({ item, canEdit }: { item: ItemTemplateRow; canEdit: boolean }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
+
+  const save = useMutation({
+    mutationFn: () => {
+      // Отправляем только изменённое: обратная операция пишется по этим же
+      // полям, и лишние затёрли бы чужую правку соседнего поля.
+      const fields: Record<string, number> = {}
+      for (const field of EDITABLE) {
+        const raw = draft[field.key as string]
+        if (raw === undefined || raw === '') continue
+        const next = Number(raw)
+        if (next !== item[field.key]) fields[field.key as string] = next
+      }
+      return adminApi.updateItem(item.code, fields, reason.trim())
+    },
+    onSuccess: () => {
+      setEditing(false); setReason(''); setError(''); setDraft({})
+      void qc.invalidateQueries({ queryKey: ['admin', 'items'] })
+    },
+    onError: (err: Error) => setError(err.message),
+  })
+
+  if (editing) {
+    return (
+      <tr className="adm-item is-editing">
+        <td colSpan={10}>
+          <div className="adm-item__edit">
+            <b>{item.name}</b> <code>{item.code}</code>
+            <div className="adm-item__fields">
+              {EDITABLE.map(field => (
+                <label key={field.key as string}>
+                  <span>{field.label}</span>
+                  <input
+                    type="number" step={field.step ?? 1}
+                    defaultValue={item[field.key] === null ? '' : String(item[field.key])}
+                    onChange={event => setDraft({ ...draft, [field.key as string]: event.target.value })}
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="adm-item__save">
+              <input
+                value={reason}
+                onChange={event => setReason(event.target.value)}
+                placeholder={`Причина, от ${REASON_MIN} символов`}
+                aria-label="Причина правки предмета"
+              />
+              <button type="button" disabled={save.isPending || reason.trim().length < REASON_MIN}
+                onClick={() => save.mutate()}>Сохранить</button>
+              <button type="button" className="adm-link"
+                onClick={() => { setEditing(false); setError('') }}>отмена</button>
+            </div>
+            {error && <Note text={error} kind="bad" />}
+          </div>
+        </td>
+      </tr>
+    )
+  }
+
+  return (
+    <tr>
+      <td>{item.name}</td>
+      <td><code>{item.code}</code></td>
+      <td className="num">{item.levelReq ?? '—'}</td>
+      <td className="num">{item.priceBase?.toLocaleString('ru-RU') ?? '—'}</td>
+      <td className="num">{item.minDamage != null ? `${item.minDamage}–${item.maxDamage}` : '—'}</td>
+      <td className="num">{item.weaponAccuracy ?? '—'}</td>
+      <td className="num">{item.armor ?? '—'}</td>
+      <td className="num">{item.durabilityMax ?? '—'}</td>
+      <td className="num">{item.weight ?? '—'}</td>
+      {canEdit && (
+        <td>
+          <button type="button" className="adm-link" onClick={() => setEditing(true)}>править</button>
+        </td>
+      )}
+    </tr>
+  )
+}
+
+/** Новый предмет. Код и тип задаются один раз и потом не меняются. */
+function NewItemForm({ onDone }: { onDone: () => void }) {
+  const [form, setForm] = useState({
+    code: '', name: '', type: 'WEAPON',
+    priceBase: 500, levelReq: 1, durabilityMax: 100, weight: 1,
+    minDamage: 10, maxDamage: 20, weaponAccuracy: 0.75, armor: 0,
+  })
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
+
+  const create = useMutation({
+    mutationFn: () => adminApi.createItem({
+      ...form,
+      // Оружейные поля осмысленны только у оружия, броня — у брони:
+      // пустое значение у остальных типов честнее нуля.
+      minDamage: form.type === 'WEAPON' ? form.minDamage : null,
+      maxDamage: form.type === 'WEAPON' ? form.maxDamage : null,
+      weaponAccuracy: form.type === 'WEAPON' ? form.weaponAccuracy : null,
+      armor: form.type === 'ARMOR' ? form.armor : null,
+    }, reason.trim()),
+    onSuccess: onDone,
+    onError: (err: Error) => setError(err.message),
+  })
+
+  const set = (key: string) => (value: string) =>
+    setForm({ ...form, [key]: ['code', 'name', 'type'].includes(key) ? value : Number(value) })
+
+  return (
+    <div className="adm-card-block adm-item__new">
+      <h4>Новый предмет</h4>
+      <div className="adm-item__fields">
+        <label><span>Код (латиница)</span>
+          <input value={form.code} onChange={e => set('code')(e.target.value)} placeholder="weapon_bat_new" /></label>
+        <label><span>Название</span>
+          <input value={form.name} onChange={e => set('name')(e.target.value)} placeholder="Бита" /></label>
+        <label><span>Тип</span>
+          <select value={form.type} onChange={e => set('type')(e.target.value)}>
+            {['WEAPON', 'ARMOR', 'CONSUMABLE', 'TOOL', 'MISC'].map(kind => (
+              <option key={kind} value={kind}>{kind}</option>
+            ))}
+          </select></label>
+        <label><span>Цена</span>
+          <input type="number" value={form.priceBase} onChange={e => set('priceBase')(e.target.value)} /></label>
+        <label><span>Уровень</span>
+          <input type="number" value={form.levelReq} onChange={e => set('levelReq')(e.target.value)} /></label>
+        <label><span>Прочность</span>
+          <input type="number" value={form.durabilityMax} onChange={e => set('durabilityMax')(e.target.value)} /></label>
+        <label><span>Вес</span>
+          <input type="number" step="0.1" value={form.weight} onChange={e => set('weight')(e.target.value)} /></label>
+        {form.type === 'WEAPON' && (
+          <>
+            <label><span>Урон от</span>
+              <input type="number" value={form.minDamage} onChange={e => set('minDamage')(e.target.value)} /></label>
+            <label><span>Урон до</span>
+              <input type="number" value={form.maxDamage} onChange={e => set('maxDamage')(e.target.value)} /></label>
+            <label><span>Точность</span>
+              <input type="number" step="0.01" value={form.weaponAccuracy} onChange={e => set('weaponAccuracy')(e.target.value)} /></label>
+          </>
+        )}
+        {form.type === 'ARMOR' && (
+          <label><span>Броня</span>
+            <input type="number" value={form.armor} onChange={e => set('armor')(e.target.value)} /></label>
+        )}
+      </div>
+      <div className="adm-item__save">
+        <input value={reason} onChange={e => setReason(e.target.value)}
+          placeholder={`Причина, от ${REASON_MIN} символов`} aria-label="Причина создания" />
+        <button type="button"
+          disabled={create.isPending || reason.trim().length < REASON_MIN || !form.code || !form.name}
+          onClick={() => create.mutate()}>Создать</button>
+      </div>
+      {error && <Note text={error} kind="bad" />}
+      <p className="adm-hint">
+        Предмет появится в игре сразу. Отменяется из журнала — но только пока
+        по нему никому ничего не выдали: у выданных вещей шаблон это их
+        происхождение.
+      </p>
+    </div>
   )
 }

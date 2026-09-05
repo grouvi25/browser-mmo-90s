@@ -1,3 +1,4 @@
+import { AppConfig } from '../config/app.config'
 import { BalanceConfig } from '../config/balance.config'
 import { prisma } from '../shared/db/prisma'
 import { getRedis } from '../shared/db/redis'
@@ -107,6 +108,26 @@ export async function collectEconomyMetrics(now = new Date()): Promise<EconomyMe
   await getRedis().setex(economyMetricsKey(date), SNAPSHOT_TTL_SECONDS, JSON.stringify(snapshot))
   logger.info({ economyMetrics: snapshot }, '[EconomyMetrics] Daily snapshot stored')
   for (const alert of alerts) logger.warn({ alert, date, snapshot }, '[EconomyMetrics] Alert')
+
+  // Снимок считается ночью, и до утра алерт в панели никто не увидит.
+  // Разбор с уликами остаётся в админке — в бот уходит короткое «что и
+  // насколько», чтобы человек понял, стоит ли открывать ноутбук.
+  if (alerts.length > 0) {
+    try {
+      const { describeAlerts } = await import('../modules/admin-balance/alerts-registry')
+      const { notifyAlerts } = await import('../modules/admin-balance/telegram.service')
+      const cards = await describeAlerts(snapshot)
+      const sent = await notifyAlerts(date, cards.map(card => ({
+        code: card.code, title: card.title, what: card.what,
+        actual: card.threshold.actual, limit: card.threshold.limit,
+      })), AppConfig.server.appUrl)
+      if (sent > 0) logger.info({ sent }, '[EconomyMetrics] Алерты отправлены в Telegram')
+    } catch (err) {
+      // Оповещение — дополнение к панели: его сбой не должен стоить
+      // снимка метрик, ради которого всё и считалось.
+      logger.error({ err }, '[EconomyMetrics] Не удалось отправить алерты в Telegram')
+    }
+  }
   return snapshot
 }
 
