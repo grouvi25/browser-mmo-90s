@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { MENU } from '../../shared/lib/layout-map'
-import { FitText, type StageBox } from '../../shared/lib/stage'
+import { FitText, MIN_SQUEEZE, type StageBox } from '../../shared/lib/stage'
 import { useAuth } from '../../app/providers/auth-provider'
 import { authApi } from '../../shared/api/auth.api'
 import { charactersApi } from '../../shared/api/characters.api'
@@ -112,19 +112,57 @@ function NavMoney() {
     retry: false,
     refetchInterval: 30_000,
   })
+  const textRef = useRef<HTMLSpanElement>(null)
+  const [squeeze, setSqueeze] = useState(1)
+  const [fontScale, setFontScale] = useState(1)
+  const money = char ? char.money.toLocaleString('ru') : ''
+
+  // Сумма — единственная надпись шапки, длину которой задаёт не макет, а
+  // игрок. Пока помещается в свою ячейку, кегль макетный; переросла —
+  // подгоняется по тому же правилу, что и надписи макета в FitText:
+  // сперва лёгкое сжатие, а глубже MIN_SQUEEZE остаток берётся кеглем,
+  // иначе крупный баланс превращался бы в нечитаемую гармошку.
+  useEffect(() => {
+    const text = textRef.current
+    if (!text) return
+    const measure = () => {
+      const prevTransform = text.style.transform
+      const prevFont = text.style.fontSize
+      text.style.transform = 'none'
+      text.style.fontSize = `${MENU.navFontSize}px`
+      const natural = text.offsetWidth
+      text.style.transform = prevTransform
+      text.style.fontSize = prevFont
+      if (natural <= 0) return
+      const fit = Math.min(1, MENU.navMoney.w / natural)
+      if (fit >= MIN_SQUEEZE) { setSqueeze(fit); setFontScale(1) }
+      else { setSqueeze(MIN_SQUEEZE); setFontScale(fit / MIN_SQUEEZE) }
+    }
+    measure()
+    if (document.fonts?.ready) void document.fonts.ready.then(measure)
+  }, [money])
+
   if (!char) return null
   return (
     <div
       className="t-sign stage-money"
       style={{
-        left: MENU.navMoney.x, top: MENU.navMoney.y,
-        width: MENU.navMoney.w, height: MENU.navMoney.h,
+        left: MENU.navMoney.x, top: MENU.navMoney.y, width: MENU.navMoney.w,
         fontSize: MENU.navFontSize,
+        // Тот же сдвиг, что у пунктов меню: они рисуются через FitText
+        // с MENU.navDy, и без него сумма садилась на четыре пикселя ниже.
+        transform: `translateY(${MENU.navDy}px)`,
       }}
-      title={'Наличные: ' + char.money.toLocaleString('ru') + ' рублей'}
+      title={'Наличные: ' + money + ' рублей'}
     >
-      <span className="stage-money__sum">{char.money.toLocaleString('ru')}</span>
-      <span className="stage-money__cur">&#8381;</span>
+      <span
+        ref={textRef}
+        className="stage-money__text"
+        style={{ fontSize: MENU.navFontSize * fontScale, transform: `scaleX(${squeeze})` }}
+      >
+        <span className="stage-money__sum">{money}</span>
+        <span className="stage-money__cur">&#8381;</span>
+      </span>
     </div>
   )
 }
