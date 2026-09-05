@@ -294,6 +294,17 @@ enum AdminActionKind {
   UNBAN_USER
   MUTE_USER
   UNMUTE_USER
+  // Цены и оклады из справочника. Базовая цена ресурса, цена в
+  // госмагазине, цена в баре и оклад объекта — это те же коэффициенты
+  // экономики, только живущие в базе, а не в конфиге.
+  SET_RESOURCE_TEMPLATE
+  RESTORE_RESOURCE_TEMPLATE
+  SET_SHOP_ITEM
+  RESTORE_SHOP_ITEM
+  SET_BAR_OFFER
+  RESTORE_BAR_OFFER
+  SET_PRODUCTION_OBJECT
+  RESTORE_PRODUCTION_OBJECT
   ROLLBACK
 }
 

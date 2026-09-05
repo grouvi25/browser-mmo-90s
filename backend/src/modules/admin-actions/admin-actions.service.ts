@@ -514,6 +514,73 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
     await tx.user.update({ where: { id: userId }, data: { mutedUntil: date(payload, 'mutedUntil') } })
   },
 
+  // ── Цены и оклады из справочника ─────────────────────────────
+  //
+  // Прямая правка и её откат — одна и та же операция с разными полями:
+  // и туда, и обратно пишется прежний набор значений. Отдельные ветки
+  // нужны только затем, чтобы в журнале было видно, что это было —
+  // правка или возврат.
+
+  SET_RESOURCE_TEMPLATE: async (tx, payload) => {
+    const code = str(payload, 'code')
+    must(await tx.resourceTemplate.findUnique({ where: { code } }), `Ресурса «${code}» больше нет`)
+    await tx.resourceTemplate.update({
+      where: { code }, data: payload.fields as Prisma.ResourceTemplateUpdateInput,
+    })
+  },
+
+  RESTORE_RESOURCE_TEMPLATE: async (tx, payload) => {
+    const code = str(payload, 'code')
+    must(await tx.resourceTemplate.findUnique({ where: { code } }), `Ресурса «${code}» больше нет`)
+    await tx.resourceTemplate.update({
+      where: { code }, data: payload.fields as Prisma.ResourceTemplateUpdateInput,
+    })
+  },
+
+  SET_SHOP_ITEM: async (tx, payload) => {
+    const id = str(payload, 'id')
+    must(await tx.governmentShopItem.findUnique({ where: { id } }), 'Позиции госмагазина больше нет')
+    await tx.governmentShopItem.update({
+      where: { id }, data: payload.fields as Prisma.GovernmentShopItemUpdateInput,
+    })
+  },
+
+  RESTORE_SHOP_ITEM: async (tx, payload) => {
+    const id = str(payload, 'id')
+    must(await tx.governmentShopItem.findUnique({ where: { id } }), 'Позиции госмагазина больше нет')
+    await tx.governmentShopItem.update({
+      where: { id }, data: payload.fields as Prisma.GovernmentShopItemUpdateInput,
+    })
+  },
+
+  SET_BAR_OFFER: async (tx, payload) => {
+    const code = str(payload, 'code')
+    must(await tx.barOffer.findUnique({ where: { code } }), `Позиции бара «${code}» больше нет`)
+    await tx.barOffer.update({ where: { code }, data: payload.fields as Prisma.BarOfferUpdateInput })
+  },
+
+  RESTORE_BAR_OFFER: async (tx, payload) => {
+    const code = str(payload, 'code')
+    must(await tx.barOffer.findUnique({ where: { code } }), `Позиции бара «${code}» больше нет`)
+    await tx.barOffer.update({ where: { code }, data: payload.fields as Prisma.BarOfferUpdateInput })
+  },
+
+  SET_PRODUCTION_OBJECT: async (tx, payload) => {
+    const code = str(payload, 'code')
+    must(await tx.productionObject.findUnique({ where: { code } }), `Объекта «${code}» больше нет`)
+    await tx.productionObject.update({
+      where: { code }, data: payload.fields as Prisma.ProductionObjectUpdateInput,
+    })
+  },
+
+  RESTORE_PRODUCTION_OBJECT: async (tx, payload) => {
+    const code = str(payload, 'code')
+    must(await tx.productionObject.findUnique({ where: { code } }), `Объекта «${code}» больше нет`)
+    await tx.productionObject.update({
+      where: { code }, data: payload.fields as Prisma.ProductionObjectUpdateInput,
+    })
+  },
+
   ROLLBACK: async () => {
     // Откат отката не заводится: цепочка отмен превращает журнал в игру
     // «кто последний нажал». Испортил откатом — сделай прямое действие с

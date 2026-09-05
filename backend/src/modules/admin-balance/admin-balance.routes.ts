@@ -336,6 +336,165 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     return reply.send({ actionId: action.actionId, path, restored: defaultValue(path) })
   })
 
+
+  // ── Правка справочника ───────────────────────────────────────
+  //
+  // Базовая цена ресурса, цена в госмагазине, цена в баре и оклад
+  // объекта — такие же коэффициенты экономики, как то, что лежит в
+  // BalanceConfig, только хранятся в базе. Раньше их можно было менять
+  // единственным способом: руками по живой базе, без причины и без
+  // следа. Теперь — отсюда, парно и через журнал.
+  //
+  // Границы жёсткие намеренно. Цена ресурса в ноль обнуляет госскупку и
+  // маржу всех рецептов на нём разом; оклад в сто тысяч печатает деньги
+  // быстрее, чем воркер успеет заметить. Отменить-то можно, но сутки
+  // экономики к тому времени уже испорчены.
+
+  /** Общая часть: собрать прежние значения ровно тех полей, что меняем. */
+  function previousOf(before: unknown, fields: Record<string, unknown>): Record<string, unknown> {
+    const previous: Record<string, unknown> = {}
+    for (const key of Object.keys(fields)) previous[key] = (before as Record<string, unknown>)[key]
+    return previous
+  }
+
+  const RESOURCE_FIELDS = z.object({
+    name: z.string().min(1).max(60).optional(),
+    // Ноль запрещён: на базовую цену опирается и госскупка, и маржа
+    // рецептов, и выгода огорода — обнулив её, экономику ресурса
+    // выключают целиком, обычно не желая того.
+    basePrice: z.number().int().min(1).max(1_000_000).optional(),
+    weight: z.number().min(0).max(100).optional(),
+    isTradable: z.boolean().optional(),
+    isActive: z.boolean().optional(),
+  })
+
+  fastify.patch<{ Params: { code: string } }>('/catalog/resource/:code', WRITE_ADMIN, async (req, reply) => {
+    const parsed = z.object({ fields: RESOURCE_FIELDS, reason: REASON }).safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    const code = req.params.code
+    const before = await prisma.resourceTemplate.findUnique({ where: { code } })
+    if (!before) return reply.code(404).send({ code: 'GEN_002', message: 'Ресурс не найден' })
+
+    const fields = parsed.data.fields as Record<string, unknown>
+    const previous = previousOf(before, fields)
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'SET_RESOURCE_TEMPLATE',
+      targetType: 'resource_template',
+      targetId: code,
+      payload: { code, fields: fields as Prisma.InputJsonValue },
+      undo: { kind: 'RESTORE_RESOURCE_TEMPLATE', payload: { code, fields: previous as Prisma.InputJsonValue } },
+    })
+    return reply.send({ actionId: action.actionId, code, fields, previous })
+  })
+
+  const SHOP_FIELDS = z.object({
+    // null возвращает позицию к цене из шаблона предмета — это отдельное
+    // осмысленное состояние, а не «не трогать».
+    overridePrice: z.number().int().min(1).max(10_000_000).nullable().optional(),
+    isAvailable: z.boolean().optional(),
+  })
+
+  fastify.patch<{ Params: { code: string } }>('/catalog/shop/:code', WRITE_ADMIN, async (req, reply) => {
+    const parsed = z.object({ fields: SHOP_FIELDS, reason: REASON }).safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    // Адресуемся кодом предмета: id позиции магазина в панели не виден и
+    // человеку ничего не говорит.
+    const template = await prisma.itemTemplate.findUnique({ where: { code: req.params.code }, select: { id: true } })
+    const before = template
+      ? await prisma.governmentShopItem.findUnique({ where: { templateId: template.id } })
+      : null
+    if (!before) return reply.code(404).send({ code: 'GEN_002', message: 'Позиция госмагазина не найдена' })
+
+    const fields = parsed.data.fields as Record<string, unknown>
+    const previous = previousOf(before, fields)
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'SET_SHOP_ITEM',
+      targetType: 'government_shop_item',
+      targetId: before.id,
+      payload: { id: before.id, fields: fields as Prisma.InputJsonValue },
+      undo: { kind: 'RESTORE_SHOP_ITEM', payload: { id: before.id, fields: previous as Prisma.InputJsonValue } },
+    })
+    return reply.send({ actionId: action.actionId, code: req.params.code, fields, previous })
+  })
+
+  const BAR_FIELDS = z.object({
+    price: z.number().int().min(1).max(1_000_000).optional(),
+    hpRestore: z.number().int().min(0).max(10_000).optional(),
+    accuracyBuff: z.number().min(0).max(1).optional(),
+    damageBuff: z.number().min(0).max(1).optional(),
+    buffMinutes: z.number().int().min(0).max(1440).optional(),
+    isActive: z.boolean().optional(),
+  })
+
+  fastify.patch<{ Params: { code: string } }>('/catalog/bar/:code', WRITE_ADMIN, async (req, reply) => {
+    const parsed = z.object({ fields: BAR_FIELDS, reason: REASON }).safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    const code = req.params.code
+    const before = await prisma.barOffer.findUnique({ where: { code } })
+    if (!before) return reply.code(404).send({ code: 'GEN_002', message: 'Позиция бара не найдена' })
+
+    const fields = parsed.data.fields as Record<string, unknown>
+    const previous = previousOf(before, fields)
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'SET_BAR_OFFER',
+      targetType: 'bar_offer',
+      targetId: code,
+      payload: { code, fields: fields as Prisma.InputJsonValue },
+      undo: { kind: 'RESTORE_BAR_OFFER', payload: { code, fields: previous as Prisma.InputJsonValue } },
+    })
+    return reply.send({ actionId: action.actionId, code, fields, previous })
+  })
+
+  const OBJECT_FIELDS = z.object({
+    // Оклад — главный законный кран денег в игре, поэтому потолок здесь
+    // ниже, чем у прочих цен: ошибка на порядок тут дороже всего.
+    baseSalary: z.number().int().min(1).max(10_000).optional(),
+    shiftDurationMinutes: z.number().int().min(5).max(240).optional(),
+    workerSlots: z.number().int().min(1).max(200).optional(),
+    outputAmountMin: z.number().int().min(0).max(1000).optional(),
+    outputAmountMax: z.number().int().min(0).max(1000).optional(),
+    storageCapacity: z.number().int().min(0).max(1_000_000).optional(),
+    isActive: z.boolean().optional(),
+  })
+
+  fastify.patch<{ Params: { code: string } }>('/catalog/object/:code', WRITE_ADMIN, async (req, reply) => {
+    const parsed = z.object({ fields: OBJECT_FIELDS, reason: REASON }).safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    const code = req.params.code
+    const before = await prisma.productionObject.findUnique({ where: { code } })
+    if (!before) return reply.code(404).send({ code: 'GEN_002', message: 'Объект не найден' })
+
+    const fields = parsed.data.fields as Record<string, number | boolean>
+    // Вилка выхода задом наперёд — молчаливая поломка: объект перестанет
+    // выдавать что-либо, и понять почему будет неоткуда.
+    const min = (fields.outputAmountMin as number | undefined) ?? before.outputAmountMin
+    const max = (fields.outputAmountMax as number | undefined) ?? before.outputAmountMax
+    if (min > max) {
+      return reply.code(422).send({
+        code: 'GEN_001',
+        message: `Нижняя граница выхода (${min}) больше верхней (${max}) — объект перестанет что-либо выдавать`,
+      })
+    }
+
+    const previous = previousOf(before, fields)
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'SET_PRODUCTION_OBJECT',
+      targetType: 'production_object',
+      targetId: code,
+      payload: { code, fields: fields as Prisma.InputJsonValue },
+      undo: { kind: 'RESTORE_PRODUCTION_OBJECT', payload: { code, fields: previous as Prisma.InputJsonValue } },
+    })
+    return reply.send({ actionId: action.actionId, code, fields, previous })
+  })
+
   // ── Предметы ─────────────────────────────────────────────────
 
   const ITEM_FIELDS = z.object({

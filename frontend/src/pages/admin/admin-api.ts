@@ -329,6 +329,21 @@ export const adminApi = {
 
   catalog: () => request<Catalog>('/api/admin/catalog'),
 
+  /**
+   * Правка справочника: цены ресурсов, госмагазина, бара и оклады
+   * объектов. Ручка одна на все четыре — отличается только `entity`,
+   * а правило «с причиной и с откатом» у них общее.
+   */
+  patchCatalog: (
+    entity: 'resource' | 'shop' | 'bar' | 'object',
+    code: string,
+    fields: Record<string, unknown>,
+    reason: string,
+  ) => request<{ actionId: string; fields: Record<string, unknown>; previous: Record<string, unknown> }>(
+    `/api/admin/catalog/${entity}/${code}`,
+    { method: 'PATCH', body: { fields, reason } },
+  ),
+
   telegram: () => request<{ configured: boolean }>('/api/admin/telegram'),
   telegramTest: () => request<{ ok: boolean; error?: string }>('/api/admin/telegram/test', { method: 'POST' }),
   balance: () => request<{ groups: BalanceGroup[]; overrides: unknown[] }>('/api/admin/balance'),

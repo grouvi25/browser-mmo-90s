@@ -12,11 +12,11 @@
 // рецепт. И то и другое видно только из связей, поэтому у каждого
 // ресурса они разворачиваются прямо в строке.
 // =============================================================
-import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
-import { adminApi, type Catalog, type CatalogResource } from '../admin-api'
-import { Skeleton, Fault } from '../../stage3/stage3-ui'
+import { adminApi, REASON_MIN, type Catalog, type CatalogResource } from '../admin-api'
+import { Skeleton, Fault, Note } from '../../stage3/stage3-ui'
 import { Table, rub } from '../admin-ui'
 import { ItemsSection } from './combat-sandbox-section'
 
@@ -41,6 +41,7 @@ const PAGES: { key: Page; title: string }[] = [
 export function CatalogSection({ role }: { role?: string | null }) {
   const [page, setPage] = useState<Page>('all')
   const catalog = useQuery({ queryKey: ['admin', 'catalog'], queryFn: adminApi.catalog })
+  const canEdit = role === 'SUPER_ADMIN'
 
   return (
     <>
@@ -61,11 +62,11 @@ export function CatalogSection({ role }: { role?: string | null }) {
       {page !== 'items' && catalog.data && (
         <>
           {page === 'all' && <Everything data={catalog.data} onGo={setPage} />}
-          {page === 'resources' && <Resources data={catalog.data} />}
-          {page === 'objects' && <Objects data={catalog.data} />}
+          {page === 'resources' && <Resources data={catalog.data} canEdit={canEdit} />}
+          {page === 'objects' && <Objects data={catalog.data} canEdit={canEdit} />}
           {page === 'production' && <Production data={catalog.data} />}
           {page === 'farm' && <Farm data={catalog.data} />}
-          {page === 'trade' && <Trade data={catalog.data} />}
+          {page === 'trade' && <Trade data={catalog.data} canEdit={canEdit} />}
           {page === 'professions' && <Professions data={catalog.data} />}
           {page === 'bots' && <Bots data={catalog.data} />}
           {page === 'premium' && <Premium data={catalog.data} />}
@@ -84,7 +85,7 @@ const CATEGORY: Record<string, string> = {
   REPAIR_PART: 'Ремонтные части',
 }
 
-function Resources({ data }: { data: Catalog }) {
+function Resources({ data, canEdit }: { data: Catalog; canEdit: boolean }) {
   const [query, setQuery] = useState('')
   const [openCode, setOpenCode] = useState<string | null>(null)
   const needle = query.trim().toLowerCase()
@@ -107,7 +108,10 @@ function Resources({ data }: { data: Catalog }) {
       <p className="s4-lead">
         {data.resources.length} ресурсов. У каждого показано, откуда он берётся и
         куда уходит: ресурс без применения копится у игроков мёртвым грузом, а
-        рецепт на ресурсе, который негде взять, не запустится никогда.
+        рецепт на ресурсе, который негде взять, не запустится никогда.{' '}
+        {canEdit
+          ? 'Базовая цена правится прямо в строке — на неё опираются госскупка, маржа рецептов и выгода огорода разом.'
+          : 'Править может только SUPER_ADMIN.'}
       </p>
 
       {orphans.length > 0 && (
@@ -125,9 +129,9 @@ function Resources({ data }: { data: Catalog }) {
       </label>
 
       <div className="adm-scroll">
-        <Table head={['Ресурс', 'Категория', 'Тир', 'Цена', 'На руках', 'Источники', 'Применения', '']}>
+        <Table head={['Ресурс', 'Категория', 'Тир', 'Цена', 'На руках', 'Источники', 'Применения', '', '']}>
           {shown.map(row => (
-            <ResourceRow key={row.code} row={row}
+            <ResourceRow key={row.code} row={row} canEdit={canEdit}
               open={openCode === row.code}
               onToggle={() => setOpenCode(openCode === row.code ? null : row.code)} />
           ))}
@@ -138,30 +142,38 @@ function Resources({ data }: { data: Catalog }) {
   )
 }
 
-function ResourceRow({ row, open, onToggle }: {
-  row: CatalogResource; open: boolean; onToggle: () => void
+function ResourceRow({ row, open, onToggle, canEdit }: {
+  row: CatalogResource; open: boolean; onToggle: () => void; canEdit: boolean
 }) {
   const dead = row.sources.length === 0 || row.uses.length === 0
 
   return (
     <>
-      <tr className={dead ? 'adm-dead' : undefined}>
-        <td>{row.name}{!row.isActive && ' (выключен)'}<em className="adm-row__hint">{row.code}</em></td>
-        <td>{CATEGORY[row.category] ?? row.category}</td>
-        <td className="num">{row.tier}</td>
-        <td className="num">{rub(row.basePrice)} ₽</td>
-        <td className="num">{rub(row.held)}</td>
-        <td className="num">{row.sources.length}</td>
-        <td className="num">{row.uses.length}</td>
-        <td>
-          <button type="button" className="adm-link" onClick={onToggle}>
-            {open ? 'свернуть' : 'цепочка'}
-          </button>
-        </td>
-      </tr>
+      <EditableRow
+        entity="resource" code={row.code} title={row.name} canEdit={canEdit} dead={dead}
+        fields={RESOURCE_FIELDS}
+        values={{
+          basePrice: row.basePrice, weight: row.weight,
+          isTradable: row.isTradable, isActive: row.isActive,
+        }}
+        cells={<>
+          <td>{row.name}{!row.isActive && ' (выключен)'}<em className="adm-row__hint">{row.code}</em></td>
+          <td>{CATEGORY[row.category] ?? row.category}</td>
+          <td className="num">{row.tier}</td>
+          <td className="num">{rub(row.basePrice)} ₽</td>
+          <td className="num">{rub(row.held)}</td>
+          <td className="num">{row.sources.length}</td>
+          <td className="num">{row.uses.length}</td>
+          <td>
+            <button type="button" className="adm-link" onClick={onToggle}>
+              {open ? 'свернуть' : 'цепочка'}
+            </button>
+          </td>
+        </>}
+      />
       {open && (
         <tr>
-          <td colSpan={8}>
+          <td colSpan={9}>
             <div className="adm-chain">
               <div>
                 <h5>Откуда берётся</h5>
@@ -314,47 +326,66 @@ const BUILDING_EFFECT: Record<string, string> = {
 
 // ── Торговля ───────────────────────────────────────────────────
 
-function Trade({ data }: { data: Catalog }) {
+function Trade({ data, canEdit }: { data: Catalog; canEdit: boolean }) {
   return (
     <>
       <p className="s4-lead">
         Госскупка задаёт нижнюю границу цен: пока государство берёт вещь дороже,
         чем предлагают на рынке, рынок стоит. Бар — денежный сток и источник
-        боевых бонусов одновременно.
+        боевых бонусов одновременно.{' '}
+        {canEdit
+          ? 'Цены правятся в строке. У госмагазина пустая цена значит «брать из шаблона предмета» — это отдельное состояние, а не «не трогать».'
+          : 'Править может только SUPER_ADMIN.'}
       </p>
 
       <h5 className="adm-sub">Госмагазин</h5>
       <div className="adm-scroll">
-        <Table head={['Вещь', 'Тип', 'Цена', 'Продаётся']}>
+        <Table head={['Вещь', 'Тип', 'Цена', 'Продаётся', '']}>
           {data.shop.map(row => (
-            <tr key={row.code}>
-              <td>{row.name}<em className="adm-row__hint">{row.code}</em></td>
-              <td>{row.type}</td>
-              <td className="num">
-                {rub(row.price)} ₽
-                {row.isOverridden && <em className="adm-row__hint">цена переопределена</em>}
-              </td>
-              <td>{row.isAvailable ? 'да' : <span className="adm-bad">нет</span>}</td>
-            </tr>
+            <EditableRow
+              key={row.code} entity="shop" code={row.code} title={row.name} canEdit={canEdit}
+              dead={!row.isAvailable}
+              fields={SHOP_FIELDS}
+              values={{ overridePrice: row.isOverridden ? row.price : null, isAvailable: row.isAvailable }}
+              cells={<>
+                <td>{row.name}<em className="adm-row__hint">{row.code}</em></td>
+                <td>{row.type}</td>
+                <td className="num">
+                  {rub(row.price)} ₽
+                  {row.isOverridden && <em className="adm-row__hint">цена переопределена</em>}
+                </td>
+                <td>{row.isAvailable ? 'да' : <span className="adm-bad">нет</span>}</td>
+              </>}
+            />
           ))}
         </Table>
       </div>
 
       <h5 className="adm-sub">Бар</h5>
       <div className="adm-scroll">
-        <Table head={['Напиток', 'Из чего', 'Цена', 'Себестоимость', 'HP', 'Градус', 'Точность', 'Урон', 'Бафф']}>
+        <Table head={['Напиток', 'Из чего', 'Цена', 'Себестоимость', 'HP', 'Градус', 'Точность', 'Урон', 'Бафф', '']}>
           {data.bar.map(row => (
-            <tr key={row.code} className={row.price <= row.baseCost ? 'adm-dead' : undefined}>
-              <td>{row.name}{!row.isActive && ' (выключен)'}<em className="adm-row__hint">{row.code}</em></td>
-              <td>{row.resourceName}</td>
-              <td className="num">{rub(row.price)} ₽</td>
-              <td className="num">{rub(row.baseCost)} ₽</td>
-              <td className="num">{row.hpRestore || '—'}</td>
-              <td className="num">{row.alcoholDegrees || '—'}</td>
-              <td className="num">{row.accuracyBuff ? `+${row.accuracyBuff}` : '—'}</td>
-              <td className="num">{row.damageBuff ? `+${row.damageBuff}` : '—'}</td>
-              <td className="num">{row.buffMinutes ? `${row.buffMinutes} мин` : '—'}</td>
-            </tr>
+            <EditableRow
+              key={row.code} entity="bar" code={row.code} title={row.name} canEdit={canEdit}
+              dead={row.price <= row.baseCost}
+              fields={BAR_FIELDS}
+              values={{
+                price: row.price, hpRestore: row.hpRestore,
+                accuracyBuff: row.accuracyBuff, damageBuff: row.damageBuff,
+                buffMinutes: row.buffMinutes, isActive: row.isActive,
+              }}
+              cells={<>
+                <td>{row.name}{!row.isActive && ' (выключен)'}<em className="adm-row__hint">{row.code}</em></td>
+                <td>{row.resourceName}</td>
+                <td className="num">{rub(row.price)} ₽</td>
+                <td className="num">{rub(row.baseCost)} ₽</td>
+                <td className="num">{row.hpRestore || '—'}</td>
+                <td className="num">{row.alcoholDegrees || '—'}</td>
+                <td className="num">{row.accuracyBuff ? `+${row.accuracyBuff}` : '—'}</td>
+                <td className="num">{row.damageBuff ? `+${row.damageBuff}` : '—'}</td>
+                <td className="num">{row.buffMinutes ? `${row.buffMinutes} мин` : '—'}</td>
+              </>}
+            />
           ))}
         </Table>
       </div>
@@ -492,7 +523,7 @@ function Everything({ data, onGo }: { data: Catalog; onGo: (page: Page) => void 
 
 // ── Объекты ────────────────────────────────────────────────────
 
-function Objects({ data }: { data: Catalog }) {
+function Objects({ data, canEdit }: { data: Catalog; canEdit: boolean }) {
   const idle = data.objects.filter(row => !row.isActive || row.status !== 'ACTIVE')
 
   return (
@@ -500,7 +531,10 @@ function Objects({ data }: { data: Catalog }) {
       <p className="s4-lead">
         {data.objects.length} объектов — это рабочие места игроков и точки входа в
         производство. Оклад и длительность смены отсюда попадают прямо в денежную
-        массу, а профессия решает, кого на объект вообще пустят.
+        массу, а профессия решает, кого на объект вообще пустят.{' '}
+        {canEdit
+          ? 'Оклад, смена и число мест правятся в строке — это самый прямой кран денег в игре, поэтому и потолок здесь ниже, чем у прочих цен.'
+          : 'Править может только SUPER_ADMIN.'}
       </p>
 
       {idle.length > 0 && (
@@ -510,23 +544,37 @@ function Objects({ data }: { data: Catalog }) {
       )}
 
       <div className="adm-scroll">
-        <Table head={['Объект', 'Тип', 'Смена', 'Оклад', 'Мест', 'Профессия', 'Выдаёт', 'Склад', 'Состояние']}>
+        <Table head={['Объект', 'Тип', 'Смена', 'Оклад', 'Мест', 'Профессия', 'Выдаёт', 'Склад', 'Состояние', '']}>
           {data.objects.map(row => (
-            <tr key={row.code} className={!row.isActive || row.status !== 'ACTIVE' ? 'adm-dead' : undefined}>
-              <td>{row.name}<em className="adm-row__hint">{row.code}</em></td>
-              <td>{row.type}</td>
-              <td className="num">{row.shiftDurationMinutes} мин</td>
-              <td className="num">{rub(row.baseSalary)} ₽</td>
-              <td className="num">{row.workerSlots}</td>
-              <td>{row.requiredProfessionCode}{row.requiredProfessionLevel > 0 ? ` ур.${row.requiredProfessionLevel}` : ''}</td>
-              <td>
-                {row.producesResourceCode
-                  ? <>{row.producesResourceCode}<em className="adm-row__hint">{row.outputAmountMin}–{row.outputAmountMax} шт.</em></>
-                  : <span className="adm-hint">по рецепту</span>}
-              </td>
-              <td className="num">{row.storageCapacity || '—'}</td>
-              <td>{row.status === 'ACTIVE' && row.isActive ? 'работает' : <span className="adm-bad">{row.status}</span>}</td>
-            </tr>
+            <EditableRow
+              key={row.code} entity="object" code={row.code} title={row.name} canEdit={canEdit}
+              dead={!row.isActive || row.status !== 'ACTIVE'}
+              fields={OBJECT_FIELDS}
+              values={{
+                baseSalary: row.baseSalary,
+                shiftDurationMinutes: row.shiftDurationMinutes,
+                workerSlots: row.workerSlots,
+                outputAmountMin: row.outputAmountMin,
+                outputAmountMax: row.outputAmountMax,
+                storageCapacity: row.storageCapacity,
+                isActive: row.isActive,
+              }}
+              cells={<>
+                <td>{row.name}<em className="adm-row__hint">{row.code}</em></td>
+                <td>{row.type}</td>
+                <td className="num">{row.shiftDurationMinutes} мин</td>
+                <td className="num">{rub(row.baseSalary)} ₽</td>
+                <td className="num">{row.workerSlots}</td>
+                <td>{row.requiredProfessionCode}{row.requiredProfessionLevel > 0 ? ` ур.${row.requiredProfessionLevel}` : ''}</td>
+                <td>
+                  {row.producesResourceCode
+                    ? <>{row.producesResourceCode}<em className="adm-row__hint">{row.outputAmountMin}–{row.outputAmountMax} шт.</em></>
+                    : <span className="adm-hint">по рецепту</span>}
+                </td>
+                <td className="num">{row.storageCapacity || '—'}</td>
+                <td>{row.status === 'ACTIVE' && row.isActive ? 'работает' : <span className="adm-bad">{row.status}</span>}</td>
+              </>}
+            />
           ))}
         </Table>
       </div>
@@ -618,5 +666,167 @@ function Premium({ data }: { data: Catalog }) {
         </Table>
       </div>
     </>
+  )
+}
+
+// ── Что можно править ──────────────────────────────────────────
+//
+// Списки короткие намеренно. Править из панели стоит то, что двигает
+// экономику; всё остальное — код рецепта, тип объекта, категория
+// ресурса — это устройство игры, и менять его на живой базе через
+// текстовое поле опаснее, чем выкатить.
+
+const RESOURCE_FIELDS: EditField[] = [
+  { key: 'basePrice', label: 'Базовая цена', note: 'госскупка, маржа рецептов, выгода огорода' },
+  { key: 'weight', label: 'Вес', step: 0.1, note: 'сколько влезет в инвентарь' },
+  { key: 'isTradable', label: 'На рынке', kind: 'bool', note: 'можно ли выставить лотом' },
+  { key: 'isActive', label: 'В игре', kind: 'bool' },
+]
+
+const OBJECT_FIELDS: EditField[] = [
+  { key: 'baseSalary', label: 'Оклад за смену', note: 'главный законный кран денег' },
+  { key: 'shiftDurationMinutes', label: 'Смена, мин', note: 'вместе с суточным лимитом задаёт число смен' },
+  { key: 'workerSlots', label: 'Рабочих мест' },
+  { key: 'outputAmountMin', label: 'Выход от' },
+  { key: 'outputAmountMax', label: 'Выход до' },
+  { key: 'storageCapacity', label: 'Склад' },
+  { key: 'isActive', label: 'Работает', kind: 'bool' },
+]
+
+const SHOP_FIELDS: EditField[] = [
+  { key: 'overridePrice', label: 'Цена', note: 'пусто — брать из шаблона предмета' },
+  { key: 'isAvailable', label: 'Продаётся', kind: 'bool' },
+]
+
+const BAR_FIELDS: EditField[] = [
+  { key: 'price', label: 'Цена порции', note: 'денежный сток' },
+  { key: 'hpRestore', label: 'Лечит HP' },
+  { key: 'accuracyBuff', label: 'Точность', step: 0.01 },
+  { key: 'damageBuff', label: 'Урон', step: 0.01 },
+  { key: 'buffMinutes', label: 'Бафф, мин' },
+  { key: 'isActive', label: 'Продаётся', kind: 'bool' },
+]
+
+// ── Правка строки справочника ──────────────────────────────────
+
+/** Поле, которое можно поправить. Подпись нужна человеку, шаг — числу. */
+export interface EditField {
+  key: string
+  label: string
+  step?: number
+  kind?: 'number' | 'bool'
+  /** Что это число делает. Без подписи цена — просто цифра в таблице. */
+  note?: string
+}
+
+/**
+ * Строка таблицы, которую можно развернуть в форму правки.
+ *
+ * Цена ресурса, цена в баре, оклад объекта — те же коэффициенты
+ * экономики, что и в разделе «Баланс», только хранятся в базе. Правило
+ * то же: с причиной, в журнал и с обратной операцией.
+ *
+ * Читаемая часть строки приходит готовой (`cells`) — таблицы у разделов
+ * разные, и сводить их к одной форме значило бы обеднить каждую.
+ */
+function EditableRow({
+  entity, code, title, fields, values, canEdit, cells, dead,
+}: {
+  entity: 'resource' | 'shop' | 'bar' | 'object'
+  code: string
+  title: string
+  fields: EditField[]
+  values: Record<string, number | boolean | null>
+  canEdit: boolean
+  cells: ReactNode
+  dead?: boolean
+}) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
+
+  const save = useMutation({
+    mutationFn: () => {
+      // Отправляем только изменённое: обратная операция пишется по этим
+      // же полям, и лишние затёрли бы чужую правку соседнего поля.
+      const changed: Record<string, unknown> = {}
+      for (const field of fields) {
+        const raw = draft[field.key]
+        if (raw === undefined) continue
+        const next = field.kind === 'bool' ? raw === 'true' : Number(raw)
+        if (next !== values[field.key]) changed[field.key] = next
+      }
+      return adminApi.patchCatalog(entity, code, changed, reason.trim())
+    },
+    onSuccess: () => {
+      setEditing(false); setReason(''); setError(''); setDraft({})
+      void qc.invalidateQueries({ queryKey: ['admin', 'catalog'] })
+    },
+    onError: (err: Error) => setError(err.message),
+  })
+
+  const columns = 12
+
+  if (editing) {
+    return (
+      <tr className="adm-item is-editing">
+        <td colSpan={columns}>
+          <div className="adm-item__edit">
+            <b>{title}</b> <code>{code}</code>
+            <div className="adm-item__fields">
+              {fields.map(field => (
+                <label key={field.key}>
+                  <span>{field.label}</span>
+                  {field.kind === 'bool' ? (
+                    <select
+                      defaultValue={String(values[field.key] ?? false)}
+                      onChange={event => setDraft({ ...draft, [field.key]: event.target.value })}>
+                      <option value="true">да</option>
+                      <option value="false">нет</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="number" step={field.step ?? 1}
+                      defaultValue={values[field.key] === null ? '' : String(values[field.key])}
+                      onChange={event => setDraft({ ...draft, [field.key]: event.target.value })}
+                    />
+                  )}
+                  {field.note && <em className="adm-row__hint">{field.note}</em>}
+                </label>
+              ))}
+            </div>
+            <div className="adm-item__save">
+              <input
+                value={reason}
+                onChange={event => setReason(event.target.value)}
+                placeholder={`Причина, от ${REASON_MIN} символов`}
+                aria-label="Причина правки"
+              />
+              <button type="button" disabled={save.isPending || reason.trim().length < REASON_MIN}
+                onClick={() => save.mutate()}>Сохранить</button>
+              <button type="button" className="adm-link"
+                onClick={() => { setEditing(false); setError('') }}>отмена</button>
+            </div>
+            {error && <Note text={error} kind="bad" />}
+            <p className="adm-hint">
+              Правка применяется к игре сразу и отменяется из журнала.
+            </p>
+          </div>
+        </td>
+      </tr>
+    )
+  }
+
+  return (
+    <tr className={dead ? 'adm-dead' : undefined}>
+      {cells}
+      <td>
+        {canEdit
+          ? <button type="button" className="adm-link" onClick={() => setEditing(true)}>править</button>
+          : null}
+      </td>
+    </tr>
   )
 }
