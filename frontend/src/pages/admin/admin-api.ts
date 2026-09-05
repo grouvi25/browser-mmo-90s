@@ -366,6 +366,20 @@ export const adminApi = {
     return request<{ items: PlayerRow[] }>(`/api/admin/players?${query}`)
   },
   player: (id: string) => request<Record<string, unknown>>(`/api/admin/players/${id}`),
+
+  /** Выдача и списание денег: знак задаёт направление, обе обратимы. */
+  grantMoney: (characterId: string, amount: number, reason: string) =>
+    request<{ actionId: string }>('/api/admin/characters/money', {
+      method: 'POST', body: { characterId, amount, reason },
+    }),
+
+  /** Опыт. Уровень пересчитывает сервер: выдать опыт и забыть поднять
+   *  уровень значило бы оставить персонажа с телом первого уровня. */
+  grantExp: (characterId: string, track: string, amount: number, reason: string) =>
+    request<{ actionId: string }>(`/api/admin/players/${characterId}/exp`, {
+      method: 'POST', body: { track, amount, reason },
+    }),
+
   banPlayer: (userId: string, reason: string) =>
     request<{ actionId: string }>(`/api/admin/players/${userId}/ban`, { method: 'POST', body: { reason } }),
   unbanPlayer: (userId: string, reason: string) =>

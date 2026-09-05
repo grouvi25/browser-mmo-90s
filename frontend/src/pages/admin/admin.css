@@ -175,6 +175,26 @@
 
 /* Технический код рядом с человеческим названием: по нему ищут в журнале,
    но читать строку он мешать не должен — отсюда размер и цвет. */
+/* Выдача денег и опыта прямо в карточке: уходить за этим в другой раздел,
+   держа в голове идентификатор персонажа, — работа, которой быть не должно. */
+.adm-player__grants { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+.adm-grant {
+  display: grid; gap: 6px; align-content: start;
+  border: 1px solid var(--s4-line, oklch(72% .025 60)); padding: 10px;
+}
+.adm-grant h6 { margin: 0; font: 700 13.25px/1.3 var(--font-ui); }
+.adm-grant label { display: grid; gap: 3px; font-size: 13.25px; }
+.adm-grant label span { color: var(--s3-dim, #6b5b4a); }
+.adm-grant input, .adm-grant select { width: 100%; }
+.adm-grant button { justify-self: start; }
+.adm-player h5 { margin: 12px 0 6px; font: 700 13.25px/1.3 var(--font-ui); }
+.adm-player__facts { flex-wrap: wrap; }
+.adm-player__facts .adm-link { margin-top: 0; }
+
+@media (max-width: 900px) {
+  .adm-player__grants { grid-template-columns: 1fr; }
+}
+
 /* Справочник: цепочка ресурса разворачивается прямо в строке таблицы. */
 .adm-catalog__tabs { margin-bottom: 10px; }
 .adm-sub { margin: 16px 0 6px; font: 700 13.25px/1.3 var(--font-ui); }

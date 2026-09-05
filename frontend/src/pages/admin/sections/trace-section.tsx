@@ -4,7 +4,7 @@
 // То, чем ловят дюп и перелив. У двух копий предмета история совпадает до
 // момента раздвоения, и увидеть это можно, только положив цепочки рядом —
 // в отдельном журнале не видно ничего.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { adminApi } from '../admin-api'
@@ -19,10 +19,21 @@ const LABEL: Record<Subject, string> = {
   clan: 'Бригада',
 }
 
-export function TraceSection() {
+export function TraceSection({ focus }: { focus?: string }) {
   const [type, setType] = useState<Subject>('character')
-  const [id, setId] = useState('')
-  const [asked, setAsked] = useState<{ type: Subject; id: string } | null>(null)
+  const [id, setId] = useState(focus ?? '')
+  const [asked, setAsked] = useState<{ type: Subject; id: string } | null>(
+    focus ? { type: 'character', id: focus } : null,
+  )
+
+  // Переход из карточки игрока или из его вещи. Раньше сюда приходили с
+  // пустой формой и полем «Идентификатор», значение для которого взять
+  // было неоткуда, — оттого раздел и казался лишним.
+  useEffect(() => {
+    if (!focus) return
+    setId(focus)
+    setAsked(current => (current?.id === focus ? current : { type: 'character', id: focus }))
+  }, [focus])
 
   const trace = useQuery({
     queryKey: ['admin', 'trace', asked?.type, asked?.id],
@@ -45,23 +56,25 @@ export function TraceSection() {
         <input
           value={id}
           onChange={event => setId(event.target.value)}
-          placeholder="Идентификатор"
-          aria-label="Идентификатор"
+          placeholder="Ник, название бригады или идентификатор"
+          aria-label="Кого искать"
         />
         <button type="submit" disabled={!id.trim()}><Search size={12} /> Показать</button>
       </form>
 
       {!asked && (
         <p className="adm-hint">
-          Цепочка сшивает журналы по одному предмету, персонажу или бригаде.
-          В отдельном журнале ни дюп, ни перелив не видны — они видны только в
-          сшитой ленте.
+          Цепочка сшивает журналы по одному предмету, персонажу или бригаде:
+          деньги, вещи, ресурсы и производство одной лентой. В отдельном журнале
+          ни дюп, ни перелив не видны — они видны только здесь.
+          Персонажа и бригаду можно назвать по имени; предмет — только
+          идентификатором, и его даёт карточка игрока кнопкой «цепочка».
         </p>
       )}
 
       {asked && trace.isLoading && <Skeleton rows={5} />}
       {asked && trace.isError && (
-        <Note text="Не найдено. Проверьте тип и идентификатор." kind="bad" />
+        <Note text={(trace.error as Error)?.message || 'Не найдено. Проверьте тип и имя.'} kind="bad" />
       )}
 
       {trace.data && (

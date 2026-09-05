@@ -107,13 +107,13 @@ export function AdminPage() {
       </nav>
 
       {tab === 'overview' && <OverviewSection onGo={go} />}
-      {tab === 'players' && <PlayersSection focusId={focus} />}
+      {tab === 'players' && <PlayersSection focusId={focus} onTrace={id => go('trace', id)} />}
       {tab === 'clans' && <ClansSection />}
       {tab === 'territories' && <TerritoriesSection role={role} />}
       {tab === 'claims' && <ClaimsSection role={role} />}
       {tab === 'signals' && <SignalsSection />}
       {tab === 'actions' && <ActionsSection role={role} />}
-      {tab === 'trace' && <TraceSection />}
+      {tab === 'trace' && <TraceSection focus={focus} />}
       {tab === 'balance' && <BalanceSection role={role} focus={focus} />}
       {/* Расчёт тот же, что на игровой ручке, но под админским токеном:
           требовать от администратора игровой аккаунт незачем. */}

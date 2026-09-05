@@ -18,6 +18,7 @@ import {
   currentValue, defaultValue, limitsFor, listOverrides, validatePath,
 } from './balance-overrides.service'
 import { buildCatalog } from './catalog.service'
+import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { reasonFlowLabel, reasonTitle } from './reason-codes'
 import { sendTelegram, telegramConfigured } from './telegram.service'
 
@@ -607,7 +608,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     })
     if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
 
-    const [money, items, battles, clan] = await Promise.all([
+    const [money, items, battles, clan, resources, professions, shifts, adminActions, upgrades] = await Promise.all([
       prisma.currencyLog.findMany({
         where: { characterId: character.id }, orderBy: { createdAt: 'desc' }, take: 20,
       }),
@@ -616,7 +617,11 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
         // «вещей нет» человеку, у которого висит десяток лотов, — прямой
         // обман: именно эти лоты и смотрят, разбирая перекачку денег.
         where: { ownerId: character.id, status: { in: ['NORMAL', 'ON_MARKET'] } },
-        select: { id: true, isEquipped: true, status: true, quality: true, durabilityCurrent: true, template: { select: { name: true, type: true, priceBase: true } } },
+        select: {
+          id: true, isEquipped: true, status: true, quality: true,
+          durabilityCurrent: true, durabilityMax: true, upgradeLevel: true,
+          template: { select: { code: true, name: true, type: true, priceBase: true } },
+        },
         take: 60,
       }),
       prisma.battleParticipant.count({ where: { characterId: character.id } }),
@@ -624,14 +629,114 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
         where: { characterId: character.id, status: 'ACTIVE' },
         select: { role: true, clan: { select: { id: true, name: true, tag: true } } },
       }),
+      // Ресурсы на руках: половина экономики игрока живёт не в деньгах, и
+      // разбирая перелив, смотрят именно на них.
+      prisma.resourceStack.findMany({
+        where: { characterId: character.id, amount: { gt: 0 } },
+        select: { amount: true, reservedAmount: true, template: { select: { code: true, name: true, basePrice: true } } },
+        orderBy: { amount: 'desc' },
+      }),
+      prisma.characterProfession.findMany({
+        where: { characterId: character.id },
+        orderBy: { level: 'desc' },
+      }),
+      prisma.workShift.findMany({
+        where: { characterId: character.id },
+        orderBy: { startedAt: 'desc' }, take: 10,
+        select: {
+          id: true, status: true, startedAt: true, endsAt: true,
+          productionObject: { select: { code: true, name: true } },
+        },
+      }),
+      // Что с этим игроком уже делали админы. Без этого разбор жалобы
+      // начинается с вопроса «а его вообще трогали?», ответа на который
+      // в карточке не было.
+      prisma.adminActionLog.findMany({
+        where: {
+          OR: [
+            { targetType: 'character', targetId: character.id },
+            { targetType: 'user', targetId: character.userId },
+          ],
+        },
+        orderBy: { createdAt: 'desc' }, take: 10,
+        select: { id: true, kind: true, reason: true, createdAt: true, rolledBackAt: true },
+      }),
+      prisma.upgradeLog.groupBy({
+        by: ['result'], where: { characterId: character.id }, _count: true,
+      }),
     ])
+
     return reply.send({
       character,
       // Код причины оставляем — по нему ищут в журнале, — но рядом кладём
       // название: строка «UPGRADE_USE −450 ₽» без словаря нечитаема.
       money: money.map(row => ({ ...row, reasonTitle: reasonTitle(row.reasonCode) })),
-      items, battles, clan,
+      items,
+      battles,
+      clan,
+      resources: resources.map(row => ({
+        code: row.template.code,
+        name: row.template.name,
+        amount: row.amount,
+        reserved: row.reservedAmount,
+        // Стоимость запаса по базовой цене: сто единиц металлолома и сто
+        // единиц спирта — совсем разные состояния.
+        worth: row.amount * row.template.basePrice,
+      })),
+      professions: professions.map(row => ({
+        code: row.professionCode,
+        name: PROFESSION_NAMES[row.professionCode as ProfessionCode] ?? row.professionCode,
+        level: row.level,
+        exp: row.exp,
+      })),
+      shifts: shifts.map(row => ({
+        id: row.id,
+        status: row.status,
+        statusTitle: SHIFT_STATUS[row.status] ?? row.status,
+        objectName: row.productionObject.name,
+        startedAt: row.startedAt,
+        endsAt: row.endsAt,
+      })),
+      adminActions,
+      upgrades: upgrades.map(row => ({ result: row.result, count: row._count })),
     })
+  })
+
+  /**
+   * Выдача и списание опыта.
+   *
+   * Знак задаёт направление, как у денег: две ручки вместо одной
+   * разошлись бы правилами, а правило тут одно — обе обратимы.
+   *
+   * Уровень пересчитывается исполнителем, поэтому выдать опыт и забыть
+   * поднять уровень нельзя.
+   */
+  fastify.post<{ Params: { id: string } }>('/players/:id/exp', WRITE_ADMIN, async (req, reply) => {
+    const parsed = z.object({
+      track: z.enum(['battle', 'economic', 'production']),
+      amount: z.number().int().refine(value => value !== 0, 'Ноль ничего не меняет')
+        .refine(value => Math.abs(value) <= 1_000_000, 'Не больше миллиона за раз'),
+      reason: REASON,
+    }).safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+    }
+    const character = await prisma.character.findUnique({
+      where: { id: req.params.id }, select: { id: true },
+    })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
+
+    const { track, amount, reason } = parsed.data
+    const giving = amount > 0
+    const payload = { characterId: character.id, track, amount: Math.abs(amount) }
+    const action = await AdminActionsService.perform(admin(req), reason, {
+      kind: giving ? 'GRANT_EXP' : 'TAKE_EXP',
+      targetType: 'character',
+      targetId: character.id,
+      payload,
+      undo: { kind: giving ? 'TAKE_EXP' : 'GRANT_EXP', payload },
+    })
+    return reply.send({ actionId: action.actionId })
   })
 
   const BanBody = z.object({ reason: REASON })

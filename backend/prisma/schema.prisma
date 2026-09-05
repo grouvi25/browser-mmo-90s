@@ -305,6 +305,9 @@ enum AdminActionKind {
   RESTORE_BAR_OFFER
   SET_PRODUCTION_OBJECT
   RESTORE_PRODUCTION_OBJECT
+  // Опыт выдаётся и забирается так же, как деньги: знаком одной операции.
+  GRANT_EXP
+  TAKE_EXP
   ROLLBACK
 }
 

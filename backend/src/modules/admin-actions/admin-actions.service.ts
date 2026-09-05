@@ -18,7 +18,9 @@ import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { audit } from '../../shared/logger/audit-logger'
+import { BalanceConfig } from '../../config/balance.config'
 import { EconomyService } from '../economy/economy.service'
+import { calcHpMax, getEconomicLevelFromExp, getLevelFromExp } from '../stats/stats.formulas'
 import { clearOverride, setOverride } from '../admin-balance/balance-overrides.service'
 
 /** Минимальная длина причины. Правило П2 в числе. */
@@ -65,6 +67,70 @@ const str = (payload: Record<string, unknown>, key: string) => String(payload[ke
 const num = (payload: Record<string, unknown>, key: string) => Number(payload[key])
 const date = (payload: Record<string, unknown>, key: string) =>
   payload[key] === null || payload[key] === undefined ? null : new Date(String(payload[key]))
+
+/** Ветки опыта, которые можно выдавать. Профессии сюда не входят: их
+ *  опыт лежит в отдельной таблице по коду профессии. */
+const EXP_TRACKS = ['battle', 'economic', 'production'] as const
+type ExpTrack = typeof EXP_TRACKS[number]
+
+/**
+ * Выдача или списание опыта с пересчётом уровня.
+ *
+ * Уровень, максимум HP и очки характеристик выводятся из опыта, поэтому
+ * писать одно поле нельзя: получится персонаж с опытом восьмого уровня и
+ * телом первого. Знак задаётся вызывающим — прямая операция и откат
+ * отличаются только им.
+ */
+async function applyExp(
+  tx: Prisma.TransactionClient, payload: Record<string, unknown>, sign: 1 | -1,
+): Promise<void> {
+  const characterId = str(payload, 'characterId')
+  const track = str(payload, 'track') as ExpTrack
+  const amount = Math.abs(num(payload, 'amount')) * sign
+  const character = must(
+    await tx.character.findUnique({ where: { id: characterId }, include: { stats: true } }),
+    'Персонажа больше нет',
+  )
+
+  if (track === 'battle') {
+    // Опыт не уходит ниже нуля: отрицательный опыт ломает и таблицу
+    // уровней, и расчёт следующего уровня в интерфейсе игрока.
+    const exp = Math.max(0, character.battleExp + amount)
+    const level = getLevelFromExp(exp)
+    const hpMax = character.stats ? calcHpMax(character.stats.end, level) : character.hpMax
+    await tx.character.update({
+      where: { id: characterId },
+      data: { battleExp: exp, battleLevel: level, hpMax, hpCurrent: Math.min(character.hpCurrent, hpMax) },
+    })
+    // Очки характеристик за уровни — в обе стороны. Не забирать их при
+    // списании нельзя: выдача опыта с последующим откатом оставляла бы
+    // персонажу первого уровня семнадцать свободных очков, то есть
+    // печатала бы их. Ниже нуля не уходим: вложенные очки уже стали
+    // характеристиками, и отнимать их значило бы урезать то, что игрок
+    // честно распределил по действовавшим тогда правилам.
+    const levels = level - character.battleLevel
+    if (levels !== 0 && character.stats) {
+      const points = levels * BalanceConfig.battleExp.statPointsPerLevel
+      await tx.characterStats.update({
+        where: { characterId },
+        data: { pointsAvailable: Math.max(0, character.stats.pointsAvailable + points) },
+      })
+    }
+    return
+  }
+
+  if (track === 'economic') {
+    const exp = Math.max(0, character.economicExp + amount)
+    await tx.character.update({
+      where: { id: characterId },
+      data: { economicExp: exp, economicLevel: getEconomicLevelFromExp(exp) },
+    })
+    return
+  }
+
+  const exp = Math.max(0, character.productionExp + amount)
+  await tx.character.update({ where: { id: characterId }, data: { productionExp: exp } })
+}
 
 const EXECUTORS: Record<AdminActionKind, Executor> = {
   GRANT_MONEY: async (tx, payload) => {
@@ -580,6 +646,16 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
       where: { code }, data: payload.fields as Prisma.ProductionObjectUpdateInput,
     })
   },
+
+  // ── Опыт ─────────────────────────────────────────────────────
+  //
+  // Опыт нельзя просто прибавить полем: уровень считается из него, а от
+  // уровня зависят максимум HP и очки характеристик. Записав один exp,
+  // мы получили бы персонажа с опытом восьмого уровня и телом первого —
+  // и он бы таким и остался, пока не подерётся.
+
+  GRANT_EXP: async (tx, payload) => applyExp(tx, payload, +1),
+  TAKE_EXP: async (tx, payload) => applyExp(tx, payload, -1),
 
   ROLLBACK: async () => {
     // Откат отката не заводится: цепочка отмен превращает журнал в игру

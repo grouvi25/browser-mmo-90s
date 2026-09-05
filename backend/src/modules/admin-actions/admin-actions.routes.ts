@@ -79,11 +79,39 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
   fastify.get('/trace', READ_ADMIN, async (req, reply) => {
     const parsed = z.object({
       type: z.enum(['item', 'character', 'clan']),
-      id: Id,
+      // Не только uuid: раздел требовал идентификатор, которого человеку
+      // взять неоткуда, и оттого выглядел бесполезным. Ник и название
+      // бригады он знает всегда.
+      id: z.string().min(1).max(60),
       limit: z.coerce.number().int().positive().max(500).optional(),
     }).safeParse(req.query)
     if (!parsed.success) return invalid(reply)
-    return reply.send(await AdminTraceService.trace(parsed.data))
+
+    let id = parsed.data.id
+    if (!Id.safeParse(id).success) {
+      const found = parsed.data.type === 'character'
+        ? await prisma.character.findFirst({
+          where: { nickname: { equals: id, mode: 'insensitive' } }, select: { id: true },
+        })
+        : parsed.data.type === 'clan'
+          ? await prisma.clan.findFirst({
+            where: { OR: [
+              { name: { equals: id, mode: 'insensitive' } },
+              { tag: { equals: id, mode: 'insensitive' } },
+            ] }, select: { id: true },
+          })
+          : null
+      if (!found) {
+        return reply.code(404).send({
+          code: 'GEN_002',
+          message: parsed.data.type === 'item'
+            ? 'У предмета нет имени — сюда нужен его идентификатор, он есть в карточке игрока'
+            : 'Никого с таким именем не нашлось',
+        })
+      }
+      id = found.id
+    }
+    return reply.send(await AdminTraceService.trace({ ...parsed.data, id }))
   })
 
   // ── Антиабуз ────────────────────────────────────────────
