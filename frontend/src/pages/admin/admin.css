@@ -175,6 +175,30 @@
 
 /* Технический код рядом с человеческим названием: по нему ищут в журнале,
    но читать строку он мешать не должен — отсюда размер и цвет. */
+/* Справочник: цепочка ресурса разворачивается прямо в строке таблицы. */
+.adm-catalog__tabs { margin-bottom: 10px; }
+.adm-sub { margin: 16px 0 6px; font: 700 13.25px/1.3 var(--font-ui); }
+.adm-chain { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px 4px; }
+.adm-chain h5 { margin: 0 0 5px; font: 700 13.25px/1.3 var(--font-ui); }
+.adm-chain ul { margin: 0; padding: 0; list-style: none; }
+.adm-chain li { padding: 2px 0; font-size: 13.25px; }
+.adm-chain li b { font-weight: 700; }
+.adm-chain li span { color: var(--s3-dim, #6b5b4a); }
+/* Строка-тупик: ресурс без источника или без применения, убыточный
+   рецепт. Приглушаем, а не прячем — решать всё равно человеку. */
+.adm-dead > td:first-child { border-left: 2px solid var(--s3-red, #ab0303); padding-left: 6px; }
+
+@media (max-width: 900px) {
+  .adm-chain { grid-template-columns: 1fr; }
+}
+
+.adm-telegram {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin: 6px 0 0; font-size: 13.25px; color: var(--s3-dim, #6b5b4a);
+}
+.adm-telegram .adm-link { margin-top: 0; }
+.adm-telegram code { font-size: 12.5px; }
+
 .adm-row__hint {
   display: block; margin-top: 1px;
   font-style: normal; font-size: 12.5px; color: var(--s3-dim, #6b5b4a);
@@ -222,6 +246,9 @@
 .adm-balance-group__intro { margin: 0 0 10px; max-width: 78ch; line-height: 1.5; color: var(--s3-dim, #6b5b4a); }
 
 .adm-formula { border: 1px solid var(--s4-line, oklch(72% .025 60)); margin-bottom: 6px; }
+/* Формула, к которой привёл алерт: рамка отвечает на «а что тут искать».
+   Она остаётся, пока не уйдёшь с вкладки, — мигание пропустить легко. */
+.adm-formula.is-focused { border-color: var(--s3-red, #ab0303); box-shadow: 0 0 0 2px oklch(93% .04 35); }
 .adm-formula__head {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
   width: 100%; padding: 8px 10px; min-height: 36px;

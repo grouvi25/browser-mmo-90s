@@ -11,7 +11,7 @@
 // =============================================================
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ArrowRight, CheckCircle2, RefreshCw, User } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CheckCircle2, RefreshCw, Send, User } from 'lucide-react'
 import { adminApi, type AlertCard } from '../admin-api'
 
 export function AlertsPanel({
@@ -40,6 +40,7 @@ export function AlertsPanel({
           {alerts.data?.snapshotDate && <> (снимок за {alerts.data.snapshotDate})</>}.
         </p>
         <RecheckButton busy={recheck.isPending} onClick={() => recheck.mutate()} />
+        <TelegramLine />
       </div>
     )
   }
@@ -50,10 +51,46 @@ export function AlertsPanel({
         <h4><AlertTriangle size={15} /> Требует внимания: {cards.length}</h4>
         <RecheckButton busy={recheck.isPending} onClick={() => recheck.mutate()} />
       </div>
+      <TelegramLine />
       {cards.map(card => (
         <AlertBlock key={card.code} card={card} onGo={onGo} openPlayers={openPlayers} />
       ))}
     </section>
+  )
+}
+
+/**
+ * Куда уходят алерты.
+ *
+ * Ночью в панель никто не смотрит, и весь смысл бота в том, что он
+ * разбудит. Но «настроено» на словах и «сообщение дошло» — разные вещи,
+ * а узнать разницу без кнопки можно только в тот момент, когда алерт уже
+ * случился и его никто не увидел. Отсюда проверка связи.
+ */
+function TelegramLine() {
+  const state = useQuery({ queryKey: ['admin', 'telegram'], queryFn: adminApi.telegram })
+  const [said, setSaid] = useState('')
+  const test = useMutation({
+    mutationFn: adminApi.telegramTest,
+    onSuccess: result => setSaid(result.ok ? 'Сообщение ушло — проверьте чат.' : result.error ?? 'Не отправилось.'),
+    onError: (err: Error) => setSaid(err.message),
+  })
+
+  if (!state.data) return null
+
+  return (
+    <p className="adm-telegram">
+      <Send size={12} />
+      {state.data.configured
+        ? <>Алерты уходят в Telegram.</>
+        : <>Telegram не настроен: алерты видны только здесь. Нужны <code>TELEGRAM_BOT_TOKEN</code> и <code>TELEGRAM_CHAT_ID</code> в окружении сервера.</>}
+      {state.data.configured && (
+        <button type="button" className="adm-link" onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? 'Отправляю…' : 'проверить связь'}
+        </button>
+      )}
+      {said && <em className="adm-row__hint">{said}</em>}
+    </p>
   )
 }
 

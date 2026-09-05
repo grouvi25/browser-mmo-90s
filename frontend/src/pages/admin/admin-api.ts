@@ -171,6 +171,56 @@ export interface OverviewDetail {
   second: { label: string; value: string; characterId?: string }[]
 }
 
+/** Звено цепочки: откуда ресурс берётся или куда уходит. */
+export interface ChainLink { kind: string; title: string; detail: string }
+
+export interface CatalogResource {
+  code: string; name: string; category: string; tier: number
+  basePrice: number; weight: number; isTradable: boolean; isActive: boolean
+  held: number
+  sources: ChainLink[]
+  uses: ChainLink[]
+}
+
+export interface Catalog {
+  resources: CatalogResource[]
+  recipes: {
+    code: string; name: string; objectCode: string; objectName: string
+    output: { kind: string; code: string; name: string; amount: number }
+    inputs: { code: string; name: string; amount: number; minQuality: string }[]
+    cycleMinutes: number; laborRequired: number
+    professionCode: string; professionLevel: number; toolTier: number
+    isActive: boolean; marginPerCycle: number | null
+    priceBasis: 'base' | 'bar' | null
+  }[]
+  crops: {
+    code: string; name: string; minutes: number; yieldMin: number; yieldMax: number
+    seedPrice: number; resourceCode: string; resourceName: string; resourcePrice: number
+    requiredLevel: number; profitPerCycle: number; profitPerHour: number
+  }[]
+  farm: {
+    maxPlots: number; plotPrices: number[]
+    buildings: { code: string; name: string; price: number }[]
+  }
+  objects: {
+    code: string; name: string; type: string; status: string; level: number
+    workerSlots: number; shiftDurationMinutes: number; baseSalary: number
+    producesResourceCode: string | null; outputAmountMin: number; outputAmountMax: number
+    requiredProfessionCode: string; requiredProfessionLevel: number
+    storageCapacity: number; isActive: boolean
+  }[]
+  shop: { code: string; name: string; type: string; price: number; isOverridden: boolean; isAvailable: boolean }[]
+  bar: {
+    code: string; name: string; resourceCode: string; resourceName: string
+    price: number; baseCost: number; hpRestore: number; alcoholDegrees: number
+    accuracyBuff: number; damageBuff: number; buffMinutes: number; isActive: boolean
+  }[]
+  bots: {
+    code: string; name: string; battleLevel: number; power: number; hpMax: number
+    expReward: number; moneyRewardMin: number; moneyRewardMax: number; isActive: boolean
+  }[]
+}
+
 export interface EconomyOverview {
   m2Total: number
   characters: number
@@ -267,6 +317,11 @@ export const adminApi = {
   economyOverview: () => request<EconomyOverview>('/api/admin/economy/overview'),
   economyHistory: (days = 30) => request<{ items: EconomySnapshot[] }>(`/api/admin/economy/history?days=${days}`),
   overviewDetail: (kind: string) => request<OverviewDetail>(`/api/admin/overview/${kind}`),
+
+  catalog: () => request<Catalog>('/api/admin/catalog'),
+
+  telegram: () => request<{ configured: boolean }>('/api/admin/telegram'),
+  telegramTest: () => request<{ ok: boolean; error?: string }>('/api/admin/telegram/test', { method: 'POST' }),
   balance: () => request<{ groups: BalanceGroup[]; overrides: unknown[] }>('/api/admin/balance'),
   alerts: () => request<{ cards: AlertCard[]; snapshotDate: string | null }>('/api/admin/alerts'),
   recheckAlerts: () => request<{ cards: AlertCard[]; snapshotDate: string }>('/api/admin/alerts/recheck', { method: 'POST' }),

@@ -9,10 +9,10 @@
 // Значения приходят с сервера из BalanceConfig на каждый запрос, а не
 // скопированы сюда: разойтись с игрой панель не может.
 //
-// Пока только чтение. Правка отсюда — следующий шаг, и для неё уже всё
-// разложено: у каждого коэффициента есть путь в конфиге.
+// Отсюда же коэффициент правится: путь в конфиге у каждого свой, правка
+// уходит в журнал с причиной и снимается оттуда же.
 // =============================================================
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RotateCcw, Search } from 'lucide-react'
 import { adminApi, type BalanceFormula, type BalanceGroup, type BalanceParam } from '../admin-api'
@@ -100,6 +100,7 @@ export function BalanceSection({ role, focus }: { role?: string | null; focus?: 
               formula={formula}
               canEdit={canEdit}
               open={openId === formula.id || needle.length > 0}
+              focused={focus === formula.id && openId === formula.id}
               onToggle={() => setOpenId(openId === formula.id ? null : formula.id)}
             />
           ))}
@@ -110,10 +111,25 @@ export function BalanceSection({ role, focus }: { role?: string | null; focus?: 
 }
 
 function Formula({
-  formula, open, onToggle, canEdit,
-}: { formula: BalanceFormula; open: boolean; onToggle: () => void; canEdit: boolean }) {
+  formula, open, onToggle, canEdit, focused,
+}: {
+  formula: BalanceFormula; open: boolean; onToggle: () => void
+  canEdit: boolean; focused?: boolean
+}) {
+  const box = useRef<HTMLElement>(null)
+
+  // Переход из алерта раскрывал нужную формулу, но она оставалась за
+  // краем экрана — для человека это неотличимо от «просто перекинуло на
+  // вкладку баланса». Подводим к ней и подсвечиваем.
+  useEffect(() => {
+    if (!focused || !box.current) return
+    box.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [focused])
+
   return (
-    <article className={open ? 'adm-formula is-open' : 'adm-formula'}>
+    <article ref={box} className={[
+      'adm-formula', open ? 'is-open' : '', focused ? 'is-focused' : '',
+    ].filter(Boolean).join(' ')}>
       <button type="button" className="adm-formula__head" onClick={onToggle} aria-expanded={open}>
         <b>{formula.title}</b>
         <span className="adm-formula__what">{formula.what}</span>

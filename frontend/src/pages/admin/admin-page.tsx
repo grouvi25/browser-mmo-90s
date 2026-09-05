@@ -22,7 +22,8 @@ import { TraceSection } from './sections/trace-section'
 import { OverviewSection } from './sections/overview-section'
 import { BalanceSection } from './sections/balance-section'
 import { BalanceSandboxPage } from '../balance-sandbox/balance-sandbox-page'
-import { CombatSandboxSection, ItemsSection } from './sections/combat-sandbox-section'
+import { CombatSandboxSection } from './sections/combat-sandbox-section'
+import { CatalogSection } from './sections/catalog-section'
 import { PlayersSection } from './sections/players-section'
 import '../stage3/stage3.css'
 import './admin.css'
@@ -44,7 +45,7 @@ const TABS: { key: Tab; title: string }[] = [
   { key: 'balance', title: 'Баланс' },
   { key: 'sandbox', title: 'Экономика' },
   { key: 'duel', title: 'Бой' },
-  { key: 'items', title: 'Предметы' },
+  { key: 'items', title: 'Справочник' },
 ]
 
 export function AdminPage() {
@@ -118,7 +119,7 @@ export function AdminPage() {
           требовать от администратора игровой аккаунт незачем. */}
       {tab === 'sandbox' && <BalanceSandboxPage simulate={adminApi.simulateBalance} />}
       {tab === 'duel' && <CombatSandboxSection />}
-      {tab === 'items' && <ItemsSection role={role} />}
+      {tab === 'items' && <CatalogSection role={role} />}
     </main>
   )
 }

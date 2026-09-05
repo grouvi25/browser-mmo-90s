@@ -17,6 +17,7 @@ import { balanceRegistry } from './balance-registry'
 import {
   currentValue, defaultValue, limitsFor, listOverrides, validatePath,
 } from './balance-overrides.service'
+import { buildCatalog } from './catalog.service'
 import { reasonFlowLabel, reasonTitle } from './reason-codes'
 import { sendTelegram, telegramConfigured } from './telegram.service'
 
@@ -237,6 +238,16 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     }
 
     return reply.code(404).send({ code: 'GEN_002', message: 'Нет такой карточки' })
+  })
+
+  /**
+   * Справочник игры целиком: ресурсы с цепочками, рецепты, огород,
+   * объекты, госскупка, бар, боты. Одним запросом — данных на сотню
+   * строк, а вкладок, между которыми переключаются, четыре: гонять
+   * отдельный запрос на каждую значило бы ждать на каждом клике.
+   */
+  fastify.get('/catalog', READ_ADMIN, async (_req, reply) => {
+    return reply.send(await buildCatalog())
   })
 
   // ── Баланс ───────────────────────────────────────────────────
