@@ -112,19 +112,48 @@ function NavMoney() {
     retry: false,
     refetchInterval: 30_000,
   })
+  const textRef = useRef<HTMLSpanElement>(null)
+  const [scale, setScale] = useState(1)
+  const money = char ? char.money.toLocaleString('ru') : ''
+
+  // Сумма — единственная надпись шапки, длину которой задаёт не макет, а
+  // игрок. Пока помещается в свою ячейку, кегль макетный; переросла —
+  // ужимается по ширине, как подписи вкладок, и на соседей не наезжает.
+  useEffect(() => {
+    const text = textRef.current
+    if (!text) return
+    const measure = () => {
+      const prev = text.style.transform
+      text.style.transform = 'none'
+      const natural = text.offsetWidth
+      text.style.transform = prev
+      setScale(natural > 0 ? Math.min(1, MENU.navMoney.w / natural) : 1)
+    }
+    measure()
+    if (document.fonts?.ready) void document.fonts.ready.then(measure)
+  }, [money])
+
   if (!char) return null
   return (
     <div
       className="t-sign stage-money"
       style={{
-        left: MENU.navMoney.x, top: MENU.navMoney.y,
-        width: MENU.navMoney.w, height: MENU.navMoney.h,
+        left: MENU.navMoney.x, top: MENU.navMoney.y, width: MENU.navMoney.w,
         fontSize: MENU.navFontSize,
+        // Тот же сдвиг, что у пунктов меню: они рисуются через FitText
+        // с MENU.navDy, и без него сумма садилась на четыре пикселя ниже.
+        transform: `translateY(${MENU.navDy}px)`,
       }}
-      title={'Наличные: ' + char.money.toLocaleString('ru') + ' рублей'}
+      title={'Наличные: ' + money + ' рублей'}
     >
-      <span className="stage-money__sum">{char.money.toLocaleString('ru')}</span>
-      <span className="stage-money__cur">&#8381;</span>
+      <span
+        ref={textRef}
+        className="stage-money__text"
+        style={{ transform: `scaleX(${scale})` }}
+      >
+        <span className="stage-money__sum">{money}</span>
+        <span className="stage-money__cur">&#8381;</span>
+      </span>
     </div>
   )
 }
