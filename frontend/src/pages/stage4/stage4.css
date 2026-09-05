@@ -12,16 +12,16 @@
 .s4-lead {
   max-width: 74ch;
   margin: 0 0 20px;
-  font-size: .84rem;
+  font-size: 0.859rem;
   color: oklch(46% .028 55);
 }
-.s4-muted { color: oklch(52% .025 55); font-size: .78rem; }
+.s4-muted { color: oklch(52% .025 55); font-size: 0.844rem; }
 .s4-warn { color: var(--s3-red); }
 .s4-plus { color: var(--s3-green); font-variant-numeric: tabular-nums; }
 .s4-minus { color: var(--s3-red); font-variant-numeric: tabular-nums; }
 .s4 h4 {
   display: flex; align-items: center; gap: 6px;
-  font: .72rem/1 'Doc', 'PT Mono', monospace;
+  font: 0.813rem/1 'Doc', 'PT Mono', monospace;
   text-transform: uppercase; letter-spacing: .08em;
   margin: 26px 0 10px; padding-bottom: 7px;
   border-bottom: 1px solid var(--s4-line);
@@ -41,7 +41,7 @@
 .s4-stat { padding: 14px 16px 14px 0; }
 .s4-stat__label {
   display: flex; align-items: center; gap: 5px;
-  font-size: .66rem; text-transform: uppercase; letter-spacing: .07em;
+  font-size: 0.781rem; text-transform: uppercase; letter-spacing: .07em;
   color: oklch(48% .025 55);
 }
 .s4-stat b { display: block; margin-top: 4px; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
@@ -60,7 +60,7 @@
 .s4-district > header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .s4-district h3 { font: 700 1.3rem/1.05 'Sign', 'Oswald', sans-serif; text-transform: uppercase; }
 .s4-district__status {
-  font-size: .66rem; text-transform: uppercase; letter-spacing: .07em;
+  font-size: 0.781rem; text-transform: uppercase; letter-spacing: .07em;
   color: oklch(48% .025 55); white-space: nowrap;
 }
 /* Состояние района читается цветом полосы слева, а не заливкой: заливка
@@ -75,14 +75,14 @@
 .s4-district__facts > div { display: flex; justify-content: space-between; gap: 12px; }
 .s4-district__facts dt {
   display: flex; align-items: center; gap: 4px;
-  font-size: .66rem; text-transform: uppercase; letter-spacing: .06em;
+  font-size: 0.781rem; text-transform: uppercase; letter-spacing: .06em;
   color: oklch(50% .025 55);
 }
-.s4-district__facts dd { margin: 0; font-size: .84rem; text-align: right; }
+.s4-district__facts dd { margin: 0; font-size: 0.859rem; text-align: right; }
 
 .s4-district__claim {
   display: flex; align-items: center; gap: 6px;
-  margin: 0; padding: 7px 9px; font-size: .78rem;
+  margin: 0; padding: 7px 9px; font-size: 0.844rem;
   background: oklch(91% .045 60); color: oklch(40% .11 36);
 }
 .s4-district__actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -90,16 +90,16 @@
 /* Причина отказа стоит текстом всегда, а не тултипом на выключенной
    кнопке: игрок должен понимать, чего не хватает, без наведения. */
 .s4-district__blocked, .s4-target__blocked {
-  margin: 0; font-size: .75rem; color: var(--s3-red);
+  margin: 0; font-size: 0.828rem; color: var(--s3-red);
 }
 .s4-district__details { border-top: 1px dashed var(--s4-line); padding-top: 10px; }
-.s4-upkeep { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: .78rem; }
+.s4-upkeep { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 0.844rem; }
 
 /* ── Списки: объекты района, история, журнал авторитета ────── */
 .s4-list { list-style: none; margin: 0; padding: 0; }
 .s4-list li {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  padding: 8px 0; border-bottom: 1px solid oklch(80% .018 60); font-size: .84rem;
+  padding: 8px 0; border-bottom: 1px solid oklch(80% .018 60); font-size: 0.859rem;
 }
 .s4-list--log li { gap: 10px; }
 .s4-list--log li > :first-child { flex: 0 0 auto; }
@@ -110,7 +110,7 @@
 .s4-target { background: oklch(96% .018 76); padding: 14px 16px; display: grid; gap: 8px; }
 .s4-target__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .s4-target__head b { font: 700 1.05rem/1.1 'Sign', 'Oswald', sans-serif; text-transform: uppercase; }
-.s4-target__facts { display: flex; flex-wrap: wrap; gap: 14px; font-size: .76rem; color: oklch(48% .025 55); }
+.s4-target__facts { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.828rem; color: oklch(48% .025 55); }
 .s4-target__facts span { display: inline-flex; align-items: center; gap: 4px; }
 .s4-target__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .s4-target__actions button { min-height: 38px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px; }
@@ -127,7 +127,7 @@
 .s4-goods__body b { font-size: .95rem; }
 .s4-goods__price { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .s4-note-box {
-  margin: 18px 0 0; padding: 11px 13px; font-size: .78rem;
+  margin: 18px 0 0; padding: 11px 13px; font-size: 0.844rem;
   border: 1px solid oklch(62% .04 65); background: oklch(93% .03 75);
 }
 
@@ -146,13 +146,13 @@
 .s4-helper__head b { font: 700 1.05rem/1.1 'Sign', 'Oswald', sans-serif; text-transform: uppercase; }
 .s4-helper__head span { display: inline-flex; align-items: center; gap: 4px; }
 .s4-helper__facts { display: flex; gap: 22px; margin: 0; }
-.s4-helper__facts dt { font-size: .66rem; text-transform: uppercase; letter-spacing: .07em; color: oklch(50% .025 55); }
+.s4-helper__facts dt { font-size: 0.781rem; text-transform: uppercase; letter-spacing: .07em; color: oklch(50% .025 55); }
 .s4-helper__facts dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
 .s4-helper__shift { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.s4-helper__shift > span { display: inline-flex; align-items: center; gap: 5px; font-size: .8rem; flex: 1 1 auto; }
+.s4-helper__shift > span { display: inline-flex; align-items: center; gap: 5px; font-size: 0.859rem; flex: 1 1 auto; }
 .s4-helper__shift select { flex: 1 1 180px; min-width: 0; }
 .s4-helper__shift button { min-height: 38px; padding: 6px 12px; }
-.s4-helper__dismiss { justify-self: start; min-height: 32px; padding: 4px 10px; font-size: .75rem; display: inline-flex; align-items: center; gap: 5px; }
+.s4-helper__dismiss { justify-self: start; min-height: 32px; padding: 4px 10px; font-size: 0.828rem; display: inline-flex; align-items: center; gap: 5px; }
 
 /* ── Узкий экран ───────────────────────────────────────────── */
 @media (max-width: 800px) {
@@ -173,18 +173,18 @@
 }
 .s4-roster__head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-  font-size: .78rem;
+  font-size: 0.844rem;
 }
 .s4-roster__head > span:first-child { display: inline-flex; align-items: center; gap: 5px; }
 /* Нехватка бойцов сообщается ДО отправки: сервер откажет тем же условием,
    но узнавать об этом из ошибки — плохой способ. */
 .s4-roster__short { color: var(--s3-red); }
-.s4-roster__note { margin: 0; font-size: .72rem; color: oklch(50% .025 55); }
+.s4-roster__note { margin: 0; font-size: 0.813rem; color: oklch(50% .025 55); }
 
 .s4-roster__list { list-style: none; margin: 0; padding: 0; max-height: 210px; overflow-y: auto; }
 .s4-roster__list label {
   display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 8px;
-  padding: 6px 4px; cursor: pointer; font-size: .82rem;
+  padding: 6px 4px; cursor: pointer; font-size: 0.859rem;
   border-bottom: 1px solid oklch(84% .015 60);
 }
 .s4-roster__list label.is-on { background: oklch(92% .04 130); }
@@ -207,7 +207,7 @@
 .s4-roster__list label.is-weak .s4-roster__mark { border-style: dashed; }
 .s4-roster__list input:focus-visible + .s4-roster__mark { outline: 3px solid oklch(63% .14 28); outline-offset: 2px; }
 .s4-roster__nick { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.s4-roster__lvl { font-size: .72rem; color: oklch(50% .025 55); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.s4-roster__lvl { font-size: 0.813rem; color: oklch(50% .025 55); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .s4-roster__actions { display: flex; gap: 8px; }
 .s4-roster__actions button { min-height: 36px; padding: 5px 12px; }
 
@@ -228,9 +228,9 @@
 .s4-side.is-mine { background: oklch(94% .03 80); }
 .s4-side > header { margin-bottom: 8px; }
 .s4-side > header h4 { margin: 0 0 3px; border: 0; padding: 0; }
-.s4-side > header b { font-size: .84rem; }
+.s4-side > header b { font-size: 0.859rem; }
 .s4-side__mine {
-  margin-left: 7px; padding: 1px 6px; font-size: .6rem; letter-spacing: .06em;
+  margin-left: 7px; padding: 1px 6px; font-size: 0.75rem; letter-spacing: .06em;
   background: var(--s3-ink); color: oklch(96% .018 76);
 }
 .s4-side ol { list-style: none; margin: 0; padding: 0; counter-reset: fighter; }

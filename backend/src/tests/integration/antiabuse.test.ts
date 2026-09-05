@@ -12,7 +12,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MarketService } from '../../modules/market/market.service'
 import {
   rebuildAccountGraph, detectMultiAccounts, detectMatchFixing,
-  detectMoneyFunnel, detectRobberyStreak, detectLedgerMismatch, raise,
+  detectMoneyFunnel, detectRobberyStreak, detectLedgerMismatch,
+  detectMarketManipulation, raise,
 } from '../../modules/antiabuse/antiabuse.service'
 import {
   pairFlowToday, checkPairFlow, repeatBattleCoeff, pairBattlesToday,
@@ -317,5 +318,57 @@ describe('антиабуз', () => {
     expect(await raise(draft)).toBe(true)
     expect(await raise(draft)).toBe(false)
     expect(await testPrisma.abuseSignal.count({ where: { kind: 'WEAK_FARMING' } })).toBe(1)
+  })
+
+  // ── Рыночные махинации ────────────────────────────────────
+
+  /** Проданный ресурсный лот с эталоном: цена сравнивается с basePrice×amount. */
+  async function soldResource(sellerId: string, buyerId: string, templateId: string, price: number) {
+    return testPrisma.marketListing.create({
+      data: {
+        sellerCharacterId: sellerId, buyerCharacterId: buyerId,
+        type: 'RESOURCE', resourceTemplateId: templateId, resourceAmount: 1,
+        price, listingFee: 0, status: 'SOLD', soldAt: new Date(),
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    })
+  }
+
+  it('пять сделок пары по дну коридора поднимают сигнал махинации', async () => {
+    const seller = await player('mm_seller')
+    const buyer = await player('mm_buyer')
+    const tpl = await testPrisma.resourceTemplate.create({
+      data: { code: uid('mm_res'), name: 'Тест-ресурс', category: 'PRIMARY', tier: 1, basePrice: 100, weight: 0.1 },
+    })
+    // Эталон = basePrice × amount = 100. Цена 10 → ×0.10, ниже дна 0.20.
+    for (let i = 0; i < 5; i += 1) await soldResource(seller.character.id, buyer.character.id, tpl.id, 10)
+
+    expect(await detectMarketManipulation()).toBe(1)
+    const signal = await testPrisma.abuseSignal.findFirst({ where: { kind: 'MARKET_MANIPULATION' } })
+    expect(signal?.userIds).toEqual(expect.arrayContaining([seller.user.id, buyer.user.id]))
+    expect(await detectMarketManipulation()).toBe(0) // ключ повтора: второй раз молчит
+  })
+
+  it('продажи внутри коридора махинацией не считаются', async () => {
+    const seller = await player('mm_ok')
+    const buyer = await player('mm_ok_buyer')
+    const tpl = await testPrisma.resourceTemplate.create({
+      data: { code: uid('mm_res_ok'), name: 'Тест-ресурс', category: 'PRIMARY', tier: 1, basePrice: 100, weight: 0.1 },
+    })
+    // Цена по эталону — ×1.0, в коридоре, и шесть штук не сигнал.
+    for (let i = 0; i < 6; i += 1) await soldResource(seller.character.id, buyer.character.id, tpl.id, 100)
+
+    expect(await detectMarketManipulation()).toBe(0)
+  })
+
+  it('четыре сделки по краю — ещё ниже порога, сигнала нет', async () => {
+    const seller = await player('mm_four')
+    const buyer = await player('mm_four_buyer')
+    const tpl = await testPrisma.resourceTemplate.create({
+      data: { code: uid('mm_res_four'), name: 'Тест-ресурс', category: 'PRIMARY', tier: 1, basePrice: 100, weight: 0.1 },
+    })
+    for (let i = 0; i < 4; i += 1) await soldResource(seller.character.id, buyer.character.id, tpl.id, 10)
+
+    expect(await detectMarketManipulation()).toBe(0)
   })
 })

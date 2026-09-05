@@ -28,7 +28,7 @@
   align-items: center;
   min-height: 28px;
   background: #fffffe;
-  font-size: 12px;
+  font-size: 13.25px;
 }
 /* Ширины плашек — из макета, поделённые пополам: наличность 523→261,
    корзина 213→106, окно уровня 68→34. Подписи в макете набраны
@@ -53,7 +53,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13.25px;
 }
 .gshop-level__box { min-width: 34px; justify-content: center; padding: 0 4px; }
 /* Селект прозрачный: фон и рамку рисует плашка под ним.
@@ -74,7 +74,7 @@
   justify-content: center;
   min-width: 106px;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13.25px;
   padding: 0 12px;
   border: 0;
   cursor: pointer;
@@ -105,7 +105,7 @@
   position: relative;
   min-width: 106px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13.25px;
   padding: 6px 14px;
   border: 0;
   background: #fffffe;
@@ -139,7 +139,7 @@
   border: 1px solid var(--shop-ink);
   padding: 8px 10px;
   margin-bottom: 10px;
-  font-size: 12px;
+  font-size: 13.25px;
 }
 .gshop-cart ul { list-style: none; margin: 0 0 8px; padding: 0; }
 .gshop-cart li {
@@ -175,7 +175,7 @@
 }
 .gshop-card--bar { grid-template-columns: 1fr; }
 .gshop-card img { object-fit: contain; align-self: start; }
-.gshop-card h3 { font-size: 12px; margin: 0; text-transform: uppercase; }
+.gshop-card h3 { font-size: 13.25px; margin: 0; text-transform: uppercase; }
 /* Макет складывает сведения в три этажа: подпись и количество в одну
    строку, прочность и цена во вторую, и только потом столбец
    характеристик. Значение идёт сразу за подписью — у правого края
@@ -186,7 +186,7 @@
   justify-content: space-between;
   gap: 10px;
 }
-.gshop-card-count { font-size: 10.5px; color: #4a4345; white-space: nowrap; }
+.gshop-card-count { font-size: 12.5px; color: #4a4345; white-space: nowrap; }
 /* Строка «прочность / цена» в макете идёт во всю ширину плитки: цена
    кончается на 666-м пикселе из 691, то есть заходит правее кнопки —
    они просто на разных этажах. Поэтому кнопки живут не отдельной
@@ -203,15 +203,15 @@
   flex-wrap: wrap;
   gap: 2px 14px;
   margin: 3px 0 6px;
-  font-size: 10.5px;
+  font-size: 12.5px;
 }
-.gshop-bar-name { font-size: 10px; opacity: .7; }
-.gshop-card dl { display: grid; gap: 0; margin: 0 0 2px; font-size: 10.5px; line-height: 1.25; }
+.gshop-bar-name { font-size: 12px; opacity: .7; }
+.gshop-card dl { display: grid; gap: 0; margin: 0 0 2px; font-size: 12.5px; line-height: 1.25; }
 .gshop-card dl > div { display: flex; justify-content: flex-start; gap: 5px; }
 .gshop-card dt::after { content: ":"; }
 .gshop-card dt { color: #4a4345; }
 .gshop-card dd { margin: 0; font-variant-numeric: tabular-nums; }
-.gshop-bonuses { list-style: none; margin: 0; padding: 0; font-size: 10.5px; color: #3a3436; }
+.gshop-bonuses { list-style: none; margin: 0; padding: 0; font-size: 12.5px; color: #3a3436; }
 /* Кнопки стоят колонкой у правого края плитки, как в макете. */
 /* Кнопки в макете стоят в нижней половине плитки: «купить» на 48% её
    высоты, «в корзину» на 73%. Прижимаем к низу и растягиваем колонку —
@@ -227,7 +227,7 @@
 .gshop-btn {
   position: relative;
   font: inherit;
-  font-size: 11px;
+  font-size: 12.75px;
   padding: 4px 12px;
   border: 0;
   background: transparent;
@@ -240,7 +240,7 @@
 .gshop-btn:disabled { opacity: .4; cursor: not-allowed; }
 .gshop-btn:focus-visible { outline: 2px solid var(--red, #8c2f2f); outline-offset: 1px; }
 
-.gshop-empty, .gshop-note { font-size: 12px; opacity: .8; }
+.gshop-empty, .gshop-note { font-size: 13.25px; opacity: .8; }
 .gshop-note { margin: 0 0 8px; }
 
 @media (max-width: 900px) {

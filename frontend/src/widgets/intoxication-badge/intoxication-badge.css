@@ -35,13 +35,13 @@
 }
 
 .intox-badge__state {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .intox-badge__left {
-  font-size: 9px;
+  font-size: 11.5px;
   opacity: 0.75;
 }
