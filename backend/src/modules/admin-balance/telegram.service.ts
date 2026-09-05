@@ -33,36 +33,69 @@ export function telegramConfigured(): boolean {
 }
 
 /**
+ * Сколько раз пробовать и с какой паузой.
+ *
+ * Замерено на проде (Beget, Санкт-Петербург): холодное соединение до
+ * api.telegram.org отваливается по таймауту примерно в четверти попыток,
+ * а следующая тут же проходит за 70–100 мс. Ни выбор семейства адресов,
+ * ни порог гонки IPv4/IPv6 на это не влияют — канал просто рвётся.
+ *
+ * Три попытки превращают четверть потерь в примерно полтора процента.
+ * Больше смысла нет: если не прошло трижды подряд, дело не в канале, и
+ * ждать дольше — значит держать ночной сбор метрик.
+ */
+const ATTEMPTS = 3
+const RETRY_PAUSE_MS = [400, 1200]
+
+/** Соединение либо устанавливается за полсекунды, либо не установится. */
+const REQUEST_TIMEOUT_MS = 8000
+
+const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+/**
  * Отправка сообщения.
  *
  * Ошибки не выбрасываются наружу: упавший бот не должен ронять сбор
  * метрик или админский запрос. Они попадают в лог — там их и ищут.
+ *
+ * Сетевые сбои повторяются, ответы Telegram — нет: 400 «chat not found»
+ * не пройдёт и с десятой попытки, а вот повторять его — верный способ
+ * получить бан по частоте запросов.
  */
 export async function sendTelegram(text: string): Promise<{ ok: boolean; error?: string }> {
   if (!telegramConfigured()) {
     return { ok: false, error: 'Не настроено: нет TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID' }
   }
-  try {
-    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: env.TELEGRAM_CHAT_ID,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-      }),
-    })
-    if (!response.ok) {
-      const body = await response.text().catch(() => '')
-      logger.error({ status: response.status, body: body.slice(0, 200) }, '[Telegram] Отправка не прошла')
-      return { ok: false, error: `Telegram ответил ${response.status}` }
+
+  let lastError = 'Не удалось связаться с Telegram'
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: env.TELEGRAM_CHAT_ID,
+          text,
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+        }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      })
+      if (!response.ok) {
+        const body = await response.text().catch(() => '')
+        logger.error({ status: response.status, body: body.slice(0, 200) }, '[Telegram] Отправка не прошла')
+        return { ok: false, error: `Telegram ответил ${response.status}` }
+      }
+      if (attempt > 1) logger.info({ attempt }, '[Telegram] Сообщение ушло с повтора')
+      return { ok: true }
+    } catch (err) {
+      lastError = 'Не удалось связаться с Telegram'
+      logger.warn({ err, attempt, of: ATTEMPTS }, '[Telegram] Попытка не прошла')
+      if (attempt < ATTEMPTS) await pause(RETRY_PAUSE_MS[attempt - 1] ?? 1200)
     }
-    return { ok: true }
-  } catch (err) {
-    logger.error({ err }, '[Telegram] Сеть недоступна')
-    return { ok: false, error: 'Не удалось связаться с Telegram' }
   }
+  logger.error({ attempts: ATTEMPTS }, '[Telegram] Сеть недоступна')
+  return { ok: false, error: lastError }
 }
 
 export interface AlertNotice {
