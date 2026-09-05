@@ -12,7 +12,7 @@
 // =============================================================
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
-import { chatTime, levelTone } from '../../../widgets/city-feed/city-feed'
+import { chatTime, levelTone } from '../../../shared/lib/chat-format'
 import { nickTone, useChat, useOnline } from '../../../shared/lib/use-chat'
 
 /** Высота сцены боя. Постоянная: и со свёрнутым чатом, и с развёрнутым.

@@ -8,6 +8,7 @@ import { PublicLayout } from './layouts/public-layout'
 import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
 import { RadioPage } from '../pages/radio/radio-page'
+import { AnnouncementsFeed } from '../pages/radio/announcements-feed'
 
 import { LoginPage }           from '../pages/auth/login-page'
 import { RegisterPage }        from '../pages/auth/register-page'
@@ -242,10 +243,17 @@ export function AppRouter() {
             сам предложил читать этот пункт меню как чат, и это
             единственное прочтение, за которым стоит механика. */}
         <Route path="/radio" element={<RadioPage />} />
-        <Route path="/news"    element={<LockedSection title="Новости" stage={2}
-          what="Лента новостей проекта." />} />
-        <Route path="/updates" element={<LockedSection title="Обновления" stage={2}
-          what="История изменений и патчей." />} />
+        {/* Новости и обновления — та же доска объявлений, что и в радио,
+            только отфильтрованная по виду. Отдельных страниц под них не
+            заводим: источник один и разметка одна. */}
+        <Route path="/news" element={
+          <ViewportPanel title="Новости" subtitle="Что говорит администрация">
+            <AnnouncementsFeed kind="NEWS" empty="Новостей пока нет." />
+          </ViewportPanel>} />
+        <Route path="/updates" element={
+          <ViewportPanel title="Обновления" subtitle="История изменений">
+            <AnnouncementsFeed kind="PATCH" empty="Об изменениях ещё не объявляли." />
+          </ViewportPanel>} />
         <Route path="/forum"   element={<LockedSection title="Форум" stage={3}
           what="Общение, объявления и торговые темы." />} />
       </Route>

@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query'
 import { charactersApi } from '../../shared/api/characters.api'
 import { districtKey } from '../city-nav/city-nav'
 import { nickTone, useChat, useOnline } from '../../shared/lib/use-chat'
+import { chatTime, levelTone } from '../../shared/lib/chat-format'
 import { MENU, MENU_GAME_H, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useFitBlock } from '../../shared/lib/use-fit-block'
 import { PLATES } from '../../shared/ui/sprite'
@@ -30,16 +31,6 @@ export interface OnlinePlayer {
   level: number
   tone: 'r' | 'c' | 'o'
   self?: boolean
-}
-
-/**
- * Цвет уровня в списке онлайна. В макете он ничего не значит —
- * оформление, — но разнобой там нарисован, поэтому держим три ступени.
- */
-export function levelTone(level: number): 'r' | 'c' | 'o' {
-  if (level >= 25) return 'c'
-  if (level >= 10) return 'r'
-  return 'o'
 }
 
 // ── Выдвижная полоса чата ────────────────────────────────────
@@ -134,12 +125,6 @@ export function CityChatDock() {
       </div>
     </div>
   )
-}
-
-/** Час и минута отправки — в ленте макета время стоит перед ником. */
-export function chatTime(iso: string): string {
-  const at = new Date(iso)
-  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
 }
 
 // ── Чат ──────────────────────────────────────────────────────

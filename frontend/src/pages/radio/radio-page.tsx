@@ -13,9 +13,10 @@ import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
 import { districtKey } from '../../widgets/city-nav/city-nav'
-import { chatTime, levelTone } from '../../widgets/city-feed/city-feed'
+import { chatTime, levelTone } from '../../shared/lib/chat-format'
 import { nickTone, useChat, useOnline } from '../../shared/lib/use-chat'
 import type { ChatChannel } from '../../shared/api/chat.api'
+import { AnnouncementsFeed } from './announcements-feed'
 import './radio.css'
 
 const DISTRICT_NAMES: Record<string, string> = {
@@ -26,7 +27,10 @@ const DISTRICT_NAMES: Record<string, string> = {
 export function RadioPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [channel, setChannel] = useState<ChatChannel>('GLOBAL')
+  // Четвёртая вкладка — не канал эфира, а доска объявлений, поэтому
+  // состояние одно на оба вида: они занимают одно и то же место.
+  const [tab, setTab] = useState<ChatChannel | 'BOARD'>('GLOBAL')
+  const channel: ChatChannel = tab === 'BOARD' ? 'GLOBAL' : tab
   const [draft, setDraft] = useState('')
 
   const { data: char } = useQuery({
@@ -47,10 +51,11 @@ export function RadioPage() {
     if (await chat.send(draft)) setDraft('')
   }
 
-  const tabs: { key: ChatChannel; label: string; hint: string }[] = [
+  const tabs: { key: ChatChannel | 'BOARD'; label: string; hint: string }[] = [
     { key: 'GLOBAL', label: 'Общая волна', hint: 'Слышно всему городу' },
     { key: 'DISTRICT', label: DISTRICT_NAMES[district] ?? 'Район', hint: 'Только свой район' },
     { key: 'CLAN', label: 'Бригада', hint: 'Только своим' },
+    { key: 'BOARD', label: 'Объявления', hint: 'Что говорит город' },
   ]
 
   return (
@@ -62,40 +67,46 @@ export function RadioPage() {
       </header>
 
       <nav className="radio__tabs" aria-label="Каналы эфира">
-        {tabs.map(tab => (
+        {tabs.map(item => (
           <button
-            key={tab.key}
+            key={item.key}
             type="button"
-            className={channel === tab.key ? 'is-active' : ''}
-            onClick={() => setChannel(tab.key)}
-            title={tab.hint}
+            className={tab === item.key ? 'is-active' : ''}
+            onClick={() => setTab(item.key)}
+            title={item.hint}
           >
-            {tab.label}
+            {item.label}
           </button>
         ))}
       </nav>
 
       <div className="radio__body">
-        <section className="radio__feed" aria-label="Лента эфира">
-          {chat.messages.map(message => (
-            <p key={message.id} className="radio__row">
-              <span className="radio__time">[{chatTime(message.createdAt)}]</span>{' '}
-              <span
-                className={`radio__nick city-chat__nick--${nickTone(message.nickname)}`}
-                onClick={() => navigate(`/u/${encodeURIComponent(message.nickname)}`)}
-              >
-                {message.nickname}:
-              </span>{' '}
-              {message.body}
-            </p>
-          ))}
+        <section className="radio__feed" aria-label={tab === 'BOARD' ? 'Объявления' : 'Лента эфира'}>
+          {tab === 'BOARD' ? (
+            <AnnouncementsFeed empty="Город пока молчит." />
+          ) : (
+            <>
+              {chat.messages.map(message => (
+                <p key={message.id} className="radio__row">
+                  <span className="radio__time">[{chatTime(message.createdAt)}]</span>{' '}
+                  <span
+                    className={`radio__nick city-chat__nick--${nickTone(message.nickname)}`}
+                    onClick={() => navigate(`/u/${encodeURIComponent(message.nickname)}`)}
+                  >
+                    {message.nickname}:
+                  </span>{' '}
+                  {message.body}
+                </p>
+              ))}
 
-          {!chat.loading && !chat.messages.length && (
-            <p className="radio__empty">
-              {channel === 'CLAN'
-                ? 'Своей волны нет: вы не состоите в бригаде.'
-                : 'На этой волне тихо. Скажите первое слово.'}
-            </p>
+              {!chat.loading && !chat.messages.length && (
+                <p className="radio__empty">
+                  {channel === 'CLAN'
+                    ? 'Своей волны нет: вы не состоите в бригаде.'
+                    : 'На этой волне тихо. Скажите первое слово.'}
+                </p>
+              )}
+            </>
           )}
         </section>
 
@@ -123,17 +134,21 @@ export function RadioPage() {
         </aside>
       </div>
 
-      <form className="radio__form" onSubmit={send}>
-        <input
-          value={draft}
-          onChange={e => { setDraft(e.target.value); if (chat.notice) chat.clearNotice() }}
-          placeholder={chat.notice || 'Сказать в эфир…'}
-          maxLength={chat.maxBody}
-          spellCheck={false}
-          aria-label="Сказать в эфир"
-        />
-        <button type="submit">Сказать</button>
-      </form>
+      {/* На доске объявлений поле ввода не нужно: туда пишет город,
+          а не игрок. */}
+      {tab !== 'BOARD' && (
+        <form className="radio__form" onSubmit={send}>
+          <input
+            value={draft}
+            onChange={e => { setDraft(e.target.value); if (chat.notice) chat.clearNotice() }}
+            placeholder={chat.notice || 'Сказать в эфир…'}
+            maxLength={chat.maxBody}
+            spellCheck={false}
+            aria-label="Сказать в эфир"
+          />
+          <button type="submit">Сказать</button>
+        </form>
+      )}
     </div>
   )
 }
