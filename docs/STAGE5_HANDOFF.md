@@ -33,8 +33,10 @@ npm run accept:stage5     # 19 из 19 исполненных, 5 отложен�
 npx tsx ../scripts/simulate-full.ts --days 30 --seed 4242
 ```
 
-Локальный админ для проверки фронта: `devadmin` / `devadmin_pass_123`
-(заведён только в dev-базе).
+Админ для проверки фронта — тот, что заводит сид: `admin`, роль
+`SUPER_ADMIN`, пароль записан в `prisma/seed.ts`. Никакого `devadmin`, как
+тут значилось раньше, в базе нет — ни в dev, ни на проде. Сменить пароль:
+`npm run admin:password` (см. `docs/RELEASE_ADMIN.md`, раздел 6).
 
 ## Осталось
 

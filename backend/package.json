@@ -24,6 +24,7 @@
     "accept:stage4": "tsx scripts/accept-stage4.ts",
     "accept:stage5": "tsx scripts/accept-stage5.ts",
     "db:raw-indexes": "tsx prisma/apply-raw-indexes.ts",
+    "admin:password": "tsx scripts/set-admin-password.ts",
     "test:db:setup": "prisma db push --skip-generate --accept-data-loss && tsx prisma/apply-raw-indexes.ts && prisma db seed"
   },
   "dependencies": {
