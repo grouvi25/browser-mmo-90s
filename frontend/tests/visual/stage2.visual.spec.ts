@@ -209,6 +209,10 @@ test.describe('Stage 2 visual and browser flow', () => {
 
     for (const route of ['/', '/profile']) {
       await page.goto(route)
+      // Без ожидания замер иногда уходил в null: goto резолвится по load,
+      // а сцену рисует React уже после него — под нагрузкой полного прогона
+      // это давало падение «Cannot read properties of null».
+      await page.locator('.stage').waitFor({ state: 'attached' })
       const geometry = await page.evaluate(() => {
         const stage = document.querySelector<HTMLElement>('.stage')!.getBoundingClientRect()
         const backdrop = document.querySelector<HTMLElement>('.stage-backdrop')!.getBoundingClientRect()
