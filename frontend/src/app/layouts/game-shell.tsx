@@ -10,14 +10,14 @@ import { Outlet } from 'react-router-dom'
 
 import { ErrorBoundary } from '../error-boundary'
 
-import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
+import { MENU, MENU_GAME_H, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useIsMobile } from '../../shared/lib/use-media-query'
 import { MobileShell } from './mobile-shell'
 import { Stage } from '../../shared/lib/stage'
 import { PLATES } from '../../shared/ui/sprite'
 import { CharacterCard } from '../../widgets/character-card/character-card'
 import { BottomTabs, DistrictTabs, TopNav } from '../../widgets/city-nav/city-nav'
-import { CityChat, OnlineList } from '../../widgets/city-feed/city-feed'
+import { CityChatDock } from '../../widgets/city-feed/city-feed'
 
 export function GameShell() {
   // Узкий экран получает свою композицию: сцена по макету на нём
@@ -27,9 +27,16 @@ export function GameShell() {
 
   const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
 
+  // Сцена считается по игровой части, без полосы чата: чат выдвигается
+  // поверх неё и на масштаб не влияет — см. CityChatDock.
   return (
-    <Stage width={MENU_STAGE.w} height={MENU_STAGE.h} fit="contain" backdrop={plate} className="stage--menu">
-      <div className="stage__plate" style={{ backgroundImage: plate }} />
+    <Stage width={MENU_STAGE.w} height={MENU_GAME_H} fit="contain" backdrop={plate} className="stage--menu">
+      {/* Подложка держит полный холст 1550x900 и обрезается сценой снизу:
+          растягивать её по укороченной сцене нельзя — рисунок сплющится. */}
+      <div
+        className="stage__plate"
+        style={{ backgroundImage: plate, width: MENU_STAGE.w, height: MENU_STAGE.h }}
+      />
 
       <TopNav />
       <DistrictTabs />
@@ -46,8 +53,7 @@ export function GameShell() {
         <ErrorBoundary><Outlet /></ErrorBoundary>
       </div>
 
-      <CityChat />
-      <OnlineList />
+      <CityChatDock />
     </Stage>
   )
 }

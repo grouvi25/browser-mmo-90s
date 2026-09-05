@@ -6,13 +6,14 @@
 // сокет-канал, меняется только этот хук: разметка и вёрстка
 // остаются как есть.
 // =============================================================
-import { useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
-import { MENU } from '../../shared/lib/layout-map'
+import { MENU, MENU_GAME_H, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useFitBlock } from '../../shared/lib/use-fit-block'
+import { PLATES } from '../../shared/ui/sprite'
 
 export interface ChatMessage {
   id: string
@@ -50,6 +51,100 @@ export const DEMO_ONLINE: OnlinePlayer[] = [
   { nick: 'ДeД_МoРоЗ_Z', level: 15, tone: 'r' },
   { nick: 'Pozytiv4ik', level: 30, tone: 'c' },
 ]
+
+// ── Выдвижная полоса чата ────────────────────────────────────
+
+const CHAT_OPEN_KEY = 'mmo_chat_open'
+
+/** Высота язычка в координатах сцены. У свёрнутого чата он встаёт на
+    679…705 — в свободное поле между нижним рядом комнат (кончается на 651)
+    и краем сцены, поэтому свёрнутый чат не закрывает собой ничего. */
+const CHAT_TAB_H = 26
+
+/**
+ * Чат и онлайн — одной выдвижной полосой поверх сцены.
+ *
+ * Раньше они занимали нижнюю пятую часть холста постоянно, и сцена
+ * из-за них считалась по высоте 900 вместо 705 — то есть весь остальной
+ * интерфейс рисовался мельче ради демонстрационной ленты.
+ *
+ * Полоса лежит НАД сценой и при развороте перекрывает низ вьюпорта, а не
+ * раздвигает разметку: сцена остаётся той же высоты в обоих состояниях,
+ * поэтому от открытия чата ничего не прыгает и не мельчает.
+ *
+ * Рисунок полосы — тот же вырез из общей подложки, что у шапки и
+ * карточки (см. nav-cutout): внутри лежит полный холст 1550x900,
+ * сдвинутый так, чтобы полоса чата встала в начало координат. Ни второй
+ * картинки, ни второй вёрстки чата не появляется.
+ */
+export function CityChatDock() {
+  const [open, setOpen] = useState(false)
+
+  // По умолчанию свёрнут; открытый чат запоминается, чтобы не
+  // раскрывать его заново на каждом переходе между разделами.
+  useEffect(() => {
+    try {
+      setOpen(localStorage.getItem(CHAT_OPEN_KEY) === '1')
+    } catch {
+      // приватный режим — остаёмся на свёрнутом по умолчанию
+    }
+  }, [])
+
+  const toggle = useCallback(() => {
+    setOpen(prev => {
+      const next = !prev
+      try { localStorage.setItem(CHAT_OPEN_KEY, next ? '1' : '0') } catch { /* см. выше */ }
+      return next
+    })
+  }, [])
+
+  const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
+  const panel = MENU.chatPanel
+
+  return (
+    <div
+      className={'chat-dock' + (open ? ' is-open' : '')}
+      style={{
+        left: panel.x, top: MENU_GAME_H - panel.h,
+        width: panel.w, height: panel.h,
+        // Свёрнутая полоса уходит за нижний край сцены целиком — её
+        // обрезает overflow сцены. Видимым остаётся только язычок: он
+        // висит НАД полосой (bottom: 100%) и уезжает вместе с ней ровно
+        // на её высоту, то есть встаёт впритык к нижнему краю.
+        transform: open ? 'translateY(0)' : `translateY(${panel.h}px)`,
+      }}
+    >
+      <button
+        type="button"
+        className="chat-dock__tab"
+        style={{ height: CHAT_TAB_H }}
+        onClick={toggle}
+        aria-expanded={open}
+        title={open ? 'Свернуть чат' : 'Развернуть чат района'}
+      >
+        {open ? '▼ свернуть чат' : '▲ чат района'}
+      </button>
+
+      {/* Скрытие свёрнутой полосы делает CSS через visibility: aria-hidden
+          здесь ставить нельзя — внутри остаются поле ввода и кликабельные
+          ники, а спрятанный от скринридера фокусируемый элемент это
+          нарушение (axe: aria-hidden-focus). */}
+      <div className="chat-dock__window" style={{ height: panel.h }}>
+        <div
+          className="chat-dock__inner"
+          style={{
+            width: MENU_STAGE.w, height: MENU_STAGE.h,
+            transform: `translateY(${-panel.y}px)`,
+          }}
+        >
+          <div className="stage__plate" style={{ backgroundImage: plate }} />
+          <CityChat />
+          <OnlineList />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Чат ──────────────────────────────────────────────────────
 export function CityChat() {

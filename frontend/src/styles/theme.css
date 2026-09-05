@@ -144,6 +144,73 @@ html, body {
 .stage--menu    { background-image: var(--plate-menu); }
 .stage--profile { background-image: var(--plate-profile); }
 
+/* Главный экран показывает только игровую часть холста (1550x705):
+   полоса чата выдвигается поверх сцены и живёт за её нижним краем,
+   поэтому и подложку, и свёрнутый чат обрезаем здесь. Фон задаём
+   размером холста, иначе он сплющится по укороченной сцене. */
+.stage--menu {
+  overflow: hidden;
+  background-size: 1550px 900px;
+  background-position: left top;
+}
+
+/* =============================================================
+   ВЫДВИЖНАЯ ПОЛОСА ЧАТА
+   ============================================================= */
+
+.chat-dock {
+  position: absolute;
+  z-index: 6;
+  transition: transform .22s ease-out;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-dock { transition: none; }
+}
+
+/* Язычок торчит из-под свёрнутой полосы и остаётся единственным, что
+   от неё видно. Он же — кнопка сворачивания у развёрнутой. */
+.chat-dock__tab {
+  position: absolute;
+  right: 24px;
+  bottom: 100%;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text);
+  background: var(--paper-warm);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+}
+.chat-dock__tab:hover { background: var(--bg-hover); }
+
+/* Окно выреза: показывает ровно полосу чата из общего холста. */
+.chat-dock__window {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.chat-dock__inner { position: absolute; left: 0; top: 0; }
+
+/* Свёрнутая полоса не должна ни перехватывать клики по вьюпорту под ней,
+   ни отдавать фокус и голос скринридеру: visibility убирает её из
+   таб-порядка и из дерева доступности разом. Гасим с задержкой на время
+   уезда, иначе полоса пропадала бы мгновенно, не доиграв анимацию. */
+.chat-dock__window { visibility: visible; }
+.chat-dock:not(.is-open) .chat-dock__window {
+  visibility: hidden;
+  pointer-events: none;
+  transition: visibility 0s linear .22s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-dock:not(.is-open) .chat-dock__window { transition: none; }
+}
+
 /* =============================================================
    СПРАЙТЫ И ОБЛАСТИ НАЖАТИЯ
    ============================================================= */

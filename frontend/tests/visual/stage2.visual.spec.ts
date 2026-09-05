@@ -219,11 +219,57 @@ test.describe('Stage 2 visual and browser flow', () => {
           viewportWidth: window.innerWidth,
         }
       })
-      const expectedRatio = route === '/' ? 1550 / 900 : 1600 / 900
+      // Главный экран показывает игровую часть холста без полосы чата:
+      // она выдвигается поверх сцены, а не входит в её высоту (MENU_GAME_H).
+      const expectedRatio = route === '/' ? 1550 / 705 : 1600 / 900
       expect(Math.abs(geometry.ratio - expectedRatio)).toBeLessThan(0.001)
       expect(geometry.backdropLeft).toBeLessThanOrEqual(0)
       expect(geometry.backdropRight).toBeGreaterThanOrEqual(geometry.viewportWidth)
     }
+  })
+
+  // Смысл выдвижного чата в том, что он НЕ отбирает место у игры: свёрнут
+  // по умолчанию, а развёрнутый ложится поверх сцены. Если он снова начнёт
+  // раздвигать разметку, весь остальной интерфейс станет мельче — поэтому
+  // проверяем не картинку, а геометрию до и после клика.
+  test('city chat starts collapsed and opens over the scene without shrinking it', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop stage only')
+    await authPage(page, seller)
+    await page.goto('/')
+
+    const dock = page.locator('.chat-dock')
+    const tab = page.locator('.chat-dock__tab')
+    await expect(dock).toHaveCount(1)
+    await expect(tab).toBeVisible()
+
+    const measure = () => page.evaluate(() => {
+      const stage = document.querySelector<HTMLElement>('.stage')!.getBoundingClientRect()
+      const view = document.querySelector<HTMLElement>('.viewport')!.getBoundingClientRect()
+      const panel = document.querySelector<HTMLElement>('.chat-dock')!.getBoundingClientRect()
+      return {
+        stageW: stage.width, stageH: stage.height,
+        viewTop: view.top, viewH: view.height,
+        panelTop: panel.top, stageBottom: stage.bottom,
+      }
+    })
+
+    // Свёрнут: полоса целиком за нижним краем сцены.
+    await expect(tab).toHaveAttribute('aria-expanded', 'false')
+    const collapsed = await measure()
+    expect(collapsed.panelTop).toBeGreaterThanOrEqual(collapsed.stageBottom - 1)
+
+    await tab.click()
+    await expect(tab).toHaveAttribute('aria-expanded', 'true')
+    await page.waitForTimeout(400)
+    const opened = await measure()
+
+    // Сцена и вьюпорт не сдвинулись и не изменили размер — чат лёг поверх.
+    expect(Math.abs(opened.stageW - collapsed.stageW)).toBeLessThan(0.5)
+    expect(Math.abs(opened.stageH - collapsed.stageH)).toBeLessThan(0.5)
+    expect(Math.abs(opened.viewTop - collapsed.viewTop)).toBeLessThan(0.5)
+    expect(Math.abs(opened.viewH - collapsed.viewH)).toBeLessThan(0.5)
+    // …и при этом полоса действительно приехала внутрь сцены.
+    expect(opened.panelTop).toBeLessThan(collapsed.stageBottom - 20)
   })
 
   test('E2 work page lists every workplace the API returns', async ({ page }, testInfo) => {
