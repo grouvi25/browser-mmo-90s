@@ -7,6 +7,7 @@ import { ApiError } from '../shared/api/client'
 import { PublicLayout } from './layouts/public-layout'
 import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
+import { RadioPage } from '../pages/radio/radio-page'
 
 import { LoginPage }           from '../pages/auth/login-page'
 import { RegisterPage }        from '../pages/auth/register-page'
@@ -237,11 +238,10 @@ export function AppRouter() {
             <WorkPage />
           </ViewportPanel>} />
         <Route path="/station" element={<Navigate to="/district/station" replace />} />
-        {/* Радио есть в макете верхнего меню, но что за ним стоит —
-            заказчиком не описано. Держим место, как и другие разделы,
-            у которых интерфейс есть, а наполнение впереди. */}
-        <Route path="/radio" element={<LockedSection title="Радио" stage={4}
-          what="Городская радиостанция: музыка и объявления." />} />
+        {/* Радио — эфир города: общая волна, район и бригада. Заказчик
+            сам предложил читать этот пункт меню как чат, и это
+            единственное прочтение, за которым стоит механика. */}
+        <Route path="/radio" element={<RadioPage />} />
         <Route path="/news"    element={<LockedSection title="Новости" stage={2}
           what="Лента новостей проекта." />} />
         <Route path="/updates" element={<LockedSection title="Обновления" stage={2}

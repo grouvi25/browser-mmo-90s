@@ -1,0 +1,130 @@
+/* =============================================================
+   Радиорубка. Оформление — то же, что у прочих комнат вьюпорта:
+   бумага, тонкая чёрная рамка, заголовок вывеской. Своей графики в
+   макете у радио нет, поэтому берём общий язык экранов, а не
+   выдумываем третий.
+   ============================================================= */
+.radio {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  padding: 4px 2px 2px;
+  font-size: 13.25px;
+}
+
+.radio__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  border-bottom: 1.5px solid #17130f;
+  padding-bottom: 5px;
+}
+.radio__head h1 {
+  margin: 0;
+  font-family: var(--font-sign);
+  font-size: 26px;
+  text-transform: uppercase;
+  letter-spacing: .01em;
+}
+.radio__head span { color: #4a4345; }
+.radio__back {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--red, #b81e2c);
+  font: inherit;
+  cursor: pointer;
+}
+.radio__back:hover { text-decoration: underline; }
+
+.radio__tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.radio__tabs button {
+  padding: 4px 12px;
+  border: 1.5px solid #17130f;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.radio__tabs button.is-active { background: #17130f; color: #f6ece2; }
+.radio__tabs button:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 2px; }
+
+/* Лента и список делят строку; обе части прокручиваются сами, чтобы
+   поле ввода внизу оставалось на месте при любой длине разговора. */
+.radio__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 210px);
+  gap: 10px;
+  min-height: 0;
+}
+
+.radio__feed {
+  overflow-y: auto;
+  padding: 6px 8px;
+  border: 1.5px solid #17130f;
+  line-height: 1.45;
+}
+.radio__row { margin: 0 0 3px; }
+.radio__time { color: var(--ink-red, #ab0303); }
+.radio__nick { font-weight: 700; cursor: pointer; }
+.radio__nick:hover { text-decoration: underline; }
+.radio__empty { color: #4a4345; }
+
+.radio__online {
+  overflow-y: auto;
+  padding: 6px 8px;
+  border: 1.5px solid #17130f;
+}
+.radio__online h2 {
+  margin: 0 0 5px;
+  font-family: var(--font-sign);
+  font-size: 14px;
+  text-transform: uppercase;
+  color: var(--ink-red, #ab0303);
+}
+.radio__online ul { list-style: none; margin: 0; padding: 0; }
+.radio__online button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 1px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.radio__online button:hover { text-decoration: underline; }
+.radio__online li.is-self button { font-weight: 700; }
+
+.radio__form { display: flex; gap: 6px; }
+.radio__form input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1.5px solid #17130f;
+  background: var(--bg-input, #fff6ea);
+  color: inherit;
+  font: inherit;
+}
+.radio__form button {
+  padding: 5px 14px;
+  border: 1.5px solid #17130f;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.radio__form button:hover { background: #f1e4d5; }
+.radio__form input:focus-visible,
+.radio__form button:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+
+/* Узкий экран: список онлайна уходит под ленту, а не жмёт её. */
+@media (max-width: 900px) {
+  .radio__body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+  .radio__online { max-height: 30vh; }
+}

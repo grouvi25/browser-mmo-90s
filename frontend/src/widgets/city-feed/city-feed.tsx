@@ -1,16 +1,17 @@
 // =============================================================
 // Чат района и список онлайна.
 //
-// Транспорта под них на бэкенде пока нет (чат и присутствие —
-// Этап 3), поэтому данные отдаёт useCityFeed. Когда появится
-// сокет-канал, меняется только этот хук: разметка и вёрстка
-// остаются как есть.
+// Данные настоящие: лента приходит из /api/chat, живые реплики —
+// сокетом, присутствие — из общего списка эфира. Демонстрационные
+// массивы, что стояли тут до появления модуля чата, убраны.
 // =============================================================
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
+import { districtKey } from '../city-nav/city-nav'
+import { nickTone, useChat, useOnline } from '../../shared/lib/use-chat'
 import { MENU, MENU_GAME_H, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useFitBlock } from '../../shared/lib/use-fit-block'
 import { PLATES } from '../../shared/ui/sprite'
@@ -31,26 +32,15 @@ export interface OnlinePlayer {
   self?: boolean
 }
 
-/** Демо-лента района. Точка подключения реального канала. */
-export const DEMO_CHAT: ChatMessage[] = [
-  { id: '1', time: '16:31', nick: 'Hitman', tone: 1, text: 'Ну что, собрались наконец? У кого катриджи свежие?' },
-  { id: '2', time: '16:32', nick: 'Бездушный гном', tone: 2, text: 'У меня только «Танчики» осталось, всё остальное батя на шкаф убрал.' },
-  { id: '3', time: '16:33', nick: 'Кепка СССР', tone: 3, text: 'А я вчера у соседа «Чёрного Плаща» на вечер взял, только не говните джойстик, а!' },
-  { id: '4', time: '16:33', nick: 'Жвачный Король', tone: 4, text: 'Я могу батарейки подкинуть для джоя, а то опять полчаса бегать по двору.' },
-  { id: '5', time: '16:34', nick: 'Бездушный гном', tone: 2, text: 'А конфеты кто-то брал? У меня рот пустой, пацаны.' },
-  { id: '6', time: '16:35', nick: 'Кепка СССР', tone: 3, text: 'Я «Кислый дождик» купил! Могу поделиться — но только за первый ход!' },
-]
-
-export const DEMO_ONLINE: OnlinePlayer[] = [
-  { nick: 'ISHkA_88', level: 15, tone: 'r' },
-  { nick: 'КоSoЛапЫй', level: 15, tone: 'r' },
-  { nick: 'BATYA_90', level: 30, tone: 'c' },
-  { nick: 'ёЖиК_v_ТУМанЕ', level: 30, tone: 'c' },
-  { nick: '4elovek_Keks', level: 1, tone: 'o' },
-  { nick: 'GopStop_2077', level: 15, tone: 'r' },
-  { nick: 'ДeД_МoРоЗ_Z', level: 15, tone: 'r' },
-  { nick: 'Pozytiv4ik', level: 30, tone: 'c' },
-]
+/**
+ * Цвет уровня в списке онлайна. В макете он ничего не значит —
+ * оформление, — но разнобой там нарисован, поэтому держим три ступени.
+ */
+export function levelTone(level: number): 'r' | 'c' | 'o' {
+  if (level >= 25) return 'c'
+  if (level >= 10) return 'r'
+  return 'o'
+}
 
 // ── Выдвижная полоса чата ────────────────────────────────────
 
@@ -146,37 +136,34 @@ export function CityChatDock() {
   )
 }
 
+/** Час и минута отправки — в ленте макета время стоит перед ником. */
+export function chatTime(iso: string): string {
+  const at = new Date(iso)
+  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
+}
+
 // ── Чат ──────────────────────────────────────────────────────
 export function CityChat() {
   const navigate = useNavigate()
-  const [messages, setMessages] = useState<ChatMessage[]>(DEMO_CHAT)
+  const location = useLocation()
   const [draft, setDraft] = useState('')
-  const { data: char } = useQuery({
-    queryKey: ['character', 'me'],
-    queryFn: () => charactersApi.getMe(),
-    retry: false,
-  })
+
+  // Полоса внизу — чат района, и район берётся из текущего адреса:
+  // игрок ходит по городу, а окно чата остаётся тем же.
+  const district = districtKey(location.pathname + location.search) || 'center'
+  const chat = useChat('DISTRICT', district)
 
   const boxRef = useRef<HTMLDivElement>(null)
-  useFitBlock(boxRef, MENU.chat.w, [messages])
+  useFitBlock(boxRef, MENU.chat.w, [chat.messages])
 
-  const send = (e: FormEvent) => {
+  const send = async (e: FormEvent) => {
     e.preventDefault()
-    const text = draft.trim()
-    if (!text || !char) return
-    const now = new Date()
-    setMessages(prev => [
-      ...prev.slice(-(MENU.chat.rows - 1)),
-      {
-        id: String(Date.now()),
-        time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
-        nick: char.nickname, tone: 1, text, own: true,
-      },
-    ])
-    setDraft('')
+    // Поле очищаем только если реплика ушла: при отказе антифлуда
+    // набранное остаётся, чтобы не печатать заново.
+    if (await chat.send(draft)) setDraft('')
   }
 
-  const shown = messages.slice(-MENU.chat.rows)
+  const shown = chat.messages.slice(-MENU.chat.rows)
 
   return (
     <>
@@ -187,20 +174,23 @@ export function CityChat() {
           left: MENU.chat.x, top: MENU.chat.y,
           fontSize: MENU.chat.size, lineHeight: `${MENU.chat.lineHeight}px`,
         }}
-        title="Чат района. Транспорт подключается в Этапе 3 — сейчас лента демонстрационная."
+        title="Чат района"
       >
         {shown.map(m => (
           <div key={m.id} className="city-chat__row">
-            <span className="city-chat__time">[{m.time}]</span>{' '}
+            <span className="city-chat__time">[{chatTime(m.createdAt)}]</span>{' '}
             <span
-              className={`city-chat__nick city-chat__nick--${m.tone}`}
-              onClick={() => navigate(`/u/${encodeURIComponent(m.nick)}`)}
+              className={`city-chat__nick city-chat__nick--${nickTone(m.nickname)}`}
+              onClick={() => navigate(`/u/${encodeURIComponent(m.nickname)}`)}
             >
-              {m.nick}:
+              {m.nickname}:
             </span>{' '}
-            {m.text}
+            {m.body}
           </div>
         ))}
+        {!chat.loading && !shown.length && (
+          <div className="city-chat__row city-chat__empty">В районе тихо. Скажите первое слово.</div>
+        )}
       </div>
 
       <form onSubmit={send}>
@@ -212,10 +202,11 @@ export function CityChat() {
             fontSize: MENU.chat.size,
           }}
           value={draft}
-          onChange={e => setDraft(e.target.value)}
-          placeholder="Демо-сообщение (только у вас)…"
-          maxLength={200}
+          onChange={e => { setDraft(e.target.value); if (chat.notice) chat.clearNotice() }}
+          placeholder={chat.notice || 'Написать в чат района…'}
+          maxLength={chat.maxBody}
           spellCheck={false}
+          aria-label="Написать в чат района"
         />
       </form>
     </>
@@ -234,9 +225,16 @@ export function OnlineList() {
   const listRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLDivElement>(null)
 
-  const players: OnlinePlayer[] = char
-    ? [{ nick: char.nickname, level: char.battleLevel, tone: 'o', self: true }, ...DEMO_ONLINE]
-    : DEMO_ONLINE
+  // Себя сервер тоже отдаёт в списке — он отмечает присутствие на любом
+  // обращении к эфиру. Поднимаем свою строку наверх и красим отдельно.
+  const online = useOnline()
+  const players: OnlinePlayer[] = online.map(p => ({
+    nick: p.nickname,
+    level: p.level,
+    tone: p.characterId === char?.id ? 'o' : levelTone(p.level),
+    self: p.characterId === char?.id,
+  }))
+  players.sort((a, b) => Number(b.self ?? false) - Number(a.self ?? false))
 
   const shown = players.slice(0, 9)
 
