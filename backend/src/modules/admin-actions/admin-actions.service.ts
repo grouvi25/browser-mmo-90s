@@ -70,8 +70,7 @@ const date = (payload: Record<string, unknown>, key: string) =>
 
 /** Ветки опыта, которые можно выдавать. Профессии сюда не входят: их
  *  опыт лежит в отдельной таблице по коду профессии. */
-const EXP_TRACKS = ['battle', 'economic', 'production'] as const
-type ExpTrack = typeof EXP_TRACKS[number]
+type ExpTrack = 'battle' | 'economic' | 'production'
 
 /**
  * Выдача или списание опыта с пересчётом уровня.
