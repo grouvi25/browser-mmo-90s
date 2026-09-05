@@ -204,3 +204,67 @@ export const OnlineRedis = {
     await getRedis().del(`char:${charId}:status`)
   },
 }
+
+// =============================================================
+// Чат: присутствие и антифлуд.
+//
+// Присутствие держим отсортированным множеством, а не набором ключей
+// с TTL: список онлайна нужно ЧИТАТЬ целиком, а перебирать ключи по
+// маске в живой базе нельзя. Оценка — время последнего касания, так
+// что подвисшие записи отсеиваются по ней же, даже если процесс упал
+// и «ушёл» никто не отправил.
+// =============================================================
+const CHAT_PRESENCE_KEY = 'chat:online'
+
+export const ChatRedis = {
+  /** Игрок вошёл в эфир или подтвердил, что ещё здесь. */
+  async presenceTouch(charId: string): Promise<void> {
+    await getRedis().zadd(CHAT_PRESENCE_KEY, Date.now(), charId)
+  },
+
+  async presenceLeave(charId: string): Promise<void> {
+    await getRedis().zrem(CHAT_PRESENCE_KEY, charId)
+  },
+
+  /**
+   * Кто в эфире. Заодно подчищает протухшие записи — отдельная
+   * уборка не нужна, а список читают часто.
+   */
+  async presenceList(ttlSeconds: number, limit: number): Promise<string[]> {
+    const redis = getRedis()
+    const edge = Date.now() - ttlSeconds * 1000
+    await redis.zremrangebyscore(CHAT_PRESENCE_KEY, '-inf', edge)
+    // Свежие сверху: кто коснулся позже, тот и первый в списке.
+    return redis.zrevrange(CHAT_PRESENCE_KEY, 0, Math.max(0, limit - 1))
+  },
+
+  /** Когда игрок писал в прошлый раз, мс эпохи, или null. */
+  async lastSpokeAt(key: string): Promise<number | null> {
+    const raw = await getRedis().get(key)
+    return raw ? parseInt(raw, 10) : null
+  },
+
+  async markSpokeAt(key: string, at: number, ttlSeconds: number): Promise<void> {
+    await getRedis().setex(key, ttlSeconds, String(at))
+  },
+
+  /**
+   * Счётчик реплик в окне. Срок жизни ставим только при первой —
+   * иначе окно продлевалось бы с каждым сообщением и не закрывалось.
+   */
+  async countInWindow(key: string, windowSeconds: number): Promise<number> {
+    const redis = getRedis()
+    const count = await redis.incr(key)
+    if (count === 1) await redis.expire(key, windowSeconds)
+    return count
+  },
+
+  /** Отпечаток последней реплики — чтобы поймать повтор слово в слово. */
+  async lastFingerprint(key: string): Promise<string | null> {
+    return getRedis().get(key)
+  },
+
+  async markFingerprint(key: string, fingerprint: string, ttlSeconds: number): Promise<void> {
+    await getRedis().setex(key, ttlSeconds, fingerprint)
+  },
+}
