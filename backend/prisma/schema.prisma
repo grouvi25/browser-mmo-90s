@@ -543,6 +543,7 @@ model Character {
   claimRosters         TerritoryClaimRoster[]
   helpers              Helper[]
   premiumPurchases     PremiumPurchase[]
+  chatMessages         ChatMessage[]
 
   @@map("characters")
 }
@@ -1914,4 +1915,37 @@ model Helper {
 
   @@index([characterId])
   @@map("helpers")
+}
+
+// =============================================================
+// CHAT — «радио»
+//
+// Один канал на все виды эфира. Комната внутри канала лежит в
+// scope: ключ района для DISTRICT, идентификатор клана для CLAN,
+// пустая строка для GLOBAL. Так лента, история и права читаются
+// одним индексом, а не тремя таблицами.
+// =============================================================
+enum ChatChannel {
+  DISTRICT
+  CLAN
+  GLOBAL
+}
+
+model ChatMessage {
+  id          String      @id @default(uuid())
+  channel     ChatChannel
+  scope       String      @default("")
+  authorId    String      @map("author_id")
+  body        String      @db.VarChar(400)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  // Мягкое удаление: модератор прячет сообщение, но след остаётся —
+  // разбирать жалобы по пустому месту невозможно.
+  deletedAt   DateTime?   @map("deleted_at")
+  deletedBy   String?     @map("deleted_by")
+
+  author Character @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([channel, scope, createdAt])
+  @@index([authorId, createdAt])
+  @@map("chat_messages")
 }

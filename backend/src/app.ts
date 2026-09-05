@@ -14,6 +14,9 @@ import { AuthConfig } from './config/auth.config'
 import { AppError } from './shared/errors/app-error'
 import { logger } from './shared/logger/logger'
 import { checkReadiness } from './shared/health/readiness'
+import { setRealtimeServer } from './shared/realtime/io'
+import { ChatService } from './modules/chat/chat.service'
+import { chatRoom, DISTRICTS } from './modules/chat/chat.formulas'
 
 import { authRoutes } from './modules/auth/auth.routes'
 import { charactersRoutes } from './modules/characters/characters.routes'
@@ -33,6 +36,7 @@ import { upgradesRoutes } from './modules/upgrades/upgrades.routes'
 import { productionRoutes } from './modules/production/production.routes'
 import { farmRoutes } from './modules/farm/farm.routes'
 import { barsRoutes } from './modules/bars/bars.routes'
+import { chatRoutes } from './modules/chat/chat.routes'
 import { clansRoutes } from './modules/clans/clans.routes'
 import { territoriesRoutes, clanTerritoriesRoutes, objectWarRoutes } from './modules/territories/territories.routes'
 import { premiumRoutes, helpersRoutes } from './modules/premium/premium.routes'
@@ -128,6 +132,7 @@ export async function buildApp() {
   await fastify.register(productionRoutes,     { prefix: '/api/production' })
   await fastify.register(farmRoutes,           { prefix: '/api/farm' })
   await fastify.register(barsRoutes,           { prefix: '/api/bars' })
+  await fastify.register(chatRoutes,           { prefix: '/api/chat' })
   await fastify.register(clansRoutes,          { prefix: '/api/clans' })
   // Территории клана — под тем же префиксом, что и сам клан:
   // адрес /api/clans/:id/territories задан в STAGE4_API 1.3.
@@ -218,7 +223,48 @@ export async function setupSocketIO(app: FastifyInstance) {
         acknowledge?.({ ok: false, error: 'Unable to join battle' })
       }
     })
+
+    // ── Эфир ──────────────────────────────────────────────
+    // Общий канал и канал своего клана подключаются сразу: их состав
+    // от перемещений игрока не зависит. Район меняется при ходьбе по
+    // городу, поэтому его комнату переключает клиент отдельно.
+    void (async () => {
+      try {
+        const who = await ChatService.speaker(socket.data.userId as string)
+        socket.data.characterId = who.characterId
+        await ChatService.touch(who.characterId)
+        await socket.join(chatRoom('GLOBAL', ''))
+        if (who.clanId) await socket.join(chatRoom('CLAN', who.clanId))
+      } catch (err) {
+        // Персонажа может не быть — аккаунт создан, герой ещё нет.
+        // Это не повод рвать соединение: бой и служебные события живут
+        // своей жизнью, просто эфир такому гостю не подключаем.
+        logger.debug({ err, userId: socket.data.userId }, 'Socket chat rooms skipped')
+      }
+    })()
+
+    socket.on('chat:district', async (district: unknown, acknowledge?: (r: { ok: boolean }) => void) => {
+      if (typeof district !== 'string' || !(DISTRICTS as readonly string[]).includes(district)) {
+        acknowledge?.({ ok: false })
+        return
+      }
+      // Район ровно один: перед входом в новый выходим из прежних,
+      // иначе игрок копил бы комнаты и слышал весь город сразу.
+      for (const room of socket.rooms) {
+        if (room.startsWith('chat:DISTRICT:')) await socket.leave(room)
+      }
+      await socket.join(chatRoom('DISTRICT', district))
+      const characterId = socket.data.characterId as string | undefined
+      if (characterId) await ChatService.touch(characterId)
+      acknowledge?.({ ok: true })
+    })
+
+    socket.on('disconnect', () => {
+      const characterId = socket.data.characterId as string | undefined
+      if (characterId) void ChatService.leave(characterId)
+    })
   })
 
+  setRealtimeServer(io)
   return io
 }
