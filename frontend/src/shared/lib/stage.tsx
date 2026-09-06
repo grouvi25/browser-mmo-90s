@@ -88,10 +88,6 @@ interface StageProps {
   scale?: number
   /** Размытая полноэкранная подложка. Точная сцена поверх неё не растягивается. */
   backdrop?: string
-  /** Полный холст макета, чтобы дорисовать его ниже укороченной сцены.
-   *  Сцена меню обрезана по игровой части — под ней оставалась пустота,
-   *  и в неё смотрел фон страницы серой полосой. */
-  bleed?: { image: string; width: number; height: number }
   className?: string
   children: ReactNode
 }
@@ -102,16 +98,14 @@ interface StageProps {
  */
 export function Stage({
   width, height, fit = 'contain', maxScale = 1.5,
-  scale: scaleOverride, backdrop, bleed, className = '', children,
+  scale: scaleOverride, backdrop, className = '', children,
 }: StageProps) {
   const auto = useViewportScale(width, height, fit, maxScale)
   const scale = scaleOverride ?? auto
   const holderRef = useRef<HTMLDivElement>(null)
 
-  // Высота холста — по сцене, но не меньше окна. Сцена шире окна по
-  // пропорциям, поэтому «вписать» оставляет снизу пустоту: раньше там
-  // виднелся фон страницы серо-сиреневой полосой в полтораста пикселей.
-  // Подложка продолжается в неё, и никакой полосы не остаётся.
+  // Холст не ниже окна: иначе в остаток снизу смотрит фон страницы
+  // серой полосой. Что в этом остатке видно, решает подложка сцены.
   const holderStyle: CSSProperties = { height: height * scale, minHeight: '100dvh' }
   // Сцена прижата к left:50%, поэтому сдвигаем её на половину УЖЕ
   // отмасштабированной ширины — иначе центровка уезжает при k != 1.
@@ -128,19 +122,6 @@ export function Stage({
             className="stage-backdrop"
             aria-hidden="true"
             style={{ backgroundImage: backdrop }}
-          />
-        )}
-        {/* Продолжение подложки под сценой. Рисуется тем же холстом и в
-            том же масштабе, поэтому шва на границе не видно. */}
-        {bleed && (
-          <div
-            className="stage-bleed"
-            aria-hidden="true"
-            style={{
-              backgroundImage: bleed.image,
-              width: bleed.width * scale,
-              height: bleed.height * scale,
-            }}
           />
         )}
         <div className={`stage ${className}`} style={stageStyle}>{children}</div>

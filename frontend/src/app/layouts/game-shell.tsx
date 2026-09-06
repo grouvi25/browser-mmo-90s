@@ -11,6 +11,7 @@ import { Outlet } from 'react-router-dom'
 import { ErrorBoundary } from '../error-boundary'
 
 import { MENU, MENU_GAME_H, MENU_STAGE } from '../../shared/lib/layout-map'
+import { useChatOpen } from '../../shared/lib/use-chat-open'
 import { useIsMobile } from '../../shared/lib/use-media-query'
 import { MobileShell } from './mobile-shell'
 import { Stage } from '../../shared/lib/stage'
@@ -23,19 +24,22 @@ export function GameShell() {
   // Узкий экран получает свою композицию: сцена по макету на нём
   // ужимается до нечитаемого. Данные и графика — те же.
   const isMobile = useIsMobile()
+  const [chatOpen, toggleChat] = useChatOpen()
   if (isMobile) return <MobileShell />
 
   const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
 
-  // Сцена считается по игровой части, без полосы чата: чат выдвигается
-  // поверх неё и на масштаб не влияет — см. CityChatDock.
+  // Высота сцены зависит от чата, и это не украшение, а правило:
+  // развёрнутый чат — полная композиция макета, свёрнутый — только
+  // игровая часть, которая в том же окне вписывается крупнее. Чат либо
+  // занимает своё место, либо освобождает его — но не накрывает собой
+  // интерфейс.
   return (
     <Stage
-      width={MENU_STAGE.w} height={MENU_GAME_H} fit="contain"
+      width={MENU_STAGE.w}
+      height={chatOpen ? MENU_STAGE.h : MENU_GAME_H}
+      fit="contain"
       backdrop={plate}
-      // Ниже сцены дорисовываем тот же холст целиком: игровая часть
-      // короче окна по пропорциям, и в остаток смотрел фон страницы.
-      bleed={{ image: plate, width: MENU_STAGE.w, height: MENU_STAGE.h }}
       className="stage--menu"
     >
       {/* Подложка держит полный холст 1550x900 и обрезается сценой снизу:
@@ -60,7 +64,7 @@ export function GameShell() {
         <ErrorBoundary><Outlet /></ErrorBoundary>
       </div>
 
-      <CityChatDock />
+      <CityChatDock open={chatOpen} onToggle={toggleChat} />
     </Stage>
   )
 }

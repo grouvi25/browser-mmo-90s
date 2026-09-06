@@ -5,7 +5,7 @@
 // сокетом, присутствие — из общего списка эфира. Демонстрационные
 // массивы, что стояли тут до появления модуля чата, убраны.
 // =============================================================
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
@@ -13,7 +13,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { districtKey } from '../city-nav/city-nav'
 import { nickTone, useChat, useOnline } from '../../shared/lib/use-chat'
 import { chatTime, levelTone } from '../../shared/lib/chat-format'
-import { MENU, MENU_GAME_H, MENU_STAGE } from '../../shared/lib/layout-map'
+import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useFitBlock } from '../../shared/lib/use-fit-block'
 import { PLATES } from '../../shared/ui/sprite'
 
@@ -35,7 +35,6 @@ export interface OnlinePlayer {
 
 // ── Выдвижная полоса чата ────────────────────────────────────
 
-const CHAT_OPEN_KEY = 'mmo_chat_open'
 
 /** Высота язычка в координатах сцены. У свёрнутого чата он встаёт на
     679…705 — в свободное поле между нижним рядом комнат (кончается на 651)
@@ -58,27 +57,7 @@ const CHAT_TAB_H = 26
  * сдвинутый так, чтобы полоса чата встала в начало координат. Ни второй
  * картинки, ни второй вёрстки чата не появляется.
  */
-export function CityChatDock() {
-  const [open, setOpen] = useState(false)
-
-  // По умолчанию свёрнут; открытый чат запоминается, чтобы не
-  // раскрывать его заново на каждом переходе между разделами.
-  useEffect(() => {
-    try {
-      setOpen(localStorage.getItem(CHAT_OPEN_KEY) === '1')
-    } catch {
-      // приватный режим — остаёмся на свёрнутом по умолчанию
-    }
-  }, [])
-
-  const toggle = useCallback(() => {
-    setOpen(prev => {
-      const next = !prev
-      try { localStorage.setItem(CHAT_OPEN_KEY, next ? '1' : '0') } catch { /* см. выше */ }
-      return next
-    })
-  }, [])
-
+export function CityChatDock({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
   const panel = MENU.chatPanel
 
@@ -86,20 +65,19 @@ export function CityChatDock() {
     <div
       className={'chat-dock' + (open ? ' is-open' : '')}
       style={{
-        left: panel.x, top: MENU_GAME_H - panel.h,
+        // Полоса стоит там, где её нарисовал художник, — ниже игровой
+        // части. Свёрнутой она не прячется сдвигом: сцена становится
+        // короче ровно на её высоту и обрезает полосу сама. Поэтому чат
+        // и не налезает на интерфейс ни в одном из состояний.
+        left: panel.x, top: panel.y,
         width: panel.w, height: panel.h,
-        // Свёрнутая полоса уходит за нижний край сцены целиком — её
-        // обрезает overflow сцены. Видимым остаётся только язычок: он
-        // висит НАД полосой (bottom: 100%) и уезжает вместе с ней ровно
-        // на её высоту, то есть встаёт впритык к нижнему краю.
-        transform: open ? 'translateY(0)' : `translateY(${panel.h}px)`,
       }}
     >
       <button
         type="button"
         className="chat-dock__tab"
         style={{ height: CHAT_TAB_H }}
-        onClick={toggle}
+        onClick={onToggle}
         aria-expanded={open}
         title={open ? 'Свернуть чат' : 'Развернуть чат района'}
       >
