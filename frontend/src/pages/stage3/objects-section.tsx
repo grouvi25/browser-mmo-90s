@@ -237,7 +237,7 @@ function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, on
         <legend><Repeat size={14} /> Производственный профиль</legend>
         <select value={recipeId} onChange={e => setRecipeId(e.target.value)} aria-label="Рецепт">
           <option value="">— выберите рецепт —</option>
-          {recipes.data?.items.map(recipe => (
+          {recipes.data?.items?.map(recipe => (
             <option key={recipe.id} value={recipe.id} disabled={!recipe.available}>
               {recipe.name}{recipe.available ? '' : ' · нужен уровень +' + recipe.missingLevel}
             </option>

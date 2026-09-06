@@ -13,10 +13,10 @@ export function MyBarSection() {
   if (bars.isLoading || me.isLoading) return <Skeleton rows={3} />
   if (bars.isError) return <Fault retry={() => bars.refetch()} />
 
-  const mine = bars.data?.items.filter(bar => bar.ownerCharacterId && bar.ownerCharacterId === me.data?.id) ?? []
+  const mine = bars.data?.items?.filter(bar => bar.ownerCharacterId && bar.ownerCharacterId === me.data?.id) ?? []
 
   if (mine.length === 0) {
-    const price = bars.data?.items.find(bar => bar.purchasePrice != null)?.purchasePrice
+    const price = bars.data?.items?.find(bar => bar.purchasePrice != null)?.purchasePrice
     return (
       <Empty
         title="У вас нет своего бара"

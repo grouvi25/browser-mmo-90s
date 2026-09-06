@@ -71,7 +71,7 @@ export function ClaimSection() {
   const iAttack = myTag === claim.attacker.clanTag
   const iDefend = !!claim.defender && myTag === claim.defender.clanTag
   const live = claim.status === 'PENDING'
-  const defenceSet = (claim.defender?.roster.length ?? 0) > 0
+  const defenceSet = (claim.defender?.roster?.length ?? 0) > 0
   const busy = defence.isPending || cancel.isPending
 
   return (

@@ -19,7 +19,7 @@ export function useMyClan() {
   })
 
   const member = clan.data?.members?.find(row => row.characterId === me.data?.id)
-  const permissions = member?.role.permissions ?? []
+  const permissions = member?.role?.permissions ?? []
 
   return {
     me: me.data,

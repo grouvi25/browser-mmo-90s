@@ -274,7 +274,7 @@ export function BattlePage() {
   // ── Данные из liveState (Redis) и БД ──────────────────────
   const live      = battleData?.liveState
   const dbParts   = (battleData?.battle?.participants ?? []) as Array<{ characterId?: string | null; botId?: string | null; hpMax?: number; hpCurrent?: number }>
-  const pPart     = live?.participants.find((p: { characterId?: string }) => p.characterId === char?.id)
+  const pPart     = live?.participants?.find((p: { characterId?: string }) => p.characterId === char?.id)
   const enemyParts = pPart ? (live?.participants ?? []).filter((p: LiveParticipant) => p.isAlive && p.side !== pPart.side) : []
   const ePart     = enemyParts.find((p: LiveParticipant) => p.participantId === selectedTargetId) ?? enemyParts[0]
   // Fallback на DB participants для hpMax (важно: Redis может ещё не загрузиться)
@@ -540,9 +540,9 @@ export function BattlePage() {
       nickname: playerName, level: char?.battleLevel ?? 0,
       hp: pHp, hpMax: pHpMax,
       avatar: playerProfile?.avatar ?? char?.avatar,
-      weaponName: playerProfile?.primaryHand ?? weapon?.template.name,
-      weaponCode: playerProfile?.primaryWeaponCode ?? weapon?.template.code,
-      weaponType: playerProfile?.primaryWeaponType ?? weapon?.template.weaponType,
+      weaponName: playerProfile?.primaryHand ?? weapon?.template?.name,
+      weaponCode: playerProfile?.primaryWeaponCode ?? weapon?.template?.code,
+      weaponType: playerProfile?.primaryWeaponType ?? weapon?.template?.weaponType,
       offhandName: playerProfile?.secondaryHand,
       offhandCode: playerProfile?.secondaryWeaponCode,
     }} />}
@@ -580,10 +580,10 @@ export function BattlePage() {
           avatar={playerProfile?.avatar ?? char?.avatar}
           hp={pHp} hpMax={pHpMax} mode="block" selected={blockZones} limit={attackHands.length > 0 ? 2 : 4}
           disabled={!canAct || attackHands.length === 2}
-          primaryHand={playerProfile?.primaryHand ?? weapon?.template.name} secondaryHand={playerProfile?.secondaryHand}
-          primaryWeaponCode={playerProfile?.primaryWeaponCode ?? weapon?.template.code}
+          primaryHand={playerProfile?.primaryHand ?? weapon?.template?.name} secondaryHand={playerProfile?.secondaryHand}
+          primaryWeaponCode={playerProfile?.primaryWeaponCode ?? weapon?.template?.code}
           secondaryWeaponCode={playerProfile?.secondaryWeaponCode}
-          primaryWeaponType={playerProfile?.primaryWeaponType ?? weapon?.template.weaponType}
+          primaryWeaponType={playerProfile?.primaryWeaponType ?? weapon?.template?.weaponType}
           secondaryWeaponType={playerProfile?.secondaryWeaponType}
           onZone={toggleBlock} />
 

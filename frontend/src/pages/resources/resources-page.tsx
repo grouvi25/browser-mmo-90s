@@ -10,9 +10,9 @@ export function ResourcesPage() {
   })
   if (isLoading) return <div className="loading"><span className="spinner" />Загружаем склад…</div>
   return <div className="panel">
-    <div className="panel-header"><span className="panel-title">Сырьё</span><span>Общий вес: {data?.totalWeight.toFixed(2) ?? '0.00'}</span></div>
+    <div className="panel-header"><span className="panel-title">Сырьё</span><span>Общий вес: {data?.totalWeight?.toFixed(2) ?? '0.00'}</span></div>
     <div className="panel-body">
-      {!data?.items.length ? <div className="text-dim">Пока ничего нет.</div> : <table className="data-table">
+      {!data?.items?.length ? <div className="text-dim">Пока ничего нет.</div> : <table className="data-table">
         <thead><tr><th>Ресурс</th><th>Уровень</th><th>Есть</th><th>В залоге</th><th>Вес</th><th /></tr></thead>
         <tbody>{data.items.map(stack => <tr key={stack.id}>
           <td>{stack.template.name}</td><td>{stack.template.tier}</td><td>{stack.availableAmount}</td><td>{stack.reservedAmount}</td>

@@ -57,15 +57,15 @@ export function PremiumShopSection() {
         )}
         <div className="s4-stat">
           <span className="s4-stat__label">Опыт оружия</span>
-          <b>×{me?.benefits.skillMultiplier ?? 1}</b>
+          <b>×{me?.benefits?.skillMultiplier ?? 1}</b>
         </div>
         <div className="s4-stat">
           <span className="s4-stat__label">Смен в сутки</span>
-          <b>{me?.benefits.dailyShiftCap ?? 12}</b>
+          <b>{me?.benefits?.dailyShiftCap ?? 12}</b>
         </div>
         <div className="s4-stat">
           <span className="s4-stat__label">Помощников</span>
-          <b>{me?.benefits.helperSlots ?? 0}</b>
+          <b>{me?.benefits?.helperSlots ?? 0}</b>
         </div>
       </div>
 
@@ -114,7 +114,7 @@ export function PremiumShopSection() {
         нет оплаты, продавать их нечем, а показывать как товар — обман.
       </p>
 
-      {purchases.data && purchases.data.items.length > 0 && (
+      {purchases.data?.items?.length ? (
         <>
           <h4>Мои покупки</h4>
           <ul className="s4-list s4-list--log">
@@ -127,7 +127,7 @@ export function PremiumShopSection() {
             ))}
           </ul>
         </>
-      )}
+      ) : null}
     </>
   )
 }

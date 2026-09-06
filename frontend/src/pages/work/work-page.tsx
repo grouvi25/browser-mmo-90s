@@ -32,14 +32,14 @@ export function WorkPage(){
   const current=useQuery({queryKey:['work','current'],queryFn:workApi.current,refetchInterval:10_000})
   const refresh=()=>{void qc.invalidateQueries({queryKey:['work']});void qc.invalidateQueries({queryKey:['character']});void qc.invalidateQueries({queryKey:['resources']})}
   const start=useMutation({mutationFn:(object:ProductionObjectView)=>workApi.start(object.id),onSuccess:(_,object)=>{setReceipt(null);setMessage({type:'success',text:`Смена «${object.name}» началась`});refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})
-  const claim=useMutation({mutationFn:workApi.claim,onSuccess:data=>{const before=current.data?.shift?.profession?.level??data.professionLevel;const object=objects.data?.items.find(x=>x.code===current.data?.shift?.productionObject.code);setReceipt({...data,levelBefore:before,resourceName:object?.producesResourceName??undefined});setMessage(null);refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})
+  const claim=useMutation({mutationFn:workApi.claim,onSuccess:data=>{const before=current.data?.shift?.profession?.level??data.professionLevel;const object=objects.data?.items?.find(x=>x.code===current.data?.shift?.productionObject?.code);setReceipt({...data,levelBefore:before,resourceName:object?.producesResourceName??undefined});setMessage(null);refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})
   const cancel=useMutation({mutationFn:workApi.cancel,onSuccess:()=>{setCancelConfirm(false);setMessage({type:'success',text:'Смена отменена. Инструмент возвращён'});refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})
   const shift=current.data?.shift
   const remaining=shift?Math.max(0,Math.ceil((new Date(shift.endsAt).getTime()-Date.now())/1000)):0
   const total=shift?Math.max(1,Math.ceil((new Date(shift.endsAt).getTime()-new Date(shift.startedAt).getTime())/1000)):1
   const done=shift?Math.max(0,Math.min(100,((total-remaining)/total)*100)):0
-  const used=current.data?.daily.shiftsUsedToday??objects.data?.daily.shiftsUsedToday??0
-  const limit=current.data?.daily.shiftsLimit??objects.data?.daily.shiftsLimit??12
+  const used=current.data?.daily?.shiftsUsedToday??objects.data?.daily?.shiftsUsedToday??0
+  const limit=current.data?.daily?.shiftsLimit??objects.data?.daily?.shiftsLimit??12
   const nextShiftRate=Math.round(Math.max(0.20,1-0.20*used)*100)
 
   return <div className="work-sheet">
@@ -58,7 +58,7 @@ export function WorkPage(){
     </div>}
 
     <div className="panel mb8"><div className="panel-header"><span className="panel-title">Рабочая смена</span><span>{used} / {limit} за сутки · следующая смена: {nextShiftRate}% ставки</span></div><div className="panel-body">
-      {shift?<><div className="work-shift-line"><div><b>{shift.productionObject.name}</b><small>{shift.profession?.name??shift.professionCode}, ур. {shift.profession?.level??0}</small></div><strong>{remaining?time(remaining):'ГОТОВО'}</strong></div>
+      {shift?<><div className="work-shift-line"><div><b>{shift.productionObject?.name}</b><small>{shift.profession?.name??shift.professionCode}, ур. {shift.profession?.level??0}</small></div><strong>{remaining?time(remaining):'ГОТОВО'}</strong></div>
         <div className="work-shift-progress"><i style={{transform:`scaleX(${done/100})`}}/></div>
         {shift.toolInstance&&<div className="text-dim mt8">Инструмент: {shift.toolInstance.template.name}, осталось {shift.toolInstance.usesLeft??0} использований</div>}
         <div className="work-actions"><button className="btn btn-primary" disabled={remaining>0||claim.isPending} onClick={()=>claim.mutate(shift.id)}>{claim.isPending?'Начисляем…':remaining?'Смена идёт':'Забрать награду'}</button>
@@ -67,11 +67,11 @@ export function WorkPage(){
     </div></div>
 
     <div className="panel mb8"><div className="panel-header"><span className="panel-title">Профессии</span></div><div className="panel-body">
-      {objects.data?.professions.length?<table className="data-table"><thead><tr><th>Профессия</th><th>Уровень</th><th>Прогресс</th></tr></thead><tbody>{objects.data.professions.map(p=><tr key={p.code}><td>{p.name}</td><td>{p.level}</td><td><Progress level={p.level} exp={p.exp}/></td></tr>)}</tbody></table>:<span className="text-dim">Профессия откроется после первой смены.</span>}
+      {objects.data?.professions?.length?<table className="data-table"><thead><tr><th>Профессия</th><th>Уровень</th><th>Прогресс</th></tr></thead><tbody>{objects.data.professions.map(p=><tr key={p.code}><td>{p.name}</td><td>{p.level}</td><td><Progress level={p.level} exp={p.exp}/></td></tr>)}</tbody></table>:<span className="text-dim">Профессия откроется после первой смены.</span>}
     </div></div>
 
     <div className="panel" id="vacancies"><div className="panel-header"><span className="panel-title">Вакансии</span><span>Оплата и выработка за смену</span></div><div className="panel-body">
-      {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items.map(object=>{const reason=lockReason(object,!!shift,used>=limit);return <tr key={object.id} className={reason?'is-muted':''}><td><b>{object.name}</b>{reason&&<small className="work-reason">{reason}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{object.shiftDurationMinutes} мин</td><td>{object.baseSalary.toLocaleString('ru')} ₽</td><td>+{object.baseProductionExp} XP</td><td>{object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}`:'—'}</td><td><button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate(object)}>Выйти</button></td></tr>})}</tbody></table>}
+      {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items?.map(object=>{const reason=lockReason(object,!!shift,used>=limit);return <tr key={object.id} className={reason?'is-muted':''}><td><b>{object.name}</b>{reason&&<small className="work-reason">{reason}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{object.shiftDurationMinutes} мин</td><td>{object.baseSalary.toLocaleString('ru')} ₽</td><td>+{object.baseProductionExp} XP</td><td>{object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}`:'—'}</td><td><button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate(object)}>Выйти</button></td></tr>})}</tbody></table>}
     </div></div>
   </div>
 }

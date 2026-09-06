@@ -105,7 +105,7 @@ export function UpgradesPage() {
   const chosenImage = chosen && itemImage(chosen.template.code, chosen.template.weaponType, chosen.template.type)
   const s = socket.data
   const p = preview.data
-  const lacking = p?.requiredResources.filter(r => !r.enough) ?? []
+  const lacking = p?.requiredResources?.filter(r => !r.enough) ?? []
 
   const status: string[] = []
   if (items.data?.length === 0) status.push('У вас нет вещей для улучшения.')
