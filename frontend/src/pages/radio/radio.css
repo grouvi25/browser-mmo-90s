@@ -6,7 +6,7 @@
    ============================================================= */
 .radio {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
   height: 100%;
   min-height: 0;
@@ -14,41 +14,17 @@
   font-size: 13.25px;
 }
 
-.radio__head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  border-bottom: 1.5px solid #17130f;
-  padding-bottom: 5px;
-}
-.radio__head h1 {
-  margin: 0;
-  font-family: var(--font-sign);
-  font-size: 26px;
-  text-transform: uppercase;
-  letter-spacing: .01em;
-}
-.radio__head span { color: #4a4345; }
-.radio__back {
-  margin-left: auto;
-  border: 0;
-  background: none;
-  color: var(--red, #b81e2c);
-  font: inherit;
-  cursor: pointer;
-}
-.radio__back:hover { text-decoration: underline; }
 
 .radio__tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .radio__tabs button {
   padding: 4px 12px;
-  border: 1.5px solid #17130f;
+  border: 1.5px solid var(--text);
   background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
 }
-.radio__tabs button.is-active { background: #17130f; color: #f6ece2; }
+.radio__tabs button.is-active { background: var(--text); color: var(--paper); }
 .radio__tabs button:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 2px; }
 
 /* Лента и список делят строку; обе части прокручиваются сами, чтобы
@@ -63,19 +39,19 @@
 .radio__feed {
   overflow-y: auto;
   padding: 6px 8px;
-  border: 1.5px solid #17130f;
+  border: 1.5px solid var(--text);
   line-height: 1.45;
 }
 .radio__row { margin: 0 0 3px; }
 .radio__time { color: var(--ink-red, #ab0303); }
 .radio__nick { font-weight: 700; cursor: pointer; }
 .radio__nick:hover { text-decoration: underline; }
-.radio__empty { color: #4a4345; }
+.radio__empty { color: var(--text-dim); }
 
 .radio__online {
   overflow-y: auto;
   padding: 6px 8px;
-  border: 1.5px solid #17130f;
+  border: 1.5px solid var(--text);
 }
 .radio__online h2 {
   margin: 0 0 5px;
@@ -106,20 +82,20 @@
   flex: 1 1 auto;
   min-width: 0;
   padding: 5px 8px;
-  border: 1.5px solid #17130f;
+  border: 1.5px solid var(--text);
   background: var(--bg-input, #fff6ea);
   color: inherit;
   font: inherit;
 }
 .radio__form button {
   padding: 5px 14px;
-  border: 1.5px solid #17130f;
+  border: 1.5px solid var(--text);
   background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
 }
-.radio__form button:hover { background: #f1e4d5; }
+.radio__form button:hover { background: var(--bg-hover); }
 .radio__form input:focus-visible,
 .radio__form button:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
 
@@ -136,7 +112,7 @@
 
 .announce__item {
   padding: 8px 10px;
-  border: 1.5px solid #17130f;
+  border: 1.5px solid var(--text);
   background: rgba(255, 251, 244, .55);
 }
 /* Закреплённое отбиваем полосой слева, а не цветом фона: фон тут
@@ -163,11 +139,12 @@
   text-transform: uppercase;
   letter-spacing: .04em;
 }
-.announce__kind--patch { color: #3c6b3c; }
-.announce__kind--news  { color: var(--ink-red, #ab0303); }
-.announce__kind--world { color: #6b4a1f; }
-.announce__pin { margin-left: auto; font-size: 11.5px; color: #4a4345; }
+/* Метка вида — одним цветом. Три разных оттенка тут были лишними:
+   вид объявления и так написан словом, а разноцветье спорит с общим
+   строгим тоном экранов. */
+.announce__kind { color: var(--text-dim); }
+.announce__pin { margin-left: auto; font-size: 11.5px; color: var(--text-dim); }
 
 /* Абзацы администратор ставит руками — перевод строки осмысленный. */
 .announce__body { margin: 0; white-space: pre-line; line-height: 1.45; }
-.announce__item footer { margin-top: 5px; font-size: 12px; color: #4a4345; }
+.announce__item footer { margin-top: 5px; font-size: 12px; color: var(--text-dim); }

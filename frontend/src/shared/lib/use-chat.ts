@@ -95,7 +95,12 @@ export function useChat(channel: ChatChannel, district?: string): ChatState {
   return {
     messages: data?.messages ?? [],
     scope,
-    maxBody: data?.limits.maxBody ?? 400,
+    // Каждое звено через «?»: если сервер ответит не тем, чего ждём,
+    // чат обязан деградировать до предела по умолчанию, а не уронить
+    // весь экран. Здесь стояло data?.limits.maxBody — и один неожиданный
+    // ответ гасил всю страницу в белое, потому что падал не чат, а
+    // дерево над ним.
+    maxBody: data?.limits?.maxBody ?? 400,
     loading: isLoading,
     notice,
     send,

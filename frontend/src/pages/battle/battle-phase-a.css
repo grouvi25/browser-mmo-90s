@@ -241,7 +241,7 @@
   overflow: hidden;
   transition: filter 120ms cubic-bezier(.25,1,.5,1), border-color 120ms;
 }
-.battle-zone-cell:hover:not(:disabled) { filter: brightness(1.05); border-color: #8a7563; }
+.battle-zone-cell:hover:not(:disabled) { border-color: #8a7563; }
 /* Недоступную ячейку гасим ИЗНУТРИ, а не прозрачностью всей кнопки.
    Ячейки стоят поверх чёрного силуэта: opacity на кнопке просвечивала
    его насквозь, и вторые слоты головы, корпуса и рук выглядели тёмными

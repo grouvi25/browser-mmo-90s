@@ -1068,7 +1068,10 @@ button { font-family: inherit; }
   font-family: var(--font-mono);
   font-size: 13.65px;
   color: var(--gold);
-  width: 24px;
+  /* Ширины в 24 px хватало на «7%», но не на «I00%» — подпись вылезала
+     за рамку карточки. Ширину задаём по содержимому с запасом на три
+     цифры со знаком процента. */
+  min-width: 4ch;
   text-align: right;
   flex-shrink: 0;
 }
@@ -1927,7 +1930,6 @@ button { font-family: inherit; }
 
 .battle-action-btn:hover:not(:disabled) {
   background: var(--bg-hover);
-  transform: translateY(-1px);
 }
 
 .battle-action-btn:disabled {
@@ -1942,7 +1944,6 @@ button { font-family: inherit; }
 .battle-action-btn.attack:hover:not(:disabled) {
   background: rgba(196,48,48,0.15);
   border-color: var(--red);
-  box-shadow: 0 0 8px rgba(196,48,48,0.3);
 }
 
 .battle-action-btn.block {
@@ -1952,7 +1953,6 @@ button { font-family: inherit; }
 .battle-action-btn.block:hover:not(:disabled) {
   background: rgba(106,138,58,0.15);
   border-color: var(--accent-light);
-  box-shadow: 0 0 8px rgba(106,138,58,0.3);
 }
 
 .battle-action-btn.consumable {
@@ -2512,7 +2512,6 @@ button { font-family: inherit; }
   transition: all 0.15s;
   text-decoration: none;
 }
-.hud-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
 .hud-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .hud-btn:active:not(:disabled) { transform: translateY(0); }
 
@@ -2520,11 +2519,11 @@ button { font-family: inherit; }
 .hud-btn-label { font-size: 13.65px; color: var(--text-dim); margin-top: 2px; }
 
 .hud-attack { border-color: var(--red-dim); }
-.hud-attack:hover:not(:disabled) { background: rgba(196,48,48,0.15); border-color: var(--red); box-shadow: 0 0 12px rgba(196,48,48,0.3); }
+.hud-attack:hover:not(:disabled) { background: rgba(196,48,48,0.15); border-color: var(--red); }
 .hud-attack .hud-btn-label { color: var(--danger); }
 
 .hud-block { border-color: var(--accent); }
-.hud-block:hover:not(:disabled) { background: rgba(106,138,58,0.15); border-color: var(--accent-light); box-shadow: 0 0 12px rgba(106,138,58,0.3); }
+.hud-block:hover:not(:disabled) { background: rgba(106,138,58,0.15); border-color: var(--accent-light); }
 .hud-block .hud-btn-label { color: var(--accent-light); }
 
 .hud-heal { border-color: var(--success); min-width: 56px; }
@@ -2979,11 +2978,6 @@ button { font-family: inherit; }
   transition: all 0.12s;
   user-select: none;
 }
-
-.hud-v2-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-}
 .hud-v2-btn:active:not(:disabled) { transform: translateY(0); }
 .hud-v2-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -2994,7 +2988,6 @@ button { font-family: inherit; }
 .hud-v2-btn.attack:hover:not(:disabled) {
   background: rgba(196,48,48,0.12);
   border-color: #c43030;
-  box-shadow: 0 0 14px rgba(196,48,48,0.25);
 }
 
 .hud-v2-btn.block {
@@ -3004,7 +2997,6 @@ button { font-family: inherit; }
 .hud-v2-btn.block:hover:not(:disabled) {
   background: rgba(74,138,53,0.12);
   border-color: var(--accent-light);
-  box-shadow: 0 0 14px rgba(74,138,53,0.2);
 }
 
 .hud-v2-btn.heal {

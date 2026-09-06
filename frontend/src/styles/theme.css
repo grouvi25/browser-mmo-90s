@@ -244,21 +244,17 @@ html, body {
   object-fit: contain;
   display: block;
   pointer-events: none;
-  transition: filter .13s ease, transform .13s ease;
 }
 
-/* Подсветка наведением — цветокоррекция самой картинки,
-   без подмены ассета и без наложенных плашек. */
-.hotspot:not(:disabled):hover .sprite-btn__img,
-.hotspot:not(:disabled):hover > .sprite {
-  filter: brightness(1.18) saturate(1.25)
-          drop-shadow(0 0 3px rgba(255, 226, 150, .95));
-  transform: scale(1.04);
-}
-.hotspot:not(:disabled):active .sprite-btn__img {
-  transform: scale(.97);
-  filter: brightness(.92);
-}
+/* Наведение и нажатие рисунок НЕ меняют — ни свечением, ни размером,
+   ни плавным переходом. Так просил заказчик, и это верно по сути:
+   спрайты нарисованы художником, а свечение поверх них — чужеродный
+   слой, которого в макете нет. Что кнопка нажимается, показывает
+   курсор; фокус с клавиатуры по-прежнему обводится рамкой.
+
+   Ниже остаются два состояния — они несут смысл, а не украшают:
+   выбранный элемент и недоступный. Без них не видно, что выбрано и
+   что нельзя взять. */
 
 /* Выбранный элемент — тёплая подсветка держится постоянно */
 .hotspot.is-active .sprite-btn__img,
@@ -277,21 +273,17 @@ html, body {
   border-radius: 4px;
 }
 
-/* Зоны тела — подсветка красным, это боевые цели */
-.zone-hot:not(:disabled):hover .sprite-btn__img {
-  filter: brightness(1.25) saturate(2)
-          drop-shadow(0 0 3px rgba(224, 60, 60, 1));
-}
+/* Заказчик просил убрать подсветку при наведении: карточка персонажа
+   нарисована художником, и свечение поверх рисунка ей чужеродно.
+   Наведение больше ничего не меняет — остаётся только курсор.
+   Выбранная зона по-прежнему помечается: это состояние, а не эффект,
+   без него не видно, куда бьёшь. */
 .zone-hot.is-active .sprite-btn__img {
   filter: saturate(2.4) hue-rotate(-18deg) brightness(1.1)
           drop-shadow(0 0 4px rgba(200, 30, 30, .95));
 }
 
-/* Портрет — рамка подсветки по контуру фотографии */
-.portrait-hot:not(:disabled):hover .sprite-btn__img {
-  filter: brightness(1.1) contrast(1.06)
-          drop-shadow(0 0 5px rgba(255, 226, 150, .9));
-}
+/* Портрет при наведении не подсвечивается — см. выше. */
 
 /* =============================================================
    ТЕКСТ НА СЦЕНЕ
@@ -427,7 +419,8 @@ html, body {
 
 .nick-badge { position: absolute; font-family: var(--font-ui); line-height: 1;
               color: #cf2a37; cursor: pointer; }
-.nick-badge:hover { color: var(--red-dim); }
+/* Ник при наведении цвет не меняет: на карточке персонажа эффектов
+   не остаётся вовсе. Что он кликабелен, показывает курсор. */
 
 /* =============================================================
    ЧАТ И ОНЛАЙН
@@ -753,7 +746,7 @@ html, body {
   padding: 6px 14px; cursor: pointer;
   transition: background .12s, color .12s, transform .12s;
 }
-.hub__action:hover { background: #fff; color: #b81e2c; transform: translateY(-1px); }
+.hub__action:hover { background: #fff; color: #b81e2c; }
 .hub__action:active { transform: translateY(0); }
 
 /* =============================================================
@@ -784,7 +777,7 @@ html, body {
   font: inherit; color: inherit; text-align: left;
   border-bottom: 1px dotted rgba(43, 43, 43, .3);
 }
-.card-list__row:hover { background: rgba(255, 255, 255, .5); }
+/* Строка снаряжения при наведении не подсвечивается — см. выше. */
 .card-list__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-list__meta { color: var(--text-dim); font-size: 14px; }
 .card-list__dur  { color: var(--durability); font-size: 14px; }
@@ -848,7 +841,7 @@ html, body {
   padding: 7px 10px; font-family: var(--font-ui); color: #1e1a17;
   transition: background .12s, border-color .12s, transform .12s;
 }
-.arena-bot:hover { background: #fff; transform: translateY(-1px); }
+.arena-bot:hover { background: #fff; }
 .arena-bot.is-active { border-color: var(--red); background: #fff3e6; box-shadow: inset 0 0 0 1px var(--red); }
 .arena-bot__name { display: block; font-weight: 700; font-size: 13.75px; }
 .arena-bot__meta { display: block; font-size: 13.9px; color: var(--text-dim); margin-top: 2px; }
