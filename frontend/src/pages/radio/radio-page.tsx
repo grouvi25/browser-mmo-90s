@@ -16,6 +16,7 @@ import { districtKey } from '../../widgets/city-nav/city-nav'
 import { chatTime, levelTone } from '../../shared/lib/chat-format'
 import { nickTone, useChat, useOnline } from '../../shared/lib/use-chat'
 import type { ChatChannel } from '../../shared/api/chat.api'
+import { ViewportPanel } from '../../shared/ui/viewport-panel'
 import { AnnouncementsFeed } from './announcements-feed'
 import './radio.css'
 
@@ -59,12 +60,11 @@ export function RadioPage() {
   ]
 
   return (
+    // Рамка, заголовок и «в город» — общие для всех экранов вьюпорта.
+    // Своя шапка тут была ошибкой: страница получалась другого размера и
+    // без нарисованной рамки, из-за чего при переходе прыгала вся сцена.
+    <ViewportPanel title="Радио" subtitle="Эфир города">
     <div className="radio">
-      <header className="radio__head">
-        <h1>Радио</h1>
-        <span>Эфир города</span>
-        <button type="button" className="radio__back" onClick={() => navigate('/')}>← в город</button>
-      </header>
 
       <nav className="radio__tabs" aria-label="Каналы эфира">
         {tabs.map(item => (
@@ -150,5 +150,6 @@ export function RadioPage() {
         </form>
       )}
     </div>
+    </ViewportPanel>
   )
 }
