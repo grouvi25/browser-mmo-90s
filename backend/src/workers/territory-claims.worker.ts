@@ -15,6 +15,7 @@ import { releaseTerritory } from '../modules/territories/claims.service'
 import { TERRITORY_PROTECTION_HOURS } from '../modules/territories/territories.formulas'
 import { syncTiers } from './clan-maintenance.worker'
 import { BattleService } from '../modules/battles/battles.service'
+import { AnnouncementsService } from '../modules/announcements/announcements.service'
 
 export const TERRITORY_CLAIMS_MS = 60 * 1000
 
@@ -69,6 +70,7 @@ async function startDueBattles(now: Date): Promise<number> {
           reason: 'TERRITORY_WON', refId: claim.id,
         })
       })
+      await announceCapture(claim.territoryId, claim.attackerClanId, true)
       started += 1
       continue
     }
@@ -171,6 +173,7 @@ async function resolveFinishedBattles(now: Date): Promise<number> {
         }
       }
     })
+    if (attackerWon) await announceCapture(claim.territoryId, claim.attackerClanId, false)
     resolved += 1
   }
   return resolved
@@ -219,6 +222,27 @@ async function expireClaim(
  * Долг прежнего владельца списывается вместе с районом: платить за чужой
  * долг новый хозяин не должен, а старый уже наказан потерей.
  */
+/**
+ * Объявить городу о смене хозяина.
+ *
+ * Зовётся ПОСЛЕ фиксации транзакции, а не внутри: объявить о захвате,
+ * который потом откатился, хуже, чем не объявить вовсе. Сам вызов
+ * ничего не бросает — за это отвечает AnnouncementsService.world.
+ */
+async function announceCapture(territoryId: string, clanId: string, walkover: boolean) {
+  const [territory, clan] = await Promise.all([
+    prisma.territory.findUnique({ where: { id: territoryId }, select: { name: true } }),
+    prisma.clan.findUnique({ where: { id: clanId }, select: { name: true, tag: true } }),
+  ])
+  if (!territory || !clan) return
+  await AnnouncementsService.world(
+    territory.name + ' сменил хозяина',
+    walkover
+      ? 'Район отошёл бригаде «' + clan.name + '» без боя: оборона не вышла.'
+      : 'Район взяла бригада «' + clan.name + '».',
+  )
+}
+
 async function transferControl(
   tx: Prisma.TransactionClient,
   territoryId: string,

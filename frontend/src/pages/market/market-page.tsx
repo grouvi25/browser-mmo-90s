@@ -55,7 +55,7 @@ export function MarketPage() {
         {type === 'RESOURCE' ? <>
           <select aria-label="Ресурс для продажи" value={resourceId} onChange={event => setResourceId(event.target.value)}>
             <option value="">Выберите ресурс</option>
-            {resources.data?.items.map(stack => <option key={stack.template.id} value={stack.template.id}>{stack.template.name} ({stack.availableAmount})</option>)}
+            {resources.data?.items?.map(stack => <option key={stack.template.id} value={stack.template.id}>{stack.template.name} ({stack.availableAmount})</option>)}
           </select>
           <input aria-label="Количество ресурса" type="number" min={1} value={amount} onChange={event => setAmount(Number(event.target.value))} />
         </> : <select aria-label="Вещь для продажи" value={itemId} onChange={event => setItemId(event.target.value)}>
@@ -87,7 +87,7 @@ export function MarketPage() {
 
     <div className="panel"><div className="panel-body">
       <table className="data-table"><thead><tr><th>Тип</th><th>Название</th><th>Продавец</th><th>Кол-во</th><th>Цена</th><th>Истекает</th><th /></tr></thead>
-        <tbody>{listings.data?.items.map(listing => <tr key={listing.id}>
+        <tbody>{listings.data?.items?.map(listing => <tr key={listing.id}>
           <td>{listing.type === 'ITEM' ? 'Вещь' : 'Ресурс'}</td>
           <td>{listing.item?.name ?? listing.resource?.name ?? 'Неизвестно'}</td>
           <td><a href={listing.sellerUrl}>{listing.sellerNickname}</a></td>
@@ -95,7 +95,7 @@ export function MarketPage() {
           <td>{mine ? <button className="btn btn-sm" onClick={() => cancel.mutate(listing.id)}>Снять</button> : <button className="btn btn-sm btn-gold" onClick={() => buy.mutate(listing.id)}>Купить</button>}</td>
         </tr>)}</tbody>
       </table>
-      {!listings.data?.items.length && <div className="text-dim">Подходящих объявлений нет.</div>}
+      {!listings.data?.items?.length && <div className="text-dim">Подходящих объявлений нет.</div>}
       <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 10 }}>
         <button className="btn btn-sm" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>Назад</button>
         <span>Страница {page} из {totalPages}, всего {listings.data?.total ?? 0}</span>

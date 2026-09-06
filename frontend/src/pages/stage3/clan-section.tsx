@@ -69,7 +69,7 @@ export function ClanSection() {
                 roles={clan.roles ?? []}
                 isSelf={row.characterId === me?.id}
                 canAssign={can('ASSIGN_ROLE')}
-                canKick={can('KICK') && (member?.role.rank ?? 0) > row.role.rank}
+                canKick={can('KICK') && (member?.role?.rank ?? 0) > row.role.rank}
                 onDone={done}
                 onFail={fail}
               />
@@ -80,7 +80,7 @@ export function ClanSection() {
 
       {can('ASSIGN_ROLE') && <RolesEditor roles={clan.roles ?? []} onDone={done} onFail={fail} />}
 
-      {member?.role.code !== 'boss' && (
+      {member?.role?.code !== 'boss' && (
         <div className="clan-leave">
           <button
             className="danger"
@@ -129,7 +129,7 @@ function ClanDirectory({ onDone, onFail, msg, bad }: {
           <Note text={msg} kind={bad ? 'bad' : 'ok'} />
         </div>
         <h3>Бригады города</h3>
-        {list.data?.items.map(clan => (
+        {list.data?.items?.map(clan => (
           <div key={clan.id} className="clan-row">
             <b>[{clan.tag}]</b> {clan.name}
             <span>{clan.isFrozen ? 'заморожен' : clan.level + ' ур.'}</span>

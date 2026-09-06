@@ -115,7 +115,9 @@ export function Stage3Page({ section }: { section: Stage3Section }) {
           ))}
         </nav>
 
-        {acceptance.data && !acceptance.data.ready && (
+        {/* Полоска приёмки — служебная, и ронять из-за неё весь раздел
+            нельзя: показываем только когда счётчики действительно пришли. */}
+        {acceptance.data && !acceptance.data.ready && acceptance.data.metrics && (
           <section className="acceptance attention">
             <b>Приёмка: ещё не закрыта</b>
             <span>

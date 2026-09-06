@@ -35,7 +35,7 @@ function caseNumber(id?: string): string {
 }
 
 function weaponSprite(item?: ItemInstance): string {
-  const t = item?.template.weaponType
+  const t = item?.template?.weaponType
   if (t && ['PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY'].includes(t)) return 'p-item-ak'
   return 'p-item-bat'
 }

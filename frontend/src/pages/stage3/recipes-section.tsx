@@ -46,7 +46,7 @@ export function RecipesSection() {
         <Skeleton rows={3} />
       ) : recipes.isError ? (
         <Fault retry={() => recipes.refetch()} />
-      ) : (recipes.data?.items.length ?? 0) === 0 ? (
+      ) : (recipes.data?.items?.length ?? 0) === 0 ? (
         <Empty title="У объекта нет рецептов" />
       ) : (
         <div className="s3-scroll">
@@ -55,7 +55,7 @@ export function RecipesSection() {
               <tr><th>Рецепт</th><th>Вход</th><th>Выход</th><th>Цикл</th><th>Труд</th><th>Профессия</th><th>Доступ</th></tr>
             </thead>
             <tbody>
-              {recipes.data?.items.map(recipe => (
+              {recipes.data?.items?.map(recipe => (
                 <tr key={recipe.id} className={recipe.available ? '' : 'is-locked'}>
                   <td><b>{recipe.name}</b></td>
                   <td>

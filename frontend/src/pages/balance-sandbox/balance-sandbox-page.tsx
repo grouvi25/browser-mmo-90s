@@ -112,7 +112,7 @@ export function BalanceSandboxPage({
         <span>Культура</span>
         <select value={input.farmCrop ?? 'potato'}
           onChange={event => setInput(current => ({ ...current, farmCrop: event.target.value as CropCode }))}>
-          {(data?.meta.crops ?? []).map(crop => (
+          {(data?.meta?.crops ?? []).map(crop => (
             <option key={crop.code} value={crop.code}>
               {crop.name} — {crop.minutes} мин, семена {crop.seedPrice} ₽
             </option>
@@ -125,14 +125,14 @@ export function BalanceSandboxPage({
       <section className="sandbox-ledger" aria-busy={result.isFetching}>
         <Metric label="Деньги из мира" value={data ? money(data.totals.minted) : '…'} />
         <Metric label="Деньги из игры" value={data ? money(data.totals.burned) : '…'} />
-        <Metric label="Доля стоков" value={data ? percent(data.totals.sinkShare) : '…'} tone={data?.verdicts.sinkHealth ? 'ok' : 'fail'} note={data ? `цель от ${percent(data.meta.targets.minSinkShare)}` : undefined} />
-        <Metric label="Рост M2 в день" value={data ? percent(data.totals.dailyM2Growth, 1) : '…'} tone={data?.verdicts.m2Growth ? 'ok' : 'fail'} note={data ? `предел ${percent(data.meta.targets.maxDailyM2Growth)}` : undefined} />
+        <Metric label="Доля стоков" value={data ? percent(data.totals.sinkShare) : '…'} tone={data?.verdicts?.sinkHealth ? 'ok' : 'fail'} note={data ? `цель от ${percent(data.meta.targets.minSinkShare)}` : undefined} />
+        <Metric label="Рост M2 в день" value={data ? percent(data.totals.dailyM2Growth, 1) : '…'} tone={data?.verdicts?.m2Growth ? 'ok' : 'fail'} note={data ? `предел ${percent(data.meta.targets.maxDailyM2Growth)}` : undefined} />
       </section>
 
       <section className="sandbox-sheet">
         <div className="sandbox-section-title">
           <div><span>СРАВНЕНИЕ СТРАТЕГИЙ</span><h2>Кто богатеет быстрее</h2></div>
-          <small>Лимит труда: {data?.meta.limits.minutes ?? 360} минут и до {data?.meta.limits.shifts ?? 12} смен</small>
+          <small>Лимит труда: {data?.meta?.limits?.minutes ?? 360} минут и до {data?.meta?.limits?.shifts ?? 12} смен</small>
         </div>
         <div className="sandbox-ruler" aria-hidden="true"><span>Профиль</span><span>Динамика</span><span>Итог</span><span>В день</span><span>Нагрузка</span></div>
         <div className="sandbox-results" aria-busy={result.isFetching}>
@@ -161,7 +161,7 @@ export function BalanceSandboxPage({
               </div>
             </article>
           ))}
-          {data?.sensitivity.length === 0 && <p>Ни один параметр не двигает долю стоков — проверьте сценарий.</p>}
+          {data?.sensitivity?.length === 0 && <p>Ни один параметр не двигает долю стоков — проверьте сценарий.</p>}
         </div>
       </section>
 
@@ -173,7 +173,7 @@ export function BalanceSandboxPage({
         </div>
         <div className="sandbox-notes">
           <span>ЧТО ПРАВИТЬ</span>
-          {data?.recommendations.length ? <ol>{data.recommendations.map(note => <li key={note}>{note}</li>)}</ol> : <p>Критичных перекосов в выбранном сценарии нет.</p>}
+          {data?.recommendations?.length ? <ol>{data.recommendations.map(note => <li key={note}>{note}</li>)}</ol> : <p>Критичных перекосов в выбранном сценарии нет.</p>}
         </div>
       </section>
     </>}

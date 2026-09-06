@@ -33,7 +33,7 @@ export function BarsSection() {
   if (bars.isLoading) return <Skeleton rows={4} />
   if (bars.isError) return <Fault retry={() => bars.refetch()} />
 
-  const offers = bars.data?.items.flatMap(bar => bar.barOffers.map(offer => ({ bar, offer }))) ?? []
+  const offers = bars.data?.items?.flatMap(bar => bar.barOffers.map(offer => ({ bar, offer }))) ?? []
 
   return (
     <>

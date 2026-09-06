@@ -33,8 +33,13 @@ export function FarmSection() {
   if (farm.isLoading) return <Skeleton rows={3} />
   if (farm.isError || !farm.data) return <Fault retry={() => farm.refetch()} />
 
+  // Ответ разбираем с запасом на пустоту: раздел из-за отсутствующего
+  // поля падать не должен, он покажет пустой огород и объяснит это.
   const data = farm.data
-  const cropName = (code: string | null) => data.crops.find(x => x.code === code)?.name ?? 'Свободная земля'
+  const crops = data.crops ?? []
+  const plots = data.plots ?? []
+  const buildings = data.buildings ?? {}
+  const cropName = (code: string | null) => crops.find(x => x.code === code)?.name ?? 'Свободная земля'
 
   return (
     <>
@@ -42,7 +47,7 @@ export function FarmSection() {
         <label>
           Посадить
           <select value={crop} onChange={e => setCrop(e.target.value)}>
-            {data.crops.map(x => (
+            {crops.map(x => (
               <option disabled={!x.available} key={x.code} value={x.code}>
                 {x.name} · {x.seedPrice} ₽{x.available ? '' : ` · нужен заготовитель ${x.requiredLevel}`}
               </option>
@@ -52,7 +57,7 @@ export function FarmSection() {
         <label>
           Постройка
           <select value={building} onChange={e => setBuilding(e.target.value as FarmBuilding)}>
-            {Object.entries(data.buildings).map(([key, x]) => (
+            {Object.entries(buildings).map(([key, x]) => (
               <option key={key} value={key}>{x.name} · {fmt(x.price)} ₽</option>
             ))}
           </select>
@@ -71,7 +76,7 @@ export function FarmSection() {
       )}
 
       <section className="farm-grid">
-        {data.plots.map(plot => (
+        {plots.map(plot => (
           <article key={plot.id} className={`plot state-${plot.state.toLowerCase()}`}>
             <div className="plot-num">{String(plot.slot).padStart(2, '0')}</div>
             <div>
