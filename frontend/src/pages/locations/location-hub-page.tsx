@@ -11,6 +11,7 @@
 // ту же композицию на бумажной подложке: важно, чтобы правило было
 // одно, а картинки доедут.
 // =============================================================
+import { Link } from 'react-router-dom'
 import { LocationView } from '../../widgets/location-view/location-view'
 import { SCENES } from '../../shared/ui/sprite'
 
@@ -31,7 +32,7 @@ const DISTRICTS: Record<DistrictKey, DistrictMeta> = {
   market: {
     place: 'Рынок · Торговые ряды',
     title: 'Рынок',
-    note: 'Государственный магазин, частные лавки, барахолка и бары.',
+    note: 'Торговля только между игроками. Государственный магазин находится в Центре.',
   },
   industrial: {
     // Арт заводского двора пришёл макетом «Промзона.psd» — слой 24,
@@ -82,6 +83,7 @@ export function LocationHubPage({ kind }: { kind: DistrictKey }) {
     <div className="hub hub--paper">
       <div className="hub__overlay">
         <div className="hub__place">{district.place}</div>
+        <Link className="viewport__back" to="/">← ЦЕНТР</Link>
         <p className="hub__note">{district.note}</p>
       </div>
     </div>

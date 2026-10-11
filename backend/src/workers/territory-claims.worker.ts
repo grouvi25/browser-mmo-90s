@@ -7,6 +7,7 @@
 //
 // ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, раздел 22.
 // =============================================================
+import { AppError } from '../shared/errors/app-error'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../shared/db/prisma'
 import { withTransaction } from '../shared/db/transaction'
@@ -41,6 +42,11 @@ async function startDueBattles(now: Date): Promise<number> {
   let started = 0
 
   for (const claim of due) {
+    if (await prisma.territory.count({ where: { ownerClanId: claim.attackerClanId, id: { not: claim.territoryId } } })) {
+      await expireClaim(claim, now)
+      started += 1
+      continue
+    }
     const attackers = claim.roster.filter(row => row.side === 1)
     const defenders = claim.roster.filter(row => row.side === 2)
 
@@ -249,6 +255,8 @@ async function transferControl(
   clanId: string,
   now: Date,
 ) {
+  const owned = await tx.territory.count({ where: { ownerClanId: clanId, id: { not: territoryId } } })
+  if (owned >= 1) throw AppError.conflict('У бригады может быть только одна территория')
   const before = await tx.territory.findUniqueOrThrow({
     where: { id: territoryId },
     select: { ownerClanId: true },

@@ -16,7 +16,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
 import { AuthorityService, AUTHORITY_COSTS } from './authority.service'
-import { isProtected } from './territories.formulas'
+import { TERRITORY_LIMIT, isProtected } from './territories.formulas'
 import type { ClanPermission } from '../clans/clans.formulas'
 
 const T = BalanceConfig.strategy.territory
@@ -105,13 +105,17 @@ export const ClaimsService = {
         throw new AppError(ErrorCode.WAR_CLAIM_EXISTS, 'На район уже подана заявка', 409)
       }
 
+      if (await tx.territoryClaim.count({ where: { attackerClanId: clan.id, status: { in: [...OPEN_STATUSES] } } })) {
+        throw AppError.conflict('У бригады уже есть активная заявка на территорию')
+      }
+
       const owned = await tx.territory.count({
-        where: { ownerClanId: clan.id, status: 'CONTROLLED' },
+        where: { ownerClanId: clan.id },
       })
-      if (owned >= clan.territoryLimit) {
+      if (owned >= TERRITORY_LIMIT) {
         throw new AppError(
           ErrorCode.WAR_TERRITORY_LIMIT,
-          `Достигнут предел территорий клана: ${clan.territoryLimit}`,
+          `Достигнут предел территорий клана: ${TERRITORY_LIMIT}`,
           409,
         )
       }
@@ -436,7 +440,7 @@ export async function claimEligibility(characterId: string): Promise<{
 
   const clan = member.clan
   const [owned, lastClaim, allies, pending] = await Promise.all([
-    prisma.territory.count({ where: { ownerClanId: clan.id, status: 'CONTROLLED' } }),
+    prisma.territory.count({ where: { ownerClanId: clan.id } }),
     prisma.territoryClaim.findFirst({
       where: { attackerClanId: clan.id },
       orderBy: { createdAt: 'desc' },
@@ -466,7 +470,7 @@ export async function claimEligibility(characterId: string): Promise<{
       if (isProtected(territory.protectedUntil)) return 'PROTECTED'
       if (contested.has(territory.code)) return 'CONTESTED'
       if (territory.ownerClanId && allyIds.has(territory.ownerClanId)) return 'ALLY_OWNED'
-      if (owned >= clan.territoryLimit) return 'LIMIT_REACHED'
+      if (owned >= TERRITORY_LIMIT || pending.some(c => c.attackerClanId === clan.id)) return 'LIMIT_REACHED'
       if (cooldownLeft > 0) return 'CLAN_COOLDOWN'
       if (clan.authority < AUTHORITY_COSTS.claim) return 'NOT_ENOUGH_AUTHORITY'
       if (clan.treasury < T.claimFee) return 'NOT_ENOUGH_MONEY'

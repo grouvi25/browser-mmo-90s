@@ -551,6 +551,17 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
 
   // ── Игроки ───────────────────────────────────────────────────
 
+  JAIL_CHARACTER: async (tx, payload) => {
+    const characterId = str(payload, 'characterId')
+    const char = must(await tx.character.findUnique({ where: { id: characterId } }), 'Персонажа больше нет')
+    if (char.status === 'IN_BATTLE') throw AppError.conflict('Персонаж находится в бою')
+    await tx.character.update({ where: { id: characterId }, data: {
+      jailedUntil: date(payload, 'jailedUntil'), jailReason: String(payload.jailReason ?? ''),
+    } })
+  },
+  RELEASE_CHARACTER: async (tx, payload) => {
+    await tx.character.update({ where: { id: str(payload, 'characterId') }, data: { jailedUntil: null, jailReason: null } })
+  },
   BAN_USER: async (tx, payload) => {
     const userId = str(payload, 'userId')
     must(await tx.user.findUnique({ where: { id: userId } }), 'Учётной записи больше нет')

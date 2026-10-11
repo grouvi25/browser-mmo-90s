@@ -101,5 +101,5 @@ export function isProtected(protectedUntil: Date | null, now = new Date()): bool
   return !!protectedUntil && protectedUntil.getTime() > now.getTime()
 }
 
-export const TERRITORY_LIMIT = T.limit
+export const TERRITORY_LIMIT = 1
 export const TERRITORY_PROTECTION_HOURS = T.protectionHours

@@ -17,8 +17,8 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { authApi } from '../../shared/api/auth.api'
 import { useAuth } from '../providers/auth-provider'
 import { MENU } from '../../shared/lib/layout-map'
+import { LocationTabs } from '../../widgets/city-nav/location-tabs'
 import { MobileChat } from '../../widgets/city-feed/mobile-chat'
-import { districtKey } from '../../widgets/city-nav/city-nav'
 import { useTableLabels } from '../../shared/lib/use-table-labels'
 import { ErrorBoundary } from '../error-boundary'
 
@@ -66,22 +66,6 @@ export function MobileShell() {
     navigate(to)
   }
 
-  const strip = (items: readonly { key: string; label: string; to: string }[], mod: string) => (
-    <nav className={`m-strip m-strip--${mod}`}>
-      {items.map(i => (
-        <button
-          key={i.key}
-          type="button"
-          className={'m-strip__item' + (location.pathname === i.to ? ' is-active' : '')
-            + (i.to.startsWith('/soon/') ? ' is-locked' : '')}
-          onClick={() => go(i.to)}
-        >
-          {i.label}
-        </button>
-      ))}
-    </nav>
-  )
-
   return (
     <div className="m-shell">
       <header className="m-top">
@@ -96,15 +80,12 @@ export function MobileShell() {
         <button type="button" className="m-top__exit" onClick={logout} title="Выйти из игры">выход</button>
       </header>
 
-      {strip(MENU.districts, 'districts')}
 
       <main className="m-view" ref={viewRef}>
         <ErrorBoundary><Outlet /></ErrorBoundary>
       </main>
 
-      {MENU.rooms[districtKey(location.pathname + location.search)]
-        ? strip(MENU.rooms[districtKey(location.pathname + location.search)], 'economy')
-        : null}
+      <LocationTabs />
 
       <nav className="m-tabbar">
         <button type="button" className={'m-tabbar__btn' + (location.pathname === '/' ? ' is-active' : '')}
@@ -134,7 +115,7 @@ export function MobileShell() {
                     {n.label}
                   </button>
                 ))}
-                <button type="button" className="m-menu__item" onClick={() => go('/inventory')}>снаряжение</button>
+                <button type="button" className="m-menu__item" onClick={() => go('/inventory')}>склад</button>
                 <button type="button" className="m-menu__item" onClick={() => go('/skills')}>владение оружием</button>
                 <button type="button" className="m-menu__item" onClick={() => go('/stats')}>характеристики</button>
                 <button type="button" className="m-menu__item" onClick={() => go('/battles/history')}>история боёв</button>

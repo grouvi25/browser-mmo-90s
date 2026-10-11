@@ -92,17 +92,16 @@ describe('территории', () => {
     expect(await TerritoriesService.bonusesForCharacter(boss.id)).toEqual({})
   })
 
-  it('сводка клана считает содержание по ступеням', async () => {
+  it('сводка клана считает единственную территорию и лимит', async () => {
     const { boss, clan } = await clanWithBoss()
     const now = Date.now()
     await giveTerritory('center', clan.id, new Date(now - 2 * DAY_MS))
-    await giveTerritory('garages', clan.id, new Date(now - DAY_MS))
 
     const summary = await TerritoriesService.listForClan(clan.id, boss.id)
-    expect(summary.items).toHaveLength(2)
+    expect(summary.items).toHaveLength(1)
     expect(summary.items.find(t => t.code === 'center')?.tier).toBe(1)
-    expect(summary.items.find(t => t.code === 'garages')?.tier).toBe(2)
-    expect(summary.upkeepPerDay).toBe(7000)
+    expect(summary.limit).toBe(1)
+    expect(summary.upkeepPerDay).toBe(2000)
   })
 
   it('чужую сводку клана посмотреть нельзя', async () => {
@@ -131,10 +130,9 @@ describe('территории', () => {
 
   it('Спальный район удешевляет содержание всего клана', async () => {
     const { clan } = await clanWithBoss()
-    await giveTerritory('center', clan.id, new Date(Date.now() - 2 * DAY_MS))
     await giveTerritory('suburb', clan.id, new Date(Date.now() - DAY_MS))
-    // 500 + 2000 + 5000 = 7500, минус четверть = 5625
-    expect(await clanUpkeepPreview(clan.id)).toBe(5625)
+    // Единственная территория: (500 + 2000) * 0.75 = 1875
+    expect(await clanUpkeepPreview(clan.id)).toBe(1875)
   })
 
   it('остаток часов не прощается: lastChargedAt двигается на списанные сутки', async () => {
@@ -184,18 +182,11 @@ describe('территории', () => {
     expect(territory.upkeepDebt).toBe(0)
   })
 
-  it('ступени пересчитываются после потери первой территории', async () => {
+  it('после потери территории новая снова получает первую ступень', async () => {
     const { clan } = await clanWithBoss()
-    const now = Date.now()
-    await giveTerritory('center', clan.id, new Date(now - 2 * DAY_MS))
-    await giveTerritory('garages', clan.id, new Date(now - DAY_MS))
-    await syncTiers(clan.id)
-    expect((await testPrisma.territory.findUniqueOrThrow({ where: { code: 'garages' } })).upkeepTier).toBe(2)
-
-    await testPrisma.territory.update({
-      where: { code: 'center' },
-      data: { status: 'NEUTRAL', ownerClanId: null, controlledAt: null },
-    })
+    await giveTerritory('center', clan.id, new Date())
+    await testPrisma.territory.update({ where: { code: 'center' }, data: { status: 'NEUTRAL', ownerClanId: null, controlledAt: null } })
+    await giveTerritory('garages', clan.id, new Date())
     await syncTiers(clan.id)
     expect((await testPrisma.territory.findUniqueOrThrow({ where: { code: 'garages' } })).upkeepTier).toBe(1)
   })

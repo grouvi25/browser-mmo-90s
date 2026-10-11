@@ -17,3 +17,5 @@
 CREATE UNIQUE INDEX IF NOT EXISTS "territory_claims_one_open_per_territory"
   ON "territory_claims" ("territory_id")
   WHERE "status" IN ('PENDING', 'BATTLE');
+
+CREATE UNIQUE INDEX IF NOT EXISTS "territories_one_per_clan" ON "territories"("owner_clan_id") WHERE "owner_clan_id" IS NOT NULL;

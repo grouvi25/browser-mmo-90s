@@ -216,8 +216,9 @@ export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
           <SpriteButton
             name="item-dog"
             box={C.slots[2].box}
-            disabled
-            title="Питомцы появятся в Этапе 3"
+            disabled={!own}
+            onClick={own ? () => navigate('/pet-shop') : undefined}
+            title="Питомцы — открыть Зоомагазин"
           />
 
           {/* зоны тела — цели ударов в бою */}

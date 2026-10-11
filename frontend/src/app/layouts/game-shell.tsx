@@ -6,6 +6,7 @@
 // Меняется только центральный вьюпорт: туда рендерятся
 // магазин, мастерская, арена, инвентарь и остальные экраны.
 // ============================================================
+import { LocationPersistence } from '../location-persistence'
 import { Outlet } from 'react-router-dom'
 
 import { ErrorBoundary } from '../error-boundary'
@@ -17,7 +18,8 @@ import { MobileShell } from './mobile-shell'
 import { Stage } from '../../shared/lib/stage'
 import { PLATES } from '../../shared/ui/sprite'
 import { CharacterCard } from '../../widgets/character-card/character-card'
-import { BottomTabs, DistrictTabs, TopNav } from '../../widgets/city-nav/city-nav'
+import { LocationTabs } from '../../widgets/city-nav/location-tabs'
+import { CityUtility } from '../../widgets/city-nav/city-utility'
 import { CityChatDock } from '../../widgets/city-feed/city-feed'
 
 export function GameShell() {
@@ -25,7 +27,7 @@ export function GameShell() {
   // ужимается до нечитаемого. Данные и графика — те же.
   const isMobile = useIsMobile()
   const [chatOpen, toggleChat] = useChatOpen()
-  if (isMobile) return <MobileShell />
+  if (isMobile) return <><LocationPersistence /><MobileShell /></>
 
   const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
   // За сценой — тот самый слой фона из макета («Слой 22» в «Фон
@@ -47,6 +49,7 @@ export function GameShell() {
       backdrop={wall}
       className="stage--menu"
     >
+      <LocationPersistence />
       {/* Подложка держит полный холст 1550x900 и обрезается сценой снизу:
           растягивать её по укороченной сцене нельзя — рисунок сплющится. */}
       <div
@@ -54,9 +57,9 @@ export function GameShell() {
         style={{ backgroundImage: plate, width: MENU_STAGE.w, height: MENU_STAGE.h }}
       />
 
-      <TopNav />
-      <DistrictTabs />
-      <BottomTabs />
+      <div className="city-top-cover" style={{ backgroundImage: wall }} />
+      <LocationTabs />
+      <CityUtility />
       <CharacterCard />
 
       <div

@@ -72,7 +72,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
 
       const slot = item.template.type === 'WEAPON'
         ? (parsed.data.hand ?? 'LEFT_HAND')
-        : item.template.type === 'ARMOR' || item.template.type === 'SHIELD'
+        : item.template.type === 'ARMOR' || item.template.type === 'SHIELD' || item.template.type === 'ACCESSORY'
           ? item.template.armorSlot
           : null
       const existing = await tx.itemInstance.findMany({

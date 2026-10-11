@@ -1,4 +1,6 @@
 import Fastify from 'fastify'
+import { ZodError } from 'zod'
+import { cityRoutes, cityAdminRoutes } from './modules/city/city.routes'
 import type { FastifyError, FastifyInstance } from 'fastify'
 import fastifyJwt from '@fastify/jwt'
 import fastifyCors from '@fastify/cors'
@@ -95,6 +97,7 @@ export async function buildApp() {
   })
 
   fastify.setErrorHandler((err: FastifyError & { details?: unknown }, _req, reply) => {
+    if (err instanceof ZodError) return reply.code(422).send({ code: 'GEN_001', message: 'Некорректные параметры', details: err.flatten() })
     if (err instanceof AppError) {
       return reply.code(err.statusCode).send({
         code: err.code,
@@ -132,6 +135,8 @@ export async function buildApp() {
   await fastify.register(authRoutes,           { prefix: '/api/auth' })
   await fastify.register(charactersRoutes,     { prefix: '/api/characters' })
   await fastify.register(inventoryRoutes,      { prefix: '/api/inventory' })
+  await fastify.register(cityRoutes, { prefix: '/api/city' })
+  await fastify.register(cityAdminRoutes, { prefix: '/api/admin/city' })
   await fastify.register(governmentShopRoutes, { prefix: '/api/shops/government' })
   await fastify.register(battlesRoutes,        { prefix: '/api/battles' })
   await fastify.register(repairRoutes,         { prefix: '/api/repair' })

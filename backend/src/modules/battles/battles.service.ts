@@ -5,6 +5,7 @@ import { CharactersRepository } from '../characters/characters.repository'
 import { ItemsRepository } from '../items/item-instance.repository'
 import { WeaponSkillsRepository, saveWeaponSkillExp } from '../weapon-skills/weapon-skills.repository'
 import { AppError } from '../../shared/errors/app-error'
+import { CityService } from '../city/city.service'
 import { TerritoriesService } from '../territories/territories.service'
 import { PremiumService } from '../premium/premium.service'
 import { ErrorCode } from '../../shared/errors/error-codes'
@@ -1348,7 +1349,7 @@ export const BattleService = {
       const botStats = bot.stats as Record<string, number>
       const botEquip = bot.equipment as Record<string, unknown>
       const equippedItems = await ItemsRepository.findEquipped(char.id)
-      const equippedArmor = equippedItems.filter(i => i.template.type === 'ARMOR')
+      const equippedArmor = equippedItems.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
       const playerArmorList = armorListFromEquipped(equippedArmor)
       const playerDefSnap = buildDefenderSnapshot(char, equippedArmor)
       const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
@@ -1522,7 +1523,7 @@ export const BattleService = {
     const skillRecord = leftSkill
 
     const equippedItems = await ItemsRepository.findEquipped(char.id)
-    const equippedArmor = equippedItems.filter(i => i.template.type === 'ARMOR')
+    const equippedArmor = equippedItems.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
     const playerArmorList = armorListFromEquipped(equippedArmor)
 
     const [leftAttackerSnap, rightAttackerSnap] = await Promise.all([
@@ -1764,7 +1765,8 @@ export const BattleService = {
     // Опыт, а не сила — потолок навыка тот же, до него доходят быстрее.
     // Множитель применяется ПОСЛЕ античита, а не вместо него: иначе
     // территория отменяла бы ограничение фарма.
-    const battleExpBonus = (await TerritoriesService.bonusesForCharacter(char.id)).BATTLE_EXP ?? 0
+    const battleExpBonus = ((await TerritoriesService.bonusesForCharacter(char.id)).BATTLE_EXP ?? 0)
+      + await CityService.expBonus(char.id)
     const expGain = Math.round(calcBattleExp(
       playerPart.damageDealt,
       bot.power,
@@ -1898,7 +1900,7 @@ export const BattleService = {
         part.rightWeaponInstanceId ? ItemsRepository.findInstanceById(part.rightWeaponInstanceId) : Promise.resolve(null),
       ])
       const equipped = await ItemsRepository.findEquipped(char.id)
-      const armor = equipped.filter(i => i.template.type === 'ARMOR')
+      const armor = equipped.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
       const skill = await WeaponSkillsRepository.findOrCreate(
         char.id,
         (weaponLeft?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1],
@@ -2099,8 +2101,8 @@ export const BattleService = {
       ItemsRepository.findEquipped(char1.id),
       ItemsRepository.findEquipped(char2.id),
     ])
-    const armor1 = equippedItems1.filter(i => i.template.type === 'ARMOR')
-    const armor2 = equippedItems2.filter(i => i.template.type === 'ARMOR')
+    const armor1 = equippedItems1.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
+    const armor2 = equippedItems2.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
     const armorList1 = armorListFromEquipped(armor1)
     const armorList2 = armorListFromEquipped(armor2)
 
@@ -2315,8 +2317,10 @@ export const BattleService = {
     const result1 = winnerId === char1.id ? 'PVP_WIN' : winnerId === char2.id ? 'PVP_LOSS' : 'DRAW'
     const result2 = winnerId === char2.id ? 'PVP_WIN' : winnerId === char1.id ? 'PVP_LOSS' : 'DRAW'
 
-    const exp1 = calcBattleExp(part1.damageDealt, char2.battleLevel * 5, char2.hpMax, levelDiff, result1 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW')
-    const exp2 = calcBattleExp(part2.damageDealt, char1.battleLevel * 5, char1.hpMax, levelDiff, result2 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW')
+    const bonus1 = ((await TerritoriesService.bonusesForCharacter(char1.id)).BATTLE_EXP ?? 0) + await CityService.expBonus(char1.id)
+    const bonus2 = ((await TerritoriesService.bonusesForCharacter(char2.id)).BATTLE_EXP ?? 0) + await CityService.expBonus(char2.id)
+    const exp1 = calcBattleExp(part1.damageDealt, char2.battleLevel * 5, char2.hpMax, levelDiff, result1 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW') * (1 + bonus1)
+    const exp2 = calcBattleExp(part2.damageDealt, char1.battleLevel * 5, char1.hpMax, levelDiff, result2 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW') * (1 + bonus2)
 
     const wskEntries1 = weaponExpByType(part1, weapon1, char2.hpMax, winnerId === char1.id, levelDiff)
     const wskEntries2 = weaponExpByType(part2, weapon2, char1.hpMax, winnerId === char2.id, levelDiff)

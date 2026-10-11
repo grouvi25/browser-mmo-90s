@@ -314,6 +314,7 @@ export interface ItemTemplateRow {
 // ── Ручки ────────────────────────────────────────────────────
 
 export const adminApi = {
+  prison: (characterId: string, hours: number, reason: string) => request('/api/admin/city/prison', { method: 'POST', body: { characterId, hours, reason } }),
   async login(username: string, password: string) {
     const result = await request<{ token: string; adminId: string; role: AdminRole }>(
       '/api/admin/auth/login', { method: 'POST', body: { username, password } })

@@ -22,7 +22,7 @@ export function LoginPage() {
     try {
       const res = await authApi.login(form)
       signIn(res.token, res.userId, res.login)
-      navigate('/profile')
+      navigate('/resume')
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.status === 401 ? 'Неверный логин или пароль' : err.message)

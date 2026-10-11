@@ -1,3 +1,4 @@
+import { inPrison } from '../../modules/city/city.config'
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { AdminRole } from '@prisma/client'
 import { AppError } from '../errors/app-error'
@@ -41,6 +42,13 @@ export async function authenticate(
       throw new AppError(ErrorCode.SESSION_REVOKED, 'Session has been revoked', 401)
     }
 
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+      const character = await prisma.character.findUnique({ where: { userId: payload.sub }, select: { jailedUntil: true } })
+      const path = request.url.split('?')[0]
+      if (character && inPrison(character.jailedUntil) && path !== '/api/city/location' && path !== '/api/auth/logout') {
+        throw AppError.forbidden('Персонаж находится в тюрьме: игровые действия недоступны до освобождения')
+      }
+    }
     request.authUser = {
       userId: payload.sub,
       jti:    payload.jti,

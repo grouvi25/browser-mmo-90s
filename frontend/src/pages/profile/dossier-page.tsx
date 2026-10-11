@@ -119,7 +119,7 @@ export function DossierPage() {
     return (
       <div className="m-dossier">
         <div className="m-dossier__bar">
-          <button type="button" onClick={() => navigate('/')}>← в город</button>
+          <button type="button" onClick={() => navigate('/')}>← ЦЕНТР</button>
           <span>Участок милиции</span>
         </div>
 
@@ -277,7 +277,7 @@ export function DossierPage() {
       />
 
       <button type="button" className="dossier-back" onClick={() => navigate('/')}>
-        ← в город
+        ← ЦЕНТР
       </button>
     </Stage>
   )

@@ -223,6 +223,8 @@ function PlayerCard({ player, onTrace }: {
 
   const ban = useMutation({ mutationFn: (reason: string) => adminApi.banPlayer(player.user.id, reason), onSuccess: () => done('Забанен. Отменяется разбаном из журнала.'), onError: fail })
   const unban = useMutation({ mutationFn: (reason: string) => adminApi.unbanPlayer(player.user.id, reason), onSuccess: () => done('Разбанен.'), onError: fail })
+  const jail = useMutation({ mutationFn: (reason: string) => adminApi.prison(player.id, 24, reason), onSuccess: () => done('Заключён на сутки.'), onError: fail })
+  const release = useMutation({ mutationFn: (reason: string) => adminApi.prison(player.id, 0, reason), onSuccess: () => done('Освобождён.'), onError: fail })
   const mute = useMutation({ mutationFn: (reason: string) => adminApi.mutePlayer(player.user.id, reason, 24), onSuccess: () => done('Немота на сутки.'), onError: fail })
 
   if (card.isLoading) return <Skeleton rows={3} />
@@ -239,6 +241,8 @@ function PlayerCard({ player, onTrace }: {
   return (
     <div className="adm-player">
       <Note text={msg} kind={bad ? 'bad' : 'ok'} />
+      <ReasonForm label="Тюрьма: заключить на 24 часа" busy={jail.isPending} onSubmit={reason => jail.mutate(reason)} />
+      <ReasonForm label="Освободить из тюрьмы" busy={release.isPending} onSubmit={reason => release.mutate(reason)} />
 
       {/* Состояние в цифрах. Полное состояние игрока — это не только
           деньги: вещи и ресурсы на руках часто стоят дороже кошелька, и

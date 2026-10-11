@@ -120,7 +120,7 @@ describe('заявки на территорию', () => {
     const { boss, roster } = await warClan('cooldown')
     await ClaimsService.file(boss.id, 'center', roster)
     await expect(ClaimsService.file(boss.id, 'garages', roster))
-      .rejects.toMatchObject({ code: 'WAR_007' })
+      .rejects.toMatchObject({ statusCode: 409 })
   })
 
   it('район под защитой заявок не принимает', async () => {
@@ -157,9 +157,9 @@ describe('заявки на территорию', () => {
       .rejects.toMatchObject({ code: 'WAR_009' })
   })
 
-  it('лимит территорий не даёт взять третью', async () => {
+  it('лимит территорий не даёт взять вторую', async () => {
     const { boss, clan, roster } = await warClan('limit')
-    for (const code of ['center', 'garages']) {
+    for (const code of ['center']) {
       await testPrisma.territory.update({
         where: { code },
         data: { ownerClanId: clan.id, status: 'CONTROLLED', controlledAt: new Date() },

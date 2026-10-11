@@ -149,3 +149,7 @@ vite.config.ts.timestamp-*
 # результаты прогонов Playwright
 test-results/
 frontend/test-results/
+
+# Browser test artifacts
+frontend/playwright-report/
+frontend/test-results/

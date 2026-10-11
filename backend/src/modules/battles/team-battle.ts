@@ -19,6 +19,7 @@ import { ItemsRepository, type ItemWithTemplate } from '../items/item-instance.r
 import { WeaponSkillsRepository, saveWeaponSkillExp } from '../weapon-skills/weapon-skills.repository'
 import { applyBattleProgression } from '../experience/progression'
 import { calcBattleExp } from '../stats/stats.formulas'
+import { CityService } from '../city/city.service'
 import { TerritoriesService } from '../territories/territories.service'
 import { calcInitiative, weaponExpByType } from './battle.formulas'
 import { normalizeTurn, type ZonalTurnInput } from './zones'
@@ -227,7 +228,7 @@ export async function finishTeamBattle(
   for (const payout of payouts) {
     if (!payout.ctx) continue
     const bonuses = await TerritoriesService.bonusesForCharacter(payout.ctx.char.id)
-    expBonus.set(payout.ctx.char.id, bonuses.BATTLE_EXP ?? 0)
+    expBonus.set(payout.ctx.char.id, (bonuses.BATTLE_EXP ?? 0) + await CityService.expBonus(payout.ctx.char.id))
   }
 
   return withTransaction(async tx => {

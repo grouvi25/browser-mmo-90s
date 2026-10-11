@@ -7,6 +7,8 @@ import { ApiError } from '../shared/api/client'
 import { PublicLayout } from './layouts/public-layout'
 import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
+import { ResumeLocation } from './location-persistence'
+import { CityPage } from '../pages/locations/city-page'
 import { RadioPage } from '../pages/radio/radio-page'
 import { AnnouncementsFeed } from '../pages/radio/announcements-feed'
 
@@ -123,7 +125,7 @@ export function AppRouter() {
     <Routes>
       {/* ── Публичная часть ───────────────────────────────── */}
       <Route element={<PublicLayout />}>
-        <Route path="/login"    element={<RequireGuest authenticatedTo="/profile"><LoginPage /></RequireGuest>} />
+        <Route path="/login"    element={<RequireGuest authenticatedTo="/resume"><LoginPage /></RequireGuest>} />
         <Route path="/register" element={<RequireGuest authenticatedTo="/character/create"><RegisterPage /></RequireGuest>} />
       </Route>
 
@@ -137,6 +139,7 @@ export function AppRouter() {
 
       <Route path="/character/create"
         element={<RequireAuth><CreateCharacterPage /></RequireAuth>} />
+      <Route path="/resume" element={<RequireAuth><RequireCharacter><ResumeLocation /></RequireCharacter></RequireAuth>} />
       <Route path="/profile"
         element={<RequireAuth><RequireCharacter><DossierPage /></RequireCharacter></RequireAuth>} />
       <Route path="/battle/:id"
@@ -147,6 +150,13 @@ export function AppRouter() {
       {/* ── Город: оболочка постоянна, меняется только вьюпорт ── */}
       <Route element={<RequireAuth><RequireCharacter><GameShell /></RequireCharacter></RequireAuth>}>
         <Route path="/" element={<HubPage />} />
+        <Route path="/city-hall" element={<CityPage kind="hall" />} />
+        <Route path="/school" element={<CityPage kind="school" />} />
+        <Route path="/prison" element={<CityPage kind="prison" />} />
+        <Route path="/clan-houses" element={<CityPage kind="houses" />} />
+        <Route path="/tsum" element={<CityPage kind="tsum" />} />
+        <Route path="/berezka" element={<CityPage kind="berezka" />} />
+        <Route path="/pet-shop" element={<CityPage kind="pets" />} />
         <Route path="/district/:kind" element={<DistrictRoute />} />
         {/* Прежние адреса посадочных остаются рабочими: на них есть ссылки
             в чужих закладках и в истории Метрики. */}
@@ -184,7 +194,7 @@ export function AppRouter() {
           </ViewportPanel>} />
 
         <Route path="/inventory" element={
-          <ViewportPanel title="Снаряжение" subtitle="Инвентарь и экипировка">
+          <ViewportPanel title="Склад" subtitle="Инвентарь и экипировка">
             <InventoryPage />
           </ViewportPanel>} />
 
@@ -194,7 +204,7 @@ export function AppRouter() {
           </ViewportPanel>} />
 
         <Route path="/market" element={
-          <ViewportPanel title="Барахолка" subtitle="Объявления игроков: вещи и сырьё">
+          <ViewportPanel title="Рынок" subtitle="Объявления игроков: вещи и сырьё">
             <MarketPage />
           </ViewportPanel>} />
 

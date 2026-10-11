@@ -104,7 +104,7 @@ export const MENU = {
       на её длине уже сгорел вариант с девятью районами. */
   rooms: {
     center: [
-      { key: 'inventory', label: 'Снаряжение', to: '/inventory' },
+      { key: 'inventory', label: 'Склад', to: '/inventory' },
       { key: 'skills', label: 'Оружейные навыки', to: '/skills' },
       { key: 'stats', label: 'Характеристики', to: '/stats' },
       { key: 'history', label: 'История боёв', to: '/battles/history' },
@@ -119,7 +119,7 @@ export const MENU = {
       { key: 'private', label: 'Частные лавки', to: '/shops/private' },
       // Доска объявлений игроков. Зовётся «Барахолкой», чтобы не
       // повторять имя района: раньше и район, и эта страница были «Рынок».
-      { key: 'board', label: 'Барахолка', to: '/market' },
+      { key: 'board', label: 'Рынок', to: '/market' },
       { key: 'bars', label: 'Бары', to: '/bars' },
     ],
     industrial: [
@@ -140,7 +140,7 @@ export const MENU = {
       // «Склад» был описан в SOON с самого начала, но в навигацию не
       // выведен: попасть в него было нельзя ниоткуда. Вокзалу он к месту —
       // в сиде там стоит объект «Склад у вокзала».
-      { key: 'storage', label: 'Склад', to: '/soon/storage' },
+      { key: 'storage', label: 'Грузовой склад', to: '/soon/storage' },
       { key: 'logistics', label: 'Перевозки', to: '/soon/logistics' },
     ],
     suburb: [
@@ -159,7 +159,7 @@ export const MENU = {
       viewport-frame.png. Раньше стояло 1000.5: ширина от прежнего
       макета, из-за неё рамка растягивалась на 72 px и всё внутри
       вьюпорта уезжало вправо относительно рисунка. */
-  viewport: box(316.5, 122.5, 928.5, 496),
+  viewport: box(316.5, 60, 928.5, 496),
 
   /** левая карточка «личное дело» */
   card: {

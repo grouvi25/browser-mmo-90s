@@ -178,29 +178,18 @@ test.describe('Stage 2 visual and browser flow', () => {
     ])
   })
 
-  test('illustrated navigation labels stay centred in their frames', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name.startsWith('mobile'), 'Illustrated stage navigation is desktop-only')
+  test('location tabs stay below the illustration with legible labels', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop stage geometry')
     await authPage(page, seller)
     await page.goto('/industrial')
-    // Число районов и комнат берём из карты города, а не числом: районы
-    // нарисованы на подложке и не меняются, а комнаты растут с этапами.
-    await expect(page.locator('.stage-nav')).toHaveCount(2)
-    await expect(page.locator('.stage-nav').nth(0).locator('.stage-nav__button')).toHaveCount(MENU.districts.length)
-    await expect(page.locator('.stage-nav').nth(1).locator('.stage-nav__button')).toHaveCount(MENU.rooms.industrial.length)
-
-    const offsets = await page.locator('.stage-nav__button').evaluateAll(buttons => buttons.map(button => {
-      const frame = button.querySelector<HTMLElement>('.stage-nav__frame')!.getBoundingClientRect()
-      const label = button.querySelector<HTMLElement>('.stage-nav__label-text')!.getBoundingClientRect()
-      return {
-        dx: Math.abs((label.left + label.right - frame.left - frame.right) / 2),
-        inside: label.left >= frame.left - 0.1 && label.right <= frame.right + 0.1,
-      }
-    }))
-
-    for (const offset of offsets) {
-      expect(offset.dx).toBeLessThan(0.25)
-      expect(offset.inside).toBe(true)
-    }
+    await expect(page.locator('.city-locations')).toBeVisible()
+    await expect(page.locator('.stage-nav')).toHaveCount(0)
+    const geometry = await page.evaluate(() => {
+      const viewport = document.querySelector('.viewport')!.getBoundingClientRect()
+      const tabs = document.querySelector('.city-locations')!.getBoundingClientRect()
+      return { bottom: viewport.bottom, top: tabs.top }
+    })
+    expect(geometry.top).toBeGreaterThan(geometry.bottom)
   })
 
   test('desktop scene fills side bands without distorting the authored plate', async ({ page }, testInfo) => {
@@ -382,7 +371,9 @@ test.describe('Stage 2 visual and browser flow', () => {
     await page.goto('/industrial')
     await expect(page.getByRole('button', { name: 'Промзона', exact: true })).toBeVisible()
     for (const room of MENU.rooms.industrial) {
-      await expect(page.getByRole('button', { name: room.label, exact: true })).toBeVisible()
+      const button = page.getByRole('navigation', { name: 'Локации Центра' }).getByRole('button', { name: room.to === '/farm' ? 'Фермы' : room.label, exact: true })
+      await button.scrollIntoViewIfNeeded()
+      await expect(button).toBeVisible()
     }
 
     // Аграрного района в макете нет; ферма и растения — комнаты Промзоны,
@@ -390,7 +381,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     await page.goto('/agriculture')
     await expect(page).toHaveURL(/\/district\/industrial$/)
     await expect(page.getByRole('button', { name: 'Промзона', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Ферма', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Фермы', exact: true })).toBeVisible()
 
     // комнаты чужого района в полосе не появляются
     await page.goto('/district/garages')
@@ -402,7 +393,7 @@ test.describe('Stage 2 visual and browser flow', () => {
 
     for (const route of ['/', '/district/industrial', '/district/station', '/district/garages']) {
       await page.goto(route)
-      const labels = await page.locator('button:visible, a[href]:visible').evaluateAll(elements =>
+      const labels = await page.locator('.city-locations button:visible').evaluateAll(elements =>
         elements.map(element => (element.textContent ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru'))
           .filter(Boolean),
       )

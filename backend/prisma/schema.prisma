@@ -290,6 +290,8 @@ enum AdminActionKind {
   RESTORE_ITEM_TEMPLATE
   CREATE_ITEM_TEMPLATE
   DELETE_ITEM_TEMPLATE
+  JAIL_CHARACTER
+  RELEASE_CHARACTER
   BAN_USER
   UNBAN_USER
   MUTE_USER
@@ -558,6 +560,10 @@ model Character {
   // Profile extras
   battlesTotal         Int        @default(0) @map("battles_total")
   battlesWon           Int        @default(0) @map("battles_won")
+  lastLocation         String     @default("/") @map("last_location")
+  jailedUntil          DateTime?  @map("jailed_until")
+  jailReason           String?    @map("jail_reason")
+  pets                 CharacterPet[]
   location             String? // Текстовое местоположение
   isInvisible          Boolean    @default(false) @map("is_invisible")
   lastBattleFinishedAt DateTime?  @map("last_battle_finished_at")
@@ -643,6 +649,7 @@ model ItemTemplate {
   description         String?
   type                ItemType
   craftProfessionCode String?            @map("craft_profession_code")
+  battleExpBonus      Float              @default(0) @map("battle_exp_bonus")
   statBudget          Int                @default(0) @map("stat_budget")
   statAllocation      Json?              @map("stat_allocation")
   allocationMode      ItemAllocationMode @default(FIXED) @map("allocation_mode")
@@ -1024,7 +1031,7 @@ model Clan {
   // Текущее значение хранится здесь, а не считается из журнала: оно
   // проверяется при каждой заявке и каждой атаке.
   authority       Float              @default(0)
-  territoryLimit  Int                @default(2) @map("territory_limit")
+  territoryLimit  Int                @default(1) @map("territory_limit")
   authorityLogs   ClanAuthorityLog[]
   claimsAttacking TerritoryClaim[]   @relation("ClaimAttacker")
   claimsDefending TerritoryClaim[]   @relation("ClaimDefender")
@@ -2028,4 +2035,17 @@ model Announcement {
 
   @@index([removedAt, pinned, createdAt])
   @@map("announcements")
+}
+
+model CharacterPet {
+  id          String    @id @default(uuid())
+  characterId String    @map("character_id")
+  code        String
+  name        String
+  food        Int       @default(0)
+  fedUntil    DateTime? @map("fed_until")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@unique([characterId, code])
+  @@map("character_pets")
 }

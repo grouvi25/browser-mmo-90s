@@ -38,6 +38,9 @@ export interface Character {
   status: string
   battlesTotal: number
   battlesWon: number
+  lastLocation?: string
+  jailedUntil?: string | null
+  jailReason?: string | null
   location: string | null
   isInvisible: boolean
   isPremium: boolean
@@ -62,6 +65,7 @@ export interface Character {
 export type ItemStatKey = 'DAMAGE' | 'ACCURACY' | 'CRIT' | 'ARMOR' | 'DURABILITY' | 'ANTI_CRIT'
 
 export interface ItemTemplate {
+  battleExpBonus?: number
   id: string
   code: string
   name: string
