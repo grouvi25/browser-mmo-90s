@@ -152,6 +152,8 @@ describe('помощники', () => {
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
     const object = await myObject(character.id)
     await HelpersService.startShift(character.id, helper.id, object.id)
+    // Хозяину своя профессия нужна из Училища: у помощника она своя.
+    await testPrisma.characterProfession.create({ data: { characterId: character.id, professionCode: 'scrap_collector' } })
 
     await expect(WorkService.start(character.id, object.id)).resolves.toBeTruthy()
   })
@@ -186,6 +188,7 @@ describe('помощники', () => {
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
     const object = await myObject(character.id, 'scrap_collector', 0, 1)
     await HelpersService.startShift(character.id, helper.id, object.id)
+    await testPrisma.characterProfession.create({ data: { characterId: character.id, professionCode: 'scrap_collector' } })
     await expect(WorkService.start(character.id, object.id))
       .rejects.toMatchObject({ code: 'WORK_004' })
   })

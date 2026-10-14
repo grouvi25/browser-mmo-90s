@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { PROFILE, PROFILE_STAGE } from '../../shared/lib/layout-map'
+import { locationLabel } from '../../shared/lib/city-locations'
 import { FitText, Stage } from '../../shared/lib/stage'
 import { useIsMobile } from '../../shared/lib/use-media-query'
 import { PLATES, Sprite, SpriteButton, SPRITES } from '../../shared/ui/sprite'
@@ -80,14 +81,14 @@ export function DossierPage() {
     .slice(0, 3)
 
   const dossier: string[] = char ? [
-    `Местоположение: ${char.location ?? 'Центральная площадь'}`,
+    `Местоположение: ${locationLabel(char.location)}`,
     `Состоит в клане: ${'не состоит'}`,
     '',
     'Уровни:',
     `1. Боевой — ${char.battleLevel}`,
     `2. Экономический — ${char.economicLevel}`,
     ...(char.economy?.professions?.length
-      ? ['3. Профессии:', ...char.economy.professions.map(p => `   ${p.professionCode}: ур. ${p.level}, опыт ${p.exp}`)]
+      ? ['3. Профессии:', ...char.economy.professions.map(p => `   ${p.name ?? p.professionCode}: ур. ${p.level}, опыт ${p.exp}`)]
       : ['3. Профессии — не открыты']),
     '',
     'Владение оружием:',

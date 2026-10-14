@@ -6,6 +6,7 @@ import { BalanceConfig } from '../../config/balance.config'
 import { audit } from '../../shared/logger/audit-logger'
 import type { CreateCharacterInput } from './characters.schemas'
 import { prisma } from '../../shared/db/prisma'
+import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 
 export const CharactersService = {
   async create(userId: string, input: CreateCharacterInput) {
@@ -76,7 +77,8 @@ export const CharactersService = {
       economy: {
         productionLevel: professions.reduce((max, item) => Math.max(max, item.level), 0),
         productionExp: professions.reduce((max, item) => Math.max(max, item.exp), 0),
-        professions,
+        // Название рядом с кодом: досье показывало игроку «procurer».
+        professions: professions.map(item => ({ ...item, name: PROFESSION_NAMES[item.professionCode as ProfessionCode] ?? item.professionCode })),
         economicLevel: char.economicLevel,
         economicExp: char.economicExp,
         activeShift,

@@ -101,5 +101,8 @@ export function isProtected(protectedUntil: Date | null, now = new Date()): bool
   return !!protectedUntil && protectedUntil.getTime() > now.getTime()
 }
 
-export const TERRITORY_LIMIT = 1
+// Лимит берётся из баланса, а не дублируется числом: две копии одного правила
+// уже разъезжались. Поднять его выше 1 одной правкой конфига нельзя — база
+// держит то же правило индексом territories_one_per_clan (raw-indexes.sql).
+export const TERRITORY_LIMIT = T.limit
 export const TERRITORY_PROTECTION_HOURS = T.protectionHours

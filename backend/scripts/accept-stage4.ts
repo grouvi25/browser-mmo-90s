@@ -207,39 +207,46 @@ async function run() {
   // ── Территории ─────────────────────────────────────────────
   console.log(' Территории')
 
-  await check(1, 'Территории', 'Клан не владеет больше territoryLimit территорий', async () => {
+  // Проверки 1, 2 и 4 переписаны под правку заказчика (октябрь 2026): у бригады
+  // не больше одной территории. Прежние формулировки строились на втором
+  // районе, которого теперь не может быть; смысл каждой проверки сохранён.
+  await check(1, 'Территории', 'Бригада не владеет больше одной территории', async () => {
+    must(T.limit === 1, `в балансе лимит ${T.limit}, заказчик утвердил 1`)
     const { boss, clan, roster } = await warClan('lim')
     await own(clan.id, 'center')
-    await own(clan.id, 'market')
-    const message = await refuses('WAR_008', () => ClaimsService.file(boss.id, 'garages', roster))
+    const message = await refuses('WAR_008', () => ClaimsService.file(boss.id, 'market', roster))
+    // Мимо сервиса второй район тоже не записать: правило держит и база.
+    let stored = true
+    try { await own(clan.id, 'market') } catch { stored = false }
+    must(!stored, 'база приняла второй район той же бригаде в обход сервиса')
     const owned = await prisma.territory.count({ where: { ownerClanId: clan.id, status: 'CONTROLLED' } })
-    must(owned === T.limit, `у клана ${owned} районов при лимите ${T.limit}`)
-    return `лимит ${T.limit}, третья заявка отклонена: «${message}»`
+    must(owned === 1, `у бригады ${owned} районов при лимите 1`)
+    return `вторая заявка отклонена: «${message}»; прямую запись второго района отклонила база`
   })
 
-  await check(2, 'Территории', 'Ступень содержания пересчитывается при потере', async () => {
+  await check(2, 'Территории', 'Содержание пересчитывается при потере территории', async () => {
     const { clan } = await warClan('tier')
-    const first = await own(clan.id, 'center', new Date(Date.now() - 2 * DAY_MS))
-    const second = await own(clan.id, 'market', new Date(Date.now() - DAY_MS))
-    // Первая ступень дешевле: ступень — это порядок захвата, а не свойство района.
+    const district = await own(clan.id, 'center', new Date(Date.now() - DAY_MS))
     await prisma.clan.update({ where: { id: clan.id }, data: { lastChargedAt: new Date(Date.now() - DAY_MS) } })
     await runClanMaintenance()
-    const before = await prisma.territory.findUniqueOrThrow({ where: { id: second.id } })
-    must(before.upkeepTier === 2, `вторая территория получила ступень ${before.upkeepTier}, ждали 2`)
+    const held = await prisma.territory.findUniqueOrThrow({ where: { id: district.id } })
+    must(held.upkeepTier === 1, `единственный район получил ступень ${held.upkeepTier}, ждали 1`)
+    const withDistrict = await clanUpkeepPreview(clan.id)
+    must(withDistrict === CLAN_MAINTENANCE_DAILY + T.upkeepTier1,
+      `расход с районом ${withDistrict}, ждали ${CLAN_MAINTENANCE_DAILY + T.upkeepTier1}`)
 
-    // Теряем первую — оставшаяся обязана подешеветь.
+    // Теряем район — бригада обязана платить только своё содержание.
     await prisma.territory.update({
-      where: { id: first.id },
+      where: { id: district.id },
       data: { ownerClanId: null, status: 'NEUTRAL', controlledAt: null },
     })
+    const before = (await prisma.clan.findUniqueOrThrow({ where: { id: clan.id } })).treasury
     await prisma.clan.update({ where: { id: clan.id }, data: { lastChargedAt: new Date(Date.now() - DAY_MS) } })
     await runClanMaintenance()
-    const after = await prisma.territory.findUniqueOrThrow({ where: { id: second.id } })
-    must(after.upkeepTier === 1, `после потери ступень осталась ${after.upkeepTier}`)
-    const perDay = await clanUpkeepPreview(clan.id)
-    must(perDay === CLAN_MAINTENANCE_DAILY + T.upkeepTier1,
-      `суточный расход ${perDay}, ждали ${CLAN_MAINTENANCE_DAILY + T.upkeepTier1}`)
-    return `2 → 1 ступень после потери, расход ${perDay} ₽/сутки`
+    const after = (await prisma.clan.findUniqueOrThrow({ where: { id: clan.id } })).treasury
+    must(before - after === CLAN_MAINTENANCE_DAILY,
+      `после потери списано ${before - after} ₽, ждали ${CLAN_MAINTENANCE_DAILY}`)
+    return `${withDistrict} → ${before - after} ₽/сутки после потери района`
   })
 
   await check(3, 'Территории', 'Долг 10 000 ₽ гасит бонус, 25 000 ₽ отпускает район', async () => {
@@ -270,19 +277,22 @@ async function run() {
   })
 
   await check(4, 'Территории', 'Бонус Спального района скидывает содержание целиком', async () => {
-    const { clan } = await warClan('sub')
-    await own(clan.id, 'center', new Date(Date.now() - 2 * DAY_MS))
-    const plain = await clanUpkeepPreview(clan.id)
     const suburb = TERRITORIES.find(item => item.bonusCode === 'UPKEEP_COST')
     must(suburb, 'в сиде нет района со скидкой на содержание')
+    const { clan } = await warClan('sub')
+    const plainClan = await warClan('plain')
+    await own(plainClan.clan.id, 'center', new Date(Date.now() - DAY_MS))
     await own(clan.id, suburb!.code, new Date(Date.now() - DAY_MS))
+    const plain = await clanUpkeepPreview(plainClan.clan.id)
     const withSuburb = await clanUpkeepPreview(clan.id)
-    const gross = CLAN_MAINTENANCE_DAILY + T.upkeepTier1 + T.upkeepTier2
+    const gross = CLAN_MAINTENANCE_DAILY + T.upkeepTier1
+    must(plain === gross, `без скидки расход ${plain}, ждали ${gross}`)
     const expected = Math.round(gross * (1 - suburb!.bonusValue))
     must(withSuburb === expected, `расход ${withSuburb}, ждали ${expected} (скидка ${suburb!.bonusValue})`)
-    must(withSuburb < plain + T.upkeepTier2,
-      'скидка не применилась ко всей сумме: второй район подорожал на полную ставку')
-    return `${gross} → ${withSuburb} ₽/сутки: скидка легла и на клан, и на оба района`
+    // Скидка только на район дала бы больше: значит, она легла и на содержание бригады.
+    must(withSuburb < CLAN_MAINTENANCE_DAILY + Math.round(T.upkeepTier1 * (1 - suburb!.bonusValue)),
+      'скидка не применилась к содержанию самой бригады')
+    return `${gross} → ${withSuburb} ₽/сутки: скидка легла и на бригаду, и на район`
   })
 
   await check(5, 'Территории', 'Район под защитой отклоняет заявку с внятной причиной', async () => {

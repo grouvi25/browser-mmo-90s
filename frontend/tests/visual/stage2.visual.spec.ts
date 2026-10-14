@@ -301,10 +301,28 @@ test.describe('Stage 2 visual and browser flow', () => {
     await visualProof(page, testInfo, 'e2-work')
   })
 
-  test('work browser flow requires a tool, buys it and starts a shift', async ({ page }, testInfo) => {
+  test('work browser flow requires a profession and a tool, buys them and starts a shift', async ({ page }, testInfo) => {
+    // Профессии покупаются в Училище: работа их больше не выдаёт.
+    const listed = await apiContext.get('/api/work/objects', { headers: { Authorization: `Bearer ${worker.token}` } })
+    expect(listed.status()).toBe(200)
+    type Vacancy = { name: string; requiredProfessionCode: string; equipment: { requiredToolTier: number } | null; admission: unknown }
+    const vacancy = (await listed.json() as { items: Vacancy[] }).items
+      .find(item => item.equipment?.requiredToolTier === 1 && !item.admission)
+    expect(vacancy).toBeTruthy()
+    const row = page.locator('#vacancies tbody tr', { hasText: vacancy!.name }).first()
+
     await authPage(page, worker)
     await page.goto('/work')
-    await expect(page.getByText(/Нужен инструмент T1/).first()).toBeVisible()
+    await expect(row.getByText(/не изучена/)).toBeVisible()
+    await expect(row.getByRole('button', { name: 'Выйти' })).toBeDisabled()
+    const learned = await apiContext.post('/api/city/professions', {
+      headers: { Authorization: `Bearer ${worker.token}`, 'Idempotency-Key': `visual-learn-${worker.login}` },
+      data: { code: vacancy!.requiredProfessionCode },
+    })
+    expect(learned.status()).toBe(200)
+
+    await page.reload()
+    await expect(row.getByText(/Нужен инструмент T1/)).toBeVisible()
 
     const shop = await apiContext.get('/api/shops/government/items', { headers: { Authorization: `Bearer ${worker.token}` } })
     expect(shop.status()).toBe(200)
@@ -317,7 +335,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(purchase.status()).toBe(201)
 
     await page.reload()
-    const start = page.locator('#vacancies').getByRole('button', { name: 'Выйти' }).first()
+    const start = row.getByRole('button', { name: 'Выйти' })
     await expect(start).toBeEnabled()
     const startedResponse = page.waitForResponse(response => response.url().includes('/api/work/shifts/start') && response.request().method() === 'POST')
     await start.click()

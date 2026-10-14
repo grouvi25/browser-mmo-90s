@@ -4,7 +4,7 @@ export interface ProfessionView { code:string; name:string; level:number; exp:nu
 export interface ProductionObjectView {
   id:string; code:string; name:string; requiredProfessionCode:string; requiredProfessionLevel:number
   shiftDurationMinutes:number; baseSalary:number; baseProductionExp:number; producesResourceCode:string|null
-  producesResourceName:string|null; outputAmountMin:number; outputAmountMax:number; locked:boolean; toolAvailable:boolean; equipment:{code:string;name:string;tier:number;requiredToolTier:number}|null; profession:ProfessionView
+  producesResourceName:string|null; outputAmountMin:number; outputAmountMax:number; locked:boolean; toolAvailable:boolean; equipment:{code:string;name:string;tier:number;requiredToolTier:number}|null; profession:ProfessionView&{learned:boolean}
 }
 export interface WorkShiftView {
   id:string; status:string; startedAt:string; endsAt:string; baseSalary:number; professionCode:string

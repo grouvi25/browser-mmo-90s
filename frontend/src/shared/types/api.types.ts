@@ -53,7 +53,7 @@ export interface Character {
   economy?: {
     productionLevel: number
     productionExp: number
-    professions: Array<{ id:string; professionCode:string; level:number; exp:number; unlockedAt:string; updatedAt:string }>
+    professions: Array<{ id:string; professionCode:string; name?:string; level:number; exp:number; unlockedAt:string; updatedAt:string }>
     economicLevel: number
     economicExp: number
     activeShift: { id: string; status: string; startedAt: string; endsAt: string } | null
@@ -137,6 +137,7 @@ export interface BattleParticipant {
   isSurrendered: boolean
   damageDealt: number
   damageReceived: number
+  expGained?: number
 }
 
 export interface BattleTurn {
@@ -167,6 +168,7 @@ export interface Battle {
   type: string
   status: string
   winnerId: string | null
+  winnerParticipantId?: string | null
   roundCount: number
   startedAt: string | null
   finishedAt: string | null

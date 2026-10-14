@@ -1,3 +1,5 @@
+import { MENU } from './layout-map'
+
 /** Единственный список локаций Центра; адреса сохраняются сервером. */
 export const CITY_LOCATIONS = [
   { key: 'center', label: 'Центр', to: '/' },
@@ -17,3 +19,19 @@ export const CITY_LOCATIONS = [
   { key: 'pets', label: 'Зоомагазин', to: '/pet-shop' },
   { key: 'territories', label: 'Территории', to: '/territories' },
 ] as const
+
+const KNOWN_PLACES: readonly { label: string; to: string }[] = [
+  ...CITY_LOCATIONS, ...MENU.districts, ...Object.values(MENU.rooms).flat(),
+]
+
+/** Название места для досье и профиля. Сервер хранит адрес страницы
+    (/school, /clans/storage), а игроку нужно «Училище»; вложенные адреса
+    называются по ближайшей известной локации. */
+export function locationLabel(value: string | null | undefined): string {
+  if (!value) return 'Центральная площадь'
+  if (!value.startsWith('/')) return value
+  const match = KNOWN_PLACES
+    .filter(place => place.to !== '/' && (value === place.to || value.startsWith(`${place.to}/`)))
+    .sort((a, b) => b.to.length - a.to.length)[0]
+  return match?.label ?? 'Центр'
+}
