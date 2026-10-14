@@ -42,6 +42,8 @@ function getLoadout(): string[] {
 interface RoundResult {
   roundNumber?: number; playerHp?: number; botHp?: number; battleOver?: boolean
   result?: string; expGain?: number; weaponExpGain?: number; moneyReward?: number
+  /** PvP отдаёт победителя, командный бой — победившую сторону, без result. */
+  winnerId?: string | null; winnerSide?: number | null
   newLevel?: number; waiting?: boolean; turns?: TurnEvent[]
   botStance?: Stance; botAttackZones?: BodyZone[]; botBlockZones?: BodyZone[]
   distance?: number; playerRange?: number
@@ -289,6 +291,34 @@ export function BattlePage() {
   const enemyProfile = profiles.find(profile => profile.participantId === ePart?.participantId)
   const enemyName = enemyProfile?.name ?? 'Противник'
 
+  // Победой считался только PVE_WIN: PvP и командный бой возвращают победителя
+  // иначе, и победитель дуэли видел «ПОРАЖЕНИЕ».
+  // Сторона — из живого состояния, а после боя из записи в базе: Redis к
+  // этому моменту уже может быть очищен.
+  const mySide = pPart?.side ?? battleData?.battle?.participants.find(p => p.characterId === char?.id)?.side
+  const isWin = (r: RoundResult) => r.result === 'PVE_WIN' || r.result === 'PVP_WIN'
+    || (!!r.winnerId && r.winnerId === char?.id)
+    || (r.winnerSide != null && r.winnerSide === mySide)
+
+  // Итог с сервера приходит тому, чей ход закрыл бой. Сопернику остаётся
+  // опрос: без этого его экран застывал на последнем раунде.
+  useEffect(() => {
+    const battle = battleData?.battle
+    if (battleOver || battle?.status !== 'FINISHED' || !char) return
+    const mine = battle.participants.find(p => p.characterId === char.id)
+    const winner = battle.participants.find(p => p.id === battle.winnerParticipantId)
+    setBattleOver(true)
+    setFinishResult({
+      battleOver: true,
+      winnerId: battle.winnerId ?? winner?.characterId ?? null,
+      winnerSide: winner?.side ?? null,
+      expGain: mine?.expGained,
+    })
+    localStorage.removeItem('mmo_current_battle')
+    void qc.invalidateQueries({ queryKey: ['character', 'me'] })
+    void qc.invalidateQueries({ queryKey: ['inventory'] })
+  }, [battleData, battleOver, char, qc])
+
   // Только расходники из loadout (взятые до боя)
   const pocketSlots: (ItemInstance | null)[] = [0, 1, 2, 3].map(idx => {
     const id = loadoutIds[idx]
@@ -345,7 +375,7 @@ export function BattlePage() {
 
       setRounds(prev => [...prev, {
         round: rn, events, at: Date.now(),
-        type: data.battleOver ? (data.result === 'PVE_WIN' ? 'win' : 'lose') : 'normal',
+        type: data.battleOver ? (isWin(data) ? 'win' : 'lose') : 'normal',
         ...data,
       }])
 
@@ -433,7 +463,7 @@ export function BattlePage() {
 
   // ── Финальный экран ───────────────────────────────────────
   if (battleOver && finishResult) {
-    const won = finishResult.result === 'PVE_WIN'
+    const won = isWin(finishResult)
     return (
       <div className="battle-page-v2">
         <div className="battle-main-col">

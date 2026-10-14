@@ -74,6 +74,8 @@ export const WorkService = {
             name: PROFESSION_NAMES[object.requiredProfessionCode as ProfessionCode] ?? object.requiredProfessionCode,
             level,
             exp: profession?.exp ?? 0,
+            // Без изученной в Училище профессии смена не начнётся (WORK_013).
+            learned: !!profession,
           },
           admission: admission ? {
             professionCode: admission.professionCode,
@@ -166,6 +168,12 @@ export const WorkService = {
       const existingProfession = await tx.characterProfession.findUnique({
         where: { characterId_professionCode: { characterId, professionCode: object.requiredProfessionCode } },
       })
+      // Правка заказчика: профессии покупаются в Училище. Раньше первая смена
+      // выдавала профессию даром, и покупка в Училище ничего не давала.
+      if (!existingProfession) {
+        const name = PROFESSION_NAMES[object.requiredProfessionCode as ProfessionCode] ?? object.requiredProfessionCode
+        throw new AppError(ErrorCode.WORK_PROFESSION_REQUIRED, `Сначала изучите профессию «${name}» в Училище`, 403)
+      }
       // Допуск — по предыдущему переделу направления, а не по профессии
       // самого объекта: её опыт нигде, кроме этого объекта, не начисляется.
       const admission = admissionRequirement(object)
@@ -182,7 +190,7 @@ export const WorkService = {
       if (slots >= object.workerSlots) throw new AppError(ErrorCode.WORK_NO_SLOTS, 'No free worker slots', 409)
       const claimed = await tx.character.updateMany({ where: { id: characterId, status: 'ACTIVE' }, data: { status: 'WORKING' } })
       if (claimed.count !== 1) throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 409)
-      const profession = existingProfession ?? await tx.characterProfession.create({ data: { characterId, professionCode: object.requiredProfessionCode } })
+      const profession = existingProfession
       let toolInstanceId: string | null = null
       if (object.equipment?.isActive) {
         const candidates = await tx.itemInstance.findMany({
@@ -219,6 +227,8 @@ export const WorkService = {
       if (shift.status !== 'READY_TO_CLAIM') throw new AppError(ErrorCode.WORK_NOT_READY, 'Shift is not ready', 400)
       const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
       if (!['ACTIVE', 'WORKING'].includes(character.status)) throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 409)
+      // upsert остаётся ради смен, начатых до того, как профессии стали
+      // платными: новую смену без изученной профессии start уже не откроет.
       const profession = await tx.characterProfession.upsert({
         where: { characterId_professionCode: { characterId, professionCode: shift.professionCode } }, update: {}, create: { characterId, professionCode: shift.professionCode },
       })

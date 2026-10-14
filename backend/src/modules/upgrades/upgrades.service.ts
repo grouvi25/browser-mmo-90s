@@ -62,9 +62,12 @@ export const UpgradesService = {
       const next = item.upgradeLevel + 1
       const cost = calcUpgradeCost(item.template.priceBase, next)
       const professionCode = item.template.craftProfessionCode ?? craftProfessionForItem(item.template.type)
-      const craft = await tx.characterProfession.upsert({
-        where: { characterId_professionCode: { characterId, professionCode } }, update: {}, create: { characterId, professionCode },
+      // Только читаем: улучшение не должно выдавать профессию даром — она
+      // покупается в Училище. Без профессии шанс считается с нулевого уровня.
+      const owned = await tx.characterProfession.findUnique({
+        where: { characterId_professionCode: { characterId, professionCode } },
       })
+      const craft = { level: owned?.level ?? 0 }
       const chance = calcUpgradeSuccessChance(item.upgradeLevel, craft.level)
       const required = requiredUpgradeResource(item.template.type, next)
       const resource = await tx.resourceTemplate.findUniqueOrThrow({ where: { code: required.code } })

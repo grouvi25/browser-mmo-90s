@@ -35,6 +35,10 @@ async function workFixture() {
       baseProductionExp: 10,
     },
   })
+  // Профессия покупается в Училище: без неё смена не начнётся.
+  await testPrisma.characterProfession.create({
+    data: { characterId: worker.id, professionCode: object.requiredProfessionCode },
+  })
   return { worker, object }
 }
 

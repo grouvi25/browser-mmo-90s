@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { User, Trophy, Sword, MapPin, EyeOff, Copy, Check, ArrowLeft } from 'lucide-react'
 import { charactersApi } from '../../shared/api/characters.api'
 import { ApiError } from '../../shared/api/client'
+import { locationLabel } from '../../shared/lib/city-locations'
 
 const ARCHETYPE_LABEL: Record<string, string> = {
   ATHLETE: 'Спортсмен', WORKER: 'Работяга', SHUTTLE: 'Челнок', VETERAN: 'Бывший срочник',
@@ -71,7 +72,7 @@ export function PublicProfilePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <Stat icon={<Sword size={14} />} label="Боёв" value={String(data.battlesTotal ?? 0)} />
             <Stat icon={<Trophy size={14} />} label="Побед" value={`${data.battlesWon ?? 0} (${winRate(data)}%)`} />
-            {data.location && <Stat icon={<MapPin size={14} />} label="Место" value={data.location} />}
+            {data.location && <Stat icon={<MapPin size={14} />} label="Место" value={locationLabel(data.location)} />}
           </div>
 
           <button className="btn btn-sm btn-primary" onClick={copyLink} style={{ marginTop: 16, width: '100%' }}>

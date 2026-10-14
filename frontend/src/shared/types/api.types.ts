@@ -137,6 +137,7 @@ export interface BattleParticipant {
   isSurrendered: boolean
   damageDealt: number
   damageReceived: number
+  expGained?: number
 }
 
 export interface BattleTurn {
@@ -167,6 +168,7 @@ export interface Battle {
   type: string
   status: string
   winnerId: string | null
+  winnerParticipantId?: string | null
   roundCount: number
   startedAt: string | null
   finishedAt: string | null

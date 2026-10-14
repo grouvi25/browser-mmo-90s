@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { workApi, type ProductionObjectView } from '../../shared/api/work.api'
 
 const XP = [0, 500, 1_500, 3_500, 8_000, 16_000, 30_000]
@@ -16,6 +17,7 @@ function Progress({level,exp}:{level:number;exp:number}){
   return <div className="work-xp"><div><i style={{transform:`scaleX(${value/100})`}}/></div><small>{ceiling?`${exp.toLocaleString('ru')} / ${ceiling.toLocaleString('ru')} XP`:`${exp.toLocaleString('ru')} XP`}</small></div>
 }
 function lockReason(object:ProductionObjectView,busy:boolean,limit:boolean){
+  if(!object.profession.learned)return `Профессия «${object.profession.name}» не изучена — её покупают в Училище`
   if(object.locked)return `Нужен ${object.requiredProfessionLevel} уровень профессии`
   if(!object.toolAvailable)return `Нужен инструмент T${object.equipment?.requiredToolTier??1}`
   if(limit)return 'Лимит смен на сегодня исчерпан'
@@ -67,11 +69,11 @@ export function WorkPage(){
     </div></div>
 
     <div className="panel mb8"><div className="panel-header"><span className="panel-title">Профессии</span></div><div className="panel-body">
-      {objects.data?.professions?.length?<table className="data-table"><thead><tr><th>Профессия</th><th>Уровень</th><th>Прогресс</th></tr></thead><tbody>{objects.data.professions.map(p=><tr key={p.code}><td>{p.name}</td><td>{p.level}</td><td><Progress level={p.level} exp={p.exp}/></td></tr>)}</tbody></table>:<span className="text-dim">Профессия откроется после первой смены.</span>}
+      {objects.data?.professions?.length?<table className="data-table"><thead><tr><th>Профессия</th><th>Уровень</th><th>Прогресс</th></tr></thead><tbody>{objects.data.professions.map(p=><tr key={p.code}><td>{p.name}</td><td>{p.level}</td><td><Progress level={p.level} exp={p.exp}/></td></tr>)}</tbody></table>:<span className="text-dim">Профессий пока нет. <Link to="/school">Купить профессию в Училище →</Link></span>}
     </div></div>
 
     <div className="panel" id="vacancies"><div className="panel-header"><span className="panel-title">Вакансии</span><span>Оплата и выработка за смену</span></div><div className="panel-body">
-      {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items?.map(object=>{const reason=lockReason(object,!!shift,used>=limit);return <tr key={object.id} className={reason?'is-muted':''}><td><b>{object.name}</b>{reason&&<small className="work-reason">{reason}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{object.shiftDurationMinutes} мин</td><td>{object.baseSalary.toLocaleString('ru')} ₽</td><td>+{object.baseProductionExp} XP</td><td>{object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}`:'—'}</td><td><button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate(object)}>Выйти</button></td></tr>})}</tbody></table>}
+      {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items?.map(object=>{const reason=lockReason(object,!!shift,used>=limit);return <tr key={object.id} className={reason?'is-muted':''}><td><b>{object.name}</b>{reason&&<small className="work-reason">{reason}{!object.profession.learned&&<> · <Link to="/school">в Училище</Link></>}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{object.shiftDurationMinutes} мин</td><td>{object.baseSalary.toLocaleString('ru')} ₽</td><td>+{object.baseProductionExp} XP</td><td>{object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}`:'—'}</td><td><button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate(object)}>Выйти</button></td></tr>})}</tbody></table>}
     </div></div>
   </div>
 }
