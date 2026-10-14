@@ -17,5 +17,8 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
+# CD запускает сид (npx tsx prisma/seed.ts) в этом образе, а сид города берёт
+# каталог из src/modules/city/city.config.ts: без исходников выкат падал.
+COPY --from=builder /app/src ./src
 EXPOSE 4000
 CMD ["node", "dist/main.js"]
