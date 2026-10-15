@@ -16,6 +16,7 @@ import { runAntiAbuse, ANTIABUSE_MS } from './workers/antiabuse.worker'
 import { runTerritoryClaims, TERRITORY_CLAIMS_MS } from './workers/territory-claims.worker'
 import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worker'
 import { runBattleApplications, BATTLE_APPLICATIONS_MS } from './modules/battles/applications.service'
+import { runHouseSieges, HOUSE_SIEGES_MS } from './modules/clans/house-siege.service'
 import { collectEconomyMetrics, startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
 import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
 import { writeFileSync } from 'node:fs'
@@ -98,6 +99,12 @@ async function startWorker(): Promise<void> {
     catch (err) { logger.error({ err }, '[Worker] Battle applications error') }
   }, BATTLE_APPLICATIONS_MS)
 
+  // Осады домов бригад: начать назначенные и подвести итог законченным.
+  const houseSiegesTimer = setInterval(async () => {
+    try { await runHouseSieges() }
+    catch (err) { logger.error({ err }, '[Worker] House sieges error') }
+  }, HOUSE_SIEGES_MS)
+
   const marketExpireTimer = setInterval(async () => {
     try { await runMarketExpire() }
     catch (err) { logger.error({ err }, '[Worker] Market expire error') }
@@ -145,6 +152,7 @@ const shutdown = async (signal: string): Promise<void> => {
     clearInterval(antiAbuseTimer)
     clearInterval(marketExpireTimer)
     clearInterval(battleApplicationsTimer)
+    clearInterval(houseSiegesTimer)
     clearInterval(idempotencyCleanupTimer)
     stopEconomyMetrics()
     clearInterval(heartbeatTimer)

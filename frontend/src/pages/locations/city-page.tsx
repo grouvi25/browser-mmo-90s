@@ -5,7 +5,7 @@ import { cityApi } from '../../shared/api/city.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { charactersApi } from '../../shared/api/characters.api'
 import { ViewportPanel } from '../../shared/ui/viewport-panel'
-import { ClanSection } from '../stage3/clan-section'
+import { BrigadeHouses } from './brigade-houses'
 import '../stage3/stage3.css'
 
 type Kind = 'hall' | 'school' | 'prison' | 'houses' | 'tsum' | 'berezka' | 'pets'
@@ -45,39 +45,6 @@ function CityHall() {
       <p>Регистрация: 25 000 ₽, нужен 5-й боевой уровень. Содержание: 500 ₽ в сутки из общака.</p>
       <button className="btn btn-primary" disabled={action.isPending}>Зарегистрировать бригаду</button>
     </form><Message error={action.error} success={action.isSuccess} /><Link to="/clan-houses">Перейти в Дома бригад →</Link></>
-}
-/** Дома бригад: все бригады города плитками. По правке заказчика это общий
-    список — на дома потом можно будет нападать, поэтому видны и чужие. */
-function BrigadeHouses() {
-  const me = useQuery({ queryKey: ['character', 'me'], queryFn: charactersApi.getMe })
-  const list = useQuery({ queryKey: ['clans', 'list'], queryFn: clansApi.list })
-  const [picked, setPicked] = useState<string | null>(null)
-  const mine = me.data?.clan?.id ?? null
-  const selected = picked ?? mine
-  const detail = useQuery({
-    queryKey: ['clans', 'detail', selected], queryFn: () => clansApi.get(selected!),
-    enabled: !!selected && selected !== mine,
-  })
-  const clans = list.data?.items ?? []
-  return <>
-    <QueryState loading={list.isLoading} error={list.isError} retry={list.refetch} />
-    {list.data && clans.length === 0 && <p>В городе пока нет бригад. Зарегистрировать свою можно в <Link to="/city-hall">Мэрии</Link>.</p>}
-    <div className="brigade-tiles">{clans.map(clan => <button type="button" key={clan.id}
-      className={'brigade-tile' + (clan.id === selected ? ' is-selected' : '') + (clan.id === mine ? ' is-mine' : '')}
-      aria-pressed={clan.id === selected} onClick={() => setPicked(clan.id)}>
-      <b>{clan.name}</b><span>[{clan.tag}] · ур. {clan.level}</span>
-      <small>{clan._count?.members ?? 0} бойцов{clan.id === mine ? ' · ваша' : ''}</small>
-    </button>)}</div>
-    {selected && selected === mine && <ClanSection />}
-    {selected && selected !== mine && <div className="city-card">
-      <QueryState loading={detail.isLoading} error={detail.isError} retry={detail.refetch} />
-      {detail.data && <><h2>«{detail.data.name}» [{detail.data.tag}]</h2><p>Уровень {detail.data.level}</p>
-        <ul className="brigade-roster">{(detail.data.members ?? []).map(member =>
-          <li key={member.id}><Link to={`/u/${encodeURIComponent(member.character?.nickname ?? '')}`}>{member.character?.nickname ?? '—'}</Link>
-            {' '}<i>{member.character?.battleLevel ?? '?'} ур. · {member.role?.name}</i></li>)}</ul></>}
-    </div>}
-    {!mine && <p><Link to="/city-hall">Зарегистрировать свою бригаду в Мэрии →</Link></p>}
-  </>
 }
 function School() {
   const q = useQuery({ queryKey: ['city', 'professions'], queryFn: cityApi.professions })

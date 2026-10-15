@@ -19,6 +19,9 @@ export function LocationPersistence() {
   }, [jailed, pathname, navigate])
   useEffect(() => {
     if (prison.isLoading || prison.isError || (jailed && pathname !== '/prison')) return
+    // Чужой профиль — не место в городе: сервер его не примет (422), а после
+    // входа возвращать игрока на чужую карточку незачем.
+    if (pathname.startsWith('/u/')) return
     let active = true
     queue.current = queue.current.catch(() => undefined).then(async () => {
       if (!active) return

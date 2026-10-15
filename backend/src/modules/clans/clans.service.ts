@@ -23,7 +23,24 @@ function sameUtcDay(left: Date | null, right = new Date()): boolean {
 }
 
 export const ClansService = {
-  list: () => prisma.clan.findMany({ include: { _count: { select: { members: { where: { status: 'ACTIVE' } } } } }, orderBy: { name: 'asc' } }),
+  // Список для Домов бригад: только публичное — общак и долги чужим не нужны.
+  async list() {
+    const [clans, sieges] = await Promise.all([
+      prisma.clan.findMany({
+        select: {
+          id: true, name: true, tag: true, level: true, houseDurability: true, houseRazedUntil: true,
+          _count: { select: { members: { where: { status: 'ACTIVE' } } } },
+        },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.houseSiege.findMany({
+        where: { status: { in: ['SCHEDULED', 'IN_BATTLE'] } },
+        select: { defenderClanId: true, startsAt: true, status: true },
+      }),
+    ])
+    const underSiege = new Map(sieges.map(s => [s.defenderClanId, s]))
+    return clans.map(clan => ({ ...clan, siege: underSiege.get(clan.id) ?? null }))
+  },
 
   async get(clanId: string) {
     const clan = await prisma.clan.findUnique({

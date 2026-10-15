@@ -90,6 +90,7 @@ export const WorkService = {
       }),
       professions: professions.map(item => ({
         ...item,
+        code: item.professionCode,
         name: PROFESSION_NAMES[item.professionCode as ProfessionCode] ?? item.professionCode,
       })),
       // Лимиты показываются подписчицкие: экран, обещающий 12 смен тому,

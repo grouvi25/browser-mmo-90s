@@ -6,7 +6,7 @@
 // бой открывается сам — и всех участников уводит на экран боя
 // (это делает ApplicationWatcher в оболочке города).
 // =============================================================
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Swords, Users, Shuffle, RefreshCw } from 'lucide-react'
@@ -17,7 +17,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { ApiError } from '../../shared/api/client'
 import './applications.css'
 
-const KIND_LABEL: Record<ApplicationKind, string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Хаотичный' }
+const KIND_LABEL: Record<ApplicationKind | 'SIEGE', string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Хаотичный', SIEGE: 'Осада дома' }
 const KIND_HINT: Record<ApplicationKind, string> = {
   DUEL: 'Один на один.',
   GROUP: 'Две стороны: встаёте за любую.',
@@ -94,10 +94,7 @@ export function BattleApplications() {
 
   const applications = list.data?.applications ?? []
   const mine = applications.find(item => item.isMine)
-  const shown = useMemo(
-    () => applications.filter(item => tab === 'ALL' || item.kind === tab),
-    [applications, tab],
-  )
+  const shown = applications.filter(item => tab === 'ALL' || item.kind === tab)
   const inBattle = me.data?.status === 'IN_BATTLE'
   const level = me.data?.battleLevel ?? 1
   const busy = create.isPending || join.isPending || leave.isPending
@@ -105,6 +102,12 @@ export function BattleApplications() {
   return (
     <section className="bapps">
       {message && <div className={`alert alert-${message.type} mb8`} role="status">{message.text}</div>}
+
+      {me.data?.traumaUntil && new Date(me.data.traumaUntil).getTime() > Date.now() && (
+        <div className="alert alert-error" role="status">
+          Кровавая травма после проигранной осады: в бой можно после {new Date(me.data.traumaUntil).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} по Москве.
+        </div>
+      )}
 
       {mine && (
         <div className="bapps-mine" role="status">

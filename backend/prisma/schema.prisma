@@ -545,12 +545,14 @@ model Character {
   battleLoadoutJson Json? @map("battle_loadout_json")
 
   // Money
-  money    Int     @default(1250) // Стартовые деньги по ТЗ
+  money       Int       @default(1250) // Стартовые деньги по ТЗ
   /// Игровые доллары — донатная валюта. Покупаются у дилера, тратятся на
   /// премиум и плюшки. Рубли (money) — обычная игровая валюта, не путать.
-  dollars  Int     @default(0) @map("dollars")
+  dollars     Int       @default(0) @map("dollars")
   /// Дилер получает доллары от администрации и пополняет ими счета игроков.
-  isDealer Boolean @default(false) @map("is_dealer")
+  isDealer    Boolean   @default(false) @map("is_dealer")
+  /// «Кровавая травма» после проигранной осады: до этого времени в бой нельзя.
+  traumaUntil DateTime? @map("trauma_until")
 
   // HP
   hpCurrent Int @map("hp_current")
@@ -1034,6 +1036,11 @@ model Clan {
   maintenanceDebt Int               @default(0) @map("maintenance_debt")
   isFrozen        Boolean           @default(false) @map("is_frozen")
   lastChargedAt   DateTime          @default(now()) @map("last_charged_at")
+  /// Дом бригады (осады, как замки кланов в «Королях»): прочность падает
+  /// после взятия; при 50% и ниже бонусы района выключены до ремонта.
+  houseDurability Int               @default(100) @map("house_durability")
+  /// Дом разгромлен: бонусы выключены, на стене пишут гости.
+  houseRazedUntil DateTime?         @map("house_razed_until")
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
   roles           ClanRole[]
@@ -2100,4 +2107,62 @@ model DollarLog {
   @@index([characterId, createdAt])
   @@index([counterpartyId, createdAt])
   @@map("dollar_logs")
+}
+
+/// Осада дома бригады — правка заказчика, по образцу захвата замков в «Королях».
+enum HouseSiegeStatus {
+  SCHEDULED // назначена, идёт запись
+  IN_BATTLE // бой идёт
+  ATTACKERS_WON // дом взят
+  DEFENDERS_WON // отбились
+  CANCELLED // снята главарём до начала
+}
+
+model HouseSiege {
+  id                 String           @id @default(uuid())
+  attackerClanId     String           @map("attacker_clan_id")
+  defenderClanId     String           @map("defender_clan_id")
+  filedByCharacterId String           @map("filed_by_character_id")
+  startsAt           DateTime         @map("starts_at")
+  status             HouseSiegeStatus @default(SCHEDULED)
+  battleId           String?          @unique @map("battle_id")
+  attackersCount     Int              @default(0) @map("attackers_count")
+  defendersCount     Int              @default(0) @map("defenders_count")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  finishedAt         DateTime?        @map("finished_at")
+
+  signups HouseSiegeSignup[]
+
+  @@index([status, startsAt])
+  @@index([defenderClanId, status])
+  @@index([attackerClanId, finishedAt])
+  @@map("house_sieges")
+}
+
+/// Запись на осаду. Не держит игрока, как заявка на бой: до начала он
+/// свободен, а в бой попадает, если в момент старта в игре и не занят.
+model HouseSiegeSignup {
+  id          String     @id @default(uuid())
+  siegeId     String     @map("siege_id")
+  characterId String     @map("character_id")
+  side        Int // 1 — нападение, 2 — оборона
+  createdAt   DateTime   @default(now()) @map("created_at")
+  siege       HouseSiege @relation(fields: [siegeId], references: [id], onDelete: Cascade)
+
+  @@unique([siegeId, characterId])
+  @@map("house_siege_signups")
+}
+
+/// Надпись на стене разгромленного дома.
+model HouseWallNote {
+  id          String   @id @default(uuid())
+  clanId      String   @map("clan_id")
+  siegeId     String   @map("siege_id")
+  characterId String   @map("character_id")
+  text        String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([clanId, createdAt])
+  @@index([siegeId, characterId])
+  @@map("house_wall_notes")
 }

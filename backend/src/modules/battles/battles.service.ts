@@ -449,7 +449,12 @@ function buildBotDefenderSnapshot(botStats: Record<string, number>): DefenderSna
 // ---------------------------------------------------------------
 // BattleService
 // ---------------------------------------------------------------
-export function assertIntoxicationAllowsBattle(character: Pick<CharacterWithStats, 'alcoholLevel' | 'alcoholUpdatedAt'>): void {
+export function assertIntoxicationAllowsBattle(character: Pick<CharacterWithStats, 'alcoholLevel' | 'alcoholUpdatedAt'> & { traumaUntil?: Date | null }): void {
+  // «Кровавая травма» после отбитой осады: сутки без боёв.
+  if (character.traumaUntil && character.traumaUntil > new Date()) {
+    const until = new Date(character.traumaUntil.getTime() + 3 * 3_600_000).toISOString().slice(11, 16)
+    throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, `Кровавая травма: в бой можно после ${until} по Москве`, 409)
+  }
   const state = intoxicationModifiers(decayedAlcohol(character.alcoholLevel, character.alcoholUpdatedAt))
   if (!state.canBattle) throw new AppError(ErrorCode.BAR_TOO_DRUNK, 'Character is too drunk to fight', 409)
 }
