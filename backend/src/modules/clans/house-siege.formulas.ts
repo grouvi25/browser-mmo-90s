@@ -18,7 +18,7 @@ function leadText(): string {
 /** Правила осады для экрана: числа берутся из баланса, а не из текста. */
 export function siegeRules() {
   return {
-    minLead: leadText(), maxLeadDays: S.maxLeadDays,
+    minLead: leadText(), minLeadHours: S.minLeadHours, maxLeadDays: S.maxLeadDays,
     fromHour: S.windowFromHour, toHour: S.windowToHour, weekdaysOnly: S.weekdaysOnly,
     traumaHours: S.traumaHours, cooldownDays: S.cooldownDays, razedDays: S.razedDays,
     durabilityLoss: S.durabilityLoss, maxPerSide: S.maxPerSide,

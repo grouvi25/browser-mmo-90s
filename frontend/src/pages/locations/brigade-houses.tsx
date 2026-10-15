@@ -13,15 +13,25 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi, type BrigadeHouse } from '../../shared/api/clans.api'
 import { ApiError } from '../../shared/api/client'
 import { ClanSection } from '../stage3/clan-section'
+import { plural } from '../../shared/lib/plural'
 
 const msk = (iso: string | Date) => new Date(iso).toLocaleString('ru-RU', {
   timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
 })
 
-/** Дата по Москве через n суток — значение по умолчанию для календаря. */
-function mskDatePlus(days: number) {
-  const d = new Date(Date.now() + 3 * 3_600_000 + days * 86_400_000)
-  return d.toISOString().slice(0, 10)
+/** Первый день по Москве, в который осаду можно назначить на этот час:
+    выходные пропускаем, если осады идут только в будни. */
+function firstAllowedDate(rules: BrigadeHouse['rules'], hour: number) {
+  const MSK = 3 * 3_600_000
+  const earliest = Date.now() + rules.minLeadHours * 3_600_000
+  for (let day = 0; day <= rules.maxLeadDays; day++) {
+    const msk = new Date(Date.now() + MSK + day * 86_400_000)
+    const weekday = msk.getUTCDay()
+    if (rules.weekdaysOnly && (weekday === 0 || weekday === 6)) continue
+    const start = Date.UTC(msk.getUTCFullYear(), msk.getUTCMonth(), msk.getUTCDate(), hour) - MSK
+    if (start >= earliest) return msk.toISOString().slice(0, 10)
+  }
+  return new Date(Date.now() + MSK + rules.maxLeadDays * 86_400_000).toISOString().slice(0, 10)
 }
 
 export function BrigadeHouses() {
@@ -43,7 +53,7 @@ export function BrigadeHouses() {
         className={'brigade-tile' + (clan.id === selected ? ' is-selected' : '') + (clan.id === mine ? ' is-mine' : '') + (razed ? ' is-razed' : '')}
         aria-pressed={clan.id === selected} onClick={() => setPicked(clan.id)}>
         <b>{clan.name}</b><span>[{clan.tag}] · ур. {clan.level}</span>
-        <small>{clan._count?.members ?? 0} бойцов{clan.id === mine ? ' · ваша' : ''}</small>
+        <small>{clan._count?.members ?? 0} {plural(clan._count?.members ?? 0, ['боец', 'бойца', 'бойцов'])}{clan.id === mine ? ' · ваша' : ''}</small>
         <span className="brigade-tile__house">
           <i style={{ width: `${clan.houseDurability ?? 100}%` }} />
         </span>
@@ -99,30 +109,11 @@ function House({ id }: { id: string }) {
       </button>}
     </div>
 
-    {siege ? <div className="house-siege">
-      <h3>{siege.status === 'IN_BATTLE' ? 'Идёт осада' : 'Объявлена осада'}</h3>
-      <p>
-        «{siege.attacker?.name}» осаждает дом «{siege.defender?.name}».
-        {' '}{siege.status === 'IN_BATTLE' ? 'Бой идёт.' : `Начало ${msk(siege.startsAt)} по Москве.`}
-      </p>
-      <div className="house-siege__sides">
-        <div><b>Нападение · записались {siege.attackers.length}</b>
-          <ul>{siege.attackers.map(f => <li key={f.id}>{f.nickname} <i>{f.battleLevel} ур.</i></li>)}</ul></div>
-        <div><b>Оборона · записались {siege.defenders.length}</b>
-          <ul>{siege.defenders.map(f => <li key={f.id}>{f.nickname} <i>{f.battleLevel} ур.</i></li>)}</ul>
-          <small>В оборону войдут и все остальные бойцы бригады, кто к началу будет в игре и свободен.</small></div>
-      </div>
-      <p className="house-siege__hint">В бой попадают те, кто в момент начала в игре и ничем не занят. Запись не держит: до начала можно драться и работать.</p>
-      {siege.status === 'SCHEDULED' && siege.mySide && <div className="house-siege__actions">
-        {siege.signedUp
-          ? <button className="btn" disabled={busy} onClick={() => action.mutate({ siegeId: siege.id, kind: 'unsign' })}>Выписаться</button>
-          : <button className="btn btn-primary" disabled={busy} onClick={() => action.mutate({ siegeId: siege.id, kind: 'signup' })}>
-              {siege.mySide === 1 ? 'Записаться в нападение' : 'Записаться в оборону'}
-            </button>}
-        {siege.canCancel && <button className="btn" disabled={busy} onClick={() => action.mutate({ siegeId: siege.id, kind: 'cancel' })}>Снять осаду</button>}
-      </div>}
-      {siege.status === 'IN_BATTLE' && siege.battleId && siege.mySide && <Link to={`/battle/${siege.battleId}`}>К бою →</Link>}
-    </div> : !h.isMine && <SiegeForm house={h} onDone={done} onFail={fail} />}
+    {siege ? <SiegeBlock siege={siege} title={siege.status === 'IN_BATTLE' ? 'Идёт осада этого дома' : 'Дом в осаде'} busy={busy}
+        onAction={(siegeId, kind) => action.mutate({ siegeId, kind })} />
+      : !h.isMine && <SiegeForm house={h} onDone={done} onFail={fail} />}
+    {h.outgoing && <SiegeBlock siege={h.outgoing} title={h.outgoing.status === 'IN_BATTLE' ? 'Бригада штурмует чужой дом' : 'Бригада объявила осаду'} busy={busy}
+      onAction={(siegeId, kind) => action.mutate({ siegeId, kind })} />}
 
     {(h.wall.length > 0 || h.canWrite) && <div className="house-wall">
       <h3>Стена в прихожей</h3>
@@ -140,11 +131,41 @@ function House({ id }: { id: string }) {
   </section>
 }
 
+type Siege = NonNullable<BrigadeHouse['siege']>
+function SiegeBlock({ siege, title, busy, onAction }: {
+  siege: Siege; title: string; busy: boolean; onAction: (siegeId: string, kind: 'signup' | 'unsign' | 'cancel') => void
+}) {
+  return <div className="house-siege">
+    <h3>{title}</h3>
+    <p>
+      «{siege.attacker?.name}» осаждает дом «{siege.defender?.name}».
+      {' '}{siege.status === 'IN_BATTLE' ? 'Бой идёт.' : `Начало ${msk(siege.startsAt)} по Москве.`}
+    </p>
+    <div className="house-siege__sides">
+      <div><b>Нападение · записались {siege.attackers.length}</b>
+        <ul>{siege.attackers.map(f => <li key={f.id}>{f.nickname} <i>{f.battleLevel} ур.</i></li>)}</ul></div>
+      <div><b>Оборона · записались {siege.defenders.length}</b>
+        <ul>{siege.defenders.map(f => <li key={f.id}>{f.nickname} <i>{f.battleLevel} ур.</i></li>)}</ul>
+        <small>В оборону войдут и все остальные бойцы бригады, кто к началу будет в игре и свободен.</small></div>
+    </div>
+    <p className="house-siege__hint">В бой попадают те, кто в момент начала в игре и ничем не занят. Запись не держит: до начала можно драться и работать.</p>
+    {siege.status === 'SCHEDULED' && siege.mySide && <div className="house-siege__actions">
+      {siege.signedUp
+        ? <button className="btn" disabled={busy} onClick={() => onAction(siege.id, 'unsign')}>Выписаться</button>
+        : <button className="btn btn-primary" disabled={busy} onClick={() => onAction(siege.id, 'signup')}>
+            {siege.mySide === 1 ? 'Записаться в нападение' : 'Записаться в оборону'}
+          </button>}
+      {siege.canCancel && <button className="btn" disabled={busy} onClick={() => onAction(siege.id, 'cancel')}>Снять осаду</button>}
+    </div>}
+    {siege.status === 'IN_BATTLE' && siege.battleId && siege.mySide && <Link to={`/battle/${siege.battleId}`}>К бою →</Link>}
+  </div>
+}
+
 function SiegeForm({ house, onDone, onFail }: { house: BrigadeHouse; onDone: (text: string) => void; onFail: (e: unknown) => void }) {
   const r = house.rules
   const hours = Array.from({ length: Math.max(0, r.toHour - r.fromHour) }, (_, i) => r.fromHour + i)
-  const [date, setDate] = useState(mskDatePlus(/ч$/.test(r.minLead) ? 0 : Number.parseInt(r.minLead, 10) || 3))
   const [hour, setHour] = useState(hours[Math.floor(hours.length / 2)] ?? 15)
+  const [date, setDate] = useState(() => firstAllowedDate(r, hours[Math.floor(hours.length / 2)] ?? 15))
   const file = useMutation({
     mutationFn: () => {
       const [y, m, d] = date.split('-').map(Number)

@@ -73,10 +73,11 @@ export interface BrigadeHouse {
   fileBlocked: string | null
   canWrite: boolean
   rules: {
-    minLead: string; maxLeadDays: number; fromHour: number; toHour: number; weekdaysOnly: boolean
+    minLead: string; minLeadHours: number; maxLeadDays: number; fromHour: number; toHour: number; weekdaysOnly: boolean
     traumaHours: number; cooldownDays: number; razedDays: number; durabilityLoss: number; maxPerSide: number
   }
   wall: Array<{ id: string; author: string; text: string; createdAt: string }>
+  outgoing: BrigadeHouse['siege']
   siege: null | {
     id: string
     status: 'SCHEDULED' | 'IN_BATTLE'

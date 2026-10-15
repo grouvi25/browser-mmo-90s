@@ -83,6 +83,13 @@ describe('осада дома бригады', () => {
     expect(await HouseSiegeService.signup(blue.boss.character.id, filed.siegeId)).toMatchObject({ side: 2 })
     expect(await testPrisma.announcement.count({ where: { title: 'Объявлена осада' } })).toBe(1)
 
+    // Дом бригады, которая сама ведёт осаду, осадить можно: её вылазка
+    // показывается отдельно и не подменяет осаду её собственного дома.
+    const redSeenByGreen = await HouseSiegeService.view(green.boss.character.id, red.clan.id)
+    expect(redSeenByGreen.siege).toBeNull()
+    expect(redSeenByGreen.outgoing?.defender?.id).toBe(blue.clan.id)
+    expect(redSeenByGreen.canFile).toBe(true)
+
     // Запись не держит игрока: записавшийся свободно подаёт обычную заявку.
     expect((await ApplicationsService.create(red.others[0].user.id, { kind: 'DUEL' })).status).toBe('WAITING_PLAYERS')
   })

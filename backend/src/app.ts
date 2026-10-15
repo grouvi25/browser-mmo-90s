@@ -76,7 +76,11 @@ export async function buildApp() {
     // req.ip is calculated by Fastify using the trusted proxy chain. Do not
     // consume client-controlled forwarding headers directly here.
     keyGenerator: (req) => req.ip,
-    errorResponseBuilder: () => ({
+    // statusCode обязателен: без него ответ лимита уходил в общий
+    // обработчик как неизвестная ошибка, и игрок видел «Internal server
+    // error» (500) вместо просьбы подождать.
+    errorResponseBuilder: (_req, context) => ({
+      statusCode: context.statusCode ?? 429,
       code: 'GEN_004',
       message: 'Слишком много запросов, подождите немного',
     }),
@@ -106,8 +110,8 @@ export async function buildApp() {
         details: err.details,
       })
     }
-    if (err.statusCode === 429) {
-      return reply.code(429).send({ code: 'GEN_004', message: 'Rate limited' })
+    if (err.statusCode === 429 || (err as { code?: unknown }).code === 'GEN_004') {
+      return reply.code(429).send({ code: 'GEN_004', message: 'Слишком много запросов, подождите немного' })
     }
     const databaseCode = typeof (err as { code?: unknown }).code === 'string'
       ? (err as { code: string }).code

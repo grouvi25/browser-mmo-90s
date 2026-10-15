@@ -61,17 +61,17 @@ export const HouseSiegeService = {
     })
     if (!clan) throw AppError.notFound('Бригада', clanId)
     const now = new Date()
-    const [viewer, chars, siege, notes] = await Promise.all([
+    const [viewer, chars, incoming, outgoing, notes] = await Promise.all([
       membership(viewerCharacterId),
       prisma.character.findMany({
         where: { id: { in: clan.members.map(m => m.characterId) } },
         select: { id: true, nickname: true, battleLevel: true },
       }),
-      prisma.houseSiege.findFirst({
-        where: { OR: [{ defenderClanId: clanId }, { attackerClanId: clanId }], status: { in: OPEN } },
-        include: { signups: true },
-        orderBy: { startsAt: 'asc' },
-      }),
+      // Осада на этот дом и осада, которую ведёт сама бригада, — разные
+      // вещи: раньше вторая подменяла первую, и дом нападающей бригады
+      // нельзя было осадить — вместо формы показывалась её вылазка.
+      prisma.houseSiege.findFirst({ where: { defenderClanId: clanId, status: { in: OPEN } }, include: { signups: true } }),
+      prisma.houseSiege.findFirst({ where: { attackerClanId: clanId, status: { in: OPEN } }, include: { signups: true } }),
       prisma.houseWallNote.findMany({ where: { clanId }, orderBy: { createdAt: 'desc' }, take: 50 }),
     ])
     const byId = new Map(chars.map(c => [c.id, c]))
@@ -89,16 +89,26 @@ export const HouseSiegeService = {
     const noteAuthors = new Map((await prisma.character.findMany({
       where: { id: { in: [...new Set(notes.map(n => n.characterId))] } }, select: { id: true, nickname: true },
     })).map(c => [c.id, c.nickname]))
-    const siegeClans = siege ? new Map((await prisma.clan.findMany({
-      where: { id: { in: [siege.attackerClanId, siege.defenderClanId] } }, select: { id: true, name: true, tag: true },
-    })).map(c => [c.id, c])) : new Map()
-    const signupNames = siege ? new Map((await prisma.character.findMany({
-      where: { id: { in: siege.signups.map(s => s.characterId) } }, select: { id: true, nickname: true, battleLevel: true },
-    })).map(c => [c.id, c])) : new Map()
-
-    let mySide: 1 | 2 | null = null
-    if (siege && viewerClanId === siege.attackerClanId) mySide = 1
-    if (siege && viewerClanId === siege.defenderClanId) mySide = 2
+    const sieges = [incoming, outgoing].filter((x): x is NonNullable<typeof x> => !!x)
+    const siegeClans = new Map((await prisma.clan.findMany({
+      where: { id: { in: sieges.flatMap(x => [x.attackerClanId, x.defenderClanId]) } }, select: { id: true, name: true, tag: true },
+    })).map(c => [c.id, c]))
+    const signupNames = new Map((await prisma.character.findMany({
+      where: { id: { in: sieges.flatMap(x => x.signups.map(s => s.characterId)) } }, select: { id: true, nickname: true, battleLevel: true },
+    })).map(c => [c.id, c]))
+    const describe = (siege: NonNullable<typeof incoming>) => ({
+      id: siege.id,
+      status: siege.status,
+      startsAt: siege.startsAt,
+      attacker: siegeClans.get(siege.attackerClanId) ?? null,
+      defender: siegeClans.get(siege.defenderClanId) ?? null,
+      attackers: siege.signups.filter(s => s.side === 1).map(s => signupNames.get(s.characterId)).filter(Boolean),
+      defenders: siege.signups.filter(s => s.side === 2).map(s => signupNames.get(s.characterId)).filter(Boolean),
+      mySide: viewerClanId === siege.attackerClanId ? 1 as const : viewerClanId === siege.defenderClanId ? 2 as const : null,
+      signedUp: siege.signups.some(s => s.characterId === viewerCharacterId),
+      canCancel: isBoss && viewerClanId === siege.attackerClanId && siege.status === 'SCHEDULED',
+      battleId: siege.battleId,
+    })
 
     return {
       id: clan.id, name: clan.name, tag: clan.tag, level: clan.level,
@@ -116,19 +126,8 @@ export const HouseSiegeService = {
       canWrite: razed && viewerClanId !== clanId,
       rules: siegeRules(),
       wall: notes.map(n => ({ id: n.id, author: noteAuthors.get(n.characterId) ?? '—', text: n.text, createdAt: n.createdAt })),
-      siege: siege ? {
-        id: siege.id,
-        status: siege.status,
-        startsAt: siege.startsAt,
-        attacker: siegeClans.get(siege.attackerClanId) ?? null,
-        defender: siegeClans.get(siege.defenderClanId) ?? null,
-        attackers: siege.signups.filter(s => s.side === 1).map(s => signupNames.get(s.characterId)).filter(Boolean),
-        defenders: siege.signups.filter(s => s.side === 2).map(s => signupNames.get(s.characterId)).filter(Boolean),
-        mySide,
-        signedUp: siege.signups.some(s => s.characterId === viewerCharacterId),
-        canCancel: isBoss && viewerClanId === siege.attackerClanId && siege.status === 'SCHEDULED',
-        battleId: siege.battleId,
-      } : null,
+      siege: incoming ? describe(incoming) : null,
+      outgoing: outgoing ? describe(outgoing) : null,
     }
   },
 

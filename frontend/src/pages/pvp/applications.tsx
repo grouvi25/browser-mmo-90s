@@ -6,7 +6,7 @@
 // бой открывается сам — и всех участников уводит на экран боя
 // (это делает ApplicationWatcher в оболочке города).
 // =============================================================
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Swords, Users, Shuffle, RefreshCw } from 'lucide-react'
@@ -94,10 +94,7 @@ export function BattleApplications() {
 
   const applications = list.data?.applications ?? []
   const mine = applications.find(item => item.isMine)
-  const shown = useMemo(
-    () => applications.filter(item => tab === 'ALL' || item.kind === tab),
-    [applications, tab],
-  )
+  const shown = applications.filter(item => tab === 'ALL' || item.kind === tab)
   const inBattle = me.data?.status === 'IN_BATTLE'
   const level = me.data?.battleLevel ?? 1
   const busy = create.isPending || join.isPending || leave.isPending
