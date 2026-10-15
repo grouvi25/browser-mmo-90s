@@ -40,6 +40,26 @@ export const BalanceConfig = {
       sabotageCost: 12,
       robberyCost: 25,
     },
+    // Осада дома бригады — по образцу захвата замков в «Королях» (5kings.ru,
+    // библиотека «Замки кланов» и «Частные дома»): заявка за 3–7 суток, бой в
+    // будни 11–20 по Москве, взятие роняет прочность и громит дом на 7 суток,
+    // отбитая осада даёт нападавшим травму, повтор — через 15 суток.
+    houseSiege: {
+      minLeadHours: 72,
+      maxLeadDays: 7,
+      windowFromHour: 11,     // по Москве, UTC+3
+      windowToHour: 20,       // начало боя строго раньше этого часа
+      weekdaysOnly: true,
+      maxPerSide: 10,
+      durabilityLoss: 5,
+      razedDays: 7,
+      bonusesOffAtOrBelow: 50,
+      traumaHours: 24,
+      cooldownDays: 15,
+      repairCostPer10: 2000,  // ₽ из общака за 10% прочности
+      wallNoteMaxLength: 200,
+      wallNotesPerPlayer: 5,
+    },
     clanObjects: { base: 2, perTerritory: 2 },
     premium: { skillMultiplier: 1.5, dailyShiftCap: 16, helperSlots: 2, loadoutSlots: 4 },
     helper: { efficiency: 0.6, maxCount: 2, skillCap: 3, skillRate: 0.5, dailyShiftCap: 6 },

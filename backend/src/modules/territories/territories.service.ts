@@ -10,6 +10,7 @@
 // =============================================================
 import type { TerritoryClaimStatus } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
+import { houseBonusesOff } from '../clans/house-siege.formulas'
 import { claimEligibility } from './claims.service'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
@@ -50,6 +51,10 @@ export const TerritoriesService = {
    */
   async bonusesForClan(clanId: string | null): Promise<TerritoryBonuses> {
     if (!clanId) return {}
+    // Разгромленный или полуразрушенный дом бригады: бонусы района не
+    // работают, как у взятого замка в «Королях».
+    const house = await prisma.clan.findUnique({ where: { id: clanId }, select: { houseDurability: true, houseRazedUntil: true } })
+    if (house && houseBonusesOff(house)) return {}
     const owned = await prisma.territory.findMany({
       where: { ownerClanId: clanId, status: 'CONTROLLED' },
       select: { bonusCode: true, bonusValue: true, upkeepDebt: true },

@@ -111,7 +111,7 @@ export interface BattleApplication {
 }
 export interface RunningBattle {
   battleId: string
-  kind: ApplicationKind
+  kind: ApplicationKind | 'SIEGE'
   startedAt: string | null
   sides: Array<{ side: number; members: ApplicationFighter[] }>
 }

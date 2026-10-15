@@ -186,6 +186,10 @@ export const ApplicationsService = {
       return { id, nickname: found?.nickname ?? '—', level: found?.battleLevel ?? 0 }
     }
     const busy = waiting.some(b => b.participants.some(p => p.characterId === char?.id))
+    // Бои осад домов идут тем же движком, но в списке подписаны осадой.
+    const sieges = new Set((await prisma.houseSiege.findMany({
+      where: { battleId: { in: active.map(b => b.id) } }, select: { battleId: true },
+    })).map(s => s.battleId))
     const level = char?.battleLevel ?? 0
 
     return {
@@ -220,7 +224,7 @@ export const ApplicationsService = {
       }),
       active: active.map(b => ({
         battleId: b.id,
-        kind: kindOf(b),
+        kind: sieges.has(b.id) ? 'SIEGE' as const : kindOf(b),
         startedAt: b.startedAt,
         sides: [1, 2].map(side => ({ side, members: b.participants.filter(p => p.side === side).map(p => view(p.characterId)) })),
       })),

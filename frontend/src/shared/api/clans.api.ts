@@ -53,11 +53,53 @@ export interface Clan {
   relationsFrom?: ClanRelation[]
   relationsTo?: ClanRelation[]
   _count?: { members: number }
+  /** Дом бригады: прочность и разгром — в списке Домов бригад. */
+  houseDurability?: number
+  houseRazedUntil?: string | null
+  siege?: { startsAt: string; status: 'SCHEDULED' | 'IN_BATTLE' } | null
+}
+
+export interface HouseFighter { id: string; nickname: string; battleLevel: number }
+export interface BrigadeHouse {
+  id: string; name: string; tag: string; level: number
+  durability: number
+  razedUntil: string | null
+  bonusesOff: boolean
+  repairCost: number
+  members: Array<HouseFighter & { role: string; rank: number }>
+  isMine: boolean
+  canRepair: boolean
+  canFile: boolean
+  fileBlocked: string | null
+  canWrite: boolean
+  rules: {
+    minLead: string; maxLeadDays: number; fromHour: number; toHour: number; weekdaysOnly: boolean
+    traumaHours: number; cooldownDays: number; razedDays: number; durabilityLoss: number; maxPerSide: number
+  }
+  wall: Array<{ id: string; author: string; text: string; createdAt: string }>
+  siege: null | {
+    id: string
+    status: 'SCHEDULED' | 'IN_BATTLE'
+    startsAt: string
+    attacker: { id: string; name: string; tag: string } | null
+    defender: { id: string; name: string; tag: string } | null
+    attackers: HouseFighter[]
+    defenders: HouseFighter[]
+    mySide: 1 | 2 | null
+    signedUp: boolean
+    canCancel: boolean
+    battleId: string | null
+  }
 }
 
 export const clansApi = {
   list: () => api.get<{ items: Clan[] }>('/api/clans'),
   get: (id: string) => api.get<Clan>(`/api/clans/${id}`),
+  house: (id: string) => api.get<BrigadeHouse>(`/api/clans/${id}/house`),
+  fileSiege: (id: string, startsAt: string) => api.post<{ siegeId: string; startsAt: string }>(`/api/clans/${id}/siege`, { startsAt }),
+  siegeAction: (siegeId: string, action: 'signup' | 'unsign' | 'cancel') => api.post(`/api/clans/sieges/${siegeId}/${action}`, {}),
+  repairHouse: () => api.post<{ durability: number; cost: number; treasury: number }>('/api/clans/house/repair', {}),
+  writeOnWall: (id: string, text: string) => api.post(`/api/clans/${id}/wall`, { text }),
   create: (name: string, tag: string) => api.post<Clan>('/api/clans', { name, tag }),
   invite: (targetCharacterId: string) => api.post('/api/clans/invite', { targetCharacterId }),
   accept: (inviteId: string) => api.post(`/api/clans/invites/${inviteId}/accept`),

@@ -886,3 +886,31 @@ html, body {
 .brigade-tile.is-mine { border-color:var(--ink-red); }
 .brigade-tile.is-selected { background:var(--paper-dark); box-shadow:inset 0 0 0 2px var(--ink-red); }
 .brigade-roster { margin:0; padding-left:18px; display:grid; gap:4px; }
+
+/* Дом бригады и осада */
+.visually-hidden { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.brigade-tile__house { display:block; height:5px; background:var(--paper); border:1px solid var(--border); }
+.brigade-tile__house i { display:block; height:100%; background:#6b7f3a; }
+.brigade-tile.is-razed .brigade-tile__house i { background:var(--ink-red); }
+.brigade-tile__siege { color:var(--ink-red); font-weight:700; }
+.house-card { display:grid; gap:12px; margin:4px 0 14px; padding:12px; border:1px solid var(--border); background:var(--paper-warm); font:15px/1.4 Arial, sans-serif; }
+.house-card h2 { font-size:18px; margin:0; }
+.house-card h3 { font-size:16px; margin:0 0 6px; }
+.house-card__head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.house-card__state { display:grid; gap:8px; justify-items:start; }
+.house-card__warn, .house-siege__blocked { margin:0; color:var(--ink-red); }
+.house-durability { display:grid; grid-template-columns:auto auto 1fr; align-items:center; gap:8px; width:100%; max-width:420px; }
+.house-durability b { font-variant-numeric:tabular-nums; }
+.house-durability__bar { height:8px; background:var(--paper); border:1px solid var(--border); }
+.house-durability__bar i { display:block; height:100%; background:#6b7f3a; }
+.house-siege { display:grid; gap:8px; padding:10px; border:1px solid var(--ink-red); background:var(--paper); }
+.house-siege p { margin:0; }
+.house-siege__sides { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+.house-siege__sides ul, .house-members ul, .house-wall ul { margin:4px 0 0; padding-left:18px; display:grid; gap:2px; }
+.house-siege__sides small { display:block; margin-top:4px; color:var(--text-dim); }
+.house-siege__hint { color:var(--text-dim); font-size:14px; }
+.house-siege__actions, .house-siege__fields, .house-wall__form { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; }
+.house-siege__fields label { display:grid; gap:3px; font-size:14px; }
+.house-siege__fields input, .house-siege__fields select, .house-wall__form input { font:inherit; padding:3px 5px; min-width:0; }
+.house-wall__form input { flex:1 1 220px; }
+.house-wall i, .house-members i { color:var(--text-dim); font-size:13px; }

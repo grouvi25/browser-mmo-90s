@@ -36,6 +36,8 @@ export interface Character {
   /** Игровые доллары — донатная валюта, покупаются у дилера. */
   dollars?: number
   isDealer?: boolean
+  /** Кровавая травма после отбитой осады: до этого времени в бой нельзя. */
+  traumaUntil?: string | null
   hpCurrent: number
   hpMax: number
   status: string
