@@ -70,14 +70,6 @@ interface ActionResponse {
   }>
 }
 
-export interface OpenDuel {
-  battleId: string
-  levelMin: number
-  levelMax: number
-  createdAt: string
-  creator: { nickname: string; level: number; archetype: string } | null
-  canJoin: boolean
-}
 
 export interface BattleHistoryItem {
   id: string
@@ -100,50 +92,53 @@ export interface BattleHistoryResponse {
 }
 
 
-/** Командный бой: открытый набор состава. */
-export interface TeamBattleMember { id: string; nickname: string; battleLevel: number }
-export interface TeamBattleLobby {
+/** Заявка на бой: висит в общем списке до startsAt, потом бой открывается сам. */
+export type ApplicationKind = 'DUEL' | 'GROUP' | 'CHAOTIC'
+export interface ApplicationFighter { id: string | null; nickname: string; level: number }
+export interface BattleApplication {
   battleId: string
-  perSide: number
+  kind: ApplicationKind
+  teamSize: number
   levelMin: number
   levelMax: number
-  sides: Array<{ side: number; members: TeamBattleMember[] }>
+  startsAt: string
+  creator: ApplicationFighter
+  isMine: boolean
+  isCreator: boolean
+  /** У хаотичной заявки одна общая сторона 0: стороны решает жребий на старте. */
+  sides: Array<{ side: number; members: ApplicationFighter[] }>
+  canJoin: Array<{ side: number; ok: boolean }>
+}
+export interface RunningBattle {
+  battleId: string
+  kind: ApplicationKind
+  startedAt: string | null
+  sides: Array<{ side: number; members: ApplicationFighter[] }>
+}
+export interface ApplicationsResponse {
+  serverTime: string
+  applications: BattleApplication[]
+  active: RunningBattle[]
 }
 
 export const battlesApi = {
   startPve: (botCode = 'training_bandit') =>
     api.post<StartPveResponse>('/api/battles/pve/start', { botCode }),
 
-  createPvpDuel: (levelMin?: number, levelMax?: number) =>
-    api.post<{ battleId: string; status: string; levelMin: number; levelMax: number }>(
-      '/api/battles/pvp/create',
-      { levelMin, levelMax },
-    ),
+  listApplications: () =>
+    api.get<ApplicationsResponse>('/api/battles/applications'),
 
-  listOpenDuels: () =>
-    api.get<OpenDuel[]>('/api/battles/pvp/open'),
+  createApplication: (input: { kind: ApplicationKind; delayMinutes: number; teamSize?: number; levelMin?: number; levelMax?: number }) =>
+    api.post<{ battleId: string; status: string; startsAt: string }>('/api/battles/applications', input),
 
-  acceptDuel: (battleId: string) =>
-    api.post<{ battleId: string; status: string }>('/api/battles/pvp/accept', { battleId }),
+  joinApplication: (battleId: string, side?: 1 | 2) =>
+    api.post<{ battleId: string; side: number }>(`/api/battles/applications/${battleId}/join`, side ? { side } : {}),
 
+  leaveApplication: (battleId: string) =>
+    api.post<{ battleId: string; cancelled: boolean }>(`/api/battles/applications/${battleId}/leave`, {}),
 
-  createTeamBattle: (perSide: number) =>
-    api.post<{ battleId: string; status: string; perSide: number; side: number }>(
-      '/api/battles/team/create', { perSide },
-    ),
-
-  listTeamBattles: () =>
-    api.get<{ items: TeamBattleLobby[] }>('/api/battles/team/open'),
-
-  joinTeamBattle: (battleId: string, side: 1 | 2) =>
-    api.post<{ battleId: string; side: number; joined: number; perSide: number }>(
-      '/api/battles/team/join', { battleId, side },
-    ),
-
-  startTeamBattle: (battleId: string) =>
-    api.post<{ battleId: string; status: string; participants: number }>(
-      '/api/battles/team/start', { battleId },
-    ),
+  current: () =>
+    api.get<{ battleId: string | null; application: { battleId: string; startsAt: string } | null }>('/api/battles/me/current'),
 
   getBattleHistory: (page = 1, limit = 20) =>
     api.get<BattleHistoryResponse>(`/api/battles/me/history?page=${page}&limit=${limit}`),

@@ -15,6 +15,7 @@ import { runClanMaintenance, CLAN_MAINTENANCE_MS } from './workers/clan-maintena
 import { runAntiAbuse, ANTIABUSE_MS } from './workers/antiabuse.worker'
 import { runTerritoryClaims, TERRITORY_CLAIMS_MS } from './workers/territory-claims.worker'
 import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worker'
+import { runBattleApplications, BATTLE_APPLICATIONS_MS } from './modules/battles/applications.service'
 import { collectEconomyMetrics, startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
 import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
 import { writeFileSync } from 'node:fs'
@@ -91,6 +92,12 @@ async function startWorker(): Promise<void> {
     catch (err) { logger.error({ err }, '[Worker] Antiabuse error') }
   }, ANTIABUSE_MS)
 
+  // Заявки на бой: каждые 5 секунд открыть те, чьё время пришло.
+  const battleApplicationsTimer = setInterval(async () => {
+    try { await runBattleApplications() }
+    catch (err) { logger.error({ err }, '[Worker] Battle applications error') }
+  }, BATTLE_APPLICATIONS_MS)
+
   const marketExpireTimer = setInterval(async () => {
     try { await runMarketExpire() }
     catch (err) { logger.error({ err }, '[Worker] Market expire error') }
@@ -137,6 +144,7 @@ const shutdown = async (signal: string): Promise<void> => {
     clearInterval(territoryClaimsTimer)
     clearInterval(antiAbuseTimer)
     clearInterval(marketExpireTimer)
+    clearInterval(battleApplicationsTimer)
     clearInterval(idempotencyCleanupTimer)
     stopEconomyMetrics()
     clearInterval(heartbeatTimer)

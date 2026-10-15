@@ -1,16 +1,14 @@
 // =============================================================
-// Арена: бой с ботом и открытые дуэли на одном экране.
+// Стрелки: бой с ботом и общий список заявок на бои с игроками.
 // =============================================================
 import { PveStart } from '../../widgets/pve-start/pve-start'
-import { PvpPage } from '../pvp/pvp-page'
-import { TeamBattles } from '../pvp/team-battles'
+import { BattleApplications } from '../pvp/applications'
 
 export function ArenaPage() {
   return (
     <div className="arena">
       <PveStart />
-      <PvpPage />
-      <TeamBattles />
+      <BattleApplications />
     </div>
   )
 }

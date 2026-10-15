@@ -826,6 +826,15 @@ model Battle {
   levelMin Int @default(1) @map("level_min")
   levelMax Int @default(99) @map("level_max")
 
+  // Заявка на бой (правка заказчика, октябрь 2026): бой не открывается сразу,
+  // а висит в общем списке до startsAt — к нему присоединяются, потом он
+  // стартует сам. teamSize — бойцов на сторону, isChaotic — стороны
+  // делятся жребием при старте.
+  startsAt  DateTime? @map("starts_at")
+  teamSize  Int?      @map("team_size")
+  isChaotic Boolean   @default(false) @map("is_chaotic")
+  creatorId String?   @map("creator_id")
+
   // Redis key for live state (not stored in DB during battle)
   // battle:{id}:state — in Redis
   // battle:{id}:lock  — distributed lock in Redis
@@ -843,6 +852,7 @@ model Battle {
 
   @@index([status])
   @@index([createdAt])
+  @@index([status, startsAt])
   @@map("battles")
 }
 
