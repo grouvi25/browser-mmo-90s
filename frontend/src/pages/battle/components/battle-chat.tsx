@@ -46,7 +46,7 @@ export function BattleChat() {
       <div className="bs-chat__title">Общий чат города — его видят все игроки, и в бою, и на улицах</div>
         <div className="bs-chat__body">
           <div className="bs-chat__side">
-            <div className="bs-chat__feed" ref={feedRef}>
+            <div className="bs-chat__feed" ref={feedRef} tabIndex={0} role="log" aria-label="Сообщения общего чата">
               {chat.messages.map(message => (
                 <p key={message.id} className="bs-chat__row">
                   <span className="bs-chat__time">[{chatTime(message.createdAt)}]</span>{' '}
@@ -73,7 +73,7 @@ export function BattleChat() {
             </form>
           </div>
 
-          <div className="bs-chat__online">
+          <div className="bs-chat__online" tabIndex={0} role="region" aria-label="Игроки онлайн">
             <div className="bs-chat__online-title">Игроки онлайн: {online.length}</div>
             <ul>
               {online.map(player => (

@@ -236,7 +236,9 @@ export function BattlePage() {
   const sceneScale = showCards
     ? sceneScaleByHeight
     : Math.min(sceneScaleByHeight, (view.w - 2 * sceneGap) / 900)
-  const platePicture = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
+  // За сценой — голая акварельная стена, как в городе. Полная подложка
+  // с нарисованным полем чата рядом с настоящим чатом читалась как второй чат.
+  const platePicture = `-webkit-image-set(url("${PLATES['menu-bg@2x']}") 2x, url("${PLATES['menu-bg']}") 1x)`
   const actionPendingRef = useRef(false)
   const [playerHit, setPlayerHit]       = useState(false)
   const [enemyHit, setEnemyHit]         = useState(false)
