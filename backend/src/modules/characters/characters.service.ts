@@ -65,15 +65,18 @@ export const CharactersService = {
     if (!char) {
       throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
     }
-    const [activeShift, professions] = await Promise.all([
+    const [activeShift, professions, clan] = await Promise.all([
       prisma.workShift.findFirst({
         where: { characterId: char.id, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.characterProfession.findMany({ where: { characterId: char.id }, orderBy: { professionCode: 'asc' } }),
+      // Досье показывало «не состоит» строкой в коде: бригады в профиле не было.
+      char.clanId ? prisma.clan.findUnique({ where: { id: char.clanId }, select: { id: true, name: true, tag: true } }) : null,
     ])
     return {
       ...char,
+      clan,
       economy: {
         productionLevel: professions.reduce((max, item) => Math.max(max, item.level), 0),
         productionExp: professions.reduce((max, item) => Math.max(max, item.exp), 0),

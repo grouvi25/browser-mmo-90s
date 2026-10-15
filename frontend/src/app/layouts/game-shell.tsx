@@ -11,8 +11,7 @@ import { Outlet } from 'react-router-dom'
 
 import { ErrorBoundary } from '../error-boundary'
 
-import { MENU, MENU_GAME_H, MENU_STAGE } from '../../shared/lib/layout-map'
-import { useChatOpen } from '../../shared/lib/use-chat-open'
+import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useIsMobile } from '../../shared/lib/use-media-query'
 import { MobileShell } from './mobile-shell'
 import { Stage } from '../../shared/lib/stage'
@@ -26,7 +25,6 @@ export function GameShell() {
   // Узкий экран получает свою композицию: сцена по макету на нём
   // ужимается до нечитаемого. Данные и графика — те же.
   const isMobile = useIsMobile()
-  const [chatOpen, toggleChat] = useChatOpen()
   if (isMobile) return <><LocationPersistence /><MobileShell /></>
 
   const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
@@ -36,15 +34,12 @@ export function GameShell() {
   // копия всей подложки, и края читались серой каймой.
   const wall = `-webkit-image-set(url("${PLATES['menu-bg@2x']}") 2x, url("${PLATES['menu-bg']}") 1x)`
 
-  // Высота сцены зависит от чата, и это не украшение, а правило:
-  // развёрнутый чат — полная композиция макета, свёрнутый — только
-  // игровая часть, которая в том же окне вписывается крупнее. Чат либо
-  // занимает своё место, либо освобождает его — но не накрывает собой
-  // интерфейс.
+  // Чат статичный (правка заказчика): сцена всегда полная, 1550x900,
+  // полоса чата занимает своё место макета и не сворачивается.
   return (
     <Stage
       width={MENU_STAGE.w}
-      height={chatOpen ? MENU_STAGE.h : MENU_GAME_H}
+      height={MENU_STAGE.h}
       fit="contain"
       backdrop={wall}
       className="stage--menu"
@@ -72,7 +67,7 @@ export function GameShell() {
         <ErrorBoundary><Outlet /></ErrorBoundary>
       </div>
 
-      <CityChatDock open={chatOpen} onToggle={toggleChat} />
+      <CityChatDock />
     </Stage>
   )
 }

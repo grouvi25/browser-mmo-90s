@@ -46,6 +46,7 @@ export interface Character {
   isPremium: boolean
   /** Этап 3: приходят в профиле как обычные поля персонажа. */
   clanId?: string | null
+  clan?: { id: string; name: string; tag: string } | null
   alcoholLevel?: number
   hangoverUntil?: string | null
   stats: CharacterStats | null

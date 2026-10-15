@@ -19,7 +19,7 @@ import fighterBlue2x from '../../shared/assets/battle/fighter-blue@2x.webp'
 import fighterRed from '../../shared/assets/battle/fighter-red.webp'
 import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
 import { BattleFighterPanel } from './components/battle-fighter-panel'
-import { BattleChat, BATTLE_SCENE_H } from './components/battle-chat'
+import { BattleChat, BATTLE_SCENE_H, BATTLE_CHAT_H } from './components/battle-chat'
 import { CardCutout } from '../../widgets/character-card/card-cutout'
 import { NavCutout } from '../../widgets/city-nav/nav-cutout'
 import { MENU } from '../../shared/lib/layout-map'
@@ -196,7 +196,6 @@ export function BattlePage() {
   // План переодевания на текущий ход; после отправки сбрасывается.
   const [swapPlan, setSwapPlan]         = useState<SwapPlan>({})
   // Чат закрыт по умолчанию: так сцена короче и всё на экране крупнее.
-  const [chatOpen, setChatOpen]         = useState(false)
   // ── Раскладка экрана ───────────────────────────────────
   // Экран боя собран из трёх частей: шапка города сверху, карточки
   // бойцов по краям и сцена макета посередине. Каждой нужен свой
@@ -219,7 +218,9 @@ export function BattlePage() {
   // макета на горизонтальном экране это и есть настоящее ограничение),
   // а карточки делят остаток ширины.
   const sceneGap = 10
-  const freeH = view.h - navH
+  // Чат всегда на виду (правка заказчика): у него своя полоса под сценой,
+  // и сцена вписывается в то, что осталось, а не прячет чат шторкой.
+  const freeH = view.h - navH - BATTLE_CHAT_H
   // Сцена макета — 900x1312: полный холст 900x1600 минус полоса чата,
   // которая теперь всплывает поверх, а не занимает своё место. Верхняя граница 1:
   // увеличивать сверх исходного размера нечего, ассеты нарезаны под него.
@@ -578,7 +579,7 @@ export function BattlePage() {
     }} />}
 
     <div className="battle-mockup-scene-holder"
-      style={{ width: 900 * sceneScale, height: sceneH * sceneScale }}>
+      style={{ width: 900 * sceneScale, height: sceneH * sceneScale + BATTLE_CHAT_H }}>
     <div className="battle-mockup-scene"
       style={{ height: sceneH, transform: `scale(${sceneScale})` }}>
       <header className="battle-header-v3">
@@ -666,7 +667,7 @@ export function BattlePage() {
       {/* Чат живёт в держателе, а не в сцене: внутри сцены он ужимался
           вместе с ней, и на ноутбуке 1366x768 подписи выходили в семь
           пикселей. Снаружи кегль настоящий, а нижняя кромка та же. */}
-      <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
+      <BattleChat />
     </div>
 
     {showCards && <CardCutout width={cardW} className="is-enemy" profile={{
