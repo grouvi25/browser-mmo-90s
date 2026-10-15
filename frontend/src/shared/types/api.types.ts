@@ -33,6 +33,9 @@ export interface Character {
   productionLevel: number
   productionExp: number
   money: number
+  /** Игровые доллары — донатная валюта, покупаются у дилера. */
+  dollars?: number
+  isDealer?: boolean
   hpCurrent: number
   hpMax: number
   status: string
@@ -46,6 +49,7 @@ export interface Character {
   isPremium: boolean
   /** Этап 3: приходят в профиле как обычные поля персонажа. */
   clanId?: string | null
+  clan?: { id: string; name: string; tag: string } | null
   alcoholLevel?: number
   hangoverUntil?: string | null
   stats: CharacterStats | null

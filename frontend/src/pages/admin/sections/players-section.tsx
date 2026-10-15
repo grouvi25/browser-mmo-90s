@@ -161,6 +161,7 @@ interface PlayerDetail {
     battlesTotal: number; battlesWon: number; status: string
     isPremium: boolean; premiumExpiresAt: string | null
     alcoholLevel: number; lastActiveAt: string
+    dollars?: number; isDealer?: boolean
     stats?: {
       str: number; agi: number; rea: number; acc: number
       end: number; luck: number; agr: number; pointsAvailable: number
@@ -249,6 +250,7 @@ function PlayerCard({ player, onTrace }: {
           при разборе расслоения смотреть надо на сумму. */}
       <div className="adm-player__facts">
         <span>Деньги: <b>{rub(player.money)} ₽</b></span>
+        <span>Доллары: <b>{rub(character?.dollars ?? 0)} $</b>{character?.isDealer ? ' · дилер' : ''}</span>
         <span>Вещи: <b>{rub(gear)} ₽</b></span>
         <span>Ресурсы: <b>{rub(wealth)} ₽</b></span>
         <span>Всего: <b>{rub(player.money + gear + wealth)} ₽</b></span>
@@ -409,6 +411,7 @@ function PlayerCard({ player, onTrace }: {
       <h5>Выдать или забрать</h5>
       <div className="adm-player__grants">
         <GrantMoney characterId={player.id} onDone={done} onFail={fail} />
+        <GrantDollars characterId={player.id} isDealer={!!character?.isDealer} onDone={done} onFail={fail} />
         <GrantExp characterId={player.id} onDone={done} onFail={fail} />
       </div>
 
@@ -464,6 +467,52 @@ function GrantMoney({ characterId, onDone, onFail }: {
         placeholder={`Причина, от ${REASON_MIN} символов`} aria-label="Причина выдачи денег" />
       <button type="button" disabled={!ready || grant.isPending} onClick={() => grant.mutate()}>
         {value < 0 ? 'Забрать' : 'Выдать'}
+      </button>
+    </div>
+  )
+}
+
+/** Игровые доллары: выдача дилеру после оплаты, списание и статус дилера. */
+function GrantDollars({ characterId, isDealer, onDone, onFail }: {
+  characterId: string
+  isDealer: boolean
+  onDone: (text: string) => void
+  onFail: (error: Error) => void
+}) {
+  const [amount, setAmount] = useState('')
+  const [reason, setReason] = useState('')
+  const grant = useMutation({
+    mutationFn: () => adminApi.grantDollars(characterId, Number(amount), reason.trim()),
+    onSuccess: () => {
+      onDone(`Доллары ${Number(amount) > 0 ? 'зачислены' : 'списаны'}. Отменяется из журнала.`)
+      setAmount(''); setReason('')
+    },
+    onError: onFail,
+  })
+  const dealer = useMutation({
+    mutationFn: () => adminApi.setDealer(characterId, !isDealer, reason.trim()),
+    onSuccess: () => { onDone(isDealer ? 'Игрок больше не дилер.' : 'Игрок назначен дилером.'); setReason('') },
+    onError: onFail,
+  })
+  const value = Number(amount)
+  const hasReason = reason.trim().length >= REASON_MIN
+  const ready = amount !== '' && Number.isInteger(value) && value !== 0 && hasReason
+
+  return (
+    <div className="adm-grant">
+      <h6>Доллары</h6>
+      <label>
+        <span>Сколько $ (минус — списать)</span>
+        <input type="number" value={amount} onChange={event => setAmount(event.target.value)}
+          placeholder="напр. 500 или -500" aria-label="Сумма долларов" />
+      </label>
+      <input value={reason} onChange={event => setReason(event.target.value)}
+        placeholder={`Причина, от ${REASON_MIN} символов`} aria-label="Причина операции с долларами" />
+      <button type="button" disabled={!ready || grant.isPending} onClick={() => grant.mutate()}>
+        {value < 0 ? 'Списать $' : 'Зачислить $'}
+      </button>
+      <button type="button" disabled={!hasReason || dealer.isPending} onClick={() => dealer.mutate()}>
+        {isDealer ? 'Снять с дилеров' : 'Назначить дилером'}
       </button>
     </div>
   )

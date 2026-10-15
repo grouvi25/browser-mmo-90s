@@ -115,6 +115,9 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
       })
       if (!char) throw AppError.notFound('Character', req.params.nickname)
       if (char.isInvisible) return reply.send({ hidden: true, nickname: req.params.nickname })
+      const clan = char.clanId
+        ? await prisma.clan.findUnique({ where: { id: char.clanId }, select: { name: true, tag: true } })
+        : null
       return reply.send({
         id: char.id,
         nickname: char.nickname,
@@ -123,6 +126,7 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
         battlesTotal: char.battlesTotal,
         battlesWon: char.battlesWon,
         location: char.location,
+        clan,
         createdAt: char.createdAt,
       })
     })

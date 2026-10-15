@@ -10,6 +10,7 @@ export interface PublicProfile {
   battlesTotal?: number
   battlesWon?: number
   location?: string | null
+  clan?: { name: string; tag: string } | null
   createdAt?: string
 }
 

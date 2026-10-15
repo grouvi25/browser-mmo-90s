@@ -78,7 +78,6 @@ function Preview() {
   const { attackZones: attacks, attackHands: hands, blockZones: blocks } = plan
   const blockLimit = hands.length > 0 ? 2 : 4
   // Стенд повторяет разметку страницы, включая сцену: иначе на нём
-  const [chatOpen, setChatOpen] = useState(false)
   const sceneScale = useViewportScale(900, BATTLE_SCENE_H, 'contain', 1)
 
   return <div className="battle-page-v3">
@@ -129,7 +128,7 @@ function Preview() {
     </div>
 
     {/* Как и на боевой странице: чат в держателе, а не в сцене. */}
-    <BattleChat open={chatOpen} onToggle={() => setChatOpen(value => !value)} />
+    <BattleChat />
     </div>
   </div>
 }

@@ -36,10 +36,6 @@ export interface OnlinePlayer {
 // ── Выдвижная полоса чата ────────────────────────────────────
 
 
-/** Высота язычка в координатах сцены. У свёрнутого чата он встаёт на
-    679…705 — в свободное поле между нижним рядом комнат (кончается на 651)
-    и краем сцены, поэтому свёрнутый чат не закрывает собой ничего. */
-const CHAT_TAB_H = 26
 
 /**
  * Чат и онлайн — одной выдвижной полосой поверх сцены.
@@ -57,13 +53,13 @@ const CHAT_TAB_H = 26
  * сдвинутый так, чтобы полоса чата встала в начало координат. Ни второй
  * картинки, ни второй вёрстки чата не появляется.
  */
-export function CityChatDock({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+export function CityChatDock() {
   const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
   const panel = MENU.chatPanel
 
   return (
     <div
-      className={'chat-dock' + (open ? ' is-open' : '')}
+      className="chat-dock is-open"
       style={{
         // Полоса стоит там, где её нарисовал художник, — ниже игровой
         // части. Свёрнутой она не прячется сдвигом: сцена становится
@@ -73,17 +69,6 @@ export function CityChatDock({ open, onToggle }: { open: boolean; onToggle: () =
         width: panel.w, height: panel.h,
       }}
     >
-      <button
-        type="button"
-        className="chat-dock__tab"
-        style={{ height: CHAT_TAB_H }}
-        onClick={onToggle}
-        aria-expanded={open}
-        title={open ? 'Свернуть чат' : 'Развернуть чат района'}
-      >
-        {open ? '▼ свернуть чат' : '▲ чат района'}
-      </button>
-
       {/* Скрытие свёрнутой полосы делает CSS через visibility: aria-hidden
           здесь ставить нельзя — внутри остаются поле ввода и кликабельные
           ники, а спрятанный от скринридера фокусируемый элемент это

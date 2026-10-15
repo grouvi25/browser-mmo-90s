@@ -1,0 +1,43 @@
+/* Заявки на бой. Кнопки меняют только цвет: размеры не прыгают ни на
+   наведении, ни на нажатии. */
+.bapps { display: grid; gap: 10px; margin-top: 12px; font: 15px/1.4 var(--font-ui, Arial, sans-serif); }
+
+.bapps-mine {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 8px 10px; border: 1px solid var(--ink-red, #ab0303); background: var(--paper-warm);
+}
+
+.bapps-create { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--border); background: var(--paper-warm); }
+.bapps-kinds { display: flex; flex-wrap: wrap; gap: 6px; border: 0; margin: 0; padding: 0; }
+.bapps-kinds legend { font-weight: 700; margin-bottom: 6px; padding: 0; }
+.bapps-kind, .bapps-tab {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 32px; padding: 4px 10px;
+  font: 600 14px/1.2 var(--font-ui, Arial, sans-serif); color: var(--text);
+  background: var(--paper); border: 1px solid var(--border); cursor: pointer;
+}
+.bapps-kind:hover, .bapps-tab:hover { background: var(--paper-dark); }
+.bapps-kind:active, .bapps-tab:active { background: var(--paper-warm); }
+.bapps-kind:focus-visible, .bapps-tab:focus-visible { outline: 3px solid var(--ink-red, #ab0303); outline-offset: -3px; }
+.bapps-kind.is-active, .bapps-tab.is-active { background: var(--paper-dark); box-shadow: inset 0 0 0 2px var(--ink-red, #ab0303); }
+.bapps-hint { margin: 0; color: var(--text-dim); font-size: 14px; }
+.bapps-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.bapps-fields label { display: grid; gap: 3px; font-size: 14px; }
+.bapps-fields select, .bapps-fields input { font: inherit; padding: 3px 5px; }
+.bapps-levels { display: inline-flex; align-items: center; gap: 4px; }
+.bapps-levels input { width: 64px; }
+
+.bapps-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bapps-refresh { margin-left: auto; }
+
+.bapps-empty { margin: 0; padding: 12px 0; color: var(--text-dim); }
+.bapps-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.bapps-row { border: 1px solid var(--border); background: var(--paper-warm); padding: 8px 10px; display: grid; gap: 6px; }
+.bapps-row.is-mine { border-color: var(--ink-red, #ab0303); }
+.bapps-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.bapps-timer { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--ink-red, #ab0303); }
+.bapps-sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.bapps-side { display: grid; gap: 4px; align-content: start; }
+.bapps-side-name { font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
+.bapps-side ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.bapps-side .btn { justify-self: start; }

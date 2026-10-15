@@ -206,6 +206,48 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     return reply.send(result)
   })
 
+  // ── Игровые доллары ─────────────────────────────────────
+  // Выдача дилеру после оплаты и списание — одна ручка, знак задаёт
+  // направление, как у рублей. Обе обратимы.
+  fastify.post('/characters/dollars', SUPER_ADMIN, async (req, reply) => {
+    const reason = reasonOf(req.body)
+    const parsed = z.object({
+      characterId: Id,
+      amount: z.number().int().refine(value => value !== 0).refine(value => Math.abs(value) <= 10_000_000),
+    }).safeParse(req.body)
+    if (!parsed.success) return invalid(reply)
+    const { characterId, amount } = parsed.data
+    const character = await prisma.character.findUnique({ where: { id: characterId } })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Character not found' })
+    const giving = amount > 0
+    const result = await AdminActionsService.perform(ctx(req), reason, {
+      kind: giving ? 'GRANT_DOLLARS' : 'TAKE_DOLLARS',
+      payload: { characterId, amount: Math.abs(amount), note: reason },
+      targetType: 'character',
+      targetId: characterId,
+      undo: { kind: giving ? 'TAKE_DOLLARS' : 'GRANT_DOLLARS', payload: { characterId, amount: Math.abs(amount), note: 'откат' } },
+    })
+    return reply.send(result)
+  })
+
+  // Назначить или снять дилера. Дилер переводит доллары игрокам из своего запаса.
+  fastify.post('/characters/dealer', SUPER_ADMIN, async (req, reply) => {
+    const reason = reasonOf(req.body)
+    const parsed = z.object({ characterId: Id, isDealer: z.boolean() }).safeParse(req.body)
+    if (!parsed.success) return invalid(reply)
+    const { characterId, isDealer } = parsed.data
+    const character = await prisma.character.findUnique({ where: { id: characterId } })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Character not found' })
+    const result = await AdminActionsService.perform(ctx(req), reason, {
+      kind: isDealer ? 'SET_DEALER' : 'UNSET_DEALER',
+      payload: { characterId },
+      targetType: 'character',
+      targetId: characterId,
+      undo: { kind: isDealer ? 'UNSET_DEALER' : 'SET_DEALER', payload: { characterId } },
+    })
+    return reply.send(result)
+  })
+
   fastify.post('/items/grant', SUPER_ADMIN, async (req, reply) => {
     const reason = reasonOf(req.body)
     const parsed = z.object({ characterId: Id, templateId: Id }).safeParse(req.body)

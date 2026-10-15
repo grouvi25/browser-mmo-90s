@@ -5,10 +5,8 @@
 // онлайна справа. Лента настоящая — общий канал эфира: в бою игрок не
 // в районе, и разговаривать ему логично со всем городом.
 //
-// Чат по умолчанию свёрнут: сцена от этого короче, а значит крупнее —
-// поле, панели бойцов и журнал получают всё освободившееся место.
-// Развёрнутый чат НИЧЕГО не двигает: сцена остаётся той же высоты, а
-// панель всплывает от нижнего края поверх журнала, как шторка.
+// Чат всегда открыт и стоит своей полосой под сценой: заказчик просил
+// статичный чат, а свёрнутая шторка в бою читалась как непонятная кнопка.
 // =============================================================
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
@@ -20,7 +18,10 @@ import { nickTone, useChat, useOnline } from '../../../shared/lib/use-chat'
  *  под окно — контент прыгал при каждом переключении. */
 export const BATTLE_SCENE_H = 1312
 
-export function BattleChat({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+/** Высота полосы чата под сценой, в настоящих пикселях. */
+export const BATTLE_CHAT_H = 170
+
+export function BattleChat() {
   const [draft, setDraft] = useState('')
   // В бою игрок не в районе, поэтому здесь общий канал: во время
   // схватки нужен весь город, а не соседи по кварталу.
@@ -33,7 +34,7 @@ export function BattleChat({ open, onToggle }: { open: boolean; onToggle: () => 
   useEffect(() => {
     const box = feedRef.current
     if (box) box.scrollTop = box.scrollHeight
-  }, [chat.messages, open])
+  }, [chat.messages])
 
   const send = async (event: FormEvent) => {
     event.preventDefault()
@@ -41,20 +42,11 @@ export function BattleChat({ open, onToggle }: { open: boolean; onToggle: () => 
   }
 
   return (
-    <section className={`bs-chat${open ? ' is-open' : ''}`} aria-label="Чат">
-      <button
-        type="button"
-        className="bs-chat__toggle"
-        aria-expanded={open}
-        onClick={onToggle}
-      >
-        {open ? 'Свернуть чат' : 'Чат'}
-      </button>
-
-      {open && (
+    <section className="bs-chat" style={{ height: BATTLE_CHAT_H }} aria-label="Общий чат города">
+      <div className="bs-chat__title">Общий чат города — его видят все игроки, и в бою, и на улицах</div>
         <div className="bs-chat__body">
           <div className="bs-chat__side">
-            <div className="bs-chat__feed" ref={feedRef}>
+            <div className="bs-chat__feed" ref={feedRef} tabIndex={0} role="log" aria-label="Сообщения общего чата">
               {chat.messages.map(message => (
                 <p key={message.id} className="bs-chat__row">
                   <span className="bs-chat__time">[{chatTime(message.createdAt)}]</span>{' '}
@@ -81,7 +73,7 @@ export function BattleChat({ open, onToggle }: { open: boolean; onToggle: () => 
             </form>
           </div>
 
-          <div className="bs-chat__online">
+          <div className="bs-chat__online" tabIndex={0} role="region" aria-label="Игроки онлайн">
             <div className="bs-chat__online-title">Игроки онлайн: {online.length}</div>
             <ul>
               {online.map(player => (
@@ -93,7 +85,6 @@ export function BattleChat({ open, onToggle }: { open: boolean; onToggle: () => 
             </ul>
           </div>
         </div>
-      )}
     </section>
   )
 }

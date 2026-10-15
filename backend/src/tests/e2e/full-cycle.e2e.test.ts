@@ -370,9 +370,13 @@ describe('E2E: Mathematical correctness', () => {
     expect(finalData.result).toMatch(/PVE_(WIN|LOSS)/)
   })
 
-  it('PvP create battle → 201', async () => {
-    const r = await api('POST', '/api/battles/pvp/create', undefined, token)
+  it('PvP: заявка на дуэль → 201, в бой сразу не бросает', async () => {
+    const r = await api('POST', '/api/battles/applications', { kind: 'DUEL', delayMinutes: 5 }, token)
     expect(r.status).toBe(201)
-    expect((r.data as { battleId: string }).battleId).toMatch(/^[0-9a-f-]{36}$/)
+    const { battleId, status } = r.data as { battleId: string; status: string }
+    expect(battleId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(status).toBe('WAITING_PLAYERS')
+    const list = await api('GET', '/api/battles/applications', undefined, token)
+    expect((list.data as { applications: Array<{ battleId: string }> }).applications.map(a => a.battleId)).toContain(battleId)
   })
 })

@@ -13,6 +13,7 @@ export const testPrisma = new PrismaClient({
 export async function cleanDatabase(): Promise<void> {
   await testPrisma.$transaction([
     testPrisma.idempotencyKey.deleteMany(),
+    testPrisma.dollarLog.deleteMany(),
     testPrisma.abuseSignal.deleteMany(),
     testPrisma.accountLink.deleteMany(),
     testPrisma.adminActionLog.deleteMany(),

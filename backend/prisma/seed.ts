@@ -381,8 +381,8 @@ async function main() {
     const active = isGrantImplemented(p.grantCode)
     await prisma.premiumProduct.upsert({
       where: { code: p.code },
-      update: { name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: active },
-      create: { code: p.code, name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: active },
+      update: { name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, priceDollars: p.priceDollars, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: active },
+      create: { code: p.code, name: p.name, description: p.description, kind: p.kind, priceRub: p.priceRub, priceDollars: p.priceDollars, grantCode: p.grantCode, grantValue: p.grantValue, sortOrder: p.sortOrder, isActive: active },
     })
   }
   // Отложенные за первую версию (решение по В8): не заводим, но если строка

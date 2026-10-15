@@ -76,7 +76,7 @@ export function MobileShell() {
             <b className="stat-num--hp">{char?.hpCurrent ?? 0}</b>
           </span>
         </button>
-        <span className="m-top__money">{(char?.money ?? 0).toLocaleString('ru')} ₽</span>
+        <span className="m-top__money">{(char?.money ?? 0).toLocaleString('ru')} ₽{char?.dollars ? ` · ${char.dollars.toLocaleString('ru')} $` : ''}</span>
         <button type="button" className="m-top__exit" onClick={logout} title="Выйти из игры">выход</button>
       </header>
 

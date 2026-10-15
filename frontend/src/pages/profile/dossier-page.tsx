@@ -82,7 +82,7 @@ export function DossierPage() {
 
   const dossier: string[] = char ? [
     `Местоположение: ${locationLabel(char.location)}`,
-    `Состоит в клане: ${'не состоит'}`,
+    `Бригада: ${char.clan ? `«${char.clan.name}» [${char.clan.tag}]` : 'не состоит'}`,
     '',
     'Уровни:',
     `1. Боевой — ${char.battleLevel}`,

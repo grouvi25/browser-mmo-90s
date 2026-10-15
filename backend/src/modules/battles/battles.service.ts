@@ -449,7 +449,7 @@ function buildBotDefenderSnapshot(botStats: Record<string, number>): DefenderSna
 // ---------------------------------------------------------------
 // BattleService
 // ---------------------------------------------------------------
-function assertIntoxicationAllowsBattle(character: Pick<CharacterWithStats, 'alcoholLevel' | 'alcoholUpdatedAt'>): void {
+export function assertIntoxicationAllowsBattle(character: Pick<CharacterWithStats, 'alcoholLevel' | 'alcoholUpdatedAt'>): void {
   const state = intoxicationModifiers(decayedAlcohol(character.alcoholLevel, character.alcoholUpdatedAt))
   if (!state.canBattle) throw new AppError(ErrorCode.BAR_TOO_DRUNK, 'Character is too drunk to fight', 409)
 }
@@ -822,6 +822,56 @@ export const BattleService = {
       data: { status: 'ACTIVE', startedAt: new Date(), roundCount: 0 },
     })
     return { battleId, status: 'ACTIVE', participants: participants.length }
+  },
+
+  /**
+   * Открыть дуэль по готовой записи: двое участников, стороны 1 и 2.
+   * Нужна заявкам с таймером — их стартует воркер, а не второй игрок,
+   * поэтому живое состояние строится из базы, как у командного боя.
+   */
+  async beginDuelState(battleId: string) {
+    const battle = await prisma.battle.findUnique({ where: { id: battleId }, include: { participants: true } })
+    if (!battle) throw AppError.notFound('Battle', battleId)
+    const one = battle.participants.find(p => p.side === 1)
+    const two = battle.participants.find(p => p.side === 2)
+    if (!one?.characterId || !two?.characterId) {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Для дуэли нужны двое', 409)
+    }
+    const participants: LiveParticipant[] = []
+    for (const [part, side] of [[one, 1], [two, 2]] as const) {
+      const fighter = await CharactersRepository.findById(part.characterId!)
+      const weapons = fighter ? await ItemsRepository.findEquippedWeapons(fighter.id) : { LEFT_HAND: null, RIGHT_HAND: null }
+      participants.push({
+        participantId: part.id,
+        characterId: part.characterId!,
+        hpCurrent: part.hpCurrent,
+        hpMax: part.hpMax,
+        side,
+        isAlive: true,
+        isSurrendered: false,
+        hasActedThisRound: false,
+        weaponInstanceId: weapons.LEFT_HAND?.id,
+        leftWeaponInstanceId: weapons.LEFT_HAND?.id,
+        rightWeaponInstanceId: weapons.RIGHT_HAND?.id,
+        pocketItemIds: fighter ? await loadBattlePocket(fighter) : [],
+        damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+        skippedTurns: 0,
+        position: teamSpawnPositions(side, 1)[0],
+      })
+    }
+    const liveState: LiveBattleState = {
+      battleId,
+      type: 'PVP_DUEL',
+      roundNumber: 1,
+      status: 'active',
+      roundDeadline: Date.now() + TURN_TIMEOUT_MS,
+      distance: 6,
+      grid: BATTLE_GRID,
+      participants,
+    }
+    await BattleRedis.setState(battleId, liveState)
+    await prisma.battle.update({ where: { id: battleId }, data: { status: 'ACTIVE', startedAt: new Date() } })
+    return { battleId, status: 'ACTIVE', participants: 2 }
   },
 
   /** Открытые командные бои, к которым можно присоединиться. */

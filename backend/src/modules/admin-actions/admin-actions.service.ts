@@ -20,6 +20,7 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { audit } from '../../shared/logger/audit-logger'
 import { BalanceConfig } from '../../config/balance.config'
 import { EconomyService } from '../economy/economy.service'
+import { DollarsService } from '../dollars/dollars.service'
 import { calcHpMax, getEconomicLevelFromExp, getLevelFromExp } from '../stats/stats.formulas'
 import { clearOverride, setOverride } from '../admin-balance/balance-overrides.service'
 
@@ -550,6 +551,43 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
   },
 
   // ── Игроки ───────────────────────────────────────────────────
+
+  // Игровые доллары. Выдача дилеру за оплату — обычная выдача; откат —
+  // списание, и оно не уводит счёт в минус: потраченное не вернуть.
+  GRANT_DOLLARS: async (tx, payload) => {
+    await DollarsService.credit(tx, {
+      characterId: str(payload, 'characterId'),
+      amount: num(payload, 'amount'),
+      reason: 'ISSUE',
+      refId: payload.actionId ? str(payload, 'actionId') : null,
+      note: payload.note ? String(payload.note) : null,
+    })
+  },
+
+  TAKE_DOLLARS: async (tx, payload) => {
+    const characterId = str(payload, 'characterId')
+    const amount = num(payload, 'amount')
+    const character = must(
+      await tx.character.findUnique({ where: { id: characterId }, select: { dollars: true } }),
+      'Персонаж не найден',
+    )
+    if (character.dollars < amount) {
+      throw new AppError(ErrorCode.ADMIN_STATE_CHANGED, `Списать нельзя: у персонажа ${character.dollars} $, нужно ${amount} $`, 409)
+    }
+    await DollarsService.debit(tx, {
+      characterId, amount, reason: 'WITHDRAW',
+      refId: payload.actionId ? str(payload, 'actionId') : null,
+      note: payload.note ? String(payload.note) : null,
+    })
+  },
+
+  SET_DEALER: async (tx, payload) => {
+    await tx.character.update({ where: { id: str(payload, 'characterId') }, data: { isDealer: true } })
+  },
+
+  UNSET_DEALER: async (tx, payload) => {
+    await tx.character.update({ where: { id: str(payload, 'characterId') }, data: { isDealer: false } })
+  },
 
   JAIL_CHARACTER: async (tx, payload) => {
     const characterId = str(payload, 'characterId')

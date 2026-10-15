@@ -242,3 +242,17 @@
 .s4-side ol li > span:first-of-type { flex: 1 1 auto; }
 
 @media (max-width: 800px) { .s4-sides { grid-template-columns: 1fr; } }
+
+/* Игровые доллары */
+.dollars { display: grid; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.dollars__balance { display: flex; align-items: baseline; gap: 10px; }
+.dollars__balance b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.dollars__dealers ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.dollars__dealers h4, .dollars__dealer h4 { margin: 0 0 6px; }
+.dollars__dealer { padding: 10px; border: 1px solid var(--ink-red, #ab0303); background: var(--paper-warm); display: grid; gap: 8px; }
+.dollars__fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.dollars__fields label { display: grid; gap: 3px; font-size: 14px; }
+.dollars__fields input { font: inherit; padding: 3px 5px; min-width: 0; }
+.dollars__plus { color: #2f6b3a; font-variant-numeric: tabular-nums; }
+.dollars__minus { color: var(--ink-red, #ab0303); font-variant-numeric: tabular-nums; }
+.s4-goods__confirm { display: inline-flex; gap: 6px; flex-wrap: wrap; }

@@ -292,6 +292,11 @@ enum AdminActionKind {
   DELETE_ITEM_TEMPLATE
   JAIL_CHARACTER
   RELEASE_CHARACTER
+  // Игровые доллары: выдача и списание администратором, статус дилера.
+  GRANT_DOLLARS
+  TAKE_DOLLARS
+  SET_DEALER
+  UNSET_DEALER
   BAN_USER
   UNBAN_USER
   MUTE_USER
@@ -540,7 +545,12 @@ model Character {
   battleLoadoutJson Json? @map("battle_loadout_json")
 
   // Money
-  money Int @default(1250) // Стартовые деньги по ТЗ
+  money    Int     @default(1250) // Стартовые деньги по ТЗ
+  /// Игровые доллары — донатная валюта. Покупаются у дилера, тратятся на
+  /// премиум и плюшки. Рубли (money) — обычная игровая валюта, не путать.
+  dollars  Int     @default(0) @map("dollars")
+  /// Дилер получает доллары от администрации и пополняет ими счета игроков.
+  isDealer Boolean @default(false) @map("is_dealer")
 
   // HP
   hpCurrent Int @map("hp_current")
@@ -558,22 +568,22 @@ model Character {
   premiumExpiresAt DateTime? @map("premium_expires_at")
 
   // Profile extras
-  battlesTotal         Int        @default(0) @map("battles_total")
-  battlesWon           Int        @default(0) @map("battles_won")
-  lastLocation         String     @default("/") @map("last_location")
-  jailedUntil          DateTime?  @map("jailed_until")
-  jailReason           String?    @map("jail_reason")
+  battlesTotal         Int            @default(0) @map("battles_total")
+  battlesWon           Int            @default(0) @map("battles_won")
+  lastLocation         String         @default("/") @map("last_location")
+  jailedUntil          DateTime?      @map("jailed_until")
+  jailReason           String?        @map("jail_reason")
   pets                 CharacterPet[]
   location             String? // Текстовое местоположение
-  isInvisible          Boolean    @default(false) @map("is_invisible")
-  lastBattleFinishedAt DateTime?  @map("last_battle_finished_at")
-  alcoholLevel         Int        @default(0) @map("alcohol_level")
-  alcoholUpdatedAt     DateTime?  @map("alcohol_updated_at")
-  hangoverUntil        DateTime?  @map("hangover_until")
-  barBuffAccuracy      Float      @default(0) @map("bar_buff_accuracy")
-  barBuffDamage        Float      @default(0) @map("bar_buff_damage")
-  barBuffExpiresAt     DateTime?  @map("bar_buff_expires_at")
-  lastBarBuffAt        DateTime?  @map("last_bar_buff_at") // для HP recovery
+  isInvisible          Boolean        @default(false) @map("is_invisible")
+  lastBattleFinishedAt DateTime?      @map("last_battle_finished_at")
+  alcoholLevel         Int            @default(0) @map("alcohol_level")
+  alcoholUpdatedAt     DateTime?      @map("alcohol_updated_at")
+  hangoverUntil        DateTime?      @map("hangover_until")
+  barBuffAccuracy      Float          @default(0) @map("bar_buff_accuracy")
+  barBuffDamage        Float          @default(0) @map("bar_buff_damage")
+  barBuffExpiresAt     DateTime?      @map("bar_buff_expires_at")
+  lastBarBuffAt        DateTime?      @map("last_bar_buff_at") // для HP recovery
   farmPlots            FarmPlot[]
 
   createdAt    DateTime @default(now()) @map("created_at")
@@ -826,6 +836,15 @@ model Battle {
   levelMin Int @default(1) @map("level_min")
   levelMax Int @default(99) @map("level_max")
 
+  // Заявка на бой (правка заказчика, октябрь 2026): бой не открывается сразу,
+  // а висит в общем списке до startsAt — к нему присоединяются, потом он
+  // стартует сам. teamSize — бойцов на сторону, isChaotic — стороны
+  // делятся жребием при старте.
+  startsAt  DateTime? @map("starts_at")
+  teamSize  Int?      @map("team_size")
+  isChaotic Boolean   @default(false) @map("is_chaotic")
+  creatorId String?   @map("creator_id")
+
   // Redis key for live state (not stored in DB during battle)
   // battle:{id}:state — in Redis
   // battle:{id}:lock  — distributed lock in Redis
@@ -843,6 +862,7 @@ model Battle {
 
   @@index([status])
   @@index([createdAt])
+  @@index([status, startsAt])
   @@map("battles")
 }
 
@@ -1908,17 +1928,19 @@ enum HelperStatus {
 }
 
 model PremiumProduct {
-  id          String             @id @default(uuid())
-  code        String             @unique
-  name        String
-  description String
-  kind        PremiumProductKind
-  priceRub    Int                @map("price_rub")
+  id           String             @id @default(uuid())
+  code         String             @unique
+  name         String
+  description  String
+  kind         PremiumProductKind
+  priceRub     Int                @map("price_rub")
+  /// Цена в игровых долларах: за неё игрок покупает товар сам.
+  priceDollars Int                @default(0) @map("price_dollars")
   /// Что выдаётся: ключ эффекта, разбирается сервисом по закрытому списку.
-  grantCode   String             @map("grant_code")
-  grantValue  Int                @default(0) @map("grant_value")
-  isActive    Boolean            @default(true) @map("is_active")
-  sortOrder   Int                @default(0) @map("sort_order")
+  grantCode    String             @map("grant_code")
+  grantValue   Int                @default(0) @map("grant_value")
+  isActive     Boolean            @default(true) @map("is_active")
+  sortOrder    Int                @default(0) @map("sort_order")
 
   purchases PremiumPurchase[]
 
@@ -1933,6 +1955,8 @@ model PremiumPurchase {
   /// Цена копией: в каталоге она меняется, история покупок обязана
   /// остаться неизменной. Тот же приём, что в рыночных сделках Этапа 2.
   priceRub         Int     @map("price_rub")
+  /// Сколько долларов списано; 0 — товар выдал администратор.
+  priceDollars     Int     @default(0) @map("price_dollars")
   /// Оплата в первой версии вне игры, оформляет администратор.
   grantedByAdminId String? @map("granted_by_admin_id")
 
@@ -2046,6 +2070,34 @@ model CharacterPet {
   fedUntil    DateTime? @map("fed_until")
   createdAt   DateTime  @default(now()) @map("created_at")
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
   @@unique([characterId, code])
   @@map("character_pets")
+}
+
+/// Причина движения игровых долларов.
+enum DollarReason {
+  ISSUE // администрация выдала (дилеру за оплату или в подарок)
+  WITHDRAW // администрация списала (в том числе откат выдачи)
+  TRANSFER_OUT // дилер перевёл игроку
+  TRANSFER_IN // игрок получил от дилера
+  PURCHASE // покупка товара за доллары
+}
+
+/// Журнал игровых долларов. Каждая операция с балансом после неё:
+/// по журналу сходится любой счёт, и видно, какой дилер кого пополнил.
+model DollarLog {
+  id             String       @id @default(uuid())
+  characterId    String       @map("character_id")
+  amount         Int
+  balanceAfter   Int          @map("balance_after")
+  reason         DollarReason
+  counterpartyId String?      @map("counterparty_id")
+  refId          String?      @map("ref_id")
+  note           String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([characterId, createdAt])
+  @@index([counterpartyId, createdAt])
+  @@map("dollar_logs")
 }

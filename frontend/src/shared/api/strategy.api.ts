@@ -138,6 +138,7 @@ export interface PremiumProduct {
   description: string
   kind: 'TIME' | 'COSMETIC' | 'CONVENIENCE'
   priceRub: number
+  priceDollars: number
   grantCode: string
 }
 
@@ -145,8 +146,11 @@ export const premiumApi = {
   me: () => api.get<PremiumState>('/api/premium/me'),
   shop: () => api.get<{ items: PremiumProduct[] }>('/api/premium/shop'),
   purchases: () =>
-    api.get<{ items: { at: string; code: string; name: string; kind: string; priceRub: number }[] }>(
+    api.get<{ items: { at: string; code: string; name: string; kind: string; priceRub: number; priceDollars: number; byAdmin: boolean }[] }>(
       '/api/premium/purchases'),
+  buy: (productCode: string) =>
+    api.post<{ productCode: string; isPremium: boolean; expiresAt: string | null; dollars: number }>(
+      '/api/premium/buy', { productCode }, idem()),
 }
 
 // ── Помощники ────────────────────────────────────────────────
