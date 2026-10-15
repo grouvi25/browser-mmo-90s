@@ -284,6 +284,7 @@ export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
           <div className="card-list__kv"><span>Уровень</span><b>{char?.battleLevel ?? '—'}</b></div>
           <div className="card-list__kv"><span>Здоровье</span><b>{hp} / {char?.hpMax ?? '—'}</b></div>
           <div className="card-list__kv"><span>Наличные</span><b>{(char?.money ?? 0).toLocaleString('ru')} ₽</b></div>
+          <div className="card-list__kv"><span>Доллары</span><b>{(char?.dollars ?? 0).toLocaleString('ru')} $</b></div>
           <div className="card-list__kv"><span>Боёв</span><b>{char?.battlesTotal ?? 0}</b></div>
           <div className="card-list__kv"><span>Побед</span><b>{char?.battlesWon ?? 0}</b></div>
           <div className="card-list__kv"><span>Очки статов</span><b>{char?.stats?.pointsAvailable ?? 0}</b></div>

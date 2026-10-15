@@ -374,6 +374,18 @@ export const adminApi = {
       method: 'POST', body: { characterId, amount, reason },
     }),
 
+  /** Игровые доллары: знак задаёт направление, обе операции обратимы. */
+  grantDollars: (characterId: string, amount: number, reason: string) =>
+    request<{ actionId: string }>('/api/admin/characters/dollars', {
+      method: 'POST', body: { characterId, amount, reason },
+    }),
+
+  /** Назначить или снять дилера долларов. */
+  setDealer: (characterId: string, isDealer: boolean, reason: string) =>
+    request<{ actionId: string }>('/api/admin/characters/dealer', {
+      method: 'POST', body: { characterId, isDealer, reason },
+    }),
+
   /** Опыт. Уровень пересчитывает сервер: выдать опыт и забыть поднять
    *  уровень значило бы оставить персонажа с телом первого уровня. */
   grantExp: (characterId: string, track: string, amount: number, reason: string) =>

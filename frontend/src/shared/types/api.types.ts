@@ -33,6 +33,9 @@ export interface Character {
   productionLevel: number
   productionExp: number
   money: number
+  /** Игровые доллары — донатная валюта, покупаются у дилера. */
+  dollars?: number
+  isDealer?: boolean
   hpCurrent: number
   hpMax: number
   status: string

@@ -11,7 +11,10 @@
 // ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, часть VI.
 // =============================================================
 import { prisma } from '../../shared/db/prisma'
+import type { Prisma } from '@prisma/client'
 import { withTransaction } from '../../shared/db/transaction'
+import { withIdempotency } from '../../shared/db/idempotency'
+import { DollarsService } from '../dollars/dollars.service'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
@@ -100,7 +103,7 @@ export const PremiumService = {
     const items = await prisma.premiumProduct.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
-      select: { code: true, name: true, description: true, kind: true, priceRub: true, grantCode: true },
+      select: { code: true, name: true, description: true, kind: true, priceRub: true, priceDollars: true, grantCode: true },
     })
     return { items }
   },
@@ -117,7 +120,38 @@ export const PremiumService = {
     adminId?: string
     days?: number
   }) {
-    return withTransaction(async tx => {
+    return withTransaction(tx => this.grantIn(tx, params))
+  },
+
+  /**
+   * Покупка за игровые доллары самим игроком (правка заказчика, октябрь
+   * 2026): списание и выдача в одной транзакции — нет ни выдачи без
+   * оплаты, ни оплаты без выдачи. Повтор запроса с тем же ключом не
+   * спишет второй раз.
+   */
+  async buy(characterId: string, productCode: string, key: string) {
+    return withIdempotency({ characterId, scope: `premium.buy.${productCode}`, key, execute: async tx => {
+      const product = await tx.premiumProduct.findUnique({ where: { code: productCode } })
+      if (!product || !product.isActive) throw new AppError(ErrorCode.PREM_PRODUCT_NOT_FOUND, 'Товар не найден', 404)
+      if (product.priceDollars <= 0) {
+        throw new AppError(ErrorCode.PREM_PRODUCT_NOT_FOUND, 'Этот товар за доллары не продаётся', 409)
+      }
+      const dollars = await DollarsService.debit(tx, {
+        characterId, amount: product.priceDollars, reason: 'PURCHASE', refId: product.id, note: product.name,
+      })
+      const granted = await this.grantIn(tx, { characterId, productCode, priceDollars: product.priceDollars })
+      return { ...granted, dollars }
+    } })
+  },
+
+  async grantIn(tx: Prisma.TransactionClient, params: {
+    characterId: string
+    productCode: string
+    adminId?: string
+    days?: number
+    priceDollars?: number
+  }) {
+    {
       const product = await tx.premiumProduct.findUnique({ where: { code: params.productCode } })
       if (!product) {
         throw new AppError(ErrorCode.PREM_PRODUCT_NOT_FOUND, 'Товар не найден', 404)
@@ -166,6 +200,7 @@ export const PremiumService = {
           characterId: character.id,
           productId: product.id,
           priceRub: product.priceRub,
+          priceDollars: params.priceDollars ?? 0,
           grantedByAdminId: params.adminId ?? null,
         },
       })
@@ -175,7 +210,7 @@ export const PremiumService = {
         isPremium: product.grantCode === 'SUBSCRIPTION_DAYS' ? true : character.isPremium,
         expiresAt,
       }
-    })
+    }
   },
 
   /** Отозвать подписку. Помощники остаются, но перестают работать. */
@@ -208,6 +243,8 @@ export const PremiumService = {
         kind: row.product.kind,
         // Цена копией на момент сделки: в каталоге она меняется.
         priceRub: row.priceRub,
+        priceDollars: row.priceDollars,
+        byAdmin: !!row.grantedByAdminId,
       })),
     }
   },

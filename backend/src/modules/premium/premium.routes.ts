@@ -27,6 +27,17 @@ export async function premiumRoutes(fastify: FastifyInstance) {
     const character = await me(req.authUser.userId)
     return reply.send(await PremiumService.purchases(character.id))
   })
+
+  // POST /api/premium/buy — покупка за игровые доллары
+  fastify.post('/buy', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ productCode: z.string().min(1).max(64) }).safeParse(req.body)
+    const key = req.headers['idempotency-key']
+    if (!parsed.success || typeof key !== 'string') {
+      return reply.code(422).send({ code: 'GEN_001', message: 'Нужны товар и Idempotency-Key' })
+    }
+    const character = await me(req.authUser.userId)
+    return reply.send(await PremiumService.buy(character.id, parsed.data.productCode, key))
+  })
 }
 
 /** Помощники — /api/helpers. */

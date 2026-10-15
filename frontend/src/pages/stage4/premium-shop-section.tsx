@@ -6,12 +6,17 @@
 // на экране, а не в описании товара: игрок должен видеть границу до
 // покупки, а не догадываться о ней после.
 //
-// Оплата в первой версии идёт вне игры, оформляет администратор, — и это
-// сказано честно, вместо неработающей кнопки «Купить».
+// Покупка — за игровые доллары (правка заказчика, октябрь 2026): игрок
+// пополняет счёт у дилера и покупает сам. Списание и выдача идут одной
+// транзакцией на сервере.
 // =============================================================
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Clock, Sparkles, Package, BadgeCheck } from 'lucide-react'
 import { premiumApi, type PremiumProduct } from '../../shared/api/strategy.api'
+import { dollarsApi } from '../../shared/api/dollars.api'
+import { ApiError } from '../../shared/api/client'
+import { DollarsSection } from './dollars-section'
 import { fmt, Skeleton, Fault, Empty } from '../stage3/stage3-ui'
 
 const KIND: Record<PremiumProduct['kind'], { title: string; icon: typeof Clock; hint: string }> = {
@@ -35,6 +40,16 @@ export function PremiumShopSection() {
   const state = useQuery({ queryKey: ['premium', 'me'], queryFn: premiumApi.me })
   const shop = useQuery({ queryKey: ['premium', 'shop'], queryFn: premiumApi.shop })
   const purchases = useQuery({ queryKey: ['premium', 'purchases'], queryFn: premiumApi.purchases })
+  const account = useQuery({ queryKey: ['dollars', 'me'], queryFn: dollarsApi.me })
+  const qc = useQueryClient()
+  const [confirm, setConfirm] = useState<string | null>(null)
+  const buy = useMutation({
+    mutationFn: (code: string) => premiumApi.buy(code),
+    onSuccess: () => {
+      setConfirm(null)
+      for (const key of ['premium', 'dollars', 'character']) void qc.invalidateQueries({ queryKey: [key] })
+    },
+  })
 
   if (shop.isLoading || state.isLoading) return <Skeleton rows={5} />
   if (shop.isError) return <Fault retry={() => shop.refetch()} />
@@ -44,6 +59,7 @@ export function PremiumShopSection() {
 
   return (
     <>
+      <DollarsSection />
       <div className="s4-summary">
         <div className={`s4-stat ${me?.isPremium ? 's4-stat--good' : ''}`}>
           <span className="s4-stat__label"><BadgeCheck size={13} /> Подписка</span>
@@ -95,7 +111,17 @@ export function PremiumShopSection() {
                       <b>{item.name}</b>
                       <span className="s4-muted">{item.description}</span>
                     </div>
-                    <span className="s4-goods__price">{fmt(item.priceRub)} ₽</span>
+                    <span className="s4-goods__price">{item.priceDollars > 0 ? `${fmt(item.priceDollars)} $` : '—'}</span>
+                    {item.priceDollars > 0 && (confirm === item.code
+                      ? <span className="s4-goods__confirm">
+                          <button className="btn btn-primary btn-sm" disabled={buy.isPending} onClick={() => buy.mutate(item.code)}>
+                            {buy.isPending ? 'Покупаем…' : `Списать ${fmt(item.priceDollars)} $`}
+                          </button>
+                          <button className="btn btn-sm" disabled={buy.isPending} onClick={() => setConfirm(null)}>Отмена</button>
+                        </span>
+                      : <button className="btn btn-sm" disabled={buy.isPending || (account.data?.dollars ?? 0) < item.priceDollars}
+                          title={(account.data?.dollars ?? 0) < item.priceDollars ? 'Не хватает долларов' : undefined}
+                          onClick={() => { buy.reset(); setConfirm(item.code) }}>Купить</button>)}
                   </li>
                 ))}
               </ul>
@@ -103,16 +129,8 @@ export function PremiumShopSection() {
           )
         })}
 
-      <p className="s4-note-box">
-        Оплата в первой версии проходит вне игры: напишите администратору, и
-        подписку оформят вручную. Кнопки покупки здесь нет намеренно — она
-        не работала бы.
-      </p>
-      <p className="s4-note-box">
-        В первой версии витрина состоит из одной подписки. Косметика, места в
-        инвентаре, ускорение цикла и полив грядки отложены до следующей: пока
-        нет оплаты, продавать их нечем, а показывать как товар — обман.
-      </p>
+      {buy.isError && <p className="alert alert-error" role="alert">{buy.error instanceof ApiError ? buy.error.message : 'Покупка не прошла'}</p>}
+      {buy.isSuccess && <p className="alert alert-success" role="status">Готово: подписка активна. На счёте осталось {fmt(buy.data.dollars)} $.</p>}
 
       {purchases.data?.items?.length ? (
         <>
@@ -122,7 +140,7 @@ export function PremiumShopSection() {
               <li key={index}>
                 <span className="s4-muted">{new Date(row.at).toLocaleDateString('ru-RU')}</span>
                 <span>{row.name}</span>
-                <span>{fmt(row.priceRub)} ₽</span>
+                <span>{row.priceDollars > 0 ? `${fmt(row.priceDollars)} $` : row.byAdmin ? 'выдано администрацией' : `${fmt(row.priceRub)} ₽`}</span>
               </li>
             ))}
           </ul>
