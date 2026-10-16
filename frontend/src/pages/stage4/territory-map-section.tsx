@@ -120,7 +120,7 @@ export function TerritoryMapSection() {
               <dl className="s4-district__facts">
                 <div>
                   <dt>Владелец</dt>
-                  <dd>{mine ? `[${territory.owner!.tag}] ${territory.owner!.name}` : '—'}</dd>
+                  <dd>{mine ? territory.owner!.name : '—'}</dd>
                 </div>
                 <div>
                   <dt>Бонус</dt>

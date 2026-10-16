@@ -7,14 +7,15 @@
 // (это делает ApplicationWatcher в оболочке города).
 // =============================================================
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Swords, Users, Shuffle, RefreshCw } from 'lucide-react'
+import { Swords, Users, Shuffle, RefreshCw, Bot } from 'lucide-react'
 import {
   battlesApi, type ApplicationKind, type BattleApplication, type ApplicationFighter,
 } from '../../shared/api/battles.api'
 import { charactersApi } from '../../shared/api/characters.api'
 import { ApiError } from '../../shared/api/client'
+import { PveStart } from '../../widgets/pve-start/pve-start'
 import './applications.css'
 
 const KIND_LABEL: Record<ApplicationKind | 'SIEGE', string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Хаотичный', SIEGE: 'Осада дома' }
@@ -25,13 +26,13 @@ const KIND_HINT: Record<ApplicationKind, string> = {
 }
 const DELAYS = [1, 3, 5, 10]
 type Tab = 'ALL' | ApplicationKind | 'RUNNING'
-const TABS: Array<{ key: Tab; label: string }> = [
-  { key: 'ALL', label: 'Все заявки' },
-  { key: 'DUEL', label: 'Дуэли' },
-  { key: 'GROUP', label: 'Групповые' },
-  { key: 'CHAOTIC', label: 'Хаотичные' },
-  { key: 'RUNNING', label: 'Идут сейчас' },
-]
+// Виды списка выбираются в нижней полосе Стрелков (?tab=…): правка
+// заказчика перенесла разделы локации вниз, под кнопку ЦЕНТР.
+const TAB_LABEL: Record<Tab, string> = {
+  ALL: 'Все заявки', DUEL: 'Дуэли', GROUP: 'Групповые', CHAOTIC: 'Хаотичные', RUNNING: 'Идут сейчас',
+}
+/** «Бой с ботом» — крайняя кнопка в ряду видов боя; он начинается сразу. */
+type CreateKind = ApplicationKind | 'BOT'
 
 function countdown(ms: number) {
   if (ms <= 0) return 'начинается…'
@@ -45,8 +46,10 @@ function Fighter({ fighter }: { fighter: ApplicationFighter }) {
 
 export function BattleApplications() {
   const qc = useQueryClient()
-  const [tab, setTab] = useState<Tab>('ALL')
-  const [kind, setKind] = useState<ApplicationKind>('DUEL')
+  const [params] = useSearchParams()
+  const raw = params.get('tab') as Tab | null
+  const tab: Tab = raw && raw in TAB_LABEL ? raw : 'ALL'
+  const [kind, setKind] = useState<CreateKind>('DUEL')
   const [teamSize, setTeamSize] = useState(2)
   const [delay, setDelay] = useState(5)
   const [levelMin, setLevelMin] = useState<number | ''>('')
@@ -73,7 +76,7 @@ export function BattleApplications() {
 
   const create = useMutation({
     mutationFn: () => battlesApi.createApplication({
-      kind, delayMinutes: delay,
+      kind: kind as ApplicationKind, delayMinutes: delay,
       teamSize: kind === 'DUEL' ? undefined : teamSize,
       levelMin: levelMin === '' ? undefined : levelMin,
       levelMax: levelMax === '' ? undefined : levelMax,
@@ -118,17 +121,18 @@ export function BattleApplications() {
         </div>
       )}
 
-      <form className="bapps-create" onSubmit={event => { event.preventDefault(); create.mutate() }}>
+      <form className="bapps-create" onSubmit={event => { event.preventDefault(); if (kind !== 'BOT') create.mutate() }}>
         <fieldset className="bapps-kinds">
           <legend>Подать заявку</legend>
-          {(['DUEL', 'GROUP', 'CHAOTIC'] as ApplicationKind[]).map(item => (
+          {(['DUEL', 'GROUP', 'CHAOTIC', 'BOT'] as CreateKind[]).map(item => (
             <button type="button" key={item} aria-pressed={kind === item}
               className={'bapps-kind' + (kind === item ? ' is-active' : '')} onClick={() => setKind(item)}>
-              {item === 'DUEL' ? <Swords size={13} /> : item === 'GROUP' ? <Users size={13} /> : <Shuffle size={13} />}
-              {KIND_LABEL[item]}
+              {item === 'DUEL' ? <Swords size={13} /> : item === 'GROUP' ? <Users size={13} /> : item === 'CHAOTIC' ? <Shuffle size={13} /> : <Bot size={13} />}
+              {item === 'BOT' ? 'Бой с ботом' : KIND_LABEL[item]}
             </button>
           ))}
         </fieldset>
+        {kind === 'BOT' ? <PveStart embedded /> : <>
         <p className="bapps-hint">{KIND_HINT[kind]}</p>
         <div className="bapps-fields">
           {kind !== 'DUEL' && (
@@ -157,22 +161,17 @@ export function BattleApplications() {
             {create.isPending ? 'Подаём…' : 'Подать заявку'}
           </button>
         </div>
+        </>}
       </form>
 
-      <nav className="bapps-tabs" aria-label="Заявки">
-        {TABS.map(item => (
-          <button type="button" key={item.key} aria-pressed={tab === item.key}
-            className={'bapps-tab' + (tab === item.key ? ' is-active' : '')} onClick={() => setTab(item.key)}>
-            {item.label}
-            {item.key === 'RUNNING'
-              ? ` (${list.data?.active.length ?? 0})`
-              : ` (${item.key === 'ALL' ? applications.length : applications.filter(a => a.kind === item.key).length})`}
-          </button>
-        ))}
+      <div className="bapps-tabs">
+        <b className="bapps-list-title">
+          {TAB_LABEL[tab]} ({tab === 'RUNNING' ? list.data?.active.length ?? 0 : shown.length})
+        </b>
         <button type="button" className="btn btn-sm bapps-refresh" onClick={() => list.refetch()} title="Обновить" aria-label="Обновить список">
           <RefreshCw size={13} />
         </button>
-      </nav>
+      </div>
 
       {list.isLoading && <p className="bapps-empty" role="status">Загружаем заявки…</p>}
       {list.isError && <p className="bapps-empty" role="alert">Список не загрузился. <button className="btn btn-sm" onClick={() => list.refetch()}>Повторить</button></p>}

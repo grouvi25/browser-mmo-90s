@@ -791,7 +791,8 @@ html, body {
 .dossier-search::placeholder { color: #4a4038; }
 .dossier-body {
   position: absolute; font-family: var(--font-ui); color: #000;
-  white-space: pre; transform-origin: left top;
+  /* Длинные строки (профессии, бригада) переносятся, а не вылезают за лист. */
+  white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; transform-origin: left top;
 }
 .dossier-notes {
   position: absolute; background: transparent; border: 0; outline: 0; resize: none;
@@ -862,6 +863,7 @@ html, body {
 .city-locations button { min-height:26px; padding:2px 4px; font:600 13px/1.15 Arial, sans-serif; color:var(--text); background:var(--paper-warm); border:1px solid var(--border); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .city-locations button.is-active,.city-locations button:hover { background:var(--paper-dark); border-color:var(--ink-red); }
 .city-locations button:focus-visible { outline:3px solid var(--ink-red); outline-offset:-3px; }
+.city-locations button.is-center { color:var(--ink-red); font-weight:700; }
 .city-utility { position:absolute; left:40px; top:670px; display:flex; gap:20px; font:16px Arial,sans-serif; }
 .city-utility button { background:none; border:0; color:var(--text); font:inherit; cursor:pointer; }
 .city-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; padding:12px 0; }
@@ -885,8 +887,11 @@ html, body {
 .brigade-tile:hover { background:var(--paper-dark); }
 .brigade-tile:active { background:var(--paper); }
 .brigade-tile:focus-visible { outline:3px solid var(--ink-red); outline-offset:-3px; }
-.brigade-tile.is-mine { border-color:var(--ink-red); }
-.brigade-tile.is-selected { background:var(--paper-dark); box-shadow:inset 0 0 0 2px var(--ink-red); }
+/* Правка заказчика: красная рамка своей плитки («красный квадрат слева
+   сверху») убрана — выбранная плитка просто темнее. */
+.brigade-tile.is-selected { background:var(--paper-dark); border-color:var(--text-dim); }
+.brigade-tile.is-selected small { color:var(--text); }
+.brigade-roster a, .house-card a { color:#6a5000; }
 .brigade-roster { margin:0; padding-left:18px; display:grid; gap:4px; }
 
 /* Дом бригады и осада */
@@ -916,3 +921,5 @@ html, body {
 .house-siege__fields input, .house-siege__fields select, .house-wall__form input { font:inherit; padding:3px 5px; min-width:0; }
 .house-wall__form input { flex:1 1 220px; }
 .house-wall i, .house-members i { color:var(--text-dim); font-size:13px; }
+.city-card--dog { margin-bottom: 12px; }
+.city-feed { display: flex; flex-wrap: wrap; gap: 6px; }

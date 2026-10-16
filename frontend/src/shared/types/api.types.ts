@@ -52,6 +52,8 @@ export interface Character {
   /** Этап 3: приходят в профиле как обычные поля персонажа. */
   clanId?: string | null
   clan?: { id: string; name: string; tag: string } | null
+  /** Собака из Зоомагазина: бонус к характеристикам, пока сыта. */
+  dog?: { id: string; code: string; name: string; role: string; fedUntil: string | null; fed: boolean; bonus: Record<string, number> } | null
   alcoholLevel?: number
   hangoverUntil?: string | null
   stats: CharacterStats | null

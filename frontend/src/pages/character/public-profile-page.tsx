@@ -73,7 +73,7 @@ export function PublicProfilePage() {
             <Stat icon={<Sword size={14} />} label="Боёв" value={String(data.battlesTotal ?? 0)} />
             <Stat icon={<Trophy size={14} />} label="Побед" value={`${data.battlesWon ?? 0} (${winRate(data)}%)`} />
             {data.location && <Stat icon={<MapPin size={14} />} label="Место" value={locationLabel(data.location)} />}
-            <Stat icon={<Users size={14} />} label="Бригада" value={data.clan ? `«${data.clan.name}» [${data.clan.tag}]` : 'не состоит'} />
+            <Stat icon={<Users size={14} />} label="Бригада" value={data.clan ? `«${data.clan.name}»` : 'не состоит'} />
           </div>
 
           <button className="btn btn-sm btn-primary" onClick={copyLink} style={{ marginTop: 16, width: '100%' }}>

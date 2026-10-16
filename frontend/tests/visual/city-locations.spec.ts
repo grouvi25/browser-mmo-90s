@@ -14,15 +14,18 @@ test('city locations, return controls, readable fonts and resume after login', a
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('navigation', { name: 'Локации Центра' })).toBeVisible()
   await expect(page.locator('.top-nav')).toHaveCount(0)
-  for (const location of CITY_LOCATIONS) {
+  // В Центре внизу — локации; в локации — ЦЕНТР первой кнопкой и её
+  // разделы, а локаций Центра там уже нет (переходы только через Центр).
+  for (const [index, location] of CITY_LOCATIONS.filter(item => item.key !== 'center').entries()) {
     const button = page.locator(`[data-stage-nav="${location.key}"]`)
     await button.scrollIntoViewIfNeeded(); await button.click()
     await expect.poll(() => new URL(page.url()).pathname).toBe(location.to)
-    if (location.key !== 'center') {
-      const back = page.locator('.viewport__back').first()
-      await expect(back).toBeVisible(); await back.click()
-      await expect(page).toHaveURL(/\/$/)
-    }
+    const center = page.locator('.city-locations button').first()
+    await expect(center).toHaveText('ЦЕНТР')
+    await expect(page.getByRole('navigation', { name: 'Локации Центра' })).toHaveCount(0)
+    const back = index % 2 === 0 ? center : page.locator('.viewport__back').first()
+    await expect(back).toBeVisible(); await back.click()
+    await expect(page).toHaveURL(/\/$/)
   }
   await page.locator('[data-stage-nav="school"]').click()
   await expect(page.getByRole('heading', { name: 'Училище', exact: true })).toBeVisible()

@@ -5,19 +5,13 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
-import { charactersApi } from '../../shared/api/characters.api'
+import { battlesApi } from '../../shared/api/battles.api'
 import { LocationView } from '../../widgets/location-view/location-view'
 
 export function HubPage() {
   const navigate = useNavigate()
-  const { data: char } = useQuery({
-    queryKey: ['character', 'me'],
-    queryFn: () => charactersApi.getMe(),
-    retry: false,
-  })
-
-  const inBattle = char?.status === 'IN_BATTLE'
-  const battleId = localStorage.getItem('mmo_current_battle')
+  const current = useQuery({ queryKey: ['battle', 'current'], queryFn: battlesApi.current, refetchInterval: 4000 })
+  const battleId = current.data?.battleId
 
   return (
     <LocationView
@@ -26,7 +20,7 @@ export function HubPage() {
       place="Центр · Центральная площадь"
       actions={[]}
     >
-      {inBattle && battleId && (
+      {battleId && (
         <button type="button" className="hub__resume" onClick={() => navigate(`/battle/${battleId}`)}>
           Вернуться в бой →
         </button>

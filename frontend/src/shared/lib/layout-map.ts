@@ -105,14 +105,14 @@ export const MENU = {
   rooms: {
     center: [
       { key: 'inventory', label: 'Склад', to: '/inventory' },
-      { key: 'skills', label: 'Оружейные навыки', to: '/skills' },
-      { key: 'stats', label: 'Характеристики', to: '/stats' },
-      { key: 'history', label: 'История боёв', to: '/battles/history' },
+      { key: 'skills', label: 'Навыки', to: '/skills' },
+      { key: 'stats', label: 'Навыки', to: '/stats' },
+      { key: 'history', label: 'Стрелки', to: '/battles/history' },
       { key: 'clan', label: 'Бригада', to: '/clans' },
       // Этап 4. Премиум — личное, поэтому Центр. Витрина и помощники
       // живут вкладками внутри: помощник без подписки не существует, и
       // разводить их по разным комнатам значило бы врать о связи.
-      { key: 'premium', label: 'Премиум', to: '/premium' },
+      { key: 'premium', label: 'Чёрный рынок', to: '/premium' },
     ],
     market: [
       { key: 'shop', label: 'Госмагазин', to: '/shop' },
@@ -241,9 +241,10 @@ export const PROFILE = {
     { key: 'spouse', label: 'Жена', x: 126.5, y: 460, w: 143.5 },
     { key: 'account', label: 'Акаунт', x: 127.5, y: 491, w: 150 },
   ],
-  fieldSize: 21.5,
+  // Правка заказчика: «в профиле шрифты меньше, чтобы ничего не вылазило».
+  fieldSize: 18,
   sheetTitle: { x: 428.5, y: 147.5, w: 217.5, size: 33.7 },
-  dossier: { x: 354.5, y: 259, w: 354.5, size: 20.6, lineHeight: 23.7 },
+  dossier: { x: 354.5, y: 245, w: 354.5, h: 540, size: 16, lineHeight: 19.5 },
   notepadTitle: { x: 852, y: 489, w: 277.5, size: 39.2 },
   notepad: box(800, 540, 400, 280),
   /** Рамки слотов нарисованы на подложке; здесь — габариты самих предметов,

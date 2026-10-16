@@ -13,6 +13,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi, type BrigadeHouse } from '../../shared/api/clans.api'
 import { ApiError } from '../../shared/api/client'
 import { ClanSection } from '../stage3/clan-section'
+import { IncomingInvites } from '../stage3/clan-invites'
 import { plural } from '../../shared/lib/plural'
 
 const msk = (iso: string | Date) => new Date(iso).toLocaleString('ru-RU', {
@@ -52,7 +53,7 @@ export function BrigadeHouses() {
       return <button type="button" key={clan.id}
         className={'brigade-tile' + (clan.id === selected ? ' is-selected' : '') + (clan.id === mine ? ' is-mine' : '') + (razed ? ' is-razed' : '')}
         aria-pressed={clan.id === selected} onClick={() => setPicked(clan.id)}>
-        <b>{clan.name}</b><span>[{clan.tag}] · ур. {clan.level}</span>
+        <b>{clan.name}</b><span>ур. {clan.level}</span>
         <small>{clan._count?.members ?? 0} {plural(clan._count?.members ?? 0, ['боец', 'бойца', 'бойцов'])}{clan.id === mine ? ' · ваша' : ''}</small>
         <span className="brigade-tile__house">
           <i style={{ width: `${clan.houseDurability ?? 100}%` }} />
@@ -62,7 +63,8 @@ export function BrigadeHouses() {
       </button>
     })}</div>
     {selected && <House id={selected} />}
-    {selected && selected === mine && <ClanSection />}
+    {selected && selected === mine && <ClanSection embedded />}
+    {!mine && <IncomingInvites />}
     {!mine && list.data && <p><Link to="/city-hall">Зарегистрировать свою бригаду в Мэрии →</Link></p>}
   </>
 }
@@ -91,7 +93,7 @@ function House({ id }: { id: string }) {
 
   return <section className="house-card" aria-label={`Дом бригады ${h.name}`}>
     <header className="house-card__head">
-      <h2>Дом бригады «{h.name}» [{h.tag}]</h2>
+      <h2>Дом бригады «{h.name}»</h2>
       <span>ур. {h.level}</span>
     </header>
     {message && <p className={`alert ${message.ok ? 'alert-success' : 'alert-error'}`} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}

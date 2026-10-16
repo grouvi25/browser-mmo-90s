@@ -4,8 +4,10 @@ import { Users, ShieldAlert, UserPlus, LogOut } from 'lucide-react'
 import { clansApi, CLAN_PERMISSIONS, type ClanPermission } from '../../shared/api/clans.api'
 import { fmt, Skeleton, Fault, Note } from './stage3-ui'
 import { useMyClan } from './use-my-clan'
+import { IncomingInvites } from './clan-invites'
 
-export function ClanSection() {
+/** embedded — внутри «Домов бригад»: название там уже стоит в карточке дома. */
+export function ClanSection({ embedded = false }: { embedded?: boolean } = {}) {
   const qc = useQueryClient()
   const { me, clan, member, can, isLoading, isError, refetch, hasClan } = useMyClan()
   const [msg, setMsg] = useState('')
@@ -29,13 +31,11 @@ export function ClanSection() {
 
   return (
     <>
-      <header className="clan-head">
-        <div>
-          <span className="clan-tag">[{clan.tag}]</span>
-          <h2>{clan.name}</h2>
-        </div>
+      {/* Тег не показываем (правка заказчика: «только название»). */}
+      {(!embedded || clan.isFrozen) && <header className="clan-head">
+        {!embedded && <h2>{clan.name}</h2>}
         {clan.isFrozen && <b className="frozen"><ShieldAlert /> заморожен</b>}
-      </header>
+      </header>}
 
       {clan.isFrozen && (
         <p className="s3-hint s3-hint--warn">
@@ -103,11 +103,10 @@ function ClanDirectory({ onDone, onFail, msg, bad }: {
   bad: boolean
 }) {
   const [name, setName] = useState('')
-  const [tag, setTag] = useState('')
   const list = useQuery({ queryKey: ['clans'], queryFn: clansApi.list })
 
   const create = useMutation({
-    mutationFn: () => clansApi.create(name, tag),
+    mutationFn: () => clansApi.create(name.trim()),
     onSuccess: () => onDone('Бригада создана'),
     onError: onFail,
   })
@@ -118,9 +117,8 @@ function ClanDirectory({ onDone, onFail, msg, bad }: {
         <div className="create-clan">
           <h2>Новая бригада</h2>
           <input placeholder="Название" value={name} onChange={e => setName(e.target.value)} />
-          <input placeholder="Тег" maxLength={6} value={tag} onChange={e => setTag(e.target.value)} />
           <button
-            disabled={create.isPending || name.trim().length < 3 || tag.trim().length < 2}
+            disabled={create.isPending || name.trim().length < 3}
             onClick={() => create.mutate()}
           >
             Создать · 25 000 ₽
@@ -131,12 +129,13 @@ function ClanDirectory({ onDone, onFail, msg, bad }: {
         <h3>Бригады города</h3>
         {list.data?.items?.map(clan => (
           <div key={clan.id} className="clan-row">
-            <b>[{clan.tag}]</b> {clan.name}
+            <b>{clan.name}</b>
             <span>{clan.isFrozen ? 'заморожен' : clan.level + ' ур.'}</span>
           </div>
         ))}
       </aside>
       <section className="clan-sheet">
+        <IncomingInvites />
         <div className="clan-empty">
           <Users />
           <h2>Вы не в бригаде</h2>
@@ -150,20 +149,20 @@ function ClanDirectory({ onDone, onFail, msg, bad }: {
 function InviteBox({ onDone, onFail }: { onDone: (t: string) => void; onFail: (e: Error) => void }) {
   const [target, setTarget] = useState('')
   const invite = useMutation({
-    mutationFn: () => clansApi.invite(target),
-    onSuccess: () => { setTarget(''); onDone('Приглашение отправлено') },
+    mutationFn: () => clansApi.invite(target.trim()),
+    onSuccess: r => { setTarget(''); onDone(`Приглашение отправлено: ${r.nickname}. Оно ждёт бойца 48 часов в Домах бригад`) },
     onError: onFail,
   })
   return (
-    <div className="s3-toolbar">
+    <form className="s3-toolbar" onSubmit={e => { e.preventDefault(); invite.mutate() }}>
       <label>
-        Пригласить бойца (ID персонажа)
-        <input value={target} onChange={e => setTarget(e.target.value)} placeholder="UUID персонажа" />
+        Пригласить бойца по нику
+        <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Ник бойца" maxLength={30} />
       </label>
-      <button onClick={() => invite.mutate()} disabled={!target || invite.isPending}>
+      <button type="submit" disabled={target.trim().length < 2 || invite.isPending}>
         <UserPlus size={15} /> Пригласить
       </button>
-    </div>
+    </form>
   )
 }
 

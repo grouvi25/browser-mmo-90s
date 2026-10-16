@@ -116,9 +116,9 @@ export function MobileShell() {
                   </button>
                 ))}
                 <button type="button" className="m-menu__item" onClick={() => go('/inventory')}>склад</button>
-                <button type="button" className="m-menu__item" onClick={() => go('/skills')}>владение оружием</button>
-                <button type="button" className="m-menu__item" onClick={() => go('/stats')}>характеристики</button>
+                <button type="button" className="m-menu__item" onClick={() => go('/stats')}>навыки</button>
                 <button type="button" className="m-menu__item" onClick={() => go('/battles/history')}>история боёв</button>
+                <button type="button" className="m-menu__item" onClick={() => go('/premium')}>чёрный рынок</button>
                 <button type="button" className="m-menu__item m-menu__item--exit" onClick={logout}>выход</button>
               </div>
             )}

@@ -7,6 +7,14 @@
  * Критерии "orphaned battle":
  * - status = ACTIVE
  * - startedAt < now() - 2 часа (MAX_BATTLE_DURATION_MS)
+ * - либо живого состояния в Redis нет дольше LOST_STATE_GRACE_MS.
+ *   Бой живёт в Redis; после перезапуска Redis (выкат) запись в базе
+ *   оставалась ACTIVE, воркер таймаутов её пропускал, а клиент два часа
+ *   уводил игрока на экран боя, где ходить уже нечем («я завис в бою»).
+ *
+ * Отдельно отпускаются персонажи, застрявшие в статусе IN_BATTLE без
+ * единого незавершённого боя: в бой их не пускало («Вы уже в бою»), а
+ * вернуться было некуда.
  *
  * При завершении:
  * - Оба участника получают статус ACTIVE (выходят из боя)
@@ -21,11 +29,14 @@ import { logger } from '../shared/logger/logger'
 import { audit } from '../shared/logger/audit-logger'
 
 const MAX_BATTLE_DURATION_MS = 2 * 60 * 60 * 1000 // 2 часа
+/** Бой создаётся в базе чуть раньше, чем его состояние ложится в Redis. */
+export const LOST_STATE_GRACE_MS = 2 * 60 * 1000
 
 export async function runBattleCleanup(): Promise<void> {
-  const cutoff = new Date(Date.now() - MAX_BATTLE_DURATION_MS)
+  const now = Date.now()
+  const cutoff = new Date(now - MAX_BATTLE_DURATION_MS)
 
-  const orphaned = await prisma.battle.findMany({
+  const expired = await prisma.battle.findMany({
     where: {
       status: 'ACTIVE',
       startedAt: { lt: cutoff },
@@ -34,6 +45,18 @@ export async function runBattleCleanup(): Promise<void> {
     take: 50, // обрабатываем пачками
   })
 
+  const candidates = await prisma.battle.findMany({
+    where: { status: 'ACTIVE', startedAt: { lt: new Date(now - LOST_STATE_GRACE_MS), gte: cutoff } },
+    include: { participants: true },
+    take: 200,
+  })
+  const lost: typeof candidates = []
+  for (const battle of candidates) {
+    if (!(await BattleRedis.getState(battle.id))) lost.push(battle)
+  }
+
+  const orphaned = [...expired, ...lost]
+  await releaseStuckCharacters()
   if (orphaned.length === 0) return
 
   logger.info({ count: orphaned.length }, '[BattleCleanup] Found orphaned battles')
@@ -48,7 +71,7 @@ export async function runBattleCleanup(): Promise<void> {
           winnerId: null,
           finishedAt: new Date(),
           isSuspicious: true,
-          suspicionReason: 'orphaned_timeout',
+          suspicionReason: lost.includes(battle) ? 'state_lost' : 'orphaned_timeout',
         },
       })
 
@@ -79,4 +102,32 @@ export async function runBattleCleanup(): Promise<void> {
   }
 
   logger.info({ count: orphaned.length }, '[BattleCleanup] Done')
+}
+
+/**
+ * Персонаж в статусе IN_BATTLE, у которого нет ни идущего, ни
+ * собирающегося боя, возвращается в город. Такое оставалось после
+ * сбоев на старте боя и после ручного закрытия боёв.
+ */
+export async function releaseStuckCharacters(): Promise<number> {
+  const stuck = await prisma.character.findMany({
+    where: {
+      status: 'IN_BATTLE',
+      battlesAsParticipant: { none: { battle: { status: { in: ['CREATED', 'WAITING_PLAYERS', 'ACTIVE'] } } } },
+    },
+    select: { id: true },
+    take: 200,
+  })
+  if (stuck.length === 0) return 0
+  const ids = stuck.map(c => c.id)
+  const released = await prisma.character.updateMany({
+    where: {
+      id: { in: ids },
+      status: 'IN_BATTLE',
+      battlesAsParticipant: { none: { battle: { status: { in: ['CREATED', 'WAITING_PLAYERS', 'ACTIVE'] } } } },
+    },
+    data: { status: 'ACTIVE' },
+  })
+  audit('battle.cleanup.released', { characterIds: ids })
+  return released.count
 }

@@ -347,20 +347,21 @@ test.describe('Stage 2 visual and browser flow', () => {
     // а прибитый в тесте текст ломается на переименовании, а не на дефекте.
     await authPage(page, seller)
 
+    // Правка заказчика: в локации полоса — ЦЕНТР и разделы самой локации.
     await page.goto('/industrial')
-    await expect(page.getByRole('button', { name: 'Промзона', exact: true })).toBeVisible()
-    for (const room of MENU.rooms.industrial) {
-      const button = page.getByRole('navigation', { name: 'Локации Центра' }).getByRole('button', { name: room.to === '/farm' ? 'Фермы' : room.label, exact: true })
+    const strip = page.getByRole('navigation', { name: 'Разделы локации' })
+    for (const label of ['ЦЕНТР', 'Промзона', 'Работа', 'Мои объекты', 'Рецепты']) {
+      const button = strip.getByRole('button', { name: label, exact: true })
       await button.scrollIntoViewIfNeeded()
       await expect(button).toBeVisible()
     }
+    // Других локаций в полосе нет: переходы только через Центр.
+    await expect(strip.getByRole('button', { name: 'Фермы', exact: true })).toHaveCount(0)
 
-    // Аграрного района в макете нет; ферма и растения — комнаты Промзоны,
-    // и старый адрес обязан уводить туда же.
+    // Аграрного района в макете нет; старый адрес уводит в Промзону.
     await page.goto('/agriculture')
     await expect(page).toHaveURL(/\/district\/industrial$/)
     await expect(page.getByRole('button', { name: 'Промзона', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Фермы', exact: true })).toBeVisible()
 
     // комнаты чужого района в полосе не появляются
     await page.goto('/district/garages')

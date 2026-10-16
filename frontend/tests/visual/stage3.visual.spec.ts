@@ -94,11 +94,12 @@ test('город ведёт в разделы Этапа 3 из своих ра�
   await visualProof(page, testInfo, 'stage3-city-districts')
 })
 
-test('локации Центра подсвечивают выбранный раздел', async ({ page }) => {
+test('в локации полоса подсвечивает её раздел', async ({ page }) => {
   await authPage(page, owner)
-  for (const [path, location] of [['/market', 'market'], ['/clan-houses', 'clans'], ['/district/industrial', 'industrial'], ['/farm', 'farm']]) {
+  for (const [path, tab] of [['/market', 'board'], ['/clan-houses', 'houses'], ['/district/industrial', 'landing'], ['/farm', 'plant'], ['/pvp?tab=DUEL', 'duel']]) {
     await page.goto(path)
-    await expect(page.locator(`[data-stage-nav="${location}"]`)).toHaveClass(/is-active/)
+    await expect(page.locator(`[data-stage-nav="${tab}"]`)).toHaveClass(/is-active/)
+    await expect(page.locator('[data-stage-nav="center"]')).toHaveText('ЦЕНТР')
   }
 })
 
@@ -128,11 +129,12 @@ test('рынок объектов показывает цену и кнопку 
  * не с чем — а вот «раздел не открылся» ловится именно здесь.
  */
 const STAGE4_SCREENS: Array<[string, string, number]> = [
-  ['/territories', 'Территории', 3],
-  ['/territories/raids', 'Налёты', 3],
-  ['/territories/wars', 'Войны бригады', 3],
-  ['/premium', 'Премиум', 2],
-  ['/premium/helpers', 'Помощники', 2],
+  // Вкладки раздела живут в нижней полосе локации: ЦЕНТР и разделы.
+  ['/territories', 'Территории', 4],
+  ['/territories/raids', 'Налёты', 4],
+  ['/territories/wars', 'Войны бригады', 4],
+  ['/premium', 'Чёрный рынок', 3],
+  ['/premium/helpers', 'Помощники', 3],
 ]
 
 for (const [path, title, tabs] of STAGE4_SCREENS) {
@@ -144,9 +146,8 @@ for (const [path, title, tabs] of STAGE4_SCREENS) {
     await expect(page.locator('.viewport__title, .m-view h1').first()).toContainText(title)
     // Граница ошибок рисует эту плашку вместо раздела — значит он упал.
     await expect(page.getByText('Раздел не открылся')).toHaveCount(0)
-    if (!test.info().project.name.startsWith('mobile')) {
-      await expect(page.locator('.s3-group a')).toHaveCount(tabs)
-    }
+    await expect(page.locator('.city-locations button')).toHaveCount(tabs)
+    await expect(page.locator('.city-locations button').first()).toHaveText('ЦЕНТР')
     expect(errors).toEqual([])
   })
 }

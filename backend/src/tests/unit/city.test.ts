@@ -19,3 +19,18 @@ describe('city rules', () => {
   })
   it('limits a brigade to exactly one territory', () => expect(TERRITORY_LIMIT).toBe(1))
 })
+
+describe('бонус собаки', () => {
+  it('действует только у сытой собаки нового вида', async () => {
+    const { withPetBonus, petStatBonus } = await import('../../modules/city/city.config')
+    const now = new Date('2026-10-16T12:00:00Z')
+    const fed = new Date('2026-10-17T12:00:00Z')
+    const stats = { str: 3, agi: 3, end: 3, luck: 1 }
+    expect(withPetBonus(stats, [{ code: 'mastiff', fedUntil: fed }], now)).toEqual({ str: 3, agi: 3, end: 5, luck: 1 })
+    expect(withPetBonus(stats, [{ code: 'malinois', fedUntil: fed }], now).agi).toBe(5)
+    expect(withPetBonus(stats, [{ code: 'doberman', fedUntil: fed }], now).luck).toBe(3)
+    expect(petStatBonus([{ code: 'doberman', fedUntil: new Date('2026-10-16T11:00:00Z') }], now)).toEqual({})
+    expect(petStatBonus([{ code: 'cat', fedUntil: fed }], now)).toEqual({})
+    expect(withPetBonus(stats, undefined, now)).toEqual(stats)
+  })
+})

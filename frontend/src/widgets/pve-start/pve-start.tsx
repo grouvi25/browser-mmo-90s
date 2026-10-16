@@ -27,7 +27,8 @@ function readLoadout(): string[] {
   try { return JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '[]') } catch { return [] }
 }
 
-export function PveStart() {
+/** embedded — внутри формы заявок Стрелков: без своей рамки и заголовка. */
+export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [bot, setBot] = useState<string>(BOTS[0].code)
@@ -53,24 +54,28 @@ export function PveStart() {
     onError: err => setError(err instanceof ApiError ? err.message : 'Не удалось начать бой'),
   })
 
-  const inBattle = char?.status === 'IN_BATTLE'
-  const currentBattle = localStorage.getItem('mmo_current_battle')
+  // Номер боя спрашиваем у сервера: в localStorage его нет, если игрок
+  // зашёл с другого браузера, и тогда кнопка «В бой» гасла, а вернуться
+  // было некуда.
+  const current = useQuery({ queryKey: ['battle', 'current'], queryFn: battlesApi.current, refetchInterval: 4000 })
+  const currentBattle = current.data?.battleId ?? null
+  const inBattle = char?.status === 'IN_BATTLE' && !!currentBattle
   const hasWeapon = items.some(i => i.isEquipped && i.template.type === 'WEAPON')
   const loadout = readLoadout()
   const hpLow = char ? char.hpCurrent / char.hpMax < 0.3 : false
 
   return (
-    <div className="panel arena-pve">
-      <div className="panel-header">
+    <div className={embedded ? 'arena-pve arena-pve--embedded' : 'panel arena-pve'}>
+      {!embedded && <div className="panel-header">
         <span className="panel-title"><Swords size={13} /> Бой с ботом</span>
         {char && (
           <span className="arena-pve__hp">
             <Heart size={11} /> {char.hpCurrent} / {char.hpMax}
           </span>
         )}
-      </div>
+      </div>}
 
-      <div className="panel-body">
+      <div className={embedded ? '' : 'panel-body'}>
         <div className="arena-pve__bots">
           {BOTS.map(b => {
             const tooStrong = char ? b.level > char.battleLevel + 3 : false

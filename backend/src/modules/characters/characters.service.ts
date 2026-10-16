@@ -1,3 +1,4 @@
+import { dogSummary } from '../city/city.config'
 import { CharactersRepository } from './characters.repository'
 import { calcHpMax } from '../stats/stats.formulas'
 import { AppError } from '../../shared/errors/app-error'
@@ -77,6 +78,7 @@ export const CharactersService = {
     return {
       ...char,
       clan,
+      dog: dogSummary(char.pets),
       economy: {
         productionLevel: professions.reduce((max, item) => Math.max(max, item.level), 0),
         productionExp: professions.reduce((max, item) => Math.max(max, item.exp), 0),

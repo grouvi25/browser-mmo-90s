@@ -106,3 +106,33 @@
   .s3-group { flex-wrap: nowrap; overflow-x: auto; }
   .s3-group a { white-space: nowrap; }
 }
+
+/* Входящие приглашения в бригаду */
+.clan-invites{border:1px solid var(--s3-ink);background:var(--paper-warm,#fbeee0);padding:10px 12px;margin-bottom:14px}
+.clan-invites h3{margin:0 0 8px}
+.clan-invites ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.clan-invites li{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
+.clan-invites__actions{display:flex;gap:6px}
+
+/* Ферма: поле из участков-квадратиков (правка заказчика, 16.10.2026) */
+.farm{display:grid;gap:12px}
+.farm-how{margin:0;font-size:0.9rem}
+.farm-options{display:flex;flex-wrap:wrap;gap:6px}
+.s3 .farm-option{display:grid;gap:2px;min-height:0;padding:6px 10px;text-align:left;background:oklch(96% .018 76);max-width:260px}
+.farm-option b{display:flex;align-items:center;gap:5px;font-size:0.9rem}
+.farm-option span{font-size:0.78rem;color:oklch(38% .025 55)}
+.s3 .farm-option.is-active{background:oklch(85% .06 76);box-shadow:inset 0 0 0 2px var(--s3-ink)}
+.farm-field{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px;background:oklch(62% .06 70);border:2px solid oklch(42% .04 55)}
+.s3 .farm-tile{position:relative;aspect-ratio:2/1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px;text-align:center;background:oklch(48% .07 55);color:oklch(96% .02 80);border:2px solid oklch(35% .05 50)}
+.s3 .farm-tile:hover:not(:disabled){background:oklch(52% .08 58)}
+.farm-tile.state-growing{background:oklch(47% .08 120)!important}
+.farm-tile.state-ready{background:oklch(78% .12 95)!important;color:oklch(22% .03 60)}
+.farm-tile.state-withered{background:oklch(45% .03 40)!important}
+.s3 .farm-tile.is-selected{outline:3px solid oklch(92% .12 95);outline-offset:-5px}
+.farm-tile__num{position:absolute;top:4px;left:6px;font:700 0.85rem/1 'Sign',sans-serif}
+.farm-tile__name{font-weight:700;font-size:0.85rem}
+.farm-tile small{font-size:0.7rem}
+.farm-tile__building{position:absolute;bottom:4px;left:4px;right:4px;display:flex;align-items:center;justify-content:center;gap:3px;font-size:0.7rem;background:oklch(30% .03 50 / .7);padding:1px 3px}
+.s3 .farm-tile--buy{background:oklch(80% .04 75);color:var(--s3-ink);border-style:dashed}
+.farm-act{display:flex;flex-wrap:wrap;align-items:center;gap:10px;min-height:44px}
+@media(max-width:800px){.farm-field{grid-template-columns:repeat(3,minmax(0,1fr))}.s3 .farm-tile{aspect-ratio:1/1}.farm-tile small{font-size:0.65rem}}

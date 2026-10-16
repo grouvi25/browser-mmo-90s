@@ -194,7 +194,7 @@ export function AppRouter() {
           </ViewportPanel>} />
 
         <Route path="/inventory" element={
-          <ViewportPanel title="Склад" subtitle="Инвентарь и экипировка">
+          <ViewportPanel title="Склад" subtitle="Снаряжение">
             <InventoryPage />
           </ViewportPanel>} />
 
@@ -214,27 +214,29 @@ export function AppRouter() {
           </ViewportPanel>} />
 
         <Route path="/resources" element={
-          <ViewportPanel title="Сырьё" subtitle="Материалы, детали и общий вес">
+          <ViewportPanel title="Склад" subtitle="Сырьё и детали">
             <ResourcesPage />
           </ViewportPanel>} />
 
         <Route path="/skills" element={
-          <ViewportPanel title="Владение оружием">
+          // Характеристики и оружейные навыки — одна локация «Навыки»
+          // с двумя вкладками внизу (правка заказчика).
+          <ViewportPanel title="Навыки" subtitle="Оружейные навыки">
             <SkillsPage />
           </ViewportPanel>} />
 
         <Route path="/stats" element={
-          <ViewportPanel title="Характеристики">
+          <ViewportPanel title="Навыки" subtitle="Характеристики">
             <StatsPage />
           </ViewportPanel>} />
 
         <Route path="/pvp" element={
-          <ViewportPanel title="Стрелки" subtitle="Бои с ботами, дуэли и командные">
+          <ViewportPanel title="Стрелки" subtitle="Заявки на бой и бой с ботом">
             <ArenaPage />
           </ViewportPanel>} />
 
         <Route path="/battles/history" element={
-          <ViewportPanel title="История боёв">
+          <ViewportPanel title="Стрелки" subtitle="История боёв">
             <BattleHistoryPage />
           </ViewportPanel>} />
 

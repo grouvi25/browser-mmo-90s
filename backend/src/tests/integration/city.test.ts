@@ -15,7 +15,7 @@ beforeEach(async () => { await cleanDatabase(); await testPrisma.itemTemplate.de
 async function player(money = 100000) {
   const login = uid('city')
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'test-only' } })
-  const character = await testPrisma.character.create({ data: { userId: user.id, nickname: login, archetype: 'WORKER', hpMax: 100, hpCurrent: 100, money } })
+  const character = await testPrisma.character.create({ data: { userId: user.id, nickname: login, archetype: 'WORKER', hpMax: 100, hpCurrent: 100, money, dollars: 100 } })
   const jti = randomUUID(); await storeSession(jti, user.id)
   const token = app.jwt.sign({ sub: user.id, jti })
   return { user, character, headers: { authorization: `Bearer ${token}`, 'idempotency-key': randomUUID() } }
@@ -30,7 +30,7 @@ describe('city locations and purchases', () => {
     expect((await app.inject({ url: '/api/city/pets' })).statusCode).toBe(401)
     const p = await player()
     expect((await app.inject({ method: 'PUT', url: '/api/city/location', headers: p.headers, payload: { path: 1 } })).statusCode).toBe(422)
-    expect((await app.inject({ method: 'POST', url: '/api/city/pets', headers: { authorization: p.headers.authorization }, payload: { code: 'cat' } })).statusCode).toBe(422)
+    expect((await app.inject({ method: 'POST', url: '/api/city/pets', headers: { authorization: p.headers.authorization }, payload: { code: 'mastiff' } })).statusCode).toBe(422)
   })
   it('buys a profession once, preserves progression and replays without double debit', async () => {
     const p = await player(); const k = randomUUID()
@@ -42,7 +42,7 @@ describe('city locations and purchases', () => {
   })
   it('does not spend money when a purchase cannot be completed', async () => {
     const p = await player(1)
-    await expect(CityService.buyPet(p.character.id, 'cat', randomUUID())).rejects.toThrow()
+    await expect(CityService.buyPet(p.character.id, 'mastiff', randomUUID())).rejects.toThrow()
     expect(await testPrisma.characterPet.count({ where: { characterId: p.character.id } })).toBe(0)
     expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).money).toBe(1)
   })
@@ -50,6 +50,10 @@ describe('city locations and purchases', () => {
     const p = await player(); const item = (await CityService.catalog('tsum')).items[0]
     const bought = await CityService.buyItem(p.character.id, 'tsum', item.id, randomUUID())
     expect(bought.item.freePoints).toBe(item.statBudget)
+    // ЦУМ торгует за доллары: рубли не тронуты (правка заказчика).
+    const after = await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })
+    expect(after.money).toBe(100000)
+    expect(after.dollars).toBe(100 - item.priceDollars!)
     expect(bought.item.statAllocation).toBe(null)
     await ItemStatsService.allocate(p.character.id, bought.item.id, 'DAMAGE', 2)
     expect((await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: bought.item.id } })).freePoints).toBe(item.statBudget - 2)
@@ -71,32 +75,47 @@ describe('city locations and purchases', () => {
     await testPrisma.itemInstance.update({ where: { id: item.id }, data: { durabilityCurrent: 0 } })
     expect(await CityService.expBonus(p.character.id)).toBe(0)
   })
-  it('buys food, feeds once and rejects another player using the pet', async () => {
+  it('корм покупается сроком: рубли и доллары, чужой собаке не скормить', async () => {
     const p = await player(); const other = await player()
-    const { pet } = await CityService.buyPet(p.character.id, 'cat', randomUUID())
-    await expect(CityService.feed(p.character.id, pet.id, randomUUID())).rejects.toThrow()
-    await CityService.buyFood(p.character.id, pet.id, 2, randomUUID())
-    await expect(CityService.feed(other.character.id, pet.id, randomUUID())).rejects.toThrow()
-    const k = randomUUID(); await CityService.feed(p.character.id, pet.id, k); await CityService.feed(p.character.id, pet.id, k)
-    expect((await testPrisma.characterPet.findUniqueOrThrow({ where: { id: pet.id } })).food).toBe(1)
-    await expect(CityService.feed(p.character.id, pet.id, randomUUID())).rejects.toThrow()
+    const { pet } = await CityService.buyPet(p.character.id, 'mastiff', randomUUID())
+    await expect(CityService.buyFeedPack(other.character.id, pet.id, 'food_72h', randomUUID())).rejects.toThrow()
+    const k = randomUUID()
+    await CityService.buyFeedPack(p.character.id, pet.id, 'food_72h', k)
+    await CityService.buyFeedPack(p.character.id, pet.id, 'food_72h', k) // повтор запроса не списывает дважды
+    const fed = (await testPrisma.characterPet.findUniqueOrThrow({ where: { id: pet.id } })).fedUntil!
+    expect(fed.getTime() - Date.now()).toBeGreaterThan(71 * 3_600_000)
+    expect(fed.getTime() - Date.now()).toBeLessThan(73 * 3_600_000)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).money).toBe(100000 - 3000 - 150)
+
+    // Двухнедельный корм — за доллары, срок прибавляется к уже купленному.
+    await testPrisma.character.update({ where: { id: p.character.id }, data: { dollars: 0 } })
+    await expect(CityService.buyFeedPack(p.character.id, pet.id, 'food_2w', randomUUID())).rejects.toThrow('долларов')
+    await testPrisma.character.update({ where: { id: p.character.id }, data: { dollars: 10 } })
+    await CityService.buyFeedPack(p.character.id, pet.id, 'food_2w', randomUUID())
+    const after = await testPrisma.characterPet.findUniqueOrThrow({ where: { id: pet.id } })
+    expect(after.fedUntil!.getTime() - fed.getTime()).toBe(336 * 3_600_000)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).dollars).toBe(5)
   })
-  it('prevents duplicated concurrent pet purchases', async () => {
+  it('одна собака на персонажа: кота нет, вторую породу не купить', async () => {
     const p = await player()
-    const attempts = await Promise.allSettled([CityService.buyPet(p.character.id, 'dog', randomUUID()), CityService.buyPet(p.character.id, 'dog', randomUUID())])
+    await expect(CityService.buyPet(p.character.id, 'cat', randomUUID())).rejects.toThrow()
+    const attempts = await Promise.allSettled([
+      CityService.buyPet(p.character.id, 'mastiff', randomUUID()),
+      CityService.buyPet(p.character.id, 'doberman', randomUUID()),
+    ])
     expect(attempts.filter(a => a.status === 'fulfilled')).toHaveLength(1)
     expect(await testPrisma.characterPet.count({ where: { characterId: p.character.id } })).toBe(1)
-    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).money).toBe(98500)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).money).toBe(97000)
   })
   it('enforces prison server-side, releases automatically, keeps GET available', async () => {
     const p = await player()
     await testPrisma.character.update({ where: { id: p.character.id }, data: { jailedUntil: new Date(Date.now() + 3600000), jailReason: 'Тестовое наказание' } })
     expect((await CityService.location(p.user.id)).path).toBe('/prison')
-    expect((await app.inject({ method: 'POST', url: '/api/city/pets', headers: p.headers, payload: { code: 'cat' } })).statusCode).toBe(403)
+    expect((await app.inject({ method: 'POST', url: '/api/city/pets', headers: p.headers, payload: { code: 'mastiff' } })).statusCode).toBe(403)
     expect((await app.inject({ url: '/api/city/location', headers: p.headers })).statusCode).toBe(200)
     await expect(CityService.move(p.user.id, '/school')).rejects.toThrow()
     await testPrisma.character.update({ where: { id: p.character.id }, data: { jailedUntil: new Date(0) } })
-    expect((await app.inject({ method: 'POST', url: '/api/city/pets', headers: p.headers, payload: { code: 'cat' } })).statusCode).toBe(200)
+    expect((await app.inject({ method: 'POST', url: '/api/city/pets', headers: p.headers, payload: { code: 'mastiff' } })).statusCode).toBe(200)
   })
   it('admin jail and release execute and write reversible audit records', async () => {
     const p = await player(); const id = randomUUID()
