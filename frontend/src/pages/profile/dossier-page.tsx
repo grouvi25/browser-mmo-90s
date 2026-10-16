@@ -3,6 +3,7 @@
 // Раньше профиль жил в общей колонке вместе со всем остальным;
 // по макету это самостоятельный экран со своим фоном.
 // =============================================================
+import { dogBonusText, dogTitle } from '../../shared/lib/dog'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -83,6 +84,7 @@ export function DossierPage() {
   const dossier: string[] = char ? [
     `Местоположение: ${locationLabel(char.location)}`,
     `Бригада: ${char.clan ? `«${char.clan.name}»` : 'не состоит'}`,
+    `Собака: ${char.dog ? `${char.dog.name}${char.dog.fed ? ` (${dogBonusText(char.dog.bonus)})` : ' — голодная'}` : 'нет'}`,
     '',
     'Уровни:',
     `1. Боевой — ${char.battleLevel}`,
@@ -155,8 +157,8 @@ export function DossierPage() {
             title={weapon ? weapon.template.name : 'Оружие не надето'} onClick={() => navigate('/inventory')} />
           <SpriteButton name="p-item-bat" box={{ x: 0, y: 0, w: 84, h: 88 }} empty={!offhand}
             title={offhand ? offhand.template.name : 'Правая рука свободна'} onClick={() => navigate('/inventory')} />
-          <SpriteButton name="p-item-dog" box={{ x: 0, y: 0, w: 62, h: 93 }} disabled
-            title="Питомцы появятся в Этапе 3" />
+          <SpriteButton name="p-item-dog" box={{ x: 0, y: 0, w: 62, h: 93 }} empty={!char?.dog}
+            title={dogTitle(char?.dog)} onClick={() => navigate('/pet-shop')} />
         </div>
 
         <div className="m-dossier__notes">
@@ -235,7 +237,7 @@ export function DossierPage() {
         className="dossier-body"
         style={{
           left: PROFILE.dossier.x, top: PROFILE.dossier.y,
-          width: PROFILE.dossier.w, fontSize: PROFILE.dossier.size,
+          width: PROFILE.dossier.w, height: PROFILE.dossier.h, fontSize: PROFILE.dossier.size,
           lineHeight: `${PROFILE.dossier.lineHeight}px`,
         }}
       >
@@ -256,8 +258,8 @@ export function DossierPage() {
         onClick={() => navigate('/inventory')}
       />
       <SpriteButton
-        name="p-item-dog" box={PROFILE.slots[2].box} disabled
-        title="Питомцы появятся в Этапе 3"
+        name="p-item-dog" box={PROFILE.slots[2].box} empty={!char?.dog}
+        title={dogTitle(char?.dog)} onClick={() => navigate('/pet-shop')}
       />
 
       {/* записная книжка — сохраняется локально */}

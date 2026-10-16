@@ -3,6 +3,7 @@ import { withIdempotency } from '../../shared/db/idempotency'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
 import { EconomyService } from '../economy/economy.service'
+import { DollarsService } from '../dollars/dollars.service'
 import { PROFESSION_CODES, PROFESSION_NAMES, isProfessionCode } from '../professions/professions'
 import { CityConfig, artifactBonus, inPrison, validCityPath } from './city.config'
 
@@ -62,26 +63,40 @@ export const CityService = {
     } })
   },
   async pets(characterId: string) {
-    return { catalog: CityConfig.pets, foodPrice: CityConfig.foodPrice, feedingHours: CityConfig.feedingHours,
+    return { catalog: CityConfig.pets, packs: CityConfig.feedPacks, feedingHours: CityConfig.feedingHours,
       owned: await prisma.characterPet.findMany({ where: { characterId }, orderBy: { createdAt: 'asc' } }) }
   },
   async buyPet(characterId: string, code: string, key: string) {
     const entry = CityConfig.pets.find(p => p.code === code)
     if (!entry) throw AppError.validation('Неизвестный питомец')
-    return withIdempotency({ characterId, scope: `city.pet.${code}`, key, execute: async tx => {
-      if (await tx.characterPet.findUnique({ where: { characterId_code: { characterId, code } } })) throw AppError.conflict('Этот питомец уже есть')
+    return withIdempotency({ characterId, scope: `city.pet`, key, execute: async tx => {
+      // Одна собака на персонажа: в профиле под неё одна ячейка. Строка
+      // персонажа блокируется, чтобы две разные породы, купленные разом,
+      // не прошли проверку обе.
+      await tx.$executeRaw`SELECT id FROM characters WHERE id = ${characterId} FOR UPDATE`
+      const dogs = CityConfig.pets.map(p => p.code)
+      if (await tx.characterPet.findFirst({ where: { characterId, code: { in: dogs } } })) throw AppError.conflict('Собака у вас уже есть')
       await EconomyService.debit(tx, { characterId, amount: entry.price, reasonCode: 'SHOP_PURCHASE', refType: 'pet', refId: code })
       return { pet: await tx.characterPet.create({ data: { characterId, code, name: entry.name } }) }
     } })
   },
-  async buyFood(characterId: string, petId: string, quantity: number, key: string) {
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > CityConfig.maxFood) throw AppError.validation('Недопустимое количество корма')
+  /** Корм покупается сроком: собака сыта ещё на столько часов. */
+  async buyFeedPack(characterId: string, petId: string, packCode: string, key: string) {
+    const pack = CityConfig.feedPacks.find(p => p.code === packCode)
+    if (!pack) throw AppError.validation('Неизвестный корм')
     return withIdempotency({ characterId, scope: `city.food.${petId}`, key, execute: async tx => {
       const pet = await tx.characterPet.findFirst({ where: { id: petId, characterId } })
       if (!pet) throw AppError.notFound('Питомец')
-      if (pet.food + quantity > CityConfig.maxFood) throw AppError.conflict('Запас корма не может превышать 100')
-      await EconomyService.debit(tx, { characterId, amount: CityConfig.foodPrice * quantity, reasonCode: 'SHOP_PURCHASE', refType: 'pet-food', refId: petId })
-      return { pet: await tx.characterPet.update({ where: { id: petId }, data: { food: { increment: quantity } } }) }
+      const now = Date.now()
+      const from = Math.max(now, pet.fedUntil?.getTime() ?? 0)
+      const until = from + pack.hours * 3_600_000
+      if (until > now + CityConfig.maxFedDays * 86_400_000) throw AppError.conflict(`Больше чем на ${CityConfig.maxFedDays} дней вперёд не накормить`)
+      if (pack.currency === 'USD') {
+        await DollarsService.debit(tx, { characterId, amount: pack.price, reason: 'PURCHASE', refId: pet.id, note: pack.name })
+      } else {
+        await EconomyService.debit(tx, { characterId, amount: pack.price, reasonCode: 'SHOP_PURCHASE', refType: 'pet-food', refId: petId })
+      }
+      return { pet: await tx.characterPet.update({ where: { id: petId }, data: { fedUntil: new Date(until) } }) }
     } })
   },
   async feed(characterId: string, petId: string, key: string) {

@@ -49,6 +49,7 @@ import {
 import {
   calcBattleExp,
 } from '../stats/stats.formulas'
+import { withPetBonus } from '../city/city.config'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
 import { applyBattleProgression } from '../experience/progression'
@@ -280,7 +281,8 @@ async function buildAttackerSnapshotAsync(
   weaponSkillLevel: number,
   equippedArmor: ItemWithTemplate[]
 ): Promise<AttackerSnapshot> {
-  const s = char.stats!
+  // Сытая собака из Зоомагазина добавляет к характеристикам (правка заказчика).
+  const s = withPetBonus(char.stats!, char.pets)
   const t = weapon?.template
   const effectiveWeapon = t
     ? applyUpgradeModifiers(t, ((weapon?.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), weapon?.statAllocation, weapon?.socketsJson)
@@ -316,7 +318,7 @@ function buildDefenderSnapshot(
   antiSkillLevel = 0,
   equippedWeapon?: ItemWithTemplate | null  // нужен для ответки
 ): DefenderSnapshot {
-  const s = char.stats!
+  const s = withPetBonus(char.stats!, char.pets)
   const effectiveArmor = equippedArmor.map(a => applyUpgradeModifiers(a.template, ((a.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), a.statAllocation, a.socketsJson))
   const totalArmor   = effectiveArmor.reduce((sum, a) => sum + a.armor, 0)
   const antiCrit     = effectiveArmor.reduce((sum, a) => sum + a.antiCrit, 0)

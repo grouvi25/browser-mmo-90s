@@ -1,20 +1,22 @@
 import { prisma } from '../../shared/db/prisma'
-import type { Character, CharacterStats } from '@prisma/client'
+import type { Character, CharacterPet, CharacterStats } from '@prisma/client'
 
-export type CharacterWithStats = Character & { stats: CharacterStats | null }
+/** pets — для бонуса сытой собаки в бою; там, где персонаж собран
+    вручную (тесты, симуляции), их может не быть. */
+export type CharacterWithStats = Character & { stats: CharacterStats | null; pets?: CharacterPet[] }
 
 export const CharactersRepository = {
   async findByUserId(userId: string): Promise<CharacterWithStats | null> {
     return prisma.character.findUnique({
       where: { userId },
-      include: { stats: true },
+      include: { stats: true, pets: true },
     })
   },
 
   async findById(id: string): Promise<CharacterWithStats | null> {
     return prisma.character.findUnique({
       where: { id },
-      include: { stats: true },
+      include: { stats: true, pets: true },
     })
   },
 

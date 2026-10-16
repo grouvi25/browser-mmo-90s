@@ -791,7 +791,8 @@ html, body {
 .dossier-search::placeholder { color: #4a4038; }
 .dossier-body {
   position: absolute; font-family: var(--font-ui); color: #000;
-  white-space: pre; transform-origin: left top;
+  /* Длинные строки (профессии, бригада) переносятся, а не вылезают за лист. */
+  white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; transform-origin: left top;
 }
 .dossier-notes {
   position: absolute; background: transparent; border: 0; outline: 0; resize: none;
@@ -918,3 +919,5 @@ html, body {
 .house-siege__fields input, .house-siege__fields select, .house-wall__form input { font:inherit; padding:3px 5px; min-width:0; }
 .house-wall__form input { flex:1 1 220px; }
 .house-wall i, .house-members i { color:var(--text-dim); font-size:13px; }
+.city-card--dog { margin-bottom: 12px; }
+.city-feed { display: flex; flex-wrap: wrap; gap: 6px; }

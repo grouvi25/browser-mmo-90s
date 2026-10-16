@@ -23,6 +23,7 @@ import type { ItemInstance } from '../../shared/types/api.types'
 import { ARMOR_SLOT_LABELS, WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
 import { itemImage } from '../../shared/assets/shop/shop-images'
 import { IntoxicationBadge } from '../intoxication-badge/intoxication-badge'
+import { dogTitle } from '../../shared/lib/dog'
 
 const C = MENU.card
 
@@ -216,9 +217,10 @@ export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
           <SpriteButton
             name="item-dog"
             box={C.slots[2].box}
+            empty={own ? !char?.dog : true}
             disabled={!own}
             onClick={own ? () => navigate('/pet-shop') : undefined}
-            title="Питомцы — открыть Зоомагазин"
+            title={own ? dogTitle(char?.dog) : 'Собака'}
           />
 
           {/* зоны тела — цели ударов в бою */}

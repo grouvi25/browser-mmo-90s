@@ -5,6 +5,7 @@ import { cityApi } from '../../shared/api/city.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { charactersApi } from '../../shared/api/characters.api'
 import { ViewportPanel } from '../../shared/ui/viewport-panel'
+import { dogBonusText } from '../../shared/lib/dog'
 import { BrigadeHouses } from './brigade-houses'
 import { IncomingInvites } from '../stage3/clan-invites'
 import '../stage3/stage3.css'
@@ -67,18 +68,33 @@ function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
       <b>{item.priceBase.toLocaleString('ru')} ₽</b><button className="btn btn-primary" disabled={action.isPending} onClick={() => action.mutate(item.id)}>Купить</button></article>)}</div>
     <Link to="/inventory">На Склад: надеть и распределить характеристики →</Link></>
 }
+/** Зоомагазин (правка заказчика): три собаки, у каждой свой бонус в бою,
+    корм сроком на 72 и 144 часа за рубли и на 2 недели за доллары. */
 function Pets() {
   const q = useQuery({ queryKey: ['city', 'pets'], queryFn: cityApi.pets, refetchInterval: 60_000 })
-  const action = useCityAction(async (value: { kind: 'buy' | 'food' | 'feed'; id: string }) => value.kind === 'buy' ? cityApi.buyPet(value.id) : value.kind === 'food' ? cityApi.food(value.id, 1) : cityApi.feed(value.id))
-  return <><p>Питомцы и корм. Одна порция кормит питомца на {q.data?.feedingHours ?? 24} часа.</p>
+  const action = useCityAction(async (value: { kind: 'buy' | 'food' | 'feed'; id: string; pack?: string }) =>
+    value.kind === 'buy' ? cityApi.buyPet(value.id) : value.kind === 'food' ? cityApi.food(value.id, value.pack!) : cityApi.feed(value.id))
+  const catalog = q.data?.catalog ?? []
+  const dog = q.data?.owned.find(p => catalog.some(c => c.code === p.code))
+  const entry = catalog.find(c => c.code === dog?.code)
+  const fed = !!dog?.fedUntil && new Date(dog.fedUntil) > new Date()
+  return <><p>Собака даёт бонус к характеристикам в бою, пока сыта. Собака одна — она видна в профиле.</p>
     <QueryState loading={q.isLoading} error={q.isError} retry={q.refetch} /><Message error={action.error} success={action.isSuccess} />
-    <div className="city-cards">{q.data?.catalog.map(p => <article className="city-card" key={p.code}><h2>{p.name}</h2><b>{p.price.toLocaleString('ru')} ₽</b>
-      <button className="btn" disabled={action.isPending || q.data?.owned.some(o => o.code === p.code)} onClick={() => action.mutate({ kind: 'buy', id: p.code })}>Купить питомца</button></article>)}</div>
-    <h2>Мои питомцы</h2>{q.data?.owned.length === 0 && <p>Пока нет питомцев.</p>}
-    <div className="city-cards">{q.data?.owned.map(p => { const fed = !!p.fedUntil && new Date(p.fedUntil) > new Date(); return <article className="city-card" key={p.id}><h2>{p.name}</h2>
-      <p>Корм: {p.food} · {fed ? `Сыт до ${new Date(p.fedUntil!).toLocaleString('ru')}` : 'Голоден'}</p>
-      <button className="btn" disabled={action.isPending || p.food >= 100} onClick={() => action.mutate({ kind: 'food', id: p.id })}>Купить корм · {q.data?.foodPrice} ₽</button>
-      <button className="btn" disabled={action.isPending || fed || p.food === 0} onClick={() => action.mutate({ kind: 'feed', id: p.id })}>Покормить</button></article> })}</div></>
+    {dog && entry && <article className="city-card city-card--dog">
+      <h2>Ваша собака: {entry.name}</h2>
+      <p>{entry.role} · {dogBonusText(entry.bonus)} {fed ? '' : '(не действует, пока голодная)'}</p>
+      <p><b>{fed ? `Сыта до ${new Date(dog.fedUntil!).toLocaleString('ru')}` : 'Голодная'}</b></p>
+      <div className="city-feed">{q.data?.packs.map(pack => <button key={pack.code} className="btn" disabled={action.isPending}
+        onClick={() => action.mutate({ kind: 'food', id: dog.id, pack: pack.code })}>
+        {pack.name} · {pack.price.toLocaleString('ru')} {pack.currency === 'USD' ? '$' : '₽'}</button>)}
+        {dog.food > 0 && !fed && <button className="btn" disabled={action.isPending} onClick={() => action.mutate({ kind: 'feed', id: dog.id })}>Скормить старую порцию ({dog.food})</button>}
+      </div>
+      <p className="muted">Корм прибавляет срок к уже купленному.</p>
+    </article>}
+    <div className="city-cards">{catalog.map(p => <article className="city-card" key={p.code}><h2>{p.name}</h2>
+      <p>{p.role} · {dogBonusText(p.bonus)}</p><b>{p.price.toLocaleString('ru')} ₽</b>
+      <button className="btn" disabled={action.isPending || !!dog} title={dog ? 'Собака у вас уже есть' : undefined}
+        onClick={() => action.mutate({ kind: 'buy', id: p.code })}>{dog?.code === p.code ? 'Ваша собака' : 'Купить собаку'}</button></article>)}</div></>
 }
 function Prison() {
   const q = useQuery({ queryKey: ['city', 'prison'], queryFn: cityApi.location, refetchInterval: 10_000 })
