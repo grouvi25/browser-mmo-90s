@@ -43,3 +43,7 @@
 .bapps-side .btn { justify-self: start; }
 .bapps-list-title { font-size: 15px; }
 .arena-pve--embedded { display: grid; gap: 8px; }
+/* Серый и ссылочный цвета темы на тёплой бумаге строки не добирали
+   контраста AA (4.07 и 4.22 из 4.5). */
+.bapps-row .muted, .bapps-empty { color: #5c5047; }
+.bapps-row a { color: #6a5000; }
