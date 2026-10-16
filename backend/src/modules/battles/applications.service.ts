@@ -246,6 +246,17 @@ export const ApplicationsService = {
         select: { battle: { select: { id: true, startsAt: true } } },
       }),
     ])
+    // Статус «в бою» без боя не даёт ни драться, ни вернуться: отпускаем
+    // сразу, не дожидаясь минутной уборки воркера.
+    if (!battle && char.status === 'IN_BATTLE') {
+      await prisma.character.updateMany({
+        where: {
+          id: char.id, status: 'IN_BATTLE',
+          battlesAsParticipant: { none: { battle: { status: { in: ['CREATED', 'WAITING_PLAYERS', 'ACTIVE'] } } } },
+        },
+        data: { status: 'ACTIVE' },
+      })
+    }
     return {
       battleId: battle?.battleId ?? null,
       application: application ? { battleId: application.battle.id, startsAt: application.battle.startsAt } : null,

@@ -34,8 +34,10 @@ async function startWorker(): Promise<void> {
   await redis.ping()
   logger.info('✅ Redis connected')
 
-  // ─── Cron: Orphaned battles cleanup (every 5 minutes) ────────────────────
-  const CLEANUP_INTERVAL_MS = 5 * 60 * 1000
+  // ─── Cron: Orphaned battles cleanup (every minute) ───────────────────────
+  // Раз в минуту, а не в пять: бой без состояния в Redis держит игрока на
+  // экране боя, и каждая лишняя минута — это «я завис в бою».
+  const CLEANUP_INTERVAL_MS = 60 * 1000
 
   const runCleanup = async () => {
     try {
@@ -45,10 +47,10 @@ async function startWorker(): Promise<void> {
     }
   }
 
-  // Run once on startup, then every 5 min
+  // Run once on startup, then every minute
   await runCleanup()
   const cleanupTimer = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
-  logger.info('✅ Battle cleanup cron started (every 5 min)')
+  logger.info('✅ Battle cleanup cron started (every 1 min)')
 
   // ─── Cron: HP recovery (every 10 seconds) ────────────────────────────────
   const hpRecoveryTimer = setInterval(async () => {

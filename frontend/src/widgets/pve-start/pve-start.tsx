@@ -53,8 +53,12 @@ export function PveStart() {
     onError: err => setError(err instanceof ApiError ? err.message : 'Не удалось начать бой'),
   })
 
-  const inBattle = char?.status === 'IN_BATTLE'
-  const currentBattle = localStorage.getItem('mmo_current_battle')
+  // Номер боя спрашиваем у сервера: в localStorage его нет, если игрок
+  // зашёл с другого браузера, и тогда кнопка «В бой» гасла, а вернуться
+  // было некуда.
+  const current = useQuery({ queryKey: ['battle', 'current'], queryFn: battlesApi.current, refetchInterval: 4000 })
+  const currentBattle = current.data?.battleId ?? null
+  const inBattle = char?.status === 'IN_BATTLE' && !!currentBattle
   const hasWeapon = items.some(i => i.isEquipped && i.template.type === 'WEAPON')
   const loadout = readLoadout()
   const hpLow = char ? char.hpCurrent / char.hpMax < 0.3 : false
