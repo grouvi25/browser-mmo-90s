@@ -135,4 +135,4 @@
 .farm-tile__building{position:absolute;bottom:4px;left:4px;right:4px;display:flex;align-items:center;justify-content:center;gap:3px;font-size:0.7rem;background:oklch(30% .03 50 / .7);padding:1px 3px}
 .s3 .farm-tile--buy{background:oklch(80% .04 75);color:var(--s3-ink);border-style:dashed}
 .farm-act{display:flex;flex-wrap:wrap;align-items:center;gap:10px;min-height:44px}
-@media(max-width:800px){.farm-field{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:800px){.farm-field{grid-template-columns:repeat(3,minmax(0,1fr))}.s3 .farm-tile{aspect-ratio:1/1}.farm-tile small{font-size:0.65rem}}
