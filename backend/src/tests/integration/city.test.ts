@@ -15,7 +15,7 @@ beforeEach(async () => { await cleanDatabase(); await testPrisma.itemTemplate.de
 async function player(money = 100000) {
   const login = uid('city')
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'test-only' } })
-  const character = await testPrisma.character.create({ data: { userId: user.id, nickname: login, archetype: 'WORKER', hpMax: 100, hpCurrent: 100, money } })
+  const character = await testPrisma.character.create({ data: { userId: user.id, nickname: login, archetype: 'WORKER', hpMax: 100, hpCurrent: 100, money, dollars: 100 } })
   const jti = randomUUID(); await storeSession(jti, user.id)
   const token = app.jwt.sign({ sub: user.id, jti })
   return { user, character, headers: { authorization: `Bearer ${token}`, 'idempotency-key': randomUUID() } }
@@ -50,6 +50,10 @@ describe('city locations and purchases', () => {
     const p = await player(); const item = (await CityService.catalog('tsum')).items[0]
     const bought = await CityService.buyItem(p.character.id, 'tsum', item.id, randomUUID())
     expect(bought.item.freePoints).toBe(item.statBudget)
+    // ЦУМ торгует за доллары: рубли не тронуты (правка заказчика).
+    const after = await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })
+    expect(after.money).toBe(100000)
+    expect(after.dollars).toBe(100 - item.priceDollars!)
     expect(bought.item.statAllocation).toBe(null)
     await ItemStatsService.allocate(p.character.id, bought.item.id, 'DAMAGE', 2)
     expect((await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: bought.item.id } })).freePoints).toBe(item.statBudget - 2)
@@ -84,6 +88,7 @@ describe('city locations and purchases', () => {
     expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).money).toBe(100000 - 3000 - 150)
 
     // Двухнедельный корм — за доллары, срок прибавляется к уже купленному.
+    await testPrisma.character.update({ where: { id: p.character.id }, data: { dollars: 0 } })
     await expect(CityService.buyFeedPack(p.character.id, pet.id, 'food_2w', randomUUID())).rejects.toThrow('долларов')
     await testPrisma.character.update({ where: { id: p.character.id }, data: { dollars: 10 } })
     await CityService.buyFeedPack(p.character.id, pet.id, 'food_2w', randomUUID())

@@ -25,6 +25,10 @@ export const CityConfig = {
     { code: 'tsum_named_jacket', name: 'Именная куртка', type: 'ARMOR' as const, weaponType: null, armorSlot: 'CHEST' as const, price: 30000, budget: 24 },
   ],
   artifact: { code: 'berezka_experience_amulet', name: 'Талисман опыта', price: 40000, bonus: 0.1 },
+  /** Правка заказчика: ЦУМ и Берёзка — обычные магазины «только за другую
+      валюту». Цена в долларах; рублёвая priceBase шаблона остаётся для
+      ремонта и оценки вещи. */
+  dollarPrices: { tsum_named_knife: 20, tsum_named_jacket: 25, berezka_experience_amulet: 30 } as Record<string, number>,
 } as const
 export const CITY_PATHS = ['/', '/pvp', '/market', '/shop', '/district/industrial', '/district/garages',
   '/city-hall', '/inventory', '/farm', '/school', '/prison', '/clan-houses', '/tsum', '/berezka',

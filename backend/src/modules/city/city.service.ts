@@ -45,7 +45,8 @@ export const CityService = {
   },
   async catalog(kind: 'tsum' | 'berezka') {
     const codes = kind === 'tsum' ? CityConfig.namedItems.map(i => i.code) : [CityConfig.artifact.code]
-    return { items: await prisma.itemTemplate.findMany({ where: { code: { in: codes }, isActive: true }, orderBy: { priceBase: 'asc' } }) }
+    const items = await prisma.itemTemplate.findMany({ where: { code: { in: codes }, isActive: true }, orderBy: { priceBase: 'asc' } })
+    return { currency: 'USD' as const, items: items.map(item => ({ ...item, priceDollars: CityConfig.dollarPrices[item.code] ?? null })) }
   },
   async buyItem(characterId: string, kind: 'tsum' | 'berezka', templateId: string, key: string) {
     return withIdempotency({ characterId, scope: `city.${kind}.${templateId}`, key, execute: async tx => {
@@ -54,12 +55,14 @@ export const CityService = {
       if (!template?.isActive || !codes.includes(template.code)) throw AppError.notFound('Предмет')
       const char = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
       if (char.status === 'IN_BATTLE') throw AppError.conflict('Покупка недоступна во время боя')
-      const newBalance = await EconomyService.debit(tx, { characterId, amount: template.priceBase, reasonCode: 'SHOP_PURCHASE', refType: kind, refId: template.id })
+      const priceDollars = CityConfig.dollarPrices[template.code]
+      if (!priceDollars) throw AppError.notFound('Предмет')
+      const dollars = await DollarsService.debit(tx, { characterId, amount: priceDollars, reason: 'PURCHASE', refId: template.id, note: template.name })
       const item = await tx.itemInstance.create({ data: { templateId, ownerId: characterId, sourceType: 'DONATE', quality: template.qualityBase,
         durabilityCurrent: template.durabilityMax, durabilityMax: template.durabilityMax, weight: template.weight,
         freePoints: template.allocationMode === 'PLAYER' ? template.statBudget : 0 } })
-      await tx.itemLog.create({ data: { itemId: item.id, characterId, actionCode: 'CREATED_FROM_SHOP', details: { shop: kind, price: template.priceBase } } })
-      return { item, newBalance }
+      await tx.itemLog.create({ data: { itemId: item.id, characterId, actionCode: 'CREATED_FROM_SHOP', details: { shop: kind, priceDollars } } })
+      return { item, dollars }
     } })
   },
   async pets(characterId: string) {

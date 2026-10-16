@@ -5,6 +5,9 @@ import { cityApi } from '../../shared/api/city.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { charactersApi } from '../../shared/api/characters.api'
 import { ViewportPanel } from '../../shared/ui/viewport-panel'
+import { SPRITES } from '../../shared/ui/sprite'
+import { itemImage } from '../../shared/assets/shop/shop-images'
+import '../shop/shop.css'
 import { dogBonusText } from '../../shared/lib/dog'
 import { BrigadeHouses } from './brigade-houses'
 import { IncomingInvites } from '../stage3/clan-invites'
@@ -57,17 +60,59 @@ function School() {
       <button className="btn" disabled={p.owned || action.isPending} onClick={() => action.mutate(p.code)}>{p.owned ? 'Изучено' : 'Купить профессию'}</button></article>)}</div>
     <Link to="/work">Работать по профессии →</Link></>
 }
+/** ЦУМ и Берёзка выглядят как обычный магазин — плитки Госмагазина, —
+    только цена в долларах (правка заказчика). */
 function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
   const q = useQuery({ queryKey: ['city', 'catalog', kind], queryFn: () => cityApi.catalog(kind) })
+  const me = useQuery({ queryKey: ['character', 'me'], queryFn: charactersApi.getMe })
   const action = useCityAction((id: string) => cityApi.buy(kind, id))
-  return <><p>{kind === 'tsum' ? 'Именные дорогие вещи: все очки характеристик распределяете сами на Складе.' : 'Артефакты дают характеристики и дополнительный боевой опыт. Бонус опыта работает только для надетой исправной вещи.'}</p>
+  const dollars = me.data?.dollars ?? 0
+  return <div className="gshop">
+    <header className="gshop-head">
+      <span className="gshop-cash">
+        <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
+        <span>Ваш счёт: <b>{dollars.toLocaleString('ru')} $</b></span>
+      </span>
+      <Link to="/premium">Пополнить у дилера →</Link>
+    </header>
+    <p className="gshop-note">{kind === 'tsum'
+      ? 'Именные вещи: все очки характеристик вы распределяете сами на Складе.'
+      : 'Артефакты: характеристики и дополнительный боевой опыт, пока вещь надета и цела.'}</p>
     <QueryState loading={q.isLoading} error={q.isError} retry={q.refetch} /><Message error={action.error} success={action.isSuccess} />
-    {q.data && q.data.items.length === 0 && <p>Каталог пуст. Администратор должен выполнить сид каталога.</p>}
-    <div className="city-cards">{q.data?.items.map(item => <article className="city-card" key={item.id}><h2>{item.name}</h2><p>{item.description}</p>
-      <p>{item.statBudget ? `${item.statBudget} свободных очков` : `+${Math.round((item.battleExpBonus ?? 0) * 100)}% боевого опыта · +${Math.round((item.dodgeBonus ?? 0) * 100)}% уклонения`}</p>
-      <b>{item.priceBase.toLocaleString('ru')} ₽</b><button className="btn btn-primary" disabled={action.isPending} onClick={() => action.mutate(item.id)}>Купить</button></article>)}</div>
-    <Link to="/inventory">На Склад: надеть и распределить характеристики →</Link></>
+    {q.data && q.data.items.length === 0 && <p className="gshop-empty">Витрина пуста.</p>}
+    <section className="gshop-grid">{q.data?.items.map(item => {
+      const price = item.priceDollars ?? 0
+      const tooPoor = dollars < price
+      return <article className="gshop-card" key={item.id}>
+        <img src={itemImage(item.code, item.weaponType, item.type)} alt="" width={64} height={64} />
+        <div className="gshop-card-body">
+          <div className="gshop-card-head"><h3>{item.name}</h3></div>
+          <p className="gshop-card-meta">
+            <span>Прочность: {item.durabilityMax}</span>
+            <span>Цена: {price.toLocaleString('ru')} $</span>
+          </p>
+          <div className="gshop-card-lower">
+            <ul className="gshop-bonuses">
+              {item.statBudget ? <li>{item.statBudget} свободных очков</li> : null}
+              {item.battleExpBonus ? <li>Боевой опыт: +{Math.round(item.battleExpBonus * 100)}%</li> : null}
+              {item.dodgeBonus ? <li>Уворот: +{Math.round(item.dodgeBonus * 100)}%</li> : null}
+              {item.description && <li>{item.description}</li>}
+            </ul>
+            <div className="gshop-card-actions">
+              <button className="gshop-btn" disabled={action.isPending || tooPoor || !price}
+                title={tooPoor ? 'Не хватает долларов' : undefined} onClick={() => action.mutate(item.id)}>
+                <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                <span>Купить</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+    })}</section>
+    <Link to="/inventory">На Склад: надеть и распределить характеристики →</Link>
+  </div>
 }
+
 /** Зоомагазин (правка заказчика): три собаки, у каждой свой бонус в бою,
     корм сроком на 72 и 144 часа за рубли и на 2 недели за доллары. */
 function Pets() {
