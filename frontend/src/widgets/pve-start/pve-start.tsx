@@ -27,7 +27,8 @@ function readLoadout(): string[] {
   try { return JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '[]') } catch { return [] }
 }
 
-export function PveStart() {
+/** embedded — внутри формы заявок Стрелков: без своей рамки и заголовка. */
+export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [bot, setBot] = useState<string>(BOTS[0].code)
@@ -64,17 +65,17 @@ export function PveStart() {
   const hpLow = char ? char.hpCurrent / char.hpMax < 0.3 : false
 
   return (
-    <div className="panel arena-pve">
-      <div className="panel-header">
+    <div className={embedded ? 'arena-pve arena-pve--embedded' : 'panel arena-pve'}>
+      {!embedded && <div className="panel-header">
         <span className="panel-title"><Swords size={13} /> Бой с ботом</span>
         {char && (
           <span className="arena-pve__hp">
             <Heart size={11} /> {char.hpCurrent} / {char.hpMax}
           </span>
         )}
-      </div>
+      </div>}
 
-      <div className="panel-body">
+      <div className={embedded ? '' : 'panel-body'}>
         <div className="arena-pve__bots">
           {BOTS.map(b => {
             const tooStrong = char ? b.level > char.battleLevel + 3 : false

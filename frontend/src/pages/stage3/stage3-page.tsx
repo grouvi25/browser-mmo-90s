@@ -4,7 +4,6 @@
 // каждого раздела лежит в своём файле рядом.
 // =============================================================
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { stage3AcceptanceApi } from '../../shared/api/stage3-acceptance.api'
 import { ViewportPanel } from '../../shared/ui/viewport-panel'
 import { FarmSection } from './farm-section'
@@ -63,18 +62,6 @@ const SECTIONS: Record<Stage3Section, SectionMeta> = {
   'clan-relations': { title: 'Отношения', kicker: 'Своя команда', group: CLAN_GROUP },
 }
 
-const ROUTES: Record<Stage3Section, string> = {
-  farm: '/farm',
-  plants: '/plants',
-  objects: '/objects',
-  recipes: '/recipes',
-  bars: '/bars',
-  mybar: '/bars/mine',
-  clan: '/clans',
-  'clan-storage': '/clans/storage',
-  'clan-treasury': '/clans/treasury',
-  'clan-relations': '/clans/relations',
-}
 
 function Body({ section }: { section: Stage3Section }) {
   switch (section) {
@@ -105,15 +92,8 @@ export function Stage3Page({ section }: { section: Stage3Section }) {
     // давала вернуться назад.
     <ViewportPanel title={meta.title} subtitle={meta.kicker}>
       <main className="s3">
-        {/* Навигация внутри группы остаётся: полоса комнат внизу знает не
-            про все разделы — «Мой бар», склад, общак и отношения только тут. */}
-        <nav className="s3-group" aria-label={'Разделы: ' + meta.kicker}>
-          {meta.group.map(key => (
-            <Link key={key} className={section === key ? 'active' : ''} to={ROUTES[key]}>
-              {SECTIONS[key].title}
-            </Link>
-          ))}
-        </nav>
+        {/* Разделы группы переехали в нижнюю полосу локации (правка
+            заказчика: «вкладки меняются на вкладки локации + ЦЕНТР»). */}
 
         {/* Полоска приёмки — служебная, и ронять из-за неё весь раздел
             нельзя: показываем только когда счётчики действительно пришли. */}

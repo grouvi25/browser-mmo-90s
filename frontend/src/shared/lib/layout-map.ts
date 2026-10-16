@@ -105,14 +105,14 @@ export const MENU = {
   rooms: {
     center: [
       { key: 'inventory', label: 'Склад', to: '/inventory' },
-      { key: 'skills', label: 'Оружейные навыки', to: '/skills' },
-      { key: 'stats', label: 'Характеристики', to: '/stats' },
-      { key: 'history', label: 'История боёв', to: '/battles/history' },
+      { key: 'skills', label: 'Навыки', to: '/skills' },
+      { key: 'stats', label: 'Навыки', to: '/stats' },
+      { key: 'history', label: 'Стрелки', to: '/battles/history' },
       { key: 'clan', label: 'Бригада', to: '/clans' },
       // Этап 4. Премиум — личное, поэтому Центр. Витрина и помощники
       // живут вкладками внутри: помощник без подписки не существует, и
       // разводить их по разным комнатам значило бы врать о связи.
-      { key: 'premium', label: 'Премиум', to: '/premium' },
+      { key: 'premium', label: 'Чёрный рынок', to: '/premium' },
     ],
     market: [
       { key: 'shop', label: 'Госмагазин', to: '/shop' },

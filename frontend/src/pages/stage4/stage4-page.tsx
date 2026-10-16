@@ -16,7 +16,6 @@
 // Полосу районов это удлиняет на две подписи, а не на пять. На её длине
 // уже сгорел вариант с девятью районами, и запас там небольшой.
 // =============================================================
-import { Link } from 'react-router-dom'
 import { ViewportPanel } from '../../shared/ui/viewport-panel'
 import { TerritoryMapSection } from './territory-map-section'
 import { RaidsSection } from './raids-section'
@@ -41,18 +40,11 @@ const SECTIONS: Record<Stage4Section, SectionMeta> = {
   // Заявка — не вкладка: попадают в неё с карты, и в полосе она была бы
   // пунктом, который никуда не ведёт, пока заявки нет.
   claim: { title: 'Заявка на район', kicker: 'Районы и война', group: WAR_GROUP },
-  premium: { title: 'Премиум', kicker: 'Подписка', group: PREMIUM_GROUP },
+  // Правка заказчика: «Премиум переименовываем в Чёрный рынок».
+  premium: { title: 'Чёрный рынок', kicker: 'Подписка за доллары', group: PREMIUM_GROUP },
   helpers: { title: 'Помощники', kicker: 'Подписка', group: PREMIUM_GROUP },
 }
 
-const ROUTES: Record<Stage4Section, string> = {
-  territories: '/territories',
-  raids: '/territories/raids',
-  wars: '/territories/wars',
-  claim: '/territories',
-  premium: '/premium',
-  helpers: '/premium/helpers',
-}
 
 function Body({ section }: { section: Stage4Section }) {
   switch (section) {
@@ -71,13 +63,6 @@ export function Stage4Page({ section }: { section: Stage4Section }) {
   return (
     <ViewportPanel title={meta.title} subtitle={meta.kicker}>
       <main className="s3 s4">
-        <nav className="s3-group" aria-label={'Разделы: ' + meta.kicker}>
-          {meta.group.map(key => (
-            <Link key={key} className={section === key ? 'active' : ''} to={ROUTES[key]}>
-              {SECTIONS[key].title}
-            </Link>
-          ))}
-        </nav>
         <Body section={section} />
       </main>
     </ViewportPanel>

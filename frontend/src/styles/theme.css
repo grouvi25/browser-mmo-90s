@@ -862,6 +862,7 @@ html, body {
 .city-locations button { min-height:26px; padding:2px 4px; font:600 13px/1.15 Arial, sans-serif; color:var(--text); background:var(--paper-warm); border:1px solid var(--border); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .city-locations button.is-active,.city-locations button:hover { background:var(--paper-dark); border-color:var(--ink-red); }
 .city-locations button:focus-visible { outline:3px solid var(--ink-red); outline-offset:-3px; }
+.city-locations button.is-center { color:var(--ink-red); font-weight:700; }
 .city-utility { position:absolute; left:40px; top:670px; display:flex; gap:20px; font:16px Arial,sans-serif; }
 .city-utility button { background:none; border:0; color:var(--text); font:inherit; cursor:pointer; }
 .city-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; padding:12px 0; }
