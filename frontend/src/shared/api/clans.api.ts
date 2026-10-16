@@ -93,6 +93,14 @@ export interface BrigadeHouse {
   }
 }
 
+export interface ClanInvite {
+  id: string
+  expiresAt: string
+  createdAt: string
+  clan: { id: string; name: string; level: number }
+  invitedBy: string | null
+}
+
 export const clansApi = {
   list: () => api.get<{ items: Clan[] }>('/api/clans'),
   get: (id: string) => api.get<Clan>(`/api/clans/${id}`),
@@ -101,9 +109,11 @@ export const clansApi = {
   siegeAction: (siegeId: string, action: 'signup' | 'unsign' | 'cancel') => api.post(`/api/clans/sieges/${siegeId}/${action}`, {}),
   repairHouse: () => api.post<{ durability: number; cost: number; treasury: number }>('/api/clans/house/repair', {}),
   writeOnWall: (id: string, text: string) => api.post(`/api/clans/${id}/wall`, { text }),
-  create: (name: string, tag: string) => api.post<Clan>('/api/clans', { name, tag }),
-  invite: (targetCharacterId: string) => api.post('/api/clans/invite', { targetCharacterId }),
+  create: (name: string) => api.post<Clan>('/api/clans', { name }),
+  invite: (nickname: string) => api.post<{ nickname: string }>('/api/clans/invite', { nickname }),
+  myInvites: () => api.get<{ items: ClanInvite[] }>('/api/clans/invites/mine'),
   accept: (inviteId: string) => api.post(`/api/clans/invites/${inviteId}/accept`),
+  decline: (inviteId: string) => api.post(`/api/clans/invites/${inviteId}/decline`),
   leave: () => api.post('/api/clans/leave'),
   kick: (targetCharacterId: string) => api.post('/api/clans/kick', { targetCharacterId }),
   assignRole: (targetCharacterId: string, roleId: string) =>

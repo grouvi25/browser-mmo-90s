@@ -63,15 +63,25 @@ export async function clansRoutes(fastify: FastifyInstance) {
     const actor = await character(req.authUser.userId)
     return reply.code(201).send(await HouseSiegeService.writeOnWall(actor.id, req.params.id, parsed.data.text))
   })
-  fastify.post<{ Body: { name: string; tag: string } }>('/', { preHandler: authenticate }, async (req, reply) => {
-    const parsed = z.object({ name: z.string().trim().min(3).max(32), tag: z.string().trim().min(2).max(6).regex(/^[a-zA-Z0-9]+$/) }).safeParse(req.body)
+  fastify.post<{ Body: { name: string; tag?: string } }>('/', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ name: z.string().trim().min(3).max(32), tag: z.string().trim().min(2).max(6).regex(/^[a-zA-Z0-9]+$/).optional() }).safeParse(req.body)
     if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const actor = await character(req.authUser.userId)
     return reply.code(201).send(await ClansService.create(actor.id, parsed.data.name, parsed.data.tag))
   })
-  fastify.post<{ Body: { targetCharacterId: string } }>('/invite', { preHandler: authenticate }, async (req, reply) => {
-    const parsed = z.object({ targetCharacterId: Id }).safeParse(req.body); if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
-    const actor = await character(req.authUser.userId); return reply.code(201).send(await ClansService.invite(actor.id, parsed.data.targetCharacterId))
+  fastify.post<{ Body: { targetCharacterId?: string; nickname?: string } }>('/invite', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ targetCharacterId: Id.optional(), nickname: z.string().trim().min(2).max(30).optional() })
+      .refine(v => !!v.targetCharacterId || !!v.nickname).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Укажите ник бойца' })
+    const actor = await character(req.authUser.userId)
+    return reply.code(201).send(await ClansService.invite(actor.id, { characterId: parsed.data.targetCharacterId, nickname: parsed.data.nickname }))
+  })
+  fastify.get('/invites/mine', { preHandler: authenticate }, async (req, reply) => {
+    const actor = await character(req.authUser.userId); return reply.send({ items: await ClansService.myInvites(actor.id) })
+  })
+  fastify.post<{ Params: { inviteId: string } }>('/invites/:inviteId/decline', { preHandler: authenticate }, async (req, reply) => {
+    if (!Id.safeParse(req.params.inviteId).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const actor = await character(req.authUser.userId); return reply.send(await ClansService.decline(actor.id, req.params.inviteId))
   })
   fastify.post<{ Params: { inviteId: string } }>('/invites/:inviteId/accept', { preHandler: authenticate }, async (req, reply) => {
     if (!Id.safeParse(req.params.inviteId).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })

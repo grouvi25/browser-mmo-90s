@@ -18,6 +18,15 @@ async function memberWithPermission(tx: Prisma.TransactionClient, characterId: s
   return member
 }
 
+/** Свободный служебный тег из четырёх знаков. */
+async function freeTag(tx: Prisma.TransactionClient): Promise<string> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const tag = Math.random().toString(36).slice(2, 6).toUpperCase().padEnd(4, 'X')
+    if (!(await tx.clan.findUnique({ where: { tag }, select: { id: true } }))) return tag
+  }
+  throw new AppError(ErrorCode.CLAN_REQUIREMENTS, 'Не удалось зарегистрировать бригаду, попробуйте ещё раз', 409)
+}
+
 function sameUtcDay(left: Date | null, right = new Date()): boolean {
   return !!left && left.toISOString().slice(0, 10) === right.toISOString().slice(0, 10)
 }
@@ -53,13 +62,22 @@ export const ClansService = {
     return { ...clan, memberCapacity: clanMemberCapacity(clan.level), storageCapacity: clanStorageCapacity(clan.level), members: clan.members.map(member => ({ ...member, character: byId.get(member.characterId) })) }
   },
 
-  async create(characterId: string, name: string, tag: string) {
+  /** Тег необязателен: заказчик убрал его из интерфейса («только название»),
+      а в базе он уникален и нужен старым экранам и отчётам — выдаём сами. */
+  async create(characterId: string, name: string, tag?: string) {
     return withTransaction(async tx => {
       const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
       if (character.clanId) throw new AppError(ErrorCode.CLAN_ALREADY_MEMBER, 'Вы уже состоите в бригаде', 409)
       if (character.battleLevel < CLAN_MIN_LEVEL) throw new AppError(ErrorCode.CLAN_REQUIREMENTS, 'Нужен 5-й боевой уровень', 403)
+      if (await tx.clan.findFirst({ where: { name: { equals: name, mode: 'insensitive' } }, select: { id: true } })) {
+        throw new AppError(ErrorCode.CLAN_REQUIREMENTS, 'Бригада с таким названием уже есть', 409)
+      }
+      const finalTag = tag ? tag.toUpperCase() : await freeTag(tx)
+      if (tag && await tx.clan.findUnique({ where: { tag: finalTag }, select: { id: true } })) {
+        throw new AppError(ErrorCode.CLAN_REQUIREMENTS, 'Такой тег уже занят', 409)
+      }
       await EconomyService.debit(tx, { characterId, amount: CLAN_CREATE_COST, reasonCode: 'CLAN_CREATE', refType: 'clan' })
-      const clan = await tx.clan.create({ data: { name, tag: tag.toUpperCase() } })
+      const clan = await tx.clan.create({ data: { name, tag: finalTag } })
       await tx.clanRole.createMany({ data: DEFAULT_ROLES.map(role => ({ clanId: clan.id, ...role, permissions: [...role.permissions] })) })
       const boss = await tx.clanRole.findUniqueOrThrow({ where: { clanId_code: { clanId: clan.id, code: 'boss' } } })
       await tx.clanMember.create({ data: { clanId: clan.id, characterId, roleId: boss.id } })
@@ -68,17 +86,49 @@ export const ClansService = {
     })
   },
 
-  async invite(characterId: string, targetCharacterId: string) {
+  /** Приглашение по нику (правка заказчика): раньше форма просила UUID
+      персонажа, которого игрок нигде не видит. */
+  async invite(characterId: string, target: { characterId?: string; nickname?: string }) {
     return withTransaction(async tx => {
       const member = await memberWithPermission(tx, characterId, 'INVITE')
       if (member.clan.isFrozen) throw new AppError(ErrorCode.CLAN_FROZEN, 'Бригада заморожена за долги', 409)
       const count = await tx.clanMember.count({ where: { clanId: member.clanId, status: 'ACTIVE' } })
       if (count >= clanMemberCapacity(member.clan.level)) throw new AppError(ErrorCode.CLAN_CAPACITY, 'В бригаде нет мест', 409)
-      const target = await tx.character.findUniqueOrThrow({ where: { id: targetCharacterId } })
-      if (target.clanId) throw new AppError(ErrorCode.CLAN_ALREADY_MEMBER, 'Игрок уже состоит в бригаде', 409)
-      await tx.clanInvite.updateMany({ where: { clanId: member.clanId, characterId: targetCharacterId, status: 'PENDING' }, data: { status: 'EXPIRED' } })
-      return tx.clanInvite.create({ data: { clanId: member.clanId, characterId: targetCharacterId, invitedById: characterId, expiresAt: new Date(Date.now() + 48 * 3_600_000) } })
+      const found = target.characterId
+        ? await tx.character.findUnique({ where: { id: target.characterId } })
+        : await tx.character.findFirst({ where: { nickname: { equals: target.nickname?.trim() ?? '', mode: 'insensitive' } } })
+      if (!found) throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Боец с таким ником не найден', 404)
+      if (found.id === characterId) throw new AppError(ErrorCode.CLAN_ALREADY_MEMBER, 'Себя пригласить нельзя', 409)
+      if (found.clanId) throw new AppError(ErrorCode.CLAN_ALREADY_MEMBER, 'Игрок уже состоит в бригаде', 409)
+      // Новое приглашение заменяет прежнее. Раньше прежнее переводилось в
+      // EXPIRED, и третье приглашение тому же бойцу падало на уникальном
+      // индексе (бригада, боец, статус).
+      await tx.clanInvite.deleteMany({ where: { clanId: member.clanId, characterId: found.id, status: { in: ['PENDING', 'EXPIRED', 'DECLINED'] } } })
+      const invite = await tx.clanInvite.create({ data: { clanId: member.clanId, characterId: found.id, invitedById: characterId, expiresAt: new Date(Date.now() + 48 * 3_600_000) } })
+      return { ...invite, nickname: found.nickname }
     })
+  },
+
+  /** Входящие приглашения: без этого списка принять приглашение было негде. */
+  async myInvites(characterId: string) {
+    const invites = await prisma.clanInvite.findMany({
+      where: { characterId, status: 'PENDING', expiresAt: { gt: new Date() } },
+      include: { clan: { select: { id: true, name: true, level: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
+    const inviters = await prisma.character.findMany({
+      where: { id: { in: invites.map(i => i.invitedById) } }, select: { id: true, nickname: true },
+    })
+    return invites.map(i => ({
+      id: i.id, expiresAt: i.expiresAt, createdAt: i.createdAt, clan: i.clan,
+      invitedBy: inviters.find(c => c.id === i.invitedById)?.nickname ?? null,
+    }))
+  },
+
+  async decline(characterId: string, inviteId: string) {
+    const removed = await prisma.clanInvite.deleteMany({ where: { id: inviteId, characterId, status: 'PENDING' } })
+    if (removed.count === 0) throw new AppError(ErrorCode.CLAN_INVITE_INVALID, 'Приглашение недействительно или истекло', 409)
+    return { declined: true }
   },
 
   async accept(characterId: string, inviteId: string) {
@@ -95,7 +145,12 @@ export const ClansService = {
       if (old) await tx.clanMember.update({ where: { id: old.id }, data: { clanId: invite.clanId, roleId: role.id, status: 'ACTIVE', joinedAt: new Date(), leftAt: null } })
       else await tx.clanMember.create({ data: { clanId: invite.clanId, characterId, roleId: role.id } })
       await tx.character.update({ where: { id: characterId }, data: { clanId: invite.clanId } })
+      // Тот же уникальный индекс: вернувшийся в ту же бригаду боец уже
+      // однажды принимал её приглашение.
+      await tx.clanInvite.deleteMany({ where: { clanId: invite.clanId, characterId, status: 'ACCEPTED' } })
       await tx.clanInvite.update({ where: { id: invite.id }, data: { status: 'ACCEPTED' } })
+      // Остальные приглашения больше не нужны: в двух бригадах не состоят.
+      await tx.clanInvite.deleteMany({ where: { characterId, status: 'PENDING' } })
       return { clanId: invite.clanId }
     })
   },

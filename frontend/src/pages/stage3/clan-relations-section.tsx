@@ -69,7 +69,7 @@ export function ClanRelationsSection() {
                   : relation.confirmed ? 'союз' : 'союз предложен'
                 return (
                   <tr key={other.id}>
-                    <td><b>[{other.tag}]</b> {other.name}</td>
+                    <td><b>{other.name}</b></td>
                     <td>{other.level}</td>
                     <td className={relation?.type === 'HOSTILITY' ? 'bad' : relation?.confirmed ? 'ok' : 'muted'}>{label}</td>
                     <td className="relation-actions">

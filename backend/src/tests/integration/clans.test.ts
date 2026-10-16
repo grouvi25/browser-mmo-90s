@@ -39,10 +39,41 @@ describe('clans', () => {
     expect(bossRole.permissions).toContain('ASSIGN_ROLE')
   })
 
+  it('приглашение по нику видно приглашённому; отказ и повторные приглашения не ломаются', async () => {
+    const { boss, clan } = await clanWithBoss()
+    const recruit = await player('nick')
+    await expect(ClansService.invite(boss.id, { nickname: 'нет-такого' })).rejects.toThrow('не найден')
+    await expect(ClansService.invite(boss.id, { nickname: boss.nickname })).rejects.toThrow('Себя')
+
+    const first = await ClansService.invite(boss.id, { nickname: recruit.nickname.toUpperCase() })
+    expect(first.characterId).toBe(recruit.id)
+    const inbox = await ClansService.myInvites(recruit.id)
+    expect(inbox).toHaveLength(1)
+    expect(inbox[0]).toMatchObject({ id: first.id, clan: { id: clan.id }, invitedBy: boss.nickname })
+
+    await ClansService.decline(recruit.id, first.id)
+    expect(await ClansService.myInvites(recruit.id)).toHaveLength(0)
+    // Раньше третье приглашение тому же бойцу падало на уникальном индексе.
+    await ClansService.invite(boss.id, { nickname: recruit.nickname })
+    await ClansService.invite(boss.id, { nickname: recruit.nickname })
+    const last = await ClansService.invite(boss.id, { nickname: recruit.nickname })
+    expect(await ClansService.myInvites(recruit.id)).toHaveLength(1)
+    expect((await ClansService.accept(recruit.id, last.id)).clanId).toBe(clan.id)
+  })
+
+  it('бригада регистрируется без тега: тег выдаётся сам, название уникально', async () => {
+    const boss = await player('notag')
+    const name = uid('без-тега')
+    const clan = await ClansService.create(boss.id, name)
+    expect(clan.tag).toMatch(/^[A-Z0-9]{4}$/)
+    const other = await player('dup')
+    await expect(ClansService.create(other.id, name.toUpperCase())).rejects.toThrow('уже есть')
+  })
+
   it('invites, accepts and assigns a role to the correct target member (not the actor)', async () => {
     const { boss, clan } = await clanWithBoss()
     const recruit = await player('recruit')
-    const invite = await ClansService.invite(boss.id, recruit.id)
+    const invite = await ClansService.invite(boss.id, { characterId: recruit.id })
     const accepted = await ClansService.accept(recruit.id, invite.id)
     expect(accepted.clanId).toBe(clan.id)
 
@@ -72,7 +103,7 @@ describe('clans', () => {
     const { boss, clan } = await clanWithBoss()
     await ClansService.depositTreasury(boss.id, 50_000)
     const recruit = await player('spender')
-    const invite = await ClansService.invite(boss.id, recruit.id)
+    const invite = await ClansService.invite(boss.id, { characterId: recruit.id })
     await ClansService.accept(recruit.id, invite.id)
     const brigadierRole = await testPrisma.clanRole.findFirstOrThrow({ where: { clanId: clan.id, code: 'brigadier' } })
     await ClansService.assignRole(boss.id, recruit.id, brigadierRole.id)
@@ -107,7 +138,7 @@ describe('clans', () => {
   it('lets a member leave and a boss neither leave nor be kicked directly', async () => {
     const { boss, clan } = await clanWithBoss()
     const recruit = await player('leaver')
-    const invite = await ClansService.invite(boss.id, recruit.id)
+    const invite = await ClansService.invite(boss.id, { characterId: recruit.id })
     await ClansService.accept(recruit.id, invite.id)
 
     await ClansService.leave(recruit.id)

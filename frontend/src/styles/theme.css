@@ -885,8 +885,9 @@ html, body {
 .brigade-tile:hover { background:var(--paper-dark); }
 .brigade-tile:active { background:var(--paper); }
 .brigade-tile:focus-visible { outline:3px solid var(--ink-red); outline-offset:-3px; }
-.brigade-tile.is-mine { border-color:var(--ink-red); }
-.brigade-tile.is-selected { background:var(--paper-dark); box-shadow:inset 0 0 0 2px var(--ink-red); }
+/* Правка заказчика: красная рамка своей плитки («красный квадрат слева
+   сверху») убрана — выбранная плитка просто темнее. */
+.brigade-tile.is-selected { background:var(--paper-dark); border-color:var(--text-dim); }
 .brigade-roster { margin:0; padding-left:18px; display:grid; gap:4px; }
 
 /* Дом бригады и осада */
