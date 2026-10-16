@@ -14,6 +14,7 @@ export const cityApi = {
   buy: (kind: 'tsum' | 'berezka', templateId: string) => paid(`/api/city/shops/${kind}/buy`, { templateId }),
   pets: () => api.get<{ catalog: DogEntry[]; packs: FeedPack[]; feedingHours: number; owned: Pet[] }>('/api/city/pets'),
   buyPet: (code: string) => paid('/api/city/pets', { code }),
+  exchangePet: (code: string) => paid('/api/city/pets/exchange', { code }),
   food: (petId: string, pack: string) => paid('/api/city/pets/food', { petId, pack }),
   feed: (petId: string) => paid('/api/city/pets/feed', { petId }),
 }

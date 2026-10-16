@@ -12,6 +12,8 @@ export const CityConfig = {
     { code: 'malinois', name: 'Малинуа', role: 'Ловкость', price: 3000, bonus: { agi: 2 } },
     { code: 'doberman', name: 'Доберман', role: 'Удача', price: 3000, bonus: { luck: 2 } },
   ],
+  /** Кот и пёс прошлого выката: их владельцы бесплатно меняют их на собаку. */
+  legacyPetCodes: ['cat', 'dog'] as readonly string[],
   /** Корм покупается сроком сытости; самый долгий — за доллары (донат). */
   feedPacks: [
     { code: 'food_72h', name: 'Корм на 72 часа', hours: 72, price: 150, currency: 'RUB' as const },

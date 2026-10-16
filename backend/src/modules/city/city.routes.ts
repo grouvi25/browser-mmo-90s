@@ -29,6 +29,7 @@ export async function cityRoutes(app: FastifyInstance) {
     const b = z.object({ petId: z.string().uuid(), pack: z.string().min(1).max(40) }).strict().parse(req.body)
     return CityService.buyFeedPack((await char(req)).id, b.petId, b.pack, key(req))
   })
+  app.post('/pets/exchange', async req => CityService.exchangeLegacyPet((await char(req)).id, codeSchema.parse(req.body).code, key(req)))
   app.post('/pets/feed', async req => CityService.feed((await char(req)).id, z.object({ petId: z.string().uuid() }).strict().parse(req.body).petId, key(req)))
 }
 export async function cityAdminRoutes(app: FastifyInstance) {

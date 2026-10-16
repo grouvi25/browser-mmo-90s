@@ -117,14 +117,23 @@ function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
     корм сроком на 72 и 144 часа за рубли и на 2 недели за доллары. */
 function Pets() {
   const q = useQuery({ queryKey: ['city', 'pets'], queryFn: cityApi.pets, refetchInterval: 60_000 })
-  const action = useCityAction(async (value: { kind: 'buy' | 'food' | 'feed'; id: string; pack?: string }) =>
-    value.kind === 'buy' ? cityApi.buyPet(value.id) : value.kind === 'food' ? cityApi.food(value.id, value.pack!) : cityApi.feed(value.id))
+  const action = useCityAction(async (value: { kind: 'buy' | 'exchange' | 'food' | 'feed'; id: string; pack?: string }) =>
+    value.kind === 'buy' ? cityApi.buyPet(value.id) : value.kind === 'exchange' ? cityApi.exchangePet(value.id)
+      : value.kind === 'food' ? cityApi.food(value.id, value.pack!) : cityApi.feed(value.id))
   const catalog = q.data?.catalog ?? []
   const dog = q.data?.owned.find(p => catalog.some(c => c.code === p.code))
   const entry = catalog.find(c => c.code === dog?.code)
   const fed = !!dog?.fedUntil && new Date(dog.fedUntil) > new Date()
+  // Кот и пёс прошлого выката: бесплатная замена на собаку любой породы.
+  const legacy = dog ? [] : (q.data?.owned ?? []).filter(p => p.code === 'cat' || p.code === 'dog')
   return <><p>Собака даёт бонус к характеристикам в бою, пока сыта. Собака одна — она видна в профиле.</p>
     <QueryState loading={q.isLoading} error={q.isError} retry={q.refetch} /><Message error={action.error} success={action.isSuccess} />
+    {legacy.length > 0 && <article className="city-card city-card--dog">
+      <h2>Обмен питомца</h2>
+      <p>Котов и псов в Зоомагазине больше нет. {legacy.map(p => p.name).join(' и ')} бесплатно меняется на собаку — выберите породу. Сытость и корм перейдут к ней.</p>
+      <div className="city-feed">{catalog.map(p => <button key={p.code} className="btn btn-primary" disabled={action.isPending}
+        onClick={() => action.mutate({ kind: 'exchange', id: p.code })}>Взять: {p.name} ({dogBonusText(p.bonus)})</button>)}</div>
+    </article>}
     {dog && entry && <article className="city-card city-card--dog">
       <h2>Ваша собака: {entry.name}</h2>
       <p>{entry.role} · {dogBonusText(entry.bonus)} {fed ? '' : '(не действует, пока голодная)'}</p>
@@ -138,7 +147,8 @@ function Pets() {
     </article>}
     <div className="city-cards">{catalog.map(p => <article className="city-card" key={p.code}><h2>{p.name}</h2>
       <p>{p.role} · {dogBonusText(p.bonus)}</p><b>{p.price.toLocaleString('ru')} ₽</b>
-      <button className="btn" disabled={action.isPending || !!dog} title={dog ? 'Собака у вас уже есть' : undefined}
+      <button className="btn" disabled={action.isPending || !!dog || legacy.length > 0}
+        title={dog ? 'Собака у вас уже есть' : legacy.length > 0 ? 'Сначала обменяйте старого питомца — это бесплатно' : undefined}
         onClick={() => action.mutate({ kind: 'buy', id: p.code })}>{dog?.code === p.code ? 'Ваша собака' : 'Купить собаку'}</button></article>)}</div></>
 }
 function Prison() {
