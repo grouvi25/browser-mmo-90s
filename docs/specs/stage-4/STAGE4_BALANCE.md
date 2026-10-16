@@ -95,7 +95,7 @@ neutralClaimHours     = 6      // ничейный район: окно для �
 center:     { code: 'BATTLE_EXP',    value: 0.10 }
 market:     { code: 'MARKET_SHARE',  value: 0.30 }
 industrial: { code: 'CYCLE_SPEED',   value: 0.15 }
-station:    { code: 'STORAGE_CAP',   value: 0.10 }
+station:    { code: 'STORAGE_CAP',   value: 0.50 }  # правка заказчика 16.10.2026, было 0.10
 garages:    { code: 'REPAIR_COST',   value: 0.20 }
 suburb:     { code: 'UPKEEP_COST',   value: 0.25 }
 ```

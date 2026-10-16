@@ -92,11 +92,11 @@ describe('бонусы районов действуют', () => {
     expect((await TerritoriesService.bonusesForCharacter(boss.id)).BATTLE_EXP).toBe(0.10)
   })
 
-  it('Вокзал расширяет склад объекта на десятую часть', async () => {
+  it('Вокзал расширяет склад объекта наполовину', async () => {
     const { clan } = await clanWithBoss()
     await give('station', clan.id)
     const bonus = (await TerritoriesService.bonusesForClan(clan.id)).STORAGE_CAP ?? 0
-    expect(Math.floor(1000 * (1 + bonus))).toBe(1100)
+    expect(Math.floor(1000 * (1 + bonus))).toBe(1500)
   })
 
   it('Рынок отдаёт клану треть налога со сделки, не создавая денег', async () => {

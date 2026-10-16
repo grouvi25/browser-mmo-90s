@@ -184,7 +184,9 @@ export const TERRITORIES = [
   { code: 'center', name: 'Центр', bonusCode: 'BATTLE_EXP', bonusValue: 0.10 },
   { code: 'market', name: 'Рынок', bonusCode: 'MARKET_SHARE', bonusValue: 0.30 },
   { code: 'industrial', name: 'Промзона', bonusCode: 'CYCLE_SPEED', bonusValue: 0.15 },
-  { code: 'station', name: 'Вокзал', bonusCode: 'STORAGE_CAP', bonusValue: 0.10 },
+  // Правка заказчика (16.10.2026): «Вокзал +50% — самая неликвидная территория,
+  // нужна будет только крафт-кланам». Было +10%.
+  { code: 'station', name: 'Вокзал', bonusCode: 'STORAGE_CAP', bonusValue: 0.50 },
   { code: 'garages', name: 'Гаражи', bonusCode: 'REPAIR_COST', bonusValue: 0.20 },
   { code: 'suburb', name: 'Спальный район', bonusCode: 'UPKEEP_COST', bonusValue: 0.25 },
 ] as const satisfies readonly { code: DistrictCode; name: string; bonusCode: string; bonusValue: number }[]
