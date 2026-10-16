@@ -890,6 +890,7 @@ html, body {
 /* Правка заказчика: красная рамка своей плитки («красный квадрат слева
    сверху») убрана — выбранная плитка просто темнее. */
 .brigade-tile.is-selected { background:var(--paper-dark); border-color:var(--text-dim); }
+.brigade-tile.is-selected small { color:var(--text); }
 .brigade-roster { margin:0; padding-left:18px; display:grid; gap:4px; }
 
 /* Дом бригады и осада */
