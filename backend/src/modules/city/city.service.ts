@@ -102,6 +102,24 @@ export const CityService = {
       return { pet: await tx.characterPet.update({ where: { id: petId }, data: { fedUntil: new Date(until) } }) }
     } })
   },
+  /** Замена кота и пса прошлого выката на собаку (решение заказчика):
+      порода на выбор, бесплатно, один раз. Сытость и непотраченные порции
+      корма переходят к собаке. Оба старых питомца дают одну собаку —
+      правило «одна собака на персонажа». */
+  async exchangeLegacyPet(characterId: string, code: string, key: string) {
+    const entry = CityConfig.pets.find(p => p.code === code)
+    if (!entry) throw AppError.validation('Неизвестная порода')
+    return withIdempotency({ characterId, scope: 'city.pet.exchange', key, execute: async tx => {
+      await tx.$executeRaw`SELECT id FROM characters WHERE id = ${characterId} FOR UPDATE`
+      const legacy = await tx.characterPet.findMany({ where: { characterId, code: { in: [...CityConfig.legacyPetCodes] } } })
+      if (legacy.length === 0) throw AppError.conflict('Менять нечего: старого питомца нет')
+      if (await tx.characterPet.findFirst({ where: { characterId, code: { in: CityConfig.pets.map(p => p.code) } } })) throw AppError.conflict('Собака у вас уже есть')
+      const fedUntil = legacy.reduce<Date | null>((max, p) => (p.fedUntil && (!max || p.fedUntil > max) ? p.fedUntil : max), null)
+      const food = legacy.reduce((sum, p) => sum + p.food, 0)
+      await tx.characterPet.deleteMany({ where: { id: { in: legacy.map(p => p.id) } } })
+      return { pet: await tx.characterPet.create({ data: { characterId, code, name: entry.name, fedUntil, food } }) }
+    } })
+  },
   async feed(characterId: string, petId: string, key: string) {
     return withIdempotency({ characterId, scope: `city.feed.${petId}`, key, execute: async tx => {
       const pet = await tx.characterPet.findFirst({ where: { id: petId, characterId } })

@@ -107,6 +107,21 @@ describe('city locations and purchases', () => {
     expect(await testPrisma.characterPet.count({ where: { characterId: p.character.id } })).toBe(1)
     expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).money).toBe(97000)
   })
+  it('кот и пёс прошлого выката бесплатно меняются на одну собаку с их сытостью и кормом', async () => {
+    const p = await player()
+    const fed = new Date(Date.now() + 5 * 3_600_000)
+    await testPrisma.characterPet.createMany({ data: [
+      { characterId: p.character.id, code: 'cat', name: 'Кот', food: 2, fedUntil: fed },
+      { characterId: p.character.id, code: 'dog', name: 'Пёс', food: 1 },
+    ] })
+    await expect(CityService.exchangeLegacyPet(p.character.id, 'cat', randomUUID())).rejects.toThrow()
+    const { pet } = await CityService.exchangeLegacyPet(p.character.id, 'doberman', randomUUID())
+    expect(pet).toMatchObject({ code: 'doberman', name: 'Доберман', food: 3 })
+    expect(pet.fedUntil!.getTime()).toBe(fed.getTime())
+    expect(await testPrisma.characterPet.count({ where: { characterId: p.character.id } })).toBe(1)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).money).toBe(100000)
+    await expect(CityService.exchangeLegacyPet(p.character.id, 'mastiff', randomUUID())).rejects.toThrow('Менять нечего')
+  })
   it('enforces prison server-side, releases automatically, keeps GET available', async () => {
     const p = await player()
     await testPrisma.character.update({ where: { id: p.character.id }, data: { jailedUntil: new Date(Date.now() + 3600000), jailReason: 'Тестовое наказание' } })
