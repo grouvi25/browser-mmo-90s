@@ -220,7 +220,8 @@ export const MENU = {
   chatPanel: box(0, MENU_GAME_H, 1550, 900 - MENU_GAME_H),
 
   /** чат и онлайн */
-  chat: { x: 23, y: 713, w: 969, size: 17.2, lineHeight: 20, rows: 6 },
+  /** h — до поля ввода (863): сообщения переносятся, лишнее прокручивается. */
+  chat: { x: 23, y: 713, w: 1027, h: 146, size: 17.2, lineHeight: 20, rows: 6 },
   chatInput: box(30, 863, 1020, 20),
   onlineTitle: { x: 1263.5, y: 709.5, w: 183, size: 15.1 },
   onlineList: { x: 1207, y: 733.5, w: 134.5, size: 14.8, lineHeight: 17.2 },
