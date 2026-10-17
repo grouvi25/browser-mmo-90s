@@ -1490,3 +1490,10 @@
 /* Цена размена стоит текстом: игрок должен видеть её до нажатия. */
 .battle-swap__hint { margin: 0; font-size: 13px; color: oklch(48% .02 55); }
 .battle-swap__hint--warn { color: #a12a2a; }
+
+/* Ники в боевом чате: яркие цвета макета на сером фоне шторки не читались
+   (контраст 2 из 4.5). Та же гамма, что в мобильном чате, только темнее. */
+.bs-chat .city-chat__nick--1 { color: #8a3100; }
+.bs-chat .city-chat__nick--2 { color: #243d91; }
+.bs-chat .city-chat__nick--3 { color: #8b1830; }
+.bs-chat .city-chat__nick--4 { color: #6b3a1c; }

@@ -6,11 +6,10 @@
 // массивы, что стояли тут до появления модуля чата, убраны.
 // =============================================================
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
-import { districtKey } from '../city-nav/city-nav'
 import { nickTone, useChat, useOnline } from '../../shared/lib/use-chat'
 import { chatTime, levelTone } from '../../shared/lib/chat-format'
 import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
@@ -93,13 +92,12 @@ export function CityChatDock() {
 // ── Чат ──────────────────────────────────────────────────────
 export function CityChat() {
   const navigate = useNavigate()
-  const location = useLocation()
   const [draft, setDraft] = useState('')
 
-  // Полоса внизу — чат района, и район берётся из текущего адреса:
-  // игрок ходит по городу, а окно чата остаётся тем же.
-  const district = districtKey(location.pathname + location.search) || 'center'
-  const chat = useChat('DISTRICT', district)
+  // Один общий чат города — тот же, что в бою. Чат района менялся при
+  // каждом переходе по локациям, и игроки в разных местах не видели
+  // друг друга (жалоба заказчика «рассинхрон в чате»).
+  const chat = useChat('GLOBAL')
 
   const boxRef = useRef<HTMLDivElement>(null)
   // К новому сообщению прокручиваем, только если игрок и так внизу.
@@ -135,12 +133,12 @@ export function CityChat() {
         // Чат прокручивается — значит, должен листаться и с клавиатуры.
         tabIndex={0}
         role="log"
-        aria-label="Чат района"
+        aria-label="Общий чат города"
         style={{
           left: MENU.chat.x, top: MENU.chat.y, width: MENU.chat.w, height: MENU.chat.h,
           fontSize: MENU.chat.size, lineHeight: `${MENU.chat.lineHeight}px`,
         }}
-        title="Чат района"
+        title="Общий чат города"
       >
         {shown.map(m => (
           <div key={m.id} className="city-chat__row">
@@ -155,7 +153,7 @@ export function CityChat() {
           </div>
         ))}
         {!chat.loading && !shown.length && (
-          <div className="city-chat__row city-chat__empty">В районе тихо. Скажите первое слово.</div>
+          <div className="city-chat__row city-chat__empty">В эфире тихо. Скажите первое слово.</div>
         )}
       </div>
 
@@ -169,10 +167,10 @@ export function CityChat() {
           }}
           value={draft}
           onChange={e => { setDraft(e.target.value); if (chat.notice) chat.clearNotice() }}
-          placeholder={chat.notice || 'Написать в чат района…'}
+          placeholder={chat.notice || 'Написать в общий чат…'}
           maxLength={chat.maxBody}
           spellCheck={false}
-          aria-label="Написать в чат района"
+          aria-label="Написать в общий чат"
         />
       </form>
     </>

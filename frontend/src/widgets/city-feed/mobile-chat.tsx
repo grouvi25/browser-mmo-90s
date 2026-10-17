@@ -4,22 +4,22 @@
 // канала нет — окна разные, эфир один.
 // =============================================================
 import { useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
-import { districtKey } from '../city-nav/city-nav'
 import { nickTone, useChat, useOnline } from '../../shared/lib/use-chat'
 import { chatTime, levelTone } from '../../shared/lib/chat-format'
 
 export function MobileChat() {
   const navigate = useNavigate()
-  const location = useLocation()
   const [draft, setDraft] = useState('')
   const [tab, setTab] = useState<'chat' | 'online'>('chat')
 
-  const district = districtKey(location.pathname + location.search) || 'center'
-  const chat = useChat('DISTRICT', district)
+  // Один общий чат города — тот же, что в бою. Чат района менялся при
+  // каждом переходе по локациям, и игроки в разных местах не видели
+  // друг друга (жалоба заказчика «рассинхрон в чате»).
+  const chat = useChat('GLOBAL')
   const online = useOnline()
 
   const { data: char } = useQuery({
@@ -64,17 +64,17 @@ export function MobileChat() {
               </div>
             ))}
             {!chat.loading && !chat.messages.length && (
-              <div className="m-chat__row">В районе тихо. Скажите первое слово.</div>
+              <div className="m-chat__row">В эфире тихо. Скажите первое слово.</div>
             )}
           </div>
           <form className="m-chat__form" onSubmit={send}>
             <input
               value={draft}
               onChange={e => { setDraft(e.target.value); if (chat.notice) chat.clearNotice() }}
-              placeholder={chat.notice || 'Написать в чат района…'}
+              placeholder={chat.notice || 'Написать в общий чат…'}
               maxLength={chat.maxBody}
               spellCheck={false}
-              aria-label="Написать в чат района"
+              aria-label="Написать в общий чат"
             />
             <button type="submit">→</button>
           </form>

@@ -10,7 +10,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { chatApi, type ChatChannel, type ChatFeed, type ChatLine } from '../api/chat.api'
 import { ApiError } from '../api/client'
-import { joinDistrict, subscribeChat } from './chat-socket'
+import { joinDistrict, onChatConnect, subscribeChat } from './chat-socket'
+
+/** Без повторов и строго по времени: сокет и ответ на отправку приходят в любом порядке. */
+function merge(messages: ChatLine[], line: ChatLine): ChatLine[] {
+  if (messages.some(m => m.id === line.id)) return messages
+  return [...messages, line]
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .slice(-50)
+}
 
 /**
  * Цвет ника. В макете реплики разноцветные, но цвет там ничего не
@@ -47,8 +55,14 @@ export function useChat(channel: ChatChannel, district?: string): ChatState {
     // Лента живёт сокетом; запрос нужен, чтобы поднять историю при
     // входе и восстановить её, если соединение обрывалось.
     refetchOnWindowFocus: true,
-    staleTime: 30_000,
+    // Страховка на случай, если сокет молча отвалился: лента сама
+    // сверяется с сервером. Короткий staleTime — чтобы при возврате на
+    // экран с чатом история догружалась, а не бралась из старого кэша.
+    refetchInterval: 15_000,
+    staleTime: 5_000,
   })
+
+  useEffect(() => onChatConnect(() => { void qc.invalidateQueries({ queryKey: key }) }), [qc, key])
 
   const scope = data?.scope ?? ''
 
@@ -63,12 +77,8 @@ export function useChat(channel: ChatChannel, district?: string): ChatState {
       // Своя комната: для района сверяем ключ, для клана — тот, что
       // назвал сервер. Общий канал один, сверять нечего.
       if (channel !== 'GLOBAL' && line.scope !== scope) return
-      qc.setQueryData<ChatFeed>(key, prev => {
-        if (!prev) return prev
-        // Своя же реплика приходит и ответом, и рассылкой — не двоим.
-        if (prev.messages.some(m => m.id === line.id)) return prev
-        return { ...prev, messages: [...prev.messages, line].slice(-50) }
-      })
+      // Своя же реплика приходит и ответом, и рассылкой — merge не двоит.
+      qc.setQueryData<ChatFeed>(key, prev => prev && { ...prev, messages: merge(prev.messages, line) })
     })
   }, [qc, key, channel, scope])
 
@@ -77,11 +87,7 @@ export function useChat(channel: ChatChannel, district?: string): ChatState {
     if (!text) return false
     try {
       const line = await chatApi.send(channel, text, district)
-      qc.setQueryData<ChatFeed>(key, prev => {
-        if (!prev) return prev
-        if (prev.messages.some(m => m.id === line.id)) return prev
-        return { ...prev, messages: [...prev.messages, line].slice(-50) }
-      })
+      qc.setQueryData<ChatFeed>(key, prev => prev && { ...prev, messages: merge(prev.messages, line) })
       setNotice('')
       return true
     } catch (error) {
