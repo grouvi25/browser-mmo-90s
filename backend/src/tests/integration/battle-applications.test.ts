@@ -46,18 +46,14 @@ describe('заявки на бой', () => {
     expect((await ApplicationsService.current(a.user.id)).application?.battleId).toBe(made.battleId)
   })
 
-  it('дуэль стартует по таймеру, а до того в бой не открывается', async () => {
+  it('принятый вызов на дуэль сразу открывает бой', async () => {
     const a = await fighter('du-a')
     const b = await fighter('du-b')
-    const made = await ApplicationsService.create(a.user.id, { kind: 'DUEL', delayMinutes: 1 })
-    await ApplicationsService.join(b.user.id, made.battleId)
-
-    // Время не пришло — воркер заявку не трогает.
-    await runBattleApplications()
-    expect((await battleOf(made.battleId)).status).toBe('WAITING_PLAYERS')
-
-    await expire(made.battleId)
-    await runBattleApplications()
+    const made = await ApplicationsService.create(a.user.id, { kind: 'DUEL', delayMinutes: 10 })
+    // Принятый вызов открывает бой сразу, не дожидаясь таймера
+    // (жалоба заказчика 17.10.2026 «дуэль не принимается»).
+    const joined = await ApplicationsService.join(b.user.id, made.battleId)
+    expect(joined.started).toBe(true)
     const battle = await battleOf(made.battleId)
     expect(battle.status).toBe('ACTIVE')
     expect(await statusOf(a.character.id)).toBe('IN_BATTLE')
@@ -83,11 +79,13 @@ describe('заявки на бой', () => {
     const b1 = await fighter('g-b1')
     const busy = await fighter('g-busy')
     const late = await fighter('g-late')
-    const made = await ApplicationsService.create(a1.user.id, { kind: 'GROUP', teamSize: 2, delayMinutes: 3 })
+    // 3×3 и набрано не до конца: полная заявка стартует сразу, а здесь
+    // проверяется выпадение занятого бойца к таймеру.
+    const made = await ApplicationsService.create(a1.user.id, { kind: 'GROUP', teamSize: 3, delayMinutes: 3 })
     await ApplicationsService.join(a2.user.id, made.battleId, 1)
     await ApplicationsService.join(b1.user.id, made.battleId, 2)
     await ApplicationsService.join(busy.user.id, made.battleId, 2)
-    await expect(ApplicationsService.join(late.user.id, made.battleId, 1)).rejects.toMatchObject({ statusCode: 409 })
+    void late
 
     // Пока заявка ждала, боец ушёл на смену: на старте он выпадает.
     await testPrisma.character.update({ where: { id: busy.character.id }, data: { status: 'WORKING' } })
