@@ -102,11 +102,19 @@ export function CityChat() {
   const chat = useChat('DISTRICT', district)
 
   const boxRef = useRef<HTMLDivElement>(null)
-  // Новое сообщение — внизу: держим прокрутку у последнего.
+  // К новому сообщению прокручиваем, только если игрок и так внизу.
+  // Раньше прокрутка сбрасывалась при каждом опросе чата, и пролистать
+  // назад было нельзя: через секунды выдёргивало вниз.
+  const lastId = chat.messages[chat.messages.length - 1]?.id
+  const stuckToBottom = useRef(true)
   useEffect(() => {
     const el = boxRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [chat.messages])
+    if (el && stuckToBottom.current) el.scrollTop = el.scrollHeight
+  }, [lastId])
+  const onScroll = () => {
+    const el = boxRef.current
+    if (el) stuckToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+  }
 
   const send = async (e: FormEvent) => {
     e.preventDefault()
@@ -123,6 +131,7 @@ export function CityChat() {
       <div
         ref={boxRef}
         className="city-chat"
+        onScroll={onScroll}
         style={{
           left: MENU.chat.x, top: MENU.chat.y, width: MENU.chat.w, height: MENU.chat.h,
           fontSize: MENU.chat.size, lineHeight: `${MENU.chat.lineHeight}px`,
