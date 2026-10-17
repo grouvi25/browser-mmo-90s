@@ -86,7 +86,12 @@ export function BattleApplications() {
   })
   const join = useMutation({
     mutationFn: ({ battleId, side }: { battleId: string; side?: 1 | 2 }) => battlesApi.joinApplication(battleId, side),
-    onSuccess: () => { refresh(); say('success', 'Вы в заявке. Ждите начала боя') },
+    onSuccess: result => {
+      refresh()
+      // Набранная заявка стартует сразу — уводим в бой, не дожидаясь опроса.
+      if (result.started) { void qc.invalidateQueries({ queryKey: ['battle', 'current'] }); say('success', 'Вызов принят — бой начинается') }
+      else say('success', 'Вы в заявке. Бой начнётся, когда наберутся бойцы или выйдет время')
+    },
     onError: fail,
   })
   const leave = useMutation({
@@ -179,7 +184,7 @@ export function BattleApplications() {
       {tab !== 'RUNNING' && list.data && (shown.length === 0
         ? <p className="bapps-empty">Заявок нет. Подайте свою — соперники увидят её в списке.</p>
         : <ul className="bapps-list">{shown.map(item => (
-          <ApplicationRow key={item.battleId} item={item} now={now} busy={busy || inBattle || !!mine}
+          <ApplicationRow key={item.battleId} item={item} now={now} busy={busy || inBattle || !!mine} level={level}
             onJoin={side => join.mutate({ battleId: item.battleId, side })} />
         ))}</ul>)}
 
@@ -198,8 +203,8 @@ export function BattleApplications() {
   )
 }
 
-function ApplicationRow({ item, now, busy, onJoin }: {
-  item: BattleApplication; now: number; busy: boolean; onJoin: (side?: 1 | 2) => void
+function ApplicationRow({ item, now, busy, level, onJoin }: {
+  item: BattleApplication; now: number; busy: boolean; level: number; onJoin: (side?: 1 | 2) => void
 }) {
   const left = new Date(item.startsAt).getTime() - now
   return (
@@ -229,6 +234,10 @@ function ApplicationRow({ item, now, busy, onJoin }: {
           )
         })}
       </div>
+      {/* Кнопки нет — объясняем почему, иначе кажется, что вызов «не принимается». */}
+      {!item.isMine && !item.canJoin.some(c => c.ok) && (level < item.levelMin || level > item.levelMax) && (
+        <p className="bapps-hint">Ваш {level}-й уровень не подходит: заявка для {item.levelMin}–{item.levelMax}.</p>
+      )}
     </li>
   )
 }

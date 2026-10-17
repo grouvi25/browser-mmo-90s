@@ -132,7 +132,7 @@ export const battlesApi = {
     api.post<{ battleId: string; status: string; startsAt: string }>('/api/battles/applications', input),
 
   joinApplication: (battleId: string, side?: 1 | 2) =>
-    api.post<{ battleId: string; side: number }>(`/api/battles/applications/${battleId}/join`, side ? { side } : {}),
+    api.post<{ battleId: string; side: number; started?: boolean }>(`/api/battles/applications/${battleId}/join`, side ? { side } : {}),
 
   leaveApplication: (battleId: string) =>
     api.post<{ battleId: string; cancelled: boolean }>(`/api/battles/applications/${battleId}/leave`, {}),

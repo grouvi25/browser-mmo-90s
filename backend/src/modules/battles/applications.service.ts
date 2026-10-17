@@ -136,7 +136,17 @@ export const ApplicationsService = {
         data: { battleId, characterId: char.id, side: joinSide, hpMax: char.hpMax, hpCurrent: char.hpCurrent },
       })
     })
-    return { battleId, side: joinSide }
+    // Заявка набрана — ждать таймер незачем (жалоба заказчика «дуэль не
+    // принимается»: вызов приняли, а бой открывался только через 1–10 мин).
+    // startsAt сдвигаем на «сейчас», чтобы уборка зависших захватов видела
+    // реальное время старта.
+    const filled = await prisma.battleParticipant.count({ where: { battleId } })
+    if (filled >= capacity(kind, teamSize)) {
+      await prisma.battle.updateMany({ where: { id: battleId, status: 'WAITING_PLAYERS' }, data: { startsAt: new Date() } })
+      const result = await this.start(battleId)
+      return { battleId, side: joinSide, started: result === 'STARTED' }
+    }
+    return { battleId, side: joinSide, started: false }
   },
 
   /** Выйти из заявки. Создатель уходит — заявка снимается целиком. */
