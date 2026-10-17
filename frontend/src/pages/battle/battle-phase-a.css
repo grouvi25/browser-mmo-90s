@@ -1317,7 +1317,7 @@
 }
 .bs-chat__form input::placeholder { color: #8a7a72; }
 .bs-chat__form input:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
-.bs-chat__row { margin: 0 0 3px; line-height: 1.35; }
+.bs-chat__row { margin: 0 0 3px; line-height: 1.35; overflow-wrap: anywhere; }
 .bs-chat__time { color: var(--ink-red, #ab0303); }
 .bs-chat__nick { font-weight: 700; }
 .bs-chat__online { border-left: 1px solid #a8918f; padding: 8px 9px; overflow-y: auto; }

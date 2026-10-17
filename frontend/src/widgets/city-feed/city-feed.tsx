@@ -5,7 +5,7 @@
 // сокетом, присутствие — из общего списка эфира. Демонстрационные
 // массивы, что стояли тут до появления модуля чата, убраны.
 // =============================================================
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
@@ -102,7 +102,11 @@ export function CityChat() {
   const chat = useChat('DISTRICT', district)
 
   const boxRef = useRef<HTMLDivElement>(null)
-  useFitBlock(boxRef, MENU.chat.w, [chat.messages])
+  // Новое сообщение — внизу: держим прокрутку у последнего.
+  useEffect(() => {
+    const el = boxRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [chat.messages])
 
   const send = async (e: FormEvent) => {
     e.preventDefault()
@@ -111,7 +115,8 @@ export function CityChat() {
     if (await chat.send(draft)) setDraft('')
   }
 
-  const shown = chat.messages.slice(-MENU.chat.rows)
+  // Строки переносятся, поэтому держим запас на прокрутку назад.
+  const shown = chat.messages.slice(-MENU.chat.rows * 5)
 
   return (
     <>
@@ -119,7 +124,7 @@ export function CityChat() {
         ref={boxRef}
         className="city-chat"
         style={{
-          left: MENU.chat.x, top: MENU.chat.y,
+          left: MENU.chat.x, top: MENU.chat.y, width: MENU.chat.w, height: MENU.chat.h,
           fontSize: MENU.chat.size, lineHeight: `${MENU.chat.lineHeight}px`,
         }}
         title="Чат района"

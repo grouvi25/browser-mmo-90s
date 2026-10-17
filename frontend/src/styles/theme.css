@@ -405,9 +405,10 @@ html, body {
    ЧАТ И ОНЛАЙН
    ============================================================= */
 
-.city-chat { position: absolute; transform-origin: left top;
-             font-family: var(--font-ui); width: max-content; }
-.city-chat__row { white-space: nowrap; }
+.city-chat { position: absolute; font-family: var(--font-ui); overflow-y: auto; }
+/* Длинные сообщения переносятся (срочная правка заказчика 17.10.2026):
+   раньше строка шла без переноса, и весь блок сжимался по ширине. */
+.city-chat__row { white-space: normal; overflow-wrap: anywhere; }
 .city-chat__time { color: var(--ink-red); }
 .city-chat__nick { cursor: pointer; }
 .city-chat__nick:hover { text-decoration: underline; }

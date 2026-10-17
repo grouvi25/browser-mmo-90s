@@ -153,7 +153,7 @@
   background: rgba(255, 255, 255, .45); border: 1px solid rgba(43, 43, 43, .4);
   font-family: var(--font-ui); font-size: 13px; line-height: 1.45;
 }
-.m-chat__row { margin-bottom: 3px; }
+.m-chat__row { margin-bottom: 3px; overflow-wrap: anywhere; }
 .m-chat__form { display: flex; gap: 6px; margin-top: 8px; }
 .m-chat__form input {
   flex: 1 1 auto; min-width: 0; padding: 8px; font: inherit; font-size: 14px;
