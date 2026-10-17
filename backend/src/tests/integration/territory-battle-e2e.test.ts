@@ -53,8 +53,9 @@ async function player(prefix: string, hp: number) {
 /** Бригада из пяти бойцов, готовая воевать. */
 async function brigade(prefix: string, hp: number) {
   const boss = await player(prefix, hp)
-  const clan = await ClansService.create(
-    boss.character.id, uid(`${prefix}-clan`), prefix.slice(0, 4).toUpperCase() + uid('x').slice(-2))
+  // Тег выдаёт сервис: «префикс + 2 случайных знака» у двух бригад одного
+  // теста совпадал примерно раз на 1300 прогонов и ронял CI.
+  const clan = await ClansService.create(boss.character.id, uid(`${prefix}-clan`))
   const role = await testPrisma.clanRole.findFirstOrThrow({ where: { clanId: clan.id, code: 'fighter' } })
   const men = [boss]
   for (let i = 1; i < 5; i++) {
