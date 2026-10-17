@@ -132,6 +132,10 @@ export function CityChat() {
         ref={boxRef}
         className="city-chat"
         onScroll={onScroll}
+        // Чат прокручивается — значит, должен листаться и с клавиатуры.
+        tabIndex={0}
+        role="log"
+        aria-label="Чат района"
         style={{
           left: MENU.chat.x, top: MENU.chat.y, width: MENU.chat.w, height: MENU.chat.h,
           fontSize: MENU.chat.size, lineHeight: `${MENU.chat.lineHeight}px`,
