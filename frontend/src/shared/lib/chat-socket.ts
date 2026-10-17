@@ -13,6 +13,9 @@ const BASE = (import.meta as ImportMeta & { env: Record<string, string> }).env.V
 
 let socket: Socket | null = null
 let refCount = 0
+/** Последний район: после переподключения сервер о нём не помнит. */
+let lastDistrict: string | null = null
+const reconnectListeners = new Set<() => void>()
 
 function connect(): Socket | null {
   if (socket) return socket
@@ -22,9 +25,20 @@ function connect(): Socket | null {
   socket = io(BASE || undefined, {
     // Токен читаем при каждом подключении, а не один раз при загрузке:
     // после перелогина в той же вкладке он другой.
-    auth: () => ({ token: localStorage.getItem('mmo_token') ?? '' }),
+    // socket.io-client ждёт функцию с колбэком. Раньше здесь стояла функция,
+    // возвращающая объект: колбэк не вызывался, пакет подключения не
+    // уходил, и через 45 с сервер рвал соединение — живого чата в браузере
+    // не было вовсе, реплики доезжали только перезапросом ленты.
+    auth: callback => callback({ token: localStorage.getItem('mmo_token') ?? '' }),
     transports: ['websocket', 'polling'],
     autoConnect: true,
+  })
+  // Рассинхрон чата (жалоба заказчика 17.10.2026): после обрыва соединения
+  // клиент не возвращался в комнату района и не добирал то, что написали,
+  // пока его не было. Теперь на каждом подключении — и то и другое.
+  socket.on('connect', () => {
+    if (lastDistrict) socket?.emit('chat:district', lastDistrict)
+    reconnectListeners.forEach(listener => listener())
   })
   return socket
 }
@@ -54,5 +68,12 @@ export function subscribeChat(onMessage: (line: ChatLine) => void): () => void {
 
 /** Переключить комнату района. Молча ничего не делает без соединения. */
 export function joinDistrict(district: string): void {
+  lastDistrict = district
   socket?.emit('chat:district', district)
+}
+
+/** Вызвать при каждом (пере)подключении — чтобы дозагрузить пропущенное. */
+export function onChatConnect(listener: () => void): () => void {
+  reconnectListeners.add(listener)
+  return () => { reconnectListeners.delete(listener) }
 }
