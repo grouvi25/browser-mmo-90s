@@ -13,6 +13,7 @@ type AuditEvent =
   | 'item.unequipped'
   | 'item.repaired'
   | 'battle.started'
+  | 'battle.cleanup.legacy_waiting'
   | 'house_siege.filed'
   | 'house_siege.started'
   | 'house_siege.finished'

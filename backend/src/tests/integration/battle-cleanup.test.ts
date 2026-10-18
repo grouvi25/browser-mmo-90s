@@ -7,7 +7,7 @@
  * вернуться было некуда.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { runBattleCleanup, releaseStuckCharacters, LOST_STATE_GRACE_MS } from '../../workers/battle-cleanup.worker'
+import { runBattleCleanup, releaseStuckCharacters, LOST_STATE_GRACE_MS, LEGACY_WAITING_MS } from '../../workers/battle-cleanup.worker'
 import { ApplicationsService } from '../../modules/battles/applications.service'
 import { BattleService } from '../../modules/battles/battles.service'
 import { BattleRedis, disconnectRedis } from '../../shared/db/redis'
@@ -59,6 +59,24 @@ describe('уборка зависших боёв', () => {
     expect((await testPrisma.battle.findUniqueOrThrow({ where: { id: battleId } })).status).toBe('ACTIVE')
     expect(await statusOf(a.character.id)).toBe('IN_BATTLE')
     await BattleRedis.deleteState(battleId)
+  })
+
+  it('вечная заявка старого образца снимается, и создатель выходит из «боя»', async () => {
+    // Так висели test1 и Admin: дуэль создана до заявок с таймером, без
+    // startsAt, принять её уже нечем, а создатель числится «в бою».
+    const a = await fighter('legacy')
+    const battle = await testPrisma.battle.create({
+      data: { type: 'PVP_DUEL', status: 'WAITING_PLAYERS', levelMin: 1, levelMax: 99, createdAt: new Date(Date.now() - LEGACY_WAITING_MS - 1000) },
+    })
+    await testPrisma.battleParticipant.create({ data: { battleId: battle.id, characterId: a.character.id, side: 1, hpMax: 100, hpCurrent: 100 } })
+    await testPrisma.character.update({ where: { id: a.character.id }, data: { status: 'IN_BATTLE' } })
+    // Свежую такую заявку (так на секунды создаётся бой осады) не трогаем.
+    const fresh = await testPrisma.battle.create({ data: { type: 'CLAN', status: 'WAITING_PLAYERS', levelMin: 1, levelMax: 99 } })
+
+    await runBattleCleanup()
+    expect((await testPrisma.battle.findUniqueOrThrow({ where: { id: battle.id } })).status).toBe('CANCELLED')
+    expect((await testPrisma.battle.findUniqueOrThrow({ where: { id: fresh.id } })).status).toBe('WAITING_PLAYERS')
+    expect(await statusOf(a.character.id)).toBe('ACTIVE')
   })
 
   it('статус «в бою» без боя снимается и уборкой, и запросом текущего боя', async () => {
