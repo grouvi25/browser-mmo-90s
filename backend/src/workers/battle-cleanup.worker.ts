@@ -29,6 +29,8 @@ import { logger } from '../shared/logger/logger'
 import { audit } from '../shared/logger/audit-logger'
 
 const MAX_BATTLE_DURATION_MS = 2 * 60 * 60 * 1000 // 2 часа
+/** Заявка старого образца (до заявок с таймером) ждёт соперника столько — и снимается. */
+export const LEGACY_WAITING_MS = 30 * 60 * 1000
 /** Бой создаётся в базе чуть раньше, чем его состояние ложится в Redis. */
 export const LOST_STATE_GRACE_MS = 2 * 60 * 1000
 
@@ -56,6 +58,7 @@ export async function runBattleCleanup(): Promise<void> {
   }
 
   const orphaned = [...expired, ...lost]
+  await cancelLegacyWaiting(new Date(now))
   await releaseStuckCharacters()
   if (orphaned.length === 0) return
 
@@ -102,6 +105,32 @@ export async function runBattleCleanup(): Promise<void> {
   }
 
   logger.info({ count: orphaned.length }, '[BattleCleanup] Done')
+}
+
+/**
+ * Заявки старого образца: созданы до заявок с таймером (без startsAt) и
+ * ждут соперника вечно. Принять их уже нечем — ручки убраны, — а создатель
+ * всё это время числится «в бою» и не может ни драться, ни работать
+ * (так висели test1 и Admin с 14 октября). Снимаем, а персонажей
+ * отпускает releaseStuckCharacters ниже.
+ *
+ * Осада создаёт бой без startsAt на секунды до старта, поэтому порог —
+ * полчаса; бои за районы (TERRITORY) и осады не трогаем вовсе.
+ */
+export async function cancelLegacyWaiting(now = new Date()): Promise<number> {
+  const sieges = await prisma.houseSiege.findMany({ where: { battleId: { not: null } }, select: { battleId: true } })
+  const cancelled = await prisma.battle.updateMany({
+    where: {
+      status: 'WAITING_PLAYERS',
+      startsAt: null,
+      type: { in: ['PVP_DUEL', 'CLAN'] },
+      createdAt: { lt: new Date(now.getTime() - LEGACY_WAITING_MS) },
+      id: { notIn: sieges.map(s => s.battleId!) },
+    },
+    data: { status: 'CANCELLED', finishedAt: now },
+  })
+  if (cancelled.count) audit('battle.cleanup.legacy_waiting', { count: cancelled.count })
+  return cancelled.count
 }
 
 /**
