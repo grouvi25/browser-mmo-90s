@@ -18,6 +18,7 @@ import { logger } from './shared/logger/logger'
 import { checkReadiness } from './shared/health/readiness'
 import { setRealtimeServer } from './shared/realtime/io'
 import { ChatService } from './modules/chat/chat.service'
+import { registerNoticeHook } from './modules/chat/notices.hook'
 import { chatRoom, DISTRICTS } from './modules/chat/chat.formulas'
 
 import { authRoutes } from './modules/auth/auth.routes'
@@ -85,6 +86,9 @@ export async function buildApp() {
       message: 'Слишком много запросов, подождите немного',
     }),
   })
+
+  // Уведомления в чате по каждому действию игрока.
+  registerNoticeHook(fastify)
 
   await fastify.register(fastifyJwt, {
     secret: AuthConfig.jwt.secret,

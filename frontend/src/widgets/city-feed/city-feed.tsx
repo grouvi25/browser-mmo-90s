@@ -141,6 +141,11 @@ export function CityChat() {
         title="Общий чат города"
       >
         {shown.map(m => (
+          m.system ? (
+            <div key={m.id} className="city-chat__row city-chat__row--system">
+              <span className="city-chat__time">[{chatTime(m.createdAt)}]</span> {m.body}
+            </div>
+          ) : (
           <div key={m.id} className="city-chat__row">
             <span className="city-chat__time">[{chatTime(m.createdAt)}]</span>{' '}
             <span
@@ -151,6 +156,7 @@ export function CityChat() {
             </span>{' '}
             {m.body}
           </div>
+          )
         ))}
         {!chat.loading && !shown.length && (
           <div className="city-chat__row city-chat__empty">В эфире тихо. Скажите первое слово.</div>

@@ -5,6 +5,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { CharactersRepository } from '../characters/characters.repository'
 import { ClansService } from './clans.service'
+import { NoticesService } from '../chat/notices.service'
 import { HouseSiegeService } from './house-siege.service'
 import type { ClanPermission } from './clans.formulas'
 
@@ -74,7 +75,10 @@ export async function clansRoutes(fastify: FastifyInstance) {
       .refine(v => !!v.targetCharacterId || !!v.nickname).safeParse(req.body)
     if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Укажите ник бойца' })
     const actor = await character(req.authUser.userId)
-    return reply.code(201).send(await ClansService.invite(actor.id, { characterId: parsed.data.targetCharacterId, nickname: parsed.data.nickname }))
+    const invited = await ClansService.invite(actor.id, { characterId: parsed.data.targetCharacterId, nickname: parsed.data.nickname })
+    const targetId = invited.characterId
+    if (targetId) void NoticesService.push(targetId, 'Вас приглашают в бригаду. Ответить можно в Домах бригад.')
+    return reply.code(201).send(invited)
   })
   fastify.get('/invites/mine', { preHandler: authenticate }, async (req, reply) => {
     const actor = await character(req.authUser.userId); return reply.send({ items: await ClansService.myInvites(actor.id) })
@@ -92,13 +96,23 @@ export async function clansRoutes(fastify: FastifyInstance) {
     const parsed=z.object({targetCharacterId:Id}).safeParse(req.body); if(!parsed.success)return reply.code(422).send({code:'GEN_001',message:'Validation error'}); const actor=await character(req.authUser.userId); return reply.send(await ClansService.kick(actor.id,parsed.data.targetCharacterId))
   })
   fastify.patch<{ Body: { targetCharacterId: string; roleId: string } }>('/role', { preHandler: authenticate }, async (req, reply) => {
-    const parsed=z.object({targetCharacterId:Id,roleId:Id}).safeParse(req.body); if(!parsed.success)return reply.code(422).send({code:'GEN_001',message:'Validation error'}); const actor=await character(req.authUser.userId); return reply.send(await ClansService.assignRole(actor.id,parsed.data.targetCharacterId,parsed.data.roleId))
+    const parsed=z.object({targetCharacterId:Id,roleId:Id}).safeParse(req.body); if(!parsed.success)return reply.code(422).send({code:'GEN_001',message:'Validation error'}); const actor=await character(req.authUser.userId); const done=await ClansService.assignRole(actor.id,parsed.data.targetCharacterId,parsed.data.roleId)
+    // Игроку, которому сменили должность, приходит уведомление в чат.
+    if (done.changed) {
+      void NoticesService.push(parsed.data.targetCharacterId, `В бригаде «${done.clanName}» вам назначена должность: ${done.roleName}.`)
+      void NoticesService.push(actor.id, `Вы назначили должность «${done.roleName}».`)
+    }
+    return reply.send(done)
   })
   fastify.post<{ Body: { amount: number } }>('/treasury/deposit', { preHandler: authenticate }, async (req, reply) => {
     const parsed=z.object({amount:Amount}).safeParse(req.body); if(!parsed.success)return reply.code(422).send({code:'GEN_001',message:'Validation error'}); const actor=await character(req.authUser.userId); return reply.send(await ClansService.depositTreasury(actor.id,parsed.data.amount))
   })
   fastify.post<{ Body: { amount: number; reason: string } }>('/treasury/spend', { preHandler: authenticate }, async (req, reply) => {
     const parsed=z.object({amount:Amount,reason:z.string().trim().min(3).max(200)}).safeParse(req.body); if(!parsed.success)return reply.code(422).send({code:'GEN_001',message:'Validation error'}); const actor=await character(req.authUser.userId); return reply.send(await ClansService.spendTreasury(actor.id,parsed.data.amount,parsed.data.reason))
+  })
+  fastify.get('/storage/log', { preHandler: authenticate }, async (req, reply) => {
+    const actor = await character(req.authUser.userId)
+    return reply.send(await ClansService.storageLog(actor.id))
   })
   fastify.post<{ Body: { resourceCode: string; amount: number } }>('/storage/deposit', { preHandler: authenticate }, async (req, reply) => {
     const parsed=z.object({resourceCode:z.string().min(1),amount:Amount}).safeParse(req.body); if(!parsed.success)return reply.code(422).send({code:'GEN_001',message:'Validation error'}); const actor=await character(req.authUser.userId); return reply.send(await ClansService.depositStorage(actor.id,parsed.data.resourceCode,parsed.data.amount))

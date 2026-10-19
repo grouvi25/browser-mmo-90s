@@ -35,7 +35,7 @@ export interface ClanRelation {
   confirmed: boolean
   updatedAt?: string
 }
-export interface ClanStorageRow { resourceCode: string; amount: number }
+export interface ClanStorageRow { resourceCode: string; resourceName?: string; amount: number }
 
 export interface Clan {
   id: string
@@ -104,6 +104,7 @@ export interface ClanInvite {
 export const clansApi = {
   list: () => api.get<{ items: Clan[] }>('/api/clans'),
   get: (id: string) => api.get<Clan>(`/api/clans/${id}`),
+  storageLog: () => api.get<{ items: Array<{ id: string; at: string; nickname: string; resource: string; amount: number }> }>('/api/clans/storage/log'),
   house: (id: string) => api.get<BrigadeHouse>(`/api/clans/${id}/house`),
   fileSiege: (id: string, startsAt: string) => api.post<{ siegeId: string; startsAt: string }>(`/api/clans/${id}/siege`, { startsAt }),
   siegeAction: (siegeId: string, action: 'signup' | 'unsign' | 'cancel') => api.post(`/api/clans/sieges/${siegeId}/${action}`, {}),

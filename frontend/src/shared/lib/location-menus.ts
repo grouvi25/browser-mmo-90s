@@ -28,10 +28,9 @@ interface Place { key: string; match: string[]; tabs: LocationTab[] }
 const PLACES: Place[] = [
   {
     key: 'arena', match: ['/pvp', '/battles/history'], tabs: [
-      { key: 'all', label: 'Все заявки', to: '/pvp' },
-      { key: 'duel', label: 'Дуэли', to: '/pvp?tab=DUEL' },
-      { key: 'group', label: 'Групповые', to: '/pvp?tab=GROUP' },
-      { key: 'chaotic', label: 'Хаотичные', to: '/pvp?tab=CHAOTIC' },
+      // Фильтры по виду боя внизу убраны (правка заказчика 19.10): все заявки
+      // одним списком, вид боя подписан в самой строке.
+      { key: 'all', label: 'Заявки', to: '/pvp' },
       { key: 'running', label: 'Идут сейчас', to: '/pvp?tab=RUNNING' },
       { key: 'history', label: 'История боёв', to: '/battles/history' },
     ],

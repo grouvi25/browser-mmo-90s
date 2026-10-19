@@ -59,7 +59,12 @@ export const ClansService = {
     if (!clan) throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Бригада не найдена', 404)
     const characters = await prisma.character.findMany({ where: { id: { in: clan.members.map(member => member.characterId) } }, select: { id: true, nickname: true, battleLevel: true } })
     const byId = new Map(characters.map(character => [character.id, character]))
-    return { ...clan, memberCapacity: clanMemberCapacity(clan.level), storageCapacity: clanStorageCapacity(clan.level), members: clan.members.map(member => ({ ...member, character: byId.get(member.characterId) })) }
+    // В таблице склада был виден код ресурса (res_greens): подставляем название.
+    const resourceNames = new Map((await prisma.resourceTemplate.findMany({
+      where: { code: { in: clan.storage.map(row => row.resourceCode) } }, select: { code: true, name: true },
+    })).map(r => [r.code, r.name]))
+    const storage = clan.storage.map(row => ({ ...row, resourceName: resourceNames.get(row.resourceCode) ?? row.resourceCode }))
+    return { ...clan, storage, memberCapacity: clanMemberCapacity(clan.level), storageCapacity: clanStorageCapacity(clan.level), members: clan.members.map(member => ({ ...member, character: byId.get(member.characterId) })) }
   },
 
   /** Тег необязателен: заказчик убрал его из интерфейса («только название»),
@@ -162,8 +167,33 @@ export const ClansService = {
       const role = await tx.clanRole.findFirst({ where: { id: roleId, clanId: actor.clanId } })
       if (!target || target.clanId !== actor.clanId || !role) throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Боец или роль не найдены', 404)
       if (target.role.code === 'boss' && target.characterId === characterId) throw new AppError(ErrorCode.CLAN_PERMISSION, 'Главарь не может лишить себя права назначать роли', 409)
-      return tx.clanMember.update({ where: { id: target.id }, data: { roleId: role.id } })
+      if (target.roleId === role.id) return { member: target, roleName: role.name, changed: false as const }
+      const member = await tx.clanMember.update({ where: { id: target.id }, data: { roleId: role.id } })
+      return { member, roleName: role.name, clanName: actor.clan.name, changed: true as const }
     })
+  },
+
+  /**
+   * Журнал склада: кто что положил и взял. Видят главарь и бригадир —
+   * просьба заказчика: «чтобы глава и зам сами видели».
+   */
+  async storageLog(characterId: string, limit = 100) {
+    const member = await prisma.clanMember.findUnique({ where: { characterId }, include: { role: true } })
+    if (!member || member.status !== 'ACTIVE') throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Вы не состоите в бригаде', 404)
+    if (member.role.rank < 70) throw new AppError(ErrorCode.CLAN_PERMISSION, 'Журнал склада видят главарь и бригадир', 403)
+    const rows = await prisma.clanStorageLog.findMany({ where: { clanId: member.clanId }, orderBy: { createdAt: 'desc' }, take: Math.min(limit, 200) })
+    const [people, resources] = await Promise.all([
+      prisma.character.findMany({ where: { id: { in: [...new Set(rows.map(r => r.characterId))] } }, select: { id: true, nickname: true } }),
+      prisma.resourceTemplate.findMany({ where: { code: { in: [...new Set(rows.map(r => r.resourceCode))] } }, select: { code: true, name: true } }),
+    ])
+    const who = new Map(people.map(p => [p.id, p.nickname]))
+    const what = new Map(resources.map(r => [r.code, r.name]))
+    return {
+      items: rows.map(r => ({
+        id: r.id, at: r.createdAt, nickname: who.get(r.characterId) ?? '—',
+        resource: what.get(r.resourceCode) ?? r.resourceCode, amount: r.amount,
+      })),
+    }
   },
 
   async depositTreasury(characterId: string, amount: number) {
@@ -227,6 +257,7 @@ export const ClansService = {
       }
       await ResourcesService.consume(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'CLAN_STORAGE_DEPOSIT', refType: 'clan', refId: member.clanId })
       const row = await tx.clanStorage.upsert({ where: { clanId_resourceCode: { clanId: member.clanId, resourceCode } }, update: { amount: { increment: amount } }, create: { clanId: member.clanId, resourceCode, amount } })
+      await tx.clanStorageLog.create({ data: { clanId: member.clanId, characterId, resourceCode, amount } })
       return row
     })
   },
@@ -241,6 +272,7 @@ export const ClansService = {
       const template = await tx.resourceTemplate.findUniqueOrThrow({ where: { code: resourceCode } })
       await ResourcesService.add(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'CLAN_STORAGE_WITHDRAW', refType: 'clan', refId: member.clanId })
       await tx.clanMember.update({ where: { id: member.id }, data: { storageWithdrawn: used + amount, storageWithdrawnAt: new Date() } })
+      await tx.clanStorageLog.create({ data: { clanId: member.clanId, characterId, resourceCode, amount: -amount } })
       return { resourceCode, amount }
     })
   },

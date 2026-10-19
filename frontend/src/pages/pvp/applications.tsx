@@ -20,9 +20,9 @@ import './applications.css'
 
 const KIND_LABEL: Record<ApplicationKind | 'SIEGE', string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Хаотичный', SIEGE: 'Осада дома' }
 const KIND_HINT: Record<ApplicationKind, string> = {
-  DUEL: 'Один на один.',
-  GROUP: 'Две стороны: встаёте за любую.',
-  CHAOTIC: 'Все в одной заявке, стороны делит жребий на старте.',
+  DUEL: 'Один на один: подаёте вызов, соперник его принимает.',
+  GROUP: 'Бой двух команд. Вы сами выбираете, за какую сторону встать: можно собрать своих на одну сторону и ждать противников на другую.',
+  CHAOTIC: 'Каждый записывается в общую заявку, не зная, с кем будет в одной команде: на старте всех делит жребий на две равные команды.',
 }
 const DELAYS = [1, 3, 5, 10]
 type Tab = 'ALL' | ApplicationKind | 'RUNNING'

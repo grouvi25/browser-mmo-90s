@@ -9,6 +9,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../../shared/security/auth-middleware'
+import { NoticesService } from './notices.service'
 import { ChatService } from './chat.service'
 import { publish } from '../../shared/realtime/io'
 import { FLOOD, MAX_BODY, chatRoom, type Rejection } from './chat.formulas'
@@ -50,6 +51,12 @@ export async function chatRoutes(fastify: FastifyInstance) {
       })
     },
   )
+
+  /** Личные уведомления игрока: что он сделал и что с ним сделали. */
+  fastify.get('/notices', { preHandler: authenticate }, async (req, reply) => {
+    const who = await ChatService.speaker(req.authUser.userId)
+    return reply.send({ items: await NoticesService.list(who.characterId) })
+  })
 
   /** Кто в эфире. Список общий на игру, не по каналам. */
   fastify.get('/online/list', { preHandler: authenticate }, async (req, reply) => {

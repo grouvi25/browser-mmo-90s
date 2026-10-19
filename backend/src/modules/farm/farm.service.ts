@@ -120,6 +120,19 @@ export const FarmService = {
     })
   },
 
+  /** Убрать засохший урожай: участок освобождается, урожая нет. */
+  async clear(characterId: string, plotId: string) {
+    return withTransaction(async tx => {
+      const plot = await tx.farmPlot.findFirst({ where: { id: plotId, characterId } })
+      if (!plot?.cropCode) throw new AppError(ErrorCode.FARM_PLOT_EMPTY, 'Здесь ничего не растёт', 409)
+      if (!plot.withersAt || plot.withersAt > new Date()) {
+        throw new AppError(ErrorCode.FARM_NOT_READY, 'Убрать можно только засохший урожай', 409)
+      }
+      await tx.farmPlot.update({ where: { id: plotId }, data: { cropCode: null, plantedAt: null, readyAt: null, withersAt: null, waterCount: 0, lastWateredAt: null } })
+      return { cleared: true, cropCode: plot.cropCode }
+    })
+  },
+
   async buyBuilding(characterId: string, plotId: string, type: FarmBuildingCode) {
     const building = FARM_BUILDINGS[type]
     if (!building) throw new AppError(ErrorCode.FARM_BUILDING_INVALID, 'Unknown farm building', 422)

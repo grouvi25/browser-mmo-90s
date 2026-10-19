@@ -14,6 +14,8 @@ export async function cleanDatabase(): Promise<void> {
   await testPrisma.$transaction([
     testPrisma.idempotencyKey.deleteMany(),
     testPrisma.dollarLog.deleteMany(),
+    testPrisma.gameNotice.deleteMany(),
+    testPrisma.clanStorageLog.deleteMany(),
     testPrisma.houseWallNote.deleteMany(),
     testPrisma.houseSiegeSignup.deleteMany(),
     testPrisma.houseSiege.deleteMany(),

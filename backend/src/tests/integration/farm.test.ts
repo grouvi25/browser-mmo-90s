@@ -24,6 +24,33 @@ describe('farm', () => {
     expect(state.nextPlotPrice).toBe(1500) // второй-третий участок по ТЗ
   })
 
+  it('засохший урожай нельзя собрать, но можно убрать и посадить заново', async () => {
+    // Баг заказчика: урожай засох, собрать нельзя, участок занят навсегда.
+    const character = await player('farmer-wither')
+    await FarmService.list(character.id)
+    const plot = (await testPrisma.farmPlot.findMany({ where: { characterId: character.id } }))[0]
+    await testPrisma.farmPlot.update({ where: { id: plot.id }, data: {
+      cropCode: 'dill', plantedAt: new Date(Date.now() - 9 * 3_600_000),
+      readyAt: new Date(Date.now() - 8 * 3_600_000), withersAt: new Date(Date.now() - 1000),
+    } })
+    await expect(FarmService.harvest(character.id, plot.id)).rejects.toMatchObject({ code: 'FARM_005' })
+    await expect(FarmService.plant(character.id, plot.id, 'dill')).rejects.toMatchObject({ code: 'FARM_002' })
+
+    expect(await FarmService.clear(character.id, plot.id)).toMatchObject({ cleared: true })
+    const after = await FarmService.list(character.id)
+    expect(after.plots.find(p => p.id === plot.id)?.state).toBe('EMPTY')
+    await expect(FarmService.plant(character.id, plot.id, 'dill')).resolves.toBeTruthy()
+  })
+
+  it('убрать можно только засохшее: растущее и пустое участок не освобождают', async () => {
+    const character = await player('farmer-clear')
+    await FarmService.list(character.id)
+    const plot = (await testPrisma.farmPlot.findMany({ where: { characterId: character.id } }))[0]
+    await expect(FarmService.clear(character.id, plot.id)).rejects.toMatchObject({ statusCode: 409 })
+    await FarmService.plant(character.id, plot.id, 'dill')
+    await expect(FarmService.clear(character.id, plot.id)).rejects.toMatchObject({ statusCode: 409 })
+  })
+
   it('buys the second plot for 1500 and debits money', async () => {
     const character = await player('farmer2')
     await FarmService.list(character.id) // создаёт первый бесплатный участок

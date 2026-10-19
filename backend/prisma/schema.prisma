@@ -2166,3 +2166,29 @@ model HouseWallNote {
   @@index([siegeId, characterId])
   @@map("house_wall_notes")
 }
+
+/// Личное уведомление игроку: «посадили», «устроились», «вам сменили должность».
+/// Показывается в чате строкой от «Системы»; видит только адресат.
+model GameNotice {
+  id          String   @id @default(uuid())
+  characterId String   @map("character_id")
+  text        String   @db.VarChar(300)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([characterId, createdAt])
+  @@map("game_notices")
+}
+
+/// Журнал склада бригады: кто что положил и взял. Видят глава и заместитель.
+model ClanStorageLog {
+  id           String   @id @default(uuid())
+  clanId       String   @map("clan_id")
+  characterId  String   @map("character_id")
+  resourceCode String   @map("resource_code")
+  /// Плюс — положил, минус — взял.
+  amount       Int
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([clanId, createdAt])
+  @@map("clan_storage_logs")
+}

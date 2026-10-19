@@ -20,6 +20,18 @@ function merge(messages: ChatLine[], line: ChatLine): ChatLine[] {
     .slice(-50)
 }
 
+/** Уведомления вливаются в ленту по времени, как обычные реплики. */
+function mergeNotices(
+  messages: ChatLine[], notices: Array<{ id: string; text: string; createdAt: string }>, channel: ChatChannel,
+): ChatLine[] {
+  if (!notices.length) return messages
+  const lines: ChatLine[] = notices.map(n => ({
+    id: 'notice-' + n.id, channel, scope: '', authorId: '', nickname: 'Система', level: 0,
+    body: n.text, createdAt: n.createdAt, system: true,
+  }))
+  return [...messages, ...lines].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+}
+
 /**
  * Цвет ника. В макете реплики разноцветные, но цвет там ничего не
  * значит — это оформление. Берём его от самого ника, чтобы за игроком
@@ -64,6 +76,13 @@ export function useChat(channel: ChatChannel, district?: string): ChatState {
 
   useEffect(() => onChatConnect(() => { void qc.invalidateQueries({ queryKey: key }) }), [qc, key])
 
+  // Личные уведомления («вы посадили», «вам назначена должность») идут
+  // в той же ленте строками от «Системы», но видит их только адресат.
+  const notices = useQuery({
+    queryKey: ['chat', 'notices'], queryFn: chatApi.notices, retry: false,
+    refetchInterval: 8_000, staleTime: 4_000,
+  })
+
   const scope = data?.scope ?? ''
 
   // Комната района меняется при ходьбе по городу — сообщаем серверу.
@@ -99,7 +118,7 @@ export function useChat(channel: ChatChannel, district?: string): ChatState {
   }, [channel, district, key, qc])
 
   return {
-    messages: data?.messages ?? [],
+    messages: mergeNotices(data?.messages ?? [], notices.data?.items ?? [], channel),
     scope,
     // Каждое звено через «?»: если сервер ответит не тем, чего ждём,
     // чат обязан деградировать до предела по умолчанию, а не уронить

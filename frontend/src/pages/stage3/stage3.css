@@ -136,3 +136,9 @@
 .s3 .farm-tile--buy{background:oklch(80% .04 75);color:var(--s3-ink);border-style:dashed}
 .farm-act{display:flex;flex-wrap:wrap;align-items:center;gap:10px;min-height:44px}
 @media(max-width:800px){.farm-field{grid-template-columns:repeat(3,minmax(0,1fr))}.s3 .farm-tile{aspect-ratio:1/1}.farm-tile small{font-size:0.65rem}}
+
+.role-pick { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.storage-log { margin-top: 14px; display: grid; gap: 6px; }
+.storage-log h3 { margin: 0; }
+.log-in { color: #2f6b3a; }
+.log-out { color: #a02a30; }
