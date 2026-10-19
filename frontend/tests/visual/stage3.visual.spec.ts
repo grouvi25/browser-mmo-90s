@@ -96,7 +96,7 @@ test('город ведёт в разделы Этапа 3 из своих ра�
 
 test('в локации полоса подсвечивает её раздел', async ({ page }) => {
   await authPage(page, owner)
-  for (const [path, tab] of [['/market', 'board'], ['/clan-houses', 'houses'], ['/district/industrial', 'landing'], ['/farm', 'plant'], ['/pvp?tab=DUEL', 'duel']]) {
+  for (const [path, tab] of [['/market', 'board'], ['/clan-houses', 'houses'], ['/district/industrial', 'landing'], ['/farm', 'plant'], ['/pvp', 'all'], ['/pvp?tab=RUNNING', 'running']]) {
     await page.goto(path)
     await expect(page.locator(`[data-stage-nav="${tab}"]`)).toHaveClass(/is-active/)
     await expect(page.locator('[data-stage-nav="center"]')).toHaveText('ЦЕНТР')

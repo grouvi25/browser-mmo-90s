@@ -9,19 +9,23 @@ import { useMyClan } from './use-my-clan'
 /** Клановый склад: предметы и ресурсы в одной таблице с единым лимитом. */
 export function ClanStorageSection() {
   const qc = useQueryClient()
-  const { clan, can, isLoading, isError, refetch, hasClan } = useMyClan()
+  const { me, clan, can, isLoading, isError, refetch, hasClan } = useMyClan()
   const [code, setCode] = useState('')
   const [amount, setAmount] = useState(1)
   const [msg, setMsg] = useState('')
   const [bad, setBad] = useState(false)
 
   const mine = useQuery({ queryKey: ['resources'], queryFn: resourcesApi.list })
+  // Журнал видят главарь и бригадир; остальным запрос не шлём.
+  const canSeeLog = (clan?.members?.find(m => m.characterId === me?.id)?.role?.rank ?? 0) >= 70
+  const log = useQuery({ queryKey: ['clan', 'storage-log'], queryFn: clansApi.storageLog, enabled: canSeeLog, retry: false })
 
   const done = (text: string) => {
     setBad(false)
     setMsg(text)
     void qc.invalidateQueries({ queryKey: ['clan'] })
     void qc.invalidateQueries({ queryKey: ['resources'] })
+    void qc.invalidateQueries({ queryKey: ['clan', 'storage-log'] })
   }
   const fail = (e: Error) => { setBad(true); setMsg(e.message) }
 
@@ -60,7 +64,7 @@ export function ClanStorageSection() {
               </option>
             ))}
             {rows.filter(row => !myStacks.some(s => s.template.code === row.resourceCode)).map(row => (
-              <option key={row.resourceCode} value={row.resourceCode}>{row.resourceCode} · на складе {row.amount}</option>
+              <option key={row.resourceCode} value={row.resourceCode}>{row.resourceName ?? row.resourceCode} · на складе {row.amount}</option>
             ))}
           </select>
         </label>
@@ -90,13 +94,38 @@ export function ClanStorageSection() {
             <tbody>
               {rows.map(row => (
                 <tr key={row.resourceCode}>
-                  <td><Boxes size={15} /> {row.resourceCode}</td>
+                  <td><Boxes size={15} /> {row.resourceName ?? row.resourceCode}</td>
                   <td>{fmt(row.amount)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {canSeeLog && (
+        <section className="storage-log">
+          <h3>Журнал склада</h3>
+          {log.isLoading && <p role="status">Загрузка…</p>}
+          {log.data && log.data.items.length === 0 && <p className="muted">Движений пока не было.</p>}
+          {log.data && log.data.items.length > 0 && (
+            <div className="s3-scroll">
+              <table className="s3-table">
+                <thead><tr><th>Когда</th><th>Кто</th><th>Что</th><th>Сколько</th></tr></thead>
+                <tbody>
+                  {log.data.items.map(row => (
+                    <tr key={row.id}>
+                      <td>{new Date(row.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                      <td>{row.nickname}</td>
+                      <td>{row.resource}</td>
+                      <td className={row.amount > 0 ? 'log-in' : 'log-out'}>{row.amount > 0 ? `положил ${fmt(row.amount)}` : `взял ${fmt(-row.amount)}`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
     </>
   )

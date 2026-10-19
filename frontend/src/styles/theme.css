@@ -409,6 +409,8 @@ html, body {
 /* Длинные сообщения переносятся (срочная правка заказчика 17.10.2026):
    раньше строка шла без переноса, и весь блок сжимался по ширине. */
 .city-chat__row { white-space: normal; overflow-wrap: anywhere; }
+/* Строка от «Системы»: личное уведомление. Курсив и тёмно-зелёный — не спутать с репликой игрока. */
+.city-chat__row--system, .bs-chat__row--system { font-style: italic; color: #2f5d3a; }
 .city-chat__time { color: var(--ink-red); }
 .city-chat__nick { cursor: pointer; }
 .city-chat__nick:hover { text-decoration: underline; }

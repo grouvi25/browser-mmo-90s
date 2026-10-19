@@ -46,12 +46,13 @@ export function FarmSection() {
       if (kind === 'plant') return farmApi.plant(id!, crop)
       if (kind === 'water') return farmApi.water(id!)
       if (kind === 'harvest') return farmApi.harvest(id!)
+      if (kind === 'clear') return farmApi.clear(id!)
       return farmApi.build(id!, building)
     },
     onSuccess: (_, v) => {
       setBad(false)
       setMsg(v.kind === 'buy' ? 'Участок куплен' : v.kind === 'plant' ? 'Посажено' : v.kind === 'water' ? 'Полито'
-        : v.kind === 'harvest' ? 'Урожай собран' : 'Постройка готова')
+        : v.kind === 'harvest' ? 'Урожай собран' : v.kind === 'clear' ? 'Участок убран, можно сажать заново' : 'Постройка готова')
       void qc.invalidateQueries({ queryKey: ['farm'] })
       void qc.invalidateQueries({ queryKey: ['resources'] })
       void qc.invalidateQueries({ queryKey: ['character'] })
@@ -159,12 +160,19 @@ function PlotTile({ plot, name, buildingName, selected, onPick }: {
 
 function PlotAction({ mode, plot, busy, cropLabel, buildingLabel, onAct }: {
   mode: Mode; plot: FarmPlot; busy: boolean; cropLabel: string; buildingLabel: string
-  onAct: (kind: 'plant' | 'water' | 'harvest' | 'build') => void
+  onAct: (kind: 'plant' | 'water' | 'harvest' | 'clear' | 'build') => void
 }) {
   const n = String(plot.slot).padStart(2, '0')
-  if (plot.state === 'READY' || plot.state === 'WITHERED') {
+  // Засохшее собрать нельзя — сервер отвечал отказом, и участок оставался занят
+  // навсегда. Для него отдельное действие «Убрать».
+  if (plot.state === 'WITHERED') {
+    return <button type="button" className="btn btn-primary" disabled={busy} onClick={() => onAct('clear')}>
+      <Scissors size={15} /> Убрать засохший урожай с участка {n}
+    </button>
+  }
+  if (plot.state === 'READY') {
     return <button type="button" className="btn btn-primary" disabled={busy} onClick={() => onAct('harvest')}>
-      <Scissors size={15} /> {plot.state === 'READY' ? `Собрать урожай с участка ${n}` : `Перекопать участок ${n}`}
+      <Scissors size={15} /> Собрать урожай с участка {n}
     </button>
   }
   if (mode === 'plant') {

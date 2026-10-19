@@ -175,9 +175,12 @@ function MemberRow({ member, roles, isSelf, canAssign, canKick, onDone, onFail }
   onDone: (t: string) => void
   onFail: (e: Error) => void
 }) {
+  // Должность меняется кнопкой «Сохранить», а не сразу при выборе:
+  // случайный клик по списку не должен менять роль и слать уведомление.
+  const [picked, setPicked] = useState(member.role.id)
   const assign = useMutation({
-    mutationFn: (roleId: string) => clansApi.assignRole(member.characterId, roleId),
-    onSuccess: () => onDone('Роль назначена'),
+    mutationFn: () => clansApi.assignRole(member.characterId, picked),
+    onSuccess: () => onDone('Должность сохранена. Игроку пришло уведомление в чат.'),
     onError: onFail,
   })
   const kick = useMutation({
@@ -192,13 +195,18 @@ function MemberRow({ member, roles, isSelf, canAssign, canKick, onDone, onFail }
       <td>{member.character?.battleLevel ?? '—'}</td>
       <td>
         {canAssign && !isSelf ? (
-          <select
-            value={member.role.id}
-            aria-label={'Роль: ' + (member.character?.nickname ?? '')}
-            onChange={e => assign.mutate(e.target.value)}
-          >
-            {roles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
-          </select>
+          <span className="role-pick">
+            <select
+              value={picked}
+              aria-label={'Роль: ' + (member.character?.nickname ?? '')}
+              onChange={e => setPicked(e.target.value)}
+            >
+              {roles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
+            </select>
+            <button type="button" disabled={picked === member.role.id || assign.isPending} onClick={() => assign.mutate()}>
+              {assign.isPending ? 'Сохраняем…' : 'Сохранить'}
+            </button>
+          </span>
         ) : member.role.name}
       </td>
       <td>

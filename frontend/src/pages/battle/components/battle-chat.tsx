@@ -48,6 +48,11 @@ export function BattleChat() {
           <div className="bs-chat__side">
             <div className="bs-chat__feed" ref={feedRef} tabIndex={0} role="log" aria-label="Сообщения общего чата">
               {chat.messages.map(message => (
+                message.system ? (
+                <p key={message.id} className="bs-chat__row bs-chat__row--system">
+                  <span className="bs-chat__time">[{chatTime(message.createdAt)}]</span> {message.body}
+                </p>
+                ) : (
                 <p key={message.id} className="bs-chat__row">
                   <span className="bs-chat__time">[{chatTime(message.createdAt)}]</span>{' '}
                   <span className={`bs-chat__nick city-chat__nick--${nickTone(message.nickname)}`}>
@@ -55,6 +60,7 @@ export function BattleChat() {
                   </span>{' '}
                   {message.body}
                 </p>
+                )
               ))}
               {!chat.loading && !chat.messages.length && (
                 <p className="bs-chat__row">В эфире тихо.</p>

@@ -46,6 +46,8 @@ export function WorkPage(){
 
   return <div className="work-sheet">
     {message&&<div className={`alert ${message.type==='error'?'alert-error':'alert-success'} mb8`}>{message.text}</div>}
+    {/* Новичок без профессии не может выйти ни на одну смену. Раньше это выглядело как сломанная работа: причина была только мелким шрифтом в каждой строке. */}
+    {objects.data&&!objects.data.professions?.length&&!shift&&<div className="alert alert-error mb8" role="status"><b>Чтобы устроиться на работу, сначала изучите профессию.</b> Её покупают в Училище (500 ₽), после этого вакансии станут доступны. <Link to="/school">Перейти в Училище →</Link></div>}
 
     {receipt&&<div className="panel mb8 work-award">
       <div className="panel-header"><span className="panel-title">Расчётный лист</span><span className="text-success">Смена принята</span></div>

@@ -18,6 +18,8 @@ export interface ChatLine {
   level: number
   body: string
   createdAt: string
+  /** Строка от «Системы»: личное уведомление, видит только адресат. */
+  system?: boolean
 }
 
 export interface ChatFeed {
@@ -46,4 +48,6 @@ export const chatApi = {
     api.post<ChatLine>(`/api/chat/${channel.toLowerCase()}`, { body, scope }),
 
   online: () => api.get<{ players: OnlinePlayer[] }>('/api/chat/online/list'),
+
+  notices: () => api.get<{ items: Array<{ id: string; text: string; createdAt: string }> }>('/api/chat/notices'),
 }

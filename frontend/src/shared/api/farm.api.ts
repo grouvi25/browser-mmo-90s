@@ -10,5 +10,6 @@ export const farmApi={
   plant:(plotId:string,cropCode:string)=>api.post(`/api/farm/plots/${plotId}/plant`,{cropCode}),
   water:(plotId:string)=>api.post(`/api/farm/plots/${plotId}/water`),
   harvest:(plotId:string)=>api.post(`/api/farm/plots/${plotId}/harvest`),
+  clear:(plotId:string)=>api.post(`/api/farm/plots/${plotId}/clear`),
   build:(plotId:string,type:FarmBuilding)=>api.post(`/api/farm/plots/${plotId}/building`,{type}),
 }
