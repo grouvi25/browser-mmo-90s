@@ -7,7 +7,7 @@
 // =============================================================
 import { api } from './client'
 
-export type ChatChannel = 'DISTRICT' | 'CLAN' | 'GLOBAL'
+export type ChatChannel = 'DISTRICT' | 'CLAN' | 'GLOBAL' | 'PRIVATE'
 
 export interface ChatLine {
   id: string
@@ -20,6 +20,9 @@ export interface ChatLine {
   createdAt: string
   /** Строка от «Системы»: личное уведомление, видит только адресат. */
   system?: boolean
+  /** Только у личных сообщений: кому написано. */
+  recipientId?: string | null
+  recipientNickname?: string | null
 }
 
 export interface ChatFeed {
@@ -44,8 +47,8 @@ export const chatApi = {
     return api.get<ChatFeed>(`/api/chat/${channel.toLowerCase()}${tail ? `?${tail}` : ''}`)
   },
 
-  send: (channel: ChatChannel, body: string, scope?: string) =>
-    api.post<ChatLine>(`/api/chat/${channel.toLowerCase()}`, { body, scope }),
+  send: (channel: ChatChannel, body: string, scope?: string, to?: string) =>
+    api.post<ChatLine>(`/api/chat/${channel.toLowerCase()}`, { body, scope, to }),
 
   online: () => api.get<{ players: OnlinePlayer[] }>('/api/chat/online/list'),
 

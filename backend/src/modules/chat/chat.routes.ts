@@ -12,11 +12,11 @@ import { authenticate } from '../../shared/security/auth-middleware'
 import { NoticesService } from './notices.service'
 import { ChatService } from './chat.service'
 import { publish } from '../../shared/realtime/io'
-import { FLOOD, MAX_BODY, chatRoom, type Rejection } from './chat.formulas'
+import { FLOOD, MAX_BODY, chatRoom, privateRoom, type Rejection } from './chat.formulas'
 
-const Channel = z.enum(['DISTRICT', 'CLAN', 'GLOBAL'])
+const Channel = z.enum(['DISTRICT', 'CLAN', 'GLOBAL', 'PRIVATE'])
 const Query = z.object({ scope: z.string().max(64).optional(), limit: z.coerce.number().int().min(1).max(50).optional() })
-const Body = z.object({ scope: z.string().max(64).optional(), body: z.string().max(MAX_BODY * 2) })
+const Body = z.object({ scope: z.string().max(64).optional(), to: z.string().max(40).optional(), body: z.string().max(MAX_BODY * 2) })
 
 /** Текст отказа. Держим здесь, а не в сервисе: это разговор с игроком. */
 function explain(reason: Rejection): string {
@@ -47,7 +47,10 @@ export async function chatRoutes(fastify: FastifyInstance) {
         channel: channel.data,
         scope,
         limits: { maxBody: MAX_BODY, minGapMs: FLOOD.minGapMs },
-        messages: await ChatService.history(channel.data, scope, query.data.limit),
+        // Личная переписка — не комната, а всё, что касается игрока.
+        messages: channel.data === 'PRIVATE'
+          ? await ChatService.privateHistory(who.characterId, query.data.limit)
+          : await ChatService.history(channel.data, scope, query.data.limit),
       })
     },
   )
@@ -65,7 +68,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
     return reply.send({ players: await ChatService.online() })
   })
 
-  fastify.post<{ Params: { channel: string }; Body: { scope?: string; body: string } }>(
+  fastify.post<{ Params: { channel: string }; Body: { scope?: string; to?: string; body: string } }>(
     '/:channel',
     { preHandler: authenticate },
     async (req, reply) => {
@@ -75,7 +78,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
         return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
       }
       const who = await ChatService.speaker(req.authUser.userId)
-      const result = await ChatService.send(who, channel.data, parsed.data.scope, parsed.data.body)
+      const result = await ChatService.send(who, channel.data, parsed.data.scope, parsed.data.body, new Date(), parsed.data.to)
       if (!result.ok) {
         // 429, а не 400: это темп, а не испорченный запрос, и клиент
         // должен просто подождать и повторить.
@@ -84,7 +87,13 @@ export async function chatRoutes(fastify: FastifyInstance) {
       await ChatService.touch(who.characterId)
       // В комнату — всем, кто её слушает, включая самого автора: так
       // у него и у остальных лента складывается в одном порядке.
-      publish(chatRoom(channel.data, result.line.scope), 'chat:message', result.line)
+      if (channel.data === 'PRIVATE') {
+        // Личное — только автору (на всех его вкладках) и получателю.
+        publish(privateRoom(who.characterId), 'chat:message', result.line)
+        if (result.line.recipientId) publish(privateRoom(result.line.recipientId), 'chat:message', result.line)
+      } else {
+        publish(chatRoom(channel.data, result.line.scope), 'chat:message', result.line)
+      }
       return reply.code(201).send(result.line)
     },
   )

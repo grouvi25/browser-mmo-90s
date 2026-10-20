@@ -6,7 +6,7 @@
 import { dogBonusText, dogTitle } from '../../shared/lib/dog'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
@@ -108,11 +108,25 @@ export function DossierPage() {
   const fieldValues: Record<string, string> = {
     name: char?.nickname ?? '—',
     sex: char ? (ARCHETYPE_LABELS[char.archetype] ?? char.archetype) : '—',
-    spouse: 'не женат',
+    spouse: char?.gender === 'FEMALE' ? 'не замужем' : 'не женат',
     account: `${daysSince(char?.createdAt)} дней`,
   }
+  // Пол меняется кликом по графе «Жена/Муж» (правка заказчика: «пол
+  // женский»): персонажи, созданные раньше, тоже должны его выбрать.
+  const qc = useQueryClient()
+  const gender = useMutation({
+    mutationFn: () => charactersApi.setGender(char?.gender === 'FEMALE' ? 'MALE' : 'FEMALE'),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['character'] }) },
+  })
+  const toggleGender = () => {
+    if (!char || gender.isPending) return
+    const next = char.gender === 'FEMALE' ? 'мужской' : 'женский'
+    if (window.confirm(`Сменить пол персонажа на ${next}?`)) gender.mutate()
+  }
+  const genderTitle = 'Нажмите, чтобы сменить пол персонажа'
+
   const fieldLabels: Record<string, string> = {
-    name: 'Имя', sex: 'Кто', spouse: 'Жена', account: 'Акаунт',
+    name: 'Имя', sex: 'Кто', spouse: char?.gender === 'FEMALE' ? 'Муж' : 'Жена', account: 'Акаунт',
   }
 
   // На телефоне бумажный разворот участка милиции нечитаем целиком,
@@ -142,7 +156,10 @@ export function DossierPage() {
             <div className="m-dossier__title">Личное дело №{caseNumber(char?.id)}</div>
             {PROFILE.fields.map(f => (
               <div key={f.key} className="m-dossier__kv">
-                <span>{fieldLabels[f.key]}</span><b>{fieldValues[f.key]}</b>
+                <span>{fieldLabels[f.key]}</span>
+                {f.key === 'spouse'
+                  ? <button type="button" className="m-dossier__gender" title={genderTitle} onClick={toggleGender}>{fieldValues[f.key]}</button>
+                  : <b>{fieldValues[f.key]}</b>}
               </div>
             ))}
           </div>
@@ -222,7 +239,10 @@ export function DossierPage() {
       {/* поля карточки */}
       {PROFILE.fields.map(f => (
         <FitText key={f.key} x={f.x} y={f.y} w={f.w} size={PROFILE.fieldSize}
-          dy={-4} className="t-doc">
+          dy={-4} className={'t-doc' + (f.key === 'spouse' ? ' dossier-gender' : '')}
+          as={f.key === 'spouse' ? 'button' : 'div'}
+          onClick={f.key === 'spouse' ? toggleGender : undefined}
+          title={f.key === 'spouse' ? genderTitle : undefined}>
           {fieldLabels[f.key]}: {fieldValues[f.key]}
         </FitText>
       ))}

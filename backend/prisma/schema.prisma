@@ -559,6 +559,8 @@ model Character {
   hpMax     Int @map("hp_max")
 
   // Status
+  /// Пол персонажа (правка заказчика): в досье «Муж/Жена».
+  gender Gender @default(MALE)
   status CharacterStatus @default(ACTIVE)
 
   // Future hooks (задел на этапы 3-4)
@@ -2012,6 +2014,13 @@ enum ChatChannel {
   DISTRICT
   CLAN
   GLOBAL
+  /// Личное сообщение: видят только автор и получатель (recipientId).
+  PRIVATE
+}
+
+enum Gender {
+  MALE
+  FEMALE
 }
 
 model ChatMessage {
@@ -2019,6 +2028,8 @@ model ChatMessage {
   channel   ChatChannel
   scope     String      @default("")
   authorId  String      @map("author_id")
+  /// Получатель личного сообщения; у остальных каналов пусто.
+  recipientId String?   @map("recipient_id")
   body      String      @db.VarChar(400)
   createdAt DateTime    @default(now()) @map("created_at")
   // Мягкое удаление: модератор прячет сообщение, но след остаётся —
@@ -2030,6 +2041,7 @@ model ChatMessage {
 
   @@index([channel, scope, createdAt])
   @@index([authorId, createdAt])
+  @@index([recipientId, createdAt])
   @@map("chat_messages")
 }
 

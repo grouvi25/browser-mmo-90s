@@ -8,10 +8,12 @@
 // Чат всегда открыт и стоит своей полосой под сценой: заказчик просил
 // статичный чат, а свёрнутая шторка в бою читалась как непонятная кнопка.
 // =============================================================
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef } from 'react'
 
-import { chatTime, levelTone } from '../../../shared/lib/chat-format'
-import { nickTone, useChat, useOnline } from '../../../shared/lib/use-chat'
+import { levelTone } from '../../../shared/lib/chat-format'
+import { useOnline } from '../../../shared/lib/use-chat'
+import { useEther } from '../../../shared/lib/use-ether'
+import { EtherComposer, EtherLine, useComposer } from '../../../widgets/chat/ether'
 
 /** Высота сцены боя. Постоянная: и со свёрнутым чатом, и с развёрнутым.
  *  Раньше открытый чат растягивал сцену до 1600, и вся вёрстка ужималась
@@ -22,10 +24,9 @@ export const BATTLE_SCENE_H = 1312
 export const BATTLE_CHAT_H = 170
 
 export function BattleChat() {
-  const [draft, setDraft] = useState('')
-  // В бою игрок не в районе, поэтому здесь общий канал: во время
-  // схватки нужен весь город, а не соседи по кварталу.
-  const chat = useChat('GLOBAL')
+  // Та же лента, что в городе: общий, бригада, личные.
+  const ether = useEther()
+  const composer = useComposer(ether)
   const online = useOnline()
   const feedRef = useRef<HTMLDivElement>(null)
 
@@ -34,49 +35,21 @@ export function BattleChat() {
   useEffect(() => {
     const box = feedRef.current
     if (box) box.scrollTop = box.scrollHeight
-  }, [chat.messages])
-
-  const send = async (event: FormEvent) => {
-    event.preventDefault()
-    if (await chat.send(draft)) setDraft('')
-  }
+  }, [ether.messages])
 
   return (
-    <section className="bs-chat" style={{ height: BATTLE_CHAT_H }} aria-label="Общий чат города">
-      <div className="bs-chat__title">Общий чат города — его видят все игроки, и в бою, и на улицах</div>
+    <section className="bs-chat" style={{ height: BATTLE_CHAT_H }} aria-label="Чат города">
+      <div className="bs-chat__title">Чат города: общий, бригада и личные сообщения</div>
         <div className="bs-chat__body">
           <div className="bs-chat__side">
             <div className="bs-chat__feed" ref={feedRef} tabIndex={0} role="log" aria-label="Сообщения общего чата">
-              {chat.messages.map(message => (
-                message.system ? (
-                <p key={message.id} className="bs-chat__row bs-chat__row--system">
-                  <span className="bs-chat__time">[{chatTime(message.createdAt)}]</span> {message.body}
-                </p>
-                ) : (
-                <p key={message.id} className="bs-chat__row">
-                  <span className="bs-chat__time">[{chatTime(message.createdAt)}]</span>{' '}
-                  <span className={`bs-chat__nick city-chat__nick--${nickTone(message.nickname)}`}>
-                    {message.nickname}:
-                  </span>{' '}
-                  {message.body}
-                </p>
-                )
-              ))}
-              {!chat.loading && !chat.messages.length && (
+              {ether.messages.map(m => <EtherLine key={m.id} line={m} ether={ether} composer={composer} className="bs-chat__row" />)}
+              {!ether.loading && !ether.messages.length && (
                 <p className="bs-chat__row">В эфире тихо.</p>
               )}
             </div>
 
-            <form className="bs-chat__form" onSubmit={send}>
-              <input
-                value={draft}
-                onChange={e => { setDraft(e.target.value); if (chat.notice) chat.clearNotice() }}
-                placeholder={chat.notice || 'Написать в общий чат…'}
-                maxLength={chat.maxBody}
-                spellCheck={false}
-                aria-label="Написать в общий чат"
-              />
-            </form>
+            <EtherComposer ether={ether} composer={composer} className="bs-chat__form" />
           </div>
 
           <div className="bs-chat__online" tabIndex={0} role="region" aria-label="Игроки онлайн">

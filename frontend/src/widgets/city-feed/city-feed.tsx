@@ -5,13 +5,15 @@
 // сокетом, присутствие — из общего списка эфира. Демонстрационные
 // массивы, что стояли тут до появления модуля чата, убраны.
 // =============================================================
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
-import { nickTone, useChat, useOnline } from '../../shared/lib/use-chat'
-import { chatTime, levelTone } from '../../shared/lib/chat-format'
+import { useOnline } from '../../shared/lib/use-chat'
+import { useEther } from '../../shared/lib/use-ether'
+import { EtherComposer, EtherLine, useComposer } from '../chat/ether'
+import { levelTone } from '../../shared/lib/chat-format'
 import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useFitBlock } from '../../shared/lib/use-fit-block'
 import { PLATES } from '../../shared/ui/sprite'
@@ -91,19 +93,15 @@ export function CityChatDock() {
 
 // ── Чат ──────────────────────────────────────────────────────
 export function CityChat() {
-  const navigate = useNavigate()
-  const [draft, setDraft] = useState('')
-
-  // Один общий чат города — тот же, что в бою. Чат района менялся при
-  // каждом переходе по локациям, и игроки в разных местах не видели
-  // друг друга (жалоба заказчика «рассинхрон в чате»).
-  const chat = useChat('GLOBAL')
+  // Одна лента: общий чат, бригада, личные и уведомления — как в «Королях».
+  const ether = useEther()
+  const composer = useComposer(ether)
 
   const boxRef = useRef<HTMLDivElement>(null)
   // К новому сообщению прокручиваем, только если игрок и так внизу.
   // Раньше прокрутка сбрасывалась при каждом опросе чата, и пролистать
   // назад было нельзя: через секунды выдёргивало вниз.
-  const lastId = chat.messages[chat.messages.length - 1]?.id
+  const lastId = ether.messages[ether.messages.length - 1]?.id
   const stuckToBottom = useRef(true)
   useEffect(() => {
     const el = boxRef.current
@@ -114,16 +112,6 @@ export function CityChat() {
     if (el) stuckToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
   }
 
-  const send = async (e: FormEvent) => {
-    e.preventDefault()
-    // Поле очищаем только если реплика ушла: при отказе антифлуда
-    // набранное остаётся, чтобы не печатать заново.
-    if (await chat.send(draft)) setDraft('')
-  }
-
-  // Строки переносятся, поэтому держим запас на прокрутку назад.
-  const shown = chat.messages.slice(-MENU.chat.rows * 5)
-
   return (
     <>
       <div
@@ -133,52 +121,23 @@ export function CityChat() {
         // Чат прокручивается — значит, должен листаться и с клавиатуры.
         tabIndex={0}
         role="log"
-        aria-label="Общий чат города"
+        aria-label="Чат города"
         style={{
           left: MENU.chat.x, top: MENU.chat.y, width: MENU.chat.w, height: MENU.chat.h,
           fontSize: MENU.chat.size, lineHeight: `${MENU.chat.lineHeight}px`,
         }}
-        title="Общий чат города"
       >
-        {shown.map(m => (
-          m.system ? (
-            <div key={m.id} className="city-chat__row city-chat__row--system">
-              <span className="city-chat__time">[{chatTime(m.createdAt)}]</span> {m.body}
-            </div>
-          ) : (
-          <div key={m.id} className="city-chat__row">
-            <span className="city-chat__time">[{chatTime(m.createdAt)}]</span>{' '}
-            <span
-              className={`city-chat__nick city-chat__nick--${nickTone(m.nickname)}`}
-              onClick={() => navigate(`/u/${encodeURIComponent(m.nickname)}`)}
-            >
-              {m.nickname}:
-            </span>{' '}
-            {m.body}
-          </div>
-          )
-        ))}
-        {!chat.loading && !shown.length && (
+        {ether.messages.map(m => <EtherLine key={m.id} line={m} ether={ether} composer={composer} className="city-chat__row" />)}
+        {!ether.loading && !ether.messages.length && (
           <div className="city-chat__row city-chat__empty">В эфире тихо. Скажите первое слово.</div>
         )}
       </div>
 
-      <form onSubmit={send}>
-        <input
-          className="chat-input"
-          style={{
-            left: MENU.chatInput.x, top: MENU.chatInput.y,
-            width: MENU.chatInput.w, height: MENU.chatInput.h,
-            fontSize: MENU.chat.size,
-          }}
-          value={draft}
-          onChange={e => { setDraft(e.target.value); if (chat.notice) chat.clearNotice() }}
-          placeholder={chat.notice || 'Написать в общий чат…'}
-          maxLength={chat.maxBody}
-          spellCheck={false}
-          aria-label="Написать в общий чат"
-        />
-      </form>
+      <EtherComposer ether={ether} composer={composer} className="ether-composer--city" style={{
+        left: MENU.chatInput.x, top: MENU.chatInput.y - 4,
+        width: MENU.chatInput.w, height: MENU.chatInput.h + 6,
+        fontSize: MENU.chat.size - 2,
+      }} />
     </>
   )
 }
