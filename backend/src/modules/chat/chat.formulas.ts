@@ -76,7 +76,8 @@ export function scopeFor(
   raw: string | undefined,
   clanId: string | null,
 ): string | null {
-  if (channel === 'GLOBAL') return ''
+  // Личные сообщения живут без комнаты: их адрес — получатель.
+  if (channel === 'GLOBAL' || channel === 'PRIVATE') return ''
   if (channel === 'DISTRICT') {
     const key = (raw ?? '').toLowerCase()
     return (DISTRICTS as readonly string[]).includes(key) ? key : null
@@ -99,4 +100,9 @@ export const floodKeys = {
  */
 export function chatRoom(channel: ChatChannel, scope: string): string {
   return channel === 'GLOBAL' ? 'chat:GLOBAL' : `chat:${channel}:${scope}`
+}
+
+/** Личная комната персонажа: туда приходят его ЛС. */
+export function privateRoom(characterId: string): string {
+  return `chat:PRIVATE:${characterId}`
 }

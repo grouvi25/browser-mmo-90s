@@ -28,6 +28,7 @@ export const CharactersRepository = {
     userId: string
     nickname: string
     archetype: string
+    gender?: 'MALE' | 'FEMALE'
     hpCurrent: number
     hpMax: number
     money: number

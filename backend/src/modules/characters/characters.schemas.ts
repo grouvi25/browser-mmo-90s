@@ -6,6 +6,7 @@ export const CreateCharacterSchema = z.object({
     'ATHLETE', 'WORKER', 'SHUTTLE', 'VETERAN',
     'STREET', 'MERCHANT', 'STUDENT', 'RESOLVER',
   ]),
+  gender: z.enum(['MALE', 'FEMALE']).optional(),
 })
 
 export type CreateCharacterInput = z.infer<typeof CreateCharacterSchema>

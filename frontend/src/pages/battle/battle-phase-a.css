@@ -1497,3 +1497,4 @@
 .bs-chat .city-chat__nick--2 { color: #243d91; }
 .bs-chat .city-chat__nick--3 { color: #8b1830; }
 .bs-chat .city-chat__nick--4 { color: #6b3a1c; }
+.bs-chat__form .ether-mode { padding: 4px; border: 1px solid #a8918f; background: #f3ece7; }

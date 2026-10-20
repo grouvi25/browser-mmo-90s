@@ -249,4 +249,29 @@ describe('эфир', () => {
     await ChatService.leave(one.character.id)
     expect((await ChatService.online()).map(p => p.characterId)).toEqual([two.character.id])
   })
+
+  it('личное сообщение видят только автор и получатель; ник без учёта регистра', async () => {
+    const a = await player('pm-a')
+    const b = await player('pm-b')
+    const c = await player('pm-c')
+    const who = await ChatService.speaker(a.user.id)
+    const sent = await ChatService.send(who, 'PRIVATE', undefined, 'привет лично', new Date(), b.login.toUpperCase())
+    expect(sent.ok).toBe(true)
+    if (!sent.ok) return
+    expect(sent.line).toMatchObject({ channel: 'PRIVATE', recipientId: b.character.id, recipientNickname: b.login })
+
+    expect((await ChatService.privateHistory(a.character.id)).map(l => l.body)).toEqual(['привет лично'])
+    expect((await ChatService.privateHistory(b.character.id)).map(l => l.body)).toEqual(['привет лично'])
+    expect(await ChatService.privateHistory(c.character.id)).toEqual([])
+    // В общую ленту личное не попадает.
+    expect(await ChatService.history('GLOBAL', '')).toEqual([])
+  })
+
+  it('личное без получателя, неизвестному или себе не уходит', async () => {
+    const a = await player('pm-x')
+    const who = await ChatService.speaker(a.user.id)
+    await expect(ChatService.send(who, 'PRIVATE', undefined, 'кому-то', new Date())).rejects.toThrow('Кому написать')
+    await expect(ChatService.send(who, 'PRIVATE', undefined, 'кому-то', new Date(), 'нет-такого')).rejects.toThrow('не найден')
+    await expect(ChatService.send(who, 'PRIVATE', undefined, 'себе', new Date(), a.login)).rejects.toThrow('Себе')
+  })
 })

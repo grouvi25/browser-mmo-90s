@@ -3,35 +3,37 @@
 // экране: /api/chat плюс живые реплики сокетом. Отдельного мобильного
 // канала нет — окна разные, эфир один.
 // =============================================================
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
-import { nickTone, useChat, useOnline } from '../../shared/lib/use-chat'
-import { chatTime, levelTone } from '../../shared/lib/chat-format'
+import { useOnline } from '../../shared/lib/use-chat'
+import { useEther } from '../../shared/lib/use-ether'
+import { EtherComposer, EtherLine, useComposer } from '../chat/ether'
+import { levelTone } from '../../shared/lib/chat-format'
 
 export function MobileChat() {
   const navigate = useNavigate()
-  const [draft, setDraft] = useState('')
   const [tab, setTab] = useState<'chat' | 'online'>('chat')
 
-  // Один общий чат города — тот же, что в бою. Чат района менялся при
-  // каждом переходе по локациям, и игроки в разных местах не видели
-  // друг друга (жалоба заказчика «рассинхрон в чате»).
-  const chat = useChat('GLOBAL')
+  // Та же лента, что на большом экране: общий, бригада, личные.
+  const ether = useEther()
+  const composer = useComposer(ether)
   const online = useOnline()
+  // Лента открывается на последних сообщениях, а не на самых старых.
+  const logRef = useRef<HTMLDivElement>(null)
+  const lastId = ether.messages[ether.messages.length - 1]?.id
+  useEffect(() => {
+    const el = logRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [lastId, tab])
 
   const { data: char } = useQuery({
     queryKey: ['character', 'me'],
     queryFn: () => charactersApi.getMe(),
     retry: false,
   })
-
-  const send = async (e: FormEvent) => {
-    e.preventDefault()
-    if (await chat.send(draft)) setDraft('')
-  }
 
   const players = online
     .map(p => ({ ...p, self: p.characterId === char?.id }))
@@ -41,7 +43,7 @@ export function MobileChat() {
     <div className="m-chat">
       <div className="m-chat__tabs">
         <button type="button" className={tab === 'chat' ? 'is-active' : ''} onClick={() => setTab('chat')}>
-          Чат района
+          Чат
         </button>
         <button type="button" className={tab === 'online' ? 'is-active' : ''} onClick={() => setTab('online')}>
           Онлайн: {players.length}
@@ -50,34 +52,13 @@ export function MobileChat() {
 
       {tab === 'chat' ? (
         <>
-          <div className="m-chat__log">
-            {chat.messages.map(m => (
-              <div key={m.id} className="m-chat__row">
-                <span className="city-chat__time">[{chatTime(m.createdAt)}]</span>{' '}
-                <span
-                  className={`city-chat__nick city-chat__nick--${nickTone(m.nickname)}`}
-                  onClick={() => navigate(`/u/${encodeURIComponent(m.nickname)}`)}
-                >
-                  {m.nickname}:
-                </span>{' '}
-                {m.body}
-              </div>
-            ))}
-            {!chat.loading && !chat.messages.length && (
+          <div className="m-chat__log" ref={logRef}>
+            {ether.messages.map(m => <EtherLine key={m.id} line={m} ether={ether} composer={composer} className="m-chat__row" />)}
+            {!ether.loading && !ether.messages.length && (
               <div className="m-chat__row">В эфире тихо. Скажите первое слово.</div>
             )}
           </div>
-          <form className="m-chat__form" onSubmit={send}>
-            <input
-              value={draft}
-              onChange={e => { setDraft(e.target.value); if (chat.notice) chat.clearNotice() }}
-              placeholder={chat.notice || 'Написать в общий чат…'}
-              maxLength={chat.maxBody}
-              spellCheck={false}
-              aria-label="Написать в общий чат"
-            />
-            <button type="submit">→</button>
-          </form>
+          <EtherComposer ether={ether} composer={composer} className="m-chat__form" />
         </>
       ) : (
         <div className="m-chat__online">

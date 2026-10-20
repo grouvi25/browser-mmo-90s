@@ -317,3 +317,6 @@
   width: 100%; min-height: 120px; padding: 8px; resize: vertical;
   font: inherit; font-size: 14px; background: transparent; border: 0; color: #17130f;
 }
+.m-chat__form .ether-mode { min-height: 44px; font-size: 14px; }
+.m-chat__form .ether-emoji__grid { grid-template-columns: repeat(6, 44px); }
+.m-chat__form .ether-emoji__grid button { min-height: 44px; padding: 0; border: 0; background: none; font-size: 22px; }

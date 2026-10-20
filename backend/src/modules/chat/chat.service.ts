@@ -28,7 +28,15 @@ export interface ChatLine {
   level: number
   body: string
   createdAt: Date
+  /** Только у личных сообщений: кому написано. */
+  recipientId?: string | null
+  recipientNickname?: string | null
 }
+
+const LINE_SELECT = {
+  id: true, channel: true, scope: true, authorId: true, recipientId: true, body: true, createdAt: true,
+  author: { select: { nickname: true, battleLevel: true } },
+} as const
 
 interface Speaker {
   characterId: string
@@ -38,13 +46,14 @@ interface Speaker {
 }
 
 function toLine(row: {
-  id: string; channel: ChatChannel; scope: string; authorId: string; body: string; createdAt: Date
+  id: string; channel: ChatChannel; scope: string; authorId: string; recipientId: string | null; body: string; createdAt: Date
   author: { nickname: string; battleLevel: number }
-}): ChatLine {
+}, recipientNickname: string | null = null): ChatLine {
   return {
     id: row.id, channel: row.channel, scope: row.scope, authorId: row.authorId,
     nickname: row.author.nickname, level: row.author.battleLevel,
     body: row.body, createdAt: row.createdAt,
+    ...(row.channel === 'PRIVATE' ? { recipientId: row.recipientId, recipientNickname } : {}),
   }
 }
 
@@ -82,7 +91,7 @@ export const ChatService = {
   roomFor(channel: ChatChannel, rawScope: string | undefined, who: Speaker): string {
     const scope = scopeFor(channel, rawScope, who.clanId)
     if (scope === null) {
-      const message = channel === 'CLAN' ? 'You are not in a clan' : 'Unknown chat room'
+      const message = channel === 'CLAN' ? 'Вы не состоите в бригаде' : 'Такой комнаты нет'
       throw new AppError(ErrorCode.FORBIDDEN, message, 403)
     }
     return scope
@@ -94,12 +103,23 @@ export const ChatService = {
       where: { channel, scope, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: Math.min(Math.max(limit, 1), HISTORY_LIMIT),
-      select: {
-        id: true, channel: true, scope: true, authorId: true, body: true, createdAt: true,
-        author: { select: { nickname: true, battleLevel: true } },
-      },
+      select: LINE_SELECT,
     })
-    return rows.reverse().map(toLine)
+    return rows.reverse().map(row => toLine(row))
+  },
+
+  /** Переписка игрока: всё, что он написал лично и что написали ему. */
+  async privateHistory(characterId: string, limit = HISTORY_LIMIT): Promise<ChatLine[]> {
+    const rows = await prisma.chatMessage.findMany({
+      where: { channel: 'PRIVATE', deletedAt: null, OR: [{ authorId: characterId }, { recipientId: characterId }] },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), HISTORY_LIMIT),
+      select: LINE_SELECT,
+    })
+    const ids = [...new Set(rows.map(r => r.recipientId).filter(Boolean) as string[])]
+    const names = new Map((await prisma.character.findMany({ where: { id: { in: ids } }, select: { id: true, nickname: true } }))
+      .map(c => [c.id, c.nickname]))
+    return rows.reverse().map(row => toLine(row, row.recipientId ? names.get(row.recipientId) ?? null : null))
   },
 
   /**
@@ -137,12 +157,23 @@ export const ChatService = {
     rawScope: string | undefined,
     rawBody: string,
     now = new Date(),
+    recipientNick?: string,
   ): Promise<{ ok: true; line: ChatLine } | { ok: false; reason: Rejection }> {
     if (who.mutedUntil && who.mutedUntil > now) {
-      throw new AppError(ErrorCode.FORBIDDEN, 'You are muted', 403)
+      throw new AppError(ErrorCode.FORBIDDEN, 'Вам запрещено писать в чат до ' + who.mutedUntil.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }), 403)
     }
 
     const scope = this.roomFor(channel, rawScope, who)
+    // Личное сообщение: получатель по нику, без учёта регистра.
+    let recipient: { id: string; nickname: string } | null = null
+    if (channel === 'PRIVATE') {
+      const to = (recipientNick ?? '').trim()
+      recipient = to ? await prisma.character.findFirst({
+        where: { nickname: { equals: to, mode: 'insensitive' } }, select: { id: true, nickname: true },
+      }) : null
+      if (!recipient) throw new AppError(ErrorCode.NOT_FOUND, to ? `Игрок «${to}» не найден` : 'Кому написать? Нажмите на ник в чате', 404)
+      if (recipient.id === who.characterId) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Себе писать не нужно', 422)
+    }
 
     const body = normalizeBody(rawBody)
     if (!body) return { ok: false, reason: { kind: 'empty' } }
@@ -152,13 +183,10 @@ export const ChatService = {
     if (flood) return { ok: false, reason: flood }
 
     const row = await prisma.chatMessage.create({
-      data: { channel, scope, authorId: who.characterId, body },
-      select: {
-        id: true, channel: true, scope: true, authorId: true, body: true, createdAt: true,
-        author: { select: { nickname: true, battleLevel: true } },
-      },
+      data: { channel, scope, authorId: who.characterId, recipientId: recipient?.id ?? null, body },
+      select: LINE_SELECT,
     })
-    return { ok: true, line: toLine(row) }
+    return { ok: true, line: toLine(row, recipient?.nickname ?? null) }
   },
 
   /** Кто сейчас в эфире. Имена подтягиваем одним запросом по списку. */

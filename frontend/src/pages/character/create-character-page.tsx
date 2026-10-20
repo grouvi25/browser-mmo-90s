@@ -12,6 +12,7 @@ export function CreateCharacterPage() {
   const navigate = useNavigate()
   const [nickname, setNickname] = useState('')
   const [archetype, setArchetype] = useState('ATHLETE')
+  const [gender, setGender] = useState<'MALE' | 'FEMALE'>('MALE')
   const [error, setError] = useState('')
 
   // Check if char already exists
@@ -22,7 +23,7 @@ export function CreateCharacterPage() {
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => charactersApi.create({ nickname, archetype }),
+    mutationFn: () => charactersApi.create({ nickname, archetype, gender }),
     onSuccess: () => navigate('/profile'),
     onError: (err) => {
       if (err instanceof ApiError) {
@@ -77,6 +78,18 @@ export function CreateCharacterPage() {
                 onChange={e => setNickname(e.target.value)}
                 autoFocus
               />
+            </div>
+
+            <div className="form-group">
+              <span className="form-label" id="gender-label">Пол</span>
+              <div className="gender-choice" role="radiogroup" aria-labelledby="gender-label">
+                {([['MALE', 'Мужской'], ['FEMALE', 'Женский']] as const).map(([value, label]) => (
+                  <button type="button" key={value} role="radio" aria-checked={gender === value}
+                    className={`gender-card${gender === value ? ' selected' : ''}`} onClick={() => setGender(value)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="form-group">

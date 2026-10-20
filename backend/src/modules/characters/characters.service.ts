@@ -43,6 +43,7 @@ export const CharactersService = {
       userId,
       nickname: input.nickname,
       archetype: arch,
+      gender: input.gender ?? 'MALE',
       hpCurrent: hpMax,
       hpMax,
       money: B.startMoney,

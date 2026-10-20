@@ -19,7 +19,7 @@ import { checkReadiness } from './shared/health/readiness'
 import { setRealtimeServer } from './shared/realtime/io'
 import { ChatService } from './modules/chat/chat.service'
 import { registerNoticeHook } from './modules/chat/notices.hook'
-import { chatRoom, DISTRICTS } from './modules/chat/chat.formulas'
+import { chatRoom, privateRoom, DISTRICTS } from './modules/chat/chat.formulas'
 
 import { authRoutes } from './modules/auth/auth.routes'
 import { charactersRoutes } from './modules/characters/characters.routes'
@@ -259,6 +259,7 @@ export async function setupSocketIO(app: FastifyInstance) {
         socket.data.characterId = who.characterId
         await ChatService.touch(who.characterId)
         await socket.join(chatRoom('GLOBAL', ''))
+        await socket.join(privateRoom(who.characterId))
         if (who.clanId) await socket.join(chatRoom('CLAN', who.clanId))
       } catch (err) {
         // Персонажа может не быть — аккаунт создан, герой ещё нет.

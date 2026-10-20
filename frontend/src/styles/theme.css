@@ -926,3 +926,44 @@ html, body {
 .house-wall i, .house-members i { color:var(--text-dim); font-size:13px; }
 .city-card--dog { margin-bottom: 12px; }
 .city-feed { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── Эфир: каналы цветом (правка заказчика) ────────────────────
+   Общие — серые, бригада — синие, личные — фиолетовые, «Система» —
+   зелёный курсив; обращение ко мне подсвечено. */
+.ether-line { white-space: normal; overflow-wrap: anywhere; }
+.ether-line--global .ether-body { color: #4d4d4d; }
+.ether-line--clan .ether-body, .ether-line--clan .ether-tag { color: #1d4f91; }
+.ether-line--private .ether-body, .ether-line--private .ether-tag { color: #7a1fa2; }
+.ether-line--system { font-style: italic; color: #2f5d3a; }
+.ether-line.is-mention { background: rgba(255, 214, 92, .45); }
+.ether-line.is-mention .ether-body { font-weight: 700; }
+.ether-tag { font-weight: 700; }
+.ether-tag--btn, .ether-nick { font: inherit; padding: 0; border: 0; background: none; cursor: pointer; }
+.ether-nick { font-weight: 700; }
+.ether-nick:hover, .ether-tag--btn:hover { text-decoration: underline; }
+.ether-nick:focus-visible, .ether-tag--btn:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
+
+.ether-composer { display: flex; align-items: center; gap: 4px; font-family: var(--font-ui); }
+.ether-composer--city { position: absolute; }
+.ether-composer select, .ether-composer button, .ether-composer input { font: inherit; }
+.ether-mode { flex: none; height: 100%; padding: 0 2px; border: 1px solid #8a7a6a; background: #f6ecdf; color: #000; }
+.ether-input { flex: 1; min-width: 0; height: 100%; background: transparent; border: 0; outline: 0; color: #000; }
+.ether-input::placeholder { color: #6b5c4e; }
+.ether-composer--clan .ether-input { color: #1d4f91; }
+.ether-composer--private .ether-input { color: #7a1fa2; }
+.ether-target { flex: none; display: inline-flex; align-items: center; gap: 2px; color: #7a1fa2; font-weight: 700; white-space: nowrap; }
+.ether-target a { color: inherit; }
+.ether-target button, .ether-emoji > button, .ether-send { flex: none; border: 0; background: none; cursor: pointer; padding: 0 4px; }
+.ether-emoji { position: relative; flex: none; }
+.ether-emoji__grid { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 30; display: grid;
+  grid-template-columns: repeat(10, 1.9em); gap: 2px; padding: 6px; background: #fbf3e8; border: 1px solid #8a7a6a;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+.ether-emoji__grid button { border: 0; background: none; cursor: pointer; font-size: 1.15em; line-height: 1.5; padding: 0; }
+.ether-emoji__grid button:hover { background: #eadbc6; }
+.gender-choice { display: flex; gap: 8px; }
+.gender-choice .gender-card { flex: 1; text-align: center; padding: 8px 6px; cursor: pointer; font: inherit; background: var(--bg-panel2); border: 2px solid var(--border); color: inherit; }
+.gender-card:hover { border-color: var(--gold-dim); }
+.gender-card.selected { border-color: var(--gold); font-weight: 700; }
+.dossier-gender { cursor: pointer; background: none; border: 0; padding: 0; text-align: left; }
+.dossier-gender:hover { text-decoration: underline dotted; }
+.m-dossier__gender { font: inherit; font-weight: 700; background: none; border: 0; border-bottom: 1px dotted currentColor; padding: 0; cursor: pointer; }

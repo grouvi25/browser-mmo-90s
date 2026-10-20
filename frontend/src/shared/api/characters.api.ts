@@ -15,8 +15,11 @@ export interface PublicProfile {
 }
 
 export const charactersApi = {
-  create: (data: { nickname: string; archetype: string }) =>
+  create: (data: { nickname: string; archetype: string; gender?: 'MALE' | 'FEMALE' }) =>
     api.post<Character>('/api/characters', data),
+
+  setGender: (gender: 'MALE' | 'FEMALE') =>
+    api.patch<{ gender: string }>('/api/characters/me/gender', { gender }),
 
   getMe: () =>
     api.get<Character>('/api/characters/me'),
