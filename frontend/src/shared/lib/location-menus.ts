@@ -19,7 +19,8 @@ export const CENTER_TAB: LocationTab = { key: 'center', label: 'ЦЕНТР', to:
 
 /** Личные разделы, которые живут в Центре рядом с локациями. */
 const PERSONAL: LocationTab[] = [
-  { key: 'skills', label: 'Навыки', to: '/stats' },
+  // «Навыки» переименованы в «Центр подготовки» (правка заказчика 20.10).
+  { key: 'skills', label: 'Центр подготовки', to: '/stats' },
   { key: 'black-market', label: 'Чёрный рынок', to: '/premium' },
 ]
 
@@ -45,8 +46,9 @@ const PLACES: Place[] = [
   },
   { key: 'shop', match: ['/shop'], tabs: [] },
   {
+    // Вкладки «Промзона» и «Гаражи» с названием самой локации убраны: рядом
+    // уже есть ЦЕНТР, и заказчик видел в них дубль (правка 20.10).
     key: 'industrial', match: ['/district/industrial', '/work', '/objects', '/recipes'], tabs: [
-      { key: 'landing', label: 'Промзона', to: '/district/industrial' },
       { key: 'work', label: 'Работа', to: '/work' },
       { key: 'objects', label: 'Мои объекты', to: '/objects' },
       { key: 'recipes', label: 'Рецепты', to: '/recipes' },
@@ -54,7 +56,6 @@ const PLACES: Place[] = [
   },
   {
     key: 'garages', match: ['/district/garages', '/repair', '/upgrades'], tabs: [
-      { key: 'landing', label: 'Гаражи', to: '/district/garages' },
       { key: 'repair', label: 'Мастерская', to: '/repair' },
       { key: 'upgrades', label: 'Улучшения', to: '/upgrades' },
     ],

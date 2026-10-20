@@ -3,6 +3,8 @@
 // API Client вЂ” typed fetch wrapper
 // =============================================================
 
+import { playerErrorMessage } from './error-messages'
+
 const BASE = (import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_API_BASE_URL || ''
 
 function getToken(): string | null {
@@ -77,7 +79,7 @@ export async function request<T>(
     throw new ApiError(
       res.status,
       errorData.code ?? 'UNKNOWN',
-      errorData.message ?? `HTTP ${res.status}`,
+      playerErrorMessage(errorData.code ?? 'UNKNOWN', errorData.message ?? ''),
       errorData.details,
     )
   }

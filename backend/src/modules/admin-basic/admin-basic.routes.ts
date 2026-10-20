@@ -49,7 +49,7 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
           repairLogs:   { take: 10, orderBy: { repairedAt: 'desc' } },
         },
       })
-      if (!char) return reply.code(404).send({ code: 'GEN_002', message: 'Character not found' })
+      if (!char) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
       return reply.send(char)
     })
 

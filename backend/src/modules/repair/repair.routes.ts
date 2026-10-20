@@ -38,7 +38,7 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/items', { preHandler: authenticate },
     async (req: FastifyRequest, reply: FastifyReply) => {
       const char = await CharactersRepository.findByUserId(req.authUser.userId)
-      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
       // Скидка Гаражей действует на все три расчёта цены в этом файле:
       // список, предпросмотр и само списание. Показать одну сумму, а
@@ -69,7 +69,7 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
       if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
 
       const char = await CharactersRepository.findByUserId(req.authUser.userId)
-      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
       const item = await ItemsRepository.findInstanceById(parsed.data.itemInstanceId)
       if (!item) throw AppError.notFound('Item', parsed.data.itemInstanceId)
@@ -107,7 +107,7 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
         const char = await tx.character.findUnique({
           where: { userId: req.authUser.userId },
         })
-        if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+        if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
         const item = await tx.itemInstance.findUnique({
           where: { id: parsed.data.itemInstanceId },

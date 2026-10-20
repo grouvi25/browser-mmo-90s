@@ -52,7 +52,7 @@ export async function governmentShopRoutes(fastify: FastifyInstance): Promise<vo
       }
 
       const char = await CharactersRepository.findByUserId(req.authUser.userId)
-      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
       const result = await GovernmentShopService.buy(char.id, parsed.data.templateId, key)
       return reply.code(201).send(result)
@@ -65,7 +65,7 @@ export async function governmentShopRoutes(fastify: FastifyInstance): Promise<vo
       if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
 
       const char = await CharactersRepository.findByUserId(req.authUser.userId)
-      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
       const result = await GovernmentShopService.sell(char.id, parsed.data.itemInstanceId)
       return reply.send(result)
@@ -78,7 +78,7 @@ export async function governmentShopRoutes(fastify: FastifyInstance): Promise<vo
       if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
 
       const char = await CharactersRepository.findByUserId(req.authUser.userId)
-      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
       const result = await GovernmentShopService.discard(char.id, parsed.data.itemInstanceId)
       return reply.send(result)

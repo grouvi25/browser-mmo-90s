@@ -17,36 +17,25 @@ function getExpPct(exp: number, level: number): number {
   return Math.min(100, ((exp - curr) / Math.max(next - curr, 1)) * 100)
 }
 
-function SkillCard({ skill }: { skill: WeaponSkill }) {
+/** Строка навыка: таблицей, как профессии на странице Работы (правка
+ *  заказчика 20.10). Плюсиков нет — навык растёт только в бою. */
+function SkillRow({ skill }: { skill: WeaponSkill }) {
   const pct = getExpPct(skill.skillExp, skill.skillLevel)
   const label = WEAPON_TYPE_LABELS[skill.weaponType] ?? skill.weaponType
-
+  const toNext = Math.max(0, (WSK_THRESHOLDS[skill.skillLevel] ?? 0) - skill.skillExp)
   return (
-    <div className="panel" style={{ marginBottom: 0 }}>
-      <div className="panel-body" style={{ padding: '8px 10px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-          <span style={{ fontSize: 13.25, fontWeight: 'bold', color: 'var(--text-bright)' }}>{label}</span>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--gold)', fontWeight: 'bold' }}>
-            Ур. {skill.skillLevel}
-          </span>
-        </div>
-
-        <div className="wskill-bar-row" style={{ width: '100%' }}>
-          <div className="wskill-bar" style={{ flex: 1 }}>
-            <div className="wskill-fill" style={{ width: `${pct}%` }} />
-          </div>
+    <tr>
+      <td><b>{label}</b></td>
+      <td className="num">{skill.skillLevel}</td>
+      <td>
+        <div className="wskill-bar-row">
+          <div className="wskill-bar" style={{ flex: 1 }}><div className="wskill-fill" style={{ width: `${pct}%` }} /></div>
           <span className="wskill-level">{pct.toFixed(0)}%</span>
         </div>
-
-        <div style={{ fontSize: 13.65, color: 'var(--text-dim)', marginTop: 3, display: 'flex', justifyContent: 'space-between' }}>
-          <span>Опыт: <span style={{ fontFamily: 'var(--font-mono)' }}>{skill.skillExp.toFixed(1)}</span></span>
-          {skill.antiSkillLevel > 0 && (
-            <span style={{ color: 'var(--accent)' }}>Защита: {skill.antiSkillLevel}</span>
-          )}
-          <span>До ур.{skill.skillLevel + 1}: {((WSK_THRESHOLDS[skill.skillLevel] ?? 0) - skill.skillExp).toFixed(0)} exp</span>
-        </div>
-      </div>
-    </div>
+      </td>
+      <td className="num text-mono">{toNext.toFixed(0)}</td>
+      <td className="num">{skill.antiSkillLevel > 0 ? skill.antiSkillLevel : '—'}</td>
+    </tr>
   )
 }
 
@@ -85,11 +74,10 @@ export function SkillsPage() {
               Навыков нет. Проведи бои с оружием, чтобы прокачать навыки.
             </div>
           ) : (
-            <div className="skills-grid">
-              {skills.map(s => (
-                <SkillCard key={s.id} skill={s} />
-              ))}
-            </div>
+            <table className="data-table">
+              <thead><tr><th>Оружие</th><th className="num">Уровень</th><th>Прогресс</th><th className="num">До следующего</th><th className="num">Защита</th></tr></thead>
+              <tbody>{skills.map(s => <SkillRow key={s.id} skill={s} />)}</tbody>
+            </table>
           )}
         </div>
       </div>

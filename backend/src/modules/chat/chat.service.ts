@@ -61,7 +61,7 @@ export const ChatService = {
         user: { select: { mutedUntil: true } },
       },
     })
-    if (!character) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!character) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
     const membership = await prisma.clanMember.findUnique({
       where: { characterId: character.id },

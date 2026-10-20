@@ -105,8 +105,8 @@ export const MENU = {
   rooms: {
     center: [
       { key: 'inventory', label: 'Склад', to: '/inventory' },
-      { key: 'skills', label: 'Навыки', to: '/skills' },
-      { key: 'stats', label: 'Навыки', to: '/stats' },
+      { key: 'skills', label: 'Центр подготовки', to: '/skills' },
+      { key: 'stats', label: 'Центр подготовки', to: '/stats' },
       { key: 'history', label: 'Стрелки', to: '/battles/history' },
       { key: 'clan', label: 'Бригада', to: '/clans' },
       // Этап 4. Премиум — личное, поэтому Центр. Витрина и помощники

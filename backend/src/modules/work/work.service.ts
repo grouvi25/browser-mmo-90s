@@ -187,6 +187,18 @@ export const WorkService = {
       if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 400)
       // Тоже только свои: занятый помощник не должен запирать хозяина.
       if (await tx.workShift.findFirst({ where: { characterId, helperId: null, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } } })) throw new AppError(ErrorCode.WORK_ACTIVE_SHIFT, 'Active shift already exists', 409)
+      // Отдых после смены, одинаковый для всех объектов (правка заказчика
+      // 20.10: «после работы паузы должны быть… 30 минут, потом поправим»).
+      // Считаем от закрытия своей смены: смены помощника хозяина не держат.
+      const restMs = WORK_LIMITS.restMinutesAfterShift * 60_000
+      const lastClaimed = await tx.workShift.findFirst({
+        where: { characterId, helperId: null, status: 'CLAIMED', claimedAt: { gt: new Date(Date.now() - restMs) } },
+        orderBy: { claimedAt: 'desc' }, select: { claimedAt: true },
+      })
+      if (lastClaimed?.claimedAt) {
+        const left = Math.max(1, Math.ceil((lastClaimed.claimedAt.getTime() + restMs - Date.now()) / 60_000))
+        throw new AppError(ErrorCode.WORK_RESTING, `Отдых после смены: следующую можно начать через ${left} мин`, 409, { restUntil: new Date(lastClaimed.claimedAt.getTime() + restMs).toISOString() })
+      }
       const slots = await tx.workShift.count({ where: { productionObjectId, status: 'ACTIVE' } })
       if (slots >= object.workerSlots) throw new AppError(ErrorCode.WORK_NO_SLOTS, 'No free worker slots', 409)
       const claimed = await tx.character.updateMany({ where: { id: characterId, status: 'ACTIVE' }, data: { status: 'WORKING' } })
@@ -285,8 +297,12 @@ export const WorkService = {
           toolTier: shift.toolInstance?.template.toolTier ?? 0,
         })
         : null
+      // Сырьё объекта работник получает всегда, и на объекте с рецептом тоже:
+      // раньше рецепт забирал смену целиком в цикл владельца, и игрок после
+      // работы оставался без ресурсов (правка заказчика 20.10). Трудочасы
+      // в цикл владельца при этом идут, как и раньше.
       let resourceReward: { code: string; amount: number } | null = null
-      if (!shift.productionObject.activeRecipeId && shift.productionObject.producesResourceCode && shift.productionObject.outputAmountMax > 0) {
+      if (shift.productionObject.producesResourceCode && shift.productionObject.outputAmountMax > 0) {
         const template = await tx.resourceTemplate.findUnique({ where: { code: shift.productionObject.producesResourceCode } })
         if (template) {
           const amount = Math.floor(Math.random() * (shift.productionObject.outputAmountMax - shift.productionObject.outputAmountMin + 1)) + shift.productionObject.outputAmountMin

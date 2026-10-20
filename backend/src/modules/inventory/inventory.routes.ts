@@ -17,7 +17,7 @@ const AllocateSchema = z.object({ itemInstanceId: z.string().uuid(), stat: z.enu
 export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
     const char = await CharactersRepository.findByUserId(req.authUser.userId)
-    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return reply.send(await ItemsRepository.findByOwner(char.id))
   })
 
@@ -25,7 +25,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
     const parsed = AllocateSchema.safeParse(req.body)
     if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const char = await CharactersRepository.findByUserId(req.authUser.userId)
-    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return reply.send(await ItemStatsService.allocate(char.id, parsed.data.itemInstanceId, parsed.data.stat, parsed.data.points))
   })
 
@@ -38,7 +38,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         where: { userId: req.authUser.userId },
         include: { stats: true },
       })
-      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
       if (char.status === 'IN_BATTLE') {
         throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Cannot change equipment during battle', 409)
       }
@@ -70,8 +70,19 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         }
       }
 
+      // Без явной руки оружие идёт в свободную: раньше всегда в левую, и второй
+      // нож снимал первый — «в 2 руки 2 ножа нельзя взять» (правка заказчика 20.10).
+      let freeHand: 'LEFT_HAND' | 'RIGHT_HAND' = 'LEFT_HAND'
+      if (item.template.type === 'WEAPON' && !parsed.data.hand) {
+        const busy = await tx.itemInstance.findMany({
+          where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' }, armorSlot: { in: ['LEFT_HAND', 'RIGHT_HAND'] } },
+          select: { armorSlot: true },
+        })
+        const taken = new Set(busy.map(entry => entry.armorSlot))
+        if (taken.has('LEFT_HAND') && !taken.has('RIGHT_HAND')) freeHand = 'RIGHT_HAND'
+      }
       const slot = item.template.type === 'WEAPON'
-        ? (parsed.data.hand ?? 'LEFT_HAND')
+        ? (parsed.data.hand ?? freeHand)
         : item.template.type === 'ARMOR' || item.template.type === 'SHIELD' || item.template.type === 'ACCESSORY'
           ? item.template.armorSlot
           : null
@@ -108,7 +119,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         },
         data: { isEquipped: true, status: 'EQUIPPED', armorSlot: slot },
       })
-      if (equipped.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Equipment changed concurrently', 409)
+      if (equipped.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Снаряжение только что изменилось, обновите страницу', 409)
 
       await tx.itemLog.create({
         data: { itemId: item.id, characterId: char.id, actionCode: 'EQUIPPED' },
@@ -128,7 +139,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
 
     const result = await withTransaction(async tx => {
       const char = await tx.character.findUnique({ where: { userId: req.authUser.userId } })
-      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
       if (char.status === 'IN_BATTLE') {
         throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Cannot change equipment during battle', 409)
       }
@@ -145,7 +156,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         where: { id: item.id, ownerId: char.id, isEquipped: true },
         data: { isEquipped: false, status: 'NORMAL', armorSlot: null },
       })
-      if (updated.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Equipment changed concurrently', 409)
+      if (updated.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Снаряжение только что изменилось, обновите страницу', 409)
       await tx.itemLog.create({
         data: { itemId: item.id, characterId: char.id, actionCode: 'UNEQUIPPED' },
       })
@@ -162,7 +173,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
 
     const result = await withTransaction(async tx => {
       const char = await tx.character.findUnique({ where: { userId: req.authUser.userId } })
-      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
       if (char.status === 'IN_BATTLE') {
         throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Используй расходник через меню действий в бою', 400)
       }

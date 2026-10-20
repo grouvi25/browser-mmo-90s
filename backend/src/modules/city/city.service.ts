@@ -62,7 +62,7 @@ export const CityService = {
         durabilityCurrent: template.durabilityMax, durabilityMax: template.durabilityMax, weight: template.weight,
         freePoints: template.allocationMode === 'PLAYER' ? template.statBudget : 0 } })
       await tx.itemLog.create({ data: { itemId: item.id, characterId, actionCode: 'CREATED_FROM_SHOP', details: { shop: kind, priceDollars } } })
-      return { item, dollars }
+      return { item, dollars, priceDollars, itemName: template.name }
     } })
   },
   async pets(characterId: string) {

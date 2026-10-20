@@ -117,7 +117,7 @@ export const AuthorityService = {
         select: { createdAt: true, amount: true, reason: true, refId: true, balanceAfter: true },
       }),
     ])
-    if (!clan) throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Clan not found', 404)
+    if (!clan) throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Бригада не найдена', 404)
     return { current: clan.authority, log }
   },
 

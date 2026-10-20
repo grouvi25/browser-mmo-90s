@@ -177,11 +177,19 @@ export const ClansService = {
    * Журнал склада: кто что положил и взял. Видят главарь и бригадир —
    * просьба заказчика: «чтобы глава и зам сами видели».
    */
-  async storageLog(characterId: string, limit = 100) {
+  // Журнал хранится целиком и листается по 10 строк (правка заказчика 20.10:
+  // «пусть будет 10 строк, и их можно листать 1-2-3-4-5 страница»).
+  async storageLog(characterId: string, page = 1, perPage = 10) {
     const member = await prisma.clanMember.findUnique({ where: { characterId }, include: { role: true } })
     if (!member || member.status !== 'ACTIVE') throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Вы не состоите в бригаде', 404)
     if (member.role.rank < 70) throw new AppError(ErrorCode.CLAN_PERMISSION, 'Журнал склада видят главарь и бригадир', 403)
-    const rows = await prisma.clanStorageLog.findMany({ where: { clanId: member.clanId }, orderBy: { createdAt: 'desc' }, take: Math.min(limit, 200) })
+    const total = await prisma.clanStorageLog.count({ where: { clanId: member.clanId } })
+    const pages = Math.max(1, Math.ceil(total / perPage))
+    const current = Math.min(Math.max(1, Math.floor(page)), pages)
+    const rows = await prisma.clanStorageLog.findMany({
+      where: { clanId: member.clanId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: (current - 1) * perPage, take: perPage,
+    })
     const [people, resources] = await Promise.all([
       prisma.character.findMany({ where: { id: { in: [...new Set(rows.map(r => r.characterId))] } }, select: { id: true, nickname: true } }),
       prisma.resourceTemplate.findMany({ where: { code: { in: [...new Set(rows.map(r => r.resourceCode))] } }, select: { code: true, name: true } }),
@@ -193,6 +201,7 @@ export const ClansService = {
         id: r.id, at: r.createdAt, nickname: who.get(r.characterId) ?? '—',
         resource: what.get(r.resourceCode) ?? r.resourceCode, amount: r.amount,
       })),
+      page: current, pages, total,
     }
   },
 

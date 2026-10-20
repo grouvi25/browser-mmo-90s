@@ -190,7 +190,7 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     const { characterId, amount } = parsed.data
 
     const character = await prisma.character.findUnique({ where: { id: characterId } })
-    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Character not found' })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
 
     const giving = amount > 0
     const result = await AdminActionsService.perform(ctx(req), reason, {
@@ -218,7 +218,7 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     if (!parsed.success) return invalid(reply)
     const { characterId, amount } = parsed.data
     const character = await prisma.character.findUnique({ where: { id: characterId } })
-    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Character not found' })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
     const giving = amount > 0
     const result = await AdminActionsService.perform(ctx(req), reason, {
       kind: giving ? 'GRANT_DOLLARS' : 'TAKE_DOLLARS',
@@ -237,7 +237,7 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     if (!parsed.success) return invalid(reply)
     const { characterId, isDealer } = parsed.data
     const character = await prisma.character.findUnique({ where: { id: characterId } })
-    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Character not found' })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
     const result = await AdminActionsService.perform(ctx(req), reason, {
       kind: isDealer ? 'SET_DEALER' : 'UNSET_DEALER',
       payload: { characterId },
@@ -270,7 +270,7 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     if (!Id.safeParse(req.params.id).success) return invalid(reply)
     const reason = reasonOf(req.body)
     const item = await prisma.itemInstance.findUnique({ where: { id: req.params.id } })
-    if (!item) return reply.code(404).send({ code: 'GEN_002', message: 'Item not found' })
+    if (!item) return reply.code(404).send({ code: 'GEN_002', message: 'Вещь не найдена' })
 
     // Удаление отменяется не воскрешением строки, а выдачей такого же
     // предмета: восстановить износ, вставленные камни и распределённые очки
@@ -329,7 +329,7 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
   fastify.post<{ Params: { code: string } }>('/territories/:code/reset', SUPER_ADMIN, async (req, reply) => {
     const reason = reasonOf(req.body)
     const territory = await prisma.territory.findUnique({ where: { code: req.params.code } })
-    if (!territory) return reply.code(404).send({ code: 'GEN_002', message: 'Territory not found' })
+    if (!territory) return reply.code(404).send({ code: 'GEN_002', message: 'Территория не найдена' })
 
     return reply.send(await AdminActionsService.perform(ctx(req), reason, {
       kind: 'RESET_TERRITORY',
@@ -384,7 +384,7 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     if (!parsed.success) return invalid(reply)
 
     const clan = await prisma.clan.findUnique({ where: { id: req.params.id } })
-    if (!clan) return reply.code(404).send({ code: 'GEN_002', message: 'Clan not found' })
+    if (!clan) return reply.code(404).send({ code: 'GEN_002', message: 'Бригада не найдена' })
 
     return reply.send(await AdminActionsService.perform(ctx(req), reason, {
       kind: 'ADJUST_AUTHORITY',
@@ -418,7 +418,7 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     if (!Id.safeParse(req.params.id).success) return invalid(reply)
     const reason = reasonOf(req.body)
     const helper = await prisma.helper.findUnique({ where: { id: req.params.id } })
-    if (!helper) return reply.code(404).send({ code: 'GEN_002', message: 'Helper not found' })
+    if (!helper) return reply.code(404).send({ code: 'GEN_002', message: 'Помощник не найден' })
 
     return reply.send(await AdminActionsService.perform(ctx(req), reason, {
       kind: 'SLEEP_HELPER',
@@ -447,7 +447,7 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
       where: { id: parsed.data.characterId },
       select: { isPremium: true, premiumExpiresAt: true },
     })
-    if (!before) return reply.code(404).send({ code: 'GEN_002', message: 'Character not found' })
+    if (!before) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
 
     const granted = await PremiumService.grant({
       characterId: parsed.data.characterId,
@@ -488,7 +488,7 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
       where: { id: parsed.data.characterId },
       select: { isPremium: true, premiumExpiresAt: true },
     })
-    if (!before) return reply.code(404).send({ code: 'GEN_002', message: 'Character not found' })
+    if (!before) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
 
     const result = await PremiumService.revoke(parsed.data.characterId)
     const recorded = await AdminActionsService.record(ctx(req), reason, {

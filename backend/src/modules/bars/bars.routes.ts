@@ -11,7 +11,7 @@ const Id = z.string().uuid()
 export async function barsRoutes(fastify: FastifyInstance) {
   const character = async (userId: string) => {
     const item = await CharactersRepository.findByUserId(userId)
-    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return item
   }
 

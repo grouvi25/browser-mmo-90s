@@ -50,7 +50,9 @@ export interface ObjectRecipe {
   requiredToolTier: number
   available: boolean
   missingLevel: number
-  inputs: Array<{ resourceCode: string; amount: number; minQuality: string }>
+  inputs: Array<{ resourceCode: string; resourceName?: string; amount: number; minQuality: string }>
+  outputName?: string | null
+  requiredProfessionName?: string
 }
 
 /** Цикл не стартовал: сервер возвращает причину, а не бросает ошибку. */

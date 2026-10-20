@@ -14,6 +14,10 @@ import { NoticesService } from './notices.service'
 
 type Body = Record<string, unknown>
 const num = (v: unknown) => (typeof v === 'number' ? v.toLocaleString('ru') : '')
+// «что именно купили и за сколько» (правка заказчика 20.10): название и цена
+// приходят в ответе покупки; если их нет, остаётся общая фраза.
+const bought = (what: unknown, price: string) =>
+  `Вы купили${typeof what === 'string' && what ? ` «${what}»` : ' вещь'}${price ? ` за ${price}` : ''}.`
 
 interface Rule {
   method: string
@@ -33,16 +37,16 @@ export const NOTICE_RULES: Rule[] = [
   { method: 'POST', url: '/api/work/shifts/:shiftId/claim', text: (_b, r) => `Смена закрыта${r.salary ? `: получено ${num(r.salary)} ₽` : ''}.` },
   { method: 'POST', url: '/api/work/shifts/:shiftId/cancel', text: () => 'Вы отменили смену.' },
   { method: 'POST', url: '/api/city/professions', text: () => 'Вы изучили профессию в Училище.' },
-  { method: 'POST', url: '/api/city/shops/:kind/buy', text: () => 'Вы купили вещь.' },
+  { method: 'POST', url: '/api/city/shops/:kind/buy', text: (_b, r) => bought(r.itemName, r.priceDollars ? `${num(r.priceDollars)} $` : '') },
   { method: 'POST', url: '/api/city/pets', text: () => 'Вы купили собаку.' },
   { method: 'POST', url: '/api/city/pets/food', text: () => 'Вы купили корм.' },
   { method: 'POST', url: '/api/city/pets/feed', text: () => 'Вы покормили собаку.' },
-  { method: 'POST', url: '/api/shops/government/buy', text: () => 'Вы купили товар в Госмагазине.' },
+  { method: 'POST', url: '/api/shops/government/buy', text: (_b, r) => bought(r.itemName, r.price ? `${num(r.price)} ₽` : '').replace(/\.$/, ' в Госмагазине.') },
   { method: 'POST', url: '/api/shops/government/sell', text: () => 'Вы продали товар государству.' },
-  { method: 'POST', url: '/api/private-shops/:shopCode/buy', text: () => 'Вы купили товар в частной лавке.' },
+  { method: 'POST', url: '/api/private-shops/:shopCode/buy', text: (_b, r) => bought(r.itemName, r.total ? `${num(r.total)} ₽` : '').replace(/\.$/, ' в частной лавке.') },
   { method: 'POST', url: '/api/resources/sell', text: () => 'Вы продали ресурсы.' },
   { method: 'POST', url: '/api/market/listings', text: () => 'Вы выставили лот на рынок.' },
-  { method: 'POST', url: '/api/market/listings/:listingId/buy', text: () => 'Вы купили лот на рынке.' },
+  { method: 'POST', url: '/api/market/listings/:listingId/buy', text: (_b, r) => `Вы купили лот на рынке${r.finalPrice ? ` за ${num(r.finalPrice)} ₽` : ''}.` },
   { method: 'POST', url: '/api/market/listings/:listingId/cancel', text: () => 'Вы сняли лот с рынка.' },
   { method: 'POST', url: '/api/repair/commit', text: () => 'Вы отремонтировали вещь.' },
   { method: 'POST', url: '/api/upgrades/commit', text: () => 'Вы улучшили вещь.' },

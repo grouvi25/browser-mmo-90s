@@ -85,55 +85,32 @@ export function StatsPage() {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {STAT_KEYS.map(key => {
-              const val = (s as unknown as Record<string, number>)[key] ?? 0
-              const isMax = val >= 20
-              return (
-                <div key={key} style={{
-                  background: 'var(--bg-panel2)',
-                  border: '1px solid var(--border)',
-                  padding: '10px 12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}>
-                  <div style={{ fontSize: 22, color: 'var(--text-dim)', lineHeight: 1 }}>
-                    {STAT_ICON_MAP[key]}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 13.75, fontWeight: 'bold', color: 'var(--text-title)' }}>
-                        {STAT_FULL[key]}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--gold)', fontWeight: 'bold' }}>
-                          {val}
-                        </span>
-                        {points > 0 && !isMax && (
-                          <button
-                            className="btn btn-sm btn-success"
-                            style={{ padding: '2px 8px', minWidth: 28 }}
-                            disabled={distributeMut.isPending}
-                            onClick={() => distributeMut.mutate(key)}
-                            title={`+1 ${STAT_FULL[key]}`}
-                          >
-                            +
-                          </button>
-                        )}
-                        {isMax && (
-                          <span style={{ fontSize: 13.65, color: 'var(--gold)', opacity: 0.7 }}>МАКС</span>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 13.65, color: 'var(--text-dim)', marginTop: 2 }}>
-                      {STAT_DESCRIPTIONS[key]}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          {/* Таблицей, как профессии на странице Работы, с «+» в строке
+              (правка заказчика 20.10). */}
+          <table className="data-table stats-table">
+            <thead><tr><th>Характеристика</th><th>Что даёт</th><th>Значение</th><th aria-label="Вложить очко" /></tr></thead>
+            <tbody>
+              {STAT_KEYS.map(key => {
+                const val = (s as unknown as Record<string, number>)[key] ?? 0
+                const isMax = val >= 20
+                return (
+                  <tr key={key}>
+                    <td><span className="stats-table__icon" aria-hidden="true">{STAT_ICON_MAP[key]}</span> <b>{STAT_FULL[key]}</b></td>
+                    <td className="text-dim">{STAT_DESCRIPTIONS[key]}</td>
+                    <td className="stats-table__value">{val}</td>
+                    <td className="stats-table__action">
+                      {isMax ? <span className="text-dim">МАКС</span> : (
+                        <button className="btn btn-sm btn-success" disabled={points <= 0 || distributeMut.isPending}
+                          onClick={() => distributeMut.mutate(key)} title={`+1 ${STAT_FULL[key]}`} aria-label={`+1 ${STAT_FULL[key]}`}>
+                          +
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
 
           {/* HP & derived stats */}
           <div style={{ marginTop: 16, padding: 10, background: 'var(--bg-panel2)', border: '1px solid var(--border)' }}>

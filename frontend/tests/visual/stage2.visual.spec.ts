@@ -32,11 +32,16 @@ async function createAccount(request: APIRequestContext, prefix: string): Promis
   return { token: auth.token, userId: auth.userId, login, nickname, characterId: character.id }
 }
 
-async function authPage(page: Page, account: Account) {
-  await page.addInitScript(({ token, userId, login }) => {
+// mmo_resumed: вкладка уже «вернулась на последнюю локацию». Без метки первый
+// заход на главную уводит на последнюю локацию общего тестового аккаунта, и
+// проверки главной зависели бы от того, какой тест шёл перед ними. Сам
+// возврат проверяет отдельный тест (resume: true).
+async function authPage(page: Page, account: Account, { resume = false } = {}) {
+  await page.addInitScript(({ token, userId, login, resume }) => {
     localStorage.setItem('mmo_token', token)
     localStorage.setItem('mmo_user', JSON.stringify({ userId, login }))
-  }, account)
+    if (!resume) sessionStorage.setItem('mmo_resumed', '1')
+  }, { ...account, resume })
 }
 
 async function visualProof(page: Page, testInfo: TestInfo, name: string) {
@@ -350,7 +355,8 @@ test.describe('Stage 2 visual and browser flow', () => {
     // Правка заказчика: в локации полоса — ЦЕНТР и разделы самой локации.
     await page.goto('/industrial')
     const strip = page.getByRole('navigation', { name: 'Разделы локации' })
-    for (const label of ['ЦЕНТР', 'Промзона', 'Работа', 'Мои объекты', 'Рецепты']) {
+    // Вкладки «Промзона» с названием самой локации нет: это был дубль ЦЕНТРа (правка 20.10).
+    for (const label of ['ЦЕНТР', 'Работа', 'Мои объекты', 'Рецепты']) {
       const button = strip.getByRole('button', { name: label, exact: true })
       await button.scrollIntoViewIfNeeded()
       await expect(button).toBeVisible()
@@ -361,7 +367,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     // Аграрного района в макете нет; старый адрес уводит в Промзону.
     await page.goto('/agriculture')
     await expect(page).toHaveURL(/\/district\/industrial$/)
-    await expect(page.getByRole('button', { name: 'Промзона', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Работа', exact: true })).toBeVisible()
 
     // комнаты чужого района в полосе не появляются
     await page.goto('/district/garages')
