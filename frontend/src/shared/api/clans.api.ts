@@ -4,7 +4,7 @@ export type ClanPermission =
   | 'INVITE' | 'KICK' | 'ASSIGN_ROLE'
   | 'STORAGE_PUT' | 'STORAGE_TAKE'
   | 'TREASURY_PUT' | 'TREASURY_SPEND'
-  | 'RELATIONS' | 'OBJECTS' | 'EDIT'
+  | 'RELATIONS' | 'OBJECTS' | 'EDIT' | 'WAR'
 
 export const CLAN_PERMISSIONS: readonly { code: ClanPermission; label: string }[] = [
   { code: 'INVITE', label: 'Приглашать' },
@@ -104,7 +104,7 @@ export interface ClanInvite {
 export const clansApi = {
   list: () => api.get<{ items: Clan[] }>('/api/clans'),
   get: (id: string) => api.get<Clan>(`/api/clans/${id}`),
-  storageLog: () => api.get<{ items: Array<{ id: string; at: string; nickname: string; resource: string; amount: number }> }>('/api/clans/storage/log'),
+  storageLog: (page = 1) => api.get<{ items: Array<{ id: string; at: string; nickname: string; resource: string; amount: number }>; page: number; pages: number; total: number }>(`/api/clans/storage/log?page=${page}`),
   house: (id: string) => api.get<BrigadeHouse>(`/api/clans/${id}/house`),
   fileSiege: (id: string, startsAt: string) => api.post<{ siegeId: string; startsAt: string }>(`/api/clans/${id}/siege`, { startsAt }),
   siegeAction: (siegeId: string, action: 'signup' | 'unsign' | 'cancel') => api.post(`/api/clans/sieges/${siegeId}/${action}`, {}),

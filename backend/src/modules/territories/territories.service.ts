@@ -146,7 +146,7 @@ export const TerritoriesService = {
       where: { code },
       include: { ownerClan: { select: { id: true, name: true, tag: true } } },
     })
-    if (!territory) throw new AppError(ErrorCode.TERRITORY_NOT_FOUND, 'Territory not found', 404)
+    if (!territory) throw new AppError(ErrorCode.TERRITORY_NOT_FOUND, 'Территория не найдена', 404)
 
     const myClanId = await clanIdOf(characterId)
     const mine = !!myClanId && territory.ownerClanId === myClanId

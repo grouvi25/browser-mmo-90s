@@ -10,12 +10,12 @@ export const ItemStatsService = {
       if (character.status === 'IN_BATTLE') throw new AppError(ErrorCode.CONFLICT, 'Cannot allocate item points during battle', 409)
       const item = await tx.itemInstance.findUnique({ where: { id: itemInstanceId }, include: { template: true } })
       if (!item || item.ownerId !== characterId) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
-      if (item.status === 'ON_MARKET') throw new AppError(ErrorCode.CONFLICT, 'Market item cannot be changed', 409)
-      if (item.template.allocationMode !== 'PLAYER') throw new AppError(ErrorCode.CONFLICT, 'Item allocation is fixed', 409)
-      if (!allowedItemStats(item.template.type).includes(stat)) throw new AppError(ErrorCode.CONFLICT, 'Stat is incompatible with item', 422)
+      if (item.status === 'ON_MARKET') throw new AppError(ErrorCode.CONFLICT, 'Вещь выставлена на рынок, менять её нельзя', 409)
+      if (item.template.allocationMode !== 'PLAYER') throw new AppError(ErrorCode.CONFLICT, 'Очки этой вещи уже распределены', 409)
+      if (!allowedItemStats(item.template.type).includes(stat)) throw new AppError(ErrorCode.CONFLICT, 'Эту характеристику нельзя вложить в эту вещь', 422)
       const before = normalizeAllocation(item.statAllocation)
       const available = Math.max(0, item.template.statBudget - allocatedPoints(before))
-      if (points > available) throw new AppError(ErrorCode.CONFLICT, 'Not enough free item points', 409)
+      if (points > available) throw new AppError(ErrorCode.CONFLICT, 'У вещи не осталось свободных очков', 409)
       const after = { ...before, [stat]: (before[stat] ?? 0) + points }
       const freePoints = available - points
       const sockets = socketAllocation(item.socketsJson)
@@ -25,7 +25,7 @@ export const ItemStatsService = {
       const newMax = Math.round(item.template.durabilityMax * (1 + .08 * newDurabilityPoints))
       const durabilityCurrent = stat === 'DURABILITY' && oldMax > 0 ? Math.round(item.durabilityCurrent * newMax / oldMax) : item.durabilityCurrent
       const changed = await tx.itemInstance.updateMany({ where: { id: item.id, ownerId: characterId, status: { not: 'ON_MARKET' } }, data: { statAllocation: after, freePoints, durabilityMax: newMax, durabilityCurrent } })
-      if (changed.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Item allocation changed concurrently', 409)
+      if (changed.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Вещь только что изменилась, обновите страницу', 409)
       await tx.itemLog.create({ data: { itemId: item.id, characterId, actionCode: 'POINTS_ALLOCATED', details: { stat, points, before, after, freePoints } } })
       return { itemId: item.id, statAllocation: after, freePoints }
     })

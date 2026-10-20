@@ -10,7 +10,7 @@ import { HelpersService } from './helpers.service'
 export async function premiumRoutes(fastify: FastifyInstance) {
   const me = async (userId: string) => {
     const item = await CharactersRepository.findByUserId(userId)
-    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return item
   }
 
@@ -44,7 +44,7 @@ export async function premiumRoutes(fastify: FastifyInstance) {
 export async function helpersRoutes(fastify: FastifyInstance) {
   const me = async (userId: string) => {
     const item = await CharactersRepository.findByUserId(userId)
-    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return item
   }
   const Id = z.string().uuid()

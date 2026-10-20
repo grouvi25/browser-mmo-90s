@@ -129,7 +129,10 @@ export function BattleApplications() {
       <form className="bapps-create" onSubmit={event => { event.preventDefault(); if (kind !== 'BOT') create.mutate() }}>
         <fieldset className="bapps-kinds">
           <legend>Подать заявку</legend>
-          {(['DUEL', 'GROUP', 'CHAOTIC', 'BOT'] as CreateKind[]).map(item => (
+          {/* Хаотичный бой из подачи убран (правка заказчика 20.10: «не вижу разницы
+              с групповым, хаот удалить»); старые хаотичные заявки и история
+              по-прежнему показываются со своей подписью. */}
+          {(['DUEL', 'GROUP', 'BOT'] as CreateKind[]).map(item => (
             <button type="button" key={item} aria-pressed={kind === item}
               className={'bapps-kind' + (kind === item ? ' is-active' : '')} onClick={() => setKind(item)}>
               {item === 'DUEL' ? <Swords size={13} /> : item === 'GROUP' ? <Users size={13} /> : item === 'CHAOTIC' ? <Shuffle size={13} /> : <Bot size={13} />}

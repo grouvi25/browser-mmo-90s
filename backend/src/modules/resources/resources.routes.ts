@@ -11,7 +11,7 @@ const SellSchema = z.object({ resourceCode: z.string().min(1).max(64), amount: z
 export async function resourcesRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/', { preHandler: authenticate }, async (req, reply) => {
     const character = await CharactersRepository.findByUserId(req.authUser.userId)
-    if (!character) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!character) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return reply.send(await ResourcesService.list(character.id))
   })
 
@@ -21,7 +21,7 @@ export async function resourcesRoutes(fastify: FastifyInstance): Promise<void> {
     const key = req.headers['idempotency-key']
     if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
     const character = await CharactersRepository.findByUserId(req.authUser.userId)
-    if (!character) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!character) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return reply.send(await ResourcesService.sell(character.id, parsed.data.resourceCode, parsed.data.amount, key))
   })
 }

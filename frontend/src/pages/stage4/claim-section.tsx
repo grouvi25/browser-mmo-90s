@@ -56,6 +56,11 @@ export function ClaimSection() {
     onSuccess: () => finish('Состав обороны выставлен.'),
     onError: fail,
   })
+  const join = useMutation({
+    mutationFn: () => territoriesApi.joinClaim(code, id),
+    onSuccess: () => finish('Вы в составе. Бой начнётся по таймеру.'),
+    onError: fail,
+  })
   const cancel = useMutation({
     mutationFn: () => territoriesApi.cancelClaim(code, id),
     onSuccess: () => finish('Заявка отозвана. Взнос не возвращается.'),
@@ -72,7 +77,10 @@ export function ClaimSection() {
   const iDefend = !!claim.defender && myTag === claim.defender.clanTag
   const live = claim.status === 'PENDING'
   const defenceSet = (claim.defender?.roster?.length ?? 0) > 0
-  const busy = defence.isPending || cancel.isPending
+  const busy = defence.isPending || cancel.isPending || join.isPending
+  // Отзыв и состав обороны — только с правом WAR (глава, бригадир): рядовой
+  // видел эти кнопки, а сервер ему отказывал.
+  const command = clan.can('WAR')
 
   return (
     <>
@@ -130,7 +138,14 @@ export function ClaimSection() {
       {/* Состав можно переставить, пока окно открыто, — и подпись обязана
           это показывать: одинаковая кнопка до и после отправки читается как
           «ничего не произошло». */}
-      {live && iDefend && !picking && (
+      {/* Подаёт заявку и выставляет состав глава или бригадир, остальные
+          бойцы бригады встают в бой сами (правка заказчика 20.10). */}
+      {live && (iAttack || iDefend) && !claim.inRoster && !picking && (
+        <button type="button" disabled={busy} onClick={() => join.mutate()}>
+          <Swords size={13} /> {join.isPending ? 'Записываемся…' : 'Присоединиться'}
+        </button>
+      )}
+      {live && iDefend && command && !picking && (
         <button type="button" disabled={busy} onClick={() => setPicking(true)}>
           <Users size={13} /> {defenceSet ? 'Изменить состав обороны' : 'Выставить состав обороны'}
         </button>
@@ -146,7 +161,7 @@ export function ClaimSection() {
           onSubmit={roster => defence.mutate(roster)}
         />
       )}
-      {live && iAttack && (
+      {live && iAttack && command && (
         <button
           type="button"
           className="s4-ghost"

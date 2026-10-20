@@ -142,3 +142,10 @@
 .storage-log h3 { margin: 0; }
 .log-in { color: #2f6b3a; }
 .log-out { color: #a02a30; }
+
+/* Страницы журнала склада: номера в ряд, переносятся на узком экране.
+   Вид кнопок общий для раздела (.s3 button), активная отличается только
+   цветом — кнопки не сдвигаются. */
+.storage-log__pages{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.storage-log__pages button{min-width:44px;padding:8px 10px}
+.storage-log__pages button.is-active,.storage-log__pages button.is-active:hover:not(:disabled){background:var(--s3-ink);color:var(--s3-paper)}

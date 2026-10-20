@@ -235,6 +235,36 @@ export const ClaimsService = {
     })
   },
 
+  /**
+   * Присоединиться к заявке самому (правка заказчика 20.10: «заявку подают
+   * глава и зам, а после для остальных членов бригады кнопка Присоединиться»).
+   * Подаёт и выставляет состав по-прежнему тот, у кого право WAR; рядовой
+   * боец своей бригады добавляет только себя — на свою сторону, пока состав
+   * не закрыт, и с тем же порогом уровня, что и при подаче.
+   */
+  async join(characterId: string, claimId: string) {
+    return withTransaction(async tx => {
+      const member = await tx.clanMember.findUnique({ where: { characterId } })
+      if (!member || member.status !== 'ACTIVE') throw new AppError(ErrorCode.WAR_FIGHTER_NOT_IN_CLAN, 'Вы не состоите в бригаде', 403)
+      const claim = await tx.territoryClaim.findUnique({ where: { id: claimId } })
+      if (!claim) throw new AppError(ErrorCode.WAR_CLAIM_NOT_FOUND, 'Заявка не найдена', 404)
+      const side = claim.attackerClanId === member.clanId ? 1 : claim.defenderClanId === member.clanId ? 2 : 0
+      if (!side) throw new AppError(ErrorCode.WAR_FIGHTER_NOT_IN_CLAN, 'Ваша бригада не участвует в этом бою', 403)
+      if (claim.status !== 'PENDING') throw new AppError(ErrorCode.WAR_BATTLE_STARTED, 'Бой уже начался', 409)
+      if ((claim.battleStartsAt.getTime() - Date.now()) / 60_000 < T.defenceLockMinutes) {
+        throw new AppError(ErrorCode.WAR_DEFENCE_LOCKED, 'До боя меньше десяти минут, состав закрыт', 409)
+      }
+      const character = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { battleLevel: true } })
+      if (character.battleLevel < T.claimMinBattleLevel) {
+        throw new AppError(ErrorCode.WAR_FIGHTER_TOO_WEAK, `В бой за район идут с ${T.claimMinBattleLevel} уровня`, 400)
+      }
+      const already = await tx.territoryClaimRoster.findFirst({ where: { claimId, characterId } })
+      if (already) throw new AppError(ErrorCode.WAR_CLAIM_EXISTS, 'Вы уже в составе', 409)
+      await tx.territoryClaimRoster.create({ data: { claimId, characterId, side, battleLevel: character.battleLevel } })
+      return { claimId, side }
+    })
+  },
+
   /** Отозвать заявку. Взнос не возвращается, авторитет — да. */
   async cancel(characterId: string, claimId: string) {
     return withTransaction(async tx => {
@@ -263,7 +293,7 @@ export const ClaimsService = {
   },
 
   /** Карточка заявки: обе стороны видят состав друг друга с момента подачи. */
-  async get(claimId: string) {
+  async get(claimId: string, viewerId?: string) {
     const claim = await prisma.territoryClaim.findUnique({
       where: { id: claimId },
       include: {
@@ -287,6 +317,7 @@ export const ClaimsService = {
       battleStartsAt: claim.battleStartsAt,
       battleId: claim.battleId,
       walkover: claim.walkover,
+      inRoster: !!viewerId && claim.roster.some(row => row.characterId === viewerId),
       // Состав атакующего виден обороне с самого начала. Внезапное нападение
       // в асинхронной игре означает, что побеждает оказавшийся онлайн, а не
       // тот, кто лучше играет.

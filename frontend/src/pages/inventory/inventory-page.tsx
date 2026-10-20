@@ -50,7 +50,7 @@ interface Tab { key: string; label: string; match?: Match }
  *  шесть во втором. Без `match` вкладка закрыта: наполнения нет. */
 const TABS: Tab[] = [
   { key: 'caps',    label: 'Шапки',    match: i => i.template.armorSlot === 'HEAD' },
-  { key: 'amulets', label: 'Амулеты' },
+  { key: 'amulets', label: 'Амулеты',  match: i => i.template.armorSlot === 'ACCESSORY' },
   { key: 'belts',   label: 'Пояса',    match: i => i.template.armorSlot === 'BELT' },
   { key: 'cloaks',  label: 'Плащи',    match: i => i.template.armorSlot === 'BACK' },
   { key: 'pants',   label: 'Штаны',    match: i => i.template.armorSlot === 'LEGS' },
@@ -80,6 +80,22 @@ interface Cell { slot: string | null; box: Rect; sockets: Rect[] }
  *  ровно те пять категорий, что закрыты во вкладках. Гнёзда под камни
  *  не работают — вставки камней в игре нет.
  */
+// Очки вещи по-русски: кнопки показывали «+ DAMAGE» (правка заказчика 20.10).
+const ITEM_STAT_LABELS: Record<ItemStatKey, string> = {
+  DAMAGE: 'Урон', ACCURACY: 'Точность', CRIT: 'Крит', ARMOR: 'Броня', DURABILITY: 'Прочность', ANTI_CRIT: 'Защита от крита',
+}
+/** Очки шаблона и вложенные игроком вместе: в описании вещи раньше не было
+ *  видно, куда ушли распределённые очки. */
+function itemStatBonuses(item: ItemInstance): [ItemStatKey, number][] {
+  const sum: Partial<Record<ItemStatKey, number>> = {}
+  for (const source of [item.template.statAllocation, item.statAllocation]) {
+    for (const [key, amount] of Object.entries(source ?? {}) as [ItemStatKey, number][]) {
+      if (amount > 0) sum[key] = (sum[key] ?? 0) + amount
+    }
+  }
+  return Object.entries(sum) as [ItemStatKey, number][]
+}
+
 const CELLS: Cell[] = [
   { slot: 'HEAD', box: { x: 39.77, y: 1.28, w: 20.31, h: 11.51 },
     sockets: [{ x: 40.9, y: 8.55, w: 6.35, h: 3.6 }, { x: 52.89, y: 8.55, w: 6.35, h: 3.6 }] },
@@ -270,6 +286,9 @@ export function InventoryPage() {
                           {!!t.armor && <div><dt>Броня тела</dt><dd>+{t.armor}</dd></div>}
                           {!!t.hpBonus && <div><dt>Восстановит</dt><dd>+{t.hpBonus} HP</dd></div>}
                           {t.strReq > 0 && <div><dt>Требует силы</dt><dd>{t.strReq}</dd></div>}
+                          {itemStatBonuses(item).length > 0 && (
+                            <div><dt>Вложено</dt><dd className="inv-card__bonus">{itemStatBonuses(item).map(([stat, amount]) => `${ITEM_STAT_LABELS[stat]} +${amount}`).join(", ")}</dd></div>
+                          )}
                         </dl>
                         <div className="inv-card__side">
                           {t.allocationMode === 'PLAYER' && item.freePoints > 0 && (
@@ -280,7 +299,7 @@ export function InventoryPage() {
                                   disabled={allocateMut.isPending || inBattle}
                                   onClick={() => allocateMut.mutate({ id: item.id, stat })}>
                                   <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                                  <span>+ {stat}</span>
+                                  <span>+ {ITEM_STAT_LABELS[stat]}</span>
                                 </button>
                               ))}
                             </div>

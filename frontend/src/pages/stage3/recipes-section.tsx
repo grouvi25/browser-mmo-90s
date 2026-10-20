@@ -61,15 +61,15 @@ export function RecipesSection() {
                   <td>
                     {recipe.inputs.length === 0 ? <span className="muted">добыча</span> : recipe.inputs.map(input => (
                       <div key={input.resourceCode}>
-                        {input.amount} × {input.resourceCode}
+                        {input.amount} × {input.resourceName ?? input.resourceCode}
                         {input.minQuality !== 'POOR' && <span className="muted"> (от {QUALITY[input.minQuality]})</span>}
                       </div>
                     ))}
                   </td>
-                  <td>{recipe.outputAmount} × {recipe.outputResourceCode ?? recipe.outputItemTemplateCode}</td>
+                  <td>{recipe.outputAmount} × {recipe.outputName ?? recipe.outputResourceCode ?? recipe.outputItemTemplateCode}</td>
                   <td>{recipe.cycleMinutes} мин</td>
                   <td>{recipe.laborRequired}</td>
-                  <td>{recipe.requiredProfessionCode} {recipe.requiredProfessionLevel}</td>
+                  <td>{recipe.requiredProfessionName ?? recipe.requiredProfessionCode}, ур. {recipe.requiredProfessionLevel}</td>
                   <td>{recipe.available ? <span className="ok">открыт</span> : <span className="muted">+{recipe.missingLevel} ур.</span>}</td>
                 </tr>
               ))}

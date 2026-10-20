@@ -20,7 +20,7 @@ export const CharactersService = {
     // Check nickname uniqueness
     const existingNick = await CharactersRepository.findByNickname(input.nickname)
     if (existingNick) {
-      throw new AppError(ErrorCode.CONFLICT, 'Nickname is already taken', 409)
+      throw new AppError(ErrorCode.CONFLICT, 'Такой ник уже занят', 409)
     }
 
     const arch = input.archetype
@@ -64,7 +64,7 @@ export const CharactersService = {
   async getProfile(userId: string) {
     const char = await CharactersRepository.findByUserId(userId)
     if (!char) {
-      throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     }
     const [activeShift, professions, clan] = await Promise.all([
       prisma.workShift.findFirst({
@@ -102,7 +102,7 @@ export const CharactersService = {
       throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Cannot edit loadout in battle', 400)
     }
     const unique = [...new Set(itemInstanceIds)]
-    if (unique.length > 4) throw new AppError(ErrorCode.CONFLICT, 'Maximum 4 items', 422)
+    if (unique.length > 4) throw new AppError(ErrorCode.CONFLICT, 'Не больше 4 вещей', 422)
 
     const items = await prisma.itemInstance.findMany({
       where: { id: { in: unique } },
@@ -112,7 +112,7 @@ export const CharactersService = {
       throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Loadout contains an item you do not own', 403)
     }
     if (items.some(item => item.template.type !== 'CONSUMABLE' || ['CONSUMED', 'DELETED'].includes(item.status))) {
-      throw new AppError(ErrorCode.CONFLICT, 'Only available consumables are allowed', 422)
+      throw new AppError(ErrorCode.CONFLICT, 'Можно взять только расходники из своего инвентаря', 422)
     }
 
     await prisma.character.update({

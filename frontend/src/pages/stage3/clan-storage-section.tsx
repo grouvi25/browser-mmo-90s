@@ -18,7 +18,8 @@ export function ClanStorageSection() {
   const mine = useQuery({ queryKey: ['resources'], queryFn: resourcesApi.list })
   // Журнал видят главарь и бригадир; остальным запрос не шлём.
   const canSeeLog = (clan?.members?.find(m => m.characterId === me?.id)?.role?.rank ?? 0) >= 70
-  const log = useQuery({ queryKey: ['clan', 'storage-log'], queryFn: clansApi.storageLog, enabled: canSeeLog, retry: false })
+  const [logPage, setLogPage] = useState(1)
+  const log = useQuery({ queryKey: ['clan', 'storage-log', logPage], queryFn: () => clansApi.storageLog(logPage), enabled: canSeeLog, retry: false, placeholderData: prev => prev })
 
   const done = (text: string) => {
     setBad(false)
@@ -124,6 +125,16 @@ export function ClanStorageSection() {
                 </tbody>
               </table>
             </div>
+          )}
+          {log.data && log.data.pages > 1 && (
+            <nav className="storage-log__pages" aria-label="Страницы журнала">
+              {Array.from({ length: log.data.pages }, (_, index) => index + 1).map(page => (
+                <button key={page} type="button" aria-current={page === log.data.page ? 'page' : undefined}
+                  className={page === log.data.page ? 'is-active' : ''} onClick={() => setLogPage(page)}>
+                  {page}
+                </button>
+              ))}
+            </nav>
           )}
         </section>
       )}

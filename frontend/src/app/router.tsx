@@ -221,12 +221,12 @@ export function AppRouter() {
         <Route path="/skills" element={
           // Характеристики и оружейные навыки — одна локация «Навыки»
           // с двумя вкладками внизу (правка заказчика).
-          <ViewportPanel title="Навыки" subtitle="Оружейные навыки">
+          <ViewportPanel title="Центр подготовки" subtitle="Оружейные навыки">
             <SkillsPage />
           </ViewportPanel>} />
 
         <Route path="/stats" element={
-          <ViewportPanel title="Навыки" subtitle="Характеристики">
+          <ViewportPanel title="Центр подготовки" subtitle="Характеристики">
             <StatsPage />
           </ViewportPanel>} />
 

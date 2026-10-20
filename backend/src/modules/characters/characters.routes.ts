@@ -92,7 +92,7 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
         },
       })
       if (updated.count !== 1) {
-        throw new AppError(ErrorCode.CONFLICT, 'Not enough points or stat limit reached', 409)
+        throw new AppError(ErrorCode.CONFLICT, 'Не хватает очков или характеристика уже на пределе', 409)
       }
       const result = await prisma.characterStats.findUnique({ where: { characterId: char.id } })
       if (!result) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Stats not found', 404)

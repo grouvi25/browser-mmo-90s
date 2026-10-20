@@ -15,7 +15,7 @@ const Amount = z.number().int().positive()
 export async function clansRoutes(fastify: FastifyInstance) {
   const character = async (userId: string) => {
     const item = await CharactersRepository.findByUserId(userId)
-    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return item
   }
   fastify.get('/', { preHandler: authenticate }, async (_req, reply) => reply.send({ items: await ClansService.list() }))
@@ -110,9 +110,10 @@ export async function clansRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: { amount: number; reason: string } }>('/treasury/spend', { preHandler: authenticate }, async (req, reply) => {
     const parsed=z.object({amount:Amount,reason:z.string().trim().min(3).max(200)}).safeParse(req.body); if(!parsed.success)return reply.code(422).send({code:'GEN_001',message:'Validation error'}); const actor=await character(req.authUser.userId); return reply.send(await ClansService.spendTreasury(actor.id,parsed.data.amount,parsed.data.reason))
   })
-  fastify.get('/storage/log', { preHandler: authenticate }, async (req, reply) => {
+  fastify.get<{ Querystring: { page?: string } }>('/storage/log', { preHandler: authenticate }, async (req, reply) => {
+    const page = z.coerce.number().int().min(1).max(100_000).catch(1).parse(req.query.page)
     const actor = await character(req.authUser.userId)
-    return reply.send(await ClansService.storageLog(actor.id))
+    return reply.send(await ClansService.storageLog(actor.id, page))
   })
   fastify.post<{ Body: { resourceCode: string; amount: number } }>('/storage/deposit', { preHandler: authenticate }, async (req, reply) => {
     const parsed=z.object({resourceCode:z.string().min(1),amount:Amount}).safeParse(req.body); if(!parsed.success)return reply.code(422).send({code:'GEN_001',message:'Validation error'}); const actor=await character(req.authUser.userId); return reply.send(await ClansService.depositStorage(actor.id,parsed.data.resourceCode,parsed.data.amount))

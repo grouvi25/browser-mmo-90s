@@ -75,7 +75,7 @@ export const GovernmentShopService = {
       })
 
       audit('item.purchased', { characterId, itemId: item.id, templateId, price })
-      return { item, newBalance }
+      return { item, newBalance, price, itemName: t.name }
     } })
   },
 

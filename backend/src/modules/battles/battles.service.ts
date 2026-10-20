@@ -515,10 +515,10 @@ export const BattleService = {
   // -------------------------------------------------------
   async startPve(userId: string, botCode: string) {
     const char = await CharactersRepository.findByUserId(userId)
-    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     assertIntoxicationAllowsBattle(char)
     if (!char.stats) throw AppError.internal('Character stats missing')
-    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
+    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Вы уже в бою', 400)
 
     const bot = await prisma.bot.findUnique({ where: { code: botCode, isActive: true } })
     if (!bot) throw AppError.notFound('Bot', botCode)
@@ -532,7 +532,7 @@ export const BattleService = {
         data: { status: 'IN_BATTLE' },
       })
       if (claimed.count !== 1) {
-        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Character is not available for battle', 409)
+        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Сейчас вы заняты: закончите смену или другое дело', 409)
       }
 
       // Create battle record
@@ -619,9 +619,9 @@ export const BattleService = {
   // -------------------------------------------------------
   async createPvpDuel(userId: string, levelMin?: number, levelMax?: number) {
     const char = await CharactersRepository.findByUserId(userId)
-    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     assertIntoxicationAllowsBattle(char)
-    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
+    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Вы уже в бою', 400)
 
     const lMin = levelMin ?? Math.max(1, char.battleLevel - 2)
     const lMax = levelMax ?? Math.min(99, char.battleLevel + 2)
@@ -632,7 +632,7 @@ export const BattleService = {
         data: { status: 'IN_BATTLE' },
       })
       if (claimed.count !== 1) {
-        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Character is not available for battle', 409)
+        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Сейчас вы заняты: закончите смену или другое дело', 409)
       }
 
       const battle = await tx.battle.create({
@@ -665,9 +665,9 @@ export const BattleService = {
   /** Открыть командный бой. Создатель встаёт в первую сторону. */
   async createTeamBattle(userId: string, perSide: number) {
     const char = await CharactersRepository.findByUserId(userId)
-    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     assertIntoxicationAllowsBattle(char)
-    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
+    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Вы уже в бою', 400)
     if (!Number.isInteger(perSide) || perSide < 1 || perSide > TEAM_MAX_PER_SIDE) {
       throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, `Team size must be 1..${TEAM_MAX_PER_SIDE}`, 422)
     }
@@ -678,7 +678,7 @@ export const BattleService = {
         data: { status: 'IN_BATTLE' },
       })
       if (claimed.count !== 1) {
-        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Character is not available for battle', 409)
+        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Сейчас вы заняты: закончите смену или другое дело', 409)
       }
       const battle = await tx.battle.create({
         data: {
@@ -702,9 +702,9 @@ export const BattleService = {
   /** Встать в одну из сторон открытого боя. */
   async joinTeamBattle(userId: string, battleId: string, side: number) {
     const char = await CharactersRepository.findByUserId(userId)
-    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     assertIntoxicationAllowsBattle(char)
-    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
+    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Вы уже в бою', 400)
     if (side !== 1 && side !== 2) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Side must be 1 or 2', 422)
 
     const battle = await prisma.battle.findUnique({ where: { id: battleId }, include: { participants: true } })
@@ -712,7 +712,7 @@ export const BattleService = {
     if (battle.type !== 'CLAN') throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Not a team battle', 400)
     if (battle.status !== 'WAITING_PLAYERS') throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Battle already started', 400)
     if (battle.participants.some(p => p.characterId === char.id)) {
-      throw new AppError(ErrorCode.CONFLICT, 'You are already in this battle', 400)
+      throw new AppError(ErrorCode.CONFLICT, 'Вы уже в этом бою', 400)
     }
     if (char.battleLevel < battle.levelMin || char.battleLevel > battle.levelMax) {
       throw new AppError(ErrorCode.CONFLICT, `Требуется уровень ${battle.levelMin}–${battle.levelMax}`, 400)
@@ -728,7 +728,7 @@ export const BattleService = {
         data: { status: 'IN_BATTLE' },
       })
       if (claimed.count !== 1) {
-        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Character is not available for battle', 409)
+        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Сейчас вы заняты: закончите смену или другое дело', 409)
       }
       await tx.battleParticipant.create({
         data: { battleId, characterId: char.id, side, hpMax: char.hpMax, hpCurrent: char.hpCurrent },
@@ -741,7 +741,7 @@ export const BattleService = {
   /** Запустить бой: обе стороны должны быть непустыми. */
   async startTeamBattle(userId: string, battleId: string) {
     const char = await CharactersRepository.findByUserId(userId)
-    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
     const battle = await prisma.battle.findUnique({ where: { id: battleId }, include: { participants: true } })
     if (!battle) throw AppError.notFound('Battle', battleId)
@@ -916,9 +916,9 @@ export const BattleService = {
   // -------------------------------------------------------
   async acceptPvpDuel(userId: string, battleId: string) {
     const char = await CharactersRepository.findByUserId(userId)
-    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     assertIntoxicationAllowsBattle(char)
-    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Already in battle', 400)
+    if (char.status === 'IN_BATTLE') throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Вы уже в бою', 400)
 
     const battle = await prisma.battle.findUnique({
       where: { id: battleId },
@@ -927,7 +927,7 @@ export const BattleService = {
     if (!battle) throw AppError.notFound('Battle', battleId)
     if (battle.status !== 'WAITING_PLAYERS') throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Duel not open for joining', 400)
     if (battle.participants.some(p => p.characterId === char.id)) {
-      throw new AppError(ErrorCode.CONFLICT, 'You are already in this duel', 400)
+      throw new AppError(ErrorCode.CONFLICT, 'Вы уже в этой дуэли', 400)
     }
     // Проверка уровневого диапазона
     if (char.battleLevel < battle.levelMin || char.battleLevel > battle.levelMax) {
@@ -944,7 +944,7 @@ export const BattleService = {
         data: { status: 'IN_BATTLE' },
       })
       if (claimedCharacter.count !== 1) {
-        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Character is not available for battle', 409)
+        throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Сейчас вы заняты: закончите смену или другое дело', 409)
       }
 
       const claimedBattle = await tx.battle.updateMany({
@@ -1026,7 +1026,7 @@ export const BattleService = {
   // -------------------------------------------------------
   async getBattle(battleId: string, userId: string) {
     const char = await CharactersRepository.findByUserId(userId)
-    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
     const battle = await prisma.battle.findUnique({
       where: { id: battleId },
@@ -1150,7 +1150,7 @@ export const BattleService = {
       if (state.status !== 'active') throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Battle is not active', 400)
 
       const char = await CharactersRepository.findByUserId(userId)
-      if (!char || !char.stats) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+      if (!char || !char.stats) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
       const playerPart = state.participants.find(p => p.characterId === char.id)
       if (!playerPart) throw new AppError(ErrorCode.BATTLE_NOT_PARTICIPANT, 'Not a participant', 403)
@@ -2534,7 +2534,7 @@ export const BattleService = {
   // -------------------------------------------------------
   async getBattleHistory(userId: string, page: number, limit: number) {
     const char = await CharactersRepository.findByUserId(userId)
-    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
 
     const skip = (page - 1) * limit
 

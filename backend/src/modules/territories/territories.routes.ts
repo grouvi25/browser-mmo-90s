@@ -19,7 +19,7 @@ const Id = z.string().uuid()
 export async function territoriesRoutes(fastify: FastifyInstance) {
   const character = async (userId: string) => {
     const item = await CharactersRepository.findByUserId(userId)
-    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return item
   }
 
@@ -58,7 +58,17 @@ export async function territoriesRoutes(fastify: FastifyInstance) {
       if (!Id.safeParse(req.params.id).success) {
         return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
       }
-      return reply.send(await ClaimsService.get(req.params.id))
+      const me = await character(req.authUser.userId)
+      return reply.send(await ClaimsService.get(req.params.id, me.id))
+    })
+
+  fastify.post<{ Params: { code: string; id: string } }>(
+    '/:code/claims/:id/join', { preHandler: authenticate }, async (req, reply) => {
+      if (!Id.safeParse(req.params.id).success) {
+        return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      }
+      const me = await character(req.authUser.userId)
+      return reply.send(await ClaimsService.join(me.id, req.params.id))
     })
 
   fastify.post<{ Params: { code: string; id: string }; Body: { roster: string[] } }>(
@@ -89,7 +99,7 @@ export async function territoriesRoutes(fastify: FastifyInstance) {
 export async function objectWarRoutes(fastify: FastifyInstance) {
   const me = async (userId: string) => {
     const item = await CharactersRepository.findByUserId(userId)
-    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!item) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return item
   }
   const valid = (id: string) => Id.safeParse(id).success
@@ -136,14 +146,14 @@ export async function clanTerritoriesRoutes(fastify: FastifyInstance) {
       return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     }
     const me = await CharactersRepository.findByUserId(req.authUser.userId)
-    if (!me) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!me) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return reply.send(await TerritoriesService.listForClan(req.params.id, me.id))
   })
 
   /** Авторитет и журнал войн — только участникам клана. */
   const assertMember = async (userId: string, clanId: string) => {
     const me = await CharactersRepository.findByUserId(userId)
-    if (!me) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Character not found', 404)
+    if (!me) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     const member = await prisma.clanMember.findUnique({
       where: { characterId: me.id }, select: { clanId: true, status: true },
     })

@@ -59,6 +59,8 @@ export interface ClaimView {
   battleStartsAt: string
   battleId: string | null
   walkover: boolean
+  /** Смотрящий уже стоит в составе одной из сторон. */
+  inRoster?: boolean
   attacker: ClaimSide
   defender: ClaimSide | null
 }
@@ -70,6 +72,8 @@ export const territoriesApi = {
     api.post<{ claim: ClaimFiled }>(`/api/territories/${code}/claims`, { roster }, idem()),
   defence: (code: string, claimId: string, roster: string[]) =>
     api.post<{ roster: unknown[] }>(`/api/territories/${code}/claims/${claimId}/defence`, { roster }, idem()),
+  joinClaim: (code: string, claimId: string) =>
+    api.post<{ claimId: string; side: number }>(`/api/territories/${code}/claims/${claimId}/join`, {}),
   claimView: (code: string, claimId: string) =>
     api.get<ClaimView>(`/api/territories/${code}/claims/${claimId}`),
   cancelClaim: (code: string, claimId: string) =>

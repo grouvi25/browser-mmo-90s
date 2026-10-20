@@ -391,6 +391,12 @@ button { font-family: inherit; }
 .data-table tr:hover td { background: var(--bg-hover); }
 .data-table .num { text-align: right; font-family: var(--font-mono); }
 .data-table .ctr { text-align: center; }
+/* Характеристики таблицей (правка 20.10): значение крупно, «+» в своей
+   колонке. На узком экране описание прячем, чтобы строка не распиралась. */
+.stats-table__icon { color: var(--text-dim); }
+.stats-table__value { font-family: var(--font-mono); font-size: 16px; font-weight: bold; color: var(--gold); text-align: right; }
+.stats-table__action { width: 52px; text-align: center; }
+@media (max-width: 560px) { .stats-table th:nth-child(2), .stats-table td:nth-child(2) { display: none; } }
 
 /* ═══════════════════════════════════════════════════
    BUTTONS

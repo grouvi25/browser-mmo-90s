@@ -28,11 +28,16 @@ async function createAccount(request: APIRequestContext, prefix: string): Promis
   return { token: auth.token, userId: auth.userId, login, nickname, characterId: character.id }
 }
 
-async function authPage(page: Page, account: Account) {
-  await page.addInitScript(({ token, userId, login }) => {
+// mmo_resumed: вкладка уже «вернулась на последнюю локацию». Без метки первый
+// заход на главную уводит на последнюю локацию общего тестового аккаунта, и
+// проверки главной зависели бы от того, какой тест шёл перед ними. Сам
+// возврат проверяет отдельный тест (resume: true).
+async function authPage(page: Page, account: Account, { resume = false } = {}) {
+  await page.addInitScript(({ token, userId, login, resume }) => {
     localStorage.setItem('mmo_token', token)
     localStorage.setItem('mmo_user', JSON.stringify({ userId, login }))
-  }, account)
+    if (!resume) sessionStorage.setItem('mmo_resumed', '1')
+  }, { ...account, resume })
 }
 
 /** Снимок раздела + проверка, что страница не поехала вбок. */
@@ -96,7 +101,7 @@ test('город ведёт в разделы Этапа 3 из своих ра�
 
 test('в локации полоса подсвечивает её раздел', async ({ page }) => {
   await authPage(page, owner)
-  for (const [path, tab] of [['/market', 'board'], ['/clan-houses', 'houses'], ['/district/industrial', 'landing'], ['/farm', 'plant'], ['/pvp', 'all'], ['/pvp?tab=RUNNING', 'running']]) {
+  for (const [path, tab] of [['/market', 'board'], ['/clan-houses', 'houses'], ['/work', 'work'], ['/farm', 'plant'], ['/pvp', 'all'], ['/pvp?tab=RUNNING', 'running']]) {
     await page.goto(path)
     await expect(page.locator(`[data-stage-nav="${tab}"]`)).toHaveClass(/is-active/)
     await expect(page.locator('[data-stage-nav="center"]')).toHaveText('ЦЕНТР')
@@ -188,4 +193,19 @@ test('состав на бой собирается из бригады и от�
   // Кнопка отправки заперта, пока состав не набран: сервер откажет тем же
   // условием, но узнавать об этом из ошибки — плохой способ.
   await expect(picker.locator('.s4-roster__actions button').first()).toBeDisabled()
+})
+
+// Правка заказчика 20.10: «при авторизации должна открываться последняя локация».
+// Открыв сайт на главной (закладка, новая вкладка), игрок попадает туда, где был,
+// а главная не затирает последнюю локацию.
+test('открытие сайта на главной возвращает на последнюю локацию', async ({ page }) => {
+  const res = await apiContext.put('/api/city/location', { headers: { Authorization: `Bearer ${owner.token}` }, data: { path: '/farm' } })
+  expect(res.ok()).toBe(true)
+  await authPage(page, owner, { resume: true })
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/farm$/)
+  // Дальше в той же вкладке главная открывается как обычно.
+  await page.goto('/')
+  await expect(page.locator('[data-stage-nav="center"], [data-stage-nav="clans"]').first()).toBeVisible()
+  await expect(page).toHaveURL(/\/$/)
 })
