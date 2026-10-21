@@ -136,8 +136,11 @@ export function CityChat() {
       </div>
 
       <EtherComposer ether={ether} composer={composer} className="ether-composer--city" style={{
-        left: MENU.chatInput.x, top: MENU.chatInput.y - 4,
-        width: MENU.chatInput.w, height: MENU.chatInput.h + 6,
+        // Строка ввода стоит ровно в нарисованной рамке поля (правка заказчика
+        // 21.10: «вкладка для переключения кривая, ровно сделать»): рамка на
+        // подложке начинается на 12 px левее текстовой области и выше её на 3.
+        left: MENU.chatInput.x - 11, top: MENU.chatInput.y - 2,
+        width: MENU.chatInput.w + 11, height: MENU.chatInput.h + 2,
         fontSize: MENU.chat.size - 2,
       }} />
     </>

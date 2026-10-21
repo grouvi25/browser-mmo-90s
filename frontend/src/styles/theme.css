@@ -944,7 +944,13 @@ html, body {
 .ether-nick:focus-visible, .ether-tag--btn:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
 
 .ether-composer { display: flex; align-items: center; gap: 4px; font-family: var(--font-ui); }
-.ether-composer--city { position: absolute; }
+.ether-composer--city { position: absolute; gap: 0; }
+/* В городе список «Всем / Бригаде / Лично» — часть поля: на всю его высоту,
+   без своей рамки, отделён чертой. Раньше он был выше поля и торчал из него. */
+.ether-composer--city .ether-mode { height: 100%; box-sizing: border-box; padding: 0 4px; border: 0; border-right: 1px solid #8a7a6a; background: #e7ddd1; line-height: 1; }
+.ether-composer--city .ether-mode:hover { background: #ddd0c0; }
+.ether-composer--city .ether-mode:focus-visible { outline: 2px solid #7a1010; outline-offset: -2px; }
+.ether-composer--city .ether-input { padding: 0 6px; }
 .ether-composer select, .ether-composer button, .ether-composer input { font: inherit; }
 .ether-mode { flex: none; height: 100%; padding: 0 2px; border: 1px solid #8a7a6a; background: #f6ecdf; color: #000; }
 .ether-input { flex: 1; min-width: 0; height: 100%; background: transparent; border: 0; outline: 0; color: #000; }
