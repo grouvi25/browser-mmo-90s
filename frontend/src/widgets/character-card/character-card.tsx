@@ -56,6 +56,7 @@ export interface CardProfile {
   hp: number
   hpMax: number
   avatar?: string | null
+  gender?: 'MALE' | 'FEMALE' | null
   weaponName?: string | null
   weaponCode?: string | null
   weaponType?: string | null
@@ -131,7 +132,7 @@ export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
 
       {/* ── портрет ──────────────────────────────────────── */}
       <SpriteButton
-        name="portrait"
+        name={(profile?.gender ?? char?.gender) === 'FEMALE' ? 'portrait-female' : 'portrait'}
         src={profile?.avatar ?? undefined}
         box={C.portrait}
         className="portrait-hot"

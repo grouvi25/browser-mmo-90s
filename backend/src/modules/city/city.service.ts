@@ -1,5 +1,5 @@
 import { prisma } from '../../shared/db/prisma'
-import { homeExpBonus } from '../housing/housing.config'
+import { homeExpBonus, insideTunnelArea } from '../housing/housing.config'
 import { withIdempotency } from '../../shared/db/idempotency'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
@@ -27,6 +27,12 @@ export const CityService = {
       const char = await tx.character.findUniqueOrThrow({ where: { userId } })
       if (inPrison(char.jailedUntil) && path !== '/prison') throw AppError.forbidden('До освобождения персонаж находится в тюрьме')
       await tx.character.update({ where: { id: char.id }, data: { lastLocation: path, location: path } })
+      // Вышел из дома туннелем и ушёл с того места другой дорогой — обратного
+      // хода в дом больше нет (правка заказчика 22.10).
+      const home = await tx.playerHome.findUnique({ where: { characterId: char.id }, select: { id: true, outVia: true } })
+      if (home?.outVia && !insideTunnelArea(home.outVia, path)) {
+        await tx.playerHome.update({ where: { id: home.id }, data: { outVia: null } })
+      }
       return { path }
     })
   },

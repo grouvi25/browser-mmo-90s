@@ -240,7 +240,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
         </form>
 
         <div className="m-dossier__head">
-          <img className="m-dossier__portrait" src={SPRITES['p-portrait']} alt="" draggable={false} />
+          <img className="m-dossier__portrait" src={SPRITES[view?.gender === 'FEMALE' ? 'p-portrait-female' : 'p-portrait']} alt="" draggable={false} />
           <div className="m-dossier__fields">
             <div className="m-dossier__title">Личное дело №{caseNumber(view?.id)}</div>
             {PROFILE.fields.map(f => (
@@ -311,7 +311,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
 
       {/* портрет и показатели */}
       <SpriteButton
-        name="p-portrait" box={PROFILE.portrait} className="portrait-hot"
+        name={view?.gender === 'FEMALE' ? 'p-portrait-female' : 'p-portrait'} box={PROFILE.portrait} className="portrait-hot"
         title={own ? 'Сменить портрет можно будет позже' : view?.nickname} disabled={!own} onClick={own ? () => navigate('/inventory') : undefined}
       />
       <Sprite name="p-icon-energy" box={PROFILE.energyIcon} />

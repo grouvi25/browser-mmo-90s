@@ -58,3 +58,11 @@
 /* На телефоне кнопки во вьюпорте строятся в строку (mobile.css): участку
    нужны номер и хозяин друг под другом. */
 .viewport__content .housing-lot { display: flex; flex-direction: column; align-items: stretch; justify-content: center; }
+
+/* Налёт на дом: время, стороны, запись. */
+.housing-raid { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid #8a7a6a; background: rgba(160, 42, 48, .06); }
+.housing-raid__when { margin: 0; display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.housing-raid__sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.housing-raid__sides ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; }
+.housing-raid__sides i { color: var(--text-dim); font-style: normal; }
+@media (max-width: 520px) { .housing-raid__sides { grid-template-columns: 1fr; } }

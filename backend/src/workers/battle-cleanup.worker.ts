@@ -115,10 +115,13 @@ export async function runBattleCleanup(): Promise<void> {
  * отпускает releaseStuckCharacters ниже.
  *
  * Осада создаёт бой без startsAt на секунды до старта, поэтому порог —
- * полчаса; бои за районы (TERRITORY) и осады не трогаем вовсе.
+ * полчаса; бои за районы (TERRITORY), осады и налёты на дома не трогаем вовсе.
  */
 export async function cancelLegacyWaiting(now = new Date()): Promise<number> {
-  const sieges = await prisma.houseSiege.findMany({ where: { battleId: { not: null } }, select: { battleId: true } })
+  const sieges = [
+    ...await prisma.houseSiege.findMany({ where: { battleId: { not: null } }, select: { battleId: true } }),
+    ...await prisma.homeRaid.findMany({ where: { battleId: { not: null } }, select: { battleId: true } }),
+  ]
   const cancelled = await prisma.battle.updateMany({
     where: {
       status: 'WAITING_PLAYERS',

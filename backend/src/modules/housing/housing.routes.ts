@@ -32,9 +32,27 @@ export async function housingRoutes(fastify: FastifyInstance) {
 
   fastify.post('/repair', { preHandler: authenticate }, async req => HousingService.repair((await me(req.authUser.userId)).id))
 
+  // Туннель туда и обратно (правка 22.10): вышел туннелем — тем же вернёшься.
+  fastify.post<{ Params: { code: string } }>('/tunnels/:code/go', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.enum(['pvp', 'industrial', 'farm']).safeParse(req.params.code)
+    if (!parsed.success) return reply.code(422).send(bad)
+    return reply.send(await HousingService.goThroughTunnel((await me(req.authUser.userId)).id, parsed.data))
+  })
+  fastify.get('/exit', { preHandler: authenticate }, async req => HousingService.exit((await me(req.authUser.userId)).id))
+  fastify.post('/return', { preHandler: authenticate }, async req => HousingService.returnHome((await me(req.authUser.userId)).id))
+
+  // Налёт: заявка, бой ровно через 72 часа, запись в нападение и оборону.
   fastify.post<{ Params: { id: string } }>('/:id/raid', { preHandler: authenticate }, async (req, reply) => {
     if (!z.string().uuid().safeParse(req.params.id).success) return reply.code(422).send(bad)
-    const char = await me(req.authUser.userId)
-    return reply.send(await HousingService.raid(req.authUser.userId, char.id, req.params.id))
+    return reply.code(201).send(await HousingService.fileRaid((await me(req.authUser.userId)).id, req.params.id))
+  })
+  fastify.post<{ Params: { raidId: string }; Body: { side: number } }>('/raids/:raidId/signup', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ side: z.union([z.literal(1), z.literal(2)]) }).safeParse(req.body)
+    if (!z.string().uuid().safeParse(req.params.raidId).success || !parsed.success) return reply.code(422).send(bad)
+    return reply.send(await HousingService.signupRaid((await me(req.authUser.userId)).id, req.params.raidId, parsed.data.side))
+  })
+  fastify.post<{ Params: { raidId: string } }>('/raids/:raidId/unsign', { preHandler: authenticate }, async (req, reply) => {
+    if (!z.string().uuid().safeParse(req.params.raidId).success) return reply.code(422).send(bad)
+    return reply.send(await HousingService.unsignRaid((await me(req.authUser.userId)).id, req.params.raidId))
   })
 }

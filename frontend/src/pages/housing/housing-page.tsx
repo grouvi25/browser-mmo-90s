@@ -1,16 +1,20 @@
 // =============================================================
 // Жилой сектор (правка заказчика 21.10.2026): квартира или дом за доллары,
 // прибавка к опыту за бой, вход на склад из дома, туннели на Стрелки,
-// Промзону и Фермы, налёты на чужие дома (бой со сторожем, −10% прочности).
+// Промзону и Фермы, налёты на чужие дома (−10% прочности).
 //
 // Жильё стоит заранее: план сектора — две многоэтажки по 8 квартир и улица
 // из 8 домов. Свободный участок покупается, по чужому — налёт.
+//
+// Уточнение 22.10: налёт — заявка и бой ровно через 72 часа, до 10 человек
+// в нападение и до 10 в оборону, на дом раз в неделю; из туннеля можно
+// вернуться в дом тем же туннелем (вкладка «В дом» внизу).
 // =============================================================
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Home, Building2, Hammer, Package, Shovel, Swords } from 'lucide-react'
-import { housingApi, type HomeKind, type HousingLot, type HousingView } from '../../shared/api/housing.api'
+import { housingApi, type HomeKind, type HomeRaid, type HousingLot, type HousingView } from '../../shared/api/housing.api'
 import { SCENES } from '../../shared/ui/sprite'
 import './housing.css'
 
@@ -31,8 +35,14 @@ export function HousingPage() {
   const buy = useMutation({ mutationFn: housingApi.buy, onSuccess: r => { setPicked(null); done(`Жильё ваше. Списано ${r.cost} $.`) }, onError: fail })
   const tunnel = useMutation({ mutationFn: housingApi.tunnel, onSuccess: () => done('Туннель прорыт.'), onError: fail })
   const repair = useMutation({ mutationFn: housingApi.repair, onSuccess: r => done(`Отремонтировано за ${r.cost.toLocaleString('ru')} ₽.`), onError: fail })
-  const raid = useMutation({ mutationFn: housingApi.raid, onSuccess: r => navigate(`/battle/${r.battleId}`), onError: fail })
-  const busy = buy.isPending || tunnel.isPending || repair.isPending || raid.isPending
+  const fileRaid = useMutation({ mutationFn: housingApi.fileRaid, onSuccess: r => done(`Налёт объявлен: бой ${when(r.startsAt)} по Москве. Записывайтесь в нападение.`), onError: fail })
+  const raidAction = useMutation({
+    mutationFn: ({ raidId, side }: { raidId: string; side: 1 | 2 | null }) => side ? housingApi.signupRaid(raidId, side) : housingApi.unsignRaid(raidId),
+    onSuccess: (_r, v) => done(v.side === 1 ? 'Вы в нападении.' : v.side === 2 ? 'Вы в обороне.' : 'Вы выписались.'),
+    onError: fail,
+  })
+  const go = useMutation({ mutationFn: housingApi.go, onSuccess: r => { void qc.invalidateQueries({ queryKey: ['housing', 'exit'] }); navigate(r.to) }, onError: fail })
+  const busy = buy.isPending || tunnel.isPending || repair.isPending || fileRaid.isPending || raidAction.isPending || go.isPending
 
   const data = query.data
   const lot = data && picked ? data.lots[picked - 1] : null
@@ -44,12 +54,13 @@ export function HousingPage() {
       {query.isLoading && <p role="status">Загрузка…</p>}
       {query.isError && <p role="alert">Сектор не загрузился. <button type="button" className="btn btn-sm" onClick={() => void query.refetch()}>Повторить</button></p>}
       {data && <>
-        {data.home && <MyHome data={data} busy={busy} onTunnel={code => tunnel.mutate(code)} onRepair={() => repair.mutate()} onGo={to => navigate(to)} />}
+        {data.home && <MyHome data={data} busy={busy} onTunnel={code => tunnel.mutate(code)} onRepair={() => repair.mutate()} onGo={to => navigate(to)} onWalk={code => go.mutate(code)} />}
         <section className="housing__block">
           <h3>План сектора</h3>
           <SectorPlan lots={data.lots} picked={picked} onPick={setPicked} />
           {lot
-            ? <LotCard lot={lot} data={data} busy={busy} onBuy={() => buy.mutate(lot.lot)} onRaid={id => raid.mutate(id)} />
+            ? <LotCard lot={lot} data={data} busy={busy} onBuy={() => buy.mutate(lot.lot)} onRaid={id => fileRaid.mutate(id)}
+                onSide={(raidId, side) => raidAction.mutate({ raidId, side })} />
             : <p className="housing__muted">{data.home ? 'Выберите чужое жильё для налёта.' : `Выберите свободное жильё. Покупка только за доллары, у вас ${data.wallet.dollars} $.`}</p>}
         </section>
       </>}
@@ -96,8 +107,9 @@ function SectorPlan({ lots, picked, onPick }: { lots: HousingLot[]; picked: numb
   )
 }
 
-function LotCard({ lot, data, busy, onBuy, onRaid }: {
+function LotCard({ lot, data, busy, onBuy, onRaid, onSide }: {
   lot: HousingLot; data: HousingView; busy: boolean; onBuy: () => void; onRaid: (homeId: string) => void
+  onSide: (raidId: string, side: 1 | 2 | null) => void
 }) {
   const p = data.prices[lot.kind]
   const Icon = KIND_ICON[lot.kind]
@@ -121,22 +133,59 @@ function LotCard({ lot, data, busy, onBuy, onRaid }: {
   if (lot.home.mine) {
     return <article className="housing__offer"><h4><Icon size={16} /> {lot.label} · ваше жильё</h4></article>
   }
-  const wait = lot.home.canRaidAt && new Date(lot.home.canRaidAt).getTime() > Date.now()
+  const r = data.raidRules
+  const home = lot.home
   return (
     <article className="housing__offer">
       <h4><Icon size={16} /> {lot.label} · {kindName}</h4>
-      <p>Хозяин <b>{lot.home.owner}</b>, ур. {lot.home.ownerLevel} · прочность {lot.home.durability}%</p>
-      <button type="button" className="btn" disabled={busy || !!wait} onClick={() => onRaid(lot.home!.id)}
-        title={wait ? `Снова — после ${when(lot.home.canRaidAt!)}` : 'Бой со сторожем дома'}>
-        <Swords size={13} /> {wait ? `Уже нападали, снова после ${when(lot.home.canRaidAt!)}` : 'Напасть'}
-      </button>
+      <p>Хозяин <b>{home.owner}</b>, ур. {home.ownerLevel} · прочность {home.durability}%</p>
+      {home.raid
+        ? <RaidBlock raid={home.raid} busy={busy} onSide={onSide} max={r.maxPerSide} />
+        : home.raidBlocked
+          ? <p className="housing__muted">Налёт: {home.raidBlocked}</p>
+          : <>
+              <p className="housing__muted">Налёт: бой ровно через {r.leadHours} ч после заявки, до {r.maxPerSide} человек в нападение и в оборону. Победа снимает {r.durabilityLoss}% прочности; на дом — раз в неделю.</p>
+              <button type="button" className="btn" disabled={busy}
+                onClick={() => { if (window.confirm(`Объявить налёт на ${lot.label.toLowerCase()} (${home.owner})? Бой через ${r.leadHours} ч.`)) onRaid(home.id) }}>
+                <Swords size={13} /> Объявить налёт
+              </button>
+            </>}
     </article>
   )
 }
 
-function MyHome({ data, busy, onTunnel, onRepair, onGo }: {
+/** Объявленный налёт: время, кто записан, кнопки записи. */
+function RaidBlock({ raid, busy, onSide, max }: {
+  raid: HomeRaid; busy: boolean; max: number; onSide: (raidId: string, side: 1 | 2 | null) => void
+}) {
+  return (
+    <div className="housing-raid">
+      <p className="housing-raid__when">
+        <Swords size={13} /> {raid.status === 'IN_BATTLE' ? 'Идёт бой.' : `Налёт: бой ${when(raid.startsAt)} по Москве.`}
+      </p>
+      <div className="housing-raid__sides">
+        <div><b>Нападение · {raid.attackers.length}/{max}</b><ul>{raid.attackers.map(f => <li key={f.id}>{f.nickname} <i>{f.battleLevel} ур.</i></li>)}</ul></div>
+        <div><b>Оборона · {raid.defenders.length}/{max}</b><ul>{raid.defenders.map(f => <li key={f.id}>{f.nickname} <i>{f.battleLevel} ур.</i></li>)}</ul></div>
+      </div>
+      {raid.status === 'PENDING' && (
+        <div className="housing__actions">
+          {raid.mySide === null && <>
+            <button type="button" className="btn" disabled={busy || raid.attackers.length >= max} onClick={() => onSide(raid.id, 1)}>В нападение</button>
+            <button type="button" className="btn" disabled={busy || raid.defenders.length >= max} onClick={() => onSide(raid.id, 2)}>В оборону</button>
+          </>}
+          {raid.canUnsign && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => onSide(raid.id, null)}>Выписаться</button>}
+        </div>
+      )}
+      {raid.status === 'IN_BATTLE' && raid.battleId && raid.mySide && <Link to={`/battle/${raid.battleId}`}>К бою →</Link>}
+      <p className="housing__muted">В бой попадают те, кто к началу в игре и свободен. Оборона не вышла — дом взят без боя.</p>
+    </div>
+  )
+}
+
+function MyHome({ data, busy, onTunnel, onRepair, onGo, onWalk }: {
   data: HousingView; busy: boolean
   onTunnel: (code: 'pvp' | 'industrial' | 'farm') => void; onRepair: () => void; onGo: (to: string) => void
+  onWalk: (code: 'pvp' | 'industrial' | 'farm') => void
 }) {
   const home = data.home!
   const Icon = KIND_ICON[home.kind]
@@ -159,11 +208,12 @@ function MyHome({ data, busy, onTunnel, onRepair, onGo }: {
       <h4 className="housing__sub">Туннели из дома</h4>
       <div className="housing__actions">
         {data.tunnels.map(t => home.tunnels.includes(t.code)
-          ? <button key={t.code} type="button" className="btn" onClick={() => onGo(t.to)}><Shovel size={13} /> Пройти {t.where}</button>
+          ? <button key={t.code} type="button" className="btn" disabled={busy} onClick={() => onWalk(t.code)}><Shovel size={13} /> Пройти {t.where}</button>
           : <button key={t.code} type="button" className="btn btn-ghost" disabled={busy || data.wallet.dollars < data.tunnelPrice} onClick={() => onTunnel(t.code)}>
               <Shovel size={13} /> Прорыть ход {t.where} — {data.tunnelPrice} $</button>)}
       </div>
-      <p className="housing__muted">В доме на вас напасть нельзя. Напасть можно на сам дом: бой идёт со сторожем, победа нападавшего снимает {10}% прочности.</p>
+      <p className="housing__muted">В доме на вас напасть нельзя. Напасть можно на сам дом: налёт объявляют за {data.raidRules.leadHours} ч, вы в обороне, зовите своих — до {data.raidRules.maxPerSide} человек. Победа нападавших снимает {data.raidRules.durabilityLoss}% прочности.</p>
+      {home.raid && <><h4 className="housing__sub">Налёт на ваш дом</h4><RaidBlock raid={home.raid} busy={busy} onSide={() => undefined} max={data.raidRules.maxPerSide} /></>}
       {home.raids.length > 0 && <>
         <h4 className="housing__sub">Налёты на ваш дом</h4>
         <ul className="housing__raids">{home.raids.map((r, i) => <li key={i}>

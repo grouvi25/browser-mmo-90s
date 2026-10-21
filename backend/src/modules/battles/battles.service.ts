@@ -1067,6 +1067,7 @@ export const BattleService = {
           select: {
             nickname: true,
             avatar: true,
+            gender: true,
             battleLevel: true,
             stats: { select: { str: true, agi: true, rea: true, acc: true, end: true, luck: true, agr: true } },
             items: {
@@ -1082,6 +1083,7 @@ export const BattleService = {
           name: character?.nickname ?? 'Боец',
           level: character?.battleLevel ?? 0,
           avatar: character?.avatar ?? null,
+          gender: character?.gender ?? null,
           primaryHand: primary?.template.name ?? null,
           secondaryHand: secondary?.template.name ?? null,
           primaryWeaponCode: primary?.template.code ?? null,
@@ -1108,6 +1110,7 @@ export const BattleService = {
         name: bot?.name ?? 'Противник',
         level: bot?.battleLevel ?? 0,
         avatar: typeof equipment.avatar === 'string' ? equipment.avatar : null,
+        gender: null,
         primaryHand: mainWeapon,
         secondaryHand: null,
         primaryWeaponCode: typeof botWeapon.code === 'string' ? botWeapon.code : null,

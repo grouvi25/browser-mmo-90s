@@ -18,7 +18,7 @@ import { runTerritoryClaims, TERRITORY_CLAIMS_MS } from './workers/territory-cla
 import { runMarketExpire, MARKET_EXPIRE_MS } from './workers/market-expire.worker'
 import { runBattleApplications, BATTLE_APPLICATIONS_MS } from './modules/battles/applications.service'
 import { runHouseSieges, HOUSE_SIEGES_MS } from './modules/clans/house-siege.service'
-import { HousingService } from './modules/housing/housing.service'
+import { HOME_RAIDS_MS, runHomeRaids } from './modules/housing/housing.service'
 import { collectEconomyMetrics, startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
 import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
 import { writeFileSync } from 'node:fs'
@@ -117,9 +117,9 @@ async function startWorker(): Promise<void> {
   // Налёты на дома игроков: итог по окончании боя со сторожем (−10% прочности
   // при победе нападавшего) и уведомление хозяину.
   const homeRaidsTimer = setInterval(async () => {
-    try { await HousingService.settle() }
+    try { await runHomeRaids() }
     catch (err) { logger.error({ err }, '[Worker] Home raids error') }
-  }, HOUSE_SIEGES_MS)
+  }, HOME_RAIDS_MS)
 
   const marketExpireTimer = setInterval(async () => {
     try { await runMarketExpire() }

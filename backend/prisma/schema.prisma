@@ -2300,7 +2300,8 @@ enum HomeKind {
 }
 
 enum HomeRaidStatus {
-  PENDING
+  PENDING // заявка подана, бой через 72 часа
+  IN_BATTLE
   ATTACKER_WON
   DEFENDER_WON
   VOID
@@ -2316,6 +2317,9 @@ model PlayerHome {
   durability  Int      @default(100)
   /// Купленные туннели: коды мест (`pvp`, `industrial`, `farm`).
   tunnels     String[] @default([])
+  /// Куда хозяин вышел туннелем (код туннеля): оттуда можно вернуться в дом.
+  /// Сбрасывается, когда он ушёл с того места другой дорогой.
+  outVia      String?  @map("out_via")
   purchasedAt DateTime @default(now()) @map("purchased_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -2331,14 +2335,32 @@ model HomeRaid {
   attackerId String         @map("attacker_id")
   battleId   String?        @unique @map("battle_id")
   status     HomeRaidStatus @default(PENDING)
+  /// Бой — ровно через 72 часа после заявки (правка заказчика 22.10).
+  startsAt   DateTime?      @map("starts_at")
   createdAt  DateTime       @default(now()) @map("created_at")
   resolvedAt DateTime?      @map("resolved_at")
 
-  home PlayerHome @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  home    PlayerHome       @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  signups HomeRaidSignup[]
 
   @@index([homeId, createdAt])
   @@index([attackerId, createdAt])
+  @@index([status, startsAt])
   @@map("home_raids")
+}
+
+/// Запись на налёт: сторона 1 — нападение, 2 — оборона, до 10 на сторону.
+model HomeRaidSignup {
+  id          String   @id @default(uuid())
+  raidId      String   @map("raid_id")
+  characterId String   @map("character_id")
+  side        Int
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  raid HomeRaid @relation(fields: [raidId], references: [id], onDelete: Cascade)
+
+  @@unique([raidId, characterId])
+  @@map("home_raid_signups")
 }
 
 // Обращения в поддержку (правка заказчика 21.10: кнопка «Поддержка» в

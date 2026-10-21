@@ -22,6 +22,7 @@ export interface BattleParticipantProfile {
   name: string
   level: number
   avatar: string | null
+  gender: 'MALE' | 'FEMALE' | null
   primaryHand: string | null
   secondaryHand: string | null
   primaryWeaponCode: string | null

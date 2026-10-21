@@ -7,10 +7,16 @@ export const HOUSING = {
     HOUSE: { name: 'Дом', priceDollars: 120, expBonus: 0.1 },
   } satisfies Record<HomeKind, { name: string; priceDollars: number; expBonus: number }>,
   tunnelPriceDollars: 15,
-  /** Победа нападавшего снимает 10% прочности (заказчик). */
+  /** Победа нападавших снимает 10% прочности (заказчик). */
   raidDurabilityLoss: 10,
-  /** Повторный налёт того же игрока на тот же дом — не раньше чем через сутки. */
-  raidCooldownHours: 24,
+  /**
+   * Налёт — как осада дома бригады (правка заказчика 22.10): заявка, бой
+   * ровно через 72 часа, до 10 человек в нападение и до 10 в оборону; на
+   * один дом — раз в неделю.
+   */
+  raidLeadHours: 72,
+  raidMaxPerSide: 10,
+  raidCooldownDays: 7,
   /** Как у Дома бригады: при 50% и ниже бонус дома выключен до ремонта. */
   bonusOffAtOrBelow: 50,
   repairCostPer10: 1000,
@@ -38,12 +44,25 @@ export function isLot(lot: number): boolean {
 }
 
 export type TunnelCode = 'pvp' | 'industrial' | 'farm'
-/** where — куда ведёт туннель, в падеже для кнопки: «Пройти на Стрелки». */
-export const TUNNELS: { code: TunnelCode; label: string; where: string; to: string }[] = [
-  { code: 'pvp', label: 'Стрелки', where: 'на Стрелки', to: '/pvp' },
-  { code: 'industrial', label: 'Промзона', where: 'в Промзону', to: '/district/industrial' },
-  { code: 'farm', label: 'Фермы', where: 'на Фермы', to: '/farm' },
+/**
+ * where — куда ведёт туннель, в падеже для кнопки: «Пройти на Стрелки».
+ * area — адреса этого места: пока хозяин ходит по ним, он может вернуться
+ * в дом тем же туннелем (правка заказчика 22.10); ушёл другой дорогой —
+ * обратного хода нет.
+ */
+export const TUNNELS: { code: TunnelCode; label: string; where: string; to: string; area: string[] }[] = [
+  { code: 'pvp', label: 'Стрелки', where: 'на Стрелки', to: '/pvp', area: ['/pvp', '/battles', '/battle'] },
+  { code: 'industrial', label: 'Промзона', where: 'в Промзону', to: '/district/industrial', area: ['/district/industrial', '/work', '/objects', '/recipes'] },
+  { code: 'farm', label: 'Фермы', where: 'на Фермы', to: '/farm', area: ['/farm', '/plants'] },
 ]
+
+const within = (path: string, prefix: string) => path === prefix || path.startsWith(prefix + '/') || path.startsWith(prefix + '?')
+
+/** Остался ли хозяин в месте, куда вышел туннелем. */
+export function insideTunnelArea(code: string | null | undefined, path: string): boolean {
+  const tunnel = TUNNELS.find(t => t.code === code)
+  return !!tunnel && tunnel.area.some(prefix => within(path, prefix))
+}
 
 export function homeBonusActive(durability: number): boolean {
   return durability > HOUSING.bonusOffAtOrBelow

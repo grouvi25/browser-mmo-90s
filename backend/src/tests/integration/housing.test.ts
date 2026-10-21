@@ -1,13 +1,18 @@
 /**
  * Жилой сектор (правка заказчика 21.10.2026): жильё за доллары, бонус к
- * опыту, туннели, ремонт, налёты на дома (бой со сторожем, −10% прочности).
+ * опыту, туннели, ремонт, налёты на дома (−10% прочности).
  * Жильё стоит заранее: участки 1…16 — квартиры, 17…24 — дома.
+ * Уточнение 22.10: налёт — заявка и бой ровно через 72 часа, до 10 на
+ * сторону, раз в неделю; из туннеля можно вернуться в дом тем же туннелем.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { HousingService } from '../../modules/housing/housing.service'
+import { HousingService, runHomeRaids } from '../../modules/housing/housing.service'
+import { ChatService } from '../../modules/chat/chat.service'
 import { HOUSING, LOTS, LOT_COUNT } from '../../modules/housing/housing.config'
 import { CityService } from '../../modules/city/city.service'
 import { BattleRedis, disconnectRedis, getRedis } from '../../shared/db/redis'
+
+const HOUR = 3_600_000
 import { cleanDatabase, testPrisma, uid } from './helpers'
 
 async function player(prefix: string, dollars = 500, money = 50_000) {
@@ -61,28 +66,95 @@ describe('Жилой сектор', () => {
     expect(await CityService.expBonus(a.character.id)).toBeCloseTo(HOUSING.kinds.HOUSE.expBonus)
   })
 
-  it('налёт: бой со сторожем; победа нападавшего −10%; повтор только через сутки; на свой дом нельзя', async () => {
+  const due = (raidId: string) => testPrisma.homeRaid.update({ where: { id: raidId }, data: { startsAt: new Date(Date.now() - 1000) } })
+
+  it('налёт: заявка, бой ровно через 72 часа; на свой дом нельзя; оборона не вышла — дом взят, неделя защиты', async () => {
     const owner = await player('home')
     await HousingService.buy(owner.character.id, FLAT)
     const home = await testPrisma.playerHome.findUniqueOrThrow({ where: { characterId: owner.character.id } })
-    await expect(HousingService.raid(owner.user.id, owner.character.id, home.id)).rejects.toMatchObject({ statusCode: 409 })
+    await expect(HousingService.fileRaid(owner.character.id, home.id)).rejects.toMatchObject({ statusCode: 409 })
 
     const thief = await player('thief')
-    const { battleId } = await HousingService.raid(thief.user.id, thief.character.id, home.id)
-    expect(await testPrisma.homeRaid.count({ where: { homeId: home.id, status: 'PENDING' } })).toBe(1)
+    const now = new Date()
+    const filed = await HousingService.fileRaid(thief.character.id, home.id, now)
+    expect(new Date(filed.startsAt).getTime()).toBe(now.getTime() + HOUSING.raidLeadHours * HOUR)
+    expect(HOUSING.raidLeadHours).toBe(72)
+    const other = await player('other')
+    await expect(HousingService.fileRaid(other.character.id, home.id)).rejects.toMatchObject({ statusCode: 409 })
 
-    // Бой со сторожем закончился победой нападавшего.
-    const part = await testPrisma.battleParticipant.findFirstOrThrow({ where: { battleId, characterId: thief.character.id } })
-    await testPrisma.battle.update({ where: { id: battleId }, data: { status: 'FINISHED', winnerParticipantId: part.id, finishedAt: new Date() } })
-    await BattleRedis.deleteState(battleId)
-    await testPrisma.character.update({ where: { id: thief.character.id }, data: { status: 'ACTIVE' } })
-    await HousingService.settle()
-    expect((await testPrisma.playerHome.findUniqueOrThrow({ where: { id: home.id } })).durability).toBe(90)
-    expect((await testPrisma.homeRaid.findFirstOrThrow({ where: { battleId } })).status).toBe('ATTACKER_WON')
-
-    await expect(HousingService.raid(thief.user.id, thief.character.id, home.id)).rejects.toMatchObject({ statusCode: 409 })
+    // Хозяин не в игре — оборона не вышла, дом взят без боя.
+    await ChatService.touch(thief.character.id)
+    await due(filed.raidId)
+    await runHomeRaids()
+    expect((await testPrisma.homeRaid.findUniqueOrThrow({ where: { id: filed.raidId } })).status).toBe('ATTACKER_WON')
+    expect((await testPrisma.playerHome.findUniqueOrThrow({ where: { id: home.id } })).durability).toBe(100 - HOUSING.raidDurabilityLoss)
     const view = await HousingService.view(owner.character.id)
     expect(view.home!.raids[0]).toMatchObject({ won: true })
+
+    // На этот дом — снова только через неделю, кто бы ни нападал.
+    await expect(HousingService.fileRaid(other.character.id, home.id)).rejects.toThrow(/уже нападали/)
+    await testPrisma.homeRaid.update({ where: { id: filed.raidId }, data: { resolvedAt: new Date(Date.now() - (HOUSING.raidCooldownDays * 24 + 1) * HOUR) } })
+    await expect(HousingService.fileRaid(other.character.id, home.id)).resolves.toMatchObject({ owner: owner.character.nickname })
+  })
+
+  it('налёт: запись до 10 на сторону (хозяин — в обороне), бой открывается и подводится', async () => {
+    const owner = await player('own2')
+    await HousingService.buy(owner.character.id, HOUSE)
+    const home = await testPrisma.playerHome.findUniqueOrThrow({ where: { characterId: owner.character.id } })
+    const thief = await player('th2')
+    const filed = await HousingService.fileRaid(thief.character.id, home.id)
+
+    await expect(HousingService.signupRaid(owner.character.id, filed.raidId, 1)).rejects.toMatchObject({ statusCode: 409 })
+    const friend = await player('fr2')
+    expect(await HousingService.signupRaid(friend.character.id, filed.raidId, 2)).toMatchObject({ side: 2 })
+    await expect(HousingService.signupRaid(friend.character.id, filed.raidId, 1)).rejects.toMatchObject({ statusCode: 409 })
+    // В обороне хозяин и друг; ещё восемь мест, девятый не влезет.
+    for (let i = 0; i < HOUSING.raidMaxPerSide - 2; i++) {
+      const p = await player(`d${i}`)
+      await HousingService.signupRaid(p.character.id, filed.raidId, 2)
+    }
+    const extra = await player('extra')
+    await expect(HousingService.signupRaid(extra.character.id, filed.raidId, 2)).rejects.toMatchObject({ statusCode: 409 })
+    await expect(HousingService.unsignRaid(thief.character.id, filed.raidId)).rejects.toMatchObject({ statusCode: 409 })
+
+    const seen = await HousingService.view(friend.character.id)
+    const lot = seen.lots.find(l => l.home?.id === home.id)!
+    expect(lot.home!.raid).toMatchObject({ mySide: 2 })
+    expect(lot.home!.raid!.defenders[0]).toMatchObject({ nickname: owner.character.nickname })
+
+    // Обе стороны в игре — открывается бой; победила оборона — дом цел.
+    await ChatService.touch(thief.character.id)
+    await ChatService.touch(owner.character.id)
+    await due(filed.raidId)
+    await runHomeRaids()
+    const raid = await testPrisma.homeRaid.findUniqueOrThrow({ where: { id: filed.raidId } })
+    expect(raid.status).toBe('IN_BATTLE')
+    expect(await BattleRedis.getState(raid.battleId!)).not.toBeNull()
+    const battle = await testPrisma.battle.findUniqueOrThrow({ where: { id: raid.battleId! }, include: { participants: true } })
+    const defender = battle.participants.find(p => p.side === 2)!
+    await testPrisma.battle.update({ where: { id: battle.id }, data: { status: 'FINISHED', winnerParticipantId: defender.id, winnerId: defender.characterId } })
+    await runHomeRaids()
+    expect((await testPrisma.homeRaid.findUniqueOrThrow({ where: { id: filed.raidId } })).status).toBe('DEFENDER_WON')
+    expect((await testPrisma.playerHome.findUniqueOrThrow({ where: { id: home.id } })).durability).toBe(100)
+  })
+
+  it('туннель: вышел из дома — можно вернуться; ушёл другой дорогой — нельзя', async () => {
+    const a = await player('tun')
+    await HousingService.buy(a.character.id, FLAT)
+    await expect(HousingService.goThroughTunnel(a.character.id, 'farm')).rejects.toMatchObject({ statusCode: 409 })
+    await HousingService.buyTunnel(a.character.id, 'farm')
+    expect(await HousingService.goThroughTunnel(a.character.id, 'farm')).toEqual({ to: '/farm' })
+    await CityService.move(a.user.id, '/farm')
+    await CityService.move(a.user.id, '/plants')
+    expect((await HousingService.exit(a.character.id)).via).toBe('farm')
+    expect(await HousingService.returnHome(a.character.id)).toEqual({ to: '/housing' })
+
+    // Вышел туннелем, потом ушёл на рынок — обратного хода нет.
+    await HousingService.goThroughTunnel(a.character.id, 'farm')
+    await CityService.move(a.user.id, '/farm')
+    await CityService.move(a.user.id, '/market')
+    expect((await HousingService.exit(a.character.id)).via).toBeNull()
+    await expect(HousingService.returnHome(a.character.id)).rejects.toMatchObject({ statusCode: 409 })
   })
 
   it('участки заданы заранее: занятый не купить, план сектора показывает хозяев', async () => {

@@ -558,6 +558,7 @@ export function BattlePage() {
       nickname: playerName, level: char?.battleLevel ?? 0,
       hp: pHp, hpMax: pHpMax,
       avatar: playerProfile?.avatar ?? char?.avatar,
+      gender: playerProfile?.gender ?? char?.gender,
       weaponName: playerProfile?.primaryHand ?? weapon?.template?.name,
       weaponCode: playerProfile?.primaryWeaponCode ?? weapon?.template?.code,
       weaponType: playerProfile?.primaryWeaponType ?? weapon?.template?.weaponType,
@@ -566,7 +567,7 @@ export function BattlePage() {
     }} />}
 
     <div className="battle-mockup-scene-holder"
-      style={{ width: 900 * sceneScale, height: sceneH * sceneScale + BATTLE_CHAT_H }}>
+      style={{ width: 900 * sceneScale, height: sceneH * sceneScale }}>
     <div className="battle-mockup-scene"
       style={{ height: sceneH, transform: `scale(${sceneScale})` }}>
       <header className="battle-header-v3">
@@ -653,16 +654,13 @@ export function BattlePage() {
         onSurrender={() => act('surrender')} />
     </div>
 
-      {/* Чат живёт в держателе, а не в сцене: внутри сцены он ужимался
-          вместе с ней, и на ноутбуке 1366x768 подписи выходили в семь
-          пикселей. Снаружи кегль настоящий, а нижняя кромка та же. */}
-      <BattleChat />
     </div>
 
     {showCards && <CardCutout width={cardW} className="is-enemy" profile={{
       nickname: enemyName, level: enemyProfile?.level ?? 0,
       hp: eHp, hpMax: eHpMax,
       avatar: enemyProfile?.avatar,
+      gender: enemyProfile?.gender,
       weaponName: enemyProfile?.primaryHand,
       weaponCode: enemyProfile?.primaryWeaponCode,
       weaponType: enemyProfile?.primaryWeaponType,
@@ -671,6 +669,9 @@ export function BattlePage() {
     }} />}
 
     </div>
+
+      {/* В бою чат занимает ту же полосу у нижнего края окна, что и в городе. */}
+      <BattleChat />
 
       {/* Сообщение об ошибке и выдвижные панели живут ВНЕ сцены.
           Внутри они масштабировались бы вместе с ней: на телефоне
