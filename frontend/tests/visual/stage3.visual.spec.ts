@@ -110,6 +110,38 @@ test('на списке домов бригад внизу только ЦЕНТ
   await expect(page.locator('[data-stage-nav="storage"]')).toHaveCount(1)
 })
 
+// Правка 21.10: «Поддержка» в Центре — текст и форма со скриншотом.
+test('поддержка: обращение со скриншотом уходит и видно в списке', async ({ page }) => {
+  await authPage(page, owner)
+  await page.goto('/')
+  await page.locator('[data-stage-nav="support"]').click()
+  await expect(page).toHaveURL(/\/support$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Поддержка' })).toBeVisible()
+  await page.getByLabel('Обращение').fill('Не открывается склад после боя')
+  // Картинка 1×1 PNG: страница сама ужмёт её в JPEG.
+  await page.locator('.support input[type=file]').setInputFiles({
+    name: 'shot.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'),
+  })
+  await expect(page.getByAltText('Скриншот к обращению')).toBeVisible()
+  await page.locator('.support').getByRole('button', { name: 'Отправить' }).click()
+  await expect(page.locator('.support__msg')).toContainText('Обращение отправлено')
+  await expect(page.locator('.support__ticket').first()).toContainText('Не открывается склад после боя')
+  await expect(page.locator('.support__ticket').first()).toContainText('со скриншотом')
+  await expectNoAxeViolations(page)
+})
+
+// Правка 21.10: жильё стоит заранее — 16 квартир и 8 домов на плане.
+test('жилой сектор: план из 24 участков, свободный можно выбрать', async ({ page }) => {
+  await authPage(page, owner)
+  await page.goto('/housing')
+  await expect(page.locator('.housing-lot')).toHaveCount(24)
+  await page.getByRole('button', { name: /^Дом 8:/ }).click()
+  await expect(page.locator('.housing__offer')).toContainText('Дом 8')
+  await expect(page.getByRole('button', { name: /^Дом 8:/ })).toHaveAttribute('aria-pressed', 'true')
+  await expectNoAxeViolations(page)
+})
+
 test('в локации полоса подсвечивает её раздел', async ({ page }) => {
   await authPage(page, owner)
   for (const [path, tab] of [['/market', 'board'], ['/clans', 'clan'], ['/work', 'work'], ['/farm', 'plant'], ['/pvp', 'all'], ['/pvp?tab=RUNNING', 'running']]) {

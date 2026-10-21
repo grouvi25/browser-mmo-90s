@@ -36,6 +36,7 @@ import { Stage3Page }           from '../pages/stage3/stage3-page'
 import { Stage4Page }           from '../pages/stage4/stage4-page'
 import { PolitikaPage }         from '../pages/legal/politika-page'
 import { HousingPage }          from '../pages/housing/housing-page'
+import { SupportPage }          from '../pages/support/support-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -266,6 +267,10 @@ export function AppRouter() {
         <Route path="/soon/:key" element={<SoonRoute />} />
         {/* «Нераспределённое» и Радио убраны (правка заказчика 21.10). */}
         <Route path="/unsorted" element={<Navigate to="/" replace />} />
+        <Route path="/support" element={
+          <ViewportPanel title="Поддержка" subtitle="Вопросы и ошибки">
+            <SupportPage />
+          </ViewportPanel>} />
         <Route path="/housing" element={
           <ViewportPanel title="Жилой сектор" subtitle="Квартиры и дома">
             <HousingPage />

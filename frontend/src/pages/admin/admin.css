@@ -457,3 +457,17 @@
 .adm-item__save { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .adm-item__save input { flex: 1; min-width: 240px; min-height: 34px; padding: 3px 6px; }
 .adm-item__new { margin: 10px 0 14px; }
+
+/* Обращения в поддержку */
+.adm-support { display: grid; gap: 10px; }
+.adm-ticket { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--s3-line, #c9b8a5); background: rgba(255, 255, 255, .45); }
+.adm-ticket__head { font-size: 13.82px; color: var(--s3-dim, #6b5b4a); }
+.adm-ticket__head b { color: inherit; }
+.adm-ticket__text, .adm-ticket__reply { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.adm-ticket__reply { padding: 6px 8px; background: rgba(47, 107, 42, .08); }
+.adm-ticket__shot { justify-self: start; }
+.adm-ticket__shot img { display: block; max-width: min(100%, 520px); max-height: 320px; border: 1px solid var(--s3-line, #c9b8a5); }
+.adm-ticket__shot:focus-visible { outline: 2px solid #7a1010; outline-offset: 2px; }
+.adm-ticket__form { display: grid; gap: 6px; }
+.adm-ticket__form textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 6px 8px; font: inherit; }
+.adm-ticket__actions { display: flex; gap: 6px; }

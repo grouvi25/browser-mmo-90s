@@ -47,6 +47,7 @@ import { territoriesRoutes, clanTerritoriesRoutes, objectWarRoutes } from './mod
 import { premiumRoutes, helpersRoutes } from './modules/premium/premium.routes'
 import { dollarsRoutes } from './modules/dollars/dollars.routes'
 import { housingRoutes } from './modules/housing/housing.routes'
+import { adminSupportRoutes, supportRoutes } from './modules/support/support.routes'
 import { stage3AcceptanceRoutes } from './modules/stage3-acceptance/stage3-acceptance.routes'
 import { balanceSandboxRoutes } from './modules/balance-sandbox/balance-sandbox.routes'
 
@@ -147,6 +148,7 @@ export async function buildApp() {
   await fastify.register(inventoryRoutes,      { prefix: '/api/inventory' })
   await fastify.register(cityRoutes, { prefix: '/api/city' })
   await fastify.register(housingRoutes, { prefix: '/api/housing' })
+  await fastify.register(supportRoutes, { prefix: '/api/support' })
   await fastify.register(cityAdminRoutes, { prefix: '/api/admin/city' })
   await fastify.register(governmentShopRoutes, { prefix: '/api/shops/government' })
   await fastify.register(battlesRoutes,        { prefix: '/api/battles' })
@@ -179,6 +181,7 @@ export async function buildApp() {
   await fastify.register(adminStrategyRoutes, { prefix: '/api/admin' })
   await fastify.register(adminActionsRoutes,  { prefix: '/api/admin' })
   await fastify.register(adminBalanceRoutes,  { prefix: '/api/admin' })
+  await fastify.register(adminSupportRoutes,  { prefix: '/api/admin/support' })
 
   return fastify
 }

@@ -22,6 +22,8 @@ const PERSONAL: LocationTab[] = [
   // «Навыки» переименованы в «Центр подготовки» (правка заказчика 20.10).
   { key: 'skills', label: 'Центр подготовки', to: '/stats' },
   { key: 'black-market', label: 'Чёрный рынок', to: '/premium' },
+  // Поддержка — в Центре (правка заказчика 21.10).
+  { key: 'support', label: 'Поддержка', to: '/support' },
 ]
 
 interface Place { key: string; match: string[]; tabs: LocationTab[] }
