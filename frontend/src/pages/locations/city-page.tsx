@@ -121,40 +121,70 @@ function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
   </div>
 }
 
-/** Зоомагазин (правка заказчика): три собаки, у каждой свой бонус в бою,
-    корм сроком на 72 и 144 часа за рубли и на 2 недели за доллары. */
+const STAT_NAMES: Record<string, string> = { str: 'Сила', agi: 'Ловкость', rea: 'Реакция', acc: 'Меткость', end: 'Выносливость', luck: 'Фарт' }
+
+/** Зоомагазин (правки заказчика): собаки с уровнями, своими очками и
+    снаряжением (намордник, защита, ошейник, обувь); донатная собака —
+    очков на 50% больше, распределяет игрок. Корм — сроком. */
 function Pets() {
   const q = useQuery({ queryKey: ['city', 'pets'], queryFn: cityApi.pets, refetchInterval: 60_000 })
-  const action = useCityAction(async (value: { kind: 'buy' | 'exchange' | 'food' | 'feed'; id: string; pack?: string }) =>
+  const action = useCityAction(async (value: { kind: 'buy' | 'exchange' | 'food' | 'feed' | 'gear' | 'alloc'; id: string; pack?: string; stat?: string; delta?: 1 | -1 }) =>
     value.kind === 'buy' ? cityApi.buyPet(value.id) : value.kind === 'exchange' ? cityApi.exchangePet(value.id)
-      : value.kind === 'food' ? cityApi.food(value.id, value.pack!) : cityApi.feed(value.id))
+      : value.kind === 'food' ? cityApi.food(value.id, value.pack!) : value.kind === 'gear' ? cityApi.dogGear(value.id, value.pack!)
+      : value.kind === 'alloc' ? cityApi.allocateDog(value.id, value.stat!, value.delta!) : cityApi.feed(value.id))
   const catalog = q.data?.catalog ?? []
-  const dog = q.data?.owned.find(p => catalog.some(c => c.code === p.code))
-  const entry = catalog.find(c => c.code === dog?.code)
-  const fed = !!dog?.fedUntil && new Date(dog.fedUntil) > new Date()
+  const dog = q.data?.dog ?? null
+  const petRow = q.data?.owned.find(p => p.id === dog?.id)
   // Кот и пёс прошлого выката: бесплатная замена на собаку любой породы.
   const legacy = dog ? [] : (q.data?.owned ?? []).filter(p => p.code === 'cat' || p.code === 'dog')
-  return <><p>Собака даёт бонус к характеристикам в бою, пока сыта. Собака одна — она видна в профиле.</p>
+  const breedHint = (b: { mainStat?: string; freeAllocation?: boolean; points: number }) =>
+    b.freeAllocation ? `${b.points} очка распределяете сами` : `+${b.points} ${(STAT_NAMES[b.mainStat ?? ''] ?? '').toLowerCase()}, растёт с уровнем`
+  const progress = dog && dog.nextLevelExp ? Math.round(((dog.exp - dog.levelExp) / (dog.nextLevelExp - dog.levelExp)) * 100) : 100
+  return <><p>Собака даёт бонус к характеристикам в бою, пока сыта, и растёт вместе с вами: ей идёт половина вашего боевого опыта.</p>
     <QueryState loading={q.isLoading} error={q.isError} retry={q.refetch} /><Message error={action.error} success={action.isSuccess} />
     {legacy.length > 0 && <article className="city-card city-card--dog">
       <h2>Обмен питомца</h2>
       <p>Котов и псов в Зоомагазине больше нет. {legacy.map(p => p.name).join(' и ')} бесплатно меняется на собаку — выберите породу. Сытость и корм перейдут к ней.</p>
-      <div className="city-feed">{catalog.map(p => <button key={p.code} className="btn btn-primary" disabled={action.isPending}
-        onClick={() => action.mutate({ kind: 'exchange', id: p.code })}>Взять: {p.name} ({dogBonusText(p.bonus)})</button>)}</div>
+      <div className="city-feed">{catalog.filter(p => !p.priceDollars).map(p => <button key={p.code} className="btn btn-primary" disabled={action.isPending}
+        onClick={() => action.mutate({ kind: 'exchange', id: p.code })}>Взять: {p.name}</button>)}</div>
     </article>}
-    {dog && entry && <article className="city-card city-card--dog">
-      <h2>Ваша собака: {entry.name}</h2>
-      <p>{entry.role} · {dogBonusText(entry.bonus)} {fed ? '' : '(не действует, пока голодная)'}</p>
-      <p><b>{fed ? `Сыта до ${new Date(dog.fedUntil!).toLocaleString('ru')}` : 'Голодная'}</b></p>
+    {dog && <article className="city-card city-card--dog">
+      <h2>{dog.name} · {dog.level}-й уровень</h2>
+      <div className="dog-exp" title={dog.nextLevelExp ? `${dog.exp} из ${dog.nextLevelExp} опыта` : 'Максимальный уровень'}>
+        <i style={{ width: `${progress}%` }} /><span>{dog.nextLevelExp ? `опыт ${dog.exp} / ${dog.nextLevelExp}` : 'максимальный уровень'}</span>
+      </div>
+      <p>{dog.role} · {dogBonusText(dog.fullBonus) || 'бонусов пока нет'} {dog.fed ? '' : '(не действует, пока голодная)'}</p>
+      {dog.freeAllocation && <div className="dog-alloc">
+        <b>Свободных очков: {dog.freePoints}</b>
+        {Object.entries(STAT_NAMES).map(([stat, label]) => <span key={stat} className="dog-alloc__row">
+          {label}: {dog.allocation[stat] ?? 0}
+          <button className="btn btn-sm" aria-label={`Снять очко: ${label}`} disabled={action.isPending || !(dog.allocation[stat] > 0)}
+            onClick={() => action.mutate({ kind: 'alloc', id: dog.id, stat, delta: -1 })}>−</button>
+          <button className="btn btn-sm" aria-label={`Добавить очко: ${label}`} disabled={action.isPending || dog.freePoints < 1}
+            onClick={() => action.mutate({ kind: 'alloc', id: dog.id, stat, delta: 1 })}>+</button>
+        </span>)}
+      </div>}
+      <h3>Снаряжение</h3>
+      <div className="dog-gear">{Object.entries(q.data?.gearSlots ?? {}).map(([slot, label]) => {
+        const worn = dog.gear[slot]
+        const offer = q.data?.gear.find(g => g.slot === slot)
+        return <div key={slot} className="dog-gear__slot">
+          <b>{label}</b>
+          <span>{worn ? `${worn.name} (${dogBonusText(worn.bonus)})` : 'пусто'}</span>
+          {offer && worn?.code !== offer.code && <button className="btn btn-sm" disabled={action.isPending}
+            onClick={() => action.mutate({ kind: 'gear', id: dog.id, pack: offer.code })}>{offer.name} · {dogBonusText(offer.bonus)} · {offer.price.toLocaleString('ru')} ₽</button>}
+        </div>
+      })}</div>
+      <p><b>{dog.fed ? `Сыта до ${new Date(dog.fedUntil!).toLocaleString('ru')}` : 'Голодная'}</b></p>
       <div className="city-feed">{q.data?.packs.map(pack => <button key={pack.code} className="btn" disabled={action.isPending}
         onClick={() => action.mutate({ kind: 'food', id: dog.id, pack: pack.code })}>
         {pack.name} · {pack.price.toLocaleString('ru')} {pack.currency === 'USD' ? '$' : '₽'}</button>)}
-        {dog.food > 0 && !fed && <button className="btn" disabled={action.isPending} onClick={() => action.mutate({ kind: 'feed', id: dog.id })}>Скормить старую порцию ({dog.food})</button>}
+        {petRow && petRow.food > 0 && !dog.fed && <button className="btn" disabled={action.isPending} onClick={() => action.mutate({ kind: 'feed', id: dog.id })}>Скормить старую порцию ({petRow.food})</button>}
       </div>
       <p className="muted">Корм прибавляет срок к уже купленному.</p>
     </article>}
     <div className="city-cards">{catalog.map(p => <article className="city-card" key={p.code}><h2>{p.name}</h2>
-      <p>{p.role} · {dogBonusText(p.bonus)}</p><b>{p.price.toLocaleString('ru')} ₽</b>
+      <p>{p.role} · {breedHint(p)}</p><b>{p.priceDollars ? `${p.priceDollars} $` : `${p.price.toLocaleString('ru')} ₽`}</b>
       <button className="btn" disabled={action.isPending || !!dog || legacy.length > 0}
         title={dog ? 'Собака у вас уже есть' : legacy.length > 0 ? 'Сначала обменяйте старого питомца — это бесплатно' : undefined}
         onClick={() => action.mutate({ kind: 'buy', id: p.code })}>{dog?.code === p.code ? 'Ваша собака' : 'Купить собаку'}</button></article>)}</div></>

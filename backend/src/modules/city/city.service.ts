@@ -5,6 +5,8 @@ import { AppError } from '../../shared/errors/app-error'
 import { EconomyService } from '../economy/economy.service'
 import { DollarsService } from '../dollars/dollars.service'
 import { PROFESSION_CODES, PROFESSION_NAMES, isProfessionCode } from '../professions/professions'
+import { DOG_BASE_POINTS, DOG_GEAR, DOG_GEAR_SLOTS, breedOf, dogAllocation, freeDogPoints, type DogStat } from './dogs'
+import { dogSummary } from './city.config'
 import { CityConfig, artifactBonus, inPrison, validCityPath } from './city.config'
 
 export const CityService = {
@@ -66,8 +68,13 @@ export const CityService = {
     } })
   },
   async pets(characterId: string) {
-    return { catalog: CityConfig.pets, packs: CityConfig.feedPacks, feedingHours: CityConfig.feedingHours,
-      owned: await prisma.characterPet.findMany({ where: { characterId }, orderBy: { createdAt: 'asc' } }) }
+    const owned = await prisma.characterPet.findMany({ where: { characterId }, orderBy: { createdAt: 'asc' } })
+    return {
+      catalog: CityConfig.pets.map(b => ({ ...b, points: b.freeAllocation ? Math.ceil(DOG_BASE_POINTS * 1.5) : DOG_BASE_POINTS })),
+      packs: CityConfig.feedPacks, feedingHours: CityConfig.feedingHours,
+      gear: DOG_GEAR, gearSlots: DOG_GEAR_SLOTS,
+      owned, dog: dogSummary(owned),
+    }
   },
   async buyPet(characterId: string, code: string, key: string) {
     const entry = CityConfig.pets.find(p => p.code === code)
@@ -79,10 +86,43 @@ export const CityService = {
       await tx.$executeRaw`SELECT id FROM characters WHERE id = ${characterId} FOR UPDATE`
       const dogs = CityConfig.pets.map(p => p.code)
       if (await tx.characterPet.findFirst({ where: { characterId, code: { in: dogs } } })) throw AppError.conflict('Собака у вас уже есть')
-      await EconomyService.debit(tx, { characterId, amount: entry.price, reasonCode: 'SHOP_PURCHASE', refType: 'pet', refId: code })
+      // Донатная собака — за доллары (правка 21.10), остальные — за рубли.
+      if (entry.priceDollars) await DollarsService.debit(tx, { characterId, amount: entry.priceDollars, reason: 'PURCHASE', note: entry.name })
+      else await EconomyService.debit(tx, { characterId, amount: entry.price, reasonCode: 'SHOP_PURCHASE', refType: 'pet', refId: code })
       return { pet: await tx.characterPet.create({ data: { characterId, code, name: entry.name } }) }
     } })
   },
+  /** Снаряжение собаки: купить — значит надеть; прежняя вещь слота заменяется. */
+  async buyDogGear(characterId: string, petId: string, gearCode: string, key: string) {
+    const item = DOG_GEAR.find(g => g.code === gearCode)
+    if (!item) throw AppError.validation('Нет такого снаряжения')
+    return withIdempotency({ characterId, scope: `city.dog-gear.${petId}`, key, execute: async tx => {
+      const pet = await tx.characterPet.findFirst({ where: { id: petId, characterId } })
+      if (!pet || !breedOf(pet.code)) throw AppError.notFound('Собака')
+      const gear = { ...((pet.gear as Record<string, string> | null) ?? {}) }
+      if (gear[item.slot] === item.code) throw AppError.conflict('Это уже надето')
+      await EconomyService.debit(tx, { characterId, amount: item.price, reasonCode: 'SHOP_PURCHASE', refType: 'dog-gear', refId: item.code })
+      gear[item.slot] = item.code
+      return { pet: await tx.characterPet.update({ where: { id: pet.id }, data: { gear } }) }
+    } })
+  },
+
+  /** Очки донатной собаки распределяет игрок: +1 или −1 к характеристике. */
+  async allocateDog(characterId: string, petId: string, stat: DogStat, delta: 1 | -1) {
+    return withTransaction(async tx => {
+      const pet = await tx.characterPet.findFirst({ where: { id: petId, characterId } })
+      const breed = pet && breedOf(pet.code)
+      if (!pet || !breed) throw AppError.notFound('Собака')
+      if (!breed.freeAllocation) throw AppError.conflict('Очки этой породы распределены сами — свободно распределяются только у донатной собаки')
+      const allocation = { ...dogAllocation(pet) }
+      const next = (allocation[stat] ?? 0) + delta
+      if (next < 0) throw AppError.conflict('Здесь нечего снимать')
+      if (delta > 0 && freeDogPoints(pet) < 1) throw AppError.conflict('Свободных очков нет — растите собаку в боях')
+      allocation[stat] = next
+      return { pet: await tx.characterPet.update({ where: { id: pet.id }, data: { allocation } }) }
+    })
+  },
+
   /** Корм покупается сроком: собака сыта ещё на столько часов. */
   async buyFeedPack(characterId: string, petId: string, packCode: string, key: string) {
     const pack = CityConfig.feedPacks.find(p => p.code === packCode)

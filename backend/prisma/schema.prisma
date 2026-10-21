@@ -2102,6 +2102,13 @@ model CharacterPet {
   name        String
   food        Int       @default(0)
   fedUntil    DateTime? @map("fed_until")
+  /// Правка заказчика 21.10: у собак свои уровни, опыт, очки и снаряжение.
+  level       Int       @default(1)
+  exp         Int       @default(0)
+  /// Распределение очков донатной собаки: { "str": 2, "luck": 1 }.
+  allocation  Json?
+  /// Снаряжение по слотам: { "MUZZLE": "dog_muzzle_leather", ... }.
+  gear        Json?
   createdAt   DateTime  @default(now()) @map("created_at")
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
