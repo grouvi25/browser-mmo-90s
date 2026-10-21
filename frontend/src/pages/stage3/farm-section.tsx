@@ -20,9 +20,9 @@ type Mode = 'plant' | 'water' | 'build'
 const BUILDING_INFO: Record<FarmBuilding, { hint: string; icon: typeof Hammer }> = {
   BARREL: { hint: 'Соседние грядки при посадке сразу политы один раз.', icon: Cylinder },
   CANOPY: { hint: 'Соседние грядки растут быстрее — как от лишнего полива.', icon: Umbrella },
-  CELLAR: { hint: '+10% к цене продажи всего урожая.', icon: Warehouse },
+  CELLAR: { hint: '+10% к каждому собранному урожаю. Строится во дворе.', icon: Warehouse },
   // В механике сторожа пока нет: постройка продаётся, но ничего не даёт.
-  DOG: { hint: 'Сторожевая будка. Охрана огорода пока не действует.', icon: Dog },
+  DOG: { hint: 'Строится во дворе. Охрана огорода пока не действует.', icon: Dog },
 }
 
 const MODE_TITLE: Record<Mode, string> = { plant: 'Посадить', water: 'Полить', build: 'Построить' }
@@ -47,12 +47,15 @@ export function FarmSection() {
       if (kind === 'water') return farmApi.water(id!)
       if (kind === 'harvest') return farmApi.harvest(id!)
       if (kind === 'clear') return farmApi.clear(id!)
+      if (kind === 'yard') return farmApi.buildYard(id as FarmBuilding)
+      if (kind === 'worker') return farmApi.hireWorker()
       return farmApi.build(id!, building)
     },
     onSuccess: (_, v) => {
       setBad(false)
       setMsg(v.kind === 'buy' ? 'Участок куплен' : v.kind === 'plant' ? 'Посажено' : v.kind === 'water' ? 'Полито'
-        : v.kind === 'harvest' ? 'Урожай собран' : v.kind === 'clear' ? 'Участок убран, можно сажать заново' : 'Постройка готова')
+        : v.kind === 'harvest' ? 'Урожай собран' : v.kind === 'clear' ? 'Участок убран, можно сажать заново'
+        : v.kind === 'worker' ? 'Рабочий нанят — он сам соберёт созревший урожай' : 'Постройка готова')
       void qc.invalidateQueries({ queryKey: ['farm'] })
       void qc.invalidateQueries({ queryKey: ['resources'] })
       void qc.invalidateQueries({ queryKey: ['character'] })
@@ -69,6 +72,8 @@ export function FarmSection() {
   const crops = data.crops ?? []
   const plots = data.plots ?? []
   const buildings = data.buildings ?? {}
+  const yardTypes: FarmBuilding[] = data.yardBuildings ?? ['CELLAR', 'DOG']
+  const workerActive = !!data.worker?.until && new Date(data.worker.until) > new Date()
   const cropName = (code: string | null) => crops.find(x => x.code === code)?.name ?? 'Свободная земля'
   const plot = plots.find(p => p.id === picked) ?? null
   const busy = action.isPending
@@ -95,7 +100,7 @@ export function FarmSection() {
       )}
       {mode === 'build' && (
         <div className="farm-options" role="radiogroup" aria-label="Постройка">
-          {(Object.entries(buildings) as Array<[FarmBuilding, { name: string; price: number }]>).map(([key, x]) => {
+          {(Object.entries(buildings) as Array<[FarmBuilding, { name: string; price: number }]>).filter(([key]) => !yardTypes.includes(key)).map(([key, x]) => {
             const Icon = BUILDING_INFO[key]?.icon ?? Hammer
             return (
               <button type="button" key={key} role="radio" aria-checked={building === key}
@@ -129,9 +134,34 @@ export function FarmSection() {
         <Note text={msg} kind={bad ? 'bad' : 'ok'} />
       </div>
 
-      {data.cellarSaleBonus > 0 && (
-        <p className="s3-hint">Погреб на участке: +{Math.round(data.cellarSaleBonus * 100)}% к цене продажи урожая.</p>
-      )}
+      {/* Двор фермы: погреб и будка — без участка (правка заказчика 21.10). */}
+      <section className="farm-yard" aria-label="Двор фермы">
+        <h3>Двор фермы</h3>
+        <div className="farm-options">
+          {yardTypes.map(type => {
+            const info = buildings[type]
+            const Icon = BUILDING_INFO[type]?.icon ?? Hammer
+            const built = (data.yard ?? []).includes(type)
+            return (
+              <div key={type} className={'farm-option farm-yard__item' + (built ? ' is-active' : '')}>
+                <b><Icon size={14} /> {info?.name}</b><span>{BUILDING_INFO[type]?.hint}</span>
+                {built ? <span className="farm-yard__done">Построено</span>
+                  : <button type="button" className="btn btn-sm" disabled={busy} onClick={() => action.mutate({ kind: 'yard', id: type })}>Построить · {fmt(info?.price ?? 0)} ₽</button>}
+              </div>
+            )
+          })}
+          {data.worker && (
+            <div className={'farm-option farm-yard__item' + (workerActive ? ' is-active' : '')}>
+              <b>Рабочий фермы</b>
+              <span>Сам собирает созревший урожай, пока вас нет. Нанимается за доллары.</span>
+              {workerActive && <span className="farm-yard__done">Работает до {new Date(data.worker.until!).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
+              <button type="button" className="btn btn-sm" disabled={busy} onClick={() => action.mutate({ kind: 'worker' })}>
+                {workerActive ? 'Продлить' : 'Нанять'} на {data.worker.days} дней · {data.worker.priceDollars} $
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   )
 }

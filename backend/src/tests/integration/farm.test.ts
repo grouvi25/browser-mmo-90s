@@ -110,4 +110,38 @@ describe('farm', () => {
     expect(newBalance).toBe(100_000 - 2500)
     await expect(FarmService.buyBuilding(character.id, plot.id, 'BARREL')).rejects.toThrow()
   })
+
+  it('погреб и будка строятся во дворе, а не на участке; второй раз — нельзя', async () => {
+    const character = await player('farm-yard')
+    const state = await FarmService.list(character.id)
+    await expect(FarmService.buyBuilding(character.id, state.plots[0].id, 'CELLAR')).rejects.toThrow('во дворе')
+    await FarmService.buyYardBuilding(character.id, 'CELLAR')
+    await expect(FarmService.buyYardBuilding(character.id, 'CELLAR')).rejects.toThrow('уже построен')
+    const after = await FarmService.list(character.id)
+    expect(after.yard).toEqual(['CELLAR'])
+    expect(after.cellarSaleBonus).toBe(0.1)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).money).toBe(100_000 - 8000)
+  })
+
+  it('рабочий фермы за доллары сам собирает созревший урожай', async () => {
+    await testPrisma.resourceTemplate.upsert({
+      where: { code: 'res_greens' }, update: {},
+      create: { code: 'res_greens', name: 'Зелень', category: 'PRIMARY', tier: 1, basePrice: 20, weight: 0.1 },
+    })
+    const character = await player('farm-worker')
+    await expect(FarmService.hireWorker(character.id)).rejects.toThrow('долларов')
+    await testPrisma.character.update({ where: { id: character.id }, data: { dollars: 100 } })
+    const hired = await FarmService.hireWorker(character.id)
+    expect(hired.dollars).toBe(80)
+    await FarmService.list(character.id)
+    const plot = (await testPrisma.farmPlot.findMany({ where: { characterId: character.id } }))[0]
+    await testPrisma.farmPlot.update({ where: { id: plot.id }, data: {
+      cropCode: 'dill', plantedAt: new Date(Date.now() - 3_600_000),
+      readyAt: new Date(Date.now() - 1000), withersAt: new Date(Date.now() + 3_600_000),
+    } })
+    expect(await FarmService.autoHarvest()).toBeGreaterThanOrEqual(1)
+    expect((await testPrisma.farmPlot.findUniqueOrThrow({ where: { id: plot.id } })).cropCode).toBeNull()
+    const stock = await testPrisma.resourceStack.findMany({ where: { characterId: character.id } })
+    expect(stock.reduce((sum, r) => sum + r.amount, 0)).toBeGreaterThan(0)
+  })
 })

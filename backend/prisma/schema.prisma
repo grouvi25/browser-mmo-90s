@@ -560,6 +560,8 @@ model Character {
 
   // Status
   /// Пол персонажа (правка заказчика): в досье «Муж/Жена».
+  /// Рабочий фермы за донат: сам собирает созревший урожай до этой даты.
+  farmWorkerUntil DateTime? @map("farm_worker_until")
   gender Gender @default(MALE)
   status CharacterStatus @default(ACTIVE)
 
@@ -2221,4 +2223,16 @@ model PlayerNote {
 
   @@unique([authorId, targetId])
   @@map("player_notes")
+}
+
+/// Постройки двора фермы — без участка (правка заказчика 21.10: «погреб
+/// и сторожевая будка строятся отдельно от участков»).
+model FarmYardBuilding {
+  id          String           @id @default(uuid())
+  characterId String           @map("character_id")
+  type        FarmBuildingType
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@unique([characterId, type])
+  @@map("farm_yard_buildings")
 }

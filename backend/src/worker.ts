@@ -7,6 +7,7 @@ import { connectDb, disconnectDb } from './shared/db/prisma'
 import { getRedis, disconnectRedis } from './shared/db/redis'
 import { logger } from './shared/logger/logger'
 import { runBattleCleanup } from './workers/battle-cleanup.worker'
+import { FarmService } from './modules/farm/farm.service'
 import { runHpRecovery, TICK_MS as HP_TICK_MS } from './workers/hp-recovery.worker'
 import { runBattleTimeout, TIMER_TICK_MS } from './workers/battle-timeout.worker'
 import { runWorkShiftFinalize, WORK_SHIFT_FINALIZE_MS } from './workers/work-shift-finalize.worker'
@@ -65,6 +66,12 @@ async function startWorker(): Promise<void> {
     catch (err) { logger.error({ err }, '[Worker] Battle timeout error') }
   }, TIMER_TICK_MS)
   logger.info(`✅ Battle timeout cron started (every ${TIMER_TICK_MS / 1000}s, auto-block at 7s)`)
+
+  // ─── Cron: рабочие фермы собирают созревший урожай (раз в минуту) ───────
+  const farmWorkerTimer = setInterval(async () => {
+    try { await FarmService.autoHarvest() }
+    catch (err) { logger.error({ err }, '[Worker] Farm auto-harvest error') }
+  }, 60_000)
 
   const workShiftTimer = setInterval(async () => {
     try { await runWorkShiftFinalize() }
@@ -145,6 +152,7 @@ async function startWorker(): Promise<void> {
 const shutdown = async (signal: string): Promise<void> => {
     logger.info(`[${signal}] Worker shutting down...`)
     clearInterval(cleanupTimer)
+    clearInterval(farmWorkerTimer)
     clearInterval(hpRecoveryTimer)
     clearInterval(battleTimeoutTimer)
     clearInterval(workShiftTimer)

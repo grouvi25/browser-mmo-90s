@@ -21,8 +21,24 @@ export const FARM_BUILDINGS = {
   BARREL: { name: 'Бочка', price: 2500 },
   CANOPY: { name: 'Навес', price: 5000 },
   CELLAR: { name: 'Погреб', price: 8000 },
-  DOG: { name: 'Собака', price: 15000 },
+  DOG: { name: 'Сторожевая будка', price: 15000 },
 } as const
+
+/** Строятся во дворе, а не на участке (правка заказчика 21.10). */
+export const YARD_BUILDINGS = ['CELLAR', 'DOG'] as const
+export type YardBuildingCode = typeof YARD_BUILDINGS[number]
+export const isYardBuilding = (type: string): type is YardBuildingCode => (YARD_BUILDINGS as readonly string[]).includes(type)
+
+/** Погреб: +10% к собранному урожаю — дробная часть добирается случаем. */
+export const CELLAR_YIELD_BONUS = 0.10
+export function withCellar(amount: number, hasCellar: boolean, roll = Math.random()): number {
+  if (!hasCellar) return amount
+  const exact = amount * (1 + CELLAR_YIELD_BONUS)
+  return Math.floor(exact) + (roll < exact - Math.floor(exact) ? 1 : 0)
+}
+
+/** Рабочий фермы за донат: сам собирает созревший урожай. */
+export const FARM_WORKER = { priceDollars: 20, days: 30, maxDaysAhead: 120 }
 
 export type FarmBuildingCode = keyof typeof FARM_BUILDINGS
 
