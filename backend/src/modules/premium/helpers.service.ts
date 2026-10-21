@@ -25,6 +25,7 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
 import { EconomyService } from '../economy/economy.service'
 import { CycleService } from '../production/cycle.service'
+import { ResourcesService } from '../resources/resources.service'
 import { calcFinalSalary, calcProductionExp, workerEfficiency } from '../work/work.formulas'
 import { professionLevelFromExp, PROFESSION_CHAINS } from '../professions/professions'
 import { PremiumService } from './premium.service'
@@ -391,6 +392,21 @@ export const HelpersService = {
         })
         : null
 
+      // Сырьё объекта — хозяину, как после своей смены (правка заказчика
+      // 22.10: «помощники когда работают, ресурсы не добавляются»). Выход
+      // помощника слабее, как и зарплата, но не меньше единицы.
+      let resourceReward: { code: string; amount: number } | null = null
+      const object = shift.productionObject
+      if (object.producesResourceCode && object.outputAmountMax > 0) {
+        const template = await tx.resourceTemplate.findUnique({ where: { code: object.producesResourceCode } })
+        if (template) {
+          const rolled = Math.floor(Math.random() * (object.outputAmountMax - object.outputAmountMin + 1)) + object.outputAmountMin
+          const amount = Math.max(1, Math.round(rolled * H.efficiency))
+          await ResourcesService.add(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'WORK_REWARD', refType: 'work_shift', refId: shift.id })
+          resourceReward = { code: template.code, amount }
+        }
+      }
+
       await tx.helper.update({
         where: { id: helperId },
         data: { activeShiftId: null, professionExp: helperExp, professionLevel: helperLevel },
@@ -405,7 +421,7 @@ export const HelpersService = {
       return {
         shiftId: shift.id, salary, newBalance,
         helper: { professionExp: helperExp, professionLevel: helperLevel },
-        cycleContribution,
+        cycleContribution, resourceReward,
       }
     })
   },

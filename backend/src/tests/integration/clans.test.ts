@@ -87,6 +87,9 @@ describe('clans', () => {
     expect(card.iconData).toBeUndefined()
     expect(card.iconVersion).toBe(1)
     expect((await ClansService.list()).find(c => c.id === clan.id)?.iconVersion).toBe(1)
+    // Правка 22.10: иконка ставится один раз — заменить нельзя.
+    await expect(ClansService.setIcon(boss.id, png)).rejects.toMatchObject({ statusCode: 409 })
+    expect((await ClansService.icon(clan.id))?.bytes.toString()).toBe('fake-png-bytes')
   })
 
   it('invites, accepts and assigns a role to the correct target member (not the actor)', async () => {

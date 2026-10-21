@@ -30,7 +30,11 @@ export function ClanIconPicker({ value, onChange }: { value: string | null; onCh
   )
 }
 
-/** Сменить иконку уже созданной бригады (главарь, право EDIT). */
+/**
+ * Иконка уже созданной бригады (главарь, право EDIT). Ставится один раз
+ * (правка заказчика 22.10): у бригады с иконкой выбора больше нет, только
+ * картинка; бригада, созданная без иконки, ставит её один раз здесь.
+ */
 export function ClanIconEditor({ clanId, iconVersion }: { clanId: string; iconVersion: number }) {
   const qc = useQueryClient()
   const [draft, setDraft] = useState<string | null>(null)
@@ -46,11 +50,12 @@ export function ClanIconEditor({ clanId, iconVersion }: { clanId: string; iconVe
     <section className="clan-icon-editor" aria-label="Иконка бригады">
       <h3>Иконка бригады</h3>
       <div className="clan-icon-editor__row">
-        {iconVersion > 0 && !draft && <img src={clansApi.iconUrl(clanId, iconVersion)} alt="Текущая иконка" width={48} height={48} className="clan-icon" />}
-        <ClanIconPicker value={draft} onChange={setDraft} />
-        {draft && <button type="button" className="btn btn-primary btn-sm" disabled={save.isPending} onClick={() => save.mutate(draft)}>Сохранить иконку</button>}
+        {iconVersion > 0
+          ? <img src={clansApi.iconUrl(clanId, iconVersion)} alt="Иконка бригады" width={48} height={48} className="clan-icon" />
+          : <ClanIconPicker value={draft} onChange={setDraft} />}
+        {draft && iconVersion === 0 && <button type="button" className="btn btn-primary btn-sm" disabled={save.isPending} onClick={() => { if (window.confirm('Иконку ставят один раз — потом её не поменять. Сохранить?')) save.mutate(draft) }}>Сохранить иконку</button>}
       </div>
-      <small className="muted">Видна в списке игроков онлайн и в Домах бригад.</small>
+      <small className="muted">{iconVersion > 0 ? 'Иконка ставится один раз, поменять её нельзя.' : 'Иконку ставят один раз — потом её не поменять.'}</small>
       {save.error && <p role="alert" className="alert alert-error">{save.error instanceof ApiError ? save.error.message : 'Не сохранилось'}</p>}
       {save.isSuccess && <p role="status" className="alert alert-success">Иконка сохранена</p>}
     </section>

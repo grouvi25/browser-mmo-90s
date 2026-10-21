@@ -146,6 +146,27 @@ describe('помощники', () => {
     expect(own).toHaveLength(0)
   })
 
+  // Правка 22.10: «помощники когда работают, ресурсы не добавляются».
+  it('смена помощника приносит хозяину сырьё объекта', async () => {
+    const character = await subscribed()
+    const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
+    const tpl = await testPrisma.resourceTemplate.create({
+      data: { code: uid('hres'), name: 'Металлолом', category: 'PRIMARY', tier: 1, basePrice: 10, weight: 0.1 },
+    })
+    const object = await myObject(character.id)
+    await testPrisma.productionObject.update({
+      where: { id: object.id }, data: { producesResourceCode: tpl.code, outputAmountMin: 5, outputAmountMax: 5 },
+    })
+    const started = await HelpersService.startShift(character.id, helper.id, object.id)
+    await finishShift(started.shiftId)
+    const claimed = await HelpersService.claimShift(character.id, helper.id)
+
+    const amount = Math.max(1, Math.round(5 * H.efficiency))
+    expect(claimed.resourceReward).toEqual({ code: tpl.code, amount })
+    const stack = await testPrisma.resourceStack.findFirst({ where: { characterId: character.id, resourceTemplateId: tpl.id } })
+    expect(stack?.amount).toBe(amount)
+  })
+
   it('помощник растёт вдвое медленнее игрока', async () => {
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')

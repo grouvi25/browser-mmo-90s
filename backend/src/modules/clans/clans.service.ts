@@ -98,6 +98,10 @@ export const ClansService = {
     }
     return withTransaction(async tx => {
       const member = await memberWithPermission(tx, characterId, 'EDIT')
+      // Иконка ставится один раз — при регистрации бригады; потом менять
+      // нельзя (правка заказчика 22.10). Бригада без иконки ставит её один раз.
+      const current = await tx.clan.findUniqueOrThrow({ where: { id: member.clanId }, select: { iconVersion: true } })
+      if (current.iconVersion > 0) throw new AppError(ErrorCode.CONFLICT, 'Иконку бригады меняют только один раз — она уже стоит', 409)
       const clan = await tx.clan.update({
         where: { id: member.clanId },
         data: { iconData: parsed[2], iconMime: parsed[1], iconVersion: { increment: 1 } },
