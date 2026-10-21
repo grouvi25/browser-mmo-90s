@@ -277,6 +277,13 @@ export function BattlePage() {
     refetchInterval: q => q.state.data?.battle?.status === 'FINISHED' || battleOver ? false : 3000,
   })
 
+  // Тактика боевого помощника меняется по ходу боя.
+  const helperTacticMut = useMutation({
+    mutationFn: (tactic: 'ATTACK' | 'STANDARD' | 'DEFENSIVE') => battlesApi.setHelperTactic(battleId!, tactic),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['battle', battleId] }) },
+    onError: (err) => { setActionError(err instanceof ApiError ? err.message : 'Ошибка'); setTimeout(() => setActionError(''), 4000) },
+  })
+
   // ── Данные из liveState (Redis) и БД ──────────────────────
   const live      = battleData?.liveState
   const dbParts   = (battleData?.battle?.participants ?? []) as Array<{ characterId?: string | null; botId?: string | null; hpMax?: number; hpCurrent?: number }>
@@ -358,7 +365,8 @@ export function BattlePage() {
       }
 
       const events: TurnEvent[] = data.turns?.map(t => ({
-        actor: t.actor === 'player' ? 'player' : 'enemy',
+        actor: t.actor === 'player' ? 'player' : t.actor === 'helper' ? 'helper' : 'enemy',
+        intercepted: (t as { intercepted?: boolean }).intercepted ?? false,
         action: t.action, hit: t.hit, dodge: t.dodge, block: t.block,
         crit: t.crit, lucky: t.lucky, counterDamage: t.counterDamage, sourceHand: t.sourceHand, zone: t.zone,
         rawDamage: t.rawDamage, finalDamage: t.finalDamage, logParts: t.logParts,
@@ -366,12 +374,14 @@ export function BattlePage() {
       events.forEach(t => {
         // Атакующий делает выпад на любом ударе — попал или промахнулся,
         // замах есть всегда. Защищающийся вздрагивает только по попаданию.
-        if (t.action === 'attack') {
+        // Помощник не стоит на поле: его удар виден только по вздрагиванию
+        // противника, а принятый им удар не ранит хозяина.
+        if (t.action === 'attack' && t.actor !== 'helper') {
           if (t.actor === 'player') { setPlayerAttack(true); setTimeout(() => setPlayerAttack(false), 460) }
           else                      { setEnemyAttack(true); setTimeout(() => setEnemyAttack(false), 460) }
         }
-        if (t.hit && !t.dodge) {
-          if (t.actor === 'player') { setEnemyHit(true); setTimeout(() => setEnemyHit(false), 500) }
+        if (t.hit && !t.dodge && !t.intercepted) {
+          if (t.actor === 'player' || t.actor === 'helper') { setEnemyHit(true); setTimeout(() => setEnemyHit(false), 500) }
           else                      { setPlayerHit(true); setTimeout(() => setPlayerHit(false), 500) }
         }
       })
@@ -634,6 +644,8 @@ export function BattlePage() {
         compact rounds={rounds} playerName={playerName} enemyName={enemyName}
         battleType={battleData?.battle?.type} startedAt={battleData?.battle?.startedAt}
         selfFighter={{ name: playerName, level: char?.battleLevel, hp: pHp, hpMax: pHpMax, acted: pPart?.hasActedThisRound }}
+        helper={pPart?.helper} helperPending={helperTacticMut.isPending}
+        onHelperTactic={tactic => helperTacticMut.mutate(tactic)}
         enemyFighter={{ name: enemyName, level: enemyProfile?.level, hp: eHp, hpMax: eHpMax, acted: ePart?.hasActedThisRound }}
         onRemoveAttack={removeAttack}
         onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}

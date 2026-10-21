@@ -150,6 +150,9 @@ export const battlesApi = {
   current: () =>
     api.get<{ battleId: string | null; application: { battleId: string; startsAt: string } | null }>('/api/battles/me/current'),
 
+  setHelperTactic: (battleId: string, tactic: 'ATTACK' | 'STANDARD' | 'DEFENSIVE') =>
+    api.post<{ tactic: string }>(`/api/battles/${battleId}/helper-tactic`, { tactic }),
+
   getJournal: (battleId: string, page = 1) =>
     api.get<BattleJournalPage>(`/api/battles/${battleId}/journal?page=${page}`),
 

@@ -17,6 +17,8 @@
 // ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, раздел 19.
 // =============================================================
 import { prisma } from '../../shared/db/prisma'
+import type { HelperTactic } from '@prisma/client'
+import { expToNextLevel, helperHpMax } from '../battles/combat-helper'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
@@ -64,6 +66,15 @@ async function assertSubscribed(characterId: string) {
 
 export const HelpersService = {
   /** Список помощников и занятые слоты. */
+  /** Тактика боевого помощника; в идущем бою меняется отдельно (BattleService). */
+  async setTactic(characterId: string, helperId: string, tactic: HelperTactic) {
+    const helper = await prisma.helper.findFirst({ where: { id: helperId, characterId } })
+    if (!helper) throw new AppError(ErrorCode.NOT_FOUND, 'Помощник не найден', 404)
+    if (helper.kind !== 'COMBAT') throw new AppError(ErrorCode.VALIDATION_ERROR, 'Тактика есть только у боевого помощника', 422)
+    await prisma.helper.update({ where: { id: helperId }, data: { tactic } })
+    return { id: helperId, tactic }
+  },
+
   async list(characterId: string) {
     const [helpers, state] = await Promise.all([
       prisma.helper.findMany({
@@ -90,6 +101,12 @@ export const HelpersService = {
         professionExp: helper.professionExp,
         skillCap: H.skillCap,
         activeShift: helper.activeShift,
+        // Боевой помощник: уровень, опыт до следующего, здоровье, тактика.
+        tactic: helper.tactic,
+        combatLevel: helper.combatLevel,
+        combatExp: helper.combatExp,
+        combatHpMax: helperHpMax(helper.combatLevel),
+        combatExpToNext: expToNextLevel(helper.combatLevel),
       })),
       slots: { used: helpers.length, total: state.benefits.helperSlots },
     }

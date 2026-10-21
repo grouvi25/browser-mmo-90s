@@ -168,6 +168,12 @@ export interface Helper {
   professionExp: number
   skillCap: number
   activeShift: { id: string; productionObjectId: string; endsAt: string; status: string } | null
+  /** Боевой помощник: тактика, уровень, опыт, здоровье в бою. */
+  tactic?: 'ATTACK' | 'STANDARD' | 'DEFENSIVE'
+  combatLevel?: number
+  combatExp?: number
+  combatExpToNext?: number
+  combatHpMax?: number
 }
 
 /** Объект, на который помощника пустят. Список считает сервер. */
@@ -186,6 +192,8 @@ export const helpersApi = {
   hire: (name: string, professionCode: string, kind: 'WORK' | 'COMBAT' = 'WORK') =>
     api.post<Helper>('/api/helpers', { name, kind, ...(kind === 'WORK' ? { professionCode } : {}) }, idem()),
   dismiss: (id: string) => api.delete<{ dismissed: string }>(`/api/helpers/${id}`),
+  setTactic: (id: string, tactic: 'ATTACK' | 'STANDARD' | 'DEFENSIVE') =>
+    api.patch<{ id: string; tactic: string }>(`/api/helpers/${id}/tactic`, { tactic }),
   work: (id: string, objectId: string) =>
     api.post<{ shiftId: string; endsAt: string; baseSalary: number }>(
       `/api/helpers/${id}/work`, { objectId }, idem()),

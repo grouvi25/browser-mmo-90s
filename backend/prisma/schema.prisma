@@ -561,13 +561,13 @@ model Character {
   // Status
   /// Пол персонажа (правка заказчика): в досье «Муж/Жена».
   /// Рабочий фермы за донат: сам собирает созревший урожай до этой даты.
-  farmWorkerUntil DateTime? @map("farm_worker_until")
+  farmWorkerUntil DateTime?       @map("farm_worker_until")
   /// Профессия «Торгаш» (правка 21.10): 1 — вещи за рубли, 2 — и за доллары.
-  traderLevel Int @default(0) @map("trader_level")
+  traderLevel     Int             @default(0) @map("trader_level")
   /// Номер магазина торгаша — по нему лавку ищут и рекламируют.
-  shopNumber  Int? @unique @map("shop_number")
-  gender Gender @default(MALE)
-  status CharacterStatus @default(ACTIVE)
+  shopNumber      Int?            @unique @map("shop_number")
+  gender          Gender          @default(MALE)
+  status          CharacterStatus @default(ACTIVE)
 
   // Future hooks (задел на этапы 3-4)
   clanId     String? @map("clan_id") // этап 3
@@ -962,6 +962,10 @@ model BattleTurn {
   // Human readable log line for frontend
   logLine String? @map("log_line")
 
+  // Боевой помощник: ходил сам или принял удар по хозяину на себя.
+  actorHelperId  String? @map("actor_helper_id")
+  targetHelperId String? @map("target_helper_id")
+
   createdAt DateTime @default(now()) @map("created_at")
 
   battle Battle        @relation(fields: [battleId], references: [id], onDelete: Cascade)
@@ -1040,10 +1044,10 @@ model Clan {
   name            String            @unique
   tag             String            @unique
   /// Иконка бригады (загружает глава): PNG/JPEG/WebP до 100 КБ, base64.
-  iconData    String?  @map("icon_data")
-  iconMime    String?  @map("icon_mime")
+  iconData        String?           @map("icon_data")
+  iconMime        String?           @map("icon_mime")
   /// Растёт при каждой замене — адрес картинки меняется, кэш браузера не мешает.
-  iconVersion Int      @default(0) @map("icon_version")
+  iconVersion     Int               @default(0) @map("icon_version")
   level           Int               @default(0)
   treasury        Int               @default(0)
   maintenanceDebt Int               @default(0) @map("maintenance_debt")
@@ -1952,6 +1956,14 @@ enum HelperKind {
   COMBAT
 }
 
+/// Тактика боевого помощника: атакующая бьёт сильнее, защитная чаще
+/// принимает удары по хозяину на себя, стандартная — посередине.
+enum HelperTactic {
+  STANDARD
+  DEFENSIVE
+  ATTACK
+}
+
 enum HelperStatus {
   ACTIVE // подписка активна, работает
   DORMANT // подписки нет, остаётся в профиле
@@ -2004,6 +2016,11 @@ model Helper {
   characterId     String       @map("character_id")
   name            String
   kind            HelperKind   @default(WORK)
+  /// Боевой помощник (правка 21.10, как бойцовый питомец «Апехи»): дерётся
+  /// рядом с хозяином по выбранной тактике и растёт в уровне от боёв.
+  tactic          HelperTactic @default(STANDARD)
+  combatLevel     Int          @default(1) @map("combat_level")
+  combatExp       Float        @default(0) @map("combat_exp")
   status          HelperStatus @default(ACTIVE)
   /// Профессия своя, не хозяйская. Потолок 3 при потолке игрока 6:
   /// помощник никогда не заменит специалиста на верхних переделах.
@@ -2046,18 +2063,18 @@ enum Gender {
 }
 
 model ChatMessage {
-  id        String      @id @default(uuid())
-  channel   ChatChannel
-  scope     String      @default("")
-  authorId  String      @map("author_id")
+  id          String      @id @default(uuid())
+  channel     ChatChannel
+  scope       String      @default("")
+  authorId    String      @map("author_id")
   /// Получатель личного сообщения; у остальных каналов пусто.
-  recipientId String?   @map("recipient_id")
-  body      String      @db.VarChar(400)
-  createdAt DateTime    @default(now()) @map("created_at")
+  recipientId String?     @map("recipient_id")
+  body        String      @db.VarChar(400)
+  createdAt   DateTime    @default(now()) @map("created_at")
   // Мягкое удаление: модератор прячет сообщение, но след остаётся —
   // разбирать жалобы по пустому месту невозможно.
-  deletedAt DateTime?   @map("deleted_at")
-  deletedBy String?     @map("deleted_by")
+  deletedAt   DateTime?   @map("deleted_at")
+  deletedBy   String?     @map("deleted_by")
 
   author Character @relation(fields: [authorId], references: [id], onDelete: Cascade)
 

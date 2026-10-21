@@ -9,10 +9,11 @@ interface BattleChronicleProps {
   rounds: RoundRecord[]
   playerName: string
   enemyName: string
+  helperName?: string
   onOpenLog: () => void
 }
 
-export function BattleChronicle({ rounds, playerName, enemyName, onOpenLog }: BattleChronicleProps) {
+export function BattleChronicle({ rounds, playerName, enemyName, helperName, onOpenLog }: BattleChronicleProps) {
   const tail = useRef<HTMLOListElement>(null)
   const lines = rounds.flatMap(round => round.events.map((event, index) => ({
     key: `${round.round}-${index}`, round: round.round, event, at: round.at,
@@ -36,15 +37,18 @@ export function BattleChronicle({ rounds, playerName, enemyName, onOpenLog }: Ba
       : <ol ref={tail}>
         {lines.map(line => {
           const view = getEvent(line.event)
-          const mine = line.event.actor === 'player'
+          // Помощник играет за свою сторону и подписан своим именем.
+          const helper = line.event.actor === 'helper'
+          const mine = line.event.actor === 'player' || helper
           return <li key={line.key} className={mine ? 'is-mine' : 'is-theirs'}>
             <i className="battle-chronicle__clock">{clock(line.at) ?? line.round}</i>
             <span className="battle-chronicle__icon" style={{ color: view.color }}><EventIcon type={view.type} size={10} /></span>
-            <b>{mine ? playerName : enemyName}</b>
+            <b>{helper ? helperName ?? 'Помощник' : mine ? playerName : enemyName}</b>
             {/* Цвет берём из таблицы стилей, а не из события: те тона
                 рассчитаны на тёмную плашку и на бумаге не читаются. */}
             <span className={`battle-chronicle__label is-${view.type}`}>{view.label}</span>
             {line.event.finalDamage > 0 && <em>−{line.event.finalDamage}</em>}
+            {line.event.intercepted && <span className="battle-chronicle__label">принял {helperName ?? 'помощник'}</span>}
           </li>
         })}
       </ol>}

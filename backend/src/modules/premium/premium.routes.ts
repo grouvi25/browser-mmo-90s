@@ -70,6 +70,14 @@ export async function helpersRoutes(fastify: FastifyInstance) {
     return reply.code(201).send(await HelpersService.hire(character.id, parsed.data.name, parsed.data.professionCode ?? '', parsed.data.kind))
   })
 
+  // Тактика боевого помощника: атакующая / стандартная / защитная.
+  fastify.patch<{ Params: { id: string }; Body: { tactic: string } }>('/:id/tactic', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ tactic: z.enum(['ATTACK', 'STANDARD', 'DEFENSIVE']) }).safeParse(req.body)
+    if (!Id.safeParse(req.params.id).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const character = await me(req.authUser.userId)
+    return reply.send(await HelpersService.setTactic(character.id, req.params.id, parsed.data.tactic))
+  })
+
   fastify.delete<{ Params: { id: string } }>('/:id', { preHandler: authenticate }, async (req, reply) => {
     if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const character = await me(req.authUser.userId)

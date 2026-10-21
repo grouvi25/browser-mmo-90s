@@ -127,6 +127,14 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.send(result)
     })
 
+  // POST /api/battles/:battleId/helper-tactic — тактика боевого помощника в бою
+  fastify.post<{ Params: { battleId: string }; Body: { tactic: string } }>('/:battleId/helper-tactic', { preHandler: authenticate },
+    async (req, reply) => {
+      const parsed = z.object({ tactic: z.enum(['ATTACK', 'STANDARD', 'DEFENSIVE']) }).safeParse(req.body)
+      if (!z.string().uuid().safeParse(req.params.battleId).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      return reply.send(await BattleService.setHelperTactic(req.params.battleId, req.authUser.userId, parsed.data.tactic))
+    })
+
   // GET /api/battles/:battleId/journal?page=N — сохранённый журнал боя по 10 строк
   fastify.get<{ Params: { battleId: string }; Querystring: { page?: string } }>('/:battleId/journal', { preHandler: authenticate },
     async (req, reply) => {

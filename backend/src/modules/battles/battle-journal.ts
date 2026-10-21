@@ -82,6 +82,12 @@ export const BattleJournal = {
       nameOf.set(key, p.character?.nickname ?? p.bot?.name ?? 'Боец')
       sideOf.set(key, p.side)
     }
+    // Боевой помощник: подписывается своим именем и сражается за сторону хозяина.
+    const helperIds = [...new Set(turns.flatMap(t => [t.actorHelperId, t.targetHelperId]).filter((id): id is string => !!id))]
+    if (helperIds.length) {
+      const helpers = await prisma.helper.findMany({ where: { id: { in: helperIds } }, select: { id: true, name: true, characterId: true } })
+      for (const h of helpers) { nameOf.set(h.id, `${h.name} (помощник)`); sideOf.set(h.id, sideOf.get(h.characterId) ?? 1) }
+    }
     const name = (id: string | null) => (id ? nameOf.get(id) ?? 'Боец' : null)
     const winner = battle.participants.find(p => p.id === battle.winnerParticipantId)
 
@@ -92,14 +98,16 @@ export const BattleJournal = {
         winner: winner ? winner.character?.nickname ?? winner.bot?.name ?? null : null,
       },
       items: turns.map(turn => {
-        const actorId = turn.actorCharId ?? turn.actorBotId
-        const { kind, text } = describeTurn(turn)
+        const actorId = turn.actorCharId ?? turn.actorBotId ?? turn.actorHelperId
+        const described = describeTurn(turn)
+        // Удар по хозяину, принятый помощником на себя.
+        const { kind, text } = turn.targetHelperId && turn.hit ? { kind: described.kind, text: described.text + ' — принял на себя' } : described
         return {
           id: turn.id,
           round: turn.roundNumber,
           at: turn.createdAt,
           actor: name(actorId) ?? 'Боец',
-          target: name(turn.targetCharId ?? turn.targetBotId),
+          target: name(turn.targetCharId ?? turn.targetBotId ?? turn.targetHelperId),
           side: actorId ? sideOf.get(actorId) ?? 1 : 1,
           kind,
           text,

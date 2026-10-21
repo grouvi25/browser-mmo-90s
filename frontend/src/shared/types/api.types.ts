@@ -185,8 +185,16 @@ export interface Battle {
   turns: BattleTurn[]
 }
 
+export type HelperTactic = 'ATTACK' | 'STANDARD' | 'DEFENSIVE'
+/** Боевой помощник в бою (как бойцовый питомец «Апехи»). */
+export interface LiveHelper {
+  id: string; name: string; level: number; tactic: HelperTactic
+  hp: number; hpMax: number; alive: boolean
+}
+
 export interface LiveParticipant {
   participantId: string
+  helper?: LiveHelper | null
   characterId?: string
   botId?: string
   hpCurrent: number
