@@ -58,7 +58,7 @@ export function BrigadeHouses() {
   }
 
   return <>
-    <img className="brigade-scene" src={SCENES.center} alt="Дома бригад" draggable={false} />
+    <img className="brigade-scene" src={SCENES['brigade-houses']} alt="Дома бригад" draggable={false} />
     {list.isLoading && <p role="status">Загрузка…</p>}
     {list.isError && <p role="alert">Список не загрузился. <button className="btn" onClick={() => list.refetch()}>Повторить</button></p>}
     {list.data && clans.length === 0 && <p>В городе пока нет бригад. Зарегистрировать свою можно в <Link to="/city-hall">Мэрии</Link>.</p>}
