@@ -183,6 +183,15 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page).toHaveURL(/\/shop$/)
   })
 
+  // Правка 22.10: обувь была куплена, а на складе её не было ни в одной вкладке.
+  test('купленная обувь лежит на складе во вкладке «Обувь»', async ({ page }) => {
+    await buyPrivateItem(apiContext, fighter, 'armor_boots_army_private')
+    await authPage(page, fighter)
+    await page.goto('/inventory')
+    await page.getByRole('button', { name: 'Обувь', exact: true }).click()
+    await expect(page.getByText('Армейские берцы').first()).toBeVisible()
+  })
+
   test('expired session redirects instead of rendering empty Stage 2 data', async ({ page }) => {
     await page.goto('/login')
     await page.evaluate(() => {

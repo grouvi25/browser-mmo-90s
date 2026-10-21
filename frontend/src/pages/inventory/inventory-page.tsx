@@ -46,14 +46,17 @@ const RANGED = new Set(['PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 
 type Match = (item: ItemInstance) => boolean
 interface Tab { key: string; label: string; match?: Match }
 
-/** Порядок и подписи — как нарисовано: восемь вкладок в первом ряду,
- *  шесть во втором. Без `match` вкладка закрыта: наполнения нет. */
+/** Порядок и подписи — как нарисовано (плюс «Обувь»): восемь вкладок в
+ *  первом ряду, остальные во втором. Без `match` вкладка закрыта: наполнения нет. */
 const TABS: Tab[] = [
   { key: 'caps',    label: 'Шапки',    match: i => i.template.armorSlot === 'HEAD' },
   { key: 'amulets', label: 'Амулеты',  match: i => i.template.armorSlot === 'ACCESSORY' },
   { key: 'belts',   label: 'Пояса',    match: i => i.template.armorSlot === 'BELT' },
   { key: 'cloaks',  label: 'Плащи',    match: i => i.template.armorSlot === 'BACK' },
   { key: 'pants',   label: 'Штаны',    match: i => i.template.armorSlot === 'LEGS' },
+  // Обуви в макете нет, а вещи под ноги в игре есть (берцы): без вкладки
+  // купленную обувь на складе было не найти (правка заказчика 22.10).
+  { key: 'boots',   label: 'Обувь',    match: i => i.template.armorSlot === 'FEET' },
   { key: 'armor',   label: 'Броня',    match: i => i.template.armorSlot === 'CHEST' },
   { key: 'melee',   label: 'Оружие',   match: i => i.template.type === 'WEAPON' && !RANGED.has(i.template.weaponType ?? '') },
   { key: 'ranged',  label: 'Стрелковое оружие', match: i => i.template.type === 'WEAPON' && RANGED.has(i.template.weaponType ?? '') },
