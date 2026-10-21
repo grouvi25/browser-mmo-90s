@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Users, ShieldAlert, UserPlus, LogOut } from 'lucide-react'
-import { clansApi, CLAN_PERMISSIONS, type ClanPermission } from '../../shared/api/clans.api'
+import { clansApi, CLAN_PERMISSIONS, type ClanObject, type ClanPermission, type ClanTerritory } from '../../shared/api/clans.api'
 import { fmt, Skeleton, Fault, Note } from './stage3-ui'
 import { useMyClan } from './use-my-clan'
 import { IncomingInvites } from './clan-invites'
@@ -52,6 +53,7 @@ export function ClanSection({ embedded = false }: { embedded?: boolean } = {}) {
         <div><span>Долг</span><b>{fmt(clan.maintenanceDebt)} ₽</b></div>
         <div><span>Состав</span><b>{clan.members?.length ?? 0}/{clan.memberCapacity}</b></div>
         <div><span>Склад</span><b>{clan.storage?.length ?? 0}/{clan.storageCapacity}</b></div>
+        <div><span>Объекты</span><b>{clan.objects?.length ?? 0}/{clan.objectLimit ?? 0}</b></div>
       </div>
 
       {can('INVITE') && !clan.isFrozen && <InviteBox onDone={done} onFail={fail} />}
@@ -79,6 +81,8 @@ export function ClanSection({ embedded = false }: { embedded?: boolean } = {}) {
         </table>
       </div>
 
+      <ClanHoldings objects={clan.objects ?? []} territories={clan.territories ?? []} />
+
       {can('EDIT') && <ClanIconEditor clanId={clan.id} iconVersion={clan.iconVersion ?? 0} />}
 
       {can('ASSIGN_ROLE') && <RolesEditor roles={clan.roles ?? []} onDone={done} onFail={fail} />}
@@ -93,6 +97,58 @@ export function ClanSection({ embedded = false }: { embedded?: boolean } = {}) {
             <LogOut size={15} /> Выйти из бригады
           </button>
         </div>
+      )}
+    </>
+  )
+}
+
+const OBJECT_STATUS: Record<ClanObject['status'], string> = {
+  ACTIVE: 'работает', DISABLED: 'остановлен', HIDDEN: 'скрыт', DAMAGED: 'повреждён',
+}
+const TERRITORY_STATUS: Record<ClanTerritory['status'], string> = {
+  CONTROLLED: 'под контролем', PROTECTED: 'под защитой', CONTESTED: 'назначен бой', UNDER_ATTACK: 'идёт бой',
+}
+
+/** Что принадлежит бригаде: переданные объекты и районы. */
+function ClanHoldings({ objects, territories }: { objects: ClanObject[]; territories: ClanTerritory[] }) {
+  return (
+    <>
+      <h3>Объекты бригады</h3>
+      {objects.length === 0 ? (
+        <p className="s3-hint">Пока пусто. Свой объект можно передать бригаде в разделе <Link to="/objects">Мои объекты</Link>.</p>
+      ) : (
+        <div className="s3-scroll">
+          <table className="s3-table clan-objects">
+            <thead>
+              <tr><th>Объект</th><th>Уровень</th><th>Состояние</th><th>Касса</th></tr>
+            </thead>
+            <tbody>
+              {objects.map(row => (
+                <tr key={row.id}>
+                  <td>{row.name}</td>
+                  <td>{row.level}</td>
+                  <td className={row.status === 'DAMAGED' ? 'bad' : undefined}>{OBJECT_STATUS[row.status]}</td>
+                  <td>{fmt(row.balance)} ₽</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {territories.length > 0 && (
+        <>
+          <h3>Районы</h3>
+          <div className="s3-scroll">
+            <table className="s3-table clan-objects">
+              <thead><tr><th>Район</th><th>Состояние</th></tr></thead>
+              <tbody>
+                {territories.map(row => (
+                  <tr key={row.id}><td>{row.name}</td><td>{TERRITORY_STATUS[row.status]}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </>
   )

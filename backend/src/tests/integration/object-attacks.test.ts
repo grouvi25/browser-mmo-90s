@@ -282,6 +282,18 @@ describe('клановая собственность на объекты', () =
       .toBe(100_000 + 12_345)
   })
 
+  it('переданный объект виден в карточке бригады вместе с лимитом', async () => {
+    const { boss, clan } = await clanWith('list')
+    const object = await objectOf(boss.id, { balance: 700 })
+    await ClanOwnershipService.transfer(boss.id, object.id)
+
+    const card = await ClansService.get(clan.id)
+    expect(card.objects.map(row => row.id)).toEqual([object.id])
+    expect(card.objects[0]).toMatchObject({ name: 'Цех', status: 'ACTIVE', balance: 0 })
+    expect(card.objectLimit).toBe(clanObjectLimit(0))
+    expect(card.territories).toEqual([])
+  })
+
   it('предпросмотр честно говорит, что операция необратима', async () => {
     const { boss } = await clanWith('prev')
     const object = await objectOf(boss.id, { balance: 500 })

@@ -5,6 +5,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
+import { clanObjectLimit } from '../production/ownership.service'
 import { CLAN_CREATE_COST, CLAN_MIN_LEVEL, CLAN_REJOIN_HOURS, CLAN_RELATION_COOLDOWN_HOURS, DEFAULT_ROLES, clanMemberCapacity, clanStorageCapacity, storageWithdrawDailyLimit, treasurySpendDailyLimit, type ClanPermission } from './clans.formulas'
 
 function permissions(role: { permissions: Prisma.JsonValue }): string[] {
@@ -67,10 +68,25 @@ export const ClansService = {
       where: { code: { in: clan.storage.map(row => row.resourceCode) } }, select: { code: true, name: true },
     })).map(r => [r.code, r.name]))
     const storage = clan.storage.map(row => ({ ...row, resourceName: resourceNames.get(row.resourceCode) ?? row.resourceCode }))
+    // Объекты, переданные бригаде, и её районы — в управлении бригадой
+    // (правка заказчика 21.10: передать объект можно, а увидеть — негде).
+    const [objects, territories] = await Promise.all([
+      prisma.productionObject.findMany({
+        where: { ownerType: 'CLAN', ownerClanId: clan.id },
+        select: { id: true, name: true, type: true, status: true, level: true, balance: true },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.territory.findMany({
+        where: { ownerClanId: clan.id, status: { not: 'NEUTRAL' } },
+        select: { id: true, name: true, status: true },
+        orderBy: { name: 'asc' },
+      }),
+    ])
+    const controlled = territories.filter(row => row.status === 'CONTROLLED').length
     // Картинка иконки отдаётся отдельным адресом, в карточке — только версия.
     const { iconData: _icon, iconMime: _mime, ...plain } = clan
     void _icon; void _mime
-    return { ...plain, storage, memberCapacity: clanMemberCapacity(clan.level), storageCapacity: clanStorageCapacity(clan.level), members: clan.members.map(member => ({ ...member, character: byId.get(member.characterId) })) }
+    return { ...plain, storage, memberCapacity: clanMemberCapacity(clan.level), storageCapacity: clanStorageCapacity(clan.level), objects, objectLimit: clanObjectLimit(controlled), territories, members: clan.members.map(member => ({ ...member, character: byId.get(member.characterId) })) }
   },
 
   /** Иконка бригады (правка заказчика 21.10): ставит глава — право EDIT. */
