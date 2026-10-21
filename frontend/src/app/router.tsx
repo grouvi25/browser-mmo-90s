@@ -9,8 +9,6 @@ import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
 import { ResumeLocation } from './location-persistence'
 import { CityPage } from '../pages/locations/city-page'
-import { UnsortedPage } from '../pages/locations/unsorted-page'
-import { RadioPage } from '../pages/radio/radio-page'
 import { AnnouncementsFeed } from '../pages/radio/announcements-feed'
 
 import { LoginPage }           from '../pages/auth/login-page'
@@ -266,7 +264,8 @@ export function AppRouter() {
 
 
         <Route path="/soon/:key" element={<SoonRoute />} />
-        <Route path="/unsorted" element={<UnsortedPage />} />
+        {/* «Нераспределённое» и Радио убраны (правка заказчика 21.10). */}
+        <Route path="/unsorted" element={<Navigate to="/" replace />} />
         <Route path="/housing" element={
           <ViewportPanel title="Жилой сектор" subtitle="Квартиры и дома">
             <HousingPage />
@@ -276,10 +275,7 @@ export function AppRouter() {
             <WorkPage />
           </ViewportPanel>} />
         <Route path="/station" element={<Navigate to="/district/station" replace />} />
-        {/* Радио — эфир города: общая волна, район и бригада. Заказчик
-            сам предложил читать этот пункт меню как чат, и это
-            единственное прочтение, за которым стоит механика. */}
-        <Route path="/radio" element={<RadioPage />} />
+        <Route path="/radio" element={<Navigate to="/" replace />} />
         {/* Новости и обновления — та же доска объявлений, что и в радио,
             только отфильтрованная по виду. Отдельных страниц под них не
             заводим: источник один и разметка одна. */}

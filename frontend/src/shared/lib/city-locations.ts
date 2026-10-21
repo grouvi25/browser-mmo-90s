@@ -21,6 +21,7 @@ export const CITY_LOCATIONS = [
   // Правка заказчика 21.10: «на главном экране как раз одна кнопка
   // поместится: Жилой сектор — там будут индивидуальные квартиры, дома».
   { key: 'housing', label: 'Жилой сектор', to: '/housing' },
+  { key: 'bars', label: 'Бары', to: '/bars' },
 ] as const
 
 const KNOWN_PLACES: readonly { label: string; to: string }[] = [

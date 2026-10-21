@@ -22,27 +22,9 @@ const PERSONAL: LocationTab[] = [
   // «Навыки» переименованы в «Центр подготовки» (правка заказчика 20.10).
   { key: 'skills', label: 'Центр подготовки', to: '/stats' },
   { key: 'black-market', label: 'Чёрный рынок', to: '/premium' },
-  // Правка заказчика 21.10: комнаты, которым ещё не нашли места, — в одну
-  // вкладку, «чтобы удобно было думать, куда что перемещать».
-  { key: 'unsorted', label: 'Нераспределённое', to: '/unsorted' },
 ]
 
 interface Place { key: string; match: string[]; tabs: LocationTab[] }
-
-/** Комнаты без своего места в городе: бары, вокзал, спальный район,
-    новости и форум. Разложить их по локациям решит заказчик. */
-export const UNSORTED_ROOMS: LocationTab[] = [
-  { key: 'bars', label: 'Бары', to: '/bars' },
-  { key: 'mybar', label: 'Мой бар', to: '/bars/mine' },
-  { key: 'station', label: 'Вокзал', to: '/district/station' },
-  { key: 'storage', label: 'Грузовой склад', to: '/soon/storage' },
-  { key: 'logistics', label: 'Перевозки', to: '/soon/logistics' },
-  { key: 'suburb', label: 'Спальный район', to: '/district/suburb' },
-  { key: 'radio', label: 'Радио', to: '/radio' },
-  { key: 'news', label: 'Новости', to: '/news' },
-  { key: 'updates', label: 'Обновления', to: '/updates' },
-  { key: 'forum', label: 'Форум', to: '/forum' },
-]
 
 const PLACES: Place[] = [
   {
@@ -62,11 +44,16 @@ const PLACES: Place[] = [
       { key: 'private', label: 'Частные лавки', to: '/shops/private' },
     ],
   },
+  // Бары — своя вкладка в Центре (правка заказчика 21.10): из
+  // «Нераспределённого» остались только они, и вкладку убрали.
   {
-    key: 'unsorted',
-    match: ['/unsorted', '/bars', '/district/station', '/district/suburb', '/soon', '/news', '/updates', '/forum', '/radio'],
-    tabs: UNSORTED_ROOMS,
+    key: 'bars', match: ['/bars'], tabs: [
+      { key: 'bars', label: 'Бары', to: '/bars' },
+      { key: 'mybar', label: 'Мой бар', to: '/bars/mine' },
+    ],
   },
+  // Новости, обновления и форум — в верхней строке; полоса внизу у них пустая.
+  { key: 'top', match: ['/news', '/updates', '/forum'], tabs: [] },
   { key: 'housing', match: ['/housing'], tabs: [] },
   { key: 'shop', match: ['/shop'], tabs: [] },
   {

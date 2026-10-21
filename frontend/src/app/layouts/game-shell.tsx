@@ -19,7 +19,7 @@ import { Stage } from '../../shared/lib/stage'
 import { PLATES } from '../../shared/ui/sprite'
 import { CharacterCard } from '../../widgets/character-card/character-card'
 import { LocationTabs } from '../../widgets/city-nav/location-tabs'
-import { CityUtility } from '../../widgets/city-nav/city-utility'
+import { TopNav } from '../../widgets/city-nav/city-nav'
 import { CityChatDock } from '../../widgets/city-feed/city-feed'
 
 export function GameShell() {
@@ -54,9 +54,12 @@ export function GameShell() {
         style={{ backgroundImage: plate, width: MENU_STAGE.w, height: MENU_STAGE.h }}
       />
 
-      <div className="city-top-cover" style={{ backgroundImage: wall }} />
+      {/* Верхняя строка макета вернулась (правка заказчика 21.10): «вернуть
+          строчку Переподключиться к игре, форум, обновления, новости, Выход
+          из аккаунта в самый верх». Её закрывала заглушка фоном, а под
+          карточкой стояли «Профиль / Радио / Выход». */}
+      <TopNav />
       <LocationTabs />
-      <CityUtility />
       <CharacterCard />
 
       <div
