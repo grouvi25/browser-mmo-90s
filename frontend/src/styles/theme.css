@@ -966,6 +966,13 @@ html, body {
   box-shadow: 0 4px 14px rgba(0,0,0,.25); }
 .ether-emoji__grid button { border: 0; background: none; cursor: pointer; font-size: 1.15em; line-height: 1.5; padding: 0; }
 .ether-emoji__grid button:hover { background: #eadbc6; }
+.ether-emoji__grid button:active { background: #dccab2; }
+.ether-emoji__grid button:focus-visible { outline: 2px solid #7a1010; outline-offset: -2px; }
+.ether-emoji__grid { max-height: min(60vh, 320px); overflow-y: auto; }
+/* Свои смайлы в ленте — по высоте строки, чуть крупнее текста. */
+.smile { display: inline-block; width: 1.5em; height: 1.5em; margin: -0.3em 0.05em; vertical-align: middle; }
+.ether-emoji__smile { display: grid; place-items: center; }
+.smile--pick { width: 1.55em; height: 1.55em; margin: 0; }
 .gender-choice { display: flex; gap: 8px; }
 .gender-choice .gender-card { flex: 1; text-align: center; padding: 8px 6px; cursor: pointer; font: inherit; background: var(--bg-panel2); border: 2px solid var(--border); color: inherit; }
 .gender-card:hover { border-color: var(--gold-dim); }

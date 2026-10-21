@@ -131,6 +131,22 @@ test('поддержка: обращение со скриншотом уход�
   await expectNoAxeViolations(page)
 })
 
+// Правка 21.10: свой набор смайлов в стиле игры.
+test('чат: свой смайл уходит кодом и показывается картинкой', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'Поле ввода города — на широком экране')
+  await authPage(page, owner)
+  await page.goto('/')
+  const composer = page.locator('.ether-composer--city')
+  await composer.getByRole('button', { name: 'Смайлики' }).click()
+  await composer.getByRole('option', { name: 'Девятка' }).click()
+  await expect(composer.locator('.ether-input')).toHaveValue(':devyatka: ')
+  await composer.locator('.ether-input').fill('на стрелку :devyatka: :neznakomy:')
+  await composer.locator('.ether-input').press('Enter')
+  const line = page.locator('.ether-body', { hasText: 'на стрелку' }).last()
+  await expect(line.locator('img.smile[alt="Девятка"]')).toBeVisible()
+  await expect(line).toContainText(':neznakomy:')
+})
+
 // Правка 21.10: жильё стоит заранее — 16 квартир и 8 домов на плане.
 test('жилой сектор: план из 24 участков, свободный можно выбрать', async ({ page }) => {
   await authPage(page, owner)
