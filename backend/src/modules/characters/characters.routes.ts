@@ -7,6 +7,8 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { prisma } from '../../shared/db/prisma'
 import { z } from 'zod'
+import { dogSummary } from '../city/city.config'
+import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 
 const BattleLoadoutSchema = z.object({
   itemInstanceIds: z.array(z.string().uuid()).max(4),
@@ -38,6 +40,27 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
     const char = await CharactersService.getProfile(req.authUser.userId)
     await prisma.character.update({ where: { id: char.id }, data: { gender: parsed.data.gender } })
     return reply.send({ gender: parsed.data.gender })
+  })
+
+  // Заметки в «Личном деле»: свои о любом игроке (и о себе), видит только автор.
+  fastify.get<{ Params: { targetId: string } }>('/notes/:targetId', { preHandler: authenticate }, async (req, reply) => {
+    if (!z.string().uuid().safeParse(req.params.targetId).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const me = await CharactersService.getProfile(req.authUser.userId)
+    const note = await prisma.playerNote.findUnique({ where: { authorId_targetId: { authorId: me.id, targetId: req.params.targetId } } })
+    return reply.send({ text: note?.text ?? '' })
+  })
+  fastify.put<{ Params: { targetId: string }; Body: { text: string } }>('/notes/:targetId', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ text: z.string().max(4000) }).safeParse(req.body)
+    if (!z.string().uuid().safeParse(req.params.targetId).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Заметка: не больше 4000 знаков' })
+    const me = await CharactersService.getProfile(req.authUser.userId)
+    const target = await prisma.character.findUnique({ where: { id: req.params.targetId }, select: { id: true } })
+    if (!target) throw AppError.notFound('Character', req.params.targetId)
+    await prisma.playerNote.upsert({
+      where: { authorId_targetId: { authorId: me.id, targetId: target.id } },
+      create: { authorId: me.id, targetId: target.id, text: parsed.data.text },
+      update: { text: parsed.data.text },
+    })
+    return reply.send({ ok: true })
   })
 
   fastify.get('/me', { preHandler: authenticate },
@@ -126,18 +149,35 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
       })
       if (!char) throw AppError.notFound('Character', req.params.nickname)
       if (char.isInvisible) return reply.send({ hidden: true, nickname: req.params.nickname })
-      const clan = char.clanId
-        ? await prisma.clan.findUnique({ where: { id: char.clanId }, select: { name: true, tag: true } })
-        : null
+      const [clan, professions, skills, pets, weapons] = await Promise.all([
+        char.clanId ? prisma.clan.findUnique({ where: { id: char.clanId }, select: { id: true, name: true, iconVersion: true } }) : null,
+        prisma.characterProfession.findMany({ where: { characterId: char.id }, orderBy: { level: 'desc' } }),
+        prisma.weaponSkill.findMany({ where: { characterId: char.id, skillLevel: { gt: 1 } }, orderBy: { skillLevel: 'desc' }, take: 3 }),
+        prisma.characterPet.findMany({ where: { characterId: char.id } }),
+        // Надетое оружие видно и в бою, тайны в нём нет; инвентарь и деньги — нет.
+        prisma.itemInstance.findMany({
+          where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' }, template: { type: 'WEAPON' } },
+          select: { armorSlot: true, template: { select: { name: true, code: true, weaponType: true } } },
+        }),
+      ])
+      // Правка заказчика 21.10: чужой профиль выглядит как свой — те же графы.
       return reply.send({
         id: char.id,
         nickname: char.nickname,
         archetype: char.archetype,
+        gender: char.gender,
         battleLevel: char.battleLevel,
+        economicLevel: char.economicLevel,
+        hpCurrent: char.hpCurrent,
+        hpMax: char.hpMax,
         battlesTotal: char.battlesTotal,
         battlesWon: char.battlesWon,
         location: char.location,
         clan,
+        professions: professions.map(p => ({ professionCode: p.professionCode, level: p.level, name: PROFESSION_NAMES[p.professionCode as ProfessionCode] ?? p.professionCode })),
+        weaponSkills: skills.map(s => ({ weaponType: s.weaponType, skillLevel: s.skillLevel })),
+        dog: dogSummary(pets),
+        weapons: weapons.map(w => ({ armorSlot: w.armorSlot, ...w.template })),
         createdAt: char.createdAt,
       })
     })

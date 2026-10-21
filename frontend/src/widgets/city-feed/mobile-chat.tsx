@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
+import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
 import { EtherComposer, EtherLine, useComposer } from '../chat/ether'
@@ -69,7 +70,7 @@ export function MobileChat() {
               className={'m-chat__player' + (p.self ? ' is-self' : '')}
               onClick={() => navigate(p.self ? '/profile' : `/u/${encodeURIComponent(p.nickname)}`)}
             >
-              <span>{p.nickname}</span>
+              <span>{p.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(p.clan.id, p.clan.iconVersion)} alt="" width={16} height={16} /> : null} {p.nickname}</span>
               <b className={`online-list__lvl online-list__lvl--${p.self ? 'o' : levelTone(p.level)}`}>{p.level}</b>
             </button>
           ))}

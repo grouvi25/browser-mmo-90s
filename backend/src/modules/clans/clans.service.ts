@@ -11,6 +11,9 @@ function permissions(role: { permissions: Prisma.JsonValue }): string[] {
   return Array.isArray(role.permissions) ? role.permissions.filter((value): value is string => typeof value === 'string') : []
 }
 
+/** Больше иконке не нужно: клиент ужимает её до 64×64. */
+export const CLAN_ICON_MAX_BYTES = 100_000
+
 async function memberWithPermission(tx: Prisma.TransactionClient, characterId: string, permission: ClanPermission) {
   const member = await tx.clanMember.findUnique({ where: { characterId }, include: { role: true, clan: true } })
   if (!member || member.status !== 'ACTIVE') throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Вы не состоите в бригаде', 404)
@@ -37,7 +40,7 @@ export const ClansService = {
     const [clans, sieges] = await Promise.all([
       prisma.clan.findMany({
         select: {
-          id: true, name: true, tag: true, level: true, houseDurability: true, houseRazedUntil: true,
+          id: true, name: true, tag: true, level: true, houseDurability: true, houseRazedUntil: true, iconVersion: true,
           _count: { select: { members: { where: { status: 'ACTIVE' } } } },
         },
         orderBy: { name: 'asc' },
@@ -64,7 +67,34 @@ export const ClansService = {
       where: { code: { in: clan.storage.map(row => row.resourceCode) } }, select: { code: true, name: true },
     })).map(r => [r.code, r.name]))
     const storage = clan.storage.map(row => ({ ...row, resourceName: resourceNames.get(row.resourceCode) ?? row.resourceCode }))
-    return { ...clan, storage, memberCapacity: clanMemberCapacity(clan.level), storageCapacity: clanStorageCapacity(clan.level), members: clan.members.map(member => ({ ...member, character: byId.get(member.characterId) })) }
+    // Картинка иконки отдаётся отдельным адресом, в карточке — только версия.
+    const { iconData: _icon, iconMime: _mime, ...plain } = clan
+    void _icon; void _mime
+    return { ...plain, storage, memberCapacity: clanMemberCapacity(clan.level), storageCapacity: clanStorageCapacity(clan.level), members: clan.members.map(member => ({ ...member, character: byId.get(member.characterId) })) }
+  },
+
+  /** Иконка бригады (правка заказчика 21.10): ставит глава — право EDIT. */
+  async setIcon(characterId: string, dataUrl: string) {
+    const parsed = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl)
+    if (!parsed) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Иконка: картинка PNG, JPEG или WebP', 422)
+    if (Buffer.byteLength(parsed[2], 'base64') > CLAN_ICON_MAX_BYTES) {
+      throw new AppError(ErrorCode.VALIDATION_ERROR, 'Иконка слишком большая: не больше 100 КБ', 422)
+    }
+    return withTransaction(async tx => {
+      const member = await memberWithPermission(tx, characterId, 'EDIT')
+      const clan = await tx.clan.update({
+        where: { id: member.clanId },
+        data: { iconData: parsed[2], iconMime: parsed[1], iconVersion: { increment: 1 } },
+        select: { id: true, iconVersion: true },
+      })
+      return clan
+    })
+  },
+
+  async icon(clanId: string) {
+    const clan = await prisma.clan.findUnique({ where: { id: clanId }, select: { iconData: true, iconMime: true } })
+    if (!clan?.iconData || !clan.iconMime) return null
+    return { mime: clan.iconMime, bytes: Buffer.from(clan.iconData, 'base64') }
   },
 
   /** Тег необязателен: заказчик убрал его из интерфейса («только название»),

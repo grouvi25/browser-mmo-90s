@@ -18,6 +18,9 @@ export const CITY_LOCATIONS = [
   { key: 'berezka', label: 'Берёзка', to: '/berezka' },
   { key: 'pets', label: 'Зоомагазин', to: '/pet-shop' },
   { key: 'territories', label: 'Территории', to: '/territories' },
+  // Правка заказчика 21.10: «на главном экране как раз одна кнопка
+  // поместится: Жилой сектор — там будут индивидуальные квартиры, дома».
+  { key: 'housing', label: 'Жилой сектор', to: '/housing' },
 ] as const
 
 const KNOWN_PLACES: readonly { label: string; to: string }[] = [

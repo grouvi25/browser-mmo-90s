@@ -15,6 +15,7 @@ import { ApiError } from '../../shared/api/client'
 import { ClanSection } from '../stage3/clan-section'
 import { IncomingInvites } from '../stage3/clan-invites'
 import { plural } from '../../shared/lib/plural'
+import { SCENES } from '../../shared/ui/sprite'
 
 const msk = (iso: string | Date) => new Date(iso).toLocaleString('ru-RU', {
   timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -35,38 +36,53 @@ function firstAllowedDate(rules: BrigadeHouse['rules'], hour: number) {
   return new Date(Date.now() + MSK + rules.maxLeadDays * 86_400_000).toISOString().slice(0, 10)
 }
 
+/** Правка заказчика 21.10 (образец — «Замки кланов» в «5 королях»):
+    картинка района, под ней кнопки «К дому …» всех бригад. Своя
+    открывает управление бригадой, чужая — её дом: осада, стена. */
 export function BrigadeHouses() {
   const me = useQuery({ queryKey: ['character', 'me'], queryFn: charactersApi.getMe })
   const list = useQuery({ queryKey: ['clans', 'list'], queryFn: clansApi.list, refetchInterval: 30_000 })
   const [picked, setPicked] = useState<string | null>(null)
   const mine = me.data?.clan?.id ?? null
-  const selected = picked ?? mine
   const clans = list.data?.items ?? []
   const now = Date.now()
 
+  if (picked) {
+    const clan = clans.find(c => c.id === picked)
+    return <>
+      <button type="button" className="btn btn-sm brigade-back" onClick={() => setPicked(null)}>← К списку домов</button>
+      {picked === mine && <h2 className="brigade-own-title">Ваша бригада{clan ? ` «${clan.name}»` : ''}</h2>}
+      <House id={picked} />
+      {picked === mine && <ClanSection embedded />}
+    </>
+  }
+
   return <>
+    <img className="brigade-scene" src={SCENES.center} alt="Дома бригад" draggable={false} />
     {list.isLoading && <p role="status">Загрузка…</p>}
     {list.isError && <p role="alert">Список не загрузился. <button className="btn" onClick={() => list.refetch()}>Повторить</button></p>}
     {list.data && clans.length === 0 && <p>В городе пока нет бригад. Зарегистрировать свою можно в <Link to="/city-hall">Мэрии</Link>.</p>}
-    <div className="brigade-tiles">{clans.map(clan => {
+    <nav className="brigade-doors" aria-label="Дома бригад">{clans.map(clan => {
       const razed = !!clan.houseRazedUntil && new Date(clan.houseRazedUntil).getTime() > now
-      return <button type="button" key={clan.id}
-        className={'brigade-tile' + (clan.id === selected ? ' is-selected' : '') + (clan.id === mine ? ' is-mine' : '') + (razed ? ' is-razed' : '')}
-        aria-pressed={clan.id === selected} onClick={() => setPicked(clan.id)}>
-        <b>{clan.name}</b><span>ур. {clan.level}</span>
-        <small>{clan._count?.members ?? 0} {plural(clan._count?.members ?? 0, ['боец', 'бойца', 'бойцов'])}{clan.id === mine ? ' · ваша' : ''}</small>
-        <span className="brigade-tile__house">
-          <i style={{ width: `${clan.houseDurability ?? 100}%` }} />
-        </span>
-        <small>Дом: {clan.houseDurability ?? 100}%{razed ? ' · разгромлен' : ''}</small>
-        {clan.siege && <small className="brigade-tile__siege">{clan.siege.status === 'IN_BATTLE' ? 'Идёт осада' : `Осада ${msk(clan.siege.startsAt)}`}</small>}
+      const note = clan.id === mine ? 'ваша' : razed ? 'разгромлен'
+        : clan.siege ? (clan.siege.status === 'IN_BATTLE' ? 'идёт осада' : `осада ${msk(clan.siege.startsAt)}`) : ''
+      return <button type="button" key={clan.id} className={'brigade-door' + (clan.id === mine ? ' is-mine' : '')}
+        title={`${clan._count?.members ?? 0} ${plural(clan._count?.members ?? 0, ['боец', 'бойца', 'бойцов'])} · дом ${clan.houseDurability ?? 100}%`}
+        onClick={() => setPicked(clan.id)}>
+        <ClanIcon clan={clan} />
+        <span>{clan.id === mine ? 'Резиденция' : 'К дому'} «{clan.name}»</span>
+        {note && <small>{note}</small>}
       </button>
-    })}</div>
-    {selected && <House id={selected} />}
-    {selected && selected === mine && <ClanSection embedded />}
+    })}</nav>
     {!mine && <IncomingInvites />}
     {!mine && list.data && <p><Link to="/city-hall">Зарегистрировать свою бригаду в Мэрии →</Link></p>}
   </>
+}
+
+/** Иконка бригады (загружает глава); без неё — ничего. */
+export function ClanIcon({ clan, size = 18 }: { clan: { id: string; iconVersion?: number | null }; size?: number }) {
+  if (!clan.iconVersion) return null
+  return <img className="clan-icon" src={clansApi.iconUrl(clan.id, clan.iconVersion)} alt="" width={size} height={size} />
 }
 
 function House({ id }: { id: string }) {

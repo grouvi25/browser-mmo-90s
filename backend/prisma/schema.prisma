@@ -1033,6 +1033,11 @@ model Clan {
   id              String            @id @default(uuid())
   name            String            @unique
   tag             String            @unique
+  /// Иконка бригады (загружает глава): PNG/JPEG/WebP до 100 КБ, base64.
+  iconData    String?  @map("icon_data")
+  iconMime    String?  @map("icon_mime")
+  /// Растёт при каждой замене — адрес картинки меняется, кэш браузера не мешает.
+  iconVersion Int      @default(0) @map("icon_version")
   level           Int               @default(0)
   treasury        Int               @default(0)
   maintenanceDebt Int               @default(0) @map("maintenance_debt")
@@ -2203,4 +2208,17 @@ model ClanStorageLog {
 
   @@index([clanId, createdAt])
   @@map("clan_storage_logs")
+}
+
+/// Заметки игрока в «Личном деле» (правка заказчика 21.10): каждый пишет
+/// свои — о себе и о любом другом игроке, — и видит только свои.
+model PlayerNote {
+  id        String   @id @default(uuid())
+  authorId  String   @map("author_id")
+  targetId  String   @map("target_id")
+  text      String   @db.VarChar(4000)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([authorId, targetId])
+  @@map("player_notes")
 }

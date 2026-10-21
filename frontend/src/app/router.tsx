@@ -9,6 +9,7 @@ import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
 import { ResumeLocation } from './location-persistence'
 import { CityPage } from '../pages/locations/city-page'
+import { UnsortedPage } from '../pages/locations/unsorted-page'
 import { RadioPage } from '../pages/radio/radio-page'
 import { AnnouncementsFeed } from '../pages/radio/announcements-feed'
 
@@ -17,7 +18,6 @@ import { RegisterPage }        from '../pages/auth/register-page'
 import { CreateCharacterPage } from '../pages/character/create-character-page'
 import { HubPage }             from '../pages/hub/hub-page'
 import { DossierPage }         from '../pages/profile/dossier-page'
-import { PublicProfilePage }   from '../pages/character/public-profile-page'
 import { InventoryPage }       from '../pages/inventory/inventory-page'
 import { GovernmentShopPage }  from '../pages/shop/government-shop-page'
 import { BattlePage }          from '../pages/battle/battle-page'
@@ -107,6 +107,11 @@ function DistrictRoute() {
   return <LocationHubPage kind={kind as DistrictKey} />
 }
 
+function ForeignDossier() {
+  const { nickname = '' } = useParams()
+  return <DossierPage key={nickname} nickname={nickname} />
+}
+
 function MetrikaTracker() {
   const location = useLocation()
   const first = useRef(true)
@@ -142,6 +147,9 @@ export function AppRouter() {
       <Route path="/resume" element={<RequireAuth><RequireCharacter><ResumeLocation /></RequireCharacter></RequireAuth>} />
       <Route path="/profile"
         element={<RequireAuth><RequireCharacter><DossierPage /></RequireCharacter></RequireAuth>} />
+      {/* Чужой профиль — то же «Личное дело», что и свой (правка 21.10). */}
+      <Route path="/u/:nickname"
+        element={<RequireAuth><RequireCharacter><ForeignDossier /></RequireCharacter></RequireAuth>} />
       <Route path="/battle/:id"
         element={<RequireAuth><RequireCharacter><BattlePage /></RequireCharacter></RequireAuth>} />
       <Route path="/balance-sandbox"
@@ -240,12 +248,17 @@ export function AppRouter() {
             <BattleHistoryPage />
           </ViewportPanel>} />
 
-        <Route path="/u/:nickname" element={
-          <ViewportPanel title="Личное дело">
-            <PublicProfilePage />
-          </ViewportPanel>} />
 
         <Route path="/soon/:key" element={<SoonRoute />} />
+        <Route path="/unsorted" element={<UnsortedPage />} />
+        <Route path="/housing" element={
+          <ViewportPanel title="Жилой сектор" subtitle="Квартиры и дома">
+            <div className="locked-note">
+              <div className="locked-note__title">Скоро</div>
+              <p className="locked-note__text">Здесь будут индивидуальные квартиры и дома игроков.</p>
+              <p className="locked-note__text locked-note__meta">Как они устроены — покупка, аренда, что дают — заказчик ещё описывает.</p>
+            </div>
+          </ViewportPanel>} />
         <Route path="/work" element={
           <ViewportPanel title="Работа" subtitle="Смены, зарплата и профессии">
             <WorkPage />

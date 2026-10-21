@@ -22,9 +22,27 @@ const PERSONAL: LocationTab[] = [
   // «Навыки» переименованы в «Центр подготовки» (правка заказчика 20.10).
   { key: 'skills', label: 'Центр подготовки', to: '/stats' },
   { key: 'black-market', label: 'Чёрный рынок', to: '/premium' },
+  // Правка заказчика 21.10: комнаты, которым ещё не нашли места, — в одну
+  // вкладку, «чтобы удобно было думать, куда что перемещать».
+  { key: 'unsorted', label: 'Нераспределённое', to: '/unsorted' },
 ]
 
 interface Place { key: string; match: string[]; tabs: LocationTab[] }
+
+/** Комнаты без своего места в городе: бары, вокзал, спальный район,
+    новости и форум. Разложить их по локациям решит заказчик. */
+export const UNSORTED_ROOMS: LocationTab[] = [
+  { key: 'bars', label: 'Бары', to: '/bars' },
+  { key: 'mybar', label: 'Мой бар', to: '/bars/mine' },
+  { key: 'station', label: 'Вокзал', to: '/district/station' },
+  { key: 'storage', label: 'Грузовой склад', to: '/soon/storage' },
+  { key: 'logistics', label: 'Перевозки', to: '/soon/logistics' },
+  { key: 'suburb', label: 'Спальный район', to: '/district/suburb' },
+  { key: 'radio', label: 'Радио', to: '/radio' },
+  { key: 'news', label: 'Новости', to: '/news' },
+  { key: 'updates', label: 'Обновления', to: '/updates' },
+  { key: 'forum', label: 'Форум', to: '/forum' },
+]
 
 const PLACES: Place[] = [
   {
@@ -37,13 +55,17 @@ const PLACES: Place[] = [
     ],
   },
   {
-    key: 'market', match: ['/market', '/shops/private', '/bars', '/district/market'], tabs: [
+    key: 'market', match: ['/market', '/shops/private', '/district/market'], tabs: [
       { key: 'board', label: 'Объявления', to: '/market' },
       { key: 'private', label: 'Частные лавки', to: '/shops/private' },
-      { key: 'bars', label: 'Бары', to: '/bars' },
-      { key: 'mybar', label: 'Мой бар', to: '/bars/mine' },
     ],
   },
+  {
+    key: 'unsorted',
+    match: ['/unsorted', '/bars', '/district/station', '/district/suburb', '/soon', '/news', '/updates', '/forum', '/radio'],
+    tabs: UNSORTED_ROOMS,
+  },
+  { key: 'housing', match: ['/housing'], tabs: [] },
   { key: 'shop', match: ['/shop'], tabs: [] },
   {
     // Вкладки «Промзона» и «Гаражи» с названием самой локации убраны: рядом
