@@ -36,6 +36,8 @@ export interface OnlinePlayer {
   characterId: string
   nickname: string
   level: number
+  /** Бригада игрока с версией иконки (правка 21.10). */
+  clan?: { id: string; name: string; iconVersion: number } | null
 }
 
 export const chatApi = {

@@ -195,13 +195,18 @@ export const ChatService = {
     if (!ids.length) return []
     const rows = await prisma.character.findMany({
       where: { id: { in: ids } },
-      select: { id: true, nickname: true, battleLevel: true },
+      select: { id: true, nickname: true, battleLevel: true, clanId: true },
     })
+    const clanIds = [...new Set(rows.map(r => r.clanId).filter(Boolean) as string[])]
+    const clans = new Map((await prisma.clan.findMany({
+      where: { id: { in: clanIds } }, select: { id: true, name: true, iconVersion: true },
+    })).map(c => [c.id, c]))
     // Порядок задаёт Redis — свежие первыми; база отдаёт как попало.
     const byId = new Map(rows.map(r => [r.id, r]))
     return ids.flatMap(id => {
       const row = byId.get(id)
-      return row ? [{ characterId: row.id, nickname: row.nickname, level: row.battleLevel }] : []
+      // Бригада с иконкой — в списке онлайн рядом с ником (правка 21.10).
+      return row ? [{ characterId: row.id, nickname: row.nickname, level: row.battleLevel, clan: row.clanId ? clans.get(row.clanId) ?? null : null }] : []
     })
   },
 

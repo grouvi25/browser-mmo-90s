@@ -11,6 +11,7 @@ import '../shop/shop.css'
 import { dogBonusText } from '../../shared/lib/dog'
 import { BrigadeHouses } from './brigade-houses'
 import { IncomingInvites } from '../stage3/clan-invites'
+import { ClanIconPicker } from '../stage3/clan-icon-upload'
 import '../stage3/stage3.css'
 
 type Kind = 'hall' | 'school' | 'prison' | 'houses' | 'tsum' | 'berezka' | 'pets'
@@ -37,8 +38,14 @@ function QueryState({ loading, error, retry }: { loading: boolean; error: boolea
 }
 function CityHall() {
   const [name, setName] = useState('')
+  const [icon, setIcon] = useState<string | null>(null)
   const me = useQuery({ queryKey: ['character', 'me'], queryFn: charactersApi.getMe })
-  const action = useCityAction(() => clansApi.create(name.trim()))
+  // Иконку ставит глава при регистрации (правка 21.10): сразу после создания.
+  const action = useCityAction(async () => {
+    const clan = await clansApi.create(name.trim())
+    if (icon) await clansApi.setIcon(icon)
+    return clan
+  })
   // Правка заказчика: состоящему в бригаде вторую не регистрируют — сервер
   // отказывал и раньше, но форма висела и обещала регистрацию.
   if (me.data?.clan) return <><p>Вы состоите в бригаде «{me.data.clan.name}». Зарегистрировать вторую нельзя.</p>
@@ -46,6 +53,7 @@ function CityHall() {
   return <><IncomingInvites /><p>Зарегистрируйте бригаду. Состав, общак и склад находятся в Домах бригад.</p>
     <form className="city-card" onSubmit={event => { event.preventDefault(); action.mutate(undefined) }}>
       <label>Название<input required minLength={3} maxLength={32} value={name} onChange={e => setName(e.target.value)} /></label>
+      <div>Иконка бригады (видна в списке игроков онлайн)<ClanIconPicker value={icon} onChange={setIcon} /></div>
       <p>Регистрация: 25 000 ₽, нужен 5-й боевой уровень. Содержание: 500 ₽ в сутки из общака.</p>
       <button className="btn btn-primary" disabled={action.isPending}>Зарегистрировать бригаду</button>
     </form><Message error={action.error} success={action.isSuccess} /><Link to="/clan-houses">Перейти в Дома бригад →</Link></>

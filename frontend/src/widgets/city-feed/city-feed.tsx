@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
+import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
 import { EtherComposer, EtherLine, useComposer } from '../chat/ether'
@@ -32,6 +33,7 @@ export interface OnlinePlayer {
   level: number
   tone: 'r' | 'c' | 'o'
   self?: boolean
+  clan?: { id: string; name: string; iconVersion: number } | null
 }
 
 // ── Выдвижная полоса чата ────────────────────────────────────
@@ -162,6 +164,7 @@ export function OnlineList() {
     level: p.level,
     tone: p.characterId === char?.id ? 'o' : levelTone(p.level),
     self: p.characterId === char?.id,
+    clan: p.clan,
   }))
   players.sort((a, b) => Number(b.self ?? false) - Number(a.self ?? false))
 
@@ -198,6 +201,7 @@ export function OnlineList() {
             onClick={() => navigate(p.self ? '/profile' : `/u/${encodeURIComponent(p.nick)}`)}
             title={p.self ? 'Это вы — открыть личное дело' : `Открыть профиль ${p.nick}`}
           >
+            {p.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(p.clan.id, p.clan.iconVersion)} alt="" title={`Бригада «${p.clan.name}»`} width={14} height={14} /> : null}
             <span className="online-list__nick">{p.nick}</span>
             <span className={`online-lvl online-lvl--${p.tone}`}>{p.level}</span>
           </div>

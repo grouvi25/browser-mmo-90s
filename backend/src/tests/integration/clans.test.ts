@@ -70,6 +70,25 @@ describe('clans', () => {
     await expect(ClansService.create(other.id, name.toUpperCase())).rejects.toThrow('уже есть')
   })
 
+  it('иконку ставит глава: картинка отдаётся отдельно, в карточке — только версия', async () => {
+    const { boss, clan } = await clanWithBoss()
+    const recruit = await player('icon-r')
+    const invite = await ClansService.invite(boss.id, { characterId: recruit.id })
+    await ClansService.accept(recruit.id, invite.id)
+    const png = 'data:image/png;base64,' + Buffer.from('fake-png-bytes').toString('base64')
+    await expect(ClansService.setIcon(recruit.id, png)).rejects.toThrow()
+    await expect(ClansService.setIcon(boss.id, 'data:text/html;base64,PGI+')).rejects.toThrow('PNG')
+    const saved = await ClansService.setIcon(boss.id, png)
+    expect(saved.iconVersion).toBe(1)
+    const icon = await ClansService.icon(clan.id)
+    expect(icon?.mime).toBe('image/png')
+    expect(icon?.bytes.toString()).toBe('fake-png-bytes')
+    const card = await ClansService.get(clan.id) as Record<string, unknown>
+    expect(card.iconData).toBeUndefined()
+    expect(card.iconVersion).toBe(1)
+    expect((await ClansService.list()).find(c => c.id === clan.id)?.iconVersion).toBe(1)
+  })
+
   it('invites, accepts and assigns a role to the correct target member (not the actor)', async () => {
     const { boss, clan } = await clanWithBoss()
     const recruit = await player('recruit')

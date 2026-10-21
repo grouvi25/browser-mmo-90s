@@ -42,6 +42,8 @@ export interface Clan {
   name: string
   tag: string
   level: number
+  /** 0 — иконки нет; растёт при каждой замене. */
+  iconVersion?: number
   treasury: number
   maintenanceDebt: number
   isFrozen: boolean
@@ -102,6 +104,8 @@ export interface ClanInvite {
 }
 
 export const clansApi = {
+  iconUrl: (id: string, version: number) => `${(import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_API_BASE_URL || ''}/api/clans/${id}/icon?v=${version}`,
+  setIcon: (dataUrl: string) => api.put<{ id: string; iconVersion: number }>('/api/clans/icon', { dataUrl }),
   list: () => api.get<{ items: Clan[] }>('/api/clans'),
   get: (id: string) => api.get<Clan>(`/api/clans/${id}`),
   storageLog: (page = 1) => api.get<{ items: Array<{ id: string; at: string; nickname: string; resource: string; amount: number }>; page: number; pages: number; total: number }>(`/api/clans/storage/log?page=${page}`),

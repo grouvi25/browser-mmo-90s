@@ -5,6 +5,7 @@ import { clansApi, CLAN_PERMISSIONS, type ClanPermission } from '../../shared/ap
 import { fmt, Skeleton, Fault, Note } from './stage3-ui'
 import { useMyClan } from './use-my-clan'
 import { IncomingInvites } from './clan-invites'
+import { ClanIconEditor } from './clan-icon-upload'
 
 /** embedded — внутри «Домов бригад»: название там уже стоит в карточке дома. */
 export function ClanSection({ embedded = false }: { embedded?: boolean } = {}) {
@@ -77,6 +78,8 @@ export function ClanSection({ embedded = false }: { embedded?: boolean } = {}) {
           </tbody>
         </table>
       </div>
+
+      {can('EDIT') && <ClanIconEditor clanId={clan.id} iconVersion={clan.iconVersion ?? 0} />}
 
       {can('ASSIGN_ROLE') && <RolesEditor roles={clan.roles ?? []} onDone={done} onFail={fail} />}
 

@@ -10,8 +10,16 @@ export interface PublicProfile {
   battlesTotal?: number
   battlesWon?: number
   location?: string | null
-  clan?: { name: string; tag: string } | null
+  clan?: { id: string; name: string; iconVersion?: number } | null
   createdAt?: string
+  gender?: 'MALE' | 'FEMALE'
+  economicLevel?: number
+  hpCurrent?: number
+  hpMax?: number
+  professions?: Array<{ professionCode: string; level: number; name: string }>
+  weaponSkills?: Array<{ weaponType: string; skillLevel: number }>
+  dog?: Character['dog']
+  weapons?: Array<{ armorSlot: string | null; name: string; code: string; weaponType: string | null }>
 }
 
 export const charactersApi = {
@@ -26,6 +34,9 @@ export const charactersApi = {
 
   getById: (id: string) =>
     api.get<Character>(`/api/characters/${id}`),
+
+  note: (targetId: string) => api.get<{ text: string }>(`/api/characters/notes/${targetId}`),
+  saveNote: (targetId: string, text: string) => api.put<{ ok: true }>(`/api/characters/notes/${targetId}`, { text }),
 
   getByNickname: (nickname: string) =>
     api.get<PublicProfile>(`/api/characters/by-nickname/${encodeURIComponent(nickname)}`),

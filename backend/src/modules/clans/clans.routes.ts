@@ -19,6 +19,20 @@ export async function clansRoutes(fastify: FastifyInstance) {
     return item
   }
   fastify.get('/', { preHandler: authenticate }, async (_req, reply) => reply.send({ items: await ClansService.list() }))
+  // Картинка иконки — без входа: <img> не умеет слать токен. Секрета в ней
+  // нет, а адрес с версией кэшируется надолго.
+  fastify.get<{ Params: { id: string } }>('/:id/icon', async (req, reply) => {
+    if (!Id.safeParse(req.params.id).success) return reply.code(404).send()
+    const icon = await ClansService.icon(req.params.id)
+    if (!icon) return reply.code(404).send()
+    return reply.header('Content-Type', icon.mime).header('Cache-Control', 'public, max-age=31536000, immutable').send(icon.bytes)
+  })
+  fastify.put<{ Body: { dataUrl: string } }>('/icon', { preHandler: authenticate, bodyLimit: 200_000 }, async (req, reply) => {
+    const parsed = z.object({ dataUrl: z.string().max(180_000) }).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Иконка слишком большая' })
+    const actor = await character(req.authUser.userId)
+    return reply.send(await ClansService.setIcon(actor.id, parsed.data.dataUrl))
+  })
   fastify.get<{ Params: { id: string } }>('/:id', { preHandler: authenticate }, async (req, reply) => {
     if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const clan = await ClansService.get(req.params.id)
