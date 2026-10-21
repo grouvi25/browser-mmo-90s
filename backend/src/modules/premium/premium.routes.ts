@@ -59,14 +59,15 @@ export async function helpersRoutes(fastify: FastifyInstance) {
     return reply.send(await HelpersService.eligibleObjects(character.id))
   })
 
-  fastify.post<{ Body: { name: string; professionCode: string } }>('/', { preHandler: authenticate }, async (req, reply) => {
+  fastify.post<{ Body: { name: string; professionCode?: string; kind?: 'WORK' | 'COMBAT' } }>('/', { preHandler: authenticate }, async (req, reply) => {
     const parsed = z.object({
       name: z.string().trim().min(2).max(24),
-      professionCode: z.string().trim().min(2).max(40),
-    }).safeParse(req.body)
-    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      kind: z.enum(['WORK', 'COMBAT']).default('WORK'),
+      professionCode: z.string().trim().min(2).max(40).optional(),
+    }).refine(v => v.kind === 'COMBAT' || !!v.professionCode, { message: 'Рабочему помощнику нужна профессия' }).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Имя от 2 знаков; рабочему — профессия' })
     const character = await me(req.authUser.userId)
-    return reply.code(201).send(await HelpersService.hire(character.id, parsed.data.name, parsed.data.professionCode))
+    return reply.code(201).send(await HelpersService.hire(character.id, parsed.data.name, parsed.data.professionCode ?? '', parsed.data.kind))
   })
 
   fastify.delete<{ Params: { id: string } }>('/:id', { preHandler: authenticate }, async (req, reply) => {

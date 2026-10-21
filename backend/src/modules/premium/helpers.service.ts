@@ -81,6 +81,7 @@ export const HelpersService = {
       items: helpers.map(helper => ({
         id: helper.id,
         name: helper.name,
+        kind: helper.kind,
         // Без подписки помощник числится DORMANT, что бы ни лежало в базе:
         // подписка могла истечь по времени, а строку никто не трогал.
         status: state.isPremium ? helper.status : 'DORMANT',
@@ -126,12 +127,19 @@ export const HelpersService = {
     return { items }
   },
 
-  /** Нанять помощника. */
-  async hire(characterId: string, name: string, professionCode: string) {
+  /**
+   * Нанять помощника. Правка заказчика 21.10: всего двое — боевой и
+   * рабочий или два рабочих; двух боевых нельзя. Уволенный помощник
+   * удаляется вместе с прогрессом: новый начинает с нуля.
+   */
+  async hire(characterId: string, name: string, professionCode: string, kind: 'WORK' | 'COMBAT' = 'WORK') {
     return withTransaction(async tx => {
       const state = await assertSubscribed(characterId)
-      if (!knownProfession(professionCode)) {
+      if (kind === 'WORK' && !knownProfession(professionCode)) {
         throw new AppError(ErrorCode.HELP_PROFESSION_UNKNOWN, 'Неизвестная профессия', 400)
+      }
+      if (kind === 'COMBAT' && await tx.helper.count({ where: { characterId, kind: 'COMBAT' } }) > 0) {
+        throw new AppError(ErrorCode.HELP_SLOTS_FULL, 'Боевой помощник может быть только один: второй — только рабочий', 409)
       }
       const used = await tx.helper.count({ where: { characterId } })
       if (used >= state.benefits.helperSlots) {
@@ -142,9 +150,9 @@ export const HelpersService = {
         )
       }
       const helper = await tx.helper.create({
-        data: { characterId, name: name.trim(), professionCode },
+        data: { characterId, name: name.trim(), kind, professionCode: kind === 'COMBAT' ? 'combat' : professionCode },
       })
-      return { id: helper.id, name: helper.name, professionCode: helper.professionCode }
+      return { id: helper.id, name: helper.name, kind: helper.kind, professionCode: helper.professionCode }
     })
   },
 
@@ -175,6 +183,7 @@ export const HelpersService = {
       await assertSubscribed(characterId)
       const helper = await tx.helper.findUnique({ where: { id: helperId } })
       if (!helper || helper.characterId !== characterId) throw AppError.notFound('Helper', helperId)
+      if (helper.kind === 'COMBAT') throw new AppError(ErrorCode.HELP_PROFESSION_UNKNOWN, 'Боевой помощник на смены не ходит', 409)
       if (helper.activeShiftId) {
         throw new AppError(ErrorCode.HELP_ALREADY_WORKING, 'Помощник уже на смене', 409)
       }

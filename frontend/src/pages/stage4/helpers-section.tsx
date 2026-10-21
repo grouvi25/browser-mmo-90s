@@ -37,6 +37,7 @@ export function HelpersSection() {
   const [msg, setMsg] = useState('')
   const [bad, setBad] = useState(false)
 
+  const [kind, setKind] = useState<'WORK' | 'COMBAT'>('WORK')
   const query = useQuery({ queryKey: ['helpers'], queryFn: helpersApi.list, refetchInterval: 30_000 })
   // Только свои и бригадные объекты: на государственном помощник не работает
   // (решение по В10). Список считает сервер, чтобы экран и мутация не разошлись.
@@ -50,11 +51,13 @@ export function HelpersSection() {
   const fail = (e: Error) => { setBad(true); setMsg(e.message) }
 
   const hire = useMutation({
-    mutationFn: () => helpersApi.hire(name, profession),
+    mutationFn: () => helpersApi.hire(name, profession, kind),
     onSuccess: () => { setName(''); done('Помощник нанят') },
     onError: fail,
   })
-  const dismiss = useMutation({ mutationFn: helpersApi.dismiss, onSuccess: () => done('Помощник уволен'), onError: fail })
+  const dismiss = useMutation({ mutationFn: helpersApi.dismiss, onSuccess: () => done('Помощник уволен, его прогресс потерян'), onError: fail })
+  // Правка заказчика 21.10: двое — боевой и рабочий или два рабочих.
+  const hasCombat = (query.data?.items ?? []).some(h => h.kind === 'COMBAT')
   const work = useMutation({
     mutationFn: ({ id, objectId }: { id: string; objectId: string }) => helpersApi.work(id, objectId),
     onSuccess: () => done('Помощник вышел на смену'),
@@ -118,9 +121,15 @@ export function HelpersSection() {
             maxLength={24}
             aria-label="Имя помощника"
           />
-          <select value={profession} onChange={event => setProfession(event.target.value)} aria-label="Профессия">
-            {PROFESSIONS.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}
+          <select value={kind} onChange={event => setKind(event.target.value as 'WORK' | 'COMBAT')} aria-label="Вид помощника">
+            <option value="WORK">Рабочий</option>
+            <option value="COMBAT" disabled={hasCombat}>Боевой{hasCombat ? ' (уже есть)' : ''}</option>
           </select>
+          {kind === 'WORK' && (
+            <select value={profession} onChange={event => setProfession(event.target.value)} aria-label="Профессия">
+              {PROFESSIONS.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}
+            </select>
+          )}
           <button type="submit" disabled={busy || name.trim().length < 2}>
             <UserPlus size={13} /> Нанять
           </button>
@@ -128,7 +137,7 @@ export function HelpersSection() {
       )}
 
       {items.length === 0
-        ? <Empty title="Помощников нет" hint="Нанять можно двоих — при активной подписке." />
+        ? <Empty title="Помощников нет" hint="Двое: боевой и рабочий или два рабочих (два боевых нельзя). При увольнении прогресс рабочего теряется." />
         : (
           <ul className="s4-helpers">
             {items.map(helper => (
@@ -174,6 +183,9 @@ function HelperCard({
         {dormant && <span className="s4-muted"><Moon size={12} /> спит без подписки</span>}
       </div>
 
+      {helper.kind === 'COMBAT' ? (
+        <p className="s4-muted">Боевой помощник. Что он делает в бою — заказчик ещё описывает.</p>
+      ) : <>
       <dl className="s4-helper__facts">
         <div><dt>Профессия</dt><dd>{professionName(helper.professionCode)}</dd></div>
         <div>
@@ -205,11 +217,13 @@ function HelperCard({
         </div>
       )}
 
+      </>}
+
       <button
         type="button"
         className="s4-ghost s4-helper__dismiss"
         disabled={busy || !!shift}
-        onClick={onDismiss}
+        onClick={() => { if (window.confirm(`Уволить ${helper.name}? Весь его прогресс пропадёт: новый помощник начнёт с нуля.`)) onDismiss() }}
         title={shift ? 'Сначала закройте смену' : 'Уволить'}
       >
         <Trash2 size={12} /> Уволить

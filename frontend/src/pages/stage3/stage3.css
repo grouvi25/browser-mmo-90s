@@ -149,3 +149,8 @@
 .storage-log__pages{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .storage-log__pages button{min-width:44px;padding:8px 10px}
 .storage-log__pages button.is-active,.storage-log__pages button.is-active:hover:not(:disabled){background:var(--s3-ink);color:var(--s3-paper)}
+
+/* Двор фермы (правка 21.10) */
+.farm-yard{margin-top:14px}.farm-yard h3{margin:0 0 6px}
+.s3 .farm-yard__item{display:grid;gap:4px;max-width:300px;cursor:default}
+.farm-yard__done{font-size:0.8rem;font-weight:700;color:var(--s3-green)}

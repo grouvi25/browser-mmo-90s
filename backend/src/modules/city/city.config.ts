@@ -1,5 +1,7 @@
 /** Начальный баланс новых локаций. Документ не задаёт цены/бонусы;
  * эти значения централизованы и явно перечислены в CITY_CHANGES.md. */
+import { DOG_BREEDS, DOG_MAX_LEVEL, breedOf, dogAllocation, dogBonus, dogExpForLevel, dogGear, freeDogPoints, type DogRow, type PetStatBonus } from './dogs'
+
 export const CityConfig = {
   professionPrice: 500,
   /** Старые порции корма (по суткам) докармливаются кнопкой «Покормить». */
@@ -7,11 +9,8 @@ export const CityConfig = {
   /** Правка заказчика (16.10.2026): кота нет, три собаки. Бонус к
       характеристикам действует в бою, пока собака сыта. Одна собака на
       персонажа: она одна и показывается в профиле. */
-  pets: [
-    { code: 'mastiff', name: 'Мастифф', role: 'Танк, защитник', price: 3000, bonus: { end: 2 } },
-    { code: 'malinois', name: 'Малинуа', role: 'Ловкость', price: 3000, bonus: { agi: 2 } },
-    { code: 'doberman', name: 'Доберман', role: 'Удача', price: 3000, bonus: { luck: 2 } },
-  ],
+  /** Породы — в dogs.ts: уровни, очки, снаряжение (правка 21.10). */
+  pets: DOG_BREEDS,
   /** Кот и пёс прошлого выката: их владельцы бесплатно меняют их на собаку. */
   legacyPetCodes: ['cat', 'dog'] as readonly string[],
   /** Корм покупается сроком сытости; самый долгий — за доллары (донат). */
@@ -32,7 +31,7 @@ export const CityConfig = {
       ремонта и оценки вещи. */
   dollarPrices: { tsum_named_knife: 20, tsum_named_jacket: 25, berezka_experience_amulet: 30 } as Record<string, number>,
 } as const
-export const CITY_PATHS = ['/', '/unsorted', '/housing', '/pvp', '/market', '/shop', '/district/industrial', '/district/garages',
+export const CITY_PATHS = ['/', '/unsorted', '/housing', '/pvp', '/market', '/market/trader', '/market/shops', '/shop', '/district/industrial', '/district/garages',
   '/city-hall', '/inventory', '/farm', '/school', '/prison', '/clan-houses', '/tsum', '/berezka',
   '/pet-shop', '/territories', '/work', '/objects', '/resources', '/recipes', '/repair', '/upgrades',
   '/plants', '/bars', '/bars/mine', '/clans', '/clans/storage', '/clans/treasury', '/clans/relations',
@@ -42,6 +41,7 @@ export const CITY_PATHS = ['/', '/unsorted', '/housing', '/pvp', '/market', '/sh
 export function validCityPath(path: string): boolean {
   return (CITY_PATHS as readonly string[]).includes(path)
     || /^\/territories\/[a-z0-9_-]+\/claims\/[0-9a-f-]{36}$/i.test(path)
+    || /^\/market\/shops\/\d{1,9}$/.test(path)
 }
 export function inPrison(until: Date | null, now = new Date()): boolean {
   return !!until && until.getTime() > now.getTime()
@@ -50,28 +50,40 @@ export function artifactBonus(values: number[]): number {
   return Math.min(0.5, values.reduce((sum, value) => sum + Math.max(0, Math.min(0.5, value)), 0))
 }
 
-export type PetStatBonus = Partial<Record<'str' | 'agi' | 'rea' | 'acc' | 'end' | 'luck', number>>
+export type { PetStatBonus } from './dogs'
+
+const dogOf = (pets: readonly DogRow[] | undefined) => pets?.find(pet => !!breedOf(pet.code))
 
 /** Бонус сытой собаки к характеристикам. Старые питомцы (кот, пёс) бонуса не дают. */
-export function petStatBonus(pets: readonly { code: string; fedUntil: Date | null }[] | undefined, now = new Date()): PetStatBonus {
-  const dog = pets?.find(pet => CityConfig.pets.some(entry => entry.code === pet.code))
+export function petStatBonus(pets: readonly DogRow[] | undefined, now = new Date()): PetStatBonus {
+  const dog = dogOf(pets)
   if (!dog?.fedUntil || dog.fedUntil <= now) return {}
-  return { ...CityConfig.pets.find(entry => entry.code === dog.code)!.bonus }
+  return dogBonus(dog)
 }
 
 /** Характеристики с бонусом собаки — для расчёта боя. */
-export function withPetBonus<T extends Record<string, unknown>>(stats: T, pets: readonly { code: string; fedUntil: Date | null }[] | undefined, now = new Date()): T {
+export function withPetBonus<T extends Record<string, unknown>>(stats: T, pets: readonly DogRow[] | undefined, now = new Date()): T {
   const bonus = petStatBonus(pets, now)
   const out: Record<string, unknown> = { ...stats }
   for (const [key, value] of Object.entries(bonus)) out[key] = Number(out[key] ?? 0) + (value ?? 0)
   return out as T
 }
 
-/** Собака для профиля: кто, сыта ли и что даёт. */
-export function dogSummary(pets: readonly { id: string; code: string; fedUntil: Date | null }[] | undefined, now = new Date()) {
-  const dog = pets?.find(pet => CityConfig.pets.some(entry => entry.code === pet.code))
+/** Собака для профиля и Зоомагазина: кто, уровень, сыта ли, что даёт. */
+export function dogSummary(pets: readonly DogRow[] | undefined, now = new Date()) {
+  const dog = dogOf(pets)
   if (!dog) return null
-  const entry = CityConfig.pets.find(item => item.code === dog.code)!
+  const breed = breedOf(dog.code)!
   const fed = !!dog.fedUntil && dog.fedUntil > now
-  return { id: dog.id, code: dog.code, name: entry.name, role: entry.role, fedUntil: dog.fedUntil, fed, bonus: fed ? entry.bonus : {} }
+  const level = dog.level ?? 1
+  const exp = dog.exp ?? 0
+  const gear = dogGear(dog)
+  return {
+    id: dog.id, code: dog.code, name: breed.name, role: breed.role, fedUntil: dog.fedUntil, fed,
+    level, exp, levelExp: dogExpForLevel(level), nextLevelExp: level < DOG_MAX_LEVEL ? dogExpForLevel(level + 1) : null,
+    freeAllocation: !!breed.freeAllocation, freePoints: freeDogPoints(dog), allocation: dogAllocation(dog),
+    gear: Object.fromEntries(Object.entries(gear).map(([slot, item]) => [slot, item ? { code: item.code, name: item.name, bonus: item.bonus } : null])),
+    fullBonus: dogBonus(dog),
+    bonus: fed ? dogBonus(dog) : {},
+  }
 }

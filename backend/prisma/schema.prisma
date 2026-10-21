@@ -560,6 +560,12 @@ model Character {
 
   // Status
   /// Пол персонажа (правка заказчика): в досье «Муж/Жена».
+  /// Рабочий фермы за донат: сам собирает созревший урожай до этой даты.
+  farmWorkerUntil DateTime? @map("farm_worker_until")
+  /// Профессия «Торгаш» (правка 21.10): 1 — вещи за рубли, 2 — и за доллары.
+  traderLevel Int @default(0) @map("trader_level")
+  /// Номер магазина торгаша — по нему лавку ищут и рекламируют.
+  shopNumber  Int? @unique @map("shop_number")
   gender Gender @default(MALE)
   status CharacterStatus @default(ACTIVE)
 
@@ -1457,6 +1463,9 @@ model MarketListing {
   resourceTemplateId String?             @map("resource_template_id")
   resourceAmount     Int?                @map("resource_amount")
   price              Int
+  /// Валюта лота (правка заказчика 21.10): доллары — для торгаша 2-го
+  /// уровня и для ресурсов от добытчика 2-го уровня.
+  currency           MarketCurrency      @default(RUB)
   listingFee         Int                 @map("listing_fee")
   saleTax            Int?                @map("sale_tax")
   expiresAt          DateTime            @map("expires_at")
@@ -1936,6 +1945,13 @@ enum PremiumProductKind {
   CONVENIENCE // удобство, на бой не влияет
 }
 
+/// Правка заказчика 21.10: помощников два — боевой и рабочий или два
+/// рабочих; двух боевых нельзя.
+enum HelperKind {
+  WORK
+  COMBAT
+}
+
 enum HelperStatus {
   ACTIVE // подписка активна, работает
   DORMANT // подписки нет, остаётся в профиле
@@ -1987,6 +2003,7 @@ model Helper {
   id              String       @id @default(uuid())
   characterId     String       @map("character_id")
   name            String
+  kind            HelperKind   @default(WORK)
   status          HelperStatus @default(ACTIVE)
   /// Профессия своя, не хозяйская. Потолок 3 при потолке игрока 6:
   /// помощник никогда не заменит специалиста на верхних переделах.
@@ -2092,6 +2109,13 @@ model CharacterPet {
   name        String
   food        Int       @default(0)
   fedUntil    DateTime? @map("fed_until")
+  /// Правка заказчика 21.10: у собак свои уровни, опыт, очки и снаряжение.
+  level       Int       @default(1)
+  exp         Int       @default(0)
+  /// Распределение очков донатной собаки: { "str": 2, "luck": 1 }.
+  allocation  Json?
+  /// Снаряжение по слотам: { "MUZZLE": "dog_muzzle_leather", ... }.
+  gear        Json?
   createdAt   DateTime  @default(now()) @map("created_at")
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
@@ -2106,6 +2130,13 @@ enum DollarReason {
   TRANSFER_OUT // дилер перевёл игроку
   TRANSFER_IN // игрок получил от дилера
   PURCHASE // покупка товара за доллары
+  MARKET_SALE // выручка с продажи на рынке за доллары
+  MARKET_TAX // налог с такой продажи
+}
+
+enum MarketCurrency {
+  RUB
+  USD
 }
 
 /// Журнал игровых долларов. Каждая операция с балансом после неё:
@@ -2221,4 +2252,16 @@ model PlayerNote {
 
   @@unique([authorId, targetId])
   @@map("player_notes")
+}
+
+/// Постройки двора фермы — без участка (правка заказчика 21.10: «погреб
+/// и сторожевая будка строятся отдельно от участков»).
+model FarmYardBuilding {
+  id          String           @id @default(uuid())
+  characterId String           @map("character_id")
+  type        FarmBuildingType
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@unique([characterId, type])
+  @@map("farm_yard_buildings")
 }

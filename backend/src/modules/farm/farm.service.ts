@@ -4,7 +4,10 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
-import { CROPS, FARM_BUILDINGS, FARM_MAX_PLOTS, FARM_MAX_WATERS, FARM_WATER_COOLDOWN_MINUTES, adjacentSlots, applyBuildingBonuses, type CropCode, type FarmBuildingCode, harvestAmount, initialFarmTimers, plotPrice, wateredReadyAt } from './farm.formulas'
+import { DollarsService } from '../dollars/dollars.service'
+import { NoticesService } from '../chat/notices.service'
+import { logger } from '../../shared/logger/logger'
+import { FARM_WORKER, isYardBuilding, withCellar, YARD_BUILDINGS, type YardBuildingCode, CROPS, FARM_BUILDINGS, FARM_MAX_PLOTS, FARM_MAX_WATERS, FARM_WATER_COOLDOWN_MINUTES, adjacentSlots, applyBuildingBonuses, type CropCode, type FarmBuildingCode, harvestAmount, initialFarmTimers, plotPrice, wateredReadyAt } from './farm.formulas'
 
 async function professionLevel(characterId: string): Promise<number> {
   const row = await prisma.characterProfession.findUnique({
@@ -19,10 +22,13 @@ export const FarmService = {
       where: { characterId_slot: { characterId, slot: 1 } },
       update: {}, create: { characterId, slot: 1 },
     })
-    const [plots, level] = await Promise.all([
+    const [plots, level, yard, owner] = await Promise.all([
       prisma.farmPlot.findMany({ where: { characterId }, include: { building: true }, orderBy: { slot: 'asc' } }),
       professionLevel(characterId),
+      prisma.farmYardBuilding.findMany({ where: { characterId }, select: { type: true } }),
+      prisma.character.findUnique({ where: { id: characterId }, select: { farmWorkerUntil: true } }),
     ])
+    const hasCellar = yard.some(b => b.type === 'CELLAR') || plots.some(plot => plot.building?.type === 'CELLAR')
     const now = new Date()
     return {
       plots: plots.map(plot => ({
@@ -32,7 +38,10 @@ export const FarmService = {
       crops: Object.entries(CROPS).map(([code, crop]) => ({ code, ...crop, available: level >= crop.requiredLevel })),
       professionLevel: level,
       buildings: FARM_BUILDINGS,
-      cellarSaleBonus: plots.some(plot => plot.building?.type === 'CELLAR') ? 0.10 : 0,
+      cellarSaleBonus: hasCellar ? 0.10 : 0,
+      yard: yard.map(b => b.type),
+      yardBuildings: YARD_BUILDINGS,
+      worker: { until: owner?.farmWorkerUntil ?? null, priceDollars: FARM_WORKER.priceDollars, days: FARM_WORKER.days },
       nextPlotPrice: plots.length < FARM_MAX_PLOTS ? plotPrice(plots.length + 1) : null,
     }
   },
@@ -112,7 +121,9 @@ export const FarmService = {
       const cropCode = plot.cropCode as CropCode
       const crop = CROPS[cropCode]
       if (!crop) throw new AppError(ErrorCode.FARM_CROP_INVALID, 'Unknown crop', 422)
-      const amount = harvestAmount(cropCode)
+      const cellar = !!(await tx.farmYardBuilding.findFirst({ where: { characterId, type: 'CELLAR' }, select: { id: true } }))
+        || !!(await tx.farmBuilding.findFirst({ where: { type: 'CELLAR', plot: { characterId } }, select: { id: true } }))
+      const amount = withCellar(harvestAmount(cropCode), cellar)
       const resource = await tx.resourceTemplate.findUniqueOrThrow({ where: { code: crop.resourceCode } })
       await ResourcesService.add(tx, { characterId, resourceTemplateId: resource.id, amount, reasonCode: 'FARM_HARVEST', refType: 'farm_plot', refId: plotId })
       await tx.farmPlot.update({ where: { id: plotId }, data: { cropCode: null, plantedAt: null, readyAt: null, withersAt: null, waterCount: 0, lastWateredAt: null } })
@@ -140,6 +151,7 @@ export const FarmService = {
       const plot = await tx.farmPlot.findFirst({ where: { id: plotId, characterId }, include: { building: true } })
       if (!plot) throw new AppError(ErrorCode.FARM_PLOT_EMPTY, 'Farm plot not found', 404)
       if (plot.building) throw new AppError(ErrorCode.FARM_BUILDING_EXISTS, 'Plot already has a building', 409)
+      if (isYardBuilding(type)) throw new AppError(ErrorCode.FARM_BUILDING_INVALID, `${building.name} строится во дворе фермы, а не на участке`, 409)
       const newBalance = await EconomyService.debit(tx, {
         characterId, amount: building.price, reasonCode: 'FARM_BUILDING_PURCHASE', refType: 'farm_plot', refId: plotId,
       })
@@ -148,4 +160,59 @@ export const FarmService = {
     })
   },
 
+
+  /** Погреб и будка — во дворе, по одной (правка заказчика 21.10). */
+  async buyYardBuilding(characterId: string, type: YardBuildingCode) {
+    const building = FARM_BUILDINGS[type]
+    return withTransaction(async tx => {
+      if (await tx.farmYardBuilding.findUnique({ where: { characterId_type: { characterId, type } } })) {
+        throw new AppError(ErrorCode.FARM_BUILDING_EXISTS, `${building.name} уже построен`, 409)
+      }
+      const newBalance = await EconomyService.debit(tx, {
+        characterId, amount: building.price, reasonCode: 'FARM_BUILDING_PURCHASE', refType: 'farm_yard', refId: type,
+      })
+      const created = await tx.farmYardBuilding.create({ data: { characterId, type } })
+      return { building: created, newBalance }
+    })
+  },
+
+  /** Рабочий фермы за доллары: срок прибавляется к уже оплаченному. */
+  async hireWorker(characterId: string) {
+    return withTransaction(async tx => {
+      const owner = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { farmWorkerUntil: true } })
+      const now = Date.now()
+      const from = Math.max(now, owner.farmWorkerUntil?.getTime() ?? 0)
+      const until = new Date(from + FARM_WORKER.days * 86_400_000)
+      if (until.getTime() > now + FARM_WORKER.maxDaysAhead * 86_400_000) {
+        throw new AppError(ErrorCode.CONFLICT, `Рабочий уже нанят больше чем на ${FARM_WORKER.maxDaysAhead - FARM_WORKER.days} дней вперёд`, 409)
+      }
+      const dollars = await DollarsService.debit(tx, { characterId, amount: FARM_WORKER.priceDollars, reason: 'PURCHASE', note: 'Рабочий фермы' })
+      await tx.character.update({ where: { id: characterId }, data: { farmWorkerUntil: until } })
+      return { until, dollars }
+    })
+  },
+
+  /** Тик воркера: рабочие собирают созревший урожай своих хозяев. */
+  async autoHarvest(now = new Date()): Promise<number> {
+    const plots = await prisma.farmPlot.findMany({
+      where: {
+        cropCode: { not: null }, readyAt: { lte: now }, withersAt: { gt: now },
+        character: { farmWorkerUntil: { gt: now } },
+      },
+      select: { id: true, characterId: true },
+      take: 500,
+    })
+    let done = 0
+    for (const plot of plots) {
+      try {
+        const result = await this.harvest(plot.characterId, plot.id)
+        const name = CROPS[result.cropCode]?.name ?? result.cropCode
+        await NoticesService.push(plot.characterId, `Рабочий фермы собрал урожай: ${name}, ${result.amount} шт.`)
+        done += 1
+      } catch (err) {
+        logger.debug({ err, plotId: plot.id }, '[FarmWorker] skip')
+      }
+    }
+    return done
+  },
 }

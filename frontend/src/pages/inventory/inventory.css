@@ -227,3 +227,7 @@
   .inv-grid { grid-template-columns: minmax(0, 1fr); }
   .inv-doll { height: 380px; margin: 0 auto; justify-self: center; }
 }
+/* Ячейка шеи низкая: амулет выступает из неё вниз, иначе его не разглядеть
+   (правка заказчика 21.10: «амулет надел, но не видно на картинке»). */
+.inv-cell[data-slot="ACCESSORY"] { overflow: visible; z-index: 2; }
+.inv-cell[data-slot="ACCESSORY"] img { position: absolute; left: 50%; top: 0; transform: translateX(-50%); max-width: none; max-height: none; width: auto; height: 300%; pointer-events: none; }

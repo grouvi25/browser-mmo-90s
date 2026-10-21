@@ -105,6 +105,8 @@ export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
   const weapon = equipped.find(i => i.template.type === 'WEAPON'
     && i.armorSlot !== 'RIGHT_HAND')
   const offhand = equipped.find(i => i.armorSlot === 'RIGHT_HAND')
+  // Амулет (правка заказчика 21.10: «надел, но не видно на картинке»).
+  const amulet = equipped.find(i => i.armorSlot === 'ACCESSORY')
 
   const hp = profile?.hp ?? char?.hpCurrent ?? 0
   const energy = profile?.level ?? char?.battleLevel ?? 0
@@ -222,6 +224,16 @@ export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
             onClick={own ? () => navigate('/pet-shop') : undefined}
             title={own ? dogTitle(char?.dog) : 'Собака'}
           />
+
+          {/* амулет — на шее фигуры, поверх зон */}
+          {own && amulet && (
+            <button type="button" className="card-amulet"
+              style={{ left: C.zones[0].box.x + C.zones[0].box.w / 2 - 9, top: C.zones[1].box.y - 4 }}
+              title={`${amulet.template.name} · ${amulet.durabilityCurrent}/${amulet.durabilityMax}`}
+              onClick={() => navigate('/inventory')}>
+              <img src={itemImage(amulet.template.code) ?? ''} alt={amulet.template.name} />
+            </button>
+          )}
 
           {/* зоны тела — цели ударов в бою */}
           {C.zones.map(z => {

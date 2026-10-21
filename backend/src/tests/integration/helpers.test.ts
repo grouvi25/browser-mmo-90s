@@ -97,6 +97,17 @@ describe('помощники', () => {
     expect(list.slots).toEqual({ used: 2, total: H.maxCount })
   })
 
+  it('боевой и рабочий — можно; два боевых — нельзя; боевой на смены не ходит', async () => {
+    const character = await subscribed()
+    const fighter = await HelpersService.hire(character.id, 'Бугай', '', 'COMBAT')
+    expect(fighter.kind).toBe('COMBAT')
+    await expect(HelpersService.hire(character.id, 'Второй бугай', '', 'COMBAT')).rejects.toThrow('Боевой помощник может быть только один')
+    await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
+    expect((await HelpersService.list(character.id)).items.map(h => h.kind).sort()).toEqual(['COMBAT', 'WORK'])
+    const object = await testPrisma.productionObject.findFirst()
+    if (object) await expect(HelpersService.startShift(character.id, fighter.id, object.id)).rejects.toThrow('на смены не ходит')
+  })
+
   it('неизвестную профессию не нанять', async () => {
     const character = await subscribed()
     await expect(HelpersService.hire(character.id, 'Никто', 'astronaut'))

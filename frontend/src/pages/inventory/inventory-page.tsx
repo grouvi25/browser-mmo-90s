@@ -225,7 +225,7 @@ export function InventoryPage() {
     const item = bySlot(cell.slot)
     const label = ARMOR_SLOT_LABELS[cell.slot] ?? cell.slot
     return <>
-      <button type="button" className={'inv-cell' + (item ? '' : ' is-empty')} style={place(cell.box)}
+      <button type="button" className={'inv-cell' + (item ? '' : ' is-empty')} style={place(cell.box)} data-slot={cell.slot}
         disabled={!item || inBattle || unequipMut.isPending}
         title={item ? `${item.template.name} — снять` : `${label}: пусто`}
         aria-label={item ? `Снять: ${item.template.name}` : `${label}: пусто`}

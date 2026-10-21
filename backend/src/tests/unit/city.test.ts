@@ -34,3 +34,19 @@ describe('бонус собаки', () => {
     expect(withPetBonus(stats, undefined, now)).toEqual(stats)
   })
 })
+
+describe('собаки: уровни, очки, снаряжение', () => {
+  it('своя шкала опыта и +1 очко каждые два уровня; донатной — в полтора раза больше', async () => {
+    const { dogLevelFromExp, dogExpForLevel, dogPoints, dogBonus } = await import('../../modules/city/dogs')
+    expect(dogLevelFromExp(0)).toBe(1)
+    expect(dogLevelFromExp(dogExpForLevel(3))).toBe(3)
+    expect(dogLevelFromExp(dogExpForLevel(3) - 1)).toBe(2)
+    expect(dogPoints(1, false)).toBe(2)
+    expect(dogPoints(3, false)).toBe(3)
+    expect(dogPoints(1, true)).toBe(3)
+    expect(dogBonus({ id: 'x', code: 'mastiff', fedUntil: null, level: 5 })).toEqual({ end: 4 })
+    expect(dogBonus({ id: 'x', code: 'malinois', fedUntil: null, level: 1, gear: { BOOTS: 'dog_boots', ARMOR: 'dog_armor_vest' } }))
+      .toEqual({ agi: 3, end: 1 })
+    expect(dogBonus({ id: 'x', code: 'pitbull', fedUntil: null, level: 1, allocation: { str: 2, luck: 1 } })).toEqual({ str: 2, luck: 1 })
+  })
+})

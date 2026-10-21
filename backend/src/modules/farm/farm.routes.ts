@@ -4,7 +4,7 @@ import { authenticate } from '../../shared/security/auth-middleware'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { CharactersRepository } from '../characters/characters.repository'
-import { CROPS, FARM_BUILDINGS, type CropCode, type FarmBuildingCode } from './farm.formulas'
+import { CROPS, FARM_BUILDINGS, YARD_BUILDINGS, type CropCode, type FarmBuildingCode } from './farm.formulas'
 import { FarmService } from './farm.service'
 
 const Id = z.string().uuid()
@@ -48,6 +48,16 @@ export async function farmRoutes(fastify: FastifyInstance) {
     if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const actor = await character(req.authUser.userId)
     return reply.send(await FarmService.clear(actor.id, req.params.id))
+  })
+  fastify.post<{ Body: { type: string } }>('/yard', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ type: z.enum(YARD_BUILDINGS) }).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Во дворе строятся погреб и сторожевая будка' })
+    const actor = await character(req.authUser.userId)
+    return reply.code(201).send(await FarmService.buyYardBuilding(actor.id, parsed.data.type))
+  })
+  fastify.post('/worker', { preHandler: authenticate }, async (req, reply) => {
+    const actor = await character(req.authUser.userId)
+    return reply.code(201).send(await FarmService.hireWorker(actor.id))
   })
   fastify.post<{ Params: { id: string }; Body: { type: string } }>('/plots/:id/building', { preHandler: authenticate }, async (req, reply) => {
     const parsed = z.object({ type: z.enum(Object.keys(FARM_BUILDINGS) as [FarmBuildingCode, ...FarmBuildingCode[]]) }).safeParse(req.body)

@@ -1,5 +1,9 @@
 import { request } from './client'
 
+export type Currency = 'RUB' | 'USD'
+export interface TraderStatus { traderLevel: number; shopNumber: number | null; canSellResourcesForUsd: boolean; prices: { level1PriceRub: number; level2PriceUsd: number } }
+export interface ShopOwner { id: string; nickname: string; traderLevel: number; shopNumber: number }
+
 export interface MarketListingView {
   id: string
   type: 'ITEM' | 'RESOURCE'
@@ -8,6 +12,8 @@ export interface MarketListingView {
   resourceTemplateId: string | null
   resourceAmount: number | null
   price: number
+  currency?: Currency
+  finalPrice?: number
   listingFee: number
   sellerCharacterId: string
   sellerNickname: string
@@ -53,8 +59,12 @@ export const marketApi = {
     if (filters.limit !== undefined) query.set('limit', String(filters.limit))
     return request<MarketListingsResponse>(`/api/market/listings?${query}`)
   },
-  createItem: (itemInstanceId: string, price: number) => request('/api/market/listings', { method: 'POST', body: { listingType: 'ITEM', itemInstanceId, price }, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
-  createResource: (resourceTemplateId: string, amount: number, price: number) => request('/api/market/listings', { method: 'POST', body: { listingType: 'RESOURCE', resourceTemplateId, amount, price }, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+  createItem: (itemInstanceId: string, price: number, currency: Currency = 'RUB') => request('/api/market/listings', { method: 'POST', body: { listingType: 'ITEM', itemInstanceId, price, currency }, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+  createResource: (resourceTemplateId: string, amount: number, price: number, currency: Currency = 'RUB') => request('/api/market/listings', { method: 'POST', body: { listingType: 'RESOURCE', resourceTemplateId, amount, price, currency }, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+  trader: () => request<TraderStatus>('/api/market/trader'),
+  buyTraderLevel: (level: 1 | 2) => request<{ traderLevel: number; shopNumber: number }>('/api/market/trader', { method: 'POST', body: { level } }),
+  shops: () => request<{ items: Array<ShopOwner & { listings: number }> }>('/api/market/shops'),
+  shop: (shopNumber: number) => request<{ owner: ShopOwner; listings: MarketListingsResponse }>(`/api/market/shops/${shopNumber}`),
   buy: (id: string) => request(`/api/market/listings/${id}/buy`, { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() } }),
   cancel: (id: string) => request(`/api/market/listings/${id}/cancel`, { method: 'POST' }),
 }
