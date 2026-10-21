@@ -118,9 +118,15 @@ const PLACES: Place[] = [
 const startsWithPath = (path: string, prefix: string) => path === prefix || path.startsWith(`${prefix}/`)
 
 /** Полоса для адреса: в Центре — локации, в локации — ЦЕНТР и её разделы. */
-export function locationMenu(pathname: string): LocationMenu {
+export function locationMenu(pathname: string, search = ''): LocationMenu {
   if (pathname === '/') {
     return { key: 'center', tabs: [...CITY_LOCATIONS.filter(item => item.key !== 'center'), ...PERSONAL] }
+  }
+  // Список домов бригад — только ЦЕНТР внизу; вкладки бригады появляются,
+  // когда зашли в свою (правка заказчика 21.10). Своя бригада открывается
+  // на том же экране, поэтому признак — в адресе: ?brigade=mine.
+  if (pathname === '/clan-houses' && new URLSearchParams(search).get('brigade') !== 'mine') {
+    return { key: 'clans', tabs: [CENTER_TAB] }
   }
   const place = PLACES.find(item => item.match.some(prefix => startsWithPath(pathname, prefix)))
   return { key: place?.key ?? 'other', tabs: [CENTER_TAB, ...(place?.tabs ?? [])] }

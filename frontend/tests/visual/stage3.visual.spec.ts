@@ -99,9 +99,20 @@ test('город ведёт в разделы Этапа 3 из своих ра�
   await visualProof(page, testInfo, 'stage3-city-districts')
 })
 
+// Правка 21.10: на списке домов бригад внизу только ЦЕНТР — вкладки бригады
+// появляются, когда зашли в свою.
+test('на списке домов бригад внизу только ЦЕНТР', async ({ page }) => {
+  await authPage(page, owner)
+  await page.goto('/clan-houses')
+  await expect(page.locator('[data-stage-nav="center"]')).toHaveText('ЦЕНТР')
+  await expect(page.locator('[data-stage-nav="storage"]')).toHaveCount(0)
+  await page.goto('/clan-houses?brigade=mine')
+  await expect(page.locator('[data-stage-nav="storage"]')).toHaveCount(1)
+})
+
 test('в локации полоса подсвечивает её раздел', async ({ page }) => {
   await authPage(page, owner)
-  for (const [path, tab] of [['/market', 'board'], ['/clan-houses', 'houses'], ['/work', 'work'], ['/farm', 'plant'], ['/pvp', 'all'], ['/pvp?tab=RUNNING', 'running']]) {
+  for (const [path, tab] of [['/market', 'board'], ['/clans', 'clan'], ['/work', 'work'], ['/farm', 'plant'], ['/pvp', 'all'], ['/pvp?tab=RUNNING', 'running']]) {
     await page.goto(path)
     await expect(page.locator(`[data-stage-nav="${tab}"]`)).toHaveClass(/is-active/)
     await expect(page.locator('[data-stage-nav="center"]')).toHaveText('ЦЕНТР')

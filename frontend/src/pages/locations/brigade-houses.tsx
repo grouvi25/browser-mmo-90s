@@ -7,7 +7,7 @@
 // разгромленным 7 суток, а гости пишут на его стене.
 // =============================================================
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi, type BrigadeHouse } from '../../shared/api/clans.api'
@@ -42,8 +42,16 @@ function firstAllowedDate(rules: BrigadeHouse['rules'], hour: number) {
 export function BrigadeHouses() {
   const me = useQuery({ queryKey: ['character', 'me'], queryFn: charactersApi.getMe })
   const list = useQuery({ queryKey: ['clans', 'list'], queryFn: clansApi.list, refetchInterval: 30_000 })
-  const [picked, setPicked] = useState<string | null>(null)
+  const [pickedOther, setPickedOther] = useState<string | null>(null)
+  const [params, setParams] = useSearchParams()
   const mine = me.data?.clan?.id ?? null
+  // Своя бригада — в адресе (?brigade=mine): по нему внизу появляются её вкладки.
+  const ownOpen = params.get('brigade') === 'mine' && !!mine
+  const picked = ownOpen ? mine : pickedOther
+  const setPicked = (id: string | null) => {
+    if (id && id === mine) { setPickedOther(null); setParams({ brigade: 'mine' }) }
+    else { setPickedOther(id); if (params.has('brigade')) setParams({}) }
+  }
   const clans = list.data?.items ?? []
   const now = Date.now()
 
