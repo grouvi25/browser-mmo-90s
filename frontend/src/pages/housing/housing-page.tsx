@@ -176,7 +176,8 @@ function RaidBlock({ raid, busy, onSide, max }: {
           {raid.canUnsign && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => onSide(raid.id, null)}>Выписаться</button>}
         </div>
       )}
-      {raid.status === 'IN_BATTLE' && raid.battleId && raid.mySide && <Link to={`/battle/${raid.battleId}`}>К бою →</Link>}
+      {raid.status === 'IN_BATTLE' && raid.battleId && raid.canEnterBattle && <Link to={`/battle/${raid.battleId}`}>К бою →</Link>}
+      {raid.status === 'IN_BATTLE' && raid.mySide && !raid.canEnterBattle && <p className="housing__muted">Вы не попали в бой: к старту были офлайн, заняты или травмированы.</p>}
       <p className="housing__muted">В бой попадают те, кто к началу в игре и свободен. Оборона не вышла — дом взят без боя.</p>
     </div>
   )

@@ -23,6 +23,7 @@
 // =============================================================
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
+import { BattleRedis } from '../../shared/db/redis'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
@@ -34,7 +35,7 @@ import { NoticesService } from '../chat/notices.service'
 import { ChatService } from '../chat/chat.service'
 import { BattleService } from '../battles/battles.service'
 import { when } from '../clans/house-siege.formulas'
-import { HOUSING, LOT_COUNT, TUNNELS, type TunnelCode, homeBonusActive, homeExpBonus, isLot, lotKind, lotLabel } from './housing.config'
+import { HOUSING, LOT_COUNT, TUNNELS, type TunnelCode, homeBonusActive, homeExpBonus, insideTunnelArea, isLot, lotKind, lotLabel } from './housing.config'
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -67,7 +68,22 @@ async function raidBlockedReason(homeId: string, ownerId: string, characterId: s
 /** Налёт для экрана: кто записан и что может смотрящий. */
 async function describeRaids(raids: Array<Prisma.HomeRaidGetPayload<{ include: { signups: true; home: { select: { characterId: true } } } }>>, viewerId: string) {
   const ids = [...new Set(raids.flatMap(r => [r.home.characterId, ...r.signups.map(s => s.characterId)]))]
-  const names = new Map((await prisma.character.findMany({ where: { id: { in: ids } }, select: { id: true, nickname: true, battleLevel: true } })).map(c => [c.id, c]))
+  const battleIds = raids.flatMap(r => r.battleId ? [r.battleId] : [])
+  const [characters, participants] = await Promise.all([
+    prisma.character.findMany({ where: { id: { in: ids } }, select: { id: true, nickname: true, battleLevel: true } }),
+    prisma.battleParticipant.findMany({
+      where: { battleId: { in: battleIds }, characterId: { not: null } },
+      select: { battleId: true, characterId: true },
+    }),
+  ])
+  const names = new Map(characters.map(c => [c.id, c]))
+  const admitted = new Map<string, Set<string>>()
+  for (const participant of participants) {
+    if (!participant.characterId) continue
+    const set = admitted.get(participant.battleId) ?? new Set<string>()
+    set.add(participant.characterId)
+    admitted.set(participant.battleId, set)
+  }
   return new Map(raids.map(r => {
     const owner = names.get(r.home.characterId)
     const side = (n: number) => r.signups.filter(s => s.side === n).map(s => names.get(s.characterId)).filter(Boolean)
@@ -79,6 +95,8 @@ async function describeRaids(raids: Array<Prisma.HomeRaidGetPayload<{ include: {
       attackers: side(1), defenders,
       mySide: r.home.characterId === viewerId ? 2 : mine?.side ?? null,
       canUnsign: !!mine && r.attackerId !== viewerId && r.status === 'PENDING',
+      // Запись не гарантирует место: к старту игрок может быть офлайн или занят.
+      canEnterBattle: !!r.battleId && !!admitted.get(r.battleId)?.has(viewerId),
     }]
   }))
 }
@@ -137,8 +155,18 @@ async function startRaid(raidId: string): Promise<'STARTED' | 'ATTACKER_WON' | '
     await BattleService.beginTeamState(prepared.battleId)
   } catch (err) {
     logger.error({ err, raidId }, '[HomeRaid] Battle start failed')
-    await prisma.character.updateMany({ where: { id: { in: [...prepared.side1, ...prepared.side2] } }, data: { status: 'ACTIVE' } })
-    await prisma.homeRaid.update({ where: { id: raidId }, data: { status: 'VOID', resolvedAt: new Date() } })
+    await BattleRedis.deleteState(prepared.battleId)
+    await withTransaction(async tx => {
+      await tx.character.updateMany({
+        where: { id: { in: [...prepared.side1, ...prepared.side2] }, status: 'IN_BATTLE' },
+        data: { status: 'ACTIVE' },
+      })
+      await tx.battle.updateMany({
+        where: { id: prepared.battleId, status: { in: ['WAITING_PLAYERS', 'ACTIVE'] } },
+        data: { status: 'CANCELLED', finishedAt: new Date() },
+      })
+      await tx.homeRaid.update({ where: { id: raidId }, data: { status: 'VOID', resolvedAt: new Date() } })
+    })
     return 'SKIPPED'
   }
   audit('home_raid.started', { raidId, battleId: prepared.battleId, attackers: prepared.side1.length, defenders: prepared.side2.length })
@@ -184,7 +212,13 @@ export async function runHomeRaids(now = new Date()): Promise<number> {
       where: { id: raid.battleId! },
       include: { participants: { select: { id: true, side: true, characterId: true } } },
     })
-    if (!battle || !['FINISHED', 'CANCELLED', 'TECHNICAL_WIN'].includes(battle.status)) continue
+    if (!battle) {
+      // Потерянная запись боя не должна оставлять дом в вечном IN_BATTLE.
+      try { await concludeRaid(raid.id, 'DEFENDER_WON'); handled += 1 }
+      catch (err) { logger.error({ err, raidId: raid.id }, '[HomeRaid] Missing battle recovery error') }
+      continue
+    }
+    if (!['FINISHED', 'CANCELLED', 'TECHNICAL_WIN'].includes(battle.status)) continue
     const winner = battle.participants.find(p => p.id === battle.winnerParticipantId)
       ?? battle.participants.find(p => p.characterId && p.characterId === battle.winnerId)
     // Ничья и сбой — дом устоял.
@@ -215,10 +249,31 @@ export const HousingService = {
       prisma.homeRaid.findMany({ where: { status: { in: OPEN } }, include: { signups: true, home: { select: { characterId: true } } } }),
     ])
     const raids = await describeRaids(openRaids, characterId)
-    const pastOnMe = home ? await prisma.homeRaid.findMany({ where: { homeId: home.id, status: { in: ['ATTACKER_WON', 'DEFENDER_WON'] } }, orderBy: { resolvedAt: 'desc' }, take: 10 }) : []
+    const homeIds = homes.map(h => h.id)
+    const [pastOnMe, latestResolved, mineOpen] = await Promise.all([
+      home ? prisma.homeRaid.findMany({ where: { homeId: home.id, status: { in: ['ATTACKER_WON', 'DEFENDER_WON'] } }, orderBy: { resolvedAt: 'desc' }, take: 10 }) : Promise.resolve([]),
+      prisma.homeRaid.findMany({
+        where: { homeId: { in: homeIds }, status: { in: ['ATTACKER_WON', 'DEFENDER_WON'] }, resolvedAt: { not: null } },
+        orderBy: [{ homeId: 'asc' }, { resolvedAt: 'desc' }], distinct: ['homeId'],
+        select: { homeId: true, resolvedAt: true },
+      }),
+      prisma.homeRaid.count({ where: { attackerId: characterId, status: { in: OPEN } } }),
+    ])
     const raiders = new Map((await prisma.character.findMany({ where: { id: { in: pastOnMe.map(r => r.attackerId) } }, select: { id: true, nickname: true } })).map(r => [r.id, r.nickname]))
+    const lastByHome = new Map(latestResolved.map(r => [r.homeId, r.resolvedAt!]))
     const byLot = new Map(homes.map(h => [h.lot, h]))
-    const lots = await Promise.all(Array.from({ length: LOT_COUNT }, async (_, i) => {
+    const now = Date.now()
+    const blocked = (homeId: string, ownerId: string): string | null => {
+      if (ownerId === characterId) return 'Это ваш дом'
+      const last = lastByHome.get(homeId)
+      if (last) {
+        const next = last.getTime() + HOUSING.raidCooldownDays * DAY
+        if (next > now) return `На этот дом уже нападали — снова можно с ${when(new Date(next))}`
+      }
+      if (mineOpen) return 'Вы уже объявили налёт на другой дом'
+      return null
+    }
+    const lots = Array.from({ length: LOT_COUNT }, (_, i) => {
       const lot = i + 1
       const h = byLot.get(lot)
       return {
@@ -227,10 +282,10 @@ export const HousingService = {
           id: h.id, durability: h.durability, owner: h.character.nickname, ownerLevel: h.character.battleLevel,
           mine: h.characterId === characterId,
           raid: raids.get(h.id) ?? null,
-          raidBlocked: raids.has(h.id) ? null : await raidBlockedReason(h.id, h.characterId, characterId),
+          raidBlocked: raids.has(h.id) ? null : blocked(h.id, h.characterId),
         } : null,
       }
-    }))
+    })
     return {
       prices: HOUSING.kinds, tunnelPrice: HOUSING.tunnelPriceDollars, repairPer10: HOUSING.repairCostPer10, tunnels: TUNNELS,
       raidRules: { leadHours: HOUSING.raidLeadHours, maxPerSide: HOUSING.raidMaxPerSide, cooldownDays: HOUSING.raidCooldownDays, durabilityLoss: HOUSING.raidDurabilityLoss },
@@ -285,30 +340,57 @@ export const HousingService = {
     })
   },
 
-  /** Пройти туннелем из дома: запоминаем, куда вышли, — оттуда можно вернуться. */
+  /** Пройти туннелем именно из дома: переход и отметка выполняются атомарно. */
   async goThroughTunnel(characterId: string, code: TunnelCode) {
     const tunnel = TUNNELS.find(t => t.code === code)
     if (!tunnel) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Такого туннеля нет', 422)
-    const home = await myHome(characterId)
-    if (!home) throw new AppError(ErrorCode.NOT_FOUND, 'Сначала купите жильё', 404)
-    if (!home.tunnels.includes(code)) throw new AppError(ErrorCode.CONFLICT, 'Этот туннель ещё не прорыт', 409)
-    await prisma.playerHome.update({ where: { id: home.id }, data: { outVia: code } })
-    return { to: tunnel.to }
+    return withTransaction(async tx => {
+      const [home, character] = await Promise.all([
+        tx.playerHome.findUnique({ where: { characterId } }),
+        tx.character.findUnique({ where: { id: characterId }, select: { location: true, status: true } }),
+      ])
+      if (!home) throw new AppError(ErrorCode.NOT_FOUND, 'Сначала купите жильё', 404)
+      if (!home.tunnels.includes(code)) throw new AppError(ErrorCode.CONFLICT, 'Этот туннель ещё не прорыт', 409)
+      if (!character || character.status !== 'ACTIVE' || character.location !== '/housing') {
+        throw new AppError(ErrorCode.CONFLICT, 'В туннель можно войти только из своего дома', 409)
+      }
+      await tx.playerHome.update({ where: { id: home.id }, data: { outVia: code } })
+      await tx.character.update({ where: { id: characterId }, data: { location: tunnel.to, lastLocation: tunnel.to } })
+      return { to: tunnel.to }
+    })
   },
 
-  /** Куда хозяин вышел туннелем (для кнопки «В дом»), или null. */
+  /** Куда хозяин действительно вышел туннелем (для кнопки «В дом»), или null. */
   async exit(characterId: string) {
-    const home = await prisma.playerHome.findUnique({ where: { characterId }, select: { outVia: true } })
-    const tunnel = TUNNELS.find(t => t.code === home?.outVia)
-    return { via: tunnel?.code ?? null, area: tunnel?.area ?? [] }
+    return withTransaction(async tx => {
+      const [home, character] = await Promise.all([
+        tx.playerHome.findUnique({ where: { characterId }, select: { id: true, outVia: true } }),
+        tx.character.findUnique({ where: { id: characterId }, select: { location: true } }),
+      ])
+      const tunnel = TUNNELS.find(t => t.code === home?.outVia)
+      if (!home || !tunnel || !character?.location || !insideTunnelArea(tunnel.code, character.location)) {
+        if (home?.outVia) await tx.playerHome.update({ where: { id: home.id }, data: { outVia: null } })
+        return { via: null, area: [] as string[] }
+      }
+      return { via: tunnel.code, area: tunnel.area }
+    })
   },
 
-  /** Вернуться в дом тем же туннелем. */
+  /** Вернуться в дом тем же туннелем; прямой вызов из другой локации запрещён. */
   async returnHome(characterId: string) {
-    const home = await myHome(characterId)
-    if (!home?.outVia) throw new AppError(ErrorCode.CONFLICT, 'Вернуться в дом можно только тем туннелем, которым вышли', 409)
-    await prisma.playerHome.update({ where: { id: home.id }, data: { outVia: null } })
-    return { to: '/housing' }
+    return withTransaction(async tx => {
+      const [home, character] = await Promise.all([
+        tx.playerHome.findUnique({ where: { characterId } }),
+        tx.character.findUnique({ where: { id: characterId }, select: { location: true, status: true } }),
+      ])
+      if (!home?.outVia || !character?.location || !insideTunnelArea(home.outVia, character.location)) {
+        throw new AppError(ErrorCode.CONFLICT, 'Вернуться в дом можно только тем туннелем, которым вышли', 409)
+      }
+      if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.CONFLICT, 'Сейчас нельзя вернуться домой', 409)
+      await tx.playerHome.update({ where: { id: home.id }, data: { outVia: null } })
+      await tx.character.update({ where: { id: characterId }, data: { location: '/housing', lastLocation: '/housing' } })
+      return { to: '/housing' }
+    })
   },
 
   /** Ремонт: до 100%, за рубли — по цене за каждые 10%. */
@@ -332,8 +414,21 @@ export const HousingService = {
     if (blocked) throw new AppError(ErrorCode.CONFLICT, blocked, 409)
     const startsAt = new Date(now.getTime() + HOUSING.raidLeadHours * HOUR)
     const raid = await withTransaction(async tx => {
-      // Повторная проверка под транзакцией: две заявки в одну секунду.
-      if (await tx.homeRaid.count({ where: { homeId, status: { in: OPEN } } })) throw new AppError(ErrorCode.CONFLICT, 'На этот дом уже объявлен налёт', 409)
+      // Все ограничения повторяем в serializable-транзакции: иначе две
+      // одновременные заявки могли открыть два налёта на дом или от игрока.
+      const [open, mine, last] = await Promise.all([
+        tx.homeRaid.count({ where: { homeId, status: { in: OPEN } } }),
+        tx.homeRaid.count({ where: { attackerId: characterId, status: { in: OPEN } } }),
+        tx.homeRaid.findFirst({
+          where: { homeId, status: { in: ['ATTACKER_WON', 'DEFENDER_WON'] } },
+          orderBy: { resolvedAt: 'desc' }, select: { resolvedAt: true },
+        }),
+      ])
+      if (open) throw new AppError(ErrorCode.CONFLICT, 'На этот дом уже объявлен налёт', 409)
+      if (mine) throw new AppError(ErrorCode.CONFLICT, 'Вы уже объявили налёт на другой дом', 409)
+      if (last?.resolvedAt && last.resolvedAt.getTime() + HOUSING.raidCooldownDays * DAY > now.getTime()) {
+        throw new AppError(ErrorCode.CONFLICT, 'На этот дом уже нападали — недельная защита ещё действует', 409)
+      }
       const created = await tx.homeRaid.create({ data: { homeId, attackerId: characterId, startsAt } })
       await tx.homeRaidSignup.create({ data: { raidId: created.id, characterId, side: 1 } })
       return created
@@ -346,22 +441,25 @@ export const HousingService = {
 
   /** Записаться на налёт: 1 — в нападение, 2 — в оборону. */
   async signupRaid(characterId: string, raidId: string, side: 1 | 2) {
-    const raid = await prisma.homeRaid.findUnique({ where: { id: raidId }, include: { home: { select: { characterId: true } } } })
-    if (!raid || raid.status !== 'PENDING') throw new AppError(ErrorCode.CONFLICT, 'Запись на этот налёт закрыта', 409)
-    if (raid.home.characterId === characterId) throw new AppError(ErrorCode.CONFLICT, 'Хозяин и так в обороне', 409)
-    if (await prisma.homeRaidSignup.findUnique({ where: { raidId_characterId: { raidId, characterId } } })) {
-      throw new AppError(ErrorCode.CONFLICT, 'Вы уже записаны', 409)
-    }
-    // Хозяин занимает в обороне одно место из десяти.
-    const taken = await prisma.homeRaidSignup.count({ where: { raidId, side } }) + (side === 2 ? 1 : 0)
-    if (taken >= HOUSING.raidMaxPerSide) throw new AppError(ErrorCode.CONFLICT, `На стороне уже ${HOUSING.raidMaxPerSide} человек`, 409)
     try {
-      await prisma.homeRaidSignup.create({ data: { raidId, characterId, side } })
+      return await withTransaction(async tx => {
+        const raid = await tx.homeRaid.findUnique({ where: { id: raidId }, include: { home: { select: { characterId: true } } } })
+        if (!raid || raid.status !== 'PENDING') throw new AppError(ErrorCode.CONFLICT, 'Запись на этот налёт закрыта', 409)
+        if (raid.home.characterId === characterId) throw new AppError(ErrorCode.CONFLICT, 'Хозяин и так в обороне', 409)
+        if (await tx.homeRaidSignup.findUnique({ where: { raidId_characterId: { raidId, characterId } } })) {
+          throw new AppError(ErrorCode.CONFLICT, 'Вы уже записаны', 409)
+        }
+        // Хозяин занимает в обороне одно место из десяти. Serializable
+        // не даёт параллельным заявкам обеим занять последнее место.
+        const taken = await tx.homeRaidSignup.count({ where: { raidId, side } }) + (side === 2 ? 1 : 0)
+        if (taken >= HOUSING.raidMaxPerSide) throw new AppError(ErrorCode.CONFLICT, `На стороне уже ${HOUSING.raidMaxPerSide} человек`, 409)
+        await tx.homeRaidSignup.create({ data: { raidId, characterId, side } })
+        return { raidId, side }
+      })
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new AppError(ErrorCode.CONFLICT, 'Вы уже записаны', 409)
       throw error
     }
-    return { raidId, side }
   },
 
   async unsignRaid(characterId: string, raidId: string) {

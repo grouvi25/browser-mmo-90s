@@ -4,6 +4,11 @@ ALTER TYPE "HomeRaidStatus" ADD VALUE 'IN_BATTLE';
 -- AlterTable
 ALTER TABLE "home_raids" ADD COLUMN     "starts_at" TIMESTAMP(3);
 
+-- Старые незавершённые налёты не должны навсегда остаться без времени старта.
+UPDATE "home_raids"
+SET "starts_at" = "created_at" + INTERVAL '72 hours'
+WHERE "status" = 'PENDING' AND "starts_at" IS NULL;
+
 -- AlterTable
 ALTER TABLE "player_homes" ADD COLUMN     "out_via" TEXT;
 

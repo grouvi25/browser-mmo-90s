@@ -16,6 +16,7 @@ export interface HomeRaid {
   defenders: RaidFighter[]
   mySide: 1 | 2 | null
   canUnsign: boolean
+  canEnterBattle: boolean
 }
 
 export interface HousingLot {

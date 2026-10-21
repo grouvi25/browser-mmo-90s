@@ -18,6 +18,7 @@
 // =============================================================
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
+import { BattleRedis } from '../../shared/db/redis'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
@@ -219,17 +220,19 @@ export const HouseSiegeService = {
   async signup(characterId: string, siegeId: string) {
     const member = await membership(characterId)
     if (!member || member.status !== 'ACTIVE') throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Вы не состоите в бригаде', 404)
-    const siege = await prisma.houseSiege.findUnique({ where: { id: siegeId } })
-    if (!siege || siege.status !== 'SCHEDULED') throw new AppError(ErrorCode.CONFLICT, 'Запись на эту осаду закрыта', 409)
-    const side = member.clanId === siege.attackerClanId ? 1 : member.clanId === siege.defenderClanId ? 2 : null
-    if (!side) throw new AppError(ErrorCode.FORBIDDEN, 'Записаться могут только бойцы двух бригад', 403)
-    const taken = await prisma.houseSiegeSignup.count({ where: { siegeId, side } })
-    if (taken >= S.maxPerSide) throw new AppError(ErrorCode.CONFLICT, `На стороне уже ${S.maxPerSide} бойцов`, 409)
-    await prisma.houseSiegeSignup.upsert({
-      where: { siegeId_characterId: { siegeId, characterId } },
-      update: {}, create: { siegeId, characterId, side },
+    return withTransaction(async tx => {
+      const siege = await tx.houseSiege.findUnique({ where: { id: siegeId } })
+      if (!siege || siege.status !== 'SCHEDULED') throw new AppError(ErrorCode.CONFLICT, 'Запись на эту осаду закрыта', 409)
+      const side = member.clanId === siege.attackerClanId ? 1 : member.clanId === siege.defenderClanId ? 2 : null
+      if (!side) throw new AppError(ErrorCode.FORBIDDEN, 'Записаться могут только бойцы двух бригад', 403)
+      const existing = await tx.houseSiegeSignup.findUnique({ where: { siegeId_characterId: { siegeId, characterId } } })
+      if (existing) return { siegeId, side: existing.side }
+      // Serializable-транзакция закрывает гонку за последнее из 10 мест.
+      const taken = await tx.houseSiegeSignup.count({ where: { siegeId, side } })
+      if (taken >= S.maxPerSide) throw new AppError(ErrorCode.CONFLICT, `На стороне уже ${S.maxPerSide} бойцов`, 409)
+      await tx.houseSiegeSignup.create({ data: { siegeId, characterId, side } })
+      return { siegeId, side }
     })
-    return { siegeId, side }
   },
 
   async unsign(characterId: string, siegeId: string) {
@@ -349,8 +352,18 @@ export const HouseSiegeService = {
       await BattleService.beginTeamState(prepared.battleId)
     } catch (err) {
       logger.error({ err, siegeId }, '[HouseSiege] Battle start failed')
-      await prisma.character.updateMany({ where: { id: { in: [...prepared.side1, ...prepared.side2] } }, data: { status: 'ACTIVE' } })
-      await prisma.houseSiege.update({ where: { id: siegeId }, data: { status: 'CANCELLED', finishedAt: new Date() } })
+      await BattleRedis.deleteState(prepared.battleId)
+      await withTransaction(async tx => {
+        await tx.character.updateMany({
+          where: { id: { in: [...prepared.side1, ...prepared.side2] }, status: 'IN_BATTLE' },
+          data: { status: 'ACTIVE' },
+        })
+        await tx.battle.updateMany({
+          where: { id: prepared.battleId, status: { in: ['WAITING_PLAYERS', 'ACTIVE'] } },
+          data: { status: 'CANCELLED', finishedAt: new Date() },
+        })
+        await tx.houseSiege.update({ where: { id: siegeId }, data: { status: 'CANCELLED', finishedAt: new Date() } })
+      })
       return 'SKIPPED'
     }
     audit('house_siege.started', { siegeId, battleId: prepared.battleId, attackers: prepared.side1.length, defenders: prepared.side2.length })
@@ -415,7 +428,13 @@ export async function runHouseSieges(now = new Date()): Promise<number> {
       where: { id: siege.battleId! },
       include: { participants: { select: { id: true, side: true, characterId: true } } },
     })
-    if (!battle || !['FINISHED', 'CANCELLED', 'TECHNICAL_WIN'].includes(battle.status)) continue
+    if (!battle) {
+      // Потерянная запись боя не должна оставлять осаду вечной.
+      try { await HouseSiegeService.conclude(siege.id, 'DEFENDERS_WON', []); handled += 1 }
+      catch (err) { logger.error({ err, siegeId: siege.id }, '[HouseSiege] Missing battle recovery error') }
+      continue
+    }
+    if (!['FINISHED', 'CANCELLED', 'TECHNICAL_WIN'].includes(battle.status)) continue
     const winner = battle.participants.find(p => p.id === battle.winnerParticipantId)
       ?? battle.participants.find(p => p.characterId && p.characterId === battle.winnerId)
     // Взятие — только если победила сторона нападения; ничья и сбой — оборона устояла.

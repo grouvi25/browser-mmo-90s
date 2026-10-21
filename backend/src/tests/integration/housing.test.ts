@@ -131,6 +131,9 @@ describe('Жилой сектор', () => {
     expect(raid.status).toBe('IN_BATTLE')
     expect(await BattleRedis.getState(raid.battleId!)).not.toBeNull()
     const battle = await testPrisma.battle.findUniqueOrThrow({ where: { id: raid.battleId! }, include: { participants: true } })
+    // Ссылка на бой только у реально допущенных участников, а не у всех записавшихся.
+    expect((await HousingService.view(owner.character.id)).home!.raid!.canEnterBattle).toBe(true)
+    expect((await HousingService.view(friend.character.id)).lots.find(l => l.home?.id === home.id)!.home!.raid!.canEnterBattle).toBe(false)
     const defender = battle.participants.find(p => p.side === 2)!
     await testPrisma.battle.update({ where: { id: battle.id }, data: { status: 'FINISHED', winnerParticipantId: defender.id, winnerId: defender.characterId } })
     await runHomeRaids()
@@ -141,20 +144,23 @@ describe('Жилой сектор', () => {
   it('туннель: вышел из дома — можно вернуться; ушёл другой дорогой — нельзя', async () => {
     const a = await player('tun')
     await HousingService.buy(a.character.id, FLAT)
+    await CityService.move(a.user.id, '/housing')
     await expect(HousingService.goThroughTunnel(a.character.id, 'farm')).rejects.toMatchObject({ statusCode: 409 })
     await HousingService.buyTunnel(a.character.id, 'farm')
     expect(await HousingService.goThroughTunnel(a.character.id, 'farm')).toEqual({ to: '/farm' })
-    await CityService.move(a.user.id, '/farm')
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: a.character.id } })).location).toBe('/farm')
     await CityService.move(a.user.id, '/plants')
     expect((await HousingService.exit(a.character.id)).via).toBe('farm')
     expect(await HousingService.returnHome(a.character.id)).toEqual({ to: '/housing' })
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: a.character.id } })).location).toBe('/housing')
 
     // Вышел туннелем, потом ушёл на рынок — обратного хода нет.
     await HousingService.goThroughTunnel(a.character.id, 'farm')
-    await CityService.move(a.user.id, '/farm')
     await CityService.move(a.user.id, '/market')
     expect((await HousingService.exit(a.character.id)).via).toBeNull()
     await expect(HousingService.returnHome(a.character.id)).rejects.toMatchObject({ statusCode: 409 })
+    // Даже прямой вызов API не позволяет войти в туннель не из дома.
+    await expect(HousingService.goThroughTunnel(a.character.id, 'farm')).rejects.toMatchObject({ statusCode: 409 })
   })
 
   it('участки заданы заранее: занятый не купить, план сектора показывает хозяев', async () => {
