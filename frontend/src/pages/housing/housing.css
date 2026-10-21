@@ -1,0 +1,24 @@
+/* Жилой сектор. Кнопки меняют только цвет — ничего не сдвигается. */
+.housing { display: grid; gap: 12px; }
+.housing__msg { margin: 0; padding: 6px 10px; border-left: 3px solid #2f6b2a; background: rgba(255, 255, 255, .5); }
+.housing__msg.is-bad { border-left-color: #a02a30; }
+.housing__block { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, .35); }
+.housing__block h3 { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 16px; }
+.housing__sub { margin: 6px 0 0; font-size: 14px; }
+.housing__muted { margin: 0; color: var(--text-dim); font-size: 13.5px; }
+.housing__offers { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.housing__offer { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--border); background: rgba(255, 255, 255, .5); }
+.housing__offer h4 { margin: 0; display: flex; align-items: center; gap: 6px; }
+.housing__offer p { margin: 0; font-size: 13.5px; }
+.housing__facts { display: grid; gap: 4px; margin: 0; }
+.housing__facts > div { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.housing__facts dt { color: var(--text-dim); min-width: 110px; }
+.housing__facts dd { margin: 0; display: flex; align-items: center; gap: 6px; }
+.housing__bar { display: inline-block; width: 140px; height: 10px; border: 1px solid var(--border); background: rgba(0, 0, 0, .06); }
+.housing__bar i { display: block; height: 100%; background: #6b8f3a; }
+.housing__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.housing__actions .btn { display: inline-flex; align-items: center; gap: 5px; }
+.housing__list, .housing__raids { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.housing__list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.housing__list .btn { display: inline-flex; align-items: center; gap: 5px; }
+.housing__raids li { font-size: 13.5px; }

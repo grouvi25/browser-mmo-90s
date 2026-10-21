@@ -37,7 +37,7 @@ import { LocationHubPage, type DistrictKey } from '../pages/locations/location-h
 import { Stage3Page }           from '../pages/stage3/stage3-page'
 import { Stage4Page }           from '../pages/stage4/stage4-page'
 import { PolitikaPage }         from '../pages/legal/politika-page'
-import { SCENES }               from '../shared/ui/sprite'
+import { HousingPage }          from '../pages/housing/housing-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -269,12 +269,7 @@ export function AppRouter() {
         <Route path="/unsorted" element={<UnsortedPage />} />
         <Route path="/housing" element={
           <ViewportPanel title="Жилой сектор" subtitle="Квартиры и дома">
-            <img className="brigade-scene" src={SCENES.housing} alt="Жилой сектор" draggable={false} />
-            <div className="locked-note">
-              <div className="locked-note__title">Скоро</div>
-              <p className="locked-note__text">Здесь будут индивидуальные квартиры и дома игроков.</p>
-              <p className="locked-note__text locked-note__meta">Как они устроены — покупка, аренда, что дают — заказчик ещё описывает.</p>
-            </div>
+            <HousingPage />
           </ViewportPanel>} />
         <Route path="/work" element={
           <ViewportPanel title="Работа" subtitle="Смены, зарплата и профессии">
