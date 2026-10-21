@@ -46,6 +46,7 @@ import { clansRoutes } from './modules/clans/clans.routes'
 import { territoriesRoutes, clanTerritoriesRoutes, objectWarRoutes } from './modules/territories/territories.routes'
 import { premiumRoutes, helpersRoutes } from './modules/premium/premium.routes'
 import { dollarsRoutes } from './modules/dollars/dollars.routes'
+import { housingRoutes } from './modules/housing/housing.routes'
 import { stage3AcceptanceRoutes } from './modules/stage3-acceptance/stage3-acceptance.routes'
 import { balanceSandboxRoutes } from './modules/balance-sandbox/balance-sandbox.routes'
 
@@ -145,6 +146,7 @@ export async function buildApp() {
   await fastify.register(charactersRoutes,     { prefix: '/api/characters' })
   await fastify.register(inventoryRoutes,      { prefix: '/api/inventory' })
   await fastify.register(cityRoutes, { prefix: '/api/city' })
+  await fastify.register(housingRoutes, { prefix: '/api/housing' })
   await fastify.register(cityAdminRoutes, { prefix: '/api/admin/city' })
   await fastify.register(governmentShopRoutes, { prefix: '/api/shops/government' })
   await fastify.register(battlesRoutes,        { prefix: '/api/battles' })

@@ -1,4 +1,5 @@
 import { prisma } from '../../shared/db/prisma'
+import { homeExpBonus } from '../housing/housing.config'
 import { withIdempotency } from '../../shared/db/idempotency'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
@@ -176,6 +177,8 @@ export const CityService = {
     const items = await prisma.itemInstance.findMany({ where: { ownerId: characterId, isEquipped: true,
       status: { in: ['NORMAL', 'EQUIPPED'] }, durabilityCurrent: { gt: 0 }, template: { battleExpBonus: { gt: 0 } } },
       select: { template: { select: { battleExpBonus: true } } } })
-    return artifactBonus(items.map(i => i.template.battleExpBonus))
+    // Дом из Жилого сектора добавляет свою долю (правка заказчика 21.10).
+    const home = await prisma.playerHome.findUnique({ where: { characterId }, select: { kind: true, durability: true } })
+    return artifactBonus(items.map(i => i.template.battleExpBonus)) + (home ? homeExpBonus(home.kind, home.durability) : 0)
   },
 }
