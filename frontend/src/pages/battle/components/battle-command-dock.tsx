@@ -1,8 +1,8 @@
 import { Flag, RotateCcw, Shield, Sword, X } from 'lucide-react'
 import type { AttackHand, BodyZone, GridPosition, Stance } from '../../../shared/api/battles.api'
 import { ZONE_LABEL, getActionBudget, validateTurnPlan } from '../battle-view-model'
-import { BattleChronicle } from './battle-chronicle'
 import type { RoundRecord } from './battle-events'
+import { BattleChronicle, PersistedBattleChronicle } from './battle-chronicle'
 import { BattleJournalHead, type JournalFighter } from './battle-journal-head'
 import { BattleHelperBadge } from './battle-helper-badge'
 import type { HelperTactic, LiveHelper } from '../../../shared/types/api.types'
@@ -25,6 +25,9 @@ interface BattleCommandDockProps {
   rounds?: RoundRecord[]
   playerName?: string
   enemyName?: string
+  battleId?: string
+  currentRound?: number
+  playerSide?: number
   /** Шапка журнала из макета: тип боя, время начала и строка участников. */
   battleType?: string | null
   startedAt?: string | null
@@ -81,8 +84,10 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
           self={props.selfFighter} enemy={props.enemyFighter} />}
         {props.helper && <BattleHelperBadge helper={props.helper} pending={!!props.helperPending}
           onTactic={tactic => props.onHelperTactic?.(tactic)} />}
-        <BattleChronicle rounds={props.rounds ?? []} playerName={props.playerName ?? ''}
-          enemyName={props.enemyName ?? ''} helperName={props.helper?.name} onOpenLog={props.onToggleLog} />
+        {props.battleId ? <PersistedBattleChronicle battleId={props.battleId} refreshKey={props.currentRound ?? 1}
+          playerSide={props.playerSide} onOpenLog={props.onToggleLog} /> : <BattleChronicle
+            rounds={props.rounds ?? []} playerName={props.playerName ?? ''} enemyName={props.enemyName ?? ''}
+            helperName={props.helper?.name} onOpenLog={props.onToggleLog} />}
       </section>
     )
   }

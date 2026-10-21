@@ -1,4 +1,6 @@
-import type { AttackHand, BodyZone, GridPosition, Stance } from '../../shared/api/battles.api'
+import { hexDistance, isNeighbour } from '../../shared/lib/hex'
+import type { LiveParticipant, LiveBattleState } from '../../shared/types/api.types'
+import type { BattleParticipantProfile, AttackHand, BodyZone, GridPosition, Stance } from '../../shared/api/battles.api'
 
 // caption — подпись на ячейке зоны. Отдельно от label: «Правая рука» не влезает
 // в колонку и переносится на вторую строку, сдвигая ячейки руки вниз.
@@ -165,4 +167,52 @@ export function validateTurnPlan(input: {
     return { valid: false, reason: `Выберите ещё ${left} ${left === 1 ? 'зону блока' : 'зоны блока'}` }
   }
   return { valid: true, reason: '' }
+}
+
+
+export interface BattleActionSnapshot {
+  receivedAt: number
+  targetId?: string
+  roundNumber?: number
+  waiting?: boolean
+  battleOver?: boolean
+  playerHp?: number
+  botHp?: number
+  distance?: number
+  playerRange?: number
+}
+
+/** Action feedback lasts only until the next authoritative battle snapshot.
+ * Distances are target-specific: the legacy live.distance describes only one pair. */
+export function battleDisplayState(input: {
+  live?: Pick<LiveBattleState, 'roundNumber' | 'distance'> | null
+  player?: Pick<LiveParticipant, 'position' | 'hpCurrent'>
+  enemy?: Pick<LiveParticipant, 'participantId' | 'position' | 'hpCurrent'>
+  profile?: Pick<BattleParticipantProfile, 'primaryRange' | 'secondaryRange'>
+  dataUpdatedAt: number
+  action?: BattleActionSnapshot | null
+}) {
+  const action = input.action && input.action.receivedAt >= input.dataUpdatedAt ? input.action : null
+  const sameTarget = action?.targetId === input.enemy?.participantId
+  return {
+    round: action?.roundNumber != null
+      ? action.roundNumber + (action.waiting || action.battleOver ? 0 : 1)
+      : input.live?.roundNumber ?? 1,
+    distance: (sameTarget ? action?.distance : undefined)
+      ?? (input.player && input.enemy ? hexDistance(input.player.position, input.enemy.position) : input.live?.distance)
+      ?? 0,
+    range: action?.playerRange ?? (input.profile ? Math.max(input.profile.primaryRange, input.profile.secondaryRange) : null),
+    playerHp: action?.playerHp ?? input.player?.hpCurrent,
+    enemyHp: (sameTarget ? action?.botHp : undefined) ?? input.enemy?.hpCurrent,
+  }
+}
+
+export function canSelectBattleMove(
+  player: Pick<LiveParticipant, 'position' | 'isAlive' | 'hasActedThisRound'> | undefined,
+  destination: GridPosition,
+  participants: Pick<LiveParticipant, 'isAlive' | 'position'>[],
+): boolean {
+  return !!player && player.isAlive && !player.hasActedThisRound
+    && isNeighbour(player.position, destination)
+    && !participants.some(part => part.isAlive && part.position.x === destination.x && part.position.y === destination.y)
 }

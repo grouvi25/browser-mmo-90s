@@ -7,6 +7,7 @@ import { ApiError } from '../shared/api/client'
 import { PublicLayout } from './layouts/public-layout'
 import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
+import { loginDestination, loginUrl } from '../shared/lib/login-redirect'
 import { ResumeLocation } from './location-persistence'
 import { CityPage } from '../pages/locations/city-page'
 import { AnnouncementsFeed } from '../pages/radio/announcements-feed'
@@ -40,13 +41,15 @@ import { SupportPage }          from '../pages/support/support-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
-  if (!isAuth) return <Navigate to="/login" replace />
+  const location = useLocation()
+  if (!isAuth) return <Navigate to={loginUrl(location.pathname + location.search + location.hash)} replace />
   return <>{children}</>
 }
 
 function RequireGuest({ children, authenticatedTo = '/' }: { children: React.ReactNode; authenticatedTo?: string }) {
   const { isAuth } = useAuth()
-  if (isAuth) return <Navigate to={authenticatedTo} replace />
+  const location = useLocation()
+  if (isAuth) return <Navigate to={authenticatedTo === '/resume' ? loginDestination(location.search) : authenticatedTo} replace />
   return <>{children}</>
 }
 

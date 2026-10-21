@@ -15,6 +15,12 @@ export function CreateCharacterPage() {
   const [gender, setGender] = useState<'MALE' | 'FEMALE'>('MALE')
   const [error, setError] = useState('')
 
+  const creationConfig = useQuery({
+    queryKey: ['character', 'creation-config'],
+    queryFn: charactersApi.creationConfig,
+    staleTime: 0,
+  })
+
   // Check if char already exists
   const { data: existingChar } = useQuery({
     queryKey: ['character', 'me'],
@@ -125,7 +131,7 @@ export function CreateCharacterPage() {
                     </tr>
                     <tr>
                       <td>Стартовые деньги</td>
-                      <td className="money">1 250</td>
+                      <td className="money">{creationConfig.data ? creationConfig.data.startMoney.toLocaleString('ru-RU') : creationConfig.isError ? 'Не удалось загрузить' : 'Загрузка…'}</td>
                     </tr>
                     <tr>
                       <td>Боевой уровень</td>

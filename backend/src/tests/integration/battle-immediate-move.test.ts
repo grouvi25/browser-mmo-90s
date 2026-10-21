@@ -6,6 +6,7 @@
  * тактического смысла в шаге не оставалось.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { hexNeighbours } from '../../modules/battles/grid'
 import { BattleRedis } from '../../shared/db/redis'
 import { BattleService } from '../../modules/battles/battles.service'
 import { cleanDatabase, testPrisma, uid } from './helpers'
@@ -164,4 +165,31 @@ describe('PvP: немедленный шаг', () => {
     const mover = after!.participants.find(p => p.characterId === a.character.id)!
     expect(mover.position).toEqual(destination)
   })
+
+  for (const mode of ['PVP', 'PVE'] as const) {
+    it(`${mode}: занятую клетку отклоняет по-русски и не тратит ход`, async () => {
+      const a = await player('occupied')
+      const battleId = mode === 'PVE'
+        ? (await BattleService.startPve(a.user.id, 'training_bandit')).battleId
+        : await duel(a.user.id, (await player('blocker')).user.id)
+      const state = await BattleRedis.getState<Parameters<typeof BattleService._applyImmediateMove>[0]>(battleId)
+      const me = state!.participants.find(p => p.characterId === a.character.id)!
+      const foe = state!.participants.find(p => p.side !== me.side)!
+      const destination = hexNeighbours(me.position)[0]
+      foe.position = destination
+      await BattleRedis.setState(battleId, state!)
+
+      await expect(BattleService.submitAction(a.user.id, battleId, {
+        action: 'move', moveTo: destination,
+      })).rejects.toMatchObject({
+        code: 'BATTLE_004', statusCode: 400,
+        message: 'Клетка занята или недоступна. Выберите соседнюю свободную клетку.',
+      })
+      const after = await BattleRedis.getState<typeof state>(battleId)
+      expect(after!.participants.find(p => p.characterId === a.character.id)?.position).toEqual(me.position)
+      expect(after!.participants.find(p => p.characterId === a.character.id)?.hasActedThisRound).toBe(false)
+      expect(await testPrisma.battleTurn.count({ where: { battleId, actorCharId: a.character.id, action: 'MOVE' } })).toBe(0)
+    })
+  }
+
 })

@@ -23,6 +23,8 @@ export interface PublicProfile {
 }
 
 export const charactersApi = {
+  creationConfig: () => api.get<{ startMoney: number }>('/api/characters/creation-config'),
+
   create: (data: { nickname: string; archetype: string; gender?: 'MALE' | 'FEMALE' }) =>
     api.post<Character>('/api/characters', data),
 

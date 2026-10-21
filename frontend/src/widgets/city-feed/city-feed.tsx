@@ -85,6 +85,12 @@ export function CityChatDock() {
           }}
         >
           <div className="stage__plate" style={{ backgroundImage: plate }} />
+          {/* На подложке запечены девять демонстрационных конвертов и фигур.
+              Закрываем только их полоску чистой бумагой; реальные строки — ниже. */}
+          <div className="online-list-paper" aria-hidden="true" style={{
+            left: 1155, top: 729, width: 53, height: 161,
+            backgroundImage: `url("${PLATES['online-list-paper']}")`,
+          }} />
           <CityChat />
           <OnlineList />
         </div>
@@ -184,7 +190,7 @@ export function OnlineList() {
         ref={titleRef}
         className="online-title"
         style={{ left: MENU.onlineTitle.x, top: MENU.onlineTitle.y, fontSize: MENU.onlineTitle.size }}
-        title="Присутствие подключается в Этапе 3 — список демонстрационный"
+        title="Игроки, подключённые к общему эфиру"
       >
         Игроки онлайн: {players.length}
       </div>

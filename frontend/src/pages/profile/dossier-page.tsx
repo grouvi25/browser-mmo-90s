@@ -184,7 +184,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
       ? view.skills.map((s, i) => `${i + 1}. ${WEAPON_TYPE_LABELS[s.weaponType] ?? s.weaponType} — ${s.skillLevel}`)
       : ['1. Пока ничем не владеет']),
     '',
-    `Колличество боёв: ${view.battlesTotal}`,
+    `Количество боёв: ${view.battlesTotal}`,
     `Из них побед: ${view.battlesWon}`,
     '',
     'Достижения:',
@@ -215,7 +215,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
   const offhand = view?.offhand
 
   const fieldLabels: Record<string, string> = {
-    name: 'Имя', sex: 'Кто', spouse: view?.gender === 'FEMALE' ? 'Муж' : 'Жена', account: 'Акаунт',
+    name: 'Имя', sex: 'Кто', spouse: view?.gender === 'FEMALE' ? 'Муж' : 'Жена', account: 'Аккаунт',
   }
 
   // На телефоне бумажный разворот участка милиции нечитаем целиком,

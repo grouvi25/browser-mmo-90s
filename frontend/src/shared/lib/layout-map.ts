@@ -238,7 +238,7 @@ export const PROFILE = {
     { key: 'name', label: 'Имя', x: 127.5, y: 374.5, w: 114 },
     { key: 'sex', label: 'Кто', x: 127.5, y: 417, w: 113 },
     { key: 'spouse', label: 'Жена', x: 126.5, y: 460, w: 143.5 },
-    { key: 'account', label: 'Акаунт', x: 127.5, y: 491, w: 150 },
+    { key: 'account', label: 'Аккаунт', x: 127.5, y: 491, w: 150 },
   ],
   // Правка заказчика: «в профиле шрифты меньше, чтобы ничего не вылазило».
   fieldSize: 18,

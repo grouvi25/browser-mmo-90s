@@ -30,7 +30,7 @@ import { EventIcon, getEvent, type RoundRecord, type TurnEvent } from './compone
 import { BattlePockets } from './components/battle-pockets'
 import { BattleJournal } from '../../widgets/battle-journal/battle-journal'
 import { BattleSwap, type SwapPlan } from './components/battle-swap'
-import { removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
+import { battleDisplayState, canSelectBattleMove, type BattleActionSnapshot, removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
 import './battle-phase-a.css'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -186,9 +186,7 @@ export function BattlePage() {
   const qc = useQueryClient()
 
   const [rounds, setRounds]             = useState<RoundRecord[]>([])
-  const [playerHp, setPlayerHp]         = useState<number | null>(null)
-  const [enemyHp, setEnemyHp]           = useState<number | null>(null)
-  const [currentRound, setCurrentRound] = useState(1)
+  const [actionSnapshot, setActionSnapshot] = useState<BattleActionSnapshot | null>(null)
   const [battleOver, setBattleOver]     = useState(false)
   const [finishResult, setFinishResult] = useState<RoundResult | null>(null)
   const [actionError, setActionError]   = useState('')
@@ -256,8 +254,6 @@ export function BattlePage() {
   const [attackZones, setAttackZones]   = useState<BodyZone[]>([])
   const [attackHands, setAttackHands]   = useState<AttackHand[]>([])
   const [blockZones, setBlockZones]     = useState<BodyZone[]>([])
-  const [distance, setDistance]         = useState<number | null>(null)
-  const [playerRange, setPlayerRange]   = useState<number | null>(null)
   const [selectedMove, setSelectedMove] = useState<{ x: number; y: number } | null>(null)
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null)
 
@@ -270,7 +266,7 @@ export function BattlePage() {
   const { data: items = [] } = useQuery({
     queryKey: ['inventory'], queryFn: () => inventoryApi.getItems(), enabled: isValid && !!char,
   })
-  const { data: battleData } = useQuery({
+  const { data: battleData, dataUpdatedAt } = useQuery({
     queryKey: ['battle', battleId],
     queryFn: () => battlesApi.getBattle(battleId!),
     enabled: isValid && !battleOver,
@@ -292,13 +288,17 @@ export function BattlePage() {
   const ePart     = enemyParts.find((p: LiveParticipant) => p.participantId === selectedTargetId) ?? enemyParts[0]
   // Fallback на DB participants для hpMax (важно: Redis может ещё не загрузиться)
   const dbEPart   = dbParts.find(p => !!p.botId || (p.characterId && p.characterId !== char?.id))
-  const pHp       = playerHp ?? pPart?.hpCurrent ?? char?.hpCurrent ?? 0
   const pHpMax    = pPart?.hpMax ?? char?.hpMax ?? 1
-  const eHp       = enemyHp ?? ePart?.hpCurrent ?? dbEPart?.hpCurrent ?? 0
-  const eHpMax    = ePart?.hpMax ?? dbEPart?.hpMax ?? 0  // 0 показывает полный бар до загрузки
   const weapon    = items.find(i => i.isEquipped && i.template.type === 'WEAPON')
   const profiles = battleData?.participantProfiles ?? []
   const playerProfile = profiles.find(profile => profile.participantId === pPart?.participantId)
+  const display = battleDisplayState({ live, player: pPart, enemy: ePart, profile: playerProfile, dataUpdatedAt, action: actionSnapshot })
+  const currentRound = display.round
+  const currentDistance = display.distance
+  const playerRange = display.range
+  const pHp       = display.playerHp ?? char?.hpCurrent ?? 0
+  const eHp       = display.enemyHp ?? dbEPart?.hpCurrent ?? 0
+  const eHpMax    = ePart?.hpMax ?? dbEPart?.hpMax ?? 0  // 0 показывает полный бар до загрузки
   const enemyProfile = profiles.find(profile => profile.participantId === ePart?.participantId)
   const enemyName = enemyProfile?.name ?? 'Противник'
 
@@ -337,7 +337,16 @@ export function BattlePage() {
     return items.find(i => i.id === id && i.status !== 'DELETED' && i.status !== 'CONSUMED') ?? null
   })
 
+  // A selected destination can become occupied while the other fighter moves.
+  useEffect(() => {
+    if (selectedMove && live && !canSelectBattleMove(pPart, selectedMove, live.participants)) setSelectedMove(null)
+  }, [live, pPart, selectedMove])
+
   const actionMut = useMutation({
+    onMutate: async () => {
+      setActionError('')
+      await qc.cancelQueries({ queryKey: ['battle', battleId], exact: true })
+    },
     mutationFn: ({ action, opts }: { action: BattleAction; opts?: SubmitActionOpts }) =>
       battlesApi.submitAction(battleId!, action, opts) as unknown as Promise<RoundResult>,
     onSuccess: (data, variables) => {
@@ -345,23 +354,11 @@ export function BattlePage() {
         setStance('defense4'); setAttackZones([]); setAttackHands([]); setBlockZones([]); setSelectedMove(null)
       }
       const rn = data.roundNumber ?? currentRound
-      setCurrentRound(rn)
-      if (data.playerHp != null) setPlayerHp(data.playerHp)
-      if (data.botHp    != null) setEnemyHp(data.botHp)
-      if (data.distance != null) setDistance(data.distance)
-      if (data.playerRange != null) setPlayerRange(data.playerRange)
+      setActionSnapshot({ ...data, receivedAt: Date.now(), targetId: variables.opts?.targetParticipantId ?? ePart?.participantId })
 
       // Fix 1.1: аптечка пропадает сразу после использования
       if (variables.action === 'use_item') {
         qc.invalidateQueries({ queryKey: ['inventory'] })
-      }
-
-      // Шаг сервер применяет немедленно, но позиции на поле приходят из
-      // опроса раз в три секунды. Дёргаем его сразу, иначе своя же фигура
-      // доезжает до новой клетки с задержкой, и шаг перестаёт читаться
-      // как ход.
-      if (data.moved) {
-        qc.invalidateQueries({ queryKey: ['battle', battleId] })
       }
 
       const events: TurnEvent[] = data.turns?.map(t => ({
@@ -400,15 +397,19 @@ export function BattlePage() {
         qc.invalidateQueries({ queryKey: ['inventory'] })
       }
     },
-    onError: (err) => {
+    onError: (err, variables) => {
+      if (variables.action === 'move') setSelectedMove(null)
       setActionError(err instanceof ApiError ? err.message : 'Ошибка')
       setTimeout(() => setActionError(''), 4000)
     },
-    onSettled: () => { actionPendingRef.current = false },
+    onSettled: () => {
+      actionPendingRef.current = false
+      // Every action (including a rejected move) must refresh the board and journal.
+      void qc.invalidateQueries({ queryKey: ['battle', battleId] })
+    },
   })
 
   const canAct = !battleOver && !actionMut.isPending
-  const currentDistance = distance ?? live?.distance ?? 0
   const targetInRange = playerRange == null || currentDistance <= playerRange
   const outOfRangeHands = ([['LEFT_HAND', playerProfile?.primaryRange ?? playerRange ?? 1], ['RIGHT_HAND', playerProfile?.secondaryRange ?? 1]] as const)
     .filter(([, range]) => currentDistance > range).map(([hand]) => hand)
@@ -450,7 +451,11 @@ export function BattlePage() {
     setSwapPlan({})
   }
   const submitMove = () => {
-    if (!selectedMove) return
+    if (!selectedMove || !canSelectBattleMove(pPart, selectedMove, live?.participants ?? [])) {
+      setSelectedMove(null)
+      void qc.invalidateQueries({ queryKey: ['battle', battleId], exact: true })
+      return
+    }
     act('move', { moveTo: selectedMove })
   }
 
@@ -515,7 +520,7 @@ export function BattlePage() {
                 <ChevronDown size={12} />
                 <span>Журнал боя</span>
               </div>
-              <div className="log-body-v2"><BattleJournal battleId={battleId} refreshKey={rounds.length} /></div>
+              <div className="log-body-v2"><BattleJournal battleId={battleId} refreshKey={currentRound} /></div>
             </div>
           )}
         </div>
@@ -611,7 +616,7 @@ export function BattlePage() {
             playerDefeated={false} enemyDefeated={false}
             playerHit={playerHit} enemyHit={enemyHit}
             playerAttack={playerAttack} enemyAttack={enemyAttack} lastEvent={lastEvent}
-            distance={distance ?? live?.distance ?? undefined} playerPosition={pPart?.position}
+            distance={currentDistance} playerPosition={pPart?.position}
             enemyPosition={ePart?.position} selectedMove={selectedMove} onSelectMove={selectMove}
             participants={live?.participants} playerParticipantId={pPart?.participantId}
             playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
@@ -642,7 +647,7 @@ export function BattlePage() {
         selectedMove={selectedMove} targetId={ePart?.participantId} targetInRange={targetInRange}
         canAct={canAct} pending={actionMut.isPending} timeLeft={timeLeft}
         roundsCount={rounds.length} pocketCount={pocketSlots.filter(Boolean).length}
-        compact rounds={rounds} playerName={playerName} enemyName={enemyName}
+        compact battleId={battleId} currentRound={currentRound} playerSide={pPart?.side}
         battleType={battleData?.battle?.type} startedAt={battleData?.battle?.startedAt}
         selfFighter={{ name: playerName, level: char?.battleLevel, hp: pHp, hpMax: pHpMax, acted: pPart?.hasActedThisRound }}
         helper={pPart?.helper} helperPending={helperTacticMut.isPending}
@@ -684,7 +689,7 @@ export function BattlePage() {
         <section>
           <header><b>{showLog ? 'Лог боя' : 'Боевой карман'}</b><button type="button" onClick={() => { setShowLog(false); setPocketsOpen(false) }}>Закрыть</button></header>
           {showLog ? <div className="log-body-v2">
-            {battleId && <BattleJournal battleId={battleId} refreshKey={rounds.length} />}
+            {battleId && <BattleJournal battleId={battleId} refreshKey={currentRound} />}
           </div> : (
             <>
               <BattlePockets slots={pocketSlots} canAct={canAct} open

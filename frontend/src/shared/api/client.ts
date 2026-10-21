@@ -3,6 +3,7 @@
 // API Client вЂ” typed fetch wrapper
 // =============================================================
 
+import { loginUrl } from '../lib/login-redirect'
 import { playerErrorMessage } from './error-messages'
 
 const BASE = (import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_API_BASE_URL || ''
@@ -67,7 +68,7 @@ export async function request<T>(
     if (res.status === 401 && !noAuth) {
       removeToken()
       if (window.location.pathname !== '/login') {
-        window.location.assign('/login?reason=session-expired')
+        window.location.assign(loginUrl(window.location.pathname + window.location.search + window.location.hash, true))
       }
     }
     let errorData: { code?: string; message?: string; details?: unknown } = {}

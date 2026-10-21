@@ -421,6 +421,7 @@ html, body {
 }
 .chat-input::placeholder { color: #6b5c4e; }
 
+.online-list-paper { position: absolute; background-size: 100% 100%; pointer-events: none; }
 .online-title { position: absolute; font-family: var(--font-ui);
                 color: var(--ink-red); transform-origin: left top; width: max-content; }
 .online-list  { position: absolute; font-family: var(--font-ui);

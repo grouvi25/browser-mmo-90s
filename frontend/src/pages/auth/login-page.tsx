@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { loginDestination } from '../../shared/lib/login-redirect'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../app/providers/auth-provider'
 import { authApi } from '../../shared/api/auth.api'
 import { ApiError } from '../../shared/api/client'
@@ -7,6 +8,7 @@ import { ApiError } from '../../shared/api/client'
 export function LoginPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [form, setForm] = useState({ login: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,7 +24,7 @@ export function LoginPage() {
     try {
       const res = await authApi.login(form)
       signIn(res.token, res.userId, res.login)
-      navigate('/resume')
+      navigate(loginDestination(location.search), { replace: true })
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.status === 401 ? 'Неверный логин или пароль' : err.message)

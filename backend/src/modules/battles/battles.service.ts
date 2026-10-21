@@ -168,7 +168,7 @@ function applyRequestedMove(state: LiveBattleState, part: LiveParticipant, moveT
   const projected = positionedParticipants(state)
   const actor = projected.find(p => p.participantId === part.participantId)!
   if (!canMoveTo(actor, moveTo, projected)) {
-    throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid or occupied destination cell', 400)
+    throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Клетка занята или недоступна. Выберите соседнюю свободную клетку.', 400)
   }
   part.position = { ...moveTo }
   return true
@@ -1979,7 +1979,7 @@ export const BattleService = {
     const board = positionedParticipants(state)
     const mover = board.find(p => p.participantId === part.participantId)
     if (!mover || !canMoveTo(mover, destination, board)) {
-      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Cannot move there', 400)
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Клетка занята или недоступна. Выберите соседнюю свободную клетку.', 400)
     }
     part.position = { ...destination }
     syncGridDistance(state)

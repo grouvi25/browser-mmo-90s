@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { authenticate } from '../../shared/security/auth-middleware'
+import { BalanceConfig } from '../../config/balance.config'
 import { CharactersService } from './characters.service'
 import { CreateCharacterSchema } from './characters.schemas'
 import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repository'
@@ -20,6 +21,10 @@ const DistributeStatSchema = z.object({
 })
 
 export async function charactersRoutes(fastify: FastifyInstance): Promise<void> {
+  fastify.get('/creation-config', { preHandler: authenticate }, async (_req, reply) => {
+    reply.header('Cache-Control', 'no-store')
+    return { startMoney: BalanceConfig.character.startMoney }
+  })
 
   fastify.post('/', { preHandler: authenticate },
     async (req, reply) => {
