@@ -5,6 +5,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { CharactersRepository } from '../characters/characters.repository'
 import { HousingService } from './housing.service'
+import { LOT_COUNT } from './housing.config'
 
 /** Жилой сектор — /api/housing. */
 export async function housingRoutes(fastify: FastifyInstance) {
@@ -17,10 +18,10 @@ export async function housingRoutes(fastify: FastifyInstance) {
 
   fastify.get('/', { preHandler: authenticate }, async req => HousingService.view((await me(req.authUser.userId)).id))
 
-  fastify.post<{ Body: { kind: string } }>('/buy', { preHandler: authenticate }, async (req, reply) => {
-    const parsed = z.object({ kind: z.enum(['APARTMENT', 'HOUSE']) }).safeParse(req.body)
+  fastify.post<{ Body: { lot: number } }>('/buy', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ lot: z.number().int().min(1).max(LOT_COUNT) }).safeParse(req.body)
     if (!parsed.success) return reply.code(422).send(bad)
-    return reply.send(await HousingService.buy((await me(req.authUser.userId)).id, parsed.data.kind))
+    return reply.send(await HousingService.buy((await me(req.authUser.userId)).id, parsed.data.lot))
   })
 
   fastify.post<{ Body: { code: string } }>('/tunnels', { preHandler: authenticate }, async (req, reply) => {

@@ -2309,6 +2309,9 @@ model PlayerHome {
   id          String   @id @default(uuid())
   characterId String   @unique @map("character_id")
   kind        HomeKind
+  /// Номер участка в секторе (1…24): квартиры и дома построены заранее,
+  /// игрок покупает свободный. Вид жилья задан номером (housing.config).
+  lot         Int?     @unique
   durability  Int      @default(100)
   /// Купленные туннели: коды мест (`pvp`, `industrial`, `farm`).
   tunnels     String[] @default([])

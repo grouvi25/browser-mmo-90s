@@ -13,8 +13,11 @@
 // Прямого нападения на игрока в игре нет (бои идут по заявкам), поэтому
 // налёт — это бой нападающего со сторожем дома, ботом под уровень хозяина:
 // хозяину не нужно быть в сети, сам он в доме в безопасности.
+//
+// Жильё стоит заранее: 16 квартир и 8 домов (housing.config, LOTS).
+// Игрок покупает свободный участок; переезд из квартиры в дом — доплатой.
 // =============================================================
-import type { HomeKind } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
@@ -23,7 +26,7 @@ import { DollarsService } from '../dollars/dollars.service'
 import { EconomyService } from '../economy/economy.service'
 import { NoticesService } from '../chat/notices.service'
 import { BattleService } from '../battles/battles.service'
-import { HOUSING, TUNNELS, type TunnelCode, homeBonusActive, homeExpBonus } from './housing.config'
+import { HOUSING, LOT_COUNT, TUNNELS, type TunnelCode, homeBonusActive, homeExpBonus, isLot, lotKind, lotLabel } from './housing.config'
 
 const HOUR = 3_600_000
 
@@ -75,15 +78,15 @@ export const HousingService = {
     return home ? homeExpBonus(home.kind, home.durability) : 0
   },
 
-  /** Сектор: свой дом, цены и список чужих домов для налёта. */
+  /** Сектор: свой дом, цены и план участков — свободные, свой и чужие для налёта. */
   async view(characterId: string) {
     await settle()
     const [home, char, homes] = await Promise.all([
       myHome(characterId),
       prisma.character.findUniqueOrThrow({ where: { id: characterId }, select: { dollars: true, money: true } }),
       prisma.playerHome.findMany({
-        orderBy: { purchasedAt: 'asc' }, take: 100,
-        select: { id: true, kind: true, durability: true, characterId: true, character: { select: { nickname: true, battleLevel: true } } },
+        where: { lot: { not: null } },
+        select: { id: true, lot: true, durability: true, characterId: true, character: { select: { nickname: true, battleLevel: true } } },
       }),
     ])
     const since = new Date(Date.now() - HOUSING.raidCooldownHours * HOUR)
@@ -92,39 +95,56 @@ export const HousingService = {
     const raidsOnMe = home ? await prisma.homeRaid.findMany({ where: { homeId: home.id, status: { in: ['ATTACKER_WON', 'DEFENDER_WON'] } }, orderBy: { createdAt: 'desc' }, take: 10 }) : []
     const raiders = await prisma.character.findMany({ where: { id: { in: raidsOnMe.map(r => r.attackerId) } }, select: { id: true, nickname: true } })
     const nick = new Map(raiders.map(r => [r.id, r.nickname]))
+    const byLot = new Map(homes.map(h => [h.lot, h]))
     return {
       prices: HOUSING.kinds, tunnelPrice: HOUSING.tunnelPriceDollars, repairPer10: HOUSING.repairCostPer10, tunnels: TUNNELS,
       wallet: { dollars: char.dollars, money: char.money },
       home: home ? {
-        id: home.id, kind: home.kind, durability: home.durability, tunnels: home.tunnels,
+        id: home.id, kind: home.kind, lot: home.lot, label: home.lot ? lotLabel(home.lot) : null, durability: home.durability, tunnels: home.tunnels,
         bonus: homeExpBonus(home.kind, home.durability), bonusActive: homeBonusActive(home.durability),
         raids: raidsOnMe.map(r => ({ at: r.createdAt, attacker: nick.get(r.attackerId) ?? '—', won: r.status === 'ATTACKER_WON' })),
       } : null,
-      homes: homes.filter(h => h.characterId !== characterId).map(h => {
-        const last = raidedAt.get(h.id)
+      lots: Array.from({ length: LOT_COUNT }, (_, i) => {
+        const lot = i + 1
+        const h = byLot.get(lot)
+        const last = h ? raidedAt.get(h.id) : undefined
         return {
-          id: h.id, kind: h.kind, durability: h.durability, owner: h.character.nickname, ownerLevel: h.character.battleLevel,
-          canRaidAt: last ? new Date(last.getTime() + HOUSING.raidCooldownHours * HOUR) : null,
+          lot, kind: lotKind(lot), label: lotLabel(lot),
+          home: h ? {
+            id: h.id, durability: h.durability, owner: h.character.nickname, ownerLevel: h.character.battleLevel,
+            mine: h.characterId === characterId,
+            canRaidAt: last ? new Date(last.getTime() + HOUSING.raidCooldownHours * HOUR) : null,
+          } : null,
         }
       }),
     }
   },
 
-  /** Покупка квартиры или дома — только за доллары; квартиру можно улучшить до дома доплатой. */
-  async buy(characterId: string, kind: HomeKind) {
+  /** Покупка свободного участка — только за доллары; из квартиры в дом можно переехать доплатой. */
+  async buy(characterId: string, lot: number) {
+    if (!isLot(lot)) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Такого участка нет', 422)
+    const kind = lotKind(lot)
     const price = HOUSING.kinds[kind].priceDollars
-    return withTransaction(async tx => {
-      const existing = await tx.playerHome.findUnique({ where: { characterId } })
-      if (existing && (existing.kind === kind || existing.kind === 'HOUSE')) {
-        throw new AppError(ErrorCode.CONFLICT, existing.kind === 'HOUSE' ? 'У вас уже есть дом' : 'У вас уже есть квартира', 409)
-      }
-      const cost = existing ? price - HOUSING.kinds[existing.kind].priceDollars : price
-      const dollars = await DollarsService.debit(tx, { characterId, amount: cost, reason: 'PURCHASE', note: existing ? 'Жилой сектор: доплата за дом' : `Жилой сектор: ${HOUSING.kinds[kind].name}` })
-      const home = existing
-        ? await tx.playerHome.update({ where: { id: existing.id }, data: { kind } })
-        : await tx.playerHome.create({ data: { characterId, kind } })
-      return { home, dollars, cost }
-    })
+    try {
+      return await withTransaction(async tx => {
+        const existing = await tx.playerHome.findUnique({ where: { characterId } })
+        if (existing && (existing.kind === kind || existing.kind === 'HOUSE')) {
+          throw new AppError(ErrorCode.CONFLICT, existing.kind === 'HOUSE' ? 'У вас уже есть дом' : 'У вас уже есть квартира', 409)
+        }
+        // Занятость проверяем заранее ради понятного ответа; гонку двух
+        // покупателей закрывает уникальный индекс по номеру участка.
+        if (await tx.playerHome.findUnique({ where: { lot } })) throw new AppError(ErrorCode.CONFLICT, 'Этот участок уже занят', 409)
+        const cost = existing ? price - HOUSING.kinds[existing.kind].priceDollars : price
+        const dollars = await DollarsService.debit(tx, { characterId, amount: cost, reason: 'PURCHASE', note: existing ? 'Жилой сектор: доплата за дом' : `Жилой сектор: ${HOUSING.kinds[kind].name}` })
+        const home = existing
+          ? await tx.playerHome.update({ where: { id: existing.id }, data: { kind, lot } })
+          : await tx.playerHome.create({ data: { characterId, kind, lot } })
+        return { home, dollars, cost }
+      })
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new AppError(ErrorCode.CONFLICT, 'Этот участок уже занят', 409)
+      throw error
+    }
   },
 
   /** Туннель из дома на Стрелки, Промзону или Фермы — за доллары. */
