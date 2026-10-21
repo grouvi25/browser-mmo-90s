@@ -1938,6 +1938,13 @@ enum PremiumProductKind {
   CONVENIENCE // удобство, на бой не влияет
 }
 
+/// Правка заказчика 21.10: помощников два — боевой и рабочий или два
+/// рабочих; двух боевых нельзя.
+enum HelperKind {
+  WORK
+  COMBAT
+}
+
 enum HelperStatus {
   ACTIVE // подписка активна, работает
   DORMANT // подписки нет, остаётся в профиле
@@ -1989,6 +1996,7 @@ model Helper {
   id              String       @id @default(uuid())
   characterId     String       @map("character_id")
   name            String
+  kind            HelperKind   @default(WORK)
   status          HelperStatus @default(ACTIVE)
   /// Профессия своя, не хозяйская. Потолок 3 при потолке игрока 6:
   /// помощник никогда не заменит специалиста на верхних переделах.

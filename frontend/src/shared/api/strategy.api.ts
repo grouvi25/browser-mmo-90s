@@ -161,6 +161,7 @@ export const premiumApi = {
 export interface Helper {
   id: string
   name: string
+  kind?: 'WORK' | 'COMBAT'
   status: 'ACTIVE' | 'DORMANT'
   professionCode: string
   professionLevel: number
@@ -182,8 +183,8 @@ export interface HelperObject {
 export const helpersApi = {
   list: () => api.get<{ items: Helper[]; slots: { used: number; total: number } }>('/api/helpers'),
   objects: () => api.get<{ items: HelperObject[] }>('/api/helpers/objects'),
-  hire: (name: string, professionCode: string) =>
-    api.post<Helper>('/api/helpers', { name, professionCode }, idem()),
+  hire: (name: string, professionCode: string, kind: 'WORK' | 'COMBAT' = 'WORK') =>
+    api.post<Helper>('/api/helpers', { name, kind, ...(kind === 'WORK' ? { professionCode } : {}) }, idem()),
   dismiss: (id: string) => api.delete<{ dismissed: string }>(`/api/helpers/${id}`),
   work: (id: string, objectId: string) =>
     api.post<{ shiftId: string; endsAt: string; baseSalary: number }>(
