@@ -5,7 +5,7 @@ test('city locations, return controls, readable fonts and resume after login', a
   test.setTimeout(120_000)
   const login = `cityui_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
   const password = 'city_test_password_984'
-  expect((await request.post(`${API}/api/auth/register`, { data: { login, email: `${login}@test.local`, password } })).status()).toBe(201)
+  expect((await request.post(`${API}/api/auth/register`, { data: { acceptPolicy: true, login, email: `${login}@test.local`, password } })).status()).toBe(201)
   const auth = await (await request.post(`${API}/api/auth/login`, { data: { login, password } })).json()
   expect((await request.post(`${API}/api/characters`, { headers: { Authorization: `Bearer ${auth.token}` }, data: { nickname: login, archetype: 'WORKER' } })).status()).toBe(201)
   await page.goto('/login')

@@ -20,6 +20,7 @@ export const AuthRepository = {
     passwordHash: string
     lastIp?: string
     lastUserAgent?: string
+    policyAcceptedAt?: Date
   }): Promise<User> {
     return prisma.user.create({ data })
   },

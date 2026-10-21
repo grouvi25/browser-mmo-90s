@@ -17,7 +17,7 @@ async function createAccount(request: APIRequestContext, prefix: string): Promis
   const cleanPrefix = prefix.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 14)
   const login = `${cleanPrefix}_${suffix}`.slice(0, 30)
   const password = 'visual_pass_123'
-  const registration = await request.post('/api/auth/register', { data: { login, email: `${login}@visual.local`, password } })
+  const registration = await request.post('/api/auth/register', { data: { acceptPolicy: true, login, email: `${login}@visual.local`, password } })
   expect(registration.status()).toBe(201)
   const logged = await request.post('/api/auth/login', { data: { login, password } })
   expect(logged.status()).toBe(200)
@@ -120,6 +120,10 @@ test.describe('Stage 2 visual and browser flow', () => {
     await inputs.nth(1).fill(`${login}@visual.local`)
     await inputs.nth(2).fill(password)
     await inputs.nth(3).fill(password)
+    // Без согласия с политикой регистрация не проходит (правка 21.10).
+    await page.locator('button[type="submit"]').click()
+    await expect(page.locator('.alert-error')).toContainText('согласие с политикой')
+    await page.getByRole('checkbox').check()
     await page.locator('button[type="submit"]').click()
     await expect(page).toHaveURL(/\/character\/create$/)
     await expect(page.locator('.arch-card')).toHaveCount(8)
@@ -131,6 +135,16 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.locator('body')).toContainText(`Hero_${suffix}`.slice(0, 30))
   })
 
+  test('политика открывается без входа и ведёт обратно к регистрации', async ({ page }) => {
+    await page.goto('/politika')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Политика в отношении обработки персональных данных')
+    await expect(page.locator('.politika h2')).toHaveCount(12)
+    await expect(page.locator('body')).toContainText('info@kooperativ.space')
+    await page.getByRole('link', { name: '← К регистрации' }).click()
+    await expect(page).toHaveURL(/\/register$/)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width + 2)
+  })
+
   test('registration without a character always lands back on onboarding', async ({ page }) => {
     // Учётка есть, персонажа нет — так бывает, если человек ушёл с шага
     // создания: закрыл вкладку, обновил страницу, вернулся по старой
@@ -140,7 +154,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     const login = `nochar_${suffix}`.slice(0, 30)
     const password = 'visual_pass_123'
     const registration = await apiContext.post('/api/auth/register', {
-      data: { login, email: `${login}@visual.local`, password },
+      data: { acceptPolicy: true, login, email: `${login}@visual.local`, password },
     })
     expect(registration.status()).toBe(201)
     const logged = await apiContext.post('/api/auth/login', { data: { login, password } })

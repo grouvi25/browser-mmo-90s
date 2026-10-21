@@ -36,6 +36,7 @@ import { BalanceSandboxPage }   from '../pages/balance-sandbox/balance-sandbox-p
 import { LocationHubPage, type DistrictKey } from '../pages/locations/location-hub-page'
 import { Stage3Page }           from '../pages/stage3/stage3-page'
 import { Stage4Page }           from '../pages/stage4/stage4-page'
+import { PolitikaPage }         from '../pages/legal/politika-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -132,6 +133,8 @@ export function AppRouter() {
       <Route element={<PublicLayout />}>
         <Route path="/login"    element={<RequireGuest authenticatedTo="/resume"><LoginPage /></RequireGuest>} />
         <Route path="/register" element={<RequireGuest authenticatedTo="/character/create"><RegisterPage /></RequireGuest>} />
+        {/* Политика открыта всем: на неё ведёт согласие при регистрации. */}
+        <Route path="/politika" element={<PolitikaPage />} />
       </Route>
 
       {/* ── Экраны без городской оболочки ─────────────────── */}

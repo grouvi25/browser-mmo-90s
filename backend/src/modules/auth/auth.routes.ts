@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { AuthService } from './auth.service'
-import { RegisterSchema, LoginSchema } from './auth.schemas'
+import { RegisterSchema, LoginSchema, POLICY_REQUIRED } from './auth.schemas'
 import { authenticate } from '../../shared/security/auth-middleware'
 
 const AUTH_RATE_LIMIT = {
@@ -16,6 +16,8 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/register', AUTH_RATE_LIMIT, async (req: FastifyRequest, reply: FastifyReply) => {
     const parsed = RegisterSchema.safeParse(req.body)
     if (!parsed.success) {
+      const fields = parsed.error.flatten().fieldErrors
+      if (fields.acceptPolicy) return reply.code(422).send({ code: 'GEN_001', message: POLICY_REQUIRED, details: fields })
       return reply.code(422).send({
         code: 'GEN_001',
         message: 'Validation error',

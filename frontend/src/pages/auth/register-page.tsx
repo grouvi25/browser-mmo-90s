@@ -8,6 +8,9 @@ export function RegisterPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ login: '', email: '', password: '', password2: '' })
+  // Согласие с политикой обработки персональных данных (152-ФЗ, правка
+  // заказчика 21.10): без него сервер регистрацию не примет.
+  const [agree, setAgree] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -25,10 +28,14 @@ export function RegisterPage() {
       setError('Пароль должен быть не менее 6 символов')
       return
     }
+    if (!agree) {
+      setError('Нужно согласие с политикой обработки персональных данных')
+      return
+    }
     setError('')
     setLoading(true)
     try {
-      await authApi.register({ login: form.login, email: form.email, password: form.password })
+      await authApi.register({ login: form.login, email: form.email, password: form.password, acceptPolicy: true })
       // Auto-login after register
       const res = await authApi.login({ login: form.login, password: form.password })
       signIn(res.token, res.userId, res.login)
@@ -101,6 +108,11 @@ export function RegisterPage() {
                 onChange={e => setForm(f => ({ ...f, password2: e.target.value }))}
               />
             </div>
+
+            <label className="auth-consent">
+              <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} />
+              <span>Я согласен с <Link to="/politika" target="_blank" rel="noopener">политикой обработки персональных данных</Link> и даю согласие на обработку своих данных</span>
+            </label>
 
             <button
               type="submit"

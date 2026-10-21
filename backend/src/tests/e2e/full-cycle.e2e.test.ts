@@ -53,7 +53,7 @@ describe('E2E: Full player cycle (Stage 1 TZ razdel 11)', () => {
   })
 
   it('11.1 Register', async () => {
-    const r = await api('POST', '/api/auth/register', { login, email, password: 'e2e_pass_123' })
+    const r = await api('POST', '/api/auth/register', { acceptPolicy: true, login, email, password: 'e2e_pass_123' })
     expect(r.status).toBe(201)
     expect((r.data as { login: string }).login).toBe(login)
   })
@@ -240,7 +240,7 @@ describe('E2E: Security invariants (ТЗ раздел 4)', () => {
     const l1 = uid('sec1')
     await fetch(`${BASE}/api/auth/register`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: l1, email: `${l1}@t.com`, password: 'pass123' }),
+      body: JSON.stringify({ acceptPolicy: true, login: l1, email: `${l1}@t.com`, password: 'pass123' }),
     })
     tok1 = ((await (await fetch(`${BASE}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -254,7 +254,7 @@ describe('E2E: Security invariants (ТЗ раздел 4)', () => {
     const l2 = uid('sec2')
     await fetch(`${BASE}/api/auth/register`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: l2, email: `${l2}@t.com`, password: 'pass123' }),
+      body: JSON.stringify({ acceptPolicy: true, login: l2, email: `${l2}@t.com`, password: 'pass123' }),
     })
     tok2 = ((await (await fetch(`${BASE}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -322,7 +322,7 @@ describe('E2E: Mathematical correctness', () => {
     const l = uid('math')
     await fetch(`${BASE}/api/auth/register`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: l, email: `${l}@t.com`, password: 'pass123' }),
+      body: JSON.stringify({ acceptPolicy: true, login: l, email: `${l}@t.com`, password: 'pass123' }),
     })
     const r = (await (await fetch(`${BASE}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

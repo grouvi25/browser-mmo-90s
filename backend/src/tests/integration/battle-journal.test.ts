@@ -63,7 +63,7 @@ describe('журнал боя', () => {
     const { battle } = await finishedBattle(4)
     const login = uid('reader')
     const password = 'local_test_pw_123'
-    await app.inject({ method: 'POST', url: '/api/auth/register', payload: { login, email: `${login}@test.local`, password } })
+    await app.inject({ method: 'POST', url: '/api/auth/register', payload: { acceptPolicy: true, login, email: `${login}@test.local`, password } })
     const { token } = (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { login, password } })).json<{ token: string }>()
 
     const res = await app.inject({ method: 'GET', url: `/api/battles/${battle.id}/journal?page=1`, headers: { authorization: `Bearer ${token}` } })

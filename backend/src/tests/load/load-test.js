@@ -95,7 +95,7 @@ export default function () {
 
   // 1. Register
   const regStart = Date.now()
-  const regRes = post('/api/auth/register', { login: uid, email, password: pw }, null)
+  const regRes = post('/api/auth/register', { acceptPolicy: true, login: uid, email, password: pw }, null)
   authLatency.add(Date.now() - regStart)
   if (regRes.status !== 201) {
     sleep(1)

@@ -495,6 +495,9 @@ model User {
   lastUserAgent String?    @map("last_user_agent")
   lastLoginAt   DateTime?  @map("last_login_at")
   registeredAt  DateTime   @default(now()) @map("registered_at")
+  /// Когда игрок согласился с политикой обработки персональных данных
+  /// (152-ФЗ, галочка при регистрации с 21.10.2026). У старых аккаунтов пусто.
+  policyAcceptedAt DateTime? @map("policy_accepted_at")
 
   // Relations
   character Character?

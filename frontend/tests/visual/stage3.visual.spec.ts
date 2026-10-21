@@ -13,7 +13,7 @@ async function createAccount(request: APIRequestContext, prefix: string): Promis
   const cleanPrefix = prefix.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 14)
   const login = `${cleanPrefix}_${suffix}`.slice(0, 30)
   const password = 'visual_pass_123'
-  const registration = await request.post('/api/auth/register', { data: { login, email: `${login}@visual.local`, password } })
+  const registration = await request.post('/api/auth/register', { data: { acceptPolicy: true, login, email: `${login}@visual.local`, password } })
   expect(registration.status()).toBe(201)
   const logged = await request.post('/api/auth/login', { data: { login, password } })
   expect(logged.status()).toBe(200)

@@ -82,7 +82,7 @@ describe('правки по документу 20.10', () => {
   it('второй нож без указанной руки идёт в свободную руку, а не снимает первый', async () => {
     const login = uid('knife')
     const password = 'local_test_pw_123'
-    expect((await app.inject({ method: 'POST', url: '/api/auth/register', payload: { login, email: `${login}@test.local`, password } })).statusCode).toBeLessThan(300)
+    expect((await app.inject({ method: 'POST', url: '/api/auth/register', payload: { acceptPolicy: true, login, email: `${login}@test.local`, password } })).statusCode).toBeLessThan(300)
     const { token } = (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { login, password } })).json<{ token: string }>()
     const created = await app.inject({ method: 'POST', url: '/api/characters', headers: { authorization: `Bearer ${token}` }, payload: { nickname: 'Knife' + Math.random().toString(36).slice(2, 8), archetype: 'STREET' } })
     expect(created.statusCode).toBeLessThan(300)

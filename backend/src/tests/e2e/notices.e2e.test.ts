@@ -14,7 +14,7 @@ async function api(method: string, path: string, body?: unknown, token?: string)
 describe('E2E: уведомления в чате по действиям', () => {
   it('посадка на ферме оставляет личную строку «Системы», чужой игрок её не видит', async () => {
     const login = uid('notice')
-    await api('POST', '/api/auth/register', { login, email: `${login}@e2e.local`, password: 'pass1234' })
+    await api('POST', '/api/auth/register', { acceptPolicy: true, login, email: `${login}@e2e.local`, password: 'pass1234' })
     const token = (await api('POST', '/api/auth/login', { login, password: 'pass1234' })).data.token as string
     await api('POST', '/api/characters', { nickname: uid('Hero'), archetype: 'WORKER' }, token)
 
@@ -37,7 +37,7 @@ describe('E2E: уведомления в чате по действиям', () =
     expect((await api('GET', '/api/chat/notices', undefined, token)).data.items).toHaveLength(2)
 
     const other = uid('other')
-    await api('POST', '/api/auth/register', { login: other, email: `${other}@e2e.local`, password: 'pass1234' })
+    await api('POST', '/api/auth/register', { acceptPolicy: true, login: other, email: `${other}@e2e.local`, password: 'pass1234' })
     const otherToken = (await api('POST', '/api/auth/login', { login: other, password: 'pass1234' })).data.token as string
     await api('POST', '/api/characters', { nickname: uid('Hero'), archetype: 'WORKER' }, otherToken)
     expect((await api('GET', '/api/chat/notices', undefined, otherToken)).data.items).toEqual([])
