@@ -11,6 +11,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { chatApi, type ChatChannel, type ChatFeed, type ChatLine } from '../api/chat.api'
 import { ApiError } from '../api/client'
 import { joinDistrict, onChatConnect, subscribeChat } from './chat-socket'
+import { todayChatLines } from './chat-day'
+import { useChatDay } from './use-chat-day'
 
 /** Без повторов и строго по времени: сокет и ответ на отправку приходят в любом порядке. */
 function merge(messages: ChatLine[], line: ChatLine): ChatLine[] {
@@ -56,6 +58,7 @@ export interface ChatState {
 }
 
 export function useChat(channel: ChatChannel, district?: string): ChatState {
+  const dayStart = useChatDay()
   const qc = useQueryClient()
   const key = useMemo(() => ['chat', channel, district ?? ''], [channel, district])
   const [notice, setNotice] = useState('')
@@ -118,7 +121,7 @@ export function useChat(channel: ChatChannel, district?: string): ChatState {
   }, [channel, district, key, qc])
 
   return {
-    messages: mergeNotices(data?.messages ?? [], notices.data?.items ?? [], channel),
+    messages: todayChatLines(mergeNotices(data?.messages ?? [], notices.data?.items ?? [], channel), dayStart),
     scope,
     // Каждое звено через «?»: если сервер ответит не тем, чего ждём,
     // чат обязан деградировать до предела по умолчанию, а не уронить

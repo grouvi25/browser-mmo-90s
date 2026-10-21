@@ -11,6 +11,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { ChatService } from '../../modules/chat/chat.service'
+import { NoticesService } from '../../modules/chat/notices.service'
 import { FLOOD, MAX_BODY, floodKeys } from '../../modules/chat/chat.formulas'
 import { getRedis, disconnectRedis } from '../../shared/db/redis'
 import { cleanDatabase, testPrisma, uid } from './helpers'
@@ -60,6 +61,59 @@ describe('эфир', () => {
   async function clearGap(characterId: string) {
     await getRedis().del(floodKeys.last(characterId), floodKeys.repeat(characterId))
   }
+
+  // ── Ежедневный сброс: 00:00 МСК = 21:00 UTC ────────────────
+
+  const midnight = new Date('2026-10-21T21:00:00.000Z')
+  const justBefore = new Date(midnight.getTime() - 1)
+  const justAfter = new Date(midnight.getTime() + 1)
+
+  it.each(['GLOBAL', 'DISTRICT', 'CLAN'] as const)(
+    'сбрасывает %s ровно в полночь, не удаляя следы и новые сообщения', async channel => {
+      const { character, user } = await player('chat-reset')
+      const scope = channel === 'GLOBAL' ? '' : channel === 'DISTRICT' ? 'market' : 'test-clan'
+      await testPrisma.chatMessage.createMany({ data: [
+        { channel, scope, authorId: character.id, body: 'вчера', createdAt: justBefore },
+        { channel, scope, authorId: character.id, body: 'полночь', createdAt: midnight },
+        { channel, scope, authorId: character.id, body: 'сегодня', createdAt: justAfter },
+        { channel, scope, authorId: character.id, body: 'скрыто', createdAt: justAfter, deletedAt: justAfter, deletedBy: user.id },
+      ] })
+      expect((await ChatService.history(channel, scope, 50, justBefore)).map(m => m.body)).toContain('вчера')
+      expect((await ChatService.history(channel, scope, 50, justAfter)).map(m => m.body))
+        .toEqual(['полночь', 'сегодня'])
+      // Граница применяется до LIMIT, прямой API-вызов тоже не вернёт вчерашнее.
+      expect((await ChatService.history(channel, scope, 1, justAfter)).map(m => m.body)).toEqual(['сегодня'])
+      expect(await testPrisma.chatMessage.count({ where: { authorId: character.id } })).toBe(4)
+    },
+  )
+
+  it('сбрасывает ЛС для обеих сторон, не раскрывая чужую переписку', async () => {
+    const a = await player('reset-a'), b = await player('reset-b'), c = await player('reset-c')
+    await testPrisma.chatMessage.createMany({ data: [
+      { channel: 'PRIVATE', authorId: a.character.id, recipientId: b.character.id, body: 'вчера', createdAt: justBefore },
+      { channel: 'PRIVATE', authorId: a.character.id, recipientId: b.character.id, body: 'полночь', createdAt: midnight },
+      { channel: 'PRIVATE', authorId: b.character.id, recipientId: a.character.id, body: 'ответ', createdAt: justAfter },
+    ] })
+    for (const character of [a.character, b.character]) {
+      expect((await ChatService.privateHistory(character.id, 50, justAfter)).map(m => m.body))
+        .toEqual(['полночь', 'ответ'])
+    }
+    expect(await ChatService.privateHistory(c.character.id, 50, justAfter)).toEqual([])
+    expect(await ChatService.privateHistory(a.character.id, 50, new Date('2026-10-25T10:00:00Z'))).toEqual([])
+  })
+
+  it('сбрасывает строки Системы вместе с чатом, сохраняя записи в базе', async () => {
+    const a = await player('notice-reset'), b = await player('notice-other')
+    await testPrisma.gameNotice.createMany({ data: [
+      { characterId: a.character.id, text: 'вчера', createdAt: justBefore },
+      { characterId: a.character.id, text: 'полночь', createdAt: midnight },
+      { characterId: a.character.id, text: 'сегодня', createdAt: justAfter },
+      { characterId: b.character.id, text: 'чужое', createdAt: justAfter },
+    ] })
+    expect((await NoticesService.list(a.character.id, 24, 40, justAfter)).map(m => m.text))
+      .toEqual(['полночь', 'сегодня'])
+    expect(await testPrisma.gameNotice.count()).toBe(4)
+  })
 
   // ── Общий канал ───────────────────────────────────────────
 

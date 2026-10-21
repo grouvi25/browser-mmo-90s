@@ -7,6 +7,16 @@
 // =============================================================
 import type { ChatChannel } from '@prisma/client'
 
+/** Эфир обнуляется в 00:00 МСК (UTC+3), независимо от TZ процесса.
+ * Это граница ленты, а не удаление улик для модерации. Не зависит от
+ * cron/Redis: даже после простоя API не покажет вчерашние сообщения.
+ */
+export function chatDayStart(now = new Date()): Date {
+  const dayMs = 86_400_000
+  const moscowOffsetMs = 3 * 3_600_000
+  return new Date(Math.floor((now.getTime() + moscowOffsetMs) / dayMs) * dayMs - moscowOffsetMs)
+}
+
 /** Длиннее в базу и не влезет: колонка объявлена VARCHAR(400). */
 export const MAX_BODY = 400
 

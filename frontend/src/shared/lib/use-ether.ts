@@ -14,6 +14,8 @@ import { chatApi, type ChatChannel, type ChatFeed, type ChatLine } from '../api/
 import { charactersApi } from '../api/characters.api'
 import { ApiError } from '../api/client'
 import { onChatConnect, subscribeChat } from './chat-socket'
+import { todayChatLines } from './chat-day'
+import { useChatDay } from './use-chat-day'
 
 /** Куда пишет игрок. Район остался только на странице «Радио». */
 export type EtherMode = 'GLOBAL' | 'CLAN' | 'PRIVATE'
@@ -52,6 +54,7 @@ export interface Ether {
 }
 
 export function useEther(): Ether {
+  const dayStart = useChatDay()
   const qc = useQueryClient()
   const [notice, setNotice] = useState('')
   const { data: char } = useQuery({ queryKey: ['character', 'me'], queryFn: () => charactersApi.getMe(), retry: false })
@@ -91,13 +94,13 @@ export function useEther(): Ether {
       id: 'notice-' + n.id, channel: 'GLOBAL', scope: '', authorId: '', nickname: 'Система', level: 0,
       body: n.text, createdAt: n.createdAt, system: true,
     }))
-    return [
+    return todayChatLines([
       ...(global.data?.messages ?? []),
       ...(hasClan ? clan.data?.messages ?? [] : []),
       ...(privateFeed.data?.messages ?? []),
       ...system,
-    ].sort(byTime).slice(-80)
-  }, [global.data, clan.data, privateFeed.data, notices.data, hasClan])
+    ], dayStart).sort(byTime).slice(-80)
+  }, [global.data, clan.data, privateFeed.data, notices.data, hasClan, dayStart])
 
   return {
     messages,

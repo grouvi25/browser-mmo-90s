@@ -12,7 +12,7 @@ import { prisma } from '../../shared/db/prisma'
 import { ChatRedis } from '../../shared/db/redis'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
-import { FLOOD, MAX_BODY, floodKeys, normalizeBody, scopeFor, type Rejection } from './chat.formulas'
+import { FLOOD, MAX_BODY, chatDayStart, floodKeys, normalizeBody, scopeFor, type Rejection } from './chat.formulas'
 
 /** Сколько держим игрока в списке онлайна после последнего касания. */
 const PRESENCE_TTL_SEC = 120
@@ -98,9 +98,9 @@ export const ChatService = {
   },
 
   /** Последние реплики канала, старые сверху — как их читают в ленте. */
-  async history(channel: ChatChannel, scope: string, limit = HISTORY_LIMIT): Promise<ChatLine[]> {
+  async history(channel: ChatChannel, scope: string, limit = HISTORY_LIMIT, now = new Date()): Promise<ChatLine[]> {
     const rows = await prisma.chatMessage.findMany({
-      where: { channel, scope, deletedAt: null },
+      where: { channel, scope, deletedAt: null, createdAt: { gte: chatDayStart(now) } },
       orderBy: { createdAt: 'desc' },
       take: Math.min(Math.max(limit, 1), HISTORY_LIMIT),
       select: LINE_SELECT,
@@ -109,9 +109,9 @@ export const ChatService = {
   },
 
   /** Переписка игрока: всё, что он написал лично и что написали ему. */
-  async privateHistory(characterId: string, limit = HISTORY_LIMIT): Promise<ChatLine[]> {
+  async privateHistory(characterId: string, limit = HISTORY_LIMIT, now = new Date()): Promise<ChatLine[]> {
     const rows = await prisma.chatMessage.findMany({
-      where: { channel: 'PRIVATE', deletedAt: null, OR: [{ authorId: characterId }, { recipientId: characterId }] },
+      where: { channel: 'PRIVATE', deletedAt: null, createdAt: { gte: chatDayStart(now) }, OR: [{ authorId: characterId }, { recipientId: characterId }] },
       orderBy: { createdAt: 'desc' },
       take: Math.min(Math.max(limit, 1), HISTORY_LIMIT),
       select: LINE_SELECT,
