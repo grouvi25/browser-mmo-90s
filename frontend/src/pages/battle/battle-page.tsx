@@ -28,6 +28,7 @@ import { useViewportSize } from '../../shared/lib/stage'
 import { BattleCommandDock } from './components/battle-command-dock'
 import { EventIcon, getEvent, type RoundRecord, type TurnEvent } from './components/battle-events'
 import { BattlePockets } from './components/battle-pockets'
+import { BattleJournal } from '../../widgets/battle-journal/battle-journal'
 import { BattleSwap, type SwapPlan } from './components/battle-swap'
 import { removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
 import './battle-phase-a.css'
@@ -496,41 +497,15 @@ export function BattlePage() {
             </div>
           </div>
 
-          {/* Fix 1.2: Лог боя на экране результата */}
-          {rounds.length > 0 && (
+          {/* Журнал боя на экране итога — с сервера: сохраняется и листается
+              по 10 строк (правка заказчика 20.10). */}
+          {battleId && (
             <div className="battle-log-v2" style={{ marginTop: 8 }}>
               <div className="log-toggle-v2" style={{ cursor: 'default' }}>
                 <ChevronDown size={12} />
-                <span>Лог боя — {rounds.length} раундов</span>
+                <span>Журнал боя</span>
               </div>
-              <div className="log-body-v2">
-                {rounds.map(r => (
-                  <div key={r.round} className="log-round-v2">
-                    <div className="log-round-header">Раунд {r.round}</div>
-                    {r.events.map((t, i) => {
-                      const e = getEvent(t)
-                      const isPlayer = t.actor === 'player'
-                      return (
-                        <div key={i} className={`log-event-line ${isPlayer ? 'log-ev-player' : 'log-ev-enemy'}`}>
-                          <span className="log-ev-actor">{isPlayer ? playerName : enemyName}</span>
-                          <span className="log-ev-arrow">→</span>
-                          <span className="log-ev-icon" style={{ color: e.color }}><EventIcon type={e.type} /></span>
-                          <span className="log-ev-label" style={{ color: e.color }}>{e.label}</span>
-                          {t.finalDamage > 0 && (
-                            <>
-                              <span className="log-ev-arrow">→</span>
-                              <span className="log-ev-dmg" style={{ color: e.type === 'crit' ? 'var(--gold)' : 'var(--danger)' }}>
-                                -{t.finalDamage} HP
-                              </span>
-                              {t.crit && <span className="log-ev-crit">КРИТ!</span>}
-                            </>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
+              <div className="log-body-v2"><BattleJournal battleId={battleId} refreshKey={rounds.length} /></div>
             </div>
           )}
         </div>
@@ -696,16 +671,7 @@ export function BattlePage() {
         <section>
           <header><b>{showLog ? 'Лог боя' : 'Боевой карман'}</b><button type="button" onClick={() => { setShowLog(false); setPocketsOpen(false) }}>Закрыть</button></header>
           {showLog ? <div className="log-body-v2">
-            {rounds.length === 0 && <p className="battle-drawer__empty">Событий пока нет.</p>}
-            {rounds.slice().reverse().map(r => <div key={r.round} className="log-round-v2">
-              <div className="log-round-header">Раунд {r.round}</div>
-              {r.events.map((t, i) => { const event = getEvent(t); const isPlayer = t.actor === 'player'; return <div key={i} className={`log-event-line ${isPlayer ? 'log-ev-player' : 'log-ev-enemy'}`}>
-                <span className="log-ev-actor">{isPlayer ? playerName : enemyName}</span>
-                <span className="log-ev-icon" style={{ color: event.color }}><EventIcon type={event.type} /></span>
-                <span className="log-ev-label" style={{ color: event.color }}>{event.label}</span>
-                {t.finalDamage > 0 && <span className="log-ev-dmg">-{t.finalDamage} HP</span>}
-              </div> })}
-            </div>)}
+            {battleId && <BattleJournal battleId={battleId} refreshKey={rounds.length} />}
           </div> : (
             <>
               <BattlePockets slots={pocketSlots} canAct={canAct} open

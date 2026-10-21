@@ -1,0 +1,37 @@
+/* Журнал боя: строки по 10, страницы. Кнопки страниц отличаются только
+   цветом — при нажатии ничего не сдвигается. */
+.bj { display: grid; gap: 8px; font-size: 13.9px; }
+.bj-note { margin: 0; color: var(--text-dim); font-size: 13.9px; }
+.bj-retry { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--border); background: var(--bg-panel2); color: inherit; font: inherit; cursor: pointer; }
+.bj-retry:hover { background: var(--bg-hover); }
+.bj-retry:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 1px; }
+.bj-result { margin: 0; padding: 4px 8px; border-left: 3px solid var(--gold); background: var(--bg-panel2); }
+.bj-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.bj-line { display: grid; grid-template-columns: auto auto 1fr; gap: 6px; align-items: baseline; padding: 3px 6px; border-bottom: 1px solid var(--border); }
+.bj-time, .bj-round { color: var(--text-dim); font-family: var(--font-mono); font-size: 12.8px; white-space: nowrap; }
+.bj-text { min-width: 0; overflow-wrap: anywhere; }
+.bj-side-1 .bj-actor { color: var(--accent-light); }
+.bj-side-2 .bj-actor { color: var(--danger); }
+.bj-icon { vertical-align: -1px; }
+.bj-line--hit .bj-icon { color: #c43030; }
+.bj-line--crit .bj-icon { color: #d4a017; }
+.bj-line--pierce .bj-icon { color: #9a60c0; }
+.bj-line--dodge .bj-icon, .bj-line--block .bj-icon { color: #6a9a3a; }
+.bj-line--move .bj-icon { color: #365d91; }
+.bj-pages { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.bj-pages button { min-width: 32px; min-height: 32px; padding: 2px 8px; border: 1px solid var(--border); background: var(--bg-panel2); color: inherit; font: inherit; cursor: pointer; }
+.bj-pages button:hover { background: var(--bg-hover); }
+.bj-pages button:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 1px; }
+.bj-pages button.is-active { background: var(--text-title, #2b2b2b); color: var(--bg-panel, #fff); border-color: transparent; }
+.bj-gap { color: var(--text-dim); padding: 0 2px; }
+/* В Истории боёв журнал раскрывается строкой таблицы: на телефоне таблица
+   становится карточками, и подпись колонки перед ячейкой здесь лишняя. */
+.data-table tr.history-journal-row td { text-align: left; }
+@media (max-width: 560px) {
+  .data-table tr.history-journal-row td { display: block; padding: 6px 0; }
+  .data-table tr.history-journal-row td::before { content: none; }
+  .bj-line { display: block; }
+  .bj-time { margin-right: 4px; }
+  .bj-round { display: none; }
+  .bj-pages button { min-width: 40px; min-height: 40px; }
+}

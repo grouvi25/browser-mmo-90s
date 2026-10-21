@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { authenticate } from '../../shared/security/auth-middleware'
 import { BattleService } from './battles.service'
+import { BattleJournal } from './battle-journal'
 import { ApplicationsService, APPLICATION_DELAYS, APPLICATION_MAX_TEAM } from './applications.service'
 import { z } from 'zod'
 
@@ -124,6 +125,14 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
         }
       )
       return reply.send(result)
+    })
+
+  // GET /api/battles/:battleId/journal?page=N — сохранённый журнал боя по 10 строк
+  fastify.get<{ Params: { battleId: string }; Querystring: { page?: string } }>('/:battleId/journal', { preHandler: authenticate },
+    async (req, reply) => {
+      if (!z.string().uuid().safeParse(req.params.battleId).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      const page = z.coerce.number().int().min(1).max(100_000).catch(1).parse(req.query.page)
+      return reply.send(await BattleJournal.page(req.params.battleId, page))
     })
 
   // GET /api/battles/:battleId

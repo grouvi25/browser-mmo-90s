@@ -1,0 +1,111 @@
+// =============================================================
+// Журнал боя: строки из ходов, сохранённых в battle_turns.
+//
+// Правка заказчика (20.10.2026): «Лог журнала должен сохраняться.
+// Пусть будет 10 строк, и их можно листать 1-2-3-4-5 страница».
+// Раньше журнал жил только в открытой странице: после перезагрузки или
+// конца боя он пропадал, хотя каждый ход уже лежал в базе. Готовая
+// строка хода (logLine) есть не у всех ходов и без имён («Удар в левая
+// рука: 10»), поэтому текст собирается здесь из полей хода.
+// =============================================================
+import type { AttackHand, BattleAction, BodyZone } from '@prisma/client'
+import { prisma } from '../../shared/db/prisma'
+import { AppError } from '../../shared/errors/app-error'
+import { ErrorCode } from '../../shared/errors/error-codes'
+
+export const JOURNAL_PAGE_SIZE = 10
+
+/** Куда пришёлся удар — винительный падеж: «в левую руку». */
+const ZONE_TO: Record<BodyZone, string> = {
+  HEAD: 'в голову', CHEST: 'в корпус', LEFT_ARM: 'в левую руку', RIGHT_ARM: 'в правую руку',
+  LEFT_LEG: 'в левую ногу', RIGHT_LEG: 'в правую ногу', LEGS: 'по ногам',
+}
+const HAND: Record<AttackHand, string> = { LEFT_HAND: 'левой', RIGHT_HAND: 'правой' }
+
+export type JournalKind = 'hit' | 'crit' | 'pierce' | 'dodge' | 'block' | 'move' | 'item' | 'weapon' | 'surrender'
+
+export interface JournalTurn {
+  action: BattleAction
+  zone: BodyZone | null
+  sourceHand: AttackHand | null
+  hit: boolean; dodge: boolean; block: boolean; crit: boolean; blockPierced: boolean
+  finalDamage: number
+}
+
+/** Текст хода без имён: «удар левой в корпус, −5 HP» / «в голову — уворот». */
+export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: string } {
+  const zone = turn.zone ? ` ${ZONE_TO[turn.zone]}` : ''
+  const hand = turn.sourceHand ? ` ${HAND[turn.sourceHand]}` : ''
+  const damage = turn.finalDamage > 0 ? `, −${turn.finalDamage} HP` : ''
+  switch (turn.action) {
+    case 'MOVE': return { kind: 'move', text: 'сближается' }
+    case 'USE_ITEM': return { kind: 'item', text: 'использует предмет из кармана' }
+    case 'CHANGE_WEAPON': return { kind: 'weapon', text: 'меняет оружие' }
+    case 'SURRENDER': return { kind: 'surrender', text: 'сдаётся' }
+    default: break
+  }
+  if (!turn.hit && turn.block) return { kind: 'block', text: `удар${hand}${zone} — блок` }
+  if (!turn.hit) return { kind: 'dodge', text: `удар${hand}${zone} — уворот` }
+  if (turn.blockPierced) return { kind: 'pierce', text: `пробил блок${zone}${damage}` }
+  if (turn.crit) return { kind: 'crit', text: `крит${zone}${damage}` }
+  return { kind: 'hit', text: `удар${hand}${zone}${damage}` }
+}
+
+export const BattleJournal = {
+  /** Страница журнала: новые строки сверху, по 10 на страницу. Журнал
+   *  открыт любому игроку, как в «Апехе»: бой — событие города. */
+  async page(battleId: string, page = 1, perPage = JOURNAL_PAGE_SIZE) {
+    const battle = await prisma.battle.findUnique({
+      where: { id: battleId },
+      select: {
+        id: true, type: true, status: true, roundCount: true, startedAt: true, finishedAt: true, winnerParticipantId: true,
+        participants: { select: { id: true, characterId: true, botId: true, side: true, character: { select: { nickname: true } }, bot: { select: { name: true } } } },
+      },
+    })
+    if (!battle) throw new AppError(ErrorCode.BATTLE_NOT_FOUND, 'Бой не найден', 404)
+
+    const total = await prisma.battleTurn.count({ where: { battleId } })
+    const pages = Math.max(1, Math.ceil(total / perPage))
+    const current = Math.min(Math.max(1, Math.floor(page)), pages)
+    const turns = await prisma.battleTurn.findMany({
+      where: { battleId },
+      orderBy: [{ roundNumber: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      skip: (current - 1) * perPage,
+      take: perPage,
+    })
+
+    const nameOf = new Map<string, string>()
+    const sideOf = new Map<string, number>()
+    for (const p of battle.participants) {
+      const key = p.characterId ?? p.botId
+      if (!key) continue
+      nameOf.set(key, p.character?.nickname ?? p.bot?.name ?? 'Боец')
+      sideOf.set(key, p.side)
+    }
+    const name = (id: string | null) => (id ? nameOf.get(id) ?? 'Боец' : null)
+    const winner = battle.participants.find(p => p.id === battle.winnerParticipantId)
+
+    return {
+      battle: {
+        id: battle.id, type: battle.type, status: battle.status, rounds: battle.roundCount,
+        startedAt: battle.startedAt, finishedAt: battle.finishedAt,
+        winner: winner ? winner.character?.nickname ?? winner.bot?.name ?? null : null,
+      },
+      items: turns.map(turn => {
+        const actorId = turn.actorCharId ?? turn.actorBotId
+        const { kind, text } = describeTurn(turn)
+        return {
+          id: turn.id,
+          round: turn.roundNumber,
+          at: turn.createdAt,
+          actor: name(actorId) ?? 'Боец',
+          target: name(turn.targetCharId ?? turn.targetBotId),
+          side: actorId ? sideOf.get(actorId) ?? 1 : 1,
+          kind,
+          text,
+        }
+      }),
+      page: current, pages, total,
+    }
+  },
+}
