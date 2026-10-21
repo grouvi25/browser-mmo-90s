@@ -1,11 +1,12 @@
 /**
- * Осада дома бригады — правка заказчика «как в Королях». Проверяется то, на
- * чём такая механика ломается: время заявки, кто может её подать, кто
- * попадает в бой, последствия взятия и отбитой осады, пауза до следующей.
+ * Осада дома бригады — правка заказчика «как в Королях», уточнение 22.10:
+ * бой ровно через 72 часа, заявку подают главарь и зам, раз в неделю, до 10
+ * на сторону. Проверяется время, кто подаёт, кто попадает в бой, последствия
+ * взятия и отбитой осады, недельная пауза для бригады и для дома.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { HouseSiegeService, runHouseSieges } from '../../modules/clans/house-siege.service'
-import { siegeStartAllowed } from '../../modules/clans/house-siege.formulas'
+import { BalanceConfig } from '../../config/balance.config'
 import { ClansService } from '../../modules/clans/clans.service'
 import { ChatService } from '../../modules/chat/chat.service'
 import { ApplicationsService } from '../../modules/battles/applications.service'
@@ -15,14 +16,7 @@ import { cleanDatabase, testPrisma, uid } from './helpers'
 
 const HOUR = 3_600_000
 
-/** Ближайшее разрешённое время начала: через 3 суток, будни, 11–20 по Москве. */
-function nextAllowedStart(now = new Date()): Date {
-  for (let hours = 72; hours < 7 * 24; hours++) {
-    const candidate = new Date(Math.ceil((now.getTime() + hours * HOUR) / HOUR) * HOUR)
-    if (!siegeStartAllowed(candidate, now)) return candidate
-  }
-  throw new Error('нет разрешённого времени')
-}
+const S = BalanceConfig.strategy.houseSiege
 
 describe('осада дома бригады', () => {
   beforeAll(async () => testPrisma.$connect())
@@ -60,24 +54,24 @@ describe('осада дома бригады', () => {
   }
   const expire = (siegeId: string) => testPrisma.houseSiege.update({ where: { id: siegeId }, data: { startsAt: new Date(Date.now() - 1000) } })
 
-  it('время осады: не раньше трёх суток, только будни с 11 до 20 по Москве', () => {
-    const now = new Date('2026-10-14T09:00:00Z') // среда, 12:00 по Москве
-    expect(siegeStartAllowed(new Date('2026-10-15T09:00:00Z'), now)).toMatch(/не раньше/)
-    expect(siegeStartAllowed(new Date('2026-10-17T09:00:00Z'), now)).toMatch(/будни/) // суббота
-    expect(siegeStartAllowed(new Date('2026-10-19T06:00:00Z'), now)).toMatch(/с 11:00/) // пн 09:00 МСК
-    expect(siegeStartAllowed(new Date('2026-10-19T17:00:00Z'), now)).toMatch(/с 11:00/) // пн 20:00 МСК
-    expect(siegeStartAllowed(new Date('2026-10-19T09:00:00Z'), now)).toBeNull() // пн 12:00 МСК
-    expect(siegeStartAllowed(new Date('2026-10-23T09:00:00Z'), now)).toMatch(/не позже/)
+  it('бой ровно через 72 часа после заявки; объявляет и зам (бригадир)', async () => {
+    const red = await brigade('t72', 2)
+    const blue = await brigade('t72b')
+    const brigadier = await testPrisma.clanRole.findFirstOrThrow({ where: { clanId: red.clan.id, code: 'brigadier' } })
+    await testPrisma.clanMember.update({ where: { characterId: red.others[0].character.id }, data: { roleId: brigadier.id } })
+    const now = new Date()
+    const filed = await HouseSiegeService.file(red.others[0].character.id, blue.clan.id, now)
+    expect(S.leadHours).toBe(72)
+    expect(new Date(filed.startsAt).getTime()).toBe(now.getTime() + 72 * HOUR)
   })
 
-  it('объявляет только главарь, один дом — одна осада, чужие не записываются', async () => {
+  it('боец не объявляет, один дом — одна осада, чужие не записываются', async () => {
     const red = await brigade('red', 2)
     const blue = await brigade('blue')
     const green = await brigade('green')
-    const startsAt = nextAllowedStart()
-    await expect(HouseSiegeService.file(red.others[0].character.id, blue.clan.id, startsAt)).rejects.toMatchObject({ statusCode: 403 })
-    const filed = await HouseSiegeService.file(red.boss.character.id, blue.clan.id, startsAt)
-    await expect(HouseSiegeService.file(green.boss.character.id, blue.clan.id, startsAt)).rejects.toMatchObject({ statusCode: 409 })
+    await expect(HouseSiegeService.file(red.others[0].character.id, blue.clan.id)).rejects.toMatchObject({ statusCode: 403 })
+    const filed = await HouseSiegeService.file(red.boss.character.id, blue.clan.id)
+    await expect(HouseSiegeService.file(green.boss.character.id, blue.clan.id)).rejects.toMatchObject({ statusCode: 409 })
     await expect(HouseSiegeService.signup(green.boss.character.id, filed.siegeId)).rejects.toMatchObject({ statusCode: 403 })
     expect(await HouseSiegeService.signup(red.others[0].character.id, filed.siegeId)).toMatchObject({ side: 1 })
     expect(await HouseSiegeService.signup(blue.boss.character.id, filed.siegeId)).toMatchObject({ side: 2 })
@@ -97,7 +91,7 @@ describe('осада дома бригады', () => {
   it('оборона не вышла — дом взят без боя: прочность −5%, разгром, бонусы района выключены', async () => {
     const red = await brigade('r2')
     const blue = await brigade('b2')
-    const filed = await HouseSiegeService.file(red.boss.character.id, blue.clan.id, nextAllowedStart())
+    const filed = await HouseSiegeService.file(red.boss.character.id, blue.clan.id)
     await ChatService.touch(red.boss.character.id) // нападающий в игре, обороны нет
     await expire(filed.siegeId)
     await runHouseSieges()
@@ -125,16 +119,21 @@ describe('осада дома бригады', () => {
     const repaired = await HouseSiegeService.repair(blue.boss.character.id)
     expect(repaired).toMatchObject({ durability: 100, cost: 2000, treasury: 18_000 })
 
-    // Повторная осада — через 15 суток.
+    // Повторная осада — через неделю.
     const again = await HouseSiegeService.view(red.boss.character.id, blue.clan.id)
     expect(again.canFile).toBe(false)
     expect(again.fileBlocked).toMatch(/Следующую осаду/)
+    // Дом тоже защищён неделю: другая бригада его не осадит.
+    const green = await brigade('g2')
+    expect((await HouseSiegeService.view(green.boss.character.id, blue.clan.id)).fileBlocked).toMatch(/уже нападали/)
+    await testPrisma.houseSiege.update({ where: { id: filed.siegeId }, data: { finishedAt: new Date(Date.now() - (S.cooldownDays * 24 + 1) * HOUR) } })
+    expect((await HouseSiegeService.view(green.boss.character.id, blue.clan.id)).canFile).toBe(true)
   })
 
   it('бой осады: отбитая осада даёт нападавшим травму, и в бой с ней нельзя', async () => {
     const red = await brigade('r3')
     const blue = await brigade('b3')
-    const filed = await HouseSiegeService.file(red.boss.character.id, blue.clan.id, nextAllowedStart())
+    const filed = await HouseSiegeService.file(red.boss.character.id, blue.clan.id)
     await ChatService.touch(red.boss.character.id)
     await ChatService.touch(blue.boss.character.id)
     await expire(filed.siegeId)
@@ -163,7 +162,7 @@ describe('осада дома бригады', () => {
   it('главарь может снять осаду до начала, и это тоже запускает паузу', async () => {
     const red = await brigade('r4')
     const blue = await brigade('b4')
-    const filed = await HouseSiegeService.file(red.boss.character.id, blue.clan.id, nextAllowedStart())
+    const filed = await HouseSiegeService.file(red.boss.character.id, blue.clan.id)
     await HouseSiegeService.cancel(red.boss.character.id, filed.siegeId)
     expect((await testPrisma.houseSiege.findUniqueOrThrow({ where: { id: filed.siegeId } })).status).toBe('CANCELLED')
     expect((await HouseSiegeService.view(red.boss.character.id, blue.clan.id)).fileBlocked).toMatch(/Следующую осаду/)

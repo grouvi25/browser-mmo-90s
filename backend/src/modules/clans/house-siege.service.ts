@@ -2,16 +2,18 @@
 // Осада дома бригады.
 //
 // Правка заказчика (октябрь 2026): на дома бригад можно нападать, «как в
-// Королях». Там это захват замка клана (5kings.ru, библиотека «Замки
-// кланов» и «Частные дома»), и правила перенесены оттуда:
-//   • заявку подаёт главарь, бой — через 3–7 суток, в будни с 11 до 20;
+// Королях» (захват замков кланов, 5kings.ru). Уточнение 22.10:
+//   • заявку подают главарь или его зам (право WAR), бой — ровно через
+//     72 часа после заявки;
+//   • нападения на дома — раз в неделю: бригада осаждает не чаще раза в
+//     неделю, и один дом осаждают не чаще раза в неделю;
+//   • в нападение записываются до 10 человек, в оборону — тоже до 10;
 //   • нападающие записываются заранее, но запись их не держит;
 //   • в оборону входят все бойцы бригады, кто к началу в игре и свободен;
 //   • взятие: прочность −5%, дом разгромлен на 7 суток — бонусы района
 //     выключены, гости пишут на стене; при прочности 50% и ниже бонусы
 //     выключены до ремонта;
-//   • отбитая осада — нападавшим «кровавая травма» на сутки;
-//   • повторная заявка — через 15 суток после окончания прошлой.
+//   • отбитая осада — нападавшим «кровавая травма» на сутки.
 // Стен, ворот и осадных орудий нет: бой идёт на обычном поле.
 // =============================================================
 import type { Prisma } from '@prisma/client'
@@ -25,9 +27,9 @@ import { BalanceConfig } from '../../config/balance.config'
 import { ChatService } from '../chat/chat.service'
 import { AnnouncementsService } from '../announcements/announcements.service'
 import { BattleService } from '../battles/battles.service'
-import { houseBonusesOff, siegeRules, siegeStartAllowed, when } from './house-siege.formulas'
+import { houseBonusesOff, siegeRules, siegeStartsAt, when } from './house-siege.formulas'
 
-export { houseBonusesOff, siegeStartAllowed }
+export { houseBonusesOff, siegeStartsAt }
 
 const S = BalanceConfig.strategy.houseSiege
 const HOUR = 3_600_000
@@ -38,6 +40,18 @@ async function membership(characterId: string) {
     where: { characterId },
     include: { role: true, clan: true },
   })
+}
+
+/** Объявить и снять осаду могут главарь и зам — у кого в роли право WAR. */
+async function warLeaderOf(characterId: string) {
+  const member = await membership(characterId)
+  if (!member || member.status !== 'ACTIVE') throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Вы не состоите в бригаде', 404)
+  if (!canWar(member.role)) throw new AppError(ErrorCode.CLAN_PERMISSION, 'Осаду объявляют главарь и зам', 403)
+  return member
+}
+
+function canWar(role: { permissions: Prisma.JsonValue }): boolean {
+  return Array.isArray(role.permissions) && role.permissions.includes('WAR')
 }
 
 async function bossOf(characterId: string) {
@@ -77,13 +91,14 @@ export const HouseSiegeService = {
     const byId = new Map(chars.map(c => [c.id, c]))
     const viewerClanId = viewer?.status === 'ACTIVE' ? viewer.clanId : null
     const isBoss = viewer?.status === 'ACTIVE' && viewer.role.code === 'boss'
+    const isWarLeader = viewer?.status === 'ACTIVE' && canWar(viewer.role)
     const razed = !!clan.houseRazedUntil && clan.houseRazedUntil > now
 
     // Почему нельзя объявить осаду — тем же правилом, что и сама заявка.
     let fileBlocked: string | null = null
     if (!viewerClanId) fileBlocked = 'Нужно состоять в бригаде'
     else if (viewerClanId === clanId) fileBlocked = 'Это ваш дом'
-    else if (!isBoss) fileBlocked = 'Осаду объявляет главарь'
+    else if (!isWarLeader) fileBlocked = 'Осаду объявляют главарь и зам'
     else fileBlocked = await this.fileBlockedReason(viewerClanId, clanId)
 
     const noteAuthors = new Map((await prisma.character.findMany({
@@ -106,7 +121,7 @@ export const HouseSiegeService = {
       defenders: siege.signups.filter(s => s.side === 2).map(s => signupNames.get(s.characterId)).filter(Boolean),
       mySide: viewerClanId === siege.attackerClanId ? 1 as const : viewerClanId === siege.defenderClanId ? 2 as const : null,
       signedUp: siege.signups.some(s => s.characterId === viewerCharacterId),
-      canCancel: isBoss && viewerClanId === siege.attackerClanId && siege.status === 'SCHEDULED',
+      canCancel: isWarLeader && viewerClanId === siege.attackerClanId && siege.status === 'SCHEDULED',
       battleId: siege.battleId,
     })
 
@@ -133,11 +148,16 @@ export const HouseSiegeService = {
 
   /** Причина, по которой бригада не может осадить этот дом, или null. */
   async fileBlockedReason(attackerClanId: string, defenderClanId: string, now = new Date()): Promise<string | null> {
-    const [targetBusy, ownBusy, lastFinished] = await Promise.all([
+    const [targetBusy, ownBusy, lastFinished, lastOnHouse] = await Promise.all([
       prisma.houseSiege.count({ where: { defenderClanId, status: { in: OPEN } } }),
       prisma.houseSiege.count({ where: { attackerClanId, status: { in: OPEN } } }),
       prisma.houseSiege.findFirst({
         where: { attackerClanId, finishedAt: { not: null } },
+        orderBy: { finishedAt: 'desc' }, select: { finishedAt: true },
+      }),
+      // Снятая до начала осада дом не трогала — неделю защиты она не даёт.
+      prisma.houseSiege.findFirst({
+        where: { defenderClanId, finishedAt: { not: null }, status: { not: 'CANCELLED' } },
         orderBy: { finishedAt: 'desc' }, select: { finishedAt: true },
       }),
     ])
@@ -147,16 +167,19 @@ export const HouseSiegeService = {
       const next = lastFinished.finishedAt.getTime() + S.cooldownDays * DAY
       if (next > now.getTime()) return `Следующую осаду можно объявить с ${when(new Date(next))}`
     }
+    if (lastOnHouse?.finishedAt) {
+      const next = lastOnHouse.finishedAt.getTime() + S.cooldownDays * DAY
+      if (next > now.getTime()) return `На этот дом уже нападали — снова можно с ${when(new Date(next))}`
+    }
     return null
   },
 
-  async file(characterId: string, targetClanId: string, startsAt: Date) {
-    const boss = await bossOf(characterId)
+  async file(characterId: string, targetClanId: string, now = new Date()) {
+    const boss = await warLeaderOf(characterId)
     if (boss.clanId === targetClanId) throw AppError.validation('Свой дом осаждать нельзя')
     const target = await prisma.clan.findUnique({ where: { id: targetClanId }, select: { id: true, name: true, tag: true } })
     if (!target) throw AppError.notFound('Бригада', targetClanId)
-    const timeProblem = siegeStartAllowed(startsAt)
-    if (timeProblem) throw AppError.validation(timeProblem)
+    const startsAt = siegeStartsAt(now)
     const blocked = await this.fileBlockedReason(boss.clanId, targetClanId)
     if (blocked) throw new AppError(ErrorCode.CONFLICT, blocked, 409)
 
@@ -181,11 +204,11 @@ export const HouseSiegeService = {
   },
 
   async cancel(characterId: string, siegeId: string) {
-    const boss = await bossOf(characterId)
+    const boss = await warLeaderOf(characterId)
     const done = await prisma.houseSiege.updateMany({
       where: { id: siegeId, attackerClanId: boss.clanId, status: 'SCHEDULED' },
       // Снятая осада считается законченной: иначе снимали бы и объявляли
-      // заново, обходя 15 суток.
+      // заново, обходя недельную паузу.
       data: { status: 'CANCELLED', finishedAt: new Date() },
     })
     if (done.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Снять можно только свою ещё не начатую осаду', 409)

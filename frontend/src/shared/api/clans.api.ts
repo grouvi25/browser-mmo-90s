@@ -92,7 +92,7 @@ export interface BrigadeHouse {
   fileBlocked: string | null
   canWrite: boolean
   rules: {
-    minLead: string; minLeadHours: number; maxLeadDays: number; fromHour: number; toHour: number; weekdaysOnly: boolean
+    leadHours: number
     traumaHours: number; cooldownDays: number; razedDays: number; durabilityLoss: number; maxPerSide: number
   }
   wall: Array<{ id: string; author: string; text: string; createdAt: string }>
@@ -127,7 +127,7 @@ export const clansApi = {
   get: (id: string) => api.get<Clan>(`/api/clans/${id}`),
   storageLog: (page = 1) => api.get<{ items: Array<{ id: string; at: string; nickname: string; resource: string; amount: number }>; page: number; pages: number; total: number }>(`/api/clans/storage/log?page=${page}`),
   house: (id: string) => api.get<BrigadeHouse>(`/api/clans/${id}/house`),
-  fileSiege: (id: string, startsAt: string) => api.post<{ siegeId: string; startsAt: string }>(`/api/clans/${id}/siege`, { startsAt }),
+  fileSiege: (id: string) => api.post<{ siegeId: string; startsAt: string }>(`/api/clans/${id}/siege`, {}),
   siegeAction: (siegeId: string, action: 'signup' | 'unsign' | 'cancel') => api.post(`/api/clans/sieges/${siegeId}/${action}`, {}),
   repairHouse: () => api.post<{ durability: number; cost: number; treasury: number }>('/api/clans/house/repair', {}),
   writeOnWall: (id: string, text: string) => api.post(`/api/clans/${id}/wall`, { text }),

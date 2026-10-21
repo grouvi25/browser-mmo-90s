@@ -2,11 +2,11 @@
 // Дома бригад: общий список домов и осады.
 //
 // Правка заказчика (октябрь 2026): бригады — квадратиками, на дома можно
-// нападать «как в Королях». Осада объявляется главарём за 3–7 суток, бой
-// в будни 11–20 по Москве; взятый дом теряет прочность и стоит
-// разгромленным 7 суток, а гости пишут на его стене.
+// нападать «как в Королях». Уточнение 22.10: осаду объявляют главарь или
+// зам, бой ровно через 72 часа, нападения — раз в неделю, до 10 на сторону;
+// взятый дом теряет прочность и стоит разгромленным, гости пишут на стене.
 // =============================================================
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { charactersApi } from '../../shared/api/characters.api'
@@ -20,21 +20,6 @@ import { SCENES } from '../../shared/ui/sprite'
 const msk = (iso: string | Date) => new Date(iso).toLocaleString('ru-RU', {
   timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
 })
-
-/** Первый день по Москве, в который осаду можно назначить на этот час:
-    выходные пропускаем, если осады идут только в будни. */
-function firstAllowedDate(rules: BrigadeHouse['rules'], hour: number) {
-  const MSK = 3 * 3_600_000
-  const earliest = Date.now() + rules.minLeadHours * 3_600_000
-  for (let day = 0; day <= rules.maxLeadDays; day++) {
-    const msk = new Date(Date.now() + MSK + day * 86_400_000)
-    const weekday = msk.getUTCDay()
-    if (rules.weekdaysOnly && (weekday === 0 || weekday === 6)) continue
-    const start = Date.UTC(msk.getUTCFullYear(), msk.getUTCMonth(), msk.getUTCDate(), hour) - MSK
-    if (start >= earliest) return msk.toISOString().slice(0, 10)
-  }
-  return new Date(Date.now() + MSK + rules.maxLeadDays * 86_400_000).toISOString().slice(0, 10)
-}
 
 /** Правка заказчика 21.10 (образец — «Замки кланов» в «5 королях»):
     картинка района, под ней кнопки «К дому …» всех бригад. Своя
@@ -189,34 +174,27 @@ function SiegeBlock({ siege, title, busy, onAction }: {
 
 function SiegeForm({ house, onDone, onFail }: { house: BrigadeHouse; onDone: (text: string) => void; onFail: (e: unknown) => void }) {
   const r = house.rules
-  const hours = Array.from({ length: Math.max(0, r.toHour - r.fromHour) }, (_, i) => r.fromHour + i)
-  const [hour, setHour] = useState(hours[Math.floor(hours.length / 2)] ?? 15)
-  const [date, setDate] = useState(() => firstAllowedDate(r, hours[Math.floor(hours.length / 2)] ?? 15))
   const file = useMutation({
-    mutationFn: () => {
-      const [y, m, d] = date.split('-').map(Number)
-      // Время выбирается по Москве: UTC+3 без перехода на летнее.
-      return clansApi.fileSiege(house.id, new Date(Date.UTC(y, m - 1, d, hour - 3, 0)).toISOString())
-    },
+    mutationFn: () => clansApi.fileSiege(house.id),
     onSuccess: r => onDone(`Осада объявлена на ${msk(r.startsAt)} по Москве. Город узнает об этом из объявлений.`),
     onError: onFail,
   })
   if (!house.canFile) return <p className="house-siege__blocked">Осада: {house.fileBlocked}</p>
-  return <form className="house-siege house-siege--form" onSubmit={(e: FormEvent) => { e.preventDefault(); file.mutate() }}>
+  return <div className="house-siege house-siege--form">
     <h3>Объявить осаду</h3>
     <p>
-      Бой — не раньше чем через {r.minLead} и не позже чем через {r.maxLeadDays} суток,
-      {r.weekdaysOnly ? ' в будни' : ''} с {r.fromHour}:00 до {r.toHour}:00 по Москве. Возьмёте дом — он потеряет {r.durabilityLoss}% прочности
-      и {r.razedDays} суток простоит разгромленным. Отобьются — все нападавшие получат кровавую травму на {r.traumaHours} ч.
-      Следующую осаду бригада сможет объявить через {r.cooldownDays} суток.
+      Бой — ровно через {r.leadHours} ч после заявки. В нападение и в оборону записываются до {r.maxPerSide} бойцов.
+      Возьмёте дом — он потеряет {r.durabilityLoss}% прочности и {r.razedDays} суток простоит разгромленным.
+      Отобьются — все нападавшие получат кровавую травму на {r.traumaHours} ч.
+      Нападать можно раз в неделю: следующую осаду бригада объявит через {r.cooldownDays} суток, и на этот дом столько же никто не нападёт.
     </p>
     <div className="house-siege__fields">
-      <label htmlFor="siege-date">День<input id="siege-date" type="date" value={date} onChange={e => setDate(e.target.value)} required /></label>
-      <label htmlFor="siege-hour">Час (МСК)<select id="siege-hour" value={hour} onChange={e => setHour(Number(e.target.value))}>
-        {hours.map(h => <option key={h} value={h}>{h}:00</option>)}</select></label>
-      <button className="btn btn-primary" disabled={file.isPending}>{file.isPending ? 'Объявляем…' : 'Объявить осаду'}</button>
+      <button type="button" className="btn btn-primary" disabled={file.isPending}
+        onClick={() => { if (window.confirm(`Объявить осаду дома «${house.name}»? Бой начнётся через ${r.leadHours} ч.`)) file.mutate() }}>
+        {file.isPending ? 'Объявляем…' : 'Объявить осаду'}
+      </button>
     </div>
-  </form>
+  </div>
 }
 
 function WallForm({ clanId, onDone, onFail }: { clanId: string; onDone: (text: string) => void; onFail: (e: unknown) => void }) {

@@ -55,11 +55,11 @@ export async function clansRoutes(fastify: FastifyInstance) {
     const actor = await character(req.authUser.userId)
     return reply.send(await HouseSiegeService.view(actor.id, req.params.id))
   })
+  // Время боя не выбирают: ровно через 72 часа после заявки (правка 22.10).
   fastify.post<{ Params: { id: string } }>('/:id/siege', { preHandler: authenticate }, async (req, reply) => {
-    const parsed = z.object({ startsAt: z.string().datetime() }).safeParse(req.body)
-    if (!Id.safeParse(req.params.id).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Укажите дату и время начала осады' })
+    if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const actor = await character(req.authUser.userId)
-    return reply.code(201).send(await HouseSiegeService.file(actor.id, req.params.id, new Date(parsed.data.startsAt)))
+    return reply.code(201).send(await HouseSiegeService.file(actor.id, req.params.id))
   })
   for (const action of ['signup', 'unsign', 'cancel'] as const) {
     fastify.post<{ Params: { siegeId: string } }>(`/sieges/:siegeId/${action}`, { preHandler: authenticate }, async (req, reply) => {
