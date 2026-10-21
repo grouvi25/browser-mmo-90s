@@ -104,10 +104,9 @@
 /* Не рвём подпись по словам — см. пояснение у .gshop-card dt. */
 .inv-card dt { color: #4a4345; white-space: nowrap; }
 .inv-card dd { margin: 0; font-variant-numeric: tabular-nums; }
-/* Вложенные очки бывают длинной строкой: переносим её внутри карточки,
-   а не выпускаем за рамку. */
+/* Прибавка от очков, улучшений и камней к базовой характеристике. */
 .inv-card dl { max-width: 100%; }
-.inv-card dd.inv-card__bonus { white-space: normal; }
+.inv-card__gain { color: #2f6b2a; font-weight: 700; }
 .inv-card__actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
 .inv-btn {
   position: relative;

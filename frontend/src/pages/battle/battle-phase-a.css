@@ -1498,3 +1498,26 @@
 .bs-chat .city-chat__nick--3 { color: #8b1830; }
 .bs-chat .city-chat__nick--4 { color: #6b3a1c; }
 .bs-chat__form .ether-mode { padding: 4px; border: 1px solid #a8918f; background: #f3ece7; }
+
+/* Боевой помощник над хроникой: имя, полоса здоровья, тактика. Смена тактики
+   меняет только цвет и текст — ничего не сдвигается. */
+.battle-helper { display: grid; grid-template-columns: auto minmax(70px, 1fr) auto; align-items: center; gap: 8px; margin: 4px 0; padding: 3px 6px; border: 1px solid oklch(58% .035 55); background: oklch(95% .02 75); font: 12px/1.2 Arial, sans-serif; color: oklch(25% .025 52); }
+.battle-helper__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.battle-helper__hp { position: relative; height: 14px; border: 1px solid oklch(38% .035 55); background: oklch(90% .02 75); }
+.battle-helper__hp i { position: absolute; inset: 0 auto 0 0; background: oklch(55% .12 145); }
+.battle-helper__hp small { position: relative; display: block; text-align: center; font-size: 10.5px; line-height: 12px; }
+.battle-helper select { min-height: 24px; padding: 0 4px; border: 1px solid oklch(38% .035 55); background: oklch(97% .012 75); font: inherit; color: inherit; cursor: pointer; }
+.battle-helper select:hover:not(:disabled) { background: oklch(92% .03 75); }
+.battle-helper select:focus-visible { outline: 2px solid oklch(63% .14 28); outline-offset: 1px; }
+.battle-helper select:disabled { opacity: .55; cursor: not-allowed; }
+.battle-helper.is-down .battle-helper__hp i { background: oklch(55% .02 55); }
+.battle-helper.is-down .battle-helper__name { text-decoration: line-through; }
+/* С помощником в колодке пять рядов: плашка встаёт между шапкой журнала
+   и хроникой, хроника по-прежнему забирает остаток высоты. */
+.battle-command-dock.is-compact:has(.battle-helper) { grid-template-rows: auto auto auto auto minmax(0, 1fr); }
+.battle-command-dock.is-compact .battle-helper { margin: 3px 8px; }
+.battle-command-tools .battle-helper { margin: 0; }
+/* В сцене по макету колодка разложена по координатам: плашка помощника
+   встаёт на место начала ленты (99), лента сдвигается на её высоту. */
+.battle-mockup-scene .battle-command-dock .battle-helper { position: absolute; left: 0; top: 99px; width: 900px; height: 28px; margin: 0; box-sizing: border-box; border-left: 0; border-right: 0; font-size: 13.5px; }
+.battle-mockup-scene .battle-command-dock:has(.battle-helper) .battle-chronicle { top: 127px; height: 210px; }

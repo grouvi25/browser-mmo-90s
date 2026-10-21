@@ -29,6 +29,7 @@ export const AuthService = {
       passwordHash,
       lastIp: ip,
       lastUserAgent: userAgent,
+      policyAcceptedAt: new Date(),
     })
 
     audit('user.registered', { userId: user.id, login: user.login, ip })

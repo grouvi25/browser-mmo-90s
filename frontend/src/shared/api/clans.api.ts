@@ -36,6 +36,19 @@ export interface ClanRelation {
   updatedAt?: string
 }
 export interface ClanStorageRow { resourceCode: string; resourceName?: string; amount: number }
+export interface ClanObject {
+  id: string
+  name: string
+  type: string
+  status: 'ACTIVE' | 'DISABLED' | 'HIDDEN' | 'DAMAGED'
+  level: number
+  balance: number
+}
+export interface ClanTerritory {
+  id: string
+  name: string
+  status: 'CONTROLLED' | 'CONTESTED' | 'UNDER_ATTACK' | 'PROTECTED'
+}
 
 export interface Clan {
   id: string
@@ -52,6 +65,10 @@ export interface Clan {
   members?: ClanMember[]
   roles?: ClanRole[]
   storage?: ClanStorageRow[]
+  /** Объекты, переданные бригаде, и лимит (растёт с районами). */
+  objects?: ClanObject[]
+  objectLimit?: number
+  territories?: ClanTerritory[]
   relationsFrom?: ClanRelation[]
   relationsTo?: ClanRelation[]
   _count?: { members: number }

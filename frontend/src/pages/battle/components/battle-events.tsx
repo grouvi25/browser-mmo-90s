@@ -11,6 +11,8 @@ export interface TurnEvent {
   crit: boolean; lucky?: boolean; blockPierced?: boolean; zone?: BodyZone
   counterDamage?: number; sourceHand?: AttackHand
   rawDamage: number; finalDamage: number; logParts: string[]
+  /** Удар по хозяину принял на себя боевой помощник. */
+  intercepted?: boolean
 }
 
 export interface RoundRecord {

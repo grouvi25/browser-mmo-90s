@@ -4,6 +4,8 @@ import { ZONE_LABEL, getActionBudget, validateTurnPlan } from '../battle-view-mo
 import { BattleChronicle } from './battle-chronicle'
 import type { RoundRecord } from './battle-events'
 import { BattleJournalHead, type JournalFighter } from './battle-journal-head'
+import { BattleHelperBadge } from './battle-helper-badge'
+import type { HelperTactic, LiveHelper } from '../../../shared/types/api.types'
 
 interface BattleCommandDockProps {
   stance: Stance
@@ -28,6 +30,10 @@ interface BattleCommandDockProps {
   startedAt?: string | null
   selfFighter?: JournalFighter
   enemyFighter?: JournalFighter
+  /** Боевой помощник игрока, если он вышел в бой. */
+  helper?: LiveHelper | null
+  helperPending?: boolean
+  onHelperTactic?: (tactic: HelperTactic) => void
   onRemoveAttack: (index: number) => void
   onSubmitTurn: () => void
   onSubmitMove: () => void
@@ -73,8 +79,10 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
         {props.selfFighter && props.enemyFighter && <BattleJournalHead
           type={props.battleType} startedAt={props.startedAt}
           self={props.selfFighter} enemy={props.enemyFighter} />}
+        {props.helper && <BattleHelperBadge helper={props.helper} pending={!!props.helperPending}
+          onTactic={tactic => props.onHelperTactic?.(tactic)} />}
         <BattleChronicle rounds={props.rounds ?? []} playerName={props.playerName ?? ''}
-          enemyName={props.enemyName ?? ''} onOpenLog={props.onToggleLog} />
+          enemyName={props.enemyName ?? ''} helperName={props.helper?.name} onOpenLog={props.onToggleLog} />
       </section>
     )
   }
@@ -110,6 +118,8 @@ export function BattleCommandDock(props: BattleCommandDockProps) {
         <div className="battle-command-tools">
           <button type="button" onClick={props.onTogglePockets}>Карман <small>{props.pocketCount}</small></button>
           <button type="button" onClick={props.onToggleLog}>Лог <small>{props.roundsCount}</small></button>
+          {props.helper && <BattleHelperBadge helper={props.helper} pending={!!props.helperPending}
+            onTactic={tactic => props.onHelperTactic?.(tactic)} />}
           {(props.attackZones.length > 0 || props.blockZones.length > 0 || props.selectedMove) && <button type="button" onClick={props.onReset} title="Сбросить план"><RotateCcw size={13} /></button>}
           <button type="button" className="is-surrender" disabled={!props.canAct} onClick={props.onSurrender} title="Сдаться"><Flag size={13} /></button>
         </div>

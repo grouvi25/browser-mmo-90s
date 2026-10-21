@@ -63,7 +63,23 @@ async function request<T>(path: string, init?: { method?: string; body?: unknown
   return data as T
 }
 
+/** Картинка по админскому токену: <img> заголовок не пошлёт, грузим fetch'ем. */
+async function requestBlobUrl(path: string): Promise<string> {
+  const token = adminToken.get()
+  const response = await fetch(`${BASE}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  if (!response.ok) throw new AdminApiError(response.status, 'UNKNOWN', `Ошибка ${response.status}`)
+  return URL.createObjectURL(await response.blob())
+}
+
 // ── Типы ответов ─────────────────────────────────────────────
+
+export type SupportStatus = 'OPEN' | 'ANSWERED' | 'CLOSED'
+export interface SupportRow {
+  id: string; text: string; status: SupportStatus
+  reply: string | null; repliedAt: string | null; repliedBy: string | null
+  createdAt: string; hasImage: boolean
+  characterId: string; character: { nickname: string; battleLevel: number }
+}
 
 export interface ClanRow {
   id: string; name: string; tag: string; level: number
@@ -314,6 +330,10 @@ export interface ItemTemplateRow {
 // ── Ручки ────────────────────────────────────────────────────
 
 export const adminApi = {
+  support: (status?: SupportStatus) => request<{ items: SupportRow[] }>(`/api/admin/support${status ? `?status=${status}` : ''}`),
+  supportImage: (id: string) => requestBlobUrl(`/api/admin/support/${id}/image`),
+  supportReply: (id: string, text: string) => request(`/api/admin/support/${id}/reply`, { method: 'POST', body: { text } }),
+  supportClose: (id: string) => request(`/api/admin/support/${id}/close`, { method: 'POST', body: {} }),
   prison: (characterId: string, hours: number, reason: string) => request('/api/admin/city/prison', { method: 'POST', body: { characterId, hours, reason } }),
   async login(username: string, password: string) {
     const result = await request<{ token: string; adminId: string; role: AdminRole }>(

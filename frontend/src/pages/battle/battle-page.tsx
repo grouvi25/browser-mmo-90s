@@ -28,6 +28,7 @@ import { useViewportSize } from '../../shared/lib/stage'
 import { BattleCommandDock } from './components/battle-command-dock'
 import { EventIcon, getEvent, type RoundRecord, type TurnEvent } from './components/battle-events'
 import { BattlePockets } from './components/battle-pockets'
+import { BattleJournal } from '../../widgets/battle-journal/battle-journal'
 import { BattleSwap, type SwapPlan } from './components/battle-swap'
 import { removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
 import './battle-phase-a.css'
@@ -276,6 +277,13 @@ export function BattlePage() {
     refetchInterval: q => q.state.data?.battle?.status === 'FINISHED' || battleOver ? false : 3000,
   })
 
+  // Тактика боевого помощника меняется по ходу боя.
+  const helperTacticMut = useMutation({
+    mutationFn: (tactic: 'ATTACK' | 'STANDARD' | 'DEFENSIVE') => battlesApi.setHelperTactic(battleId!, tactic),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['battle', battleId] }) },
+    onError: (err) => { setActionError(err instanceof ApiError ? err.message : 'Ошибка'); setTimeout(() => setActionError(''), 4000) },
+  })
+
   // ── Данные из liveState (Redis) и БД ──────────────────────
   const live      = battleData?.liveState
   const dbParts   = (battleData?.battle?.participants ?? []) as Array<{ characterId?: string | null; botId?: string | null; hpMax?: number; hpCurrent?: number }>
@@ -357,7 +365,8 @@ export function BattlePage() {
       }
 
       const events: TurnEvent[] = data.turns?.map(t => ({
-        actor: t.actor === 'player' ? 'player' : 'enemy',
+        actor: t.actor === 'player' ? 'player' : t.actor === 'helper' ? 'helper' : 'enemy',
+        intercepted: (t as { intercepted?: boolean }).intercepted ?? false,
         action: t.action, hit: t.hit, dodge: t.dodge, block: t.block,
         crit: t.crit, lucky: t.lucky, counterDamage: t.counterDamage, sourceHand: t.sourceHand, zone: t.zone,
         rawDamage: t.rawDamage, finalDamage: t.finalDamage, logParts: t.logParts,
@@ -365,12 +374,14 @@ export function BattlePage() {
       events.forEach(t => {
         // Атакующий делает выпад на любом ударе — попал или промахнулся,
         // замах есть всегда. Защищающийся вздрагивает только по попаданию.
-        if (t.action === 'attack') {
+        // Помощник не стоит на поле: его удар виден только по вздрагиванию
+        // противника, а принятый им удар не ранит хозяина.
+        if (t.action === 'attack' && t.actor !== 'helper') {
           if (t.actor === 'player') { setPlayerAttack(true); setTimeout(() => setPlayerAttack(false), 460) }
           else                      { setEnemyAttack(true); setTimeout(() => setEnemyAttack(false), 460) }
         }
-        if (t.hit && !t.dodge) {
-          if (t.actor === 'player') { setEnemyHit(true); setTimeout(() => setEnemyHit(false), 500) }
+        if (t.hit && !t.dodge && !t.intercepted) {
+          if (t.actor === 'player' || t.actor === 'helper') { setEnemyHit(true); setTimeout(() => setEnemyHit(false), 500) }
           else                      { setPlayerHit(true); setTimeout(() => setPlayerHit(false), 500) }
         }
       })
@@ -496,41 +507,15 @@ export function BattlePage() {
             </div>
           </div>
 
-          {/* Fix 1.2: Лог боя на экране результата */}
-          {rounds.length > 0 && (
+          {/* Журнал боя на экране итога — с сервера: сохраняется и листается
+              по 10 строк (правка заказчика 20.10). */}
+          {battleId && (
             <div className="battle-log-v2" style={{ marginTop: 8 }}>
               <div className="log-toggle-v2" style={{ cursor: 'default' }}>
                 <ChevronDown size={12} />
-                <span>Лог боя — {rounds.length} раундов</span>
+                <span>Журнал боя</span>
               </div>
-              <div className="log-body-v2">
-                {rounds.map(r => (
-                  <div key={r.round} className="log-round-v2">
-                    <div className="log-round-header">Раунд {r.round}</div>
-                    {r.events.map((t, i) => {
-                      const e = getEvent(t)
-                      const isPlayer = t.actor === 'player'
-                      return (
-                        <div key={i} className={`log-event-line ${isPlayer ? 'log-ev-player' : 'log-ev-enemy'}`}>
-                          <span className="log-ev-actor">{isPlayer ? playerName : enemyName}</span>
-                          <span className="log-ev-arrow">→</span>
-                          <span className="log-ev-icon" style={{ color: e.color }}><EventIcon type={e.type} /></span>
-                          <span className="log-ev-label" style={{ color: e.color }}>{e.label}</span>
-                          {t.finalDamage > 0 && (
-                            <>
-                              <span className="log-ev-arrow">→</span>
-                              <span className="log-ev-dmg" style={{ color: e.type === 'crit' ? 'var(--gold)' : 'var(--danger)' }}>
-                                -{t.finalDamage} HP
-                              </span>
-                              {t.crit && <span className="log-ev-crit">КРИТ!</span>}
-                            </>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
+              <div className="log-body-v2"><BattleJournal battleId={battleId} refreshKey={rounds.length} /></div>
             </div>
           )}
         </div>
@@ -659,6 +644,8 @@ export function BattlePage() {
         compact rounds={rounds} playerName={playerName} enemyName={enemyName}
         battleType={battleData?.battle?.type} startedAt={battleData?.battle?.startedAt}
         selfFighter={{ name: playerName, level: char?.battleLevel, hp: pHp, hpMax: pHpMax, acted: pPart?.hasActedThisRound }}
+        helper={pPart?.helper} helperPending={helperTacticMut.isPending}
+        onHelperTactic={tactic => helperTacticMut.mutate(tactic)}
         enemyFighter={{ name: enemyName, level: enemyProfile?.level, hp: eHp, hpMax: eHpMax, acted: ePart?.hasActedThisRound }}
         onRemoveAttack={removeAttack}
         onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
@@ -696,16 +683,7 @@ export function BattlePage() {
         <section>
           <header><b>{showLog ? 'Лог боя' : 'Боевой карман'}</b><button type="button" onClick={() => { setShowLog(false); setPocketsOpen(false) }}>Закрыть</button></header>
           {showLog ? <div className="log-body-v2">
-            {rounds.length === 0 && <p className="battle-drawer__empty">Событий пока нет.</p>}
-            {rounds.slice().reverse().map(r => <div key={r.round} className="log-round-v2">
-              <div className="log-round-header">Раунд {r.round}</div>
-              {r.events.map((t, i) => { const event = getEvent(t); const isPlayer = t.actor === 'player'; return <div key={i} className={`log-event-line ${isPlayer ? 'log-ev-player' : 'log-ev-enemy'}`}>
-                <span className="log-ev-actor">{isPlayer ? playerName : enemyName}</span>
-                <span className="log-ev-icon" style={{ color: event.color }}><EventIcon type={event.type} /></span>
-                <span className="log-ev-label" style={{ color: event.color }}>{event.label}</span>
-                {t.finalDamage > 0 && <span className="log-ev-dmg">-{t.finalDamage} HP</span>}
-              </div> })}
-            </div>)}
+            {battleId && <BattleJournal battleId={battleId} refreshKey={rounds.length} />}
           </div> : (
             <>
               <BattlePockets slots={pocketSlots} canAct={canAct} open

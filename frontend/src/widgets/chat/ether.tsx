@@ -13,6 +13,7 @@ import type { ChatLine } from '../../shared/api/chat.api'
 import { chatTime } from '../../shared/lib/chat-format'
 import { nickTone } from '../../shared/lib/use-chat'
 import { mentionsMe, type Ether, type EtherMode } from '../../shared/lib/use-ether'
+import { SMILES, SmileImage, smileToken, withSmiles } from '../../shared/ui/smiles'
 
 export const EMOJIS = [
   '😀', '😂', '😉', '😎', '😡', '😢', '😱', '🤔', '😏', '🙄',
@@ -88,7 +89,7 @@ export function EtherLine({ line, ether, composer, className = '' }: {
         title="Обратиться к игроку" onClick={() => composer.onNick(line.nickname)}>
         {line.nickname}:
       </button>{' '}
-      <span className="ether-body">{line.body}</span>
+      <span className="ether-body">{withSmiles(line.body)}</span>
     </div>
   )
 }
@@ -105,7 +106,8 @@ export function EtherComposer({ ether, composer, className = '', style }: {
       : mode === 'CLAN' ? 'Написать бригаде…' : 'Написать всем…')
 
   const insertEmoji = (emoji: string) => {
-    setDraft(d => d + emoji)
+    // Код смайла отделяем пробелами, иначе «текст:pivo:» склеится в одно слово.
+    setDraft(d => emoji.startsWith(':') ? `${d}${d && !d.endsWith(' ') ? ' ' : ''}${emoji} ` : d + emoji)
     setEmojiOpen(false)
     inputRef.current?.focus()
   }
@@ -136,6 +138,12 @@ export function EtherComposer({ ether, composer, className = '', style }: {
         <button type="button" aria-label="Смайлики" aria-expanded={emojiOpen} onClick={() => setEmojiOpen(o => !o)}>😊</button>
         {emojiOpen && (
           <span className="ether-emoji__grid" role="listbox" aria-label="Смайлики">
+            {SMILES.map(s => (
+              <button type="button" key={s.code} role="option" aria-selected={false} aria-label={s.name} title={s.name}
+                className="ether-emoji__smile" onClick={() => insertEmoji(smileToken(s.code))}>
+                <SmileImage code={s.code} className="smile smile--pick" />
+              </button>
+            ))}
             {EMOJIS.map(e => <button type="button" key={e} role="option" aria-selected={false} onClick={() => insertEmoji(e)}>{e}</button>)}
           </span>
         )}

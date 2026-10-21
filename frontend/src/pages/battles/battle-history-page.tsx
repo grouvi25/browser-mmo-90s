@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Swords, Trophy, Skull, Minus } from 'lucide-react'
 import { battlesApi } from '../../shared/api/battles.api'
+import { BattleJournal } from '../../widgets/battle-journal/battle-journal'
 
 function ResultBadge({ result }: { result: 'win' | 'lose' | 'draw' }) {
   if (result === 'win')  return <span style={{ color: 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 3 }}><Trophy size={11} />Победа</span>
@@ -18,6 +19,8 @@ function formatDate(s: string | null) {
 export function BattleHistoryPage() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
+  // Журнал прошедшего боя раскрывается под его строкой.
+  const [openLog, setOpenLog] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['battles', 'history', page],
@@ -55,11 +58,12 @@ export function BattleHistoryPage() {
                     <th>Противник</th>
                     <th>Итог</th>
                     <th className="num">Раундов</th>
+                    <th aria-label="Журнал" />
                   </tr>
                 </thead>
                 <tbody>
-                  {data.items.map(b => (
-                    <tr key={b.id}>
+                  {data.items.map(b => (<Fragment key={b.id}>
+                    <tr>
                       <td style={{ fontSize: 13.65, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                         {formatDate(b.finishedAt)}
                       </td>
@@ -76,8 +80,19 @@ export function BattleHistoryPage() {
                       </td>
                       <td><ResultBadge result={b.result} /></td>
                       <td className="num" style={{ fontFamily: 'var(--font-mono)', fontSize: 13.9 }}>{b.rounds}</td>
+                      <td>
+                        <button type="button" className="btn btn-sm" aria-expanded={openLog === b.id}
+                          onClick={() => setOpenLog(openLog === b.id ? null : b.id)}>
+                          {openLog === b.id ? 'Скрыть' : 'Журнал'}
+                        </button>
+                      </td>
                     </tr>
-                  ))}
+                    {openLog === b.id && (
+                      <tr className="history-journal-row">
+                        <td colSpan={6}><BattleJournal battleId={b.id} /></td>
+                      </tr>
+                    )}
+                  </Fragment>))}
                 </tbody>
               </table>
 

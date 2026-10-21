@@ -81,6 +81,7 @@ export function LoginPage() {
 
         <div className="auth-footer">
           Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
+          <div className="auth-policy-link"><Link to="/politika">Политика обработки персональных данных</Link></div>
         </div>
       </div>
     </div>

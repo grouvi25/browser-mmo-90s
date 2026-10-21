@@ -23,7 +23,7 @@ describe('character stat distribution concurrency', () => {
     const login = uid('race')
     await app.inject({
       method: 'POST', url: '/api/auth/register',
-      payload: { login, email: `${login}@test.com`, password: 'password123' },
+      payload: { acceptPolicy: true, login, email: `${login}@test.com`, password: 'password123' },
     })
     const loginResponse = await app.inject({
       method: 'POST', url: '/api/auth/login', payload: { login, password: 'password123' },

@@ -13,7 +13,7 @@ async function createAccount(request: APIRequestContext, prefix: string): Promis
   const cleanPrefix = prefix.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 14)
   const login = `${cleanPrefix}_${suffix}`.slice(0, 30)
   const password = 'visual_pass_123'
-  const registration = await request.post('/api/auth/register', { data: { login, email: `${login}@visual.local`, password } })
+  const registration = await request.post('/api/auth/register', { data: { acceptPolicy: true, login, email: `${login}@visual.local`, password } })
   expect(registration.status()).toBe(201)
   const logged = await request.post('/api/auth/login', { data: { login, password } })
   expect(logged.status()).toBe(200)
@@ -99,9 +99,68 @@ test('город ведёт в разделы Этапа 3 из своих ра�
   await visualProof(page, testInfo, 'stage3-city-districts')
 })
 
+// Правка 21.10: на списке домов бригад внизу только ЦЕНТР — вкладки бригады
+// появляются, когда зашли в свою.
+test('на списке домов бригад внизу только ЦЕНТР', async ({ page }) => {
+  await authPage(page, owner)
+  await page.goto('/clan-houses')
+  await expect(page.locator('[data-stage-nav="center"]')).toHaveText('ЦЕНТР')
+  await expect(page.locator('[data-stage-nav="storage"]')).toHaveCount(0)
+  await page.goto('/clan-houses?brigade=mine')
+  await expect(page.locator('[data-stage-nav="storage"]')).toHaveCount(1)
+})
+
+// Правка 21.10: «Поддержка» в Центре — текст и форма со скриншотом.
+test('поддержка: обращение со скриншотом уходит и видно в списке', async ({ page }) => {
+  await authPage(page, owner)
+  await page.goto('/')
+  await page.locator('[data-stage-nav="support"]').click()
+  await expect(page).toHaveURL(/\/support$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Поддержка' })).toBeVisible()
+  await page.getByLabel('Обращение').fill('Не открывается склад после боя')
+  // Картинка 1×1 PNG: страница сама ужмёт её в JPEG.
+  await page.locator('.support input[type=file]').setInputFiles({
+    name: 'shot.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'),
+  })
+  await expect(page.getByAltText('Скриншот к обращению')).toBeVisible()
+  await page.locator('.support').getByRole('button', { name: 'Отправить' }).click()
+  await expect(page.locator('.support__msg')).toContainText('Обращение отправлено')
+  await expect(page.locator('.support__ticket').first()).toContainText('Не открывается склад после боя')
+  await expect(page.locator('.support__ticket').first()).toContainText('со скриншотом')
+  await expectNoAxeViolations(page)
+})
+
+// Правка 21.10: свой набор смайлов в стиле игры.
+test('чат: свой смайл уходит кодом и показывается картинкой', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'Поле ввода города — на широком экране')
+  await authPage(page, owner)
+  await page.goto('/')
+  const composer = page.locator('.ether-composer--city')
+  await composer.getByRole('button', { name: 'Смайлики' }).click()
+  await composer.getByRole('option', { name: 'Девятка' }).click()
+  await expect(composer.locator('.ether-input')).toHaveValue(':devyatka: ')
+  await composer.locator('.ether-input').fill('на стрелку :devyatka: :neznakomy:')
+  await composer.locator('.ether-input').press('Enter')
+  const line = page.locator('.ether-body', { hasText: 'на стрелку' }).last()
+  await expect(line.locator('img.smile[alt="Девятка"]')).toBeVisible()
+  await expect(line).toContainText(':neznakomy:')
+})
+
+// Правка 21.10: жильё стоит заранее — 16 квартир и 8 домов на плане.
+test('жилой сектор: план из 24 участков, свободный можно выбрать', async ({ page }) => {
+  await authPage(page, owner)
+  await page.goto('/housing')
+  await expect(page.locator('.housing-lot')).toHaveCount(24)
+  await page.getByRole('button', { name: /^Дом 8:/ }).click()
+  await expect(page.locator('.housing__offer')).toContainText('Дом 8')
+  await expect(page.getByRole('button', { name: /^Дом 8:/ })).toHaveAttribute('aria-pressed', 'true')
+  await expectNoAxeViolations(page)
+})
+
 test('в локации полоса подсвечивает её раздел', async ({ page }) => {
   await authPage(page, owner)
-  for (const [path, tab] of [['/market', 'board'], ['/clan-houses', 'houses'], ['/work', 'work'], ['/farm', 'plant'], ['/pvp', 'all'], ['/pvp?tab=RUNNING', 'running']]) {
+  for (const [path, tab] of [['/market', 'board'], ['/clans', 'clan'], ['/work', 'work'], ['/farm', 'plant'], ['/pvp', 'all'], ['/pvp?tab=RUNNING', 'running']]) {
     await page.goto(path)
     await expect(page.locator(`[data-stage-nav="${tab}"]`)).toHaveClass(/is-active/)
     await expect(page.locator('[data-stage-nav="center"]')).toHaveText('ЦЕНТР')

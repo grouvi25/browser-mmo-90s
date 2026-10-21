@@ -9,6 +9,9 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { announcementsApi, type AnnouncementKind } from '../../shared/api/announcements.api'
+// Стили ленты жили в radio.css страницы Радио; Радио убрано, лента осталась
+// у Новостей и Обновлений.
+import './radio.css'
 
 const KIND_LABELS: Record<AnnouncementKind, string> = {
   PATCH: 'обновление',

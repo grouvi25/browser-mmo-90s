@@ -9,8 +9,6 @@ import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
 import { ResumeLocation } from './location-persistence'
 import { CityPage } from '../pages/locations/city-page'
-import { UnsortedPage } from '../pages/locations/unsorted-page'
-import { RadioPage } from '../pages/radio/radio-page'
 import { AnnouncementsFeed } from '../pages/radio/announcements-feed'
 
 import { LoginPage }           from '../pages/auth/login-page'
@@ -36,6 +34,9 @@ import { BalanceSandboxPage }   from '../pages/balance-sandbox/balance-sandbox-p
 import { LocationHubPage, type DistrictKey } from '../pages/locations/location-hub-page'
 import { Stage3Page }           from '../pages/stage3/stage3-page'
 import { Stage4Page }           from '../pages/stage4/stage4-page'
+import { PolitikaPage }         from '../pages/legal/politika-page'
+import { HousingPage }          from '../pages/housing/housing-page'
+import { SupportPage }          from '../pages/support/support-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuth } = useAuth()
@@ -132,6 +133,8 @@ export function AppRouter() {
       <Route element={<PublicLayout />}>
         <Route path="/login"    element={<RequireGuest authenticatedTo="/resume"><LoginPage /></RequireGuest>} />
         <Route path="/register" element={<RequireGuest authenticatedTo="/character/create"><RegisterPage /></RequireGuest>} />
+        {/* Политика открыта всем: на неё ведёт согласие при регистрации. */}
+        <Route path="/politika" element={<PolitikaPage />} />
       </Route>
 
       {/* ── Экраны без городской оболочки ─────────────────── */}
@@ -262,24 +265,22 @@ export function AppRouter() {
 
 
         <Route path="/soon/:key" element={<SoonRoute />} />
-        <Route path="/unsorted" element={<UnsortedPage />} />
+        {/* «Нераспределённое» и Радио убраны (правка заказчика 21.10). */}
+        <Route path="/unsorted" element={<Navigate to="/" replace />} />
+        <Route path="/support" element={
+          <ViewportPanel title="Поддержка" subtitle="Вопросы и ошибки">
+            <SupportPage />
+          </ViewportPanel>} />
         <Route path="/housing" element={
           <ViewportPanel title="Жилой сектор" subtitle="Квартиры и дома">
-            <div className="locked-note">
-              <div className="locked-note__title">Скоро</div>
-              <p className="locked-note__text">Здесь будут индивидуальные квартиры и дома игроков.</p>
-              <p className="locked-note__text locked-note__meta">Как они устроены — покупка, аренда, что дают — заказчик ещё описывает.</p>
-            </div>
+            <HousingPage />
           </ViewportPanel>} />
         <Route path="/work" element={
           <ViewportPanel title="Работа" subtitle="Смены, зарплата и профессии">
             <WorkPage />
           </ViewportPanel>} />
         <Route path="/station" element={<Navigate to="/district/station" replace />} />
-        {/* Радио — эфир города: общая волна, район и бригада. Заказчик
-            сам предложил читать этот пункт меню как чат, и это
-            единственное прочтение, за которым стоит механика. */}
-        <Route path="/radio" element={<RadioPage />} />
+        <Route path="/radio" element={<Navigate to="/" replace />} />
         {/* Новости и обновления — та же доска объявлений, что и в радио,
             только отфильтрованная по виду. Отдельных страниц под них не
             заводим: источник один и разметка одна. */}

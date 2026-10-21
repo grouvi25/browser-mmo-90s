@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, Hammer, Moon, Trash2 } from 'lucide-react'
 import { helpersApi, type Helper } from '../../shared/api/strategy.api'
 import { fmt, remaining, Skeleton, Fault, Empty, Note } from '../stage3/stage3-ui'
+import { CombatHelperFacts } from './combat-helper-facts'
 
 /** Те же профессии, что у игрока: отдельного справочника у помощника нет. */
 const PROFESSIONS: { code: string; name: string }[] = [
@@ -149,6 +150,7 @@ export function HelpersSection() {
                 onWork={objectId => work.mutate({ id: helper.id, objectId })}
                 onClaim={() => claim.mutate(helper.id)}
                 onDismiss={() => dismiss.mutate(helper.id)}
+                onTacticError={fail}
               />
             ))}
           </ul>
@@ -158,7 +160,7 @@ export function HelpersSection() {
 }
 
 function HelperCard({
-  helper, busy, objects, onWork, onClaim, onDismiss,
+  helper, busy, objects, onWork, onClaim, onDismiss, onTacticError,
 }: {
   helper: Helper
   busy: boolean
@@ -166,6 +168,7 @@ function HelperCard({
   onWork: (objectId: string) => void
   onClaim: () => void
   onDismiss: () => void
+  onTacticError: (e: Error) => void
 }) {
   // Показываем только те объекты, куда помощник в принципе пройдёт: его
   // профессия должна совпадать с требованием объекта.
@@ -184,7 +187,7 @@ function HelperCard({
       </div>
 
       {helper.kind === 'COMBAT' ? (
-        <p className="s4-muted">Боевой помощник. Что он делает в бою — заказчик ещё описывает.</p>
+        <CombatHelperFacts helper={helper} disabled={dormant} onError={onTacticError} />
       ) : <>
       <dl className="s4-helper__facts">
         <div><dt>Профессия</dt><dd>{professionName(helper.professionCode)}</dd></div>

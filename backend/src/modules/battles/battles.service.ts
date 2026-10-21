@@ -1,4 +1,5 @@
 import type { BattleAction, WeaponType as PrismaWeaponType } from '@prisma/client'
+import { awardCombatHelper, damageHelper, helperIntercepts, helperStrike, loadCombatHelper, type HelperStrike, type LiveHelper } from './combat-helper'
 import { prisma } from '../../shared/db/prisma'
 import { BattleRedis, AntiFarmRedis } from '../../shared/db/redis'
 import { CharactersRepository } from '../characters/characters.repository'
@@ -102,6 +103,8 @@ function weaponExpByType(part: LiveParticipant, fallbackWeapon: ItemWithTemplate
 // ---------------------------------------------------------------
 export interface LiveParticipant {
   participantId: string
+  /** Боевой помощник хозяина (бой с ботом и групповые бои, не дуэль). */
+  helper?: LiveHelper
   characterId?: string
   botId?: string
   hpCurrent: number
@@ -566,6 +569,7 @@ export const BattleService = {
 
       // Snapshot the server-authoritative pocket at battle start.
       const pocketItemIds = await loadBattlePocket(char)
+      const helper = await loadCombatHelper(char.id)
       const liveState: LiveBattleState = {
         battleId: battle.id,
         type: 'PVE_BOT',
@@ -588,6 +592,7 @@ export const BattleService = {
             leftWeaponInstanceId: weapons.LEFT_HAND?.id,
             rightWeaponInstanceId: weapons.RIGHT_HAND?.id,
             pocketItemIds,
+            helper,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
             position: teamSpawnPositions(1, 1)[0],
@@ -806,6 +811,7 @@ export const BattleService = {
           leftWeaponInstanceId: weapons.LEFT_HAND?.id,
           rightWeaponInstanceId: weapons.RIGHT_HAND?.id,
           pocketItemIds: memberChar ? await loadBattlePocket(memberChar) : [],
+          helper: memberChar ? await loadCombatHelper(memberChar.id) : undefined,
           damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
           skippedTurns: 0,
           position: spawns[index],
@@ -1024,6 +1030,22 @@ export const BattleService = {
   // -------------------------------------------------------
   // Get battle state
   // -------------------------------------------------------
+  /** Смена тактики боевого помощника по ходу боя (как в «Апехе»):
+   *  действует со следующего раунда и запоминается на будущие бои. */
+  async setHelperTactic(battleId: string, userId: string, tactic: 'ATTACK' | 'STANDARD' | 'DEFENSIVE') {
+    const char = await CharactersRepository.findByUserId(userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
+    const state = await BattleRedis.getState<LiveBattleState>(battleId)
+    if (!state || state.status !== 'active') throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Бой уже закончился', 409)
+    const part = state.participants.find(p => p.characterId === char.id)
+    if (!part) throw new AppError(ErrorCode.BATTLE_NOT_PARTICIPANT, 'Вы не участвуете в этом бою', 403)
+    if (!part.helper) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'В этом бою с вами нет помощника', 409)
+    part.helper.tactic = tactic
+    await BattleRedis.setState(battleId, state)
+    await prisma.helper.update({ where: { id: part.helper.id }, data: { tactic } })
+    return { tactic, helper: part.helper }
+  },
+
   async getBattle(battleId: string, userId: string) {
     const char = await CharactersRepository.findByUserId(userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
@@ -1638,8 +1660,10 @@ export const BattleService = {
     let playerHp = playerPart.hpCurrent
     let botHp = botPart.hpCurrent
 
-    type TurnRec = { actor: 'player' | 'bot'; r: HandStrikeResult }
+    type TurnRec = { actor: 'player' | 'bot'; r: HandStrikeResult; intercepted?: boolean }
     const turns: TurnRec[] = []
+    const helper = playerPart.helper
+    const helperTurns: HelperStrike[] = []
     const botHitZonesOnPlayer: BodyZone[] = []
 
     const playerStrike = () => {
@@ -1677,7 +1701,14 @@ export const BattleService = {
         blockedZones: playerTurn.blockZones,
         defenderHp: playerHp,
       })
+      let intercepted = 0
       for (const r of res.results) {
+        if (r.hit && !r.dodge && !r.block && helperIntercepts(helper)) {
+          // Помощник принял удар на себя: урон идёт в него, не в хозяина.
+          damageHelper(helper!, r.finalDamage); botPart.hitsLanded++; intercepted += r.finalDamage
+          turns.push({ actor: 'bot', r, intercepted: true })
+          continue
+        }
         if (r.hit && !r.dodge && !r.block) {
           playerHp = Math.max(0, playerHp - r.finalDamage); botPart.hitsLanded++; playerPart.hitsTaken++
           botHitZonesOnPlayer.push(r.zone)
@@ -1685,7 +1716,7 @@ export const BattleService = {
         turns.push({ actor: 'bot', r })
       }
       botPart.damageDealt += res.damageToDefender
-      playerPart.damageReceived += res.damageToDefender
+      playerPart.damageReceived += res.damageToDefender - intercepted
       if (res.counterToAttacker > 0) {   // игрок заблокировал и дал ответку
         botHp = Math.max(0, botHp - res.counterToAttacker)
         playerPart.damageDealt += res.counterToAttacker
@@ -1699,6 +1730,13 @@ export const BattleService = {
     } else {
       if (doBotStrike) botStrike()
       if (doPlayerStrike && playerHp > 0 && botHp > 0) playerStrike()
+    }
+    // Помощник бьёт цель хозяина вслед за его ударом (на сетке он не стоит:
+    // бьёт только когда хозяин сам дотянулся до цели), пока оба на ногах.
+    if (helper?.alive && doPlayerStrike && playerHp > 0 && botHp > 0) {
+      const hs = helperStrike(helper)
+      if (hs.hit) { botHp = Math.max(0, botHp - hs.damage); helper.damageDealt += hs.damage; botPart.damageReceived += hs.damage; botPart.hitsTaken++ }
+      helperTurns.push(hs)
     }
 
     // Переодевание попадает в журнал первым событием раунда: игрок должен
@@ -1737,7 +1775,8 @@ export const BattleService = {
       battleId, roundNumber,
       actorCharId: t.actor === 'player' ? char.id : null,
       actorBotId:  t.actor === 'bot' ? botPart.botId : null,
-      targetCharId: t.actor === 'bot' ? char.id : null,
+      targetCharId: t.actor === 'bot' && !t.intercepted ? char.id : null,
+      targetHelperId: t.intercepted ? helper?.id ?? null : null,
       targetBotId:  t.actor === 'player' ? botPart.botId : null,
       action: 'ATTACK' as BattleAction,
       weaponId: t.actor === 'player' ? t.r.weaponId : null,
@@ -1753,13 +1792,20 @@ export const BattleService = {
       ...(playerMoved ? [{ battleId, roundNumber, actorCharId: char.id, action: 'MOVE' as BattleAction, fromX: playerFrom.x, fromY: playerFrom.y, toX: playerPart.position.x, toY: playerPart.position.y }] : []),
       ...(botMoved ? [{ battleId, roundNumber, actorBotId: botPart.botId, action: 'MOVE' as BattleAction, fromX: botFrom.x, fromY: botFrom.y, toX: botPart.position.x, toY: botPart.position.y }] : []),
     ]
+    const helperRecords = helper ? helperTurns.map(hs => ({
+      battleId, roundNumber, actorHelperId: helper.id, targetBotId: botPart.botId,
+      action: 'ATTACK' as BattleAction, hit: hs.hit, dodge: !hs.hit, crit: hs.crit,
+      rawDamage: hs.damage, finalDamage: hs.damage,
+    })) : []
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await prisma.battleTurn.createMany({ data: [...moveRecords, ...turnRecords] as any })
+    await prisma.battleTurn.createMany({ data: [...moveRecords, ...turnRecords, ...helperRecords] as any })
 
     if (battleOver) {
       state.status = 'finishing'
       const winnerId = !botPart.isAlive ? char.id : null
-      return this._finishPveBattle(battleId, state, char, bot, playerPart, botPart, winnerId, weapon, skillRecord.skillLevel)
+      const finished = await this._finishPveBattle(battleId, state, char, bot, playerPart, botPart, winnerId, weapon, skillRecord.skillLevel)
+      const helperResult = await awardCombatHelper(helper, winnerId !== null)
+      return helperResult ? { ...finished, helper: { name: helper!.name, ...helperResult } } : finished
     }
 
     state.roundNumber++
@@ -1775,7 +1821,9 @@ export const BattleService = {
       distance: state.distance,
       playerRange,
       turns: [...swapEvents,
-      ...moveEvents, ...turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r }))],
+      ...moveEvents, ...turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r, intercepted: t.intercepted ?? false })),
+      ...helperTurns.map(hs => ({ actor: 'helper', action: 'attack', hit: hs.hit, dodge: !hs.hit, block: false, crit: hs.crit, lucky: false, blockPierced: false, rawDamage: hs.damage, finalDamage: hs.damage, counterDamage: 0, logParts: [] }))],
+      helper: helper ? { name: helper.name, hp: helper.hp, hpMax: helper.hpMax, alive: helper.alive, tactic: helper.tactic, level: helper.level } : null,
       playerHp,
       botHp,
       battleOver: false,
@@ -1984,7 +2032,8 @@ export const BattleService = {
     syncGridDistance(state)
 
     // ── Удары по одному, в порядке инициативы ──────────────
-    const roundTurns: Array<{ actor: LiveParticipant; target: LiveParticipant; r: HandStrikeResult }> = []
+    const roundTurns: Array<{ actor: LiveParticipant; target: LiveParticipant; r: HandStrikeResult; intercepted?: boolean }> = []
+    const helperRoundTurns: Array<{ owner: LiveParticipant; target: LiveParticipant; hs: HelperStrike }> = []
     const hitZones = new Map<string, BodyZone[]>()
 
     for (const ctx of orderByInitiative([...contexts.values()])) {
@@ -2036,7 +2085,14 @@ export const BattleService = {
         blockedZones: targetCtx.turn.blockZones,
         defenderHp: target.hpCurrent,
       })
+      let intercepted = 0
       for (const r of res.results) {
+        if (r.hit && !r.dodge && !r.block && helperIntercepts(target.helper)) {
+          // Помощник цели принял удар на себя.
+          damageHelper(target.helper!, r.finalDamage); actor.hitsLanded++; intercepted += r.finalDamage
+          roundTurns.push({ actor, target, r, intercepted: true })
+          continue
+        }
         if (r.hit && !r.dodge && !r.block) {
           target.hpCurrent = Math.max(0, target.hpCurrent - r.finalDamage)
           actor.hitsLanded++
@@ -2049,7 +2105,7 @@ export const BattleService = {
         roundTurns.push({ actor, target, r })
       }
       actor.damageDealt += res.damageToDefender
-      target.damageReceived += res.damageToDefender
+      target.damageReceived += res.damageToDefender - intercepted
       if (res.counterToAttacker > 0) {
         actor.hpCurrent = Math.max(0, actor.hpCurrent - res.counterToAttacker)
         target.damageDealt += res.counterToAttacker
@@ -2057,6 +2113,13 @@ export const BattleService = {
       }
       target.isAlive = target.hpCurrent > 0
       actor.isAlive = actor.hpCurrent > 0
+      // Помощник бойца бьёт ту же цель вслед за хозяином.
+      if (actor.helper?.alive && actor.isAlive && target.isAlive) {
+        const hs = helperStrike(actor.helper)
+        if (hs.hit) { target.hpCurrent = Math.max(0, target.hpCurrent - hs.damage); actor.helper.damageDealt += hs.damage; target.damageReceived += hs.damage; target.hitsTaken++ }
+        target.isAlive = target.hpCurrent > 0
+        helperRoundTurns.push({ owner: actor, target, hs })
+      }
     }
 
     for (const part of fighters) part.isAlive = part.hpCurrent > 0
@@ -2068,7 +2131,8 @@ export const BattleService = {
       battleId,
       roundNumber,
       actorCharId: t.actor.characterId ?? null,
-      targetCharId: t.target.characterId ?? null,
+      targetCharId: t.intercepted ? null : t.target.characterId ?? null,
+      targetHelperId: t.intercepted ? t.target.helper?.id ?? null : null,
       action: 'ATTACK' as BattleAction,
       weaponId: t.r.weaponId,
       sourceHand: t.r.sourceHand,
@@ -2078,8 +2142,13 @@ export const BattleService = {
       rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage,
       logLine: t.r.logParts.join(', '),
     }))
+    const helperTurnRecords = helperRoundTurns.map(t => ({
+      battleId, roundNumber, actorHelperId: t.owner.helper!.id, targetCharId: t.target.characterId ?? null,
+      action: 'ATTACK' as BattleAction, hit: t.hs.hit, dodge: !t.hs.hit, crit: t.hs.crit,
+      rawDamage: t.hs.damage, finalDamage: t.hs.damage,
+    }))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await prisma.battleTurn.createMany({ data: [...moveRecords, ...turnRecords] as any })
+    await prisma.battleTurn.createMany({ data: [...moveRecords, ...turnRecords, ...helperTurnRecords] as any })
     for (const [participantId, zones] of hitZones) {
       const ctx = contexts.get(participantId)
       if (ctx) await applyZonalArmorWear(ctx.armor, zones)
@@ -2091,6 +2160,9 @@ export const BattleService = {
       state.status = 'finishing'
       await BattleRedis.setState(battleId, state)
       const finished = await finishTeamBattle(battleId, teamState, outcome.winnerSide, contexts)
+      for (const part of state.participants) {
+        if (part.helper) await awardCombatHelper(part.helper, outcome.winnerSide !== null && outcome.winnerSide === part.side)
+      }
       await BattleRedis.deleteState(battleId)
       return finished
     }
@@ -2114,6 +2186,7 @@ export const BattleService = {
         hpCurrent: p.hpCurrent,
         isAlive: p.isAlive,
         position: p.position,
+        helper: p.helper ? { name: p.helper.name, hp: p.helper.hp, hpMax: p.helper.hpMax, alive: p.helper.alive, tactic: p.helper.tactic, level: p.helper.level } : null,
       })),
       turns: roundTurns.map(t => ({
         actor: t.actor.characterId, target: t.target.characterId, action: 'attack',

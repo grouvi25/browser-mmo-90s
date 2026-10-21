@@ -1,32 +1,25 @@
 // =============================================================
-// Содержимое центрального вьюпорта: «бумажная» подложка,
-// заголовок раздела и кнопка возврата в город.
-// Все игровые экраны рендерятся через этот компонент.
+// Содержимое центрального вьюпорта: «бумажная» подложка и заголовок
+// раздела. Все игровые экраны рендерятся через этот компонент.
+//
+// Кнопки «← ЦЕНТР» сверху справа больше нет (правка заказчика 21.10:
+// «в меню есть кнопка В ЦЕНТР, но так же сверху справа появляется —
+// убрать справа сверху везде»): в город ведёт ЦЕНТР нижней полосы.
 // =============================================================
 import type { ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 export function ViewportPanel({
-  title, subtitle, children, onBack,
+  title, subtitle, children,
 }: {
   title: string
   subtitle?: string
   children: ReactNode
-  onBack?: () => void
 }) {
-  const navigate = useNavigate()
   return (
     <div className="viewport__content" tabIndex={0} role="region" aria-label={title}>
       <div className="viewport__head">
         <h1 className="viewport__title">{title}</h1>
         {subtitle && <span className="viewport__subtitle">{subtitle}</span>}
-        <button
-          type="button"
-          className="viewport__back"
-          onClick={onBack ?? (() => navigate('/'))}
-        >
-          ← ЦЕНТР
-        </button>
       </div>
       {children}
     </div>

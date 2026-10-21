@@ -125,6 +125,8 @@ export interface ItemInstance {
   template: ItemTemplate
   statAllocation: Partial<Record<ItemStatKey, number>> | null
   freePoints: number
+  /** Итог с сервера: база + очки + улучшения + камни (как считает бой). */
+  effective?: { minDamage: number; maxDamage: number; weaponAccuracy: number; critBonus: number; armor: number; durabilityMax: number; antiCrit: number }
 }
 
 export interface ShopItem {
@@ -185,8 +187,16 @@ export interface Battle {
   turns: BattleTurn[]
 }
 
+export type HelperTactic = 'ATTACK' | 'STANDARD' | 'DEFENSIVE'
+/** Боевой помощник в бою (как бойцовый питомец «Апехи»). */
+export interface LiveHelper {
+  id: string; name: string; level: number; tactic: HelperTactic
+  hp: number; hpMax: number; alive: boolean
+}
+
 export interface LiveParticipant {
   participantId: string
+  helper?: LiveHelper | null
   characterId?: string
   botId?: string
   hpCurrent: number

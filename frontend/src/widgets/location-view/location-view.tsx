@@ -31,7 +31,6 @@ export function LocationView({ scene, alt, place, actions, children }: Props) {
       <div className="hub__overlay">
         <div className="hub__place">{place}</div>
 
-        {scene !== 'center' && <button type="button" className="viewport__back" onClick={() => navigate('/')}>← ЦЕНТР</button>}
         {children}
 
         <div className="hub__actions">

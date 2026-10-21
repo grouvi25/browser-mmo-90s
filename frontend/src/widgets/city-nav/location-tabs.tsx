@@ -5,7 +5,7 @@ import { activeTabKey, locationMenu } from '../../shared/lib/location-menus'
 export function LocationTabs() {
   const { pathname, search } = useLocation()
   const navigate = useNavigate()
-  const menu = locationMenu(pathname)
+  const menu = locationMenu(pathname, search)
   const active = activeTabKey(menu.tabs, pathname, search)
   return <nav className={'city-locations' + (menu.key === 'center' ? '' : ' city-locations--place')}
     aria-label={menu.key === 'center' ? 'Локации Центра' : 'Разделы локации'}>

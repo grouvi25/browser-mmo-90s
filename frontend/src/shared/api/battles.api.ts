@@ -83,6 +83,16 @@ export interface BattleHistoryItem {
   finishedAt: string | null
 }
 
+export type JournalKind = 'hit' | 'crit' | 'pierce' | 'dodge' | 'block' | 'move' | 'item' | 'weapon' | 'surrender'
+export interface BattleJournalLine {
+  id: string; round: number; at: string; actor: string; target: string | null
+  side: number; kind: JournalKind; text: string
+}
+export interface BattleJournalPage {
+  battle: { id: string; type: string; status: string; rounds: number; startedAt: string | null; finishedAt: string | null; winner: string | null }
+  items: BattleJournalLine[]; page: number; pages: number; total: number
+}
+
 export interface BattleHistoryResponse {
   items: BattleHistoryItem[]
   total: number
@@ -139,6 +149,12 @@ export const battlesApi = {
 
   current: () =>
     api.get<{ battleId: string | null; application: { battleId: string; startsAt: string } | null }>('/api/battles/me/current'),
+
+  setHelperTactic: (battleId: string, tactic: 'ATTACK' | 'STANDARD' | 'DEFENSIVE') =>
+    api.post<{ tactic: string }>(`/api/battles/${battleId}/helper-tactic`, { tactic }),
+
+  getJournal: (battleId: string, page = 1) =>
+    api.get<BattleJournalPage>(`/api/battles/${battleId}/journal?page=${page}`),
 
   getBattleHistory: (page = 1, limit = 20) =>
     api.get<BattleHistoryResponse>(`/api/battles/me/history?page=${page}&limit=${limit}`),

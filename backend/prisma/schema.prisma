@@ -483,18 +483,21 @@ enum UpgradeLogResult {
 // =============================================================
 
 model User {
-  id            String     @id @default(uuid())
-  login         String     @unique
-  email         String     @unique
-  passwordHash  String     @map("password_hash")
-  status        UserStatus @default(ACTIVE)
-  emailVerified Boolean    @default(false) @map("email_verified")
-  banReason     String?    @map("ban_reason")
-  mutedUntil    DateTime?  @map("muted_until")
-  lastIp        String?    @map("last_ip")
-  lastUserAgent String?    @map("last_user_agent")
-  lastLoginAt   DateTime?  @map("last_login_at")
-  registeredAt  DateTime   @default(now()) @map("registered_at")
+  id               String     @id @default(uuid())
+  login            String     @unique
+  email            String     @unique
+  passwordHash     String     @map("password_hash")
+  status           UserStatus @default(ACTIVE)
+  emailVerified    Boolean    @default(false) @map("email_verified")
+  banReason        String?    @map("ban_reason")
+  mutedUntil       DateTime?  @map("muted_until")
+  lastIp           String?    @map("last_ip")
+  lastUserAgent    String?    @map("last_user_agent")
+  lastLoginAt      DateTime?  @map("last_login_at")
+  registeredAt     DateTime   @default(now()) @map("registered_at")
+  /// Когда игрок согласился с политикой обработки персональных данных
+  /// (152-ФЗ, галочка при регистрации с 21.10.2026). У старых аккаунтов пусто.
+  policyAcceptedAt DateTime?  @map("policy_accepted_at")
 
   // Relations
   character Character?
@@ -561,13 +564,13 @@ model Character {
   // Status
   /// Пол персонажа (правка заказчика): в досье «Муж/Жена».
   /// Рабочий фермы за донат: сам собирает созревший урожай до этой даты.
-  farmWorkerUntil DateTime? @map("farm_worker_until")
+  farmWorkerUntil DateTime?       @map("farm_worker_until")
   /// Профессия «Торгаш» (правка 21.10): 1 — вещи за рубли, 2 — и за доллары.
-  traderLevel Int @default(0) @map("trader_level")
+  traderLevel     Int             @default(0) @map("trader_level")
   /// Номер магазина торгаша — по нему лавку ищут и рекламируют.
-  shopNumber  Int? @unique @map("shop_number")
-  gender Gender @default(MALE)
-  status CharacterStatus @default(ACTIVE)
+  shopNumber      Int?            @unique @map("shop_number")
+  gender          Gender          @default(MALE)
+  status          CharacterStatus @default(ACTIVE)
 
   // Future hooks (задел на этапы 3-4)
   clanId     String? @map("clan_id") // этап 3
@@ -613,6 +616,8 @@ model Character {
   resourceStacks       ResourceStack[]
   claimRosters         TerritoryClaimRoster[]
   helpers              Helper[]
+  home                 PlayerHome?
+  supportTickets       SupportTicket[]
   premiumPurchases     PremiumPurchase[]
   chatMessages         ChatMessage[]
 
@@ -962,6 +967,10 @@ model BattleTurn {
   // Human readable log line for frontend
   logLine String? @map("log_line")
 
+  // Боевой помощник: ходил сам или принял удар по хозяину на себя.
+  actorHelperId  String? @map("actor_helper_id")
+  targetHelperId String? @map("target_helper_id")
+
   createdAt DateTime @default(now()) @map("created_at")
 
   battle Battle        @relation(fields: [battleId], references: [id], onDelete: Cascade)
@@ -1040,10 +1049,10 @@ model Clan {
   name            String            @unique
   tag             String            @unique
   /// Иконка бригады (загружает глава): PNG/JPEG/WebP до 100 КБ, base64.
-  iconData    String?  @map("icon_data")
-  iconMime    String?  @map("icon_mime")
+  iconData        String?           @map("icon_data")
+  iconMime        String?           @map("icon_mime")
   /// Растёт при каждой замене — адрес картинки меняется, кэш браузера не мешает.
-  iconVersion Int      @default(0) @map("icon_version")
+  iconVersion     Int               @default(0) @map("icon_version")
   level           Int               @default(0)
   treasury        Int               @default(0)
   maintenanceDebt Int               @default(0) @map("maintenance_debt")
@@ -1952,6 +1961,14 @@ enum HelperKind {
   COMBAT
 }
 
+/// Тактика боевого помощника: атакующая бьёт сильнее, защитная чаще
+/// принимает удары по хозяину на себя, стандартная — посередине.
+enum HelperTactic {
+  STANDARD
+  DEFENSIVE
+  ATTACK
+}
+
 enum HelperStatus {
   ACTIVE // подписка активна, работает
   DORMANT // подписки нет, остаётся в профиле
@@ -2004,6 +2021,11 @@ model Helper {
   characterId     String       @map("character_id")
   name            String
   kind            HelperKind   @default(WORK)
+  /// Боевой помощник (правка 21.10, как бойцовый питомец «Апехи»): дерётся
+  /// рядом с хозяином по выбранной тактике и растёт в уровне от боёв.
+  tactic          HelperTactic @default(STANDARD)
+  combatLevel     Int          @default(1) @map("combat_level")
+  combatExp       Float        @default(0) @map("combat_exp")
   status          HelperStatus @default(ACTIVE)
   /// Профессия своя, не хозяйская. Потолок 3 при потолке игрока 6:
   /// помощник никогда не заменит специалиста на верхних переделах.
@@ -2046,18 +2068,18 @@ enum Gender {
 }
 
 model ChatMessage {
-  id        String      @id @default(uuid())
-  channel   ChatChannel
-  scope     String      @default("")
-  authorId  String      @map("author_id")
+  id          String      @id @default(uuid())
+  channel     ChatChannel
+  scope       String      @default("")
+  authorId    String      @map("author_id")
   /// Получатель личного сообщения; у остальных каналов пусто.
-  recipientId String?   @map("recipient_id")
-  body      String      @db.VarChar(400)
-  createdAt DateTime    @default(now()) @map("created_at")
+  recipientId String?     @map("recipient_id")
+  body        String      @db.VarChar(400)
+  createdAt   DateTime    @default(now()) @map("created_at")
   // Мягкое удаление: модератор прячет сообщение, но след остаётся —
   // разбирать жалобы по пустому месту невозможно.
-  deletedAt DateTime?   @map("deleted_at")
-  deletedBy String?     @map("deleted_by")
+  deletedAt   DateTime?   @map("deleted_at")
+  deletedBy   String?     @map("deleted_by")
 
   author Character @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
@@ -2264,4 +2286,86 @@ model FarmYardBuilding {
 
   @@unique([characterId, type])
   @@map("farm_yard_buildings")
+}
+
+// =============================================================
+// Жилой сектор (правка заказчика 21.10.2026): квартира или дом игрока.
+// Покупается только за доллары, даёт прибавку к боевому опыту и доступ
+// к складу, туннели на Стрелки/Промзону/Фермы — за отдельную плату.
+// На дом нападают, как на Дом бригады: победа нападающего −10% прочности.
+// =============================================================
+enum HomeKind {
+  APARTMENT
+  HOUSE
+}
+
+enum HomeRaidStatus {
+  PENDING
+  ATTACKER_WON
+  DEFENDER_WON
+  VOID
+}
+
+model PlayerHome {
+  id          String   @id @default(uuid())
+  characterId String   @unique @map("character_id")
+  kind        HomeKind
+  /// Номер участка в секторе (1…24): квартиры и дома построены заранее,
+  /// игрок покупает свободный. Вид жилья задан номером (housing.config).
+  lot         Int?     @unique
+  durability  Int      @default(100)
+  /// Купленные туннели: коды мест (`pvp`, `industrial`, `farm`).
+  tunnels     String[] @default([])
+  purchasedAt DateTime @default(now()) @map("purchased_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  character Character  @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  raids     HomeRaid[]
+
+  @@map("player_homes")
+}
+
+model HomeRaid {
+  id         String         @id @default(uuid())
+  homeId     String         @map("home_id")
+  attackerId String         @map("attacker_id")
+  battleId   String?        @unique @map("battle_id")
+  status     HomeRaidStatus @default(PENDING)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  resolvedAt DateTime?      @map("resolved_at")
+
+  home PlayerHome @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@index([homeId, createdAt])
+  @@index([attackerId, createdAt])
+  @@map("home_raids")
+}
+
+// Обращения в поддержку (правка заказчика 21.10: кнопка «Поддержка» в
+// Центре — текст и форма со скриншотом). Ответ приходит игроку уведомлением.
+enum SupportStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
+model SupportTicket {
+  id          String        @id @default(uuid())
+  characterId String        @map("character_id")
+  text        String
+  /// Скриншот — base64 без префикса data:, как иконка бригады.
+  imageData   String?       @map("image_data")
+  imageMime   String?       @map("image_mime")
+  status      SupportStatus @default(OPEN)
+  reply       String?
+  repliedAt   DateTime?     @map("replied_at")
+  repliedBy   String?       @map("replied_by")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([characterId, createdAt])
+  @@index([status, createdAt])
+  @@map("support_tickets")
 }

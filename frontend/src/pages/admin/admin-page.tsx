@@ -25,15 +25,17 @@ import { BalanceSandboxPage } from '../balance-sandbox/balance-sandbox-page'
 import { CombatSandboxSection } from './sections/combat-sandbox-section'
 import { CatalogSection } from './sections/catalog-section'
 import { PlayersSection } from './sections/players-section'
+import { SupportSection } from './sections/support-section'
 import '../stage3/stage3.css'
 import './admin.css'
 
 type Tab = 'overview' | 'clans' | 'territories' | 'claims' | 'signals' | 'actions' | 'trace'
-  | 'balance' | 'sandbox' | 'duel' | 'items' | 'players'
+  | 'balance' | 'sandbox' | 'duel' | 'items' | 'players' | 'support'
 
 const TABS: { key: Tab; title: string }[] = [
   { key: 'overview', title: 'Обзор' },
   { key: 'players', title: 'Игроки' },
+  { key: 'support', title: 'Поддержка' },
   { key: 'clans', title: 'Бригады' },
   { key: 'territories', title: 'Районы' },
   { key: 'claims', title: 'Заявки' },
@@ -108,6 +110,7 @@ export function AdminPage() {
 
       {tab === 'overview' && <OverviewSection onGo={go} />}
       {tab === 'players' && <PlayersSection focusId={focus} onTrace={id => go('trace', id)} />}
+      {tab === 'support' && <SupportSection />}
       {tab === 'clans' && <ClansSection />}
       {tab === 'territories' && <TerritoriesSection role={role} />}
       {tab === 'claims' && <ClaimsSection role={role} />}
