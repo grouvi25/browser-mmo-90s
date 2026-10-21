@@ -17,7 +17,7 @@ async function player(prefix: string, money = 100_000, battleLevel = 5) {
   const login = uid(prefix)
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
   return testPrisma.character.create({
-    data: { userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 80, hpMax: 80, money, battleLevel },
+    data: { traderLevel: 1, userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 80, hpMax: 80, money, battleLevel },
   })
 }
 

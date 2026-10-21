@@ -998,3 +998,10 @@ html, body {
 .dog-gear { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; margin-bottom: 8px; }
 .dog-gear__slot { display: grid; gap: 3px; padding: 6px; border: 1px solid #c8b39a; background: #fbf3e8; }
 .dog-gear__slot .btn { white-space: normal; text-align: left; height: auto; }
+/* Рынок: формы и торгаш (правка 21.10) */
+.market-form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.market-note { margin: 0 12px 10px; }
+.market-pages { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
+.market-levels { display: grid; gap: 6px; padding-left: 18px; }
+.market-levels .btn { margin-left: 8px; }
+.market-form input[aria-label="Номер магазина"] { min-width: 260px; }

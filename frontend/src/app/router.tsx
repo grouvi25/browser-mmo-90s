@@ -30,7 +30,7 @@ import { StatsPage }           from '../pages/character/stats-page'
 import { ResourcesPage }       from '../pages/resources/resources-page'
 import { WorkPage }            from '../pages/work/work-page'
 import { PrivateShopsPage }    from '../pages/private-shops/private-shops-page'
-import { MarketPage }          from '../pages/market/market-page'
+import { MarketPage, TraderPage, ShopsPage, ShopPage } from '../pages/market/market-page'
 import { UpgradesPage }        from '../pages/upgrades/upgrades-page'
 import { BalanceSandboxPage }   from '../pages/balance-sandbox/balance-sandbox-page'
 import { LocationHubPage, type DistrictKey } from '../pages/locations/location-hub-page'
@@ -212,8 +212,20 @@ export function AppRouter() {
           </ViewportPanel>} />
 
         <Route path="/market" element={
-          <ViewportPanel title="Рынок" subtitle="Объявления игроков: вещи и сырьё">
+          <ViewportPanel title="Рынок" subtitle="Объявления: только ресурсы">
             <MarketPage />
+          </ViewportPanel>} />
+        <Route path="/market/trader" element={
+          <ViewportPanel title="Рынок" subtitle="Торгаш: свой магазин и продажа вещей">
+            <TraderPage />
+          </ViewportPanel>} />
+        <Route path="/market/shops" element={
+          <ViewportPanel title="Рынок" subtitle="Магазины торгашей">
+            <ShopsPage />
+          </ViewportPanel>} />
+        <Route path="/market/shops/:number" element={
+          <ViewportPanel title="Рынок" subtitle="Магазин торгаша">
+            <ShopPage />
           </ViewportPanel>} />
 
         <Route path="/shops/private" element={

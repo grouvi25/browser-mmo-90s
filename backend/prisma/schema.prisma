@@ -562,6 +562,10 @@ model Character {
   /// Пол персонажа (правка заказчика): в досье «Муж/Жена».
   /// Рабочий фермы за донат: сам собирает созревший урожай до этой даты.
   farmWorkerUntil DateTime? @map("farm_worker_until")
+  /// Профессия «Торгаш» (правка 21.10): 1 — вещи за рубли, 2 — и за доллары.
+  traderLevel Int @default(0) @map("trader_level")
+  /// Номер магазина торгаша — по нему лавку ищут и рекламируют.
+  shopNumber  Int? @unique @map("shop_number")
   gender Gender @default(MALE)
   status CharacterStatus @default(ACTIVE)
 
@@ -1459,6 +1463,9 @@ model MarketListing {
   resourceTemplateId String?             @map("resource_template_id")
   resourceAmount     Int?                @map("resource_amount")
   price              Int
+  /// Валюта лота (правка заказчика 21.10): доллары — для торгаша 2-го
+  /// уровня и для ресурсов от добытчика 2-го уровня.
+  currency           MarketCurrency      @default(RUB)
   listingFee         Int                 @map("listing_fee")
   saleTax            Int?                @map("sale_tax")
   expiresAt          DateTime            @map("expires_at")
@@ -2123,6 +2130,13 @@ enum DollarReason {
   TRANSFER_OUT // дилер перевёл игроку
   TRANSFER_IN // игрок получил от дилера
   PURCHASE // покупка товара за доллары
+  MARKET_SALE // выручка с продажи на рынке за доллары
+  MARKET_TAX // налог с такой продажи
+}
+
+enum MarketCurrency {
+  RUB
+  USD
 }
 
 /// Журнал игровых долларов. Каждая операция с балансом после неё:

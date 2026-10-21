@@ -31,7 +31,7 @@ export const CityConfig = {
       ремонта и оценки вещи. */
   dollarPrices: { tsum_named_knife: 20, tsum_named_jacket: 25, berezka_experience_amulet: 30 } as Record<string, number>,
 } as const
-export const CITY_PATHS = ['/', '/unsorted', '/housing', '/pvp', '/market', '/shop', '/district/industrial', '/district/garages',
+export const CITY_PATHS = ['/', '/unsorted', '/housing', '/pvp', '/market', '/market/trader', '/market/shops', '/shop', '/district/industrial', '/district/garages',
   '/city-hall', '/inventory', '/farm', '/school', '/prison', '/clan-houses', '/tsum', '/berezka',
   '/pet-shop', '/territories', '/work', '/objects', '/resources', '/recipes', '/repair', '/upgrades',
   '/plants', '/bars', '/bars/mine', '/clans', '/clans/storage', '/clans/treasury', '/clans/relations',
@@ -41,6 +41,7 @@ export const CITY_PATHS = ['/', '/unsorted', '/housing', '/pvp', '/market', '/sh
 export function validCityPath(path: string): boolean {
   return (CITY_PATHS as readonly string[]).includes(path)
     || /^\/territories\/[a-z0-9_-]+\/claims\/[0-9a-f-]{36}$/i.test(path)
+    || /^\/market\/shops\/\d{1,9}$/.test(path)
 }
 export function inPrison(until: Date | null, now = new Date()): boolean {
   return !!until && until.getTime() > now.getTime()

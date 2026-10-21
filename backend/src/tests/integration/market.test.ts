@@ -2,7 +2,7 @@ import{afterAll,beforeAll,beforeEach,describe,expect,it}from'vitest'
 import{cleanDatabase,testPrisma,uid}from'./helpers'
 import{MarketService}from'../../modules/market/market.service'
 import{runMarketExpire}from'../../workers/market-expire.worker'
-async function character(money=5000){const login=uid('market');const user=await testPrisma.user.create({data:{login,email:`${login}@test.local`,passwordHash:'x'}});return testPrisma.character.create({data:{userId:user.id,nickname:login,archetype:'WORKER',hpCurrent:80,hpMax:80,money}})}
+async function character(money=5000){const login=uid('market');const user=await testPrisma.user.create({data:{login,email:`${login}@test.local`,passwordHash:'x'}});return testPrisma.character.create({data:{ traderLevel: 1,userId:user.id,nickname:login,archetype:'WORKER',hpCurrent:80,hpMax:80,money}})}
 async function item(ownerId:string){const t=await testPrisma.itemTemplate.create({data:{code:uid('marketitem'),name:'Market item',type:'ARMOR',armorSlot:'CHEST',armor:10,weight:1,durabilityMax:100,priceBase:500,itemTier:2,sourceType:'PRIVATE'}});return testPrisma.itemInstance.create({data:{templateId:t.id,ownerId,quality:'COMMON',durabilityCurrent:100,durabilityMax:100,weight:1,sourceType:'PRIVATE'}})}
 async function resource(ownerId:string,amount=10){const t=await testPrisma.resourceTemplate.create({data:{code:uid('marketres'),name:'Market resource',category:'PRIMARY',tier:1,basePrice:8,weight:.5}});await testPrisma.resourceStack.create({data:{characterId:ownerId,resourceTemplateId:t.id,amount}});return t}
 describe('MarketService E4',()=>{beforeAll(()=>testPrisma.$connect());beforeEach(()=>cleanDatabase());afterAll(()=>testPrisma.$disconnect())
@@ -15,4 +15,22 @@ describe('MarketService E4',()=>{beforeAll(()=>testPrisma.$connect());beforeEach
  it('filters weapon listings by combat range and exact level',async()=>{const seller=await character(10000);const make=async(code:string,weaponType:'KNIFE'|'PISTOL',levelReq:number)=>{const t=await testPrisma.itemTemplate.create({data:{code:uid(code),name:code,type:'WEAPON',weaponType,minDamage:10,maxDamage:20,weight:1,durabilityMax:100,priceBase:500,levelReq,sourceType:'PRIVATE'}});const x=await testPrisma.itemInstance.create({data:{templateId:t.id,ownerId:seller.id,quality:'COMMON',durabilityCurrent:100,durabilityMax:100,weight:1,sourceType:'PRIVATE'}});await MarketService.createItem(seller.id,x.id,100,`filter-${code}`)};await make('knife','KNIFE',1);await make('pistol','PISTOL',2);const melee=await MarketService.list({page:1,limit:20,combat:'MELEE',level:1});const ranged=await MarketService.list({page:1,limit:20,combat:'RANGED',level:2});expect(melee.items).toHaveLength(1);expect(melee.items[0].item?.weaponType).toBe('KNIFE');expect(ranged.items).toHaveLength(1);expect(ranged.items[0].item?.weaponType).toBe('PISTOL')})
 
  it('blocks self-buy and eleventh active listing',async()=>{const seller=await character(10000);const owned=await item(seller.id);const listing=(await MarketService.createItem(seller.id,owned.id,100,'market-self-create')).listing;await expect(MarketService.buy(seller.id,listing.id,'market-self-buy')).rejects.toMatchObject({statusCode:403});for(let i=1;i<10;i++){const itx=await item(seller.id);await MarketService.createItem(seller.id,itx.id,100,`market-limit-${i}`)}const extra=await item(seller.id);await expect(MarketService.createItem(seller.id,extra.id,100,'market-limit-extra')).rejects.toMatchObject({statusCode:409})})
+
+  it('торгаш: без профессии вещь не выставить; 1-й уровень — рубли, 2-й — доллары, магазин с номером', async () => {
+    const { TraderService } = await import('../../modules/market/trader')
+    const plain = await testPrisma.character.create({ data: { userId: (await testPrisma.user.create({ data: { login: uid('tr'), email: uid('tr') + '@t.local', passwordHash: 'x' } })).id, nickname: uid('tr'), archetype: 'WORKER', hpCurrent: 50, hpMax: 50, money: 100_000, dollars: 100 } })
+    const template = await testPrisma.itemTemplate.findFirstOrThrow({ where: { isTradeable: true } })
+    const item = await testPrisma.itemInstance.create({ data: { templateId: template.id, ownerId: plain.id, quality: 'COMMON', durabilityCurrent: 10, durabilityMax: 10, weight: 1, sourceType: 'PRIVATE' } })
+    await expect(MarketService.createItem(plain.id, item.id, 500, uid('k'))).rejects.toThrow('Торгаш')
+    const first = await TraderService.buyLevel(plain.id, 1)
+    expect(first.shopNumber).toBeGreaterThanOrEqual(1001)
+    await expect(MarketService.createItem(plain.id, item.id, 5, uid('k'), 'USD')).rejects.toThrow('2-го уровня')
+    await TraderService.buyLevel(plain.id, 2)
+    const { listing } = await MarketService.createItem(plain.id, item.id, 5, uid('k'), 'USD')
+    expect(listing.currency).toBe('USD')
+    const shop = await TraderService.shop(first.shopNumber)
+    expect(shop.id).toBe(plain.id)
+    const after = await testPrisma.character.findUniqueOrThrow({ where: { id: plain.id } })
+    expect(after.dollars).toBe(100 - 30)
+  })
 })

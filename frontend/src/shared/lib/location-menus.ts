@@ -57,6 +57,8 @@ const PLACES: Place[] = [
   {
     key: 'market', match: ['/market', '/shops/private', '/district/market'], tabs: [
       { key: 'board', label: 'Объявления', to: '/market' },
+      { key: 'trader', label: 'Торгаш', to: '/market/trader' },
+      { key: 'shops', label: 'Магазины', to: '/market/shops' },
       { key: 'private', label: 'Частные лавки', to: '/shops/private' },
     ],
   },

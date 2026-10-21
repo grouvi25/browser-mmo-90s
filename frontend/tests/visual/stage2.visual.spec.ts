@@ -78,11 +78,19 @@ test.describe('Stage 2 visual and browser flow', () => {
     buyer = await createAccount(apiContext, `buyer_${testInfo.project.name}`)
     worker = await createAccount(apiContext, `worker_${testInfo.project.name}`)
     fighter = await createAccount(apiContext, `fighter_${testInfo.project.name}`)
-    const sellerItem = await buyPrivateItem(apiContext, seller, 'armor_boots_army_private')
     await buyPrivateItem(apiContext, buyer, 'armor_leather_jacket_private')
+    // На общий рынок — только ресурсы (правка заказчика 21.10): продавец
+    // покупает ремкомплект у Коммерсанта и выставляет его.
+    const shopItems = await apiContext.get('/api/private-shops/kommersant/items', { headers: { Authorization: `Bearer ${seller.token}` } })
+    const kit = (await shopItems.json() as Array<{ id: string; code: string; resourceTemplateId: string | null }>).find(item => item.code === 'comp_repair_kit')!
+    const boughtKit = await apiContext.post('/api/private-shops/kommersant/buy', {
+      headers: { Authorization: `Bearer ${seller.token}`, 'Idempotency-Key': `visual-kit-${seller.login}` },
+      data: { privateShopItemId: kit.id, quantity: 1 },
+    })
+    expect(boughtKit.status()).toBe(200)
     const listed = await apiContext.post('/api/market/listings', {
       headers: { Authorization: `Bearer ${seller.token}`, 'Idempotency-Key': `visual-list-${seller.login}` },
-      data: { listingType: 'ITEM', itemInstanceId: sellerItem, price: 100 },
+      data: { listingType: 'RESOURCE', resourceTemplateId: kit.resourceTemplateId, amount: 1, price: 100 },
     })
     expect(listed.status()).toBe(201)
     listingId = (await listed.json() as { listing: { id: string } }).listing.id
@@ -445,7 +453,9 @@ test.describe('Stage 2 visual and browser flow', () => {
     // шансом переехало в «Кузницу», раздел рядом.
     await expect(page.getByText('Государственная вставка камней')).toBeVisible()
     const selector = page.locator('select').first()
-    await expect(selector.locator('option')).toHaveCount(3)
+    // Одна вещь покупателя и пункт «выберите»: вторая вещь раньше приходила
+    // с рынка, а теперь на общем рынке только ресурсы (правка 21.10).
+    await expect(selector.locator('option')).toHaveCount(2)
     // Столбец сортов приходит правилами и от выбранной вещи не зависит.
     // Ищем именно строку прайса: то же название стоит ещё и пунктом в
     // списке выбора камня, а getByText нашёл бы оба и упал бы на строгом
