@@ -17,10 +17,11 @@ export const HOUSING = {
 } as const
 
 export type TunnelCode = 'pvp' | 'industrial' | 'farm'
-export const TUNNELS: { code: TunnelCode; label: string; to: string }[] = [
-  { code: 'pvp', label: 'Стрелки', to: '/pvp' },
-  { code: 'industrial', label: 'Промзона', to: '/district/industrial' },
-  { code: 'farm', label: 'Фермы', to: '/farm' },
+/** where — куда ведёт туннель, в падеже для кнопки: «Пройти на Стрелки». */
+export const TUNNELS: { code: TunnelCode; label: string; where: string; to: string }[] = [
+  { code: 'pvp', label: 'Стрелки', where: 'на Стрелки', to: '/pvp' },
+  { code: 'industrial', label: 'Промзона', where: 'в Промзону', to: '/district/industrial' },
+  { code: 'farm', label: 'Фермы', where: 'на Фермы', to: '/farm' },
 ]
 
 export function homeBonusActive(durability: number): boolean {

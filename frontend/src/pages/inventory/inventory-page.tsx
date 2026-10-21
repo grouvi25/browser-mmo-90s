@@ -90,6 +90,11 @@ function Gain({ value }: { value: number }) {
 }
 /** Доли (0.05) в проценты с одним знаком после запятой, без хвостовых нулей. */
 const pct = (share: number) => Math.round(share * 1000) / 10
+/** Процентная характеристика: базовая — итогом с прибавкой, новая — «+N%». */
+function PercentRow({ label, total, base }: { label: string; total: number; base: number }) {
+  const gain = Math.round((total - base) * 1000) / 10
+  return <div><dt>{label}</dt><dd>{base > 0 ? <>{pct(total)}%{gain > 0 && <span className="inv-card__gain"> (+{gain})</span>}</> : <>+{pct(total)}%</>}</dd></div>
+}
 
 const CELLS: Cell[] = [
   { slot: 'HEAD', box: { x: 39.77, y: 1.28, w: 20.31, h: 11.51 },
@@ -283,9 +288,11 @@ export function InventoryPage() {
                           {!!t.hpBonus && <div><dt>Восстановит</dt><dd>+{t.hpBonus} HP</dd></div>}
                           {t.strReq > 0 && <div><dt>Требует силы</dt><dd>{t.strReq}</dd></div>}
                           {/* Характеристики, которых у вещи в базе нет, — новой строкой внизу. */}
-                          {!!eff?.weaponAccuracy && <div><dt>Точность</dt><dd>+{pct(eff.weaponAccuracy)}%</dd></div>}
-                          {!!eff?.critBonus && <div><dt>Крит</dt><dd>+{pct(eff.critBonus)}%</dd></div>}
-                          {!!eff?.antiCrit && <div><dt>Защита от крита</dt><dd>+{pct(eff.antiCrit)}%</dd></div>}
+                          {/* Есть в базе — итог и прибавка (точность ножа 70% → «71% (+1)»);
+                              нет в базе — «+N%» новой строкой. */}
+                          {!!eff?.weaponAccuracy && <PercentRow label="Точность" total={eff.weaponAccuracy} base={t.weaponAccuracy ?? 0} />}
+                          {!!eff?.critBonus && <PercentRow label="Крит" total={eff.critBonus} base={t.critBonus ?? 0} />}
+                          {!!eff?.antiCrit && <PercentRow label="Защита от крита" total={eff.antiCrit} base={t.antiCrit ?? 0} />}
                         </dl>
                         <div className="inv-card__side">
                           {t.allocationMode === 'PLAYER' && item.freePoints > 0 && (

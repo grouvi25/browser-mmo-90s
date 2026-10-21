@@ -7,7 +7,7 @@ export interface HousingView {
   prices: Record<HomeKind, { name: string; priceDollars: number; expBonus: number }>
   tunnelPrice: number
   repairPer10: number
-  tunnels: { code: TunnelCode; label: string; to: string }[]
+  tunnels: { code: TunnelCode; label: string; where: string; to: string }[]
   wallet: { dollars: number; money: number }
   home: {
     id: string; kind: HomeKind; durability: number; tunnels: TunnelCode[]

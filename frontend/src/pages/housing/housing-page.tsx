@@ -87,7 +87,7 @@ function MyHome({ data, busy, onTunnel, onRepair, onBuy, onGo }: {
   const upgrade = home.kind === 'APARTMENT' ? data.prices.HOUSE.priceDollars - data.prices.APARTMENT.priceDollars : 0
   return (
     <section className="housing__block">
-      <h3><Icon size={16} /> Ваш {data.prices[home.kind].name.toLowerCase()}</h3>
+      <h3><Icon size={16} /> {home.kind === 'HOUSE' ? 'Ваш дом' : 'Ваша квартира'}</h3>
       <dl className="housing__facts">
         <div><dt>Прочность</dt><dd>
           <span className="housing__bar"><i style={{ width: `${home.durability}%` }} /></span> {home.durability}%
@@ -104,9 +104,9 @@ function MyHome({ data, busy, onTunnel, onRepair, onBuy, onGo }: {
       <h4 className="housing__sub">Туннели из дома</h4>
       <div className="housing__actions">
         {data.tunnels.map(t => home.tunnels.includes(t.code)
-          ? <button key={t.code} type="button" className="btn" onClick={() => onGo(t.to)}><Shovel size={13} /> В {t.label}</button>
+          ? <button key={t.code} type="button" className="btn" onClick={() => onGo(t.to)}><Shovel size={13} /> Пройти {t.where}</button>
           : <button key={t.code} type="button" className="btn btn-ghost" disabled={busy || data.wallet.dollars < data.tunnelPrice} onClick={() => onTunnel(t.code)}>
-              <Shovel size={13} /> Прорыть в {t.label} — {data.tunnelPrice} $</button>)}
+              <Shovel size={13} /> Прорыть ход {t.where} — {data.tunnelPrice} $</button>)}
       </div>
       <p className="housing__muted">В доме на вас напасть нельзя. Напасть можно на сам дом: бой идёт со сторожем, победа нападавшего снимает {10}% прочности.</p>
       {home.raids.length > 0 && <>
