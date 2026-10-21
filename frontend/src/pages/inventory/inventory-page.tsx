@@ -84,17 +84,12 @@ interface Cell { slot: string | null; box: Rect; sockets: Rect[] }
 const ITEM_STAT_LABELS: Record<ItemStatKey, string> = {
   DAMAGE: 'Урон', ACCURACY: 'Точность', CRIT: 'Крит', ARMOR: 'Броня', DURABILITY: 'Прочность', ANTI_CRIT: 'Защита от крита',
 }
-/** Очки шаблона и вложенные игроком вместе: в описании вещи раньше не было
- *  видно, куда ушли распределённые очки. */
-function itemStatBonuses(item: ItemInstance): [ItemStatKey, number][] {
-  const sum: Partial<Record<ItemStatKey, number>> = {}
-  for (const source of [item.template.statAllocation, item.statAllocation]) {
-    for (const [key, amount] of Object.entries(source ?? {}) as [ItemStatKey, number][]) {
-      if (amount > 0) sum[key] = (sum[key] ?? 0) + amount
-    }
-  }
-  return Object.entries(sum) as [ItemStatKey, number][]
+/** Прибавка от очков, улучшений и камней к базовой характеристике. */
+function Gain({ value }: { value: number }) {
+  return value > 0 ? <span className="inv-card__gain"> (+{value})</span> : null
 }
+/** Доли (0.05) в проценты с одним знаком после запятой, без хвостовых нулей. */
+const pct = (share: number) => Math.round(share * 1000) / 10
 
 const CELLS: Cell[] = [
   { slot: 'HEAD', box: { x: 39.77, y: 1.28, w: 20.31, h: 11.51 },
@@ -264,6 +259,7 @@ export function InventoryPage() {
                 const t = item.template
                 const broken = item.status === 'BROKEN' || item.durabilityCurrent <= 0
                 const tooLow = (char?.battleLevel ?? 0) < t.levelReq
+                const eff = item.effective
                 const stats = t.type === 'WEAPON'
                   ? (['DAMAGE', 'ACCURACY', 'CRIT', 'DURABILITY'] as ItemStatKey[])
                   : (['ARMOR', 'DURABILITY', 'ANTI_CRIT'] as ItemStatKey[])
@@ -282,13 +278,14 @@ export function InventoryPage() {
                           <div><dt>Прочность</dt><dd>{item.durabilityCurrent}/{item.durabilityMax}</dd></div>
                           <div><dt>Качество</dt><dd>{QUALITY_LABELS[item.quality]}</dd></div>
                           <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
-                          {t.minDamage != null && <div><dt>Урон</dt><dd>{t.minDamage}–{t.maxDamage}</dd></div>}
-                          {!!t.armor && <div><dt>Броня тела</dt><dd>+{t.armor}</dd></div>}
+                          {t.minDamage != null && <div><dt>Урон</dt><dd>{eff?.minDamage ?? t.minDamage}–{eff?.maxDamage ?? t.maxDamage}<Gain value={(eff?.maxDamage ?? 0) - (t.maxDamage ?? 0)} /></dd></div>}
+                          {!!t.armor && <div><dt>Броня тела</dt><dd>+{eff?.armor ?? t.armor}<Gain value={(eff?.armor ?? 0) - (t.armor ?? 0)} /></dd></div>}
                           {!!t.hpBonus && <div><dt>Восстановит</dt><dd>+{t.hpBonus} HP</dd></div>}
                           {t.strReq > 0 && <div><dt>Требует силы</dt><dd>{t.strReq}</dd></div>}
-                          {itemStatBonuses(item).length > 0 && (
-                            <div><dt>Вложено</dt><dd className="inv-card__bonus">{itemStatBonuses(item).map(([stat, amount]) => `${ITEM_STAT_LABELS[stat]} +${amount}`).join(", ")}</dd></div>
-                          )}
+                          {/* Характеристики, которых у вещи в базе нет, — новой строкой внизу. */}
+                          {!!eff?.weaponAccuracy && <div><dt>Точность</dt><dd>+{pct(eff.weaponAccuracy)}%</dd></div>}
+                          {!!eff?.critBonus && <div><dt>Крит</dt><dd>+{pct(eff.critBonus)}%</dd></div>}
+                          {!!eff?.antiCrit && <div><dt>Защита от крита</dt><dd>+{pct(eff.antiCrit)}%</dd></div>}
                         </dl>
                         <div className="inv-card__side">
                           {t.allocationMode === 'PLAYER' && item.freePoints > 0 && (

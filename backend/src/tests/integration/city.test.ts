@@ -58,6 +58,21 @@ describe('city locations and purchases', () => {
     await ItemStatsService.allocate(p.character.id, bought.item.id, 'DAMAGE', 2)
     expect((await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: bought.item.id } })).freePoints).toBe(item.statBudget - 2)
   })
+  it('очки вещи прибавляются к её характеристикам в инвентаре, новые — отдельной строкой', async () => {
+    // Правка заказчика 21.10: «Урон когда добавляем, он просто идёт + урон…
+    // нужно, чтобы добавлялось к уже готовым статам». Инвентарь отдаёт итог
+    // той же формулой, что бой.
+    const p = await player(); const item = (await CityService.catalog('tsum')).items.find(i => i.type === 'WEAPON')!
+    const bought = await CityService.buyItem(p.character.id, 'tsum', item.id, randomUUID())
+    const read = async () => (await app.inject({ method: 'GET', url: '/api/inventory', headers: p.headers })).json<Array<{ id: string; effective: { minDamage: number; maxDamage: number; weaponAccuracy: number } }>>().find(i => i.id === bought.item.id)!.effective
+    const before = await read()
+    await ItemStatsService.allocate(p.character.id, bought.item.id, 'DAMAGE', 5)
+    await ItemStatsService.allocate(p.character.id, bought.item.id, 'ACCURACY', 3)
+    const after = await read()
+    expect(after.maxDamage).toBeGreaterThan(before.maxDamage)
+    expect(after.minDamage).toBeGreaterThanOrEqual(before.minDamage)
+    expect(after.weaponAccuracy).toBeCloseTo(before.weaponAccuracy + 0.03, 5)
+  })
   it('never sells basic government goods in premium city shops', async () => {
     const p = await player()
     const basic = await testPrisma.itemTemplate.create({ data: { code: uid('basic'), name: 'Basic', type: 'ARMOR' } })

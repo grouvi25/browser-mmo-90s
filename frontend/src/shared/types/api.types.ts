@@ -125,6 +125,8 @@ export interface ItemInstance {
   template: ItemTemplate
   statAllocation: Partial<Record<ItemStatKey, number>> | null
   freePoints: number
+  /** Итог с сервера: база + очки + улучшения + камни (как считает бой). */
+  effective?: { minDamage: number; maxDamage: number; weaponAccuracy: number; critBonus: number; armor: number; durabilityMax: number; antiCrit: number }
 }
 
 export interface ShopItem {

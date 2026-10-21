@@ -9,6 +9,7 @@ import { audit } from '../../shared/logger/audit-logger'
 import { z } from 'zod'
 import { ITEM_STAT_KEYS } from '../items/item-stats.formulas'
 import { ItemStatsService } from '../items/item-stats.service'
+import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
 
 const EquipSchema = z.object({ itemInstanceId: z.string().uuid(), hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional() })
 const UnequipSchema = z.object({ armorSlot: z.string().optional(), itemInstanceId: z.string().uuid().optional() })
@@ -18,7 +19,18 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
     const char = await CharactersRepository.findByUserId(req.authUser.userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
-    return reply.send(await ItemsRepository.findByOwner(char.id))
+    // Итоговые характеристики — той же формулой, что считает бой: очки,
+    // улучшения и камни прибавляются к базовым (правка заказчика 21.10:
+    // «добавлялось к уже готовым статам, а если нет — новый стат внизу»).
+    const items = await ItemsRepository.findByOwner(char.id)
+    return reply.send(items.map(item => ({
+      ...item,
+      effective: applyUpgradeModifiers(
+        item.template,
+        (item.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {},
+        item.statAllocation, item.socketsJson,
+      ),
+    })))
   })
 
   fastify.post('/allocate-points', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
