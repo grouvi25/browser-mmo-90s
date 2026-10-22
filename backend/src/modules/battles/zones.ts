@@ -117,7 +117,13 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
   const rawBlock = (input?.blockZones ?? []).filter(isBodyZone)
 
   const attackZones = rawAttack.slice(0, budget.attacks)
-  const attackHands = rawHands.slice(0, budget.attacks)
+  // Каждая рука бьёт раз за ход: правой сразу в руку и корпус нельзя.
+  // В одну зону двумя руками можно — это две разные руки.
+  const attackHands: AttackHand[] = []
+  for (const hand of rawHands.slice(0, budget.attacks)) {
+    const other: AttackHand = hand === 'LEFT_HAND' ? 'RIGHT_HAND' : 'LEFT_HAND'
+    attackHands.push(attackHands.includes(hand) ? other : hand)
+  }
   // блоки: одна зона принимает не больше двух
   const blockCount = new Map<BodyZone, number>()
   const blockZones: BodyZone[] = []
@@ -131,8 +137,9 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
 
   // Если атак не хватает до бюджета — добиваем корпусом (дефолтная зона).
   while (attackZones.length < budget.attacks) attackZones.push('CHEST')
-  const defaultHands: AttackHand[] = stance === 'attack2' ? ['LEFT_HAND', 'RIGHT_HAND'] : ['LEFT_HAND']
-  while (attackHands.length < budget.attacks) attackHands.push(defaultHands[attackHands.length] ?? 'LEFT_HAND')
+  while (attackHands.length < budget.attacks) {
+    attackHands.push(attackHands.includes('LEFT_HAND') ? 'RIGHT_HAND' : 'LEFT_HAND')
+  }
   // Если блоков не хватает — добиваем приоритетными зонами.
   if (blockZones.length < budget.blocks) {
     for (let layer = 0; layer < MAX_BLOCKS_PER_ZONE; layer++) {
