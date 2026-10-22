@@ -14,18 +14,13 @@ import { battlesApi } from '../../shared/api/battles.api'
 import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { ApiError } from '../../shared/api/client'
-
-const LOADOUT_KEY = 'mmo_battle_loadout'
+import { useBattleLoadout } from '../../shared/lib/battle-loadout'
 
 const BOTS = [
   { code: 'training_bandit', label: 'Тренировочный хулиган', level: 1, reward: '20–50 ₽', tone: 'ok' },
   { code: 'basic_gangster', label: 'Гопник', level: 2, reward: '50–120 ₽', tone: 'warn' },
   { code: 'armed_thug', label: 'Вооружённый бандит', level: 4, reward: '100–300 ₽', tone: 'danger' },
 ] as const
-
-function readLoadout(): string[] {
-  try { return JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '[]') } catch { return [] }
-}
 
 /** embedded — внутри формы заявок Стрелков: без своей рамки и заголовка. */
 export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
@@ -61,7 +56,7 @@ export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
   const currentBattle = current.data?.battleId ?? null
   const inBattle = char?.status === 'IN_BATTLE' && !!currentBattle
   const hasWeapon = items.some(i => i.isEquipped && i.template.type === 'WEAPON')
-  const loadout = readLoadout()
+  const loadout = useBattleLoadout().ids
   const hpLow = char ? char.hpCurrent / char.hpMax < 0.3 : false
 
   return (

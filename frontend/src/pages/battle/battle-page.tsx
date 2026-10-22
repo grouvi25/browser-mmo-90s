@@ -40,11 +40,6 @@ import { useIsMobile } from '../../shared/lib/use-media-query'
 import './battle-phase-a.css'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const LOADOUT_KEY = 'mmo_battle_loadout'
-
-function getLoadout(): string[] {
-  try { return JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '[]') } catch { return [] }
-}
 
 interface RoundResult {
   roundNumber?: number; playerHp?: number; botHp?: number; battleOver?: boolean
@@ -256,8 +251,6 @@ export function BattlePage() {
   const [playerAttack, setPlayerAttack] = useState(false)
   const [enemyAttack, setEnemyAttack]   = useState(false)
   const [lastEvent, setLastEvent]       = useState<TurnEvent | null>(null)
-  // loadout IDs читается при mount и не меняется в течение боя
-  const [loadoutIds] = useState<string[]>(() => getLoadout())
 
   // ── Зональный ход ──────────────────────────────────────
   const [stance, setStance]             = useState<Stance>('defense4')
@@ -294,6 +287,7 @@ export function BattlePage() {
   const live      = battleData?.liveState
   const dbParts   = (battleData?.battle?.participants ?? []) as Array<{ characterId?: string | null; botId?: string | null; hpMax?: number; hpCurrent?: number }>
   const pPart     = live?.participants?.find((p: { characterId?: string }) => p.characterId === char?.id)
+  const loadoutIds: string[] = pPart?.pocketItemIds ?? []
   const enemyParts = pPart ? (live?.participants ?? []).filter((p: LiveParticipant) => p.isAlive && p.side !== pPart.side) : []
   const ePart     = enemyParts.find((p: LiveParticipant) => p.participantId === selectedTargetId) ?? enemyParts[0]
   // Fallback на DB participants для hpMax (важно: Redis может ещё не загрузиться)
