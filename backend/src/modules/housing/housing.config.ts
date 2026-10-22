@@ -20,6 +20,17 @@ export const HOUSING = {
   /** Как у Дома бригады: при 50% и ниже бонус дома выключен до ремонта. */
   bonusOffAtOrBelow: 50,
   repairCostPer10: 1000,
+  /**
+   * Склад в жилье (правка 22.10): «квартиры дают только опыт + место для
+   * склада, а дом ещё возможность постройки туннелей». Ящик — один вид
+   * ресурса, до boxCapacity штук. Числа стартовые.
+   */
+  storage: {
+    boxes: { APARTMENT: 10, HOUSE: 20 } satisfies Record<HomeKind, number>,
+    boxCapacity: 100,
+  },
+  /** Туннели можно прорыть только из дома, не из квартиры. */
+  tunnelKinds: ['HOUSE'] as HomeKind[],
 } as const
 
 /**

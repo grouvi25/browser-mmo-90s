@@ -34,6 +34,10 @@ export interface HousingLot {
 export interface HousingView {
   prices: Record<HomeKind, { name: string; priceDollars: number; expBonus: number }>
   tunnelPrice: number
+  /** Туннели роют только из этих видов жилья (из дома). */
+  tunnelKinds: HomeKind[]
+  /** Сколько ящиков склада у квартиры и у дома. */
+  storageBoxes: Record<HomeKind, number>
   repairPer10: number
   tunnels: { code: TunnelCode; label: string; where: string; to: string }[]
   raidRules: { leadHours: number; maxPerSide: number; cooldownDays: number; durabilityLoss: number }
@@ -48,7 +52,17 @@ export interface HousingView {
   lots: HousingLot[]
 }
 
+/** Склад жилья: дополнительные ящики, из центра их не видно. */
+export interface HomeStorageView {
+  boxes: number
+  boxCapacity: number
+  items: { code: string; name: string; amount: number }[]
+}
+
 export const housingApi = {
+  storage: () => api.get<HomeStorageView>('/api/housing/storage'),
+  storagePut: (code: string, amount: number) => api.post('/api/housing/storage/put', { code, amount }),
+  storageTake: (code: string, amount: number) => api.post('/api/housing/storage/take', { code, amount }),
   view: () => api.get<HousingView>('/api/housing'),
   buy: (lot: number) => api.post<{ cost: number; dollars: number }>('/api/housing/buy', { lot }),
   tunnel: (code: TunnelCode) => api.post<{ tunnels: TunnelCode[]; dollars: number }>('/api/housing/tunnels', { code }),

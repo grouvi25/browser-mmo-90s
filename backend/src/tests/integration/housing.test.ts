@@ -143,7 +143,7 @@ describe('Жилой сектор', () => {
 
   it('туннель: вышел из дома — можно вернуться; ушёл другой дорогой — нельзя', async () => {
     const a = await player('tun')
-    await HousingService.buy(a.character.id, FLAT)
+    await HousingService.buy(a.character.id, HOUSE)
     await CityService.move(a.user.id, '/housing')
     await expect(HousingService.goThroughTunnel(a.character.id, 'farm')).rejects.toMatchObject({ statusCode: 409 })
     await HousingService.buyTunnel(a.character.id, 'farm')
@@ -177,5 +177,39 @@ describe('Жилой сектор', () => {
     expect(view.lots[2]).toMatchObject({ lot: 3, label: 'Кв. 3', home: { owner: a.character.nickname, mine: false } })
     expect(view.lots[HOUSE - 1]).toMatchObject({ label: 'Дом 1', kind: 'HOUSE', home: null })
     expect((await HousingService.view(a.character.id)).lots[2].home).toMatchObject({ mine: true })
+  })
+
+  it('квартира даёт только опыт и склад: туннель роют только из дома', async () => {
+    const a = await player('flat')
+    await HousingService.buy(a.character.id, FLAT)
+    await expect(HousingService.buyTunnel(a.character.id, 'pvp')).rejects.toMatchObject({ statusCode: 409 })
+    const ch = await testPrisma.character.findUniqueOrThrow({ where: { id: a.character.id } })
+    expect(ch.dollars).toBe(500 - HOUSING.kinds.APARTMENT.priceDollars)
+  })
+
+  it('склад жилья: ящики по видам, из центра не видно, вместимость по виду жилья', async () => {
+    const a = await player('boxes')
+    await expect(HousingService.storage(a.character.id)).rejects.toMatchObject({ statusCode: 404 })
+    await HousingService.buy(a.character.id, FLAT)
+    const templates = await Promise.all(Array.from({ length: HOUSING.storage.boxes.APARTMENT + 1 }, (_, i) =>
+      testPrisma.resourceTemplate.create({ data: { code: uid(`box${i}`), name: `Ящик ${i}`, category: 'COMPONENT', basePrice: 10 } })))
+    for (const t of templates) {
+      await testPrisma.resourceStack.create({ data: { characterId: a.character.id, resourceTemplateId: t.id, amount: 150 } })
+    }
+    const [first, ...rest] = templates
+    await HousingService.storagePut(a.character.id, first.code, 60)
+    await expect(HousingService.storagePut(a.character.id, first.code, 41)).rejects.toMatchObject({ statusCode: 409 })
+    // Ресурс ушёл из личного (центрального) склада.
+    expect((await testPrisma.resourceStack.findFirstOrThrow({ where: { characterId: a.character.id, resourceTemplateId: first.id } })).amount).toBe(90)
+    for (const t of rest.slice(0, HOUSING.storage.boxes.APARTMENT - 1)) await HousingService.storagePut(a.character.id, t.code, 1)
+    // Ящики кончились: одиннадцатый вид в квартиру не влезет.
+    await expect(HousingService.storagePut(a.character.id, rest[rest.length - 1].code, 1)).rejects.toMatchObject({ statusCode: 409 })
+    const box = await HousingService.storage(a.character.id)
+    expect(box.boxes).toBe(HOUSING.storage.boxes.APARTMENT)
+    expect(box.items.find(i => i.code === first.code)).toMatchObject({ amount: 60, name: first.name })
+
+    await HousingService.storageTake(a.character.id, first.code, 60)
+    await expect(HousingService.storageTake(a.character.id, first.code, 1)).rejects.toMatchObject({ statusCode: 409 })
+    expect((await testPrisma.resourceStack.findFirstOrThrow({ where: { characterId: a.character.id, resourceTemplateId: first.id } })).amount).toBe(150)
   })
 })

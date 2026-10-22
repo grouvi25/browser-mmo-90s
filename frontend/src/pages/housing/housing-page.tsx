@@ -8,13 +8,16 @@
 //
 // Уточнение 22.10: налёт — заявка и бой ровно через 72 часа, до 10 человек
 // в нападение и до 10 в оборону, на дом раз в неделю; из туннеля можно
-// вернуться в дом тем же туннелем (вкладка «В дом» внизу).
+// вернуться в дом тем же туннелем (вкладка «В дом» внизу); у жилья свой
+// склад — ящики, которых не видно из центра; квартира даёт только опыт и
+// склад, туннели — только у дома.
 // =============================================================
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Home, Building2, Hammer, Package, Shovel, Swords } from 'lucide-react'
 import { housingApi, type HomeKind, type HomeRaid, type HousingLot, type HousingView } from '../../shared/api/housing.api'
+import { resourcesApi } from '../../shared/api/resources.api'
 import { SCENES } from '../../shared/ui/sprite'
 import './housing.css'
 
@@ -122,7 +125,7 @@ function LotCard({ lot, data, busy, onBuy, onRaid, onSide }: {
     return (
       <article className="housing__offer">
         <h4><Icon size={16} /> {lot.label} · {kindName}, свободно</h4>
-        <p>+{pct(p.expBonus)}% к опыту за бой · вход на склад · туннели</p>
+        <p>+{pct(p.expBonus)}% к опыту за бой · {data.storageBoxes[lot.kind]} ящиков склада{data.tunnelKinds.includes(lot.kind) ? ' · туннели' : ''}</p>
         {blocked
           ? <p className="housing__muted">{mine.kind === 'HOUSE' ? 'У вас уже есть дом.' : 'У вас уже есть квартира, переехать можно только в дом.'}</p>
           : <button type="button" className="btn" disabled={busy || data.wallet.dollars < cost} onClick={onBuy}>
@@ -206,13 +209,16 @@ function MyHome({ data, busy, onTunnel, onRepair, onGo, onWalk }: {
           <Hammer size={13} /> Ремонт за {repairCost.toLocaleString('ru')} ₽</button>}
       </div>
       {home.kind === 'APARTMENT' && <p className="housing__muted">Переехать в дом можно доплатой: выберите свободный дом на плане.</p>}
-      <h4 className="housing__sub">Туннели из дома</h4>
-      <div className="housing__actions">
-        {data.tunnels.map(t => home.tunnels.includes(t.code)
-          ? <button key={t.code} type="button" className="btn" disabled={busy} onClick={() => onWalk(t.code)}><Shovel size={13} /> Пройти {t.where}</button>
-          : <button key={t.code} type="button" className="btn btn-ghost" disabled={busy || data.wallet.dollars < data.tunnelPrice} onClick={() => onTunnel(t.code)}>
-              <Shovel size={13} /> Прорыть ход {t.where} — {data.tunnelPrice} $</button>)}
-      </div>
+      <HomeStorage />
+      {data.tunnelKinds.includes(home.kind) ? <>
+        <h4 className="housing__sub">Туннели из дома</h4>
+        <div className="housing__actions">
+          {data.tunnels.map(t => home.tunnels.includes(t.code)
+            ? <button key={t.code} type="button" className="btn" disabled={busy} onClick={() => onWalk(t.code)}><Shovel size={13} /> Пройти {t.where}</button>
+            : <button key={t.code} type="button" className="btn btn-ghost" disabled={busy || data.wallet.dollars < data.tunnelPrice} onClick={() => onTunnel(t.code)}>
+                <Shovel size={13} /> Прорыть ход {t.where} — {data.tunnelPrice} $</button>)}
+        </div>
+      </> : <p className="housing__muted">Туннели роют только из дома: квартира даёт опыт и склад.</p>}
       <p className="housing__muted">В доме на вас напасть нельзя. Напасть можно на сам дом: налёт объявляют за {data.raidRules.leadHours} ч, вы в обороне, зовите своих — до {data.raidRules.maxPerSide} человек. Победа нападавших снимает {data.raidRules.durabilityLoss}% прочности.</p>
       {home.raid && <><h4 className="housing__sub">Налёт на ваш дом</h4><RaidBlock raid={home.raid} busy={busy} onSide={() => undefined} max={data.raidRules.maxPerSide} /></>}
       {home.raids.length > 0 && <>
@@ -222,5 +228,42 @@ function MyHome({ data, busy, onTunnel, onRepair, onGo, onWalk }: {
         </li>)}</ul>
       </>}
     </section>
+  )
+}
+
+/** Ящики в доме (правка заказчика 22.10): сюда выгружают ресурсы, из
+    центра этот склад не виден. Ящик — один вид ресурса. */
+function HomeStorage() {
+  const qc = useQueryClient()
+  const box = useQuery({ queryKey: ['housing', 'storage'], queryFn: housingApi.storage })
+  const mine = useQuery({ queryKey: ['resources'], queryFn: resourcesApi.list })
+  const [code, setCode] = useState('')
+  const [amount, setAmount] = useState(1)
+  const [error, setError] = useState('')
+  const move = useMutation({
+    mutationFn: (v: { put: boolean; code: string; amount: number }) => v.put ? housingApi.storagePut(v.code, v.amount) : housingApi.storageTake(v.code, v.amount),
+    onSuccess: () => { setError(''); void qc.invalidateQueries({ queryKey: ['housing', 'storage'] }); void qc.invalidateQueries({ queryKey: ['resources'] }) },
+    onError: (e: Error) => setError(e.message),
+  })
+  const own = (mine.data?.items ?? []).filter(s => s.availableAmount > 0)
+  const items = box.data?.items ?? []
+  return (
+    <>
+      <h4 className="housing__sub"><Package size={14} /> Ящики в доме {box.data && `· занято ${items.length} из ${box.data.boxes}`}</h4>
+      <p className="housing__muted">Дополнительный склад: из центра его не видно. В ящик — один вид ресурса, до {box.data?.boxCapacity ?? 100} штук.</p>
+      {error && <p className="alert alert-error" role="alert">{error}</p>}
+      {items.length > 0 && <ul className="housing__boxes">{items.map(i => <li key={i.code}>
+        <span>{i.name}</span><b>{i.amount}</b>
+        <button type="button" className="btn btn-sm" disabled={move.isPending} onClick={() => move.mutate({ put: false, code: i.code, amount: i.amount })}>Забрать всё</button>
+      </li>)}</ul>}
+      <form className="housing__actions" onSubmit={e => { e.preventDefault(); if (code) move.mutate({ put: true, code, amount }) }}>
+        <select value={code} onChange={e => setCode(e.target.value)} aria-label="Ресурс со склада">
+          <option value="">Что выгрузить…</option>
+          {own.map(s => <option key={s.id} value={s.template.code}>{s.template.name} ({s.availableAmount})</option>)}
+        </select>
+        <input type="number" min={1} max={1000} value={amount} aria-label="Сколько" onChange={e => setAmount(Math.max(1, Number(e.target.value) || 1))} style={{ width: 80 }} />
+        <button type="submit" className="btn" disabled={!code || move.isPending}>Выгрузить в ящик</button>
+      </form>
+    </>
   )
 }

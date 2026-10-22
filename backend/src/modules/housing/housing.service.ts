@@ -16,7 +16,9 @@
 //     Хозяин в обороне сам, остальные записываются. В бой попадают те, кто
 //     к началу в игре и свободен; оборона не вышла — дом взят без боя;
 //   • вышел из дома туннелем — тем же туннелем можно вернуться; пришёл на
-//     место другой дорогой — сразу в дом оттуда нельзя.
+//     место другой дорогой — сразу в дом оттуда нельзя;
+//   • у жилья свой склад — дополнительные ящики, из центра их не видно;
+//     квартира даёт только опыт и склад, туннели — только у дома.
 //
 // Жильё стоит заранее: 16 квартир и 8 домов (housing.config, LOTS).
 // Игрок покупает свободный участок; переезд из квартиры в дом — доплатой.
@@ -34,6 +36,7 @@ import { EconomyService } from '../economy/economy.service'
 import { NoticesService } from '../chat/notices.service'
 import { ChatService } from '../chat/chat.service'
 import { BattleService } from '../battles/battles.service'
+import { ResourcesService } from '../resources/resources.service'
 import { when } from '../clans/house-siege.formulas'
 import { HOUSING, LOT_COUNT, TUNNELS, type TunnelCode, homeBonusActive, homeExpBonus, insideTunnelArea, isLot, lotKind, lotLabel } from './housing.config'
 
@@ -287,7 +290,7 @@ export const HousingService = {
       }
     })
     return {
-      prices: HOUSING.kinds, tunnelPrice: HOUSING.tunnelPriceDollars, repairPer10: HOUSING.repairCostPer10, tunnels: TUNNELS,
+      prices: HOUSING.kinds, tunnelPrice: HOUSING.tunnelPriceDollars, tunnelKinds: HOUSING.tunnelKinds, storageBoxes: HOUSING.storage.boxes, repairPer10: HOUSING.repairCostPer10, tunnels: TUNNELS,
       raidRules: { leadHours: HOUSING.raidLeadHours, maxPerSide: HOUSING.raidMaxPerSide, cooldownDays: HOUSING.raidCooldownDays, durabilityLoss: HOUSING.raidDurabilityLoss },
       wallet: { dollars: char.dollars, money: char.money },
       home: home ? {
@@ -333,6 +336,7 @@ export const HousingService = {
     return withTransaction(async tx => {
       const home = await tx.playerHome.findUnique({ where: { characterId } })
       if (!home) throw new AppError(ErrorCode.NOT_FOUND, 'Сначала купите жильё', 404)
+      if (!HOUSING.tunnelKinds.includes(home.kind)) throw new AppError(ErrorCode.CONFLICT, 'Туннели роют только из дома — квартира даёт опыт и склад', 409)
       if (home.tunnels.includes(code)) throw new AppError(ErrorCode.CONFLICT, 'Туннель уже прорыт', 409)
       const dollars = await DollarsService.debit(tx, { characterId, amount: HOUSING.tunnelPriceDollars, reason: 'PURCHASE', note: `Жилой сектор: туннель (${code})` })
       const updated = await tx.playerHome.update({ where: { id: home.id }, data: { tunnels: { push: code } } })
@@ -350,6 +354,7 @@ export const HousingService = {
         tx.character.findUnique({ where: { id: characterId }, select: { location: true, status: true } }),
       ])
       if (!home) throw new AppError(ErrorCode.NOT_FOUND, 'Сначала купите жильё', 404)
+      if (!HOUSING.tunnelKinds.includes(home.kind)) throw new AppError(ErrorCode.CONFLICT, 'Туннели есть только у дома', 409)
       if (!home.tunnels.includes(code)) throw new AppError(ErrorCode.CONFLICT, 'Этот туннель ещё не прорыт', 409)
       if (!character || character.status !== 'ACTIVE' || character.location !== '/housing') {
         throw new AppError(ErrorCode.CONFLICT, 'В туннель можно войти только из своего дома', 409)
@@ -390,6 +395,57 @@ export const HousingService = {
       await tx.playerHome.update({ where: { id: home.id }, data: { outVia: null } })
       await tx.character.update({ where: { id: characterId }, data: { location: '/housing', lastLocation: '/housing' } })
       return { to: '/housing' }
+    })
+  },
+
+  /** Склад жилья: ящики по видам ресурсов и сколько их влезает. */
+  async storage(characterId: string) {
+    const home = await myHome(characterId)
+    if (!home) throw new AppError(ErrorCode.NOT_FOUND, 'Сначала купите жильё', 404)
+    const rows = await prisma.homeStorage.findMany({ where: { homeId: home.id, amount: { gt: 0 } }, orderBy: { resourceCode: 'asc' } })
+    const names = new Map((await prisma.resourceTemplate.findMany({
+      where: { code: { in: rows.map(r => r.resourceCode) } }, select: { code: true, name: true },
+    })).map(t => [t.code, t.name]))
+    return {
+      boxes: HOUSING.storage.boxes[home.kind], boxCapacity: HOUSING.storage.boxCapacity,
+      items: rows.map(r => ({ code: r.resourceCode, name: names.get(r.resourceCode) ?? r.resourceCode, amount: r.amount })),
+    }
+  },
+
+  /** Выгрузить свои ресурсы в ящики жилья. */
+  async storagePut(characterId: string, resourceCode: string, amount: number) {
+    return withTransaction(async tx => {
+      const home = await tx.playerHome.findUnique({ where: { characterId } })
+      if (!home) throw new AppError(ErrorCode.NOT_FOUND, 'Сначала купите жильё', 404)
+      const template = await tx.resourceTemplate.findUnique({ where: { code: resourceCode } })
+      if (!template) throw new AppError(ErrorCode.RES_NOT_FOUND, 'Ресурс не найден', 404)
+      const row = await tx.homeStorage.findUnique({ where: { homeId_resourceCode: { homeId: home.id, resourceCode } } })
+      if (!row || row.amount === 0) {
+        const used = await tx.homeStorage.count({ where: { homeId: home.id, amount: { gt: 0 } } })
+        if (used >= HOUSING.storage.boxes[home.kind]) throw new AppError(ErrorCode.CONFLICT, 'Свободных ящиков нет', 409)
+      }
+      if ((row?.amount ?? 0) + amount > HOUSING.storage.boxCapacity) {
+        throw new AppError(ErrorCode.CONFLICT, `В ящик влезает не больше ${HOUSING.storage.boxCapacity}`, 409)
+      }
+      await ResourcesService.consume(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'HOME_STORAGE_DEPOSIT', refType: 'home', refId: home.id })
+      return tx.homeStorage.upsert({
+        where: { homeId_resourceCode: { homeId: home.id, resourceCode } },
+        update: { amount: { increment: amount } },
+        create: { homeId: home.id, resourceCode, amount },
+      })
+    })
+  },
+
+  /** Забрать из ящиков жилья обратно к себе. */
+  async storageTake(characterId: string, resourceCode: string, amount: number) {
+    return withTransaction(async tx => {
+      const home = await tx.playerHome.findUnique({ where: { characterId } })
+      if (!home) throw new AppError(ErrorCode.NOT_FOUND, 'Сначала купите жильё', 404)
+      const changed = await tx.homeStorage.updateMany({ where: { homeId: home.id, resourceCode, amount: { gte: amount } }, data: { amount: { decrement: amount } } })
+      if (changed.count !== 1) throw new AppError(ErrorCode.RES_INSUFFICIENT, 'В ящике столько нет', 409)
+      const template = await tx.resourceTemplate.findUniqueOrThrow({ where: { code: resourceCode } })
+      await ResourcesService.add(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'HOME_STORAGE_WITHDRAW', refType: 'home', refId: home.id })
+      return { resourceCode, amount }
     })
   },
 
