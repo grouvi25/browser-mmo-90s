@@ -21,6 +21,32 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
       return reply.send({ users, characters, battles, items })
     })
 
+  // GET /api/admin/chat?days=7 — общий чат и чаты районов за срок.
+  // Просьба заказчика 22.10: читать, что пишут игроки (в чат зашли люди и
+  // предлагают правки). Лента в игре показывает только сегодняшний день, в
+  // базе сообщения лежат все. Бригадные и личные не отдаём — это переписка
+  // игроков, а не общий эфир. Спрятанные модератором помечаем.
+  fastify.get('/chat', READ_ADMIN, async (req, reply) => {
+    const days = Math.min(90, Math.max(1, Number((req.query as { days?: string }).days) || 7))
+    const since = new Date(Date.now() - days * 24 * 3_600_000)
+    const rows = await prisma.chatMessage.findMany({
+      where: { channel: { in: ['GLOBAL', 'DISTRICT'] }, createdAt: { gte: since } },
+      orderBy: { createdAt: 'asc' },
+      take: 10_000,
+      select: {
+        id: true, channel: true, scope: true, body: true, createdAt: true, deletedAt: true,
+        author: { select: { nickname: true, battleLevel: true } },
+      },
+    })
+    return reply.send({
+      days,
+      items: rows.map(r => ({
+        id: r.id, at: r.createdAt, channel: r.channel, district: r.channel === 'DISTRICT' ? r.scope : null,
+        author: r.author.nickname, level: r.author.battleLevel, text: r.body, hidden: !!r.deletedAt,
+      })),
+    })
+  })
+
   // GET /api/admin/users?login=xxx — поиск пользователя
   fastify.get('/users', READ_ADMIN,
     async (req, reply) => {

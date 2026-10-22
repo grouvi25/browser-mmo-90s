@@ -73,6 +73,11 @@ async function requestBlobUrl(path: string): Promise<string> {
 
 // ── Типы ответов ─────────────────────────────────────────────
 
+export interface ChatLogRow {
+  id: string; at: string; channel: 'GLOBAL' | 'DISTRICT'; district: string | null
+  author: string; level: number; text: string; hidden: boolean
+}
+
 export type SupportStatus = 'OPEN' | 'ANSWERED' | 'CLOSED'
 export interface SupportRow {
   id: string; text: string; status: SupportStatus
@@ -330,6 +335,7 @@ export interface ItemTemplateRow {
 // ── Ручки ────────────────────────────────────────────────────
 
 export const adminApi = {
+  chatLog: (days: number) => request<{ days: number; items: ChatLogRow[] }>(`/api/admin/chat?days=${days}`),
   support: (status?: SupportStatus) => request<{ items: SupportRow[] }>(`/api/admin/support${status ? `?status=${status}` : ''}`),
   supportImage: (id: string) => requestBlobUrl(`/api/admin/support/${id}/image`),
   supportReply: (id: string, text: string) => request(`/api/admin/support/${id}/reply`, { method: 'POST', body: { text } }),
