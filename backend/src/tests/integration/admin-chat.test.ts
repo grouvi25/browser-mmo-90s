@@ -38,9 +38,10 @@ describe('Админка: чат игроков', () => {
     const week = await app.inject({ url: '/api/admin/chat?days=7', headers })
     expect(week.statusCode).toBe(200)
     const texts = (week.json() as { items: Array<{ text: string; hidden: boolean; district: string | null }> }).items
-    expect(texts.map(t => t.text)).toEqual(['Сделайте рынок дешевле', 'кто на стрелку', 'спрятанное'])
-    expect(texts[1].district).toBe('market')
-    expect(texts[2].hidden).toBe(true)
+    // Сообщения созданы в одну миллисекунду — порядок между ними не задан.
+    expect(texts.map(t => t.text).sort()).toEqual(['Сделайте рынок дешевле', 'кто на стрелку', 'спрятанное'].sort())
+    expect(texts.find(t => t.text === 'кто на стрелку')?.district).toBe('market')
+    expect(texts.find(t => t.text === 'спрятанное')?.hidden).toBe(true)
 
     const month = await app.inject({ url: '/api/admin/chat?days=30', headers })
     expect((month.json() as { items: unknown[] }).items).toHaveLength(4)
