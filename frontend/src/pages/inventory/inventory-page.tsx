@@ -32,6 +32,7 @@ import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { itemImage } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
+import { rangeLabel } from '../../shared/lib/weapon-range'
 import '../shop/shop.css'
 import './inventory.css'
 
@@ -287,6 +288,7 @@ export function InventoryPage() {
                           <div><dt>Качество</dt><dd>{QUALITY_LABELS[item.quality]}</dd></div>
                           <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
                           {t.minDamage != null && <div><dt>Урон</dt><dd>{eff?.minDamage ?? t.minDamage}–{eff?.maxDamage ?? t.maxDamage}<Gain value={(eff?.maxDamage ?? 0) - (t.maxDamage ?? 0)} /></dd></div>}
+                          {t.type === 'WEAPON' && !!t.maxRange && <div><dt>Дальность</dt><dd>{rangeLabel(t.maxRange)}</dd></div>}
                           {!!t.armor && <div><dt>Броня тела</dt><dd>+{eff?.armor ?? t.armor}<Gain value={(eff?.armor ?? 0) - (t.armor ?? 0)} /></dd></div>}
                           {!!t.hpBonus && <div><dt>Восстановит</dt><dd>+{t.hpBonus} HP</dd></div>}
                           {t.strReq > 0 && <div><dt>Требует силы</dt><dd>{t.strReq}</dd></div>}

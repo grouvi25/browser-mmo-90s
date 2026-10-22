@@ -133,12 +133,14 @@ function House({ id }: { id: string }) {
       {h.canWrite && <WallForm clanId={h.id} onDone={done} onFail={fail} />}
     </div>}
 
-    <div className="house-members">
+    {/* Свой состав с должностями показывает управление бригадой ниже —
+        второй список здесь был бы повтором (правка заказчика 22.10). */}
+    {!h.isMine && <div className="house-members">
       <h3>Состав · {h.members.length}</h3>
       <ul>{h.members.map(m => <li key={m.id}>
         <Link to={`/u/${encodeURIComponent(m.nickname)}`}>{m.nickname}</Link> <i>{m.battleLevel} ур. · {m.role}</i>
       </li>)}</ul>
-    </div>
+    </div>}
   </section>
 }
 

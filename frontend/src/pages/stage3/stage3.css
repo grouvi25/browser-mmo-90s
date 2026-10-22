@@ -50,12 +50,6 @@
 .clan-row span{font-size:0.83rem;color:oklch(52% .025 55)}
 .clan-leave{margin-top:22px}
 .create-clan small{font-size:0.83rem}
-.roles-editor{margin-top:26px}
-.role-form{display:grid;gap:12px;border:1px solid oklch(72% .025 60);padding:14px}
-.role-form label{display:grid;gap:4px;font-size:0.828rem;letter-spacing:.05em}
-.perm-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:6px;list-style:none;padding:0;margin:0}
-.perm-list label{display:flex;flex-direction:row;align-items:center;gap:8px;font-size:0.859rem;letter-spacing:0}
-.perm-list input{min-height:auto;width:16px;height:16px}
 .treasury-forms{display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:14px}
 .treasury-forms fieldset{border:1px solid oklch(72% .025 60);padding:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .treasury-forms legend{display:flex;align-items:center;gap:6px;font: 0.82rem/1 'Doc';text-transform:uppercase;letter-spacing:.07em;padding:0 6px}
@@ -69,7 +63,6 @@
   .object-controls{grid-template-columns:1fr}
   .clan-head{flex-direction:column;align-items:flex-start;gap:8px}
   .mybar>header{flex-direction:column;align-items:flex-start}
-  .perm-list{grid-template-columns:1fr}
 }
 
 /* Разделы Этапа 3 сидят внутри общего ViewportPanel, поэтому собственный
@@ -137,7 +130,10 @@
 .farm-act{display:flex;flex-wrap:wrap;align-items:center;gap:10px;min-height:44px}
 @media(max-width:800px){.farm-field{grid-template-columns:repeat(3,minmax(0,1fr))}.s3 .farm-tile{aspect-ratio:1/1}.farm-tile small{font-size:0.65rem}}
 
-.role-pick { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+/* Должности — ровными кнопками одной ширины (правка 22.10). */
+.role-buttons { display: grid; gap: 4px; min-width: 260px; }
+.role-buttons button { min-height: 28px; padding: 2px 4px; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.role-buttons button.is-current { background: oklch(45% .1 30); border-color: oklch(35% .1 30); color: #fff; opacity: 1; }
 .storage-log { margin-top: 14px; display: grid; gap: 6px; }
 .storage-log h3 { margin: 0; }
 .log-in { color: #2f6b3a; }

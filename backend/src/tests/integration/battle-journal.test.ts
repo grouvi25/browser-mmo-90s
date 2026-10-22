@@ -82,6 +82,6 @@ describe('журнал боя', () => {
     expect(describeTurn({ ...base, zone: 'HEAD', block: true, sourceHand: 'RIGHT_HAND' })).toEqual({ kind: 'block', text: 'удар правой в голову — блок' })
     expect(describeTurn({ ...base, zone: 'RIGHT_LEG', hit: true, crit: true, finalDamage: 12 })).toEqual({ kind: 'crit', text: 'крит в правую ногу, −12 HP' })
     expect(describeTurn({ ...base, zone: 'CHEST', hit: true, blockPierced: true, finalDamage: 7 })).toEqual({ kind: 'pierce', text: 'пробил блок в корпус, −7 HP' })
-    expect(describeTurn({ ...base, action: 'MOVE', zone: null })).toEqual({ kind: 'move', text: 'сближается' })
+    expect(describeTurn({ ...base, action: 'MOVE', zone: null })).toEqual({ kind: 'move', text: 'делает шаг' })
   })
 })

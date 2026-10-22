@@ -1,4 +1,6 @@
 import type { BattleAction, WeaponType as PrismaWeaponType } from '@prisma/client'
+import { dogStrike, loadCombatDog, type DogStrike, type LiveDog } from './combat-dog'
+import { heldWeapon, registerWound, woundedArmor, woundedBotEquip, type Wounds } from './wounds'
 import { awardCombatHelper, damageHelper, helperIntercepts, helperStrike, loadCombatHelper, type HelperStrike, type LiveHelper } from './combat-helper'
 import { prisma } from '../../shared/db/prisma'
 import { BattleRedis, AntiFarmRedis } from '../../shared/db/redis'
@@ -82,6 +84,16 @@ function weaponRangeOf(weapon: ItemWithTemplate | null | undefined): number {
   return Math.max(1, weapon?.template.maxRange ?? 1)
 }
 
+/**
+ * Ход без удара и без шага — боец только закрылся. В журнал он попадает
+ * строкой «уходит в защиту»: заказчик просил видеть в логе, что сделал
+ * противник за ход (походил, ударил и так далее), а раньше такой ход
+ * не оставлял следа вовсе.
+ */
+function blockedOnly(turn: { attackZones: BodyZone[]; blockZones: BodyZone[]; moveTo?: GridPosition }, moved: boolean): boolean {
+  return !moved && turn.attackZones.length === 0 && turn.blockZones.length > 0
+}
+
 function recordWeaponDamage(part: LiveParticipant, weapon: ItemWithTemplate | null | undefined, damage: number): void {
   if (damage <= 0) return
   const weaponType = (weapon?.template.weaponType ?? 'MELEE') as PrismaWeaponType
@@ -105,6 +117,8 @@ export interface LiveParticipant {
   participantId: string
   /** Боевой помощник хозяина (бой с ботом и групповые бои, не дуэль). */
   helper?: LiveHelper
+  /** Сытая собака хозяина: кусает его цель вслед за ним (combat-dog.ts). */
+  dog?: LiveDog
   characterId?: string
   botId?: string
   hpCurrent: number
@@ -126,6 +140,8 @@ export interface LiveParticipant {
   weaponDamage?: Partial<Record<PrismaWeaponType, number>>
   skippedTurns: number   // tracks AFK/passive turns for anti-abuse
   position: GridPosition
+  /** Попадания по зонам за бой: на третьем снимается оружие или броня (wounds.ts). */
+  wounds?: Wounds
 }
 
 export interface LiveBattleState {
@@ -570,6 +586,7 @@ export const BattleService = {
       // Snapshot the server-authoritative pocket at battle start.
       const pocketItemIds = await loadBattlePocket(char)
       const helper = await loadCombatHelper(char.id)
+      const dog = await loadCombatDog(char.id)
       const liveState: LiveBattleState = {
         battleId: battle.id,
         type: 'PVE_BOT',
@@ -593,6 +610,7 @@ export const BattleService = {
             rightWeaponInstanceId: weapons.RIGHT_HAND?.id,
             pocketItemIds,
             helper,
+            dog,
             damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
             position: teamSpawnPositions(1, 1)[0],
@@ -812,6 +830,7 @@ export const BattleService = {
           rightWeaponInstanceId: weapons.RIGHT_HAND?.id,
           pocketItemIds: memberChar ? await loadBattlePocket(memberChar) : [],
           helper: memberChar ? await loadCombatHelper(memberChar.id) : undefined,
+          dog: memberChar ? await loadCombatDog(memberChar.id) : undefined,
           damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
           skippedTurns: 0,
           position: spawns[index],
@@ -1429,7 +1448,7 @@ export const BattleService = {
       const botPart = state.participants.find(p => p.botId)!
       const bot = await loadBotData(botPart.botId!)
       const botStats = bot.stats as Record<string, number>
-      const botEquip = bot.equipment as Record<string, unknown>
+      const botEquip = woundedBotEquip(botPart, bot.equipment as Record<string, unknown>)
       const equippedItems = await ItemsRepository.findEquipped(char.id)
       const equippedArmor = equippedItems.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
       const playerArmorList = armorListFromEquipped(equippedArmor)
@@ -1474,11 +1493,13 @@ export const BattleService = {
       if (botWantsAttack && botInRange) {
         const res = executeStrikes({
           attackerSnap: botAttackSnap, defenderSnap: playerDefSnap,
-          zoneArmorFor: (z) => armorOfZone(playerArmorList, z),
+          zoneArmorFor: woundedArmor(playerPart, (z) => armorOfZone(playerArmorList, z)),
           attackZones: botTurn.attackZones, blockedZones: [], defenderHp: playerPart.hpCurrent,
         })
         for (const r of res.results) {
           if (r.hit && !r.dodge && !r.block) {
+            const stripped = registerWound(playerPart, r.zone, r.finalDamage)
+            if (stripped) r.logParts.push(stripped)
             playerPart.hpCurrent = Math.max(0, playerPart.hpCurrent - r.finalDamage)
             botPart.hitsLanded++; playerPart.hitsTaken++; botHitZones.push(r.zone)
           }
@@ -1593,12 +1614,15 @@ export const BattleService = {
 
     const bot = await loadBotData(botPart.botId!)
     const botStats = bot.stats as Record<string, number>
-    const botEquip = bot.equipment as Record<string, unknown>
+    const botEquip = woundedBotEquip(botPart, bot.equipment as Record<string, unknown>)
 
-    const [leftWeapon, rightWeapon] = await Promise.all([
+    const [leftHeld, rightHeld] = await Promise.all([
       playerPart.leftWeaponInstanceId || playerPart.weaponInstanceId ? ItemsRepository.findInstanceById(playerPart.leftWeaponInstanceId ?? playerPart.weaponInstanceId!) : Promise.resolve(null),
       playerPart.rightWeaponInstanceId ? ItemsRepository.findInstanceById(playerPart.rightWeaponInstanceId) : Promise.resolve(null),
     ])
+    // Выбитое тремя попаданиями оружие до конца боя не держится в руке.
+    const leftWeapon = heldWeapon(playerPart, 'LEFT_HAND', leftHeld)
+    const rightWeapon = heldWeapon(playerPart, 'RIGHT_HAND', rightHeld)
     const weapon = leftWeapon
     const leftSkill = await WeaponSkillsRepository.findOrCreate(char.id, (leftWeapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1])
     const rightSkill = await WeaponSkillsRepository.findOrCreate(char.id, (rightWeapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1])
@@ -1674,7 +1698,7 @@ export const BattleService = {
         attackerSnap, attackerSnaps: { LEFT_HAND: leftAttackerSnap, RIGHT_HAND: rightAttackerSnap },
         weaponIds: { LEFT_HAND: leftWeapon?.id ?? null, RIGHT_HAND: rightWeapon?.id ?? null },
         defenderSnap,
-        zoneArmorFor: (zone) => botArmorOfZone(botEquip, zone, defenderSnap.armor),
+        zoneArmorFor: woundedArmor(botPart, (zone) => botArmorOfZone(botEquip, zone, defenderSnap.armor)),
         attackZones: playerTurn.attackZones,
         attackHands: playerTurn.attackHands,
         blockedZones: botTurn.blockZones,
@@ -1682,6 +1706,8 @@ export const BattleService = {
       })
       for (const r of res.results) {
         if (r.hit && !r.dodge && !r.block) {
+          const stripped = registerWound(botPart, r.zone, r.finalDamage)
+          if (stripped) r.logParts.push(stripped)
           botHp = Math.max(0, botHp - r.finalDamage); playerPart.hitsLanded++; botPart.hitsTaken++
           recordWeaponDamage(playerPart, r.sourceHand === 'RIGHT_HAND' ? rightWeapon : leftWeapon, r.finalDamage)
         }
@@ -1699,7 +1725,7 @@ export const BattleService = {
     const botStrike = () => {
       const res = executeStrikes({
         attackerSnap: botAttackSnap, defenderSnap: playerDefSnap,
-        zoneArmorFor: (z) => armorOfZone(playerArmorList, z),
+        zoneArmorFor: woundedArmor(playerPart, (z) => armorOfZone(playerArmorList, z)),
         attackZones: botTurn.attackZones,
         blockedZones: playerTurn.blockZones,
         defenderHp: playerHp,
@@ -1713,6 +1739,8 @@ export const BattleService = {
           continue
         }
         if (r.hit && !r.dodge && !r.block) {
+          const stripped = registerWound(playerPart, r.zone, r.finalDamage)
+          if (stripped) r.logParts.push(stripped)
           playerHp = Math.max(0, playerHp - r.finalDamage); botPart.hitsLanded++; playerPart.hitsTaken++
           botHitZonesOnPlayer.push(r.zone)
         }
@@ -1740,6 +1768,14 @@ export const BattleService = {
       const hs = helperStrike(helper)
       if (hs.hit) { botHp = Math.max(0, botHp - hs.damage); helper.damageDealt += hs.damage; botPart.damageReceived += hs.damage; botPart.hitsTaken++ }
       helperTurns.push(hs)
+    }
+    // Собака кусает ту же цель следом, тоже только когда хозяин дотянулся.
+    const dog = playerPart.dog
+    const dogTurns: DogStrike[] = []
+    if (dog && doPlayerStrike && playerHp > 0 && botHp > 0) {
+      const ds = dogStrike(dog)
+      if (ds.hit) { botHp = Math.max(0, botHp - ds.damage); dog.damageDealt += ds.damage; botPart.damageReceived += ds.damage; botPart.hitsTaken++ }
+      dogTurns.push(ds)
     }
 
     // Переодевание попадает в журнал первым событием раунда: игрок должен
@@ -1800,8 +1836,17 @@ export const BattleService = {
       action: 'ATTACK' as BattleAction, hit: hs.hit, dodge: !hs.hit, crit: hs.crit,
       rawDamage: hs.damage, finalDamage: hs.damage,
     })) : []
+    const dogRecords = dog ? dogTurns.map(ds => ({
+      battleId, roundNumber, actorPetId: dog.id, targetBotId: botPart.botId,
+      action: 'ATTACK' as BattleAction, hit: ds.hit, dodge: !ds.hit, crit: ds.crit,
+      rawDamage: ds.damage, finalDamage: ds.damage,
+    })) : []
+    const blockRecords = [
+      ...(blockedOnly(playerTurn, playerMoved) ? [{ battleId, roundNumber, actorCharId: char.id, action: 'BLOCK' as BattleAction }] : []),
+      ...(blockedOnly(botTurn, botMoved) ? [{ battleId, roundNumber, actorBotId: botPart.botId, action: 'BLOCK' as BattleAction }] : []),
+    ]
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await prisma.battleTurn.createMany({ data: [...moveRecords, ...turnRecords, ...helperRecords] as any })
+    await prisma.battleTurn.createMany({ data: [...moveRecords, ...blockRecords, ...turnRecords, ...helperRecords, ...dogRecords] as any })
 
     if (battleOver) {
       state.status = 'finishing'
@@ -1825,7 +1870,8 @@ export const BattleService = {
       playerRange,
       turns: [...swapEvents,
       ...moveEvents, ...turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r, intercepted: t.intercepted ?? false })),
-      ...helperTurns.map(hs => ({ actor: 'helper', action: 'attack', hit: hs.hit, dodge: !hs.hit, block: false, crit: hs.crit, lucky: false, blockPierced: false, rawDamage: hs.damage, finalDamage: hs.damage, counterDamage: 0, logParts: [] }))],
+      ...helperTurns.map(hs => ({ actor: 'helper', action: 'attack', hit: hs.hit, dodge: !hs.hit, block: false, crit: hs.crit, lucky: false, blockPierced: false, rawDamage: hs.damage, finalDamage: hs.damage, counterDamage: 0, logParts: [] })),
+      ...dogTurns.map(ds => ({ actor: 'dog', action: 'attack', hit: ds.hit, dodge: !ds.hit, block: false, crit: ds.crit, lucky: false, blockPierced: false, rawDamage: ds.damage, finalDamage: ds.damage, counterDamage: 0, logParts: [] }))],
       helper: helper ? { name: helper.name, hp: helper.hp, hpMax: helper.hpMax, alive: helper.alive, tactic: helper.tactic, level: helper.level } : null,
       playerHp,
       botHp,
@@ -2001,12 +2047,14 @@ export const BattleService = {
       const char = await CharactersRepository.findById(part.characterId!)
       if (!char?.stats) continue
       const utilityUsed = await applyPendingUtility(part, char)
-      const [weaponLeft, weaponRight] = await Promise.all([
+      const [leftHeld, rightHeld] = await Promise.all([
         part.leftWeaponInstanceId || part.weaponInstanceId
           ? ItemsRepository.findInstanceById(part.leftWeaponInstanceId ?? part.weaponInstanceId!)
           : Promise.resolve(null),
         part.rightWeaponInstanceId ? ItemsRepository.findInstanceById(part.rightWeaponInstanceId) : Promise.resolve(null),
       ])
+      const weaponLeft = heldWeapon(part, 'LEFT_HAND', leftHeld)
+      const weaponRight = heldWeapon(part, 'RIGHT_HAND', rightHeld)
       const equipped = await ItemsRepository.findEquipped(char.id)
       const armor = equipped.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
       const skill = await WeaponSkillsRepository.findOrCreate(
@@ -2037,6 +2085,7 @@ export const BattleService = {
     // ── Удары по одному, в порядке инициативы ──────────────
     const roundTurns: Array<{ actor: LiveParticipant; target: LiveParticipant; r: HandStrikeResult; intercepted?: boolean }> = []
     const helperRoundTurns: Array<{ owner: LiveParticipant; target: LiveParticipant; hs: HelperStrike }> = []
+    const dogRoundTurns: Array<{ owner: LiveParticipant; target: LiveParticipant; ds: DogStrike }> = []
     const hitZones = new Map<string, BodyZone[]>()
 
     for (const ctx of orderByInitiative([...contexts.values()])) {
@@ -2082,7 +2131,7 @@ export const BattleService = {
         weaponIds: { LEFT_HAND: ctx.weaponLeft?.id ?? null, RIGHT_HAND: ctx.weaponRight?.id ?? null },
         defenderSnap: defSnap,
         defenderSnaps: { LEFT_HAND: defSnap, RIGHT_HAND: defSnap },
-        zoneArmorFor: z => armorOfZone(defArmorList, z),
+        zoneArmorFor: woundedArmor(target, z => armorOfZone(defArmorList, z)),
         attackZones: ctx.turn.attackZones,
         attackHands: ctx.turn.attackHands,
         blockedZones: targetCtx.turn.blockZones,
@@ -2097,6 +2146,8 @@ export const BattleService = {
           continue
         }
         if (r.hit && !r.dodge && !r.block) {
+          const stripped = registerWound(target, r.zone, r.finalDamage)
+          if (stripped) r.logParts.push(stripped)
           target.hpCurrent = Math.max(0, target.hpCurrent - r.finalDamage)
           actor.hitsLanded++
           target.hitsTaken++
@@ -2122,6 +2173,13 @@ export const BattleService = {
         if (hs.hit) { target.hpCurrent = Math.max(0, target.hpCurrent - hs.damage); actor.helper.damageDealt += hs.damage; target.damageReceived += hs.damage; target.hitsTaken++ }
         target.isAlive = target.hpCurrent > 0
         helperRoundTurns.push({ owner: actor, target, hs })
+      }
+      // Собака бойца кусает ту же цель.
+      if (actor.dog && actor.isAlive && target.isAlive) {
+        const ds = dogStrike(actor.dog)
+        if (ds.hit) { target.hpCurrent = Math.max(0, target.hpCurrent - ds.damage); actor.dog.damageDealt += ds.damage; target.damageReceived += ds.damage; target.hitsTaken++ }
+        target.isAlive = target.hpCurrent > 0
+        dogRoundTurns.push({ owner: actor, target, ds })
       }
     }
 
@@ -2150,8 +2208,16 @@ export const BattleService = {
       action: 'ATTACK' as BattleAction, hit: t.hs.hit, dodge: !t.hs.hit, crit: t.hs.crit,
       rawDamage: t.hs.damage, finalDamage: t.hs.damage,
     }))
+    const dogTurnRecords = dogRoundTurns.map(t => ({
+      battleId, roundNumber, actorPetId: t.owner.dog!.id, targetCharId: t.target.characterId ?? null,
+      action: 'ATTACK' as BattleAction, hit: t.ds.hit, dodge: !t.ds.hit, crit: t.ds.crit,
+      rawDamage: t.ds.damage, finalDamage: t.ds.damage,
+    }))
+    const blockRecords = [...contexts.values()]
+      .filter(ctx => blockedOnly(ctx.turn, moved.has(ctx.part.participantId)))
+      .map(ctx => ({ battleId, roundNumber, actorCharId: ctx.char.id, action: 'BLOCK' as BattleAction }))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await prisma.battleTurn.createMany({ data: [...moveRecords, ...turnRecords, ...helperTurnRecords] as any })
+    await prisma.battleTurn.createMany({ data: [...moveRecords, ...blockRecords, ...turnRecords, ...helperTurnRecords, ...dogTurnRecords] as any })
     for (const [participantId, zones] of hitZones) {
       const ctx = contexts.get(participantId)
       if (ctx) await applyZonalArmorWear(ctx.armor, zones)
@@ -2221,12 +2287,16 @@ export const BattleService = {
     const utility1 = await applyUtility(part1, char1)
     const utility2 = await applyUtility(part2, char2)
 
-    const [weapon1Left, weapon1Right, weapon2Left, weapon2Right] = await Promise.all([
+    const [held1Left, held1Right, held2Left, held2Right] = await Promise.all([
       part1.leftWeaponInstanceId || part1.weaponInstanceId ? ItemsRepository.findInstanceById(part1.leftWeaponInstanceId ?? part1.weaponInstanceId!) : Promise.resolve(null),
       part1.rightWeaponInstanceId ? ItemsRepository.findInstanceById(part1.rightWeaponInstanceId) : Promise.resolve(null),
       part2.leftWeaponInstanceId || part2.weaponInstanceId ? ItemsRepository.findInstanceById(part2.leftWeaponInstanceId ?? part2.weaponInstanceId!) : Promise.resolve(null),
       part2.rightWeaponInstanceId ? ItemsRepository.findInstanceById(part2.rightWeaponInstanceId) : Promise.resolve(null),
     ])
+    const weapon1Left = heldWeapon(part1, 'LEFT_HAND', held1Left)
+    const weapon1Right = heldWeapon(part1, 'RIGHT_HAND', held1Right)
+    const weapon2Left = heldWeapon(part2, 'LEFT_HAND', held2Left)
+    const weapon2Right = heldWeapon(part2, 'RIGHT_HAND', held2Right)
     const weapon1 = weapon1Left
     const weapon2 = weapon2Left
 
@@ -2298,7 +2368,7 @@ export const BattleService = {
       const defHp = defPart === part1 ? hp1 : hp2
       const res = executeStrikes({
         attackerSnap: atkSnap, attackerSnaps: atkSnaps, weaponIds, defenderSnap: defSnap, defenderSnaps: defSnaps,
-        zoneArmorFor: (z) => armorOfZone(defArmorList, z),
+        zoneArmorFor: woundedArmor(defPart, (z) => armorOfZone(defArmorList, z)),
         attackZones: atkTurn.attackZones,
         attackHands: atkTurn.attackHands,
         blockedZones: defTurn.blockZones,
@@ -2306,6 +2376,8 @@ export const BattleService = {
       })
       for (const r of res.results) {
         if (r.hit && !r.dodge && !r.block) {
+          const stripped = registerWound(defPart, r.zone, r.finalDamage)
+          if (stripped) r.logParts.push(stripped)
           if (defPart === part1) { hp1 = Math.max(0, hp1 - r.finalDamage); hitZonesOn1.push(r.zone) }
           else { hp2 = Math.max(0, hp2 - r.finalDamage); hitZonesOn2.push(r.zone) }
           atkPart.hitsLanded++; defPart.hitsTaken++
@@ -2394,8 +2466,12 @@ export const BattleService = {
       ...(moved1 ? [{ battleId, roundNumber, actorCharId: part1.characterId, action: 'MOVE' as BattleAction, fromX: from1.x, fromY: from1.y, toX: part1.position.x, toY: part1.position.y }] : []),
       ...(moved2 ? [{ battleId, roundNumber, actorCharId: part2.characterId, action: 'MOVE' as BattleAction, fromX: from2.x, fromY: from2.y, toX: part2.position.x, toY: part2.position.y }] : []),
     ]
+    const blockRecords = [
+      ...(blockedOnly(turn1, moved1) ? [{ battleId, roundNumber, actorCharId: part1.characterId, action: 'BLOCK' as BattleAction }] : []),
+      ...(blockedOnly(turn2, moved2) ? [{ battleId, roundNumber, actorCharId: part2.characterId, action: 'BLOCK' as BattleAction }] : []),
+    ]
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await prisma.battleTurn.createMany({ data: [...moveRecords, ...turnRecords] as any })
+    await prisma.battleTurn.createMany({ data: [...moveRecords, ...blockRecords, ...turnRecords] as any })
 
     const p1Dead = !part1.isAlive
     const p2Dead = !part2.isAlive

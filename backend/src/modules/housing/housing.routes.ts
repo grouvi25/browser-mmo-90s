@@ -32,6 +32,20 @@ export async function housingRoutes(fastify: FastifyInstance) {
 
   fastify.post('/repair', { preHandler: authenticate }, async req => HousingService.repair((await me(req.authUser.userId)).id))
 
+  // Склад жилья: дополнительные ящики, из центра их не видно (правка 22.10).
+  const move = z.object({ code: z.string().min(1).max(64), amount: z.number().int().min(1).max(1000) })
+  fastify.get('/storage', { preHandler: authenticate }, async req => HousingService.storage((await me(req.authUser.userId)).id))
+  fastify.post<{ Body: { code: string; amount: number } }>('/storage/put', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = move.safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send(bad)
+    return reply.send(await HousingService.storagePut((await me(req.authUser.userId)).id, parsed.data.code, parsed.data.amount))
+  })
+  fastify.post<{ Body: { code: string; amount: number } }>('/storage/take', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = move.safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send(bad)
+    return reply.send(await HousingService.storageTake((await me(req.authUser.userId)).id, parsed.data.code, parsed.data.amount))
+  })
+
   // Туннель туда и обратно (правка 22.10): вышел туннелем — тем же вернёшься.
   fastify.post<{ Params: { code: string } }>('/tunnels/:code/go', { preHandler: authenticate }, async (req, reply) => {
     const parsed = z.enum(['pvp', 'industrial', 'farm']).safeParse(req.params.code)

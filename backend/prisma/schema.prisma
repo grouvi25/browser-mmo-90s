@@ -429,6 +429,8 @@ enum ResourceLogReason {
   BAR_SALE
   CLAN_STORAGE_DEPOSIT
   CLAN_STORAGE_WITHDRAW
+  HOME_STORAGE_DEPOSIT
+  HOME_STORAGE_WITHDRAW
 }
 
 enum ProductionLogEvent {
@@ -970,6 +972,8 @@ model BattleTurn {
   // Боевой помощник: ходил сам или принял удар по хозяину на себя.
   actorHelperId  String? @map("actor_helper_id")
   targetHelperId String? @map("target_helper_id")
+  /// Собака хозяина укусила цель (правка заказчика 22.10).
+  actorPetId     String? @map("actor_pet_id")
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -2323,10 +2327,26 @@ model PlayerHome {
   purchasedAt DateTime @default(now()) @map("purchased_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  character Character  @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  character Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
   raids     HomeRaid[]
+  storage   HomeStorage[]
 
   @@map("player_homes")
+}
+
+/// Склад в квартире или доме (правка заказчика 22.10): «отдельный склад,
+/// куда можно выгружать ещё ресурсы. Из центра склад их видно не будет —
+/// это только дополнительные ящики в доме».
+model HomeStorage {
+  id           String     @id @default(uuid())
+  homeId       String     @map("home_id")
+  resourceCode String     @map("resource_code")
+  amount       Int        @default(0)
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  home         PlayerHome @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@unique([homeId, resourceCode])
+  @@map("home_storage")
 }
 
 model HomeRaid {

@@ -10,7 +10,7 @@ import { inventoryApi } from '../../shared/api/inventory.api'
 import { type BattleAction, type ItemInstance, type LiveParticipant } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
-import { isNeighbour, GRID_COLS, GRID_ROWS } from '../../shared/lib/hex'
+import { hexDistance, isNeighbour, GRID_COLS, GRID_ROWS } from '../../shared/lib/hex'
 import { DESIGNER_BATTLE_CELLS } from '../../shared/lib/designer-battle-grid'
 import battleField from '../../shared/assets/battle/battle-field.webp'
 import battleField2x from '../../shared/assets/battle/battle-field@2x.webp'
@@ -31,6 +31,12 @@ import { BattlePockets } from './components/battle-pockets'
 import { BattleJournal } from '../../widgets/battle-journal/battle-journal'
 import { BattleSwap, type SwapPlan } from './components/battle-swap'
 import { battleDisplayState, canSelectBattleMove, type BattleActionSnapshot, removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
+import { BattleDesk } from './battle-desk'
+import { BattleZoneList } from './components/battle-zone-list'
+import { BattleHelperBadge } from './components/battle-helper-badge'
+import { PersistedBattleChronicle } from './components/battle-chronicle'
+import { getActionBudget, validateTurnPlan } from './battle-view-model'
+import { useIsMobile } from '../../shared/lib/use-media-query'
 import './battle-phase-a.css'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -59,7 +65,7 @@ function BattleGrid({
   playerName, enemyName,
   playerHit, enemyHit, playerAttack, enemyAttack, lastEvent,
   playerPosition, selectedMove, onSelectMove,
-  participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget,
+  participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget, range,
 }: {
   playerName: string
   enemyName: string
@@ -78,6 +84,8 @@ function BattleGrid({
   playerSide?: number
   selectedTargetId?: string | null
   onSelectTarget?: (participantId: string) => void
+  /** Дальность оружия в клетках: до каких клеток оно достаёт отсюда. */
+  range?: number
 }) {
   const midRow = Math.floor(GRID_ROWS / 2)
   return (
@@ -103,6 +111,7 @@ function BattleGrid({
             const isCenter = col === Math.floor(GRID_COLS / 2) && row === midRow
             // подсветка хода — по тем же правилам соседства, что у сервера
             const canMove = isNeighbour(playerCell, cell) && !occupant
+            const inRange = !!range && range > 1 && !occupant && hexDistance(playerCell, cell) <= range
             const isSelected = selectedMove?.x === col && selectedMove?.y === row
             const isTarget = isEnemy && occupant?.participantId === selectedTargetId
             const clickable = canMove || (isEnemy && !!occupant)
@@ -114,6 +123,7 @@ function BattleGrid({
                   + (isEnemy ? ' is-enemy' : '')
                   + (isCenter ? ' is-center' : '')
                   + (canMove ? ' is-movable' : '')
+                  + (inRange ? ' is-in-range' : '')
                   + (isSelected ? ' is-selected' : '')
                   + (isTarget ? ' is-target' : '')
                   + (clickable ? ' is-clickable' : '')}
@@ -426,6 +436,7 @@ export function BattlePage() {
     actionMut.mutate({ action, opts })
   }
   const playerName = char?.nickname ?? 'Игрок'
+  const isMobile = useIsMobile()
 
   // ── Зональный ход: стойки и выбор зон ──────────────────
   const applyAutomaticPlan = (plan: { stance: Stance; attackZones: BodyZone[]; attackHands: AttackHand[]; blockZones: BodyZone[] }) => {
@@ -525,6 +536,112 @@ export function BattlePage() {
           )}
         </div>
       </div>
+    )
+  }
+
+  // ── Компьютер: бой на сцене города (правка заказчика 22.10) ──
+  if (!isMobile) {
+    const budget = getActionBudget(stance)
+    const validation = validateTurnPlan({ stance, attackZones, attackHands, blockZones, targetParticipantId: ePart?.participantId, targetInRange, selectedMove })
+    const ready = !!selectedMove || validation.valid
+    const planEmpty = attackZones.length === 0 && blockZones.length === 0 && !selectedMove
+    const grid = <BattleGrid playerName={playerName} enemyName={enemyName}
+      playerDefeated={false} enemyDefeated={false}
+      playerHit={playerHit} enemyHit={enemyHit}
+      playerAttack={playerAttack} enemyAttack={enemyAttack} lastEvent={lastEvent}
+      distance={currentDistance} playerPosition={pPart?.position}
+      enemyPosition={ePart?.position} selectedMove={selectedMove} onSelectMove={selectMove}
+      participants={live?.participants} playerParticipantId={pPart?.participantId}
+      playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
+      onSelectTarget={setSelectedTargetId} range={playerRange ?? undefined} />
+    return (
+      <BattleDesk
+        playerWounds={pPart?.wounds ?? {}}
+        enemyWounds={ePart?.wounds ?? {}}
+        enemyTag={enemyParts.length > 1 ? 'Цель' : undefined}
+        enemy={{
+          nickname: enemyName, level: enemyProfile?.level ?? 0,
+          hp: eHp, hpMax: eHpMax,
+          avatar: enemyProfile?.avatar,
+          gender: enemyProfile?.gender,
+          weaponName: enemyProfile?.primaryHand,
+          weaponCode: enemyProfile?.primaryWeaponCode,
+          weaponType: enemyProfile?.primaryWeaponType,
+          offhandName: enemyProfile?.secondaryHand,
+          offhandCode: enemyProfile?.secondaryWeaponCode,
+        }}
+        header={<header className="battle-desk__head">
+          <Sword size={15} /><b>Бой</b>
+          <span className="battle-desk__timer" title="Время на ход">{timerText}</span>
+          <b>Раунд {currentRound} / 30</b>
+          <span>{playerName} {pHp}/{pHpMax} · {enemyName} {eHp}/{eHpMax}</span>
+          <span className={'battle-desk__status' + (actionMut.isPending ? ' is-pending' : '')}>
+            {actionMut.isPending ? 'Ход отправляется…' : pPart?.hasActedThisRound ? 'Ждём противника' : 'Ваш ход'}
+          </span>
+          <span className="battle-desk__tools">
+            <button type="button" onClick={() => { setShowLog(false); setPocketsOpen(value => !value) }}>
+              <Backpack size={13} /> Карман {pocketSlots.filter(Boolean).length}
+            </button>
+            <button type="button" onClick={() => { setPocketsOpen(false); setShowLog(value => !value) }}>Весь лог</button>
+            <button type="button" className="is-surrender" disabled={!canAct} onClick={() => act('surrender')}>
+              <Flag size={13} /> Сдаться
+            </button>
+          </span>
+        </header>}
+        field={<div className="battle-field-v3">
+          {grid}
+          <div className="battle-field-v3__meta">
+            <span>Дистанция: <b>{currentDistance}</b></span>
+            <span title="Сколько клеток достаёт оружие; у дальнобойного они подсвечены голубым">Дальность: <b>{playerRange ?? '—'}</b></span>
+          </div>
+        </div>}
+        blockZones={<BattleZoneList mode="block" title="Блок" selected={blockZones}
+          limit={attackHands.length > 0 ? 2 : 4} disabled={!canAct || attackHands.length === 2}
+          wounds={pPart?.wounds} onZone={toggleBlock} />}
+        attackZones={<BattleZoneList mode="attack" title="Удар" selected={attackZones}
+          selectedHands={attackHands} limit={blockZones.length > 0 ? 1 : 2}
+          disabled={!canAct || !ePart?.participantId} disabledHands={disabledAttackHands}
+          note={disabledAttackHands.length === 2 && outOfRangeHands.length > 0 ? 'Цель дальше, чем бьёт оружие' : undefined}
+          wounds={ePart?.wounds} onHandZone={toggleAttackHand} />}
+        log={battleId ? <PersistedBattleChronicle battleId={battleId} refreshKey={currentRound}
+          playerSide={pPart?.side} onOpenLog={() => { setPocketsOpen(false); setShowLog(true) }} /> : null}
+        actions={<>
+          <p className="battle-desk__hint">
+            <span className={ready ? 'is-ready' : ''}>{selectedMove ? 'Выбран шаг' : validation.valid ? 'Ход готов' : validation.reason}</span>
+            <b>{budget.attacks} уд. / {budget.blocks} бл.</b>
+          </p>
+          <div className="battle-desk__buttons">
+            <button type="button" disabled={planEmpty} onClick={resetPlan}>Сбросить</button>
+            <button type="button" className="is-apply battle-submit-turn" disabled={!canAct || !ready || actionMut.isPending}
+              onClick={selectedMove ? submitMove : submitTurn}>
+              {actionMut.isPending ? 'Отправляем…' : selectedMove ? 'Перейти' : 'Применить'}
+            </button>
+          </div>
+          <div className="battle-desk__companions">
+            {pPart?.helper && <BattleHelperBadge helper={pPart.helper} pending={helperTacticMut.isPending}
+              onTactic={tactic => helperTacticMut.mutate(tactic)} />}
+            {pPart?.dog && <div className="battle-dog" aria-label="Собака в бою">
+              <span><b>{pPart.dog.name}</b> ур. {pPart.dog.level}</span><span>укусила на {pPart.dog.damageDealt}</span>
+            </div>}
+          </div>
+        </>}
+        overlay={<>
+          {actionError && <div className="battle-error-v3" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
+          {(showLog || pocketsOpen) && <aside className="battle-drawer" aria-label={showLog ? 'Лог боя' : 'Боевой карман'}>
+            <button type="button" className="battle-drawer__scrim" aria-label="Закрыть" onClick={() => { setShowLog(false); setPocketsOpen(false) }} />
+            <section>
+              <header><b>{showLog ? 'Лог боя' : 'Боевой карман'}</b><button type="button" onClick={() => { setShowLog(false); setPocketsOpen(false) }}>Закрыть</button></header>
+              {showLog ? <div className="log-body-v2">
+                {battleId && <BattleJournal battleId={battleId} refreshKey={currentRound} />}
+              </div> : <>
+                <BattlePockets slots={pocketSlots} canAct={canAct} open
+                  onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />
+                <BattleSwap inventory={items} plan={swapPlan} canAct={canAct} open onChange={setSwapPlan} />
+              </>}
+            </section>
+          </aside>}
+        </>}
+      />
     )
   }
 

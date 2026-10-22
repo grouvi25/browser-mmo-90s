@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Users, ShieldAlert, UserPlus, LogOut } from 'lucide-react'
-import { clansApi, CLAN_PERMISSIONS, type ClanObject, type ClanPermission, type ClanTerritory } from '../../shared/api/clans.api'
+import { clansApi, type ClanObject, type ClanTerritory } from '../../shared/api/clans.api'
 import { fmt, Skeleton, Fault, Note } from './stage3-ui'
 import { useMyClan } from './use-my-clan'
 import { IncomingInvites } from './clan-invites'
@@ -84,8 +84,6 @@ export function ClanSection({ embedded = false }: { embedded?: boolean } = {}) {
       <ClanHoldings objects={clan.objects ?? []} territories={clan.territories ?? []} />
 
       {can('EDIT') && <ClanIconEditor clanId={clan.id} iconVersion={clan.iconVersion ?? 0} />}
-
-      {can('ASSIGN_ROLE') && <RolesEditor roles={clan.roles ?? []} onDone={done} onFail={fail} />}
 
       {member?.role?.code !== 'boss' && (
         <div className="clan-leave">
@@ -234,11 +232,12 @@ function MemberRow({ member, roles, isSelf, canAssign, canKick, onDone, onFail }
   onDone: (t: string) => void
   onFail: (e: Error) => void
 }) {
-  // Должность меняется кнопкой «Сохранить», а не сразу при выборе:
-  // случайный клик по списку не должен менять роль и слать уведомление.
-  const [picked, setPicked] = useState(member.role.id)
+  // Правка заказчика 22.10: «Роли и права дублируются кучу раз — оставить
+  // в одном месте, где список игроков, и ровные кнопки для смены
+  // должности». Редактор прав ролей убран. Случайный клик не должен
+  // менять должность и слать уведомление, поэтому смена — с подтверждением.
   const assign = useMutation({
-    mutationFn: () => clansApi.assignRole(member.characterId, picked),
+    mutationFn: (roleId: string) => clansApi.assignRole(member.characterId, roleId),
     onSuccess: () => onDone('Должность сохранена. Игроку пришло уведомление в чат.'),
     onError: onFail,
   })
@@ -254,17 +253,18 @@ function MemberRow({ member, roles, isSelf, canAssign, canKick, onDone, onFail }
       <td>{member.character?.battleLevel ?? '—'}</td>
       <td>
         {canAssign && !isSelf ? (
-          <span className="role-pick">
-            <select
-              value={picked}
-              aria-label={'Роль: ' + (member.character?.nickname ?? '')}
-              onChange={e => setPicked(e.target.value)}
-            >
-              {roles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
-            </select>
-            <button type="button" disabled={picked === member.role.id || assign.isPending} onClick={() => assign.mutate()}>
-              {assign.isPending ? 'Сохраняем…' : 'Сохранить'}
-            </button>
+          <span className="role-buttons" role="group" aria-label={'Должность: ' + (member.character?.nickname ?? '')}
+            style={{ gridTemplateColumns: `repeat(${roles.length}, 1fr)` }}>
+            {roles.map(role => (
+              <button key={role.id} type="button" aria-pressed={role.id === member.role.id}
+                className={role.id === member.role.id ? 'is-current' : ''}
+                disabled={role.id === member.role.id || assign.isPending}
+                onClick={() => {
+                  if (window.confirm(`Назначить ${member.character?.nickname ?? 'бойца'} на должность «${role.name}»?`)) assign.mutate(role.id)
+                }}>
+                {role.name}
+              </button>
+            ))}
           </span>
         ) : member.role.name}
       </td>
@@ -274,81 +274,5 @@ function MemberRow({ member, roles, isSelf, canAssign, canKick, onDone, onFail }
         )}
       </td>
     </tr>
-  )
-}
-
-/** Роль — это набор прав, который главарь может перенастроить. */
-function RolesEditor({ roles, onDone, onFail }: {
-  roles: Array<{ id: string; code: string; name: string; permissions: ClanPermission[] }>
-  onDone: (t: string) => void
-  onFail: (e: Error) => void
-}) {
-  const [openId, setOpenId] = useState('')
-  const role = roles.find(r => r.id === openId)
-
-  return (
-    <section className="roles-editor">
-      <h3>Роли и права</h3>
-      <div className="s3-tabs">
-        {roles.map(item => (
-          <button
-            key={item.id}
-            className={openId === item.id ? 'active' : ''}
-            onClick={() => setOpenId(openId === item.id ? '' : item.id)}
-          >
-            {item.name}
-          </button>
-        ))}
-      </div>
-      {role && <RoleForm key={role.id} role={role} onDone={onDone} onFail={onFail} />}
-    </section>
-  )
-}
-
-function RoleForm({ role, onDone, onFail }: {
-  role: { id: string; code: string; name: string; permissions: ClanPermission[] }
-  onDone: (t: string) => void
-  onFail: (e: Error) => void
-}) {
-  const [name, setName] = useState(role.name)
-  const [permissions, setPermissions] = useState<ClanPermission[]>(role.permissions)
-
-  const save = useMutation({
-    mutationFn: () => clansApi.updateRole(role.id, name, permissions),
-    onSuccess: () => onDone('Права роли обновлены'),
-    onError: onFail,
-  })
-
-  const toggle = (code: ClanPermission) =>
-    setPermissions(prev => prev.includes(code) ? prev.filter(x => x !== code) : [...prev, code])
-
-  // Главарь не может отнять у себя право назначать роли — клан станет неуправляемым.
-  const lockedOut = role.code === 'boss' && !permissions.includes('ASSIGN_ROLE')
-
-  return (
-    <div className="role-form">
-      <label>
-        Название роли
-        <input value={name} onChange={e => setName(e.target.value)} />
-      </label>
-      <ul className="perm-list">
-        {CLAN_PERMISSIONS.map(perm => (
-          <li key={perm.code}>
-            <label>
-              <input
-                type="checkbox"
-                checked={permissions.includes(perm.code)}
-                onChange={() => toggle(perm.code)}
-              />
-              {perm.label}
-            </label>
-          </li>
-        ))}
-      </ul>
-      {lockedOut && <p className="s3-hint s3-hint--warn">Главарь обязан сохранить право «Назначать роли».</p>}
-      <button onClick={() => save.mutate()} disabled={save.isPending || lockedOut || name.trim().length < 2}>
-        Сохранить права
-      </button>
-    </div>
   )
 }

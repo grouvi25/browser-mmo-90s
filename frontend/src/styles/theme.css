@@ -262,6 +262,19 @@ html, body {
           drop-shadow(0 0 4px rgba(200, 30, 30, .95));
 }
 
+/* Раны в бою (правка 22.10): зелёный → жёлтый → оранжевый → красный.
+   Маска — рисунок зоны, поэтому цвет ложится ровно по её контуру. */
+.zone-wound {
+  position: absolute; pointer-events: none;
+  mask-size: 100% 100%; -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+  opacity: .85;
+}
+.zone-wound.is-0 { background: #4caf3a; }
+.zone-wound.is-1 { background: #f2d22e; }
+.zone-wound.is-2 { background: #f08a1c; }
+.zone-wound.is-3 { background: #d4231c; opacity: 1; }
+
 /* Портрет при наведении не подсвечивается — см. выше. */
 
 /* =============================================================

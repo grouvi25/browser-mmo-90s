@@ -14,6 +14,7 @@ import { QUALITY_LABELS, type ShopItem } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { SHOP_IMAGES } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
+import { rangeLabel } from '../../shared/lib/weapon-range'
 import './shop.css'
 
 type Category = 'WEAPON' | 'ARMOR' | 'MEDICINE' | 'TOOL' | 'FOOD' | 'DRINK'
@@ -40,6 +41,7 @@ function bonusLines(item: ShopItem): string[] {
   const out: string[] = []
   if (t.minDamage != null && t.maxDamage != null) out.push(`Урон: ${t.minDamage}–${t.maxDamage}`)
   if (t.weaponAccuracy) out.push(`Точность: ${Math.round(t.weaponAccuracy * 100)}%`)
+  if (t.type === 'WEAPON' && t.maxRange) out.push(`Дальность: ${rangeLabel(t.maxRange)}`)
   if (t.critBonus) out.push(`Крит: +${Math.round(t.critBonus * 100)}%`)
   if (t.armor) out.push(`Броня тела: +${t.armor}`)
   if (t.dodgeBonus) out.push(`Уворот: +${Math.round(t.dodgeBonus * 100)}%`)

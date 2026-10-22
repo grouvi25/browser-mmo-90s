@@ -77,12 +77,12 @@ test('battle reload restores server round, range, target distance and persisted 
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   await authenticate(page); await mockApi(page, () => battle())
   await page.goto(`/battle/${battleId}`)
-  await expect(page.locator('.battle-header-v3')).toContainText('Раунд 7 / 30')
+  await expect(page.locator('.battle-header-v3, .battle-desk__head')).toContainText('Раунд 7 / 30')
   await expect(page.locator('.battle-field-v3__meta')).toHaveText('Дистанция: 1Дальность: 1')
   await expect(page.getByRole('button', { name: 'Удар левой рукой, цель: голова', exact: true })).toBeEnabled()
   await expect(page.getByRole('region', { name: 'Хроника боя' })).toContainText('удар в корпус, −5 HP')
   await page.reload()
-  await expect(page.locator('.battle-header-v3')).toContainText('Раунд 7 / 30')
+  await expect(page.locator('.battle-header-v3, .battle-desk__head')).toContainText('Раунд 7 / 30')
   await expect(page.getByRole('region', { name: 'Хроника боя' })).toContainText('удар в корпус, −5 HP')
   expect(errors).toEqual([])
 })
@@ -97,7 +97,7 @@ test('action override expires when polling observes an automatic round', async (
   // Simulate server timeout advancing the round after our previous action.
   round = 9; foe = enemy
   await expect(page.locator('.battle-field-v3__meta')).toHaveText('Дистанция: 1Дальность: 1')
-  await expect(page.locator('.battle-header-v3')).toContainText('Раунд 9 / 30')
+  await expect(page.locator('.battle-header-v3, .battle-desk__head')).toContainText('Раунд 9 / 30')
   await expect(page.getByRole('button', { name: 'Удар левой рукой, цель: голова', exact: true })).toBeEnabled()
 })
 
@@ -119,6 +119,10 @@ test('polling clears a destination that the enemy has taken', async ({ page }) =
   let foe = enemy
   await authenticate(page); await mockApi(page, () => battle(7, foe))
   await page.goto(`/battle/${battleId}`)
+  // Пока бой не загружен, поле рисует бойца на клетке по умолчанию: номер
+  // клетки читаем только после загрузки, иначе он разойдётся с кликом.
+  await expect(page.locator('.battle-header-v3, .battle-desk__head')).toContainText('Раунд 7 / 30')
+  await expect(page.locator('.hex-cell.is-player')).toHaveCount(1)
   const cell = page.getByRole('button', { name: /^Перейти в клетку/ }).first()
   const label = await cell.getAttribute('aria-label'); const [x, y] = label!.split(' ').pop()!.split(':').map(Number)
   await cell.click(); await expect(page.locator('.battle-submit-turn')).toHaveText('Перейти')
@@ -134,7 +138,7 @@ test('protected URL survives login instead of resuming a different last location
   await page.getByPlaceholder('Ваш логин').fill('qa'); await page.getByPlaceholder('Пароль').fill('test-password')
   await page.getByRole('button', { name: 'Войти в игру' }).click()
   await expect(page).toHaveURL(new RegExp(`/battle/${battleId}$`))
-  await expect(page.locator('.battle-header-v3')).toContainText('Раунд 7')
+  await expect(page.locator('.battle-header-v3, .battle-desk__head')).toContainText('Раунд 7')
 })
 
 test('character creation displays live 25000 rather than hardcoded 1250', async ({ page }) => {
