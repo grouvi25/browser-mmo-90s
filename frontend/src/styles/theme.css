@@ -1033,3 +1033,9 @@ html, body {
 .market-levels { display: grid; gap: 6px; padding-left: 18px; }
 .market-levels .btn { margin-left: 8px; }
 .market-form input[aria-label="Номер магазина"] { min-width: 260px; }
+/* Локации, закрытые до нужного боевого уровня: видны, но не открываются. */
+.city-locations button.is-locked { opacity:.45; cursor:not-allowed; }
+.city-locations button.is-locked:hover { background:var(--paper-warm); border-color:var(--border); }
+.city-locations__lock { font-weight:400; font-size:11px; }
+.level-gate { padding:24px; text-align:center; }
+.level-gate h2 { margin:0 0 8px; }

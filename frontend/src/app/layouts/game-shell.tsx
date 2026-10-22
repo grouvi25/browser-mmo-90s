@@ -18,6 +18,7 @@ import { MobileShell } from './mobile-shell'
 import { Stage } from '../../shared/lib/stage'
 import { PLATES } from '../../shared/ui/sprite'
 import { CharacterCard } from '../../widgets/character-card/character-card'
+import { LevelGate } from '../../widgets/level-gate/level-gate'
 import { LocationTabs } from '../../widgets/city-nav/location-tabs'
 import { TopNav } from '../../widgets/city-nav/city-nav'
 import { CityChatDock } from '../../widgets/city-feed/city-feed'
@@ -69,7 +70,7 @@ export function GameShell() {
           width: MENU.viewport.w, height: MENU.viewport.h,
         }}
       >
-        <ErrorBoundary><Outlet /></ErrorBoundary>
+        <ErrorBoundary><LevelGate><Outlet /></LevelGate></ErrorBoundary>
       </div>
 
       <CityChatDock />

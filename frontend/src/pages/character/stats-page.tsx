@@ -13,6 +13,11 @@ import {
 } from 'lucide-react'
 
 const STAT_KEYS = ['str', 'agi', 'rea', 'acc', 'end', 'luck', 'agr', 'auth'] as const
+type StatKey = typeof STAT_KEYS[number]
+type Draft = Partial<Record<StatKey, number>>
+
+const RESPEC_PRICE = 5000
+const MAX_STAT = 20
 
 // Lucide иконки для каждой характеристики
 const STAT_ICON_MAP: Record<string, React.ReactNode> = {
@@ -26,9 +31,22 @@ const STAT_ICON_MAP: Record<string, React.ReactNode> = {
   auth: <Crown    size={20} />,
 }
 
+/** Производные параметры — формулы те же, что на сервере. */
+function derived(s: Record<string, number>, level: number) {
+  return { hp: 60 + s.end * 6 + level * 2, carry: 20 + s.str * 6, init: s.rea * 1.2 + s.agi * 0.6 }
+}
+
+function Delta({ now, next, digits = 0, unit = '' }: { now: number; next: number; digits?: number; unit?: string }) {
+  const diff = next - now
+  return <>{next.toFixed(digits)}{unit}{Math.abs(diff) > 1e-9 && <span className="stats-delta"> ({diff > 0 ? '+' : ''}{diff.toFixed(digits)})</span>}</>
+}
+
+/** Обещание игрокам 22.10: «+» и «−» только двигают черновик — видно, как
+    меняются производные параметры, — а тратятся очки по «Подтвердить». */
 export function StatsPage() {
   const qc = useQueryClient()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [draft, setDraft] = useState<Draft>({})
 
   const { data: char, isLoading } = useQuery({
     queryKey: ['character', 'me'],
@@ -39,27 +57,42 @@ export function StatsPage() {
     setMessage({ type, text })
     setTimeout(() => setMessage(null), 4000)
   }
+  const done = (data: { message: string }) => {
+    setDraft({})
+    void qc.invalidateQueries({ queryKey: ['character'] })
+    showMsg('success', data.message)
+  }
+  const fail = (err: unknown) => showMsg('error', err instanceof ApiError ? err.message : 'Ошибка')
+  type Reply = { message: string; stats: CharacterStats }
 
-  const distributeMut = useMutation({
-    mutationFn: (stat: string) =>
-      api.post<{ message: string; stats: CharacterStats }>('/api/characters/stats/distribute', { stat, amount: 1 }),
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ['character'] })
-      showMsg('success', data.message)
-    },
-    onError: (err) => {
-      showMsg('error', err instanceof ApiError ? err.message : 'Ошибка')
-    },
+  const applyMut = useMutation({
+    mutationFn: (deltas: Draft) => api.post<Reply>('/api/characters/stats/apply', { deltas }),
+    onSuccess: done, onError: fail,
+  })
+  const respecMut = useMutation({
+    mutationFn: () => api.post<Reply>('/api/characters/stats/respec', {}),
+    onSuccess: done, onError: fail,
+  })
+  const buyMut = useMutation({
+    mutationFn: () => api.post<Reply>('/api/characters/stats/respec/buy', {}),
+    onSuccess: done, onError: fail,
   })
 
   if (isLoading) return <div className="loading"><span className="spinner" />Загрузка...</div>
   if (!char || !char.stats) return <div className="alert alert-error">Персонаж не найден</div>
 
-  const s = char.stats
-  const points = s.pointsAvailable
+  const s = char.stats as unknown as Record<string, number>
+  const used = Object.values(draft).reduce((sum, v) => sum + (v ?? 0), 0)
+  const points = char.stats.pointsAvailable - used
+  const next: Record<string, number> = Object.fromEntries(STAT_KEYS.map(k => [k, (s[k] ?? 0) + (draft[k] ?? 0)]))
+  const before = derived(s, char.battleLevel)
+  const after = derived(next, char.battleLevel)
+  const scrolls = char.stats.respecScrolls ?? 0
+  const busy = applyMut.isPending || respecMut.isPending || buyMut.isPending
+  const bump = (key: StatKey, d: 1 | -1) => setDraft(prev => ({ ...prev, [key]: Math.max(0, (prev[key] ?? 0) + d) }))
 
   return (
-    <div style={{ maxWidth: 600 }}>
+    <div style={{ maxWidth: 640 }}>
       {message && <div className={`alert alert-${message.type} mb8`}>{message.text}</div>}
 
       <div className="panel panel-gold">
@@ -73,10 +106,17 @@ export function StatsPage() {
           </span>
         </div>
         <div className="panel-body">
-          {points > 0 ? (
+          {/* Производные — сверху, чтобы при «+» и «−» были перед глазами. */}
+          <div className="stats-derived">
+            <div><span><Heart size={11} /> HP</span><b><Delta now={before.hp} next={after.hp} /></b><small>60 + ВЫН×6 + Ур.×2</small></div>
+            <div><span><Scale size={11} /> Перенос веса</span><b><Delta now={before.carry} next={after.carry} unit=" кг" /></b><small>20 + СИЛ×6</small></div>
+            <div><span><Zap size={11} /> Инициатива</span><b>~<Delta now={before.init} next={after.init} digits={1} /></b><small>РЕА×1.2 + ЛВК×0.6</small></div>
+          </div>
+
+          {char.stats.pointsAvailable > 0 ? (
             <div className="alert alert-warning mb12">
-              Доступно <strong>{points}</strong> очк{points === 1 ? 'о' : 'а'} для распределения!
-              Нажми «+» рядом с нужной характеристикой.
+              Свободных очков: <strong>{points}</strong>{used > 0 && <> (в черновике {used})</>}.
+              «+» и «−» ничего не тратят — очки вкладываются по кнопке «Подтвердить».
             </div>
           ) : (
             <div className="alert alert-info mb12" style={{ fontSize: 13.9 }}>
@@ -85,26 +125,22 @@ export function StatsPage() {
             </div>
           )}
 
-          {/* Таблицей, как профессии на странице Работы, с «+» в строке
-              (правка заказчика 20.10). */}
           <table className="data-table stats-table">
-            <thead><tr><th>Характеристика</th><th>Что даёт</th><th>Значение</th><th aria-label="Вложить очко" /></tr></thead>
+            <thead><tr><th>Характеристика</th><th>Что даёт</th><th>Значение</th><th aria-label="Изменить" /></tr></thead>
             <tbody>
               {STAT_KEYS.map(key => {
-                const val = (s as unknown as Record<string, number>)[key] ?? 0
-                const isMax = val >= 20
+                const val = next[key]
+                const add = draft[key] ?? 0
                 return (
                   <tr key={key}>
                     <td><span className="stats-table__icon" aria-hidden="true">{STAT_ICON_MAP[key]}</span> <b>{STAT_FULL[key]}</b></td>
                     <td className="text-dim">{STAT_DESCRIPTIONS[key]}</td>
-                    <td className="stats-table__value">{val}</td>
+                    <td className="stats-table__value">{val}{add > 0 && <span className="stats-delta"> (+{add})</span>}</td>
                     <td className="stats-table__action">
-                      {isMax ? <span className="text-dim">МАКС</span> : (
-                        <button className="btn btn-sm btn-success" disabled={points <= 0 || distributeMut.isPending}
-                          onClick={() => distributeMut.mutate(key)} title={`+1 ${STAT_FULL[key]}`} aria-label={`+1 ${STAT_FULL[key]}`}>
-                          +
-                        </button>
-                      )}
+                      <button className="btn btn-sm" disabled={add <= 0 || busy}
+                        onClick={() => bump(key, -1)} title={`−1 ${STAT_FULL[key]}`} aria-label={`−1 ${STAT_FULL[key]}`}>−</button>
+                      <button className="btn btn-sm btn-success" disabled={points <= 0 || val >= MAX_STAT || busy}
+                        onClick={() => bump(key, 1)} title={`+1 ${STAT_FULL[key]}`} aria-label={`+1 ${STAT_FULL[key]}`}>+</button>
                     </td>
                   </tr>
                 )
@@ -112,40 +148,17 @@ export function StatsPage() {
             </tbody>
           </table>
 
-          {/* HP & derived stats */}
-          <div style={{ marginTop: 16, padding: 10, background: 'var(--bg-panel2)', border: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 13.25, fontWeight: 'bold', color: 'var(--text-bright)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <BarChart2 size={12} /> Производные параметры
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 13.9 }}>
-              <div>
-                <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <Heart size={11} /> HP
-                </div>
-                <div style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
-                  {char.hpCurrent} / {char.hpMax}
-                </div>
-                <div style={{ color: 'var(--text-dim)', fontSize: 13.65 }}>60 + ВЫН×6 + Ур.×2</div>
-              </div>
-              <div>
-                <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <Scale size={11} /> Перенос веса
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)' }}>
-                  {20 + s.str * 6} кг
-                </div>
-                <div style={{ color: 'var(--text-dim)', fontSize: 13.65 }}>20 + СИЛ×6</div>
-              </div>
-              <div>
-                <div style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <Zap size={11} /> Инициатива
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)' }}>
-                  ~{(s.rea * 1.2 + s.agi * 0.6).toFixed(1)}
-                </div>
-                <div style={{ color: 'var(--text-dim)', fontSize: 13.65 }}>РЕА×1.2 + ЛВК×0.6</div>
-              </div>
-            </div>
+          <div className="stats-actions">
+            <button className="btn" disabled={used === 0 || busy} onClick={() => setDraft({})}>Сбросить</button>
+            <button className="btn btn-primary" disabled={used === 0 || busy} onClick={() => applyMut.mutate(draft)}>Подтвердить</button>
+          </div>
+
+          <div className="stats-respec">
+            <b>Свитки перераспределения: {scrolls}</b>
+            <p className="text-dim">Свиток возвращает все вложенные очки, характеристики — к стартовым. Два свитка выдаются бесплатно, следующие — {RESPEC_PRICE.toLocaleString('ru')} ₽.</p>
+            <button className="btn" disabled={scrolls <= 0 || busy}
+              onClick={() => { if (window.confirm('Вернуть все вложенные очки? Будет потрачен один свиток.')) respecMut.mutate() }}>Использовать свиток</button>
+            <button className="btn" disabled={busy} onClick={() => buyMut.mutate()}>Купить свиток · {RESPEC_PRICE.toLocaleString('ru')} ₽</button>
           </div>
         </div>
       </div>

@@ -6,6 +6,8 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { prisma } from '../../shared/db/prisma'
 import { CharactersRepository } from '../characters/characters.repository'
 import { SUPPORT, SupportService } from './support.service'
+import { ChatRedis } from '../../shared/db/redis'
+import { PRESENCE_TTL_SEC } from '../chat/chat.service'
 
 const bad = { code: 'GEN_001', message: 'Validation error' }
 const Id = z.string().uuid()
@@ -21,6 +23,18 @@ export async function supportRoutes(fastify: FastifyInstance) {
   }
 
   fastify.get('/', { preHandler: authenticate }, async req => SupportService.mine((await me(req.authUser.userId)).id))
+
+  // GET /api/support/moderators — кто из модераторов в сети, остальные ниже
+  // (обещание игрокам 22.10: «вкладка с модераторами, кто в сети»).
+  fastify.get('/moderators', { preHandler: authenticate }, async () => {
+    const [rows, online] = await Promise.all([
+      prisma.character.findMany({ where: { isModerator: true }, select: { id: true, nickname: true, battleLevel: true, lastActiveAt: true }, orderBy: { nickname: 'asc' } }),
+      ChatRedis.presenceList(PRESENCE_TTL_SEC, 1000),
+    ])
+    const live = new Set(online)
+    const items = rows.map(r => ({ nickname: r.nickname, level: r.battleLevel, online: live.has(r.id), lastActiveAt: r.lastActiveAt }))
+    return { items: items.sort((a, b) => Number(b.online) - Number(a.online)) }
+  })
 
   fastify.post<{ Body: { text: string; image?: string | null } }>('/', { preHandler: authenticate, bodyLimit: BODY_LIMIT }, async (req, reply) => {
     const parsed = z.object({

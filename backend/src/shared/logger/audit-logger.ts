@@ -10,6 +10,7 @@ type AuditEvent =
   | 'item.sold'
   | 'item.discarded'
   | 'item.equipped'
+  | 'item.outfit_worn'
   | 'item.unequipped'
   | 'item.repaired'
   | 'battle.started'

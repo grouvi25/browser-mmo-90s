@@ -205,6 +205,8 @@ enum CurrencyLogReason {
   CLAN_MAINTENANCE
   SALARY_FROM_OBJECT
   WORK_SALARY // Зарплата за работу (этап 2)
+  STAT_RESPEC_PURCHASE // Свиток перераспределения характеристик
+  CURRENCY_EXCHANGE // Обменник Чёрного рынка
 }
 
 enum ItemLogAction {
@@ -297,6 +299,8 @@ enum AdminActionKind {
   TAKE_DOLLARS
   SET_DEALER
   UNSET_DEALER
+  SET_MODERATOR
+  UNSET_MODERATOR
   BAN_USER
   UNBAN_USER
   MUTE_USER
@@ -556,6 +560,8 @@ model Character {
   dollars     Int       @default(0) @map("dollars")
   /// Дилер получает доллары от администрации и пополняет ими счета игроков.
   isDealer    Boolean   @default(false) @map("is_dealer")
+  /// Модератор игры («Красные»): виден во вкладке Поддержки «Модераторы».
+  isModerator Boolean   @default(false) @map("is_moderator")
   /// «Кровавая травма» после проигранной осады: до этого времени в бой нельзя.
   traumaUntil DateTime? @map("trauma_until")
 
@@ -657,6 +663,8 @@ model CharacterStats {
 
   // Available points to distribute
   pointsAvailable Int @default(0) @map("points_available")
+  /// Свитки перераспределения: два бесплатно, дальше за рубли.
+  respecScrolls   Int @default(2) @map("respec_scrolls")
 
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -2158,6 +2166,7 @@ enum DollarReason {
   PURCHASE // покупка товара за доллары
   MARKET_SALE // выручка с продажи на рынке за доллары
   MARKET_TAX // налог с такой продажи
+  EXCHANGE // обменник Чёрного рынка (знак — направление)
 }
 
 enum MarketCurrency {
@@ -2410,4 +2419,18 @@ model SupportTicket {
   @@index([characterId, createdAt])
   @@index([status, createdAt])
   @@map("support_tickets")
+}
+
+/// Комплект одежды (обещание игрокам 22.10): до трёх на персонажа, надевается
+/// одной кнопкой на Складе или в доме. items — [{ itemId, slot }].
+model OutfitPreset {
+  id          String   @id @default(uuid())
+  characterId String   @map("character_id")
+  slot        Int
+  name        String   @db.VarChar(32)
+  items       Json
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([characterId, slot])
+  @@map("outfit_presets")
 }

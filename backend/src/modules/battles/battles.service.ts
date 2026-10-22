@@ -38,13 +38,19 @@ import {
 import type { BodyZone } from '@prisma/client'
 import {
   BATTLE_GRID,
+  DUEL_ARENA,
+  DUEL_OBSTACLES,
+  arenaBlockers,
+  insideArena,
+  samePosition,
+  type Arena,
   canAttackTarget,
   canMoveTo,
   gridDistance,
   resolveSimultaneousMoves,
   selectEnemyTarget,
   stepAway,
-  stepToward,
+  stepTowardOrAround,
   teamSpawnPositions,
   type GridPosition,
   type PositionedParticipant,
@@ -153,6 +159,8 @@ export interface LiveBattleState {
   roundDeadline?: number    // unix ms for auto-resolve
   distance?: number         // compatibility projection of grid distance
   grid?: typeof BATTLE_GRID
+  arena?: Arena | null      // полоса дуэли; null — всё поле
+  obstacles?: GridPosition[]
 }
 
 function ensureGridState(state: LiveBattleState): void {
@@ -167,10 +175,23 @@ function ensureGridState(state: LiveBattleState): void {
       y: Math.min(BATTLE_GRID.height - 1, Math.floor(BATTLE_GRID.height / 2) + Math.ceil(offset / 2) * (offset % 2 === 0 ? 1 : -1)),
     }
   }
+  // Бой один на один — дуэль в полосе с бочками. Уже идущий бой, где кто-то
+  // стоит вне полосы или на месте бочки, доигрывается на всём поле.
+  if (state.arena === undefined) {
+    const duel = state.participants.length === 2
+      && state.participants.every(p => p.position && insideArena(p.position, DUEL_ARENA)
+        && !DUEL_OBSTACLES.some(o => samePosition(o, p.position!)))
+    state.arena = duel ? { ...DUEL_ARENA } : null
+    state.obstacles = duel ? DUEL_OBSTACLES.map(o => ({ ...o })) : []
+  }
 }
 
 function positionedParticipants(state: LiveBattleState): PositionedParticipant[] {
   ensureGridState(state)
+  return [...arenaBlockers(state.arena ?? undefined, state.obstacles), ...livePositioned(state)]
+}
+
+function livePositioned(state: LiveBattleState): PositionedParticipant[] {
   return state.participants.map(p => ({
     participantId: p.participantId,
     side: p.side,
@@ -1079,6 +1100,8 @@ export const BattleService = {
     }
 
     const liveState = await BattleRedis.getState<LiveBattleState>(battleId)
+    // Полоса дуэли и бочки видны с первого раунда, а не после первого хода.
+    if (liveState?.participants?.length) ensureGridState(liveState)
     const participantProfiles = await Promise.all(battle.participants.map(async participant => {
       if (participant.characterId) {
         const character = await prisma.character.findUnique({
@@ -1124,17 +1147,25 @@ export const BattleService = {
         : equipment.weapon && typeof equipment.weapon === 'object' ? 'Оружие' : null
       const botWeapon = equipment.weapon && typeof equipment.weapon === 'object'
         ? equipment.weapon as Record<string, unknown> : {}
+      // У ботов в базе оружие задано только цифрами. Чтобы карточка показывала,
+      // чем он бьёт (игроки не видели пистолет у бандита), достраиваем вид по дальности.
+      const reach = typeof botWeapon.maxRange === 'number' ? botWeapon.maxRange : 1
+      const shown = typeof botWeapon.code === 'string'
+        ? { code: botWeapon.code, type: typeof botWeapon.weaponType === 'string' ? botWeapon.weaponType : null, name: mainWeapon }
+        : reach >= 3 ? { code: 'weapon_pistol_pm', type: 'PISTOL', name: 'Пистолет ПМ' }
+        : (bot?.battleLevel ?? 1) >= 2 ? { code: 'weapon_pipe_basic', type: 'CLUB', name: 'Труба' }
+        : { code: 'weapon_fists', type: 'MELEE', name: 'Кулаки' }
       return {
         participantId: participant.id,
         name: bot?.name ?? 'Противник',
         level: bot?.battleLevel ?? 0,
         avatar: typeof equipment.avatar === 'string' ? equipment.avatar : null,
         gender: null,
-        primaryHand: mainWeapon,
+        primaryHand: mainWeapon === 'Оружие' || !mainWeapon ? shown.name : mainWeapon,
         secondaryHand: null,
-        primaryWeaponCode: typeof botWeapon.code === 'string' ? botWeapon.code : null,
+        primaryWeaponCode: shown.code,
         secondaryWeaponCode: null,
-        primaryWeaponType: typeof botWeapon.weaponType === 'string' ? botWeapon.weaponType : null,
+        primaryWeaponType: shown.type,
         secondaryWeaponType: null,
         primaryRange: typeof botWeapon.maxRange === 'number' ? Number(botWeapon.maxRange) : 1,
         secondaryRange: 1,
@@ -1468,7 +1499,7 @@ export const BattleService = {
       if (botWantsAttack && !canAttackTarget(gridBot, gridPlayer, projected, botRange)) {
         const candidates = botRange > 1 && gridDistance(gridBot.position, gridPlayer.position) <= 1
           ? stepAway(gridBot.position, gridPlayer.position)
-          : stepToward(gridBot.position, gridPlayer.position)
+          : stepTowardOrAround(gridBot.position, gridPlayer.position)
         const destination = candidates.find(cell => canMoveTo(gridBot, cell, projected))
         if (destination) {
           botPart.position = destination
@@ -1663,7 +1694,7 @@ export const BattleService = {
     if (botWantsAttack && !canAttackTarget(gridBot, gridPlayer, projected, botRange)) {
       const candidates = botRange > 1 && gridDistance(gridBot.position, gridPlayer.position) <= 1
         ? stepAway(gridBot.position, gridPlayer.position)
-        : stepToward(gridBot.position, gridPlayer.position)
+        : stepTowardOrAround(gridBot.position, gridPlayer.position)
       const destination = candidates.find(cell => canMoveTo(gridBot, cell, projected))
       if (destination) {
         botPart.position = destination
@@ -2687,7 +2718,18 @@ export const BattleService = {
   async getBattleHistory(userId: string, page: number, limit: number) {
     const char = await CharactersRepository.findByUserId(userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
+    return this.historyOf(char, page, limit)
+  },
 
+  /** История чужого бойца по нику (обещание игрокам 22.10: «анализ логов
+   *  соперников обязателен»). Невидимок не показываем. */
+  async getHistoryByNickname(nickname: string, page: number, limit: number) {
+    const char = await prisma.character.findFirst({ where: { nickname: { equals: nickname.trim(), mode: 'insensitive' } } })
+    if (!char || char.isInvisible) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Боец с таким ником не найден', 404)
+    return { nickname: char.nickname, ...(await this.historyOf(char, page, limit)) }
+  },
+
+  async historyOf(char: { id: string }, page: number, limit: number) {
     const skip = (page - 1) * limit
 
     const [battles, total] = await Promise.all([

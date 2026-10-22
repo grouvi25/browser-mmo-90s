@@ -60,7 +60,7 @@ function BattleGrid({
   playerName, enemyName,
   playerHit, enemyHit, playerAttack, enemyAttack, lastEvent,
   playerPosition, selectedMove, onSelectMove,
-  participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget, range,
+  participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget, range, arena, obstacles,
 }: {
   playerName: string
   enemyName: string
@@ -81,6 +81,8 @@ function BattleGrid({
   onSelectTarget?: (participantId: string) => void
   /** Дальность оружия в клетках: до каких клеток оно достаёт отсюда. */
   range?: number
+  arena?: { x0: number; x1: number; y0: number; y1: number } | null
+  obstacles?: { x: number; y: number }[]
 }) {
   const midRow = Math.floor(GRID_ROWS / 2)
   return (
@@ -104,9 +106,12 @@ function BattleGrid({
             const isAlly = !!occupant && !isPlayer && occupant.side === playerSide
             const isEnemy = !!occupant && occupant.side !== playerSide
             const isCenter = col === Math.floor(GRID_COLS / 2) && row === midRow
+            // Дуэль идёт в полосе 3×8, на поле — бочки (их не пройти).
+            const outside = !!arena && (col < arena.x0 || col > arena.x1 || row < arena.y0 || row > arena.y1)
+            const barrel = !!obstacles?.some(o => o.x === col && o.y === row)
             // подсветка хода — по тем же правилам соседства, что у сервера
-            const canMove = isNeighbour(playerCell, cell) && !occupant
-            const inRange = !!range && range > 1 && !occupant && hexDistance(playerCell, cell) <= range
+            const canMove = isNeighbour(playerCell, cell) && !occupant && !outside && !barrel
+            const inRange = !!range && range > 1 && !occupant && !outside && !barrel && hexDistance(playerCell, cell) <= range
             const isSelected = selectedMove?.x === col && selectedMove?.y === row
             const isTarget = isEnemy && occupant?.participantId === selectedTargetId
             const clickable = canMove || (isEnemy && !!occupant)
@@ -117,6 +122,8 @@ function BattleGrid({
                   + ((isPlayer || isAlly) ? ' is-player' : '')
                   + (isEnemy ? ' is-enemy' : '')
                   + (isCenter ? ' is-center' : '')
+                  + (outside ? ' is-outside' : '')
+                  + (barrel ? ' is-barrel' : '')
                   + (canMove ? ' is-movable' : '')
                   + (inRange ? ' is-in-range' : '')
                   + (isSelected ? ' is-selected' : '')
@@ -138,6 +145,7 @@ function BattleGrid({
                 }}
               >
                 <span className="designer-cell-hit" style={{ clipPath: designerCell.polygon }} />
+                {barrel && <span className="hex-barrel" style={fighterStyle} title="Бочка: не пройти и не прострелить" role="img" aria-label="Бочка" />}
                 {(isPlayer || isAlly) && occupant && (
                   <div style={fighterStyle} className={`fighter-token token-player ${isPlayer && playerHit ? 'token-hit' : ''} ${isPlayer && playerAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
                     {!occupant.isAlive ? <Skull size={16} /> : <img src={fighterBlue} srcSet={`${fighterBlue2x} 2x`} alt="" />}
@@ -545,7 +553,7 @@ export function BattlePage() {
       playerAttack={playerAttack} enemyAttack={enemyAttack} lastEvent={lastEvent}
       distance={currentDistance} playerPosition={pPart?.position}
       enemyPosition={ePart?.position} selectedMove={selectedMove} onSelectMove={selectMove}
-      participants={live?.participants} playerParticipantId={pPart?.participantId}
+      participants={live?.participants} playerParticipantId={pPart?.participantId} arena={live?.arena} obstacles={live?.obstacles}
       playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
       onSelectTarget={setSelectedTargetId} range={playerRange ?? undefined} />
     return (
@@ -730,7 +738,7 @@ export function BattlePage() {
             playerAttack={playerAttack} enemyAttack={enemyAttack} lastEvent={lastEvent}
             distance={currentDistance} playerPosition={pPart?.position}
             enemyPosition={ePart?.position} selectedMove={selectedMove} onSelectMove={selectMove}
-            participants={live?.participants} playerParticipantId={pPart?.participantId}
+            participants={live?.participants} playerParticipantId={pPart?.participantId} arena={live?.arena} obstacles={live?.obstacles}
             playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
             onSelectTarget={setSelectedTargetId} />
           {/* Хроника живёт только в нижней панели, как рисует макет.

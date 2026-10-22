@@ -38,7 +38,7 @@ import { ChatService } from '../chat/chat.service'
 import { BattleService } from '../battles/battles.service'
 import { ResourcesService } from '../resources/resources.service'
 import { when } from '../clans/house-siege.formulas'
-import { HOUSING, LOT_COUNT, TUNNELS, type TunnelCode, homeBonusActive, homeExpBonus, insideTunnelArea, isLot, lotKind, lotLabel } from './housing.config'
+import { HOUSING, LOT_COUNT, TUNNELS, type TunnelCode, homeBonusActive, homeExpBonus, insideTunnelArea, isLot, lotKind, lotLabel, NEWBIE_PROTECTION_LEVEL } from './housing.config'
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -51,6 +51,9 @@ async function myHome(characterId: string) {
 /** Почему на этот дом сейчас нельзя объявить налёт, или null. */
 async function raidBlockedReason(homeId: string, ownerId: string, characterId: string, now = new Date()): Promise<string | null> {
   if (ownerId === characterId) return 'Это ваш дом'
+  // Защита новичков (обещание игрокам 22.10): на хозяина ниже порога не нападают.
+  const owner = await prisma.character.findUnique({ where: { id: ownerId }, select: { battleLevel: true } })
+  if (owner && owner.battleLevel < NEWBIE_PROTECTION_LEVEL) return `Хозяин — новичок: на игроков до ${NEWBIE_PROTECTION_LEVEL}-го уровня не нападают`
   const [open, last, mine] = await Promise.all([
     prisma.homeRaid.count({ where: { homeId, status: { in: OPEN } } }),
     prisma.homeRaid.findFirst({

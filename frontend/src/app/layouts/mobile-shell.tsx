@@ -17,6 +17,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { authApi } from '../../shared/api/auth.api'
 import { useAuth } from '../providers/auth-provider'
 import { MENU } from '../../shared/lib/layout-map'
+import { LevelGate } from '../../widgets/level-gate/level-gate'
 import { LocationTabs } from '../../widgets/city-nav/location-tabs'
 import { MobileChat } from '../../widgets/city-feed/mobile-chat'
 import { useTableLabels } from '../../shared/lib/use-table-labels'
@@ -82,7 +83,7 @@ export function MobileShell() {
 
 
       <main className="m-view" ref={viewRef}>
-        <ErrorBoundary><Outlet /></ErrorBoundary>
+        <ErrorBoundary><LevelGate><Outlet /></LevelGate></ErrorBoundary>
       </main>
 
       <LocationTabs />
@@ -119,6 +120,7 @@ export function MobileShell() {
                 <button type="button" className="m-menu__item" onClick={() => go('/stats')}>навыки</button>
                 <button type="button" className="m-menu__item" onClick={() => go('/battles/history')}>история боёв</button>
                 <button type="button" className="m-menu__item" onClick={() => go('/premium')}>чёрный рынок</button>
+                <button type="button" className="m-menu__item" onClick={() => go('/library')}>библиотека</button>
                 <button type="button" className="m-menu__item m-menu__item--exit" onClick={logout}>выход</button>
               </div>
             )}

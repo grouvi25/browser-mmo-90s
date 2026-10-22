@@ -23,15 +23,16 @@ import { WarsSection } from './wars-section'
 import { ClaimSection } from './claim-section'
 import { PremiumShopSection } from './premium-shop-section'
 import { HelpersSection } from './helpers-section'
+import { ExchangeSection } from './exchange-section'
 import '../stage3/stage3.css'
 import './stage4.css'
 
-export type Stage4Section = 'territories' | 'raids' | 'wars' | 'claim' | 'premium' | 'helpers'
+export type Stage4Section = 'territories' | 'raids' | 'wars' | 'claim' | 'premium' | 'helpers' | 'exchange'
 
 interface SectionMeta { title: string; kicker: string; group: Stage4Section[] }
 
 const WAR_GROUP: Stage4Section[] = ['territories', 'raids', 'wars']
-const PREMIUM_GROUP: Stage4Section[] = ['premium', 'helpers']
+const PREMIUM_GROUP: Stage4Section[] = ['premium', 'helpers', 'exchange']
 
 const SECTIONS: Record<Stage4Section, SectionMeta> = {
   territories: { title: 'Территории', kicker: 'Районы и война', group: WAR_GROUP },
@@ -43,6 +44,7 @@ const SECTIONS: Record<Stage4Section, SectionMeta> = {
   // Правка заказчика: «Премиум переименовываем в Чёрный рынок».
   premium: { title: 'Чёрный рынок', kicker: 'Подписка за доллары', group: PREMIUM_GROUP },
   helpers: { title: 'Помощники', kicker: 'Подписка', group: PREMIUM_GROUP },
+  exchange: { title: 'Обменник', kicker: 'Рубли и доллары', group: PREMIUM_GROUP },
 }
 
 
@@ -54,6 +56,7 @@ function Body({ section }: { section: Stage4Section }) {
     case 'claim': return <ClaimSection />
     case 'premium': return <PremiumShopSection />
     case 'helpers': return <HelpersSection />
+    case 'exchange': return <ExchangeSection />
   }
 }
 

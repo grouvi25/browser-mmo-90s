@@ -32,3 +32,8 @@
 }
 /* mobile.css растягивает ссылки во вьюпорте под палец; почта в тексте — обычная ссылка. */
 .viewport__content .support__lead a { display: inline; min-height: 0; }
+.support__mods { padding: 8px 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, .25); }
+.support__mods h3 { margin: 0 0 6px; }
+.support__mods ul { margin: 0 0 6px; padding: 0; list-style: none; display: grid; gap: 2px; }
+.support__dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #9a9088; }
+.support__mods li.is-online .support__dot { background: #2f8a3a; }

@@ -23,6 +23,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { X } from 'lucide-react'
+import { OutfitBar } from './outfit-bar'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { shopApi } from '../../shared/api/shop.api'
 import {
@@ -233,6 +234,7 @@ export function InventoryPage() {
   return (
     <div className="inv">
       {message && <div className={`alert alert-${message.type} mb8`}>{message.text}</div>}
+      <OutfitBar disabled={inBattle} onMessage={showMsg} />
 
       <nav className="inv-tabs" aria-label="Категории вещей">
         {TABS.map(t => (

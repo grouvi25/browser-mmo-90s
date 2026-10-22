@@ -256,3 +256,8 @@
 .dollars__plus { color: #2f6b3a; font-variant-numeric: tabular-nums; }
 .dollars__minus { color: var(--ink-red, #ab0303); font-variant-numeric: tabular-nums; }
 .s4-goods__confirm { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.exchange { display: grid; gap: 10px; }
+.exchange__wallet { display: flex; gap: 24px; font-size: 16px; }
+.exchange__rates { margin: 0; padding-left: 18px; }
+.exchange__form { display: grid; gap: 8px; max-width: 360px; }
+.exchange__form label { display: grid; gap: 4px; }

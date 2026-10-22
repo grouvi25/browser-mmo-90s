@@ -42,6 +42,13 @@ export function FarmSection() {
 
   const action = useMutation({
     mutationFn: async ({ kind, id }: { kind: string; id?: string }) => {
+      // Одной кнопкой по всем подходящим грядкам (обещание игрокам 22.10).
+      // По очереди: на первой ошибке (не хватило денег) останавливаемся.
+      if (kind === 'plantAll' || kind === 'waterAll') {
+        const targets = (farm.data?.plots ?? []).filter(p => kind === 'plantAll' ? p.state === 'EMPTY' : p.state === 'GROWING' && p.waterCount < 3)
+        for (const p of targets) await (kind === 'plantAll' ? farmApi.plant(p.id, crop) : farmApi.water(p.id))
+        return targets.length
+      }
       if (kind === 'buy') return farmApi.buyPlot()
       if (kind === 'plant') return farmApi.plant(id!, crop)
       if (kind === 'water') return farmApi.water(id!)
@@ -53,14 +60,17 @@ export function FarmSection() {
     },
     onSuccess: (_, v) => {
       setBad(false)
-      setMsg(v.kind === 'buy' ? 'Участок куплен' : v.kind === 'plant' ? 'Посажено' : v.kind === 'water' ? 'Полито'
+      setMsg(v.kind === 'plantAll' ? 'Засажены все свободные грядки' : v.kind === 'waterAll' ? 'Политы все грядки' : v.kind === 'buy' ? 'Участок куплен' : v.kind === 'plant' ? 'Посажено' : v.kind === 'water' ? 'Полито'
         : v.kind === 'harvest' ? 'Урожай собран' : v.kind === 'clear' ? 'Участок убран, можно сажать заново'
         : v.kind === 'worker' ? 'Рабочий нанят — он сам соберёт созревший урожай' : 'Постройка готова')
       void qc.invalidateQueries({ queryKey: ['farm'] })
       void qc.invalidateQueries({ queryKey: ['resources'] })
       void qc.invalidateQueries({ queryKey: ['character'] })
     },
-    onError: (e: Error) => { setBad(true); setMsg(e.message) },
+    onError: (e: Error) => {
+      setBad(true); setMsg(e.message)
+      void qc.invalidateQueries({ queryKey: ['farm'] })
+    },
   })
 
   if (farm.isLoading) return <Skeleton rows={3} />
@@ -126,6 +136,17 @@ export function FarmSection() {
       </section>
 
       <div className="farm-act">
+        {mode === 'plant' && plots.some(p => p.state === 'EMPTY') && (
+          <button type="button" className="btn" disabled={busy || !crops.find(x => x.code === crop)?.available}
+            onClick={() => action.mutate({ kind: 'plantAll' })}>
+            <Sprout size={14} /> Засадить все свободные ({plots.filter(p => p.state === 'EMPTY').length}): {crops.find(x => x.code === crop)?.name}
+          </button>
+        )}
+        {mode === 'water' && plots.some(p => p.state === 'GROWING' && p.waterCount < 3) && (
+          <button type="button" className="btn" disabled={busy} onClick={() => action.mutate({ kind: 'waterAll' })}>
+            <Droplets size={14} /> Полить все грядки
+          </button>
+        )}
         {!plot && <span className="muted">Участок не выбран — нажмите на квадратик на поле.</span>}
         {plot && <PlotAction mode={mode} plot={plot} busy={busy}
           cropLabel={crops.find(x => x.code === crop)?.name ?? ''}

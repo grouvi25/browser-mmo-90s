@@ -21,6 +21,7 @@ export function SupportPage() {
   const [msg, setMsg] = useState<{ text: string; bad: boolean } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const list = useQuery({ queryKey: ['support'], queryFn: supportApi.mine })
+  const mods = useQuery({ queryKey: ['support', 'moderators'], queryFn: supportApi.moderators, refetchInterval: 60_000 })
 
   const send = useMutation({
     mutationFn: () => supportApi.create(text.trim(), image),
@@ -47,6 +48,17 @@ export function SupportPage() {
         и приложите скриншот, если он есть. Можно написать и на почту{' '}
         <a href="mailto:info@kooperativ.space">info@kooperativ.space</a>.
       </p>
+
+      {/* Модераторы (обещание игрокам 22.10): кто в сети и общий список. */}
+      <section className="support__mods" aria-label="Модераторы">
+        <h3>Модераторы</h3>
+        {mods.data?.items && (mods.data.items.length === 0
+          ? <p className="support__meta">Список модераторов пока пуст.</p>
+          : <ul>{mods.data.items.map(m => <li key={m.nickname} className={m.online ? 'is-online' : undefined}>
+              <span className="support__dot" aria-hidden="true" />{m.nickname} [{m.level}] — {m.online ? 'в сети' : `был ${when(m.lastActiveAt)}`}
+            </li>)}</ul>)}
+        <p className="support__meta">Быстрее всего — заявкой ниже: её сразу видят все модераторы, а в личку может ответить только тот, кто у компьютера.</p>
+      </section>
 
       <form className="support__form" onSubmit={e => { e.preventDefault(); if (text.trim()) send.mutate() }}>
         <label className="support__label" htmlFor="support-text">Обращение</label>

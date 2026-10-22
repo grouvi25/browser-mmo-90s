@@ -82,3 +82,6 @@ export function homeBonusActive(durability: number): boolean {
 export function homeExpBonus(kind: HomeKind, durability: number): number {
   return homeBonusActive(durability) ? HOUSING.kinds[kind].expBonus : 0
 }
+
+/** Защита новичков: на игроков ниже этого боевого уровня не нападают. */
+export const NEWBIE_PROTECTION_LEVEL = 3

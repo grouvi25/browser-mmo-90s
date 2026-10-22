@@ -15,4 +15,5 @@ export interface SupportTicket {
 export const supportApi = {
   mine: () => api.get<{ items: SupportTicket[] }>('/api/support'),
   create: (text: string, image: string | null) => api.post<SupportTicket>('/api/support', { text, image }),
+  moderators: () => api.get<{ items: { nickname: string; level: number; online: boolean; lastActiveAt: string }[] }>('/api/support/moderators'),
 }

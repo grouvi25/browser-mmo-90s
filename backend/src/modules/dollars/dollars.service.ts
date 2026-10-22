@@ -14,6 +14,7 @@ import { prisma } from '../../shared/db/prisma'
 import { withIdempotency } from '../../shared/db/idempotency'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
+import { EconomyService } from '../economy/economy.service'
 
 /** Предел одного перевода дилера: опечатка в сумме не должна стоить миллионы. */
 export const DEALER_TRANSFER_MAX = 100_000
@@ -25,6 +26,15 @@ interface Movement {
   counterpartyId?: string | null
   refId?: string | null
   note?: string | null
+}
+
+async function boughtToday(characterId: string, db: Prisma.TransactionClient = prisma): Promise<number> {
+  const since = new Date(Date.now() - 24 * 3_600_000)
+  const sum = await db.dollarLog.aggregate({
+    where: { characterId, reason: 'EXCHANGE', amount: { gt: 0 }, createdAt: { gte: since } },
+    _sum: { amount: true },
+  })
+  return sum._sum.amount ?? 0
 }
 
 async function credit(tx: Prisma.TransactionClient, move: Movement): Promise<number> {
@@ -51,9 +61,43 @@ async function debit(tx: Prisma.TransactionClient, move: Movement): Promise<numb
   return after.dollars
 }
 
+/** Обменник Чёрного рынка (обещание игрокам 22.10: «в одну и в другую
+ *  сторону»). Курсы стартовые, заказчик их не задавал. Разница курсов —
+ *  комиссия обменника; потолок покупки в сутки бережёт дилеров. */
+export const EXCHANGE = {
+  buyRate: 1500,   // столько рублей стоит 1 $
+  sellRate: 1000,  // столько рублей дают за 1 $
+  dailyBuyLimit: 20,
+}
+
 export const DollarsService = {
   credit,
   debit,
+
+  exchangeInfo: async (characterId: string) => {
+    const bought = await boughtToday(characterId)
+    return { ...EXCHANGE, boughtToday: bought, buyLeft: Math.max(0, EXCHANGE.dailyBuyLimit - bought) }
+  },
+
+  async exchange(characterId: string, direction: 'buy' | 'sell', dollars: number) {
+    if (!Number.isInteger(dollars) || dollars <= 0) throw AppError.validation('Сумма должна быть больше нуля')
+    return prisma.$transaction(async tx => {
+      if (direction === 'buy') {
+        // Блокировка строки персонажа: два одновременных обмена не обойдут суточный потолок.
+        await tx.$queryRaw`SELECT id FROM characters WHERE id = ${characterId} FOR UPDATE`
+        const bought = await boughtToday(characterId, tx)
+        if (bought + dollars > EXCHANGE.dailyBuyLimit) {
+          throw new AppError(ErrorCode.CONFLICT, `За сутки можно купить не больше ${EXCHANGE.dailyBuyLimit} $ (осталось ${Math.max(0, EXCHANGE.dailyBuyLimit - bought)} $)`, 409)
+        }
+        await EconomyService.debit(tx, { characterId, amount: dollars * EXCHANGE.buyRate, reasonCode: 'CURRENCY_EXCHANGE', note: `+${dollars} $` })
+        await credit(tx, { characterId, amount: dollars, reason: 'EXCHANGE' })
+      } else {
+        await debit(tx, { characterId, amount: dollars, reason: 'EXCHANGE' })
+        await EconomyService.credit(tx, { characterId, amount: dollars * EXCHANGE.sellRate, reasonCode: 'CURRENCY_EXCHANGE', note: `-${dollars} $` })
+      }
+      return tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { money: true, dollars: true } })
+    })
+  },
 
   /** Счёт игрока: баланс, дилер ли он и последние движения. */
   async account(characterId: string) {

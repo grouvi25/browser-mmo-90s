@@ -1532,3 +1532,17 @@
    встаёт на место начала ленты (99), лента сдвигается на её высоту. */
 .battle-mockup-scene .battle-command-dock .battle-helper { position: absolute; left: 0; top: 99px; width: 900px; height: 28px; margin: 0; box-sizing: border-box; border-left: 0; border-right: 0; font-size: 13.5px; }
 .battle-mockup-scene .battle-command-dock:has(.battle-helper) .battle-chronicle { top: 127px; height: 210px; }
+
+/* Дуэль: вне полосы 3×8 поле затемнено; бочка — укрытие. */
+.hex-cell.is-outside .designer-cell-hit { background: rgb(20 14 8 / .45); }
+.hex-cell.is-outside { pointer-events: none; }
+.hex-barrel {
+  position: absolute; left: 50%; bottom: 30%; z-index: 2;
+  width: calc(56% * var(--fighter-depth, 1)); aspect-ratio: 3 / 4; transform: translateX(-50%);
+  border-radius: 45% / 14%;
+  background:
+    linear-gradient(transparent 22%, #3b2414 22% 28%, transparent 28% 72%, #3b2414 72% 78%, transparent 78%),
+    linear-gradient(90deg, #5a3519, #9a6233 45%, #6b3f1d);
+  box-shadow: 0 3px 4px rgb(0 0 0 / .45), inset 0 4px 0 rgb(0 0 0 / .25);
+  pointer-events: auto;
+}

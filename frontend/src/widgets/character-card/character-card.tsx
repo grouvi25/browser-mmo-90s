@@ -212,9 +212,9 @@ export function CharacterCard({ profile, wounds }: { profile?: CardProfile; woun
           />
           <SpriteButton
             name="item-bat"
-            src={!own && profile?.offhandCode
-              ? itemImage(profile.offhandCode, undefined, 'WEAPON') ?? undefined
-              : undefined}
+            src={own
+              ? (offhand ? itemImage(offhand.template.code, offhand.template.weaponType) : undefined)
+              : (profile?.offhandCode ? itemImage(profile.offhandCode, undefined, 'WEAPON') ?? undefined : undefined)}
             box={C.slots[1].box}
             empty={rightKnocked || (own ? !offhand : !profile?.offhandCode)}
             disabled={!own}
