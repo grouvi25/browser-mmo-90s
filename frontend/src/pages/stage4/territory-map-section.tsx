@@ -180,9 +180,8 @@ export function TerritoryMapSection() {
               {rosterFor?.code === territory.code && (
                 <RosterPicker
                   members={members}
-                  // У обороны нижней границы нет: выставить одного честнее,
-                  // чем не выставить никого и получить техническое поражение.
-                  minSize={rosterFor.mode === 'claim' ? 5 : 1}
+                  // Заявку подают и с одним бойцом: остальные встают в неё сами.
+                  minSize={1}
                   busy={busy}
                   submitLabel={rosterFor.mode === 'claim' ? 'Подать заявку' : 'Выставить оборону'}
                   note={rosterFor.mode === 'claim'

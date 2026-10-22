@@ -73,7 +73,7 @@ export function MarketPage() {
     onSuccess: () => { setMessage(`Выставлено. Сбор: ${fee(price, currency)} ₽`); refresh() },
     onError: (e: Error) => setMessage(e.message),
   })
-  const totalPages = listings.data?.totalPages ?? 1
+  const totalPages = Math.max(1, listings.data?.totalPages ?? 1)
   const usd = trader.data?.canSellResourcesForUsd
 
   return <div>
