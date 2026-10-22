@@ -13,7 +13,7 @@
 // Сами вещи у игрока остаются: всё это только до конца боя.
 // =============================================================
 import type { BodyZone } from '@prisma/client'
-import type { AttackHand } from './zones'
+import { canonZone, type AttackHand } from './zones'
 
 export const WOUND_STRIP_AT = 3
 
@@ -22,8 +22,8 @@ interface Wounded { wounds?: Wounds }
 
 const HAND_ZONE: Record<AttackHand, BodyZone> = { LEFT_HAND: 'LEFT_ARM', RIGHT_HAND: 'RIGHT_ARM' }
 
-/** Старые бои писали обе ноги одной зоной: считаем её левой. */
-const canon = (zone: BodyZone): BodyZone => zone === 'LEGS' ? 'LEFT_LEG' : zone
+/** Ноги — одна зона: раздельные из старых боёв считаем общей. */
+const canon = canonZone
 
 const ZONE_NAME: Record<BodyZone, string> = {
   HEAD: 'голове', CHEST: 'корпусе', LEFT_ARM: 'левой руке', RIGHT_ARM: 'правой руке',

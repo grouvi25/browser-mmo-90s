@@ -38,7 +38,7 @@
 /* ── Поле: сколько влезет, с пропорцией рисунка 3280:1798 ──────── */
 .battle-desk__field { min-height: 0; display: grid; }
 .battle-desk__field .battle-field-v3 {
-  grid-template-rows: minmax(0, 1fr) 24px;
+  grid-template-rows: minmax(0, 1fr) 40px;
   border: 1px solid oklch(46% .04 55);
 }
 .battle-desk__field .battle-field-v3 .hex-board { padding: 4px; }
@@ -107,12 +107,13 @@
   background: oklch(90% .03 70 / .96);
   font-size: 13px;
 }
-.battle-desk__hint { display: flex; justify-content: space-between; gap: 6px; }
-.battle-desk__hint span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: oklch(42% .12 25); }
-.battle-desk__hint span.is-ready { color: oklch(38% .09 135); }
-.battle-desk__buttons { display: grid; grid-template-columns: 1fr 1.4fr; gap: 6px; }
+/* Полоса под полем: дистанция, дальность, готовность хода и кнопки. */
+.battle-desk__meta { gap: 14px; justify-content: flex-start; }
+.battle-desk__plan { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: oklch(42% .12 25); }
+.battle-desk__plan.is-ready { color: oklch(38% .09 135); }
+.battle-desk__buttons { display: grid; grid-template-columns: 120px 160px; gap: 6px; }
 .battle-desk__buttons button {
-  min-height: 34px;
+  min-height: 32px;
   border: 1px solid #07090a; border-radius: 4px; background: #fad5c8;
   font: 700 14px/1 var(--font-ui); color: #07090a; cursor: pointer;
 }
@@ -124,3 +125,4 @@
 
 /* Ящики «Карман» и «Весь лог» поверх середины сцены. */
 .battle-desk-stage .battle-drawer { position: absolute; inset: 38px 308px 200px 350px; }
+.battle-desk__actions:empty { display: none; }

@@ -10,10 +10,9 @@ export const BATTLE_ZONES: readonly { key: BodyZone; label: string; short: strin
   { key: 'CHEST', label: 'Корпус', short: 'корпус', caption: 'Корпус' },
   { key: 'LEFT_ARM', label: 'Левая рука', short: 'левая рука', caption: 'Л.рука' },
   { key: 'RIGHT_ARM', label: 'Правая рука', short: 'правая рука', caption: 'П.рука' },
-  // Ноги разведены на левую и правую, как руки: макет рисует их
-  // отдельными ячейками — слои «ЗБ Нога Л» и «ЗБ Нога П».
-  { key: 'LEFT_LEG', label: 'Левая нога', short: 'левая нога', caption: 'Л.нога' },
-  { key: 'RIGHT_LEG', label: 'Правая нога', short: 'правая нога', caption: 'П.нога' },
+  // Ноги — одна зона (правка заказчика 22.10): руки делятся, потому что
+  // из них выбивают оружие, а ногам это незачем.
+  { key: 'LEGS', label: 'Ноги', short: 'ноги', caption: 'Ноги' },
 ]
 
 export const BATTLE_STANCES: readonly {

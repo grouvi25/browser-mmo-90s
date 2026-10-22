@@ -4,10 +4,16 @@
 // =============================================================
 import type { ArmorSlot, BodyZone } from '@prisma/client'
 
-// Ноги разведены на левую и правую, как руки: макет рисует их двумя
-// ячейками («ЗБ Нога Л» и «ЗБ Нога П»). Устаревшее LEGS в список не
-// входит — новые бои им не пользуются, оно живёт только в истории.
-export const BODY_ZONES: BodyZone[] = ['HEAD', 'CHEST', 'RIGHT_ARM', 'LEFT_ARM', 'RIGHT_LEG', 'LEFT_LEG']
+// Ноги — одна зона (правка заказчика 22.10: «левая рука, правая рука — это
+// разное, а ноги одни; руки делятся, чтобы выбивать оружие»). Раздельные
+// LEFT_LEG и RIGHT_LEG остались в истории старых боёв; присланные старым
+// клиентом сводятся к LEGS.
+export const BODY_ZONES: BodyZone[] = ['HEAD', 'CHEST', 'RIGHT_ARM', 'LEFT_ARM', 'LEGS']
+
+/** Старые раздельные ноги → общая зона ног. */
+export function canonZone(zone: BodyZone): BodyZone {
+  return zone === 'LEFT_LEG' || zone === 'RIGHT_LEG' ? 'LEGS' : zone
+}
 
 // Какие слоты брони прикрывают каждую зону.
 // LEFT_HAND — это оружие (не броня), поэтому левую руку прикрывают только перчатки.
@@ -112,9 +118,9 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
     ? { attacks: 0, blocks: 0 }
     : budgetAfterSwaps(STANCE_BUDGET[stance], { weapon: input?.swapWeapon, armor: input?.swapArmor })
 
-  const rawAttack = (input?.attackZones ?? []).filter(isBodyZone)
+  const rawAttack = (input?.attackZones ?? []).filter(isBodyZone).map(canonZone)
   const rawHands = (input?.attackHands ?? []).filter(isAttackHand)
-  const rawBlock = (input?.blockZones ?? []).filter(isBodyZone)
+  const rawBlock = (input?.blockZones ?? []).filter(isBodyZone).map(canonZone)
 
   const attackZones = rawAttack.slice(0, budget.attacks)
   // Каждая рука бьёт раз за ход: правой сразу в руку и корпус нельзя.
@@ -165,12 +171,12 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
 }
 
 // Приоритет зон для авто-блока (голова и корпус важнее конечностей).
-export const DEFAULT_BLOCK_PRIORITY: BodyZone[] = ['HEAD', 'CHEST', 'RIGHT_LEG', 'LEFT_LEG', 'RIGHT_ARM', 'LEFT_ARM']
+export const DEFAULT_BLOCK_PRIORITY: BodyZone[] = ['HEAD', 'CHEST', 'LEGS', 'RIGHT_ARM', 'LEFT_ARM']
 
 // Маппинг старых действий на стойки (обратная совместимость API/старого фронта).
 export function legacyActionToTurn(action: string): ZonalTurnInput {
   if (action === 'block') {
-    // Полная защита: блок 4 из 6 зон (по приоритету), две остаются открыты.
+    // Полная защита: блок 4 зон по приоритету.
     return normalizeTurn({ stance: 'defense4', blockZones: DEFAULT_BLOCK_PRIORITY.slice(0, 4) })
   }
   // attack по умолчанию: 2 удара в корпус.
@@ -206,7 +212,7 @@ function isAttackHand(hand: unknown): hand is AttackHand {
   return hand === 'LEFT_HAND' || hand === 'RIGHT_HAND'
 }
 function isBodyZone(z: unknown): z is BodyZone {
-  return typeof z === 'string' && (BODY_ZONES as string[]).includes(z)
+  return typeof z === 'string' && ([...BODY_ZONES, 'LEFT_LEG', 'RIGHT_LEG'] as string[]).includes(z)
 }
 function shuffle<T>(arr: T[], rng: () => number): T[] {
   const a = arr.slice()
