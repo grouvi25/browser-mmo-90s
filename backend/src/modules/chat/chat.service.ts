@@ -14,8 +14,12 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { FLOOD, MAX_BODY, chatDayStart, floodKeys, normalizeBody, scopeFor, type Rejection } from './chat.formulas'
 
-/** Сколько держим игрока в списке онлайна после последнего касания. */
-const PRESENCE_TTL_SEC = 120
+/**
+ * Сколько ник держится в списке онлайн после последнего действия игрока.
+ * Правка заказчика 22.10: «чтобы через минуту не пропадали ники, пока
+ * можно час поставить» — было две минуты, и закрытая вкладка снимала ник сразу.
+ */
+export const PRESENCE_TTL_SEC = 3600
 const ONLINE_LIMIT = 100
 const HISTORY_LIMIT = 50
 

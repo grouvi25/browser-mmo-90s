@@ -70,11 +70,13 @@ describe('zones: armorOfZone', () => {
 })
 
 describe('zones: состав зон', () => {
-  it('зон шесть, ноги разведены как руки', () => {
-    expect(BODY_ZONES).toEqual(['HEAD', 'CHEST', 'RIGHT_ARM', 'LEFT_ARM', 'RIGHT_LEG', 'LEFT_LEG'])
+  it('зон пять: руки раздельно (из них выбивают оружие), ноги одной зоной', () => {
+    expect(BODY_ZONES).toEqual(['HEAD', 'CHEST', 'RIGHT_ARM', 'LEFT_ARM', 'LEGS'])
   })
-  it('устаревшая LEGS в набор не входит и с клиента прийти не может', () => {
-    expect(BODY_ZONES).not.toContain('LEGS')
+  it('раздельные ноги от старого клиента сводятся к общей зоне', () => {
+    const turn = normalizeTurn({ stance: 'mixed', attackZones: ['LEFT_LEG'], blockZones: ['RIGHT_LEG', 'HEAD'] })
+    expect(turn.attackZones).toEqual(['LEGS'])
+    expect(turn.blockZones).toEqual(['LEGS', 'HEAD'])
   })
   it('у каждой зоны описана броня', () => {
     for (const zone of BODY_ZONES) expect(ZONE_ARMOR_SLOTS[zone]).toBeDefined()

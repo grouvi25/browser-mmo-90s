@@ -584,9 +584,21 @@ export function BattlePage() {
         </header>}
         field={<div className="battle-field-v3">
           {grid}
-          <div className="battle-field-v3__meta">
+          {/* Кнопки хода — в полосе под полем, прямо над зонами (правка
+              заказчика 22.10: «кнопки Применить и Сбросить сюда перенести»). */}
+          <div className="battle-field-v3__meta battle-desk__meta">
             <span>Дистанция: <b>{currentDistance}</b></span>
             <span title="Сколько клеток достаёт оружие; у дальнобойного они подсвечены голубым">Дальность: <b>{playerRange ?? '—'}</b></span>
+            <span className={'battle-desk__plan' + (ready ? ' is-ready' : '')}>
+              {selectedMove ? 'Выбран шаг' : validation.valid ? 'Ход готов' : validation.reason} · {budget.attacks} уд. / {budget.blocks} бл.
+            </span>
+            <span className="battle-desk__buttons">
+              <button type="button" disabled={planEmpty} onClick={resetPlan}>Сбросить</button>
+              <button type="button" className="is-apply battle-submit-turn" disabled={!canAct || !ready || actionMut.isPending}
+                onClick={selectedMove ? submitMove : submitTurn}>
+                {actionMut.isPending ? 'Отправляем…' : selectedMove ? 'Перейти' : 'Применить'}
+              </button>
+            </span>
           </div>
         </div>}
         blockZones={<BattleZoneList mode="block" title="Блок" selected={blockZones}
@@ -600,17 +612,6 @@ export function BattlePage() {
         log={battleId ? <PersistedBattleChronicle battleId={battleId} refreshKey={currentRound}
           playerSide={pPart?.side} onOpenLog={() => { setPocketsOpen(false); setShowLog(true) }} /> : null}
         actions={<>
-          <p className="battle-desk__hint">
-            <span className={ready ? 'is-ready' : ''}>{selectedMove ? 'Выбран шаг' : validation.valid ? 'Ход готов' : validation.reason}</span>
-            <b>{budget.attacks} уд. / {budget.blocks} бл.</b>
-          </p>
-          <div className="battle-desk__buttons">
-            <button type="button" disabled={planEmpty} onClick={resetPlan}>Сбросить</button>
-            <button type="button" className="is-apply battle-submit-turn" disabled={!canAct || !ready || actionMut.isPending}
-              onClick={selectedMove ? submitMove : submitTurn}>
-              {actionMut.isPending ? 'Отправляем…' : selectedMove ? 'Перейти' : 'Применить'}
-            </button>
-          </div>
           <div className="battle-desk__companions">
             {pPart?.helper && <BattleHelperBadge helper={pPart.helper} pending={helperTacticMut.isPending}
               onTactic={tactic => helperTacticMut.mutate(tactic)} />}

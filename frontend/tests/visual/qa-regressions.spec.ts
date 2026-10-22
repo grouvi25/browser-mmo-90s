@@ -78,7 +78,7 @@ test('battle reload restores server round, range, target distance and persisted 
   await authenticate(page); await mockApi(page, () => battle())
   await page.goto(`/battle/${battleId}`)
   await expect(page.locator('.battle-header-v3, .battle-desk__head')).toContainText('Раунд 7 / 30')
-  await expect(page.locator('.battle-field-v3__meta')).toHaveText('Дистанция: 1Дальность: 1')
+  await expect(page.locator('.battle-field-v3__meta')).toContainText(/Дистанция: 1\s*Дальность: 1/)
   await expect(page.getByRole('button', { name: 'Удар левой рукой, цель: голова', exact: true })).toBeEnabled()
   await expect(page.getByRole('region', { name: 'Хроника боя' })).toContainText('удар в корпус, −5 HP')
   await page.reload()
@@ -96,7 +96,7 @@ test('action override expires when polling observes an automatic round', async (
   await page.locator('.battle-submit-turn').click()
   // Simulate server timeout advancing the round after our previous action.
   round = 9; foe = enemy
-  await expect(page.locator('.battle-field-v3__meta')).toHaveText('Дистанция: 1Дальность: 1')
+  await expect(page.locator('.battle-field-v3__meta')).toContainText(/Дистанция: 1\s*Дальность: 1/)
   await expect(page.locator('.battle-header-v3, .battle-desk__head')).toContainText('Раунд 9 / 30')
   await expect(page.getByRole('button', { name: 'Удар левой рукой, цель: голова', exact: true })).toBeEnabled()
 })

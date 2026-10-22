@@ -536,7 +536,7 @@ test.describe('Stage 2 visual and browser flow', () => {
       expect(page_.documentHeight).toBeLessThanOrEqual(page_.viewportHeight + 1)
       await page.getByRole('button', { name: 'Удар правой рукой, цель: голова', exact: true }).click()
       await page.getByRole('button', { name: 'Поставить блок: корпус', exact: true }).click()
-      await page.getByRole('button', { name: 'Поставить блок: левая нога', exact: true }).click()
+      await page.getByRole('button', { name: 'Поставить блок: ноги', exact: true }).click()
     } else {
       await expect(page.locator('.battle-page-v3')).toBeVisible()
       await expect(page.locator('.battle-fighter-panel')).toHaveCount(2)
@@ -569,10 +569,10 @@ test.describe('Stage 2 visual and browser flow', () => {
 
       await page.locator('.battle-fighter-panel.is-enemy .battle-zone-cell.is-head').nth(1).click()
       // Десять ячеек — ровно столько нарисовано в макете: у головы, корпуса
-      // и каждой руки по две, у каждой ноги по одной.
+      // и каждой руки по две, у ног (одна зона) тоже две.
       await expect(page.locator('.battle-fighter-panel.is-self .battle-zone-cell')).toHaveCount(10)
       await page.locator('.battle-fighter-panel.is-self .battle-zone-cell.is-chest').first().click()
-      await page.locator('.battle-fighter-panel.is-self .battle-zone-cell.is-left-leg').first().click()
+      await page.locator('.battle-fighter-panel.is-self .battle-zone-cell.is-legs').first().click()
     }
 
     const actionRequest = page.waitForRequest(request => request.url().endsWith(`/api/battles/${battleId}/action`))
@@ -581,7 +581,7 @@ test.describe('Stage 2 visual and browser flow', () => {
       action: string; stance: string; attackZones: string[]; attackHands: string[]; blockZones: string[]; targetParticipantId: string
     }
     expect(payload).toMatchObject({
-      action: 'attack', stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEFT_LEG'],
+      action: 'attack', stance: 'mixed', attackZones: ['HEAD'], attackHands: ['RIGHT_HAND'], blockZones: ['CHEST', 'LEGS'],
     })
     expect(payload.targetParticipantId).toBeTruthy()
 

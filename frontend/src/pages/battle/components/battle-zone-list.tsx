@@ -2,16 +2,14 @@
 // Зоны удара и блока — компактным списком (правка заказчика 22.10:
 // «зоны удара и блока можно сделать меньше, такие большие смысла нет
 // держать»). Правила выбора те же, что у большой панели макета
-// (battle-fighter-panel.tsx): у головы, корпуса и рук по две ячейки,
-// у каждой ноги одна; в двухъячеечную зону бьют каждой рукой своей
-// кнопкой, в ногу — свободной рукой.
+// (battle-fighter-panel.tsx): у каждой зоны две ячейки — два блока или
+// удар каждой рукой своей кнопкой. Ноги — одна зона (правка 22.10).
 //
 // Точка у зоны — её рана: зелёная, жёлтая, оранжевая, красная.
 // =============================================================
 import type { AttackHand, BodyZone } from '../../../shared/api/battles.api'
 import { BATTLE_ZONES } from '../battle-view-model'
 
-const SINGLE_CELL: readonly BodyZone[] = ['LEFT_LEG', 'RIGHT_LEG']
 const HANDS: readonly AttackHand[] = ['LEFT_HAND', 'RIGHT_HAND']
 
 interface Common {
@@ -33,7 +31,7 @@ export function BattleZoneList(props: Props) {
     <section className={`zone-list is-${props.mode}`} aria-label={props.title}>
       <header><b>{props.title}</b><span>{props.selected.length} / {props.limit}</span></header>
       {BATTLE_ZONES.map(zone => {
-        const cells = SINGLE_CELL.includes(zone.key) ? 1 : 2
+        const cells = 2
         const wound = Math.min(3, props.wounds?.[zone.key] ?? 0)
         return (
           <div key={zone.key} className="zone-list__row">

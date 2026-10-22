@@ -7,10 +7,9 @@ import silhouette from '../../../shared/assets/battle/silhouette.png'
 
 const ZONE_CLASS: Record<BodyZone, string> = {
   HEAD: 'head', CHEST: 'chest', LEFT_ARM: 'left-arm', RIGHT_ARM: 'right-arm',
-  LEFT_LEG: 'left-leg', RIGHT_LEG: 'right-leg',
-  // Зона из старых боёв: своих ячеек не имеет, класс нужен только
-  // чтобы разметка не осталась без модификатора.
-  LEGS: 'left-leg',
+  LEGS: 'legs',
+  // Раздельные ноги из старых боёв: своих ячеек не имеют.
+  LEFT_LEG: 'legs', RIGHT_LEG: 'legs',
 }
 
 // =============================================================
@@ -42,8 +41,8 @@ const ZONE_CELLS: Partial<Record<BodyZone, readonly ZoneCell[]>> = {
   CHEST:     [{ x: 309, y: 194, caption: 'Корпус' }, { x: 412, y: 194, caption: 'Корпус' }],
   LEFT_ARM:  [{ x: 69, y: 290, caption: 'Л.рука' }, { x: 561, y: 290, caption: 'Л.рука' }],
   RIGHT_ARM: [{ x: 172, y: 290, caption: 'П.рука' }, { x: 664, y: 290, caption: 'П.рука' }],
-  LEFT_LEG:  [{ x: 308, y: 484, caption: 'Л.нога' }],
-  RIGHT_LEG: [{ x: 411, y: 484, caption: 'П.нога' }],
+  // Ноги — одна зона с двумя ячейками, как голова (правка заказчика 22.10).
+  LEGS:      [{ x: 308, y: 484, caption: 'Ноги' }, { x: 411, y: 484, caption: 'Ноги' }],
 }
 
 // Половины макета не одинаковы: всё содержимое панели удара сдвинуто
@@ -148,8 +147,8 @@ function ZoneIndicator({ mode, selected }: { mode: 'attack' | 'block'; selected:
     { part: 'chest', zone: 'CHEST' },
     { part: 'arm-l', zone: 'LEFT_ARM' },
     { part: 'arm-r', zone: 'RIGHT_ARM' },
-    { part: 'leg-l', zone: 'LEFT_LEG' },
-    { part: 'leg-r', zone: 'RIGHT_LEG' },
+    { part: 'leg-l', zone: 'LEGS' },
+    { part: 'leg-r', zone: 'LEGS' },
   ]
   return (
     <div className={`zone-indicator is-${mode}`} style={INDICATOR_STYLE[mode]}

@@ -290,10 +290,9 @@ export async function setupSocketIO(app: FastifyInstance) {
       acknowledge?.({ ok: true })
     })
 
-    socket.on('disconnect', () => {
-      const characterId = socket.data.characterId as string | undefined
-      if (characterId) void ChatService.leave(characterId)
-    })
+    // Отключение сокета ник из онлайна не снимает: он держится час после
+    // последнего действия (PRESENCE_TTL_SEC, правка заказчика 22.10) —
+    // иначе перезагрузка страницы или переход на телефоне мигали списком.
   })
 
   setRealtimeServer(io)

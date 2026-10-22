@@ -268,7 +268,9 @@ export function CharacterCard({ profile, wounds }: { profile?: CardProfile; woun
               оранжевый и красный (правка заказчика 22.10). Цвет кладётся
               маской по рисунку самой зоны, поэтому повторяет её контур. */}
           {wounds && C.zones.map(z => {
-            const level = Math.min(WOUND_STRIP_AT, wounds[z.key] ?? 0)
+            // Ноги в бою — одна зона (правка 22.10): обе ноги одного цвета.
+            const key = z.key === 'LEFT_LEG' || z.key === 'RIGHT_LEG' ? 'LEGS' : z.key
+            const level = Math.min(WOUND_STRIP_AT, wounds[key] ?? 0)
             const mask = `url("${SPRITES[z.sprite]}")`
             return <span key={`wound-${z.key}`} className={`zone-wound is-${level}`} aria-hidden="true"
               style={{ left: z.box.x, top: z.box.y, width: z.box.w, height: z.box.h, maskImage: mask, WebkitMaskImage: mask }} />

@@ -33,12 +33,13 @@ describe('Раны по зонам', () => {
   })
 
   it('сбитая броня зону больше не прикрывает', () => {
-    const part: Wounds = { LEFT_LEG: 3 }
+    const part: Wounds = { LEGS: 3 }
     const armor = woundedArmor({ wounds: part }, () => 7)
-    expect(armor('LEFT_LEG')).toBe(0)
-    expect(armor('RIGHT_LEG')).toBe(7)
-    // Старая общая зона ног считается левой.
     expect(armor('LEGS')).toBe(0)
+    expect(armor('HEAD')).toBe(7)
+    // Ноги — одна зона: раздельные из старых боёв считаются ею же.
+    expect(armor('LEFT_LEG')).toBe(0)
+    expect(armor('RIGHT_LEG')).toBe(0)
   })
 
   it('у бота выбитое оружие пропадает из снаряжения, броня остаётся', () => {

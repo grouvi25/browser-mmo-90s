@@ -22,7 +22,7 @@ export interface SwapPlan {
 
 /** Слоты брони, которые ложатся на боевые зоны. */
 const ARMOR_ZONE: Partial<Record<string, BodyZone>> = {
-  HEAD: 'HEAD', CHEST: 'CHEST', LEGS: 'LEFT_LEG', GLOVES: 'LEFT_ARM',
+  HEAD: 'HEAD', CHEST: 'CHEST', LEGS: 'LEGS', GLOVES: 'LEFT_ARM',
 }
 
 export function BattleSwap({
