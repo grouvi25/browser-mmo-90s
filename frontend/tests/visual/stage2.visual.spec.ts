@@ -199,7 +199,8 @@ test.describe('Stage 2 visual and browser flow', () => {
       localStorage.setItem('mmo_user', JSON.stringify({ userId: 'expired', login: 'expired' }))
     })
     await page.goto('/work')
-    await expect(page).toHaveURL(/\/login\?reason=session-expired$/)
+    // Вход возвращает туда, откуда выкинуло: адрес страницы едет в next.
+    await expect(page).toHaveURL(/\/login\?next=%2Fwork&reason=session-expired$/)
     await expect(page.locator('form')).toBeVisible()
   })
 
