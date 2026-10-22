@@ -354,7 +354,18 @@
   padding: 7px 8px; border-top: 1px solid oklch(58% .035 55);
   margin: 0; background: oklch(87% .032 70); font: 700 13.25px/1 var(--font-ui);
 }
+.battle-pocket-list { display: grid; gap: 6px; padding: 8px; }
 .battle-drawer .battle-pocket-list { grid-template-columns: repeat(4,1fr); }
+.battle-pocket {
+  display: flex; flex-direction: column; gap: 4px; min-height: 92px; padding: 6px;
+  border: 1px dashed oklch(58% .035 55); background: oklch(96% .017 75); font: 13.25px/1.25 var(--font-ui);
+}
+.battle-pocket.is-filled { border-style: solid; }
+.battle-pocket__num { color: oklch(45% .025 55); font-size: 12px; }
+.battle-pocket b { display: block; }
+.battle-pocket small { display: block; color: oklch(40% .1 145); }
+.battle-pocket button { margin-top: auto; min-height: 28px; }
+.battle-pocket-list > p { grid-column: 1 / -1; margin: 0; color: oklch(45% .025 55); font-size: 12px; }
 .battle-drawer__empty { margin: 0; padding: 18px; text-align: center; color: oklch(45% .025 55); }
 
 .hex-cell[role="button"]:focus-visible { outline: 2px solid oklch(82% .12 80); outline-offset: 2px; z-index: 4; }

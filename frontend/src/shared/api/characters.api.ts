@@ -34,6 +34,12 @@ export const charactersApi = {
   getMe: () =>
     api.get<Character>('/api/characters/me'),
 
+  getBattleLoadout: () =>
+    api.get<{ itemInstanceIds: string[] }>('/api/characters/me/battle-loadout'),
+
+  setBattleLoadout: (itemInstanceIds: string[]) =>
+    api.put<{ itemInstanceIds: string[] }>('/api/characters/me/battle-loadout', { itemInstanceIds }),
+
   getById: (id: string) =>
     api.get<Character>(`/api/characters/${id}`),
 

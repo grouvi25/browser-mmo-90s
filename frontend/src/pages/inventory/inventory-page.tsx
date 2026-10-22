@@ -33,13 +33,9 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { itemImage } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
 import { rangeLabel } from '../../shared/lib/weapon-range'
+import { useBattleLoadout } from '../../shared/lib/battle-loadout'
 import '../shop/shop.css'
 import './inventory.css'
-
-const LOADOUT_KEY = 'mmo_battle_loadout'
-function getLoadout(): string[] {
-  try { return JSON.parse(localStorage.getItem(LOADOUT_KEY) ?? '[]') } catch { return [] }
-}
 
 /** Стрелковое отделено от рукопашного: в макете это разные вкладки. */
 const RANGED = new Set(['PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 'THROWN'])
@@ -140,15 +136,9 @@ export function InventoryPage() {
   const qc = useQueryClient()
   const [tabKey, setTabKey] = useState('melee')
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [loadoutIds, setLoadoutIds] = useState<string[]>(() => getLoadout())
-
-  const toggleLoadout = (id: string) => {
-    setLoadoutIds(prev => {
-      const next = prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 4 ? [...prev, id] : prev
-      localStorage.setItem(LOADOUT_KEY, JSON.stringify(next))
-      return next
-    })
-  }
+  const pocket = useBattleLoadout()
+  const loadoutIds = pocket.ids
+  const toggleLoadout = pocket.toggle
 
   const { data: char } = useQuery({ queryKey: ['character', 'me'], queryFn: () => charactersApi.getMe() })
   const { data: items = [], isLoading } = useQuery({ queryKey: ['inventory'], queryFn: () => inventoryApi.getItems() })
@@ -371,6 +361,9 @@ export function InventoryPage() {
             <div className="inv-pockets__head">
               <b>Карманы — взять в бой, максимум 4</b>
               <small>Наполни перед боем: расходники будут доступны прямо в схватке</small>
+              {pocket.error && <small role="alert" className="inv-pockets__error">
+                {pocket.error instanceof ApiError ? pocket.error.message : 'Не удалось сохранить карман'}
+              </small>}
             </div>
             <div className="inv-pockets__list">
               {[0, 1, 2, 3].map(i => {

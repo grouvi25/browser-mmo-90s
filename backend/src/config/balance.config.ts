@@ -20,7 +20,8 @@ export const BalanceConfig = {
       defenceLockMinutes: 10,
       neutralClaimHours: 6,
       claimFee: 10000,             // безвозвратно
-      claimMinRoster: 5,
+      // Подаёт главарь или зам, остальные встают кнопкой «Присоединиться» (правка 22.10).
+      claimMinRoster: 1,
       claimMinBattleLevel: 3,
     },
     objectAttack: {

@@ -1226,7 +1226,7 @@ export const BattleService = {
             char.id,
             (weapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1],
           )
-          return this._finishPveBattle(
+          return await this._finishPveBattle(
             battleId, state, char, bot, playerPart, botPart, null, weapon, skill.skillLevel,
           )
         }
@@ -1243,7 +1243,7 @@ export const BattleService = {
           WeaponSkillsRepository.findOrCreate(char.id, (weapon1?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
           WeaponSkillsRepository.findOrCreate(opponent.id, (weapon2?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]),
         ])
-        return this._finishPvpBattle(
+        return await this._finishPvpBattle(
           battleId, state, char, opponent, playerPart, opponentPart, opponent.id,
           weapon1, weapon2, skill1.skillLevel, skill2.skillLevel,
         )
@@ -1268,7 +1268,7 @@ export const BattleService = {
         playerPart.hasActedThisRound = true
         await BattleRedis.setState(battleId, state)
         const allActed = state.participants.every(p => !p.isAlive || p.isSurrendered || p.hasActedThisRound)
-        if (allActed) return this._resolveRoundPvp(battleId, state)
+        if (allActed) return await this._resolveRoundPvp(battleId, state)
         return { waiting: true, roundNumber: state.roundNumber }
       }
 
@@ -1327,7 +1327,7 @@ export const BattleService = {
       // ── Использование предмета (расходник) ───────────────
       if (action === 'use_item') {
         if (!targetItemId) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'No item specified', 400)
-        return this._handleUseItem(battleId, state, char, playerPart, targetItemId)
+        return await this._handleUseItem(battleId, state, char, playerPart, targetItemId)
       }
 
       // ── Зональный ход: стойка (2 удара / 1 блок+1 удар / 4 блока) + зоны ──
@@ -1346,7 +1346,7 @@ export const BattleService = {
 
       // ── PvE: авторазрешение раунда ─────────────────────
       if (state.type === 'PVE_BOT') {
-        return this._resolveRoundPve(battleId, state, char, turn)
+        return await this._resolveRoundPve(battleId, state, char, turn)
       }
 
       // ── PvP: сохраняем ход, ждём противника ────────────
@@ -1380,8 +1380,8 @@ export const BattleService = {
       const allActed = state.participants.every(p => !p.isAlive || p.isSurrendered || p.hasActedThisRound)
       if (allActed) {
         return state.type === 'CLAN'
-          ? this._resolveRoundTeam(battleId, state)
-          : this._resolveRoundPvp(battleId, state)
+          ? await this._resolveRoundTeam(battleId, state)
+          : await this._resolveRoundPvp(battleId, state)
       }
       return {
         waiting: true,

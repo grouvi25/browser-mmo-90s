@@ -64,10 +64,11 @@ describe('заявки на территорию', () => {
     expect((await AuthorityService.audit(clan.id)).matches).toBe(true)
   })
 
-  it('состав меньше пяти не принимается', async () => {
+  it('заявку подают и одним бойцом — остальные встают сами; пустой состав не принимается', async () => {
     const { boss, roster } = await warClan('small')
-    await expect(ClaimsService.file(boss.id, 'center', roster.slice(0, 4)))
+    await expect(ClaimsService.file(boss.id, 'center', []))
       .rejects.toMatchObject({ code: 'WAR_002' })
+    await expect(ClaimsService.file(boss.id, 'center', roster.slice(0, 1))).resolves.toBeTruthy()
   })
 
   it('боец ниже третьего уровня не проходит: армия альтов не годится', async () => {

@@ -216,6 +216,8 @@ export interface LiveParticipant {
   weaponInstanceId?: string
   leftWeaponInstanceId?: string
   rightWeaponInstanceId?: string
+  /** Карман, зафиксированный сервером на старте боя. */
+  pocketItemIds?: string[]
   damageDealt: number
   damageReceived: number
   position: { x: number; y: number }
