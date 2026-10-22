@@ -86,6 +86,8 @@ export interface ItemTemplate {
   minDamage: number | null
   maxDamage: number | null
   weaponAccuracy: number | null
+  /** Дальность в клетках поля боя: у ближнего оружия 1. */
+  maxRange?: number | null
   critBonus: number | null
   // Armor stats
   armor: number | null
@@ -194,9 +196,15 @@ export interface LiveHelper {
   hp: number; hpMax: number; alive: boolean
 }
 
+/** Собака хозяина в бою: кусает его цель вслед за ним. */
+export interface LiveDog { id: string; name: string; level: number; damageDealt: number }
+
 export interface LiveParticipant {
   participantId: string
   helper?: LiveHelper | null
+  dog?: LiveDog | null
+  /** Попадания по зонам: 1 — жёлтая, 2 — оранжевая, 3 — красная, вещь снята. */
+  wounds?: Partial<Record<string, number>>
   characterId?: string
   botId?: string
   hpCurrent: number

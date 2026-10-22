@@ -18,7 +18,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { MENU, ZONE_ARMOR_SLOTS } from '../../shared/lib/layout-map'
 import { FitText, Layer } from '../../shared/lib/stage'
-import { Sprite, SpriteButton } from '../../shared/ui/sprite'
+import { Sprite, SpriteButton, SPRITES } from '../../shared/ui/sprite'
 import type { ItemInstance } from '../../shared/types/api.types'
 import { ARMOR_SLOT_LABELS, WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
 import { itemImage } from '../../shared/assets/shop/shop-images'
@@ -64,7 +64,11 @@ export interface CardProfile {
   offhandCode?: string | null
 }
 
-export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
+/** Раны по зонам в бою: 0 — зелёная, 1 — жёлтая, 2 — оранжевая, 3 — красная. */
+export type CardWounds = Partial<Record<string, number>>
+const WOUND_STRIP_AT = 3
+
+export function CharacterCard({ profile, wounds }: { profile?: CardProfile; wounds?: CardWounds } = {}) {
   const navigate = useNavigate()
   const [tab, setTab] = useState<CardTab>('overview')
   const [zone, setZone] = useState<ZoneKey | null>(null)
@@ -108,6 +112,10 @@ export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
   const offhand = equipped.find(i => i.armorSlot === 'RIGHT_HAND')
   // Амулет (правка заказчика 21.10: «надел, но не видно на картинке»).
   const amulet = equipped.find(i => i.armorSlot === 'ACCESSORY')
+
+  // Третье попадание в руку выбивает оружие до конца боя (правка 22.10).
+  const leftKnocked = (wounds?.LEFT_ARM ?? 0) >= WOUND_STRIP_AT
+  const rightKnocked = (wounds?.RIGHT_ARM ?? 0) >= WOUND_STRIP_AT
 
   const hp = profile?.hp ?? char?.hpCurrent ?? 0
   const energy = profile?.level ?? char?.battleLevel ?? 0
@@ -193,9 +201,9 @@ export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
                 ? itemImage(profile.weaponCode, profile.weaponType ?? undefined, 'WEAPON') ?? undefined
                 : undefined)}
             box={C.slots[0].box}
-            empty={own ? !weapon : !profile?.weaponCode}
+            empty={leftKnocked || (own ? !weapon : !profile?.weaponCode)}
             disabled={!own}
-            title={own
+            title={leftKnocked ? 'Левая рука: оружие выбито' : own
               ? (weapon
                 ? `${weapon.template.name} · прочность ${weapon.durabilityCurrent}/${weapon.durabilityMax}`
                 : 'Оружие не надето — открыть снаряжение')
@@ -208,9 +216,9 @@ export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
               ? itemImage(profile.offhandCode, undefined, 'WEAPON') ?? undefined
               : undefined}
             box={C.slots[1].box}
-            empty={own ? !offhand : !profile?.offhandCode}
+            empty={rightKnocked || (own ? !offhand : !profile?.offhandCode)}
             disabled={!own}
-            title={own
+            title={rightKnocked ? 'Правая рука: оружие выбито' : own
               ? (offhand
                 ? `${offhand.template.name} · прочность ${offhand.durabilityCurrent}/${offhand.durabilityMax}`
                 : 'Правая рука свободна — открыть снаряжение')
@@ -254,6 +262,16 @@ export function CharacterCard({ profile }: { profile?: CardProfile } = {}) {
                 onClick={own ? () => setZone(zone === key ? null : key) : undefined}
               />
             )
+          })}
+
+          {/* Раны в бою: человечек зелёный, после попаданий жёлтый,
+              оранжевый и красный (правка заказчика 22.10). Цвет кладётся
+              маской по рисунку самой зоны, поэтому повторяет её контур. */}
+          {wounds && C.zones.map(z => {
+            const level = Math.min(WOUND_STRIP_AT, wounds[z.key] ?? 0)
+            const mask = `url("${SPRITES[z.sprite]}")`
+            return <span key={`wound-${z.key}`} className={`zone-wound is-${level}`} aria-hidden="true"
+              style={{ left: z.box.x, top: z.box.y, width: z.box.w, height: z.box.h, maskImage: mask, WebkitMaskImage: mask }} />
           })}
 
           {/* подпись выбранной зоны */}

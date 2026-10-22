@@ -970,6 +970,8 @@ model BattleTurn {
   // Боевой помощник: ходил сам или принял удар по хозяину на себя.
   actorHelperId  String? @map("actor_helper_id")
   targetHelperId String? @map("target_helper_id")
+  /// Собака хозяина укусила цель (правка заказчика 22.10).
+  actorPetId     String? @map("actor_pet_id")
 
   createdAt DateTime @default(now()) @map("created_at")
 

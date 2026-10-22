@@ -30,7 +30,11 @@ export interface JournalTurn {
   sourceHand: AttackHand | null
   hit: boolean; dodge: boolean; block: boolean; crit: boolean; blockPierced: boolean
   finalDamage: number
+  logLine?: string | null
 }
+
+/** Снятая третьим попаданием вещь (wounds.ts) дописывается к строке удара. */
+const STRIP_NOTE = /(оружие выбито из (?:левой|правой) руки|броня на [а-яё ]+ сбита)/
 
 /** Текст хода без имён: «удар левой в корпус, −5 HP» / «в голову — уворот». */
 export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: string } {
@@ -38,7 +42,9 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
   const hand = turn.sourceHand ? ` ${HAND[turn.sourceHand]}` : ''
   const damage = turn.finalDamage > 0 ? `, −${turn.finalDamage} HP` : ''
   switch (turn.action) {
-    case 'MOVE': return { kind: 'move', text: 'сближается' }
+    // «Походил, ударил» (правка заказчика 22.10): шаг — отдельной строкой.
+    case 'MOVE': return { kind: 'move', text: 'делает шаг' }
+    case 'BLOCK': return { kind: 'block', text: 'уходит в защиту' }
     case 'USE_ITEM': return { kind: 'item', text: 'использует предмет из кармана' }
     case 'CHANGE_WEAPON': return { kind: 'weapon', text: 'меняет оружие' }
     case 'SURRENDER': return { kind: 'surrender', text: 'сдаётся' }
@@ -46,9 +52,11 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
   }
   if (!turn.hit && turn.block) return { kind: 'block', text: `удар${hand}${zone} — блок` }
   if (!turn.hit) return { kind: 'dodge', text: `удар${hand}${zone} — уворот` }
-  if (turn.blockPierced) return { kind: 'pierce', text: `пробил блок${zone}${damage}` }
-  if (turn.crit) return { kind: 'crit', text: `крит${zone}${damage}` }
-  return { kind: 'hit', text: `удар${hand}${zone}${damage}` }
+  const strip = turn.logLine?.match(STRIP_NOTE)?.[1]
+  const tail = strip ? ` — ${strip}` : ''
+  if (turn.blockPierced) return { kind: 'pierce', text: `пробил блок${zone}${damage}${tail}` }
+  if (turn.crit) return { kind: 'crit', text: `крит${zone}${damage}${tail}` }
+  return { kind: 'hit', text: `удар${hand}${zone}${damage}${tail}` }
 }
 
 export const BattleJournal = {
@@ -88,6 +96,12 @@ export const BattleJournal = {
       const helpers = await prisma.helper.findMany({ where: { id: { in: helperIds } }, select: { id: true, name: true, characterId: true } })
       for (const h of helpers) { nameOf.set(h.id, `${h.name} (помощник)`); sideOf.set(h.id, sideOf.get(h.characterId) ?? 1) }
     }
+    // Собака хозяина — тоже своим именем и за его сторону.
+    const petIds = [...new Set(turns.map(t => t.actorPetId).filter((id): id is string => !!id))]
+    if (petIds.length) {
+      const pets = await prisma.characterPet.findMany({ where: { id: { in: petIds } }, select: { id: true, name: true, characterId: true } })
+      for (const pet of pets) { nameOf.set(pet.id, `${pet.name} (собака)`); sideOf.set(pet.id, sideOf.get(pet.characterId) ?? 1) }
+    }
     const name = (id: string | null) => (id ? nameOf.get(id) ?? 'Боец' : null)
     const winner = battle.participants.find(p => p.id === battle.winnerParticipantId)
 
@@ -98,7 +112,7 @@ export const BattleJournal = {
         winner: winner ? winner.character?.nickname ?? winner.bot?.name ?? null : null,
       },
       items: turns.map(turn => {
-        const actorId = turn.actorCharId ?? turn.actorBotId ?? turn.actorHelperId
+        const actorId = turn.actorCharId ?? turn.actorBotId ?? turn.actorHelperId ?? turn.actorPetId
         const described = describeTurn(turn)
         // Удар по хозяину, принятый помощником на себя.
         const { kind, text } = turn.targetHelperId && turn.hit ? { kind: described.kind, text: described.text + ' — принял на себя' } : described
