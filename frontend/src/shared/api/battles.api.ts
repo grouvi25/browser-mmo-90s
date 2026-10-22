@@ -161,6 +161,12 @@ export const battlesApi = {
   getBattleHistory: (page = 1, limit = 20) =>
     api.get<BattleHistoryResponse>(`/api/battles/me/history?page=${page}&limit=${limit}`),
 
+  getHistoryOf: (nickname: string, page = 1, limit = 20) =>
+    api.get<BattleHistoryResponse & { nickname: string }>(`/api/battles/history/${encodeURIComponent(nickname)}?page=${page}&limit=${limit}`),
+
+  searchPlayers: (q: string) =>
+    api.get<{ items: { nickname: string; level: number; battles: number; wins: number; clan: string | null }[] }>(`/api/characters/search?q=${encodeURIComponent(q)}`),
+
   submitAction: (battleId: string, action: BattleAction, opts?: SubmitActionOpts) =>
     api.post<ActionResponse>(`/api/battles/${battleId}/action`, {
       action,

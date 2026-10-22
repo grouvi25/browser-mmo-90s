@@ -1,5 +1,8 @@
 export const CLAN_CREATE_COST = 25000
 export const CLAN_MIN_LEVEL = 5
+/** Вступить в бригаду — с 7-го боевого уровня (обещание игрокам 22.10):
+ *  сначала игрок осваивается один и понимает, зачем ему бригада. */
+export const CLAN_JOIN_MIN_LEVEL = 7
 export const CLAN_MAINTENANCE_DAILY = 500
 export const CLAN_FREEZE_DEBT = 1500
 export const CLAN_REJOIN_HOURS = 48

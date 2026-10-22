@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { ClansService } from '../../modules/clans/clans.service'
 import { cleanDatabase, testPrisma, uid } from './helpers'
 
-async function player(prefix: string, money = 100_000, battleLevel = 5) {
+async function player(prefix: string, money = 100_000, battleLevel = 7) {
   const login = uid(prefix)
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
   return testPrisma.character.create({

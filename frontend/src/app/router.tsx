@@ -25,6 +25,7 @@ import { RepairPage }          from '../pages/repair/repair-page'
 import { SkillsPage }          from '../pages/skills/skills-page'
 import { ArenaPage }           from '../pages/arena/arena-page'
 import { AdminPage }           from '../pages/admin/admin-page'
+import { LibraryPage }         from '../pages/library/library-page'
 import { StatsPage }           from '../pages/character/stats-page'
 import { ResourcesPage }       from '../pages/resources/resources-page'
 import { WorkPage }            from '../pages/work/work-page'
@@ -196,6 +197,7 @@ export function AppRouter() {
         <Route path="/territories/:code/claims/:id" element={<Stage4Page section="claim" />} />
         <Route path="/premium" element={<Stage4Page section="premium" />} />
         <Route path="/premium/helpers" element={<Stage4Page section="helpers" />} />
+        <Route path="/premium/exchange" element={<Stage4Page section="exchange" />} />
 
         <Route path="/shop" element={
           <ViewportPanel title="Госмагазин" subtitle="Государственные цены">
@@ -294,6 +296,10 @@ export function AppRouter() {
         <Route path="/updates" element={
           <ViewportPanel title="Обновления" subtitle="История изменений">
             <AnnouncementsFeed kind="PATCH" empty="Об изменениях ещё не объявляли." />
+          </ViewportPanel>} />
+        <Route path="/library" element={
+          <ViewportPanel title="Библиотека" subtitle="Что где делать">
+            <LibraryPage />
           </ViewportPanel>} />
         <Route path="/forum"   element={<LockedSection title="Форум" stage={3}
           what="Общение, объявления и торговые темы." />} />

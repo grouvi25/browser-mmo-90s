@@ -161,7 +161,7 @@ interface PlayerDetail {
     battlesTotal: number; battlesWon: number; status: string
     isPremium: boolean; premiumExpiresAt: string | null
     alcoholLevel: number; lastActiveAt: string
-    dollars?: number; isDealer?: boolean
+    dollars?: number; isDealer?: boolean; isModerator?: boolean
     stats?: {
       str: number; agi: number; rea: number; acc: number
       end: number; luck: number; agr: number; pointsAvailable: number
@@ -250,7 +250,7 @@ function PlayerCard({ player, onTrace }: {
           при разборе расслоения смотреть надо на сумму. */}
       <div className="adm-player__facts">
         <span>Деньги: <b>{rub(player.money)} ₽</b></span>
-        <span>Доллары: <b>{rub(character?.dollars ?? 0)} $</b>{character?.isDealer ? ' · дилер' : ''}</span>
+        <span>Доллары: <b>{rub(character?.dollars ?? 0)} $</b>{character?.isDealer ? ' · дилер' : ''}{character?.isModerator ? ' · модератор' : ''}</span>
         <span>Вещи: <b>{rub(gear)} ₽</b></span>
         <span>Ресурсы: <b>{rub(wealth)} ₽</b></span>
         <span>Всего: <b>{rub(player.money + gear + wealth)} ₽</b></span>
@@ -411,7 +411,7 @@ function PlayerCard({ player, onTrace }: {
       <h5>Выдать или забрать</h5>
       <div className="adm-player__grants">
         <GrantMoney characterId={player.id} onDone={done} onFail={fail} />
-        <GrantDollars characterId={player.id} isDealer={!!character?.isDealer} onDone={done} onFail={fail} />
+        <GrantDollars characterId={player.id} isDealer={!!character?.isDealer} isModerator={!!character?.isModerator} onDone={done} onFail={fail} />
         <GrantExp characterId={player.id} onDone={done} onFail={fail} />
       </div>
 
@@ -473,7 +473,8 @@ function GrantMoney({ characterId, onDone, onFail }: {
 }
 
 /** Игровые доллары: выдача дилеру после оплаты, списание и статус дилера. */
-function GrantDollars({ characterId, isDealer, onDone, onFail }: {
+function GrantDollars({ characterId, isDealer, isModerator, onDone, onFail }: {
+  isModerator: boolean
   characterId: string
   isDealer: boolean
   onDone: (text: string) => void
@@ -492,6 +493,11 @@ function GrantDollars({ characterId, isDealer, onDone, onFail }: {
   const dealer = useMutation({
     mutationFn: () => adminApi.setDealer(characterId, !isDealer, reason.trim()),
     onSuccess: () => { onDone(isDealer ? 'Игрок больше не дилер.' : 'Игрок назначен дилером.'); setReason('') },
+    onError: onFail,
+  })
+  const moderator = useMutation({
+    mutationFn: () => adminApi.setModerator(characterId, !isModerator, reason.trim()),
+    onSuccess: () => { onDone(isModerator ? 'Игрок больше не модератор.' : 'Игрок назначен модератором.'); setReason('') },
     onError: onFail,
   })
   const value = Number(amount)
@@ -513,6 +519,9 @@ function GrantDollars({ characterId, isDealer, onDone, onFail }: {
       </button>
       <button type="button" disabled={!hasReason || dealer.isPending} onClick={() => dealer.mutate()}>
         {isDealer ? 'Снять с дилеров' : 'Назначить дилером'}
+      </button>
+      <button type="button" disabled={!hasReason || moderator.isPending} onClick={() => moderator.mutate()}>
+        {isModerator ? 'Снять с модераторов' : 'Назначить модератором'}
       </button>
     </div>
   )

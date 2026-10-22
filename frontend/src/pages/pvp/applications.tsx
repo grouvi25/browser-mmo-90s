@@ -16,6 +16,7 @@ import {
 import { charactersApi } from '../../shared/api/characters.api'
 import { ApiError } from '../../shared/api/client'
 import { PveStart } from '../../widgets/pve-start/pve-start'
+import { WornGear } from '../../widgets/worn-gear/worn-gear'
 import './applications.css'
 
 const KIND_LABEL: Record<ApplicationKind | 'SIEGE', string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Хаотичный', SIEGE: 'Осада дома' }
@@ -140,6 +141,7 @@ export function BattleApplications() {
             </button>
           ))}
         </fieldset>
+        <WornGear />
         {kind === 'BOT' ? <PveStart embedded /> : <>
         <p className="bapps-hint">{KIND_HINT[kind]}</p>
         <div className="bapps-fields">

@@ -197,8 +197,8 @@ const STAGE4_SCREENS: Array<[string, string, number]> = [
   ['/territories', 'Территории', 4],
   ['/territories/raids', 'Налёты', 4],
   ['/territories/wars', 'Войны бригады', 4],
-  ['/premium', 'Чёрный рынок', 3],
-  ['/premium/helpers', 'Помощники', 3],
+  ['/premium', 'Чёрный рынок', 4],
+  ['/premium/helpers', 'Помощники', 4],
 ]
 
 for (const [path, title, tabs] of STAGE4_SCREENS) {

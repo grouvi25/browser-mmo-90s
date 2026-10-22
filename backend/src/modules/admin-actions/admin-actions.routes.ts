@@ -248,6 +248,24 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     return reply.send(result)
   })
 
+  // Назначить или снять модератора игры: он виден игрокам во вкладке «Модераторы».
+  fastify.post('/characters/moderator', SUPER_ADMIN, async (req, reply) => {
+    const reason = reasonOf(req.body)
+    const parsed = z.object({ characterId: Id, isModerator: z.boolean() }).safeParse(req.body)
+    if (!parsed.success) return invalid(reply)
+    const { characterId, isModerator } = parsed.data
+    const character = await prisma.character.findUnique({ where: { id: characterId } })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
+    const result = await AdminActionsService.perform(ctx(req), reason, {
+      kind: isModerator ? 'SET_MODERATOR' : 'UNSET_MODERATOR',
+      payload: { characterId },
+      targetType: 'character',
+      targetId: characterId,
+      undo: { kind: isModerator ? 'UNSET_MODERATOR' : 'SET_MODERATOR', payload: { characterId } },
+    })
+    return reply.send(result)
+  })
+
   fastify.post('/items/grant', SUPER_ADMIN, async (req, reply) => {
     const reason = reasonOf(req.body)
     const parsed = z.object({ characterId: Id, templateId: Id }).safeParse(req.body)

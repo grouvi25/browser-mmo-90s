@@ -14,6 +14,35 @@ import { DESIGNER_CELL_CENTERS, DESIGNER_CELL_NEIGHBOURS } from './designer-grid
 // =============================================================
 export const BATTLE_GRID = { width: 10, height: 10 } as const
 
+/** Дуэль (бой один на один) идёт в полосе 3×8 посреди поля: картинка
+ *  большая, игровая зона ограничена (обещание игрокам 22.10). */
+export const DUEL_ARENA = { x0: 1, x1: 8, y0: 4, y1: 6 } as const
+export type Arena = { x0: number; x1: number; y0: number; y1: number }
+
+/** Бочки в полосе дуэли: через них не пройти и не прострелить — укрытие
+ *  от стрелка, чтобы до него можно было добежать. */
+export const DUEL_OBSTACLES: readonly GridPosition[] = [{ x: 4, y: 6 }, { x: 5, y: 4 }]
+
+export function insideArena(position: GridPosition, arena: Arena): boolean {
+  return position.x >= arena.x0 && position.x <= arena.x1 && position.y >= arena.y0 && position.y <= arena.y1
+}
+
+const OBSTACLE_ID = 'obstacle:'
+const EDGE_ID = 'edge:'
+
+/** Клетки вне полосы и бочки — как неподвижные «занятые» клетки: так их
+ *  учитывают и ход, и одновременные перемещения, и луч выстрела (бочки). */
+export function arenaBlockers(arena: Arena | undefined, obstacles: readonly GridPosition[] = []): PositionedParticipant[] {
+  const out: PositionedParticipant[] = obstacles.map(p => ({ participantId: `${OBSTACLE_ID}${p.x}:${p.y}`, side: 0, isAlive: true, position: { ...p } }))
+  if (!arena) return out
+  for (let x = 0; x < BATTLE_GRID.width; x++) {
+    for (let y = 0; y < BATTLE_GRID.height; y++) {
+      if (!insideArena({ x, y }, arena)) out.push({ participantId: `${EDGE_ID}${x}:${y}`, side: 0, isAlive: true, position: { x, y } })
+    }
+  }
+  return out
+}
+
 export function hexNeighbours(position: GridPosition): GridPosition[] {
   return (DESIGNER_CELL_NEIGHBOURS[`${position.x}:${position.y}`] ?? []).map(value => {
     const [x, y] = value.split(':').map(Number)
@@ -191,6 +220,8 @@ export function hasLineOfSight(
   const lengthSquared = dx * dx + dy * dy
   return !participants.some(participant => {
     if (!participant.isAlive || participant.participantId === attackerId || participant.participantId === targetId) return false
+    // Край полосы дуэли — граница хода, а не стена: стрелять вдоль него можно.
+    if (participant.participantId.startsWith(EDGE_ID)) return false
     const point = DESIGNER_CELL_CENTERS[`${participant.position.x}:${participant.position.y}`]
     if (!point) return false
     const projection = ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared
@@ -224,6 +255,16 @@ export function stepToward(from: GridPosition, to: GridPosition): GridPosition[]
   return hexNeighbours(from)
     .filter(cell => gridDistance(cell, to) < current)
     .sort((a, b) => gridDistance(a, to) - gridDistance(b, to))
+}
+
+/** Шаг к цели, а если прямые клетки заняты (бочка, край полосы) — в обход:
+ *  сначала сближающие, затем остальные соседние по близости к цели. */
+export function stepTowardOrAround(from: GridPosition, to: GridPosition): GridPosition[] {
+  const direct = stepToward(from, to)
+  const rest = hexNeighbours(from)
+    .filter(cell => !direct.some(d => samePosition(d, cell)))
+    .sort((a, b) => gridDistance(a, to) - gridDistance(b, to))
+  return [...direct, ...rest]
 }
 
 /** Соседние клетки, отсортированные по удалению от угрозы. */

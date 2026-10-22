@@ -33,4 +33,15 @@ export async function dollarsRoutes(fastify: FastifyInstance) {
     const character = await me(req.authUser.userId)
     return reply.send(await DollarsService.transfer(character.id, parsed.data.nickname, parsed.data.amount, key))
   })
+
+  // GET /api/dollars/exchange — курсы обменника и остаток суточного потолка
+  fastify.get('/exchange', { preHandler: authenticate }, async req => DollarsService.exchangeInfo((await me(req.authUser.userId)).id))
+
+  // POST /api/dollars/exchange — рубли ↔ доллары
+  fastify.post('/exchange', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ direction: z.enum(['buy', 'sell']), dollars: z.number().int().min(1).max(100_000) }).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Укажите направление и сумму в долларах' })
+    const character = await me(req.authUser.userId)
+    return reply.send(await DollarsService.exchange(character.id, parsed.data.direction, parsed.data.dollars))
+  })
 }

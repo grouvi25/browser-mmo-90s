@@ -178,6 +178,11 @@ export const BalanceConfig = {
       STUDENT:  2,   // студент получает 2 доп. очка
       RESOLVER: 0,
     } as Record<string, number>,
+
+    // Свиток перераспределения: два выдаются бесплатно (поле в базе),
+    // следующие — за рубли. Цена стартовая, заказчик её не задавал.
+    respecScrollPrice: 5000,
+    maxStat: 20,
   },
 
   // --- Initiative ---

@@ -103,6 +103,14 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.send(result)
     })
 
+  // GET /api/battles/history/:nickname — история боёв другого бойца
+  fastify.get<{ Params: { nickname: string } }>('/history/:nickname', { preHandler: authenticate },
+    async (req, reply) => {
+      const parsed = HistorySchema.safeParse(req.query)
+      const { page, limit } = parsed.success ? parsed.data : { page: 1, limit: 20 }
+      return reply.send(await BattleService.getHistoryByNickname(req.params.nickname.slice(0, 64), page, limit))
+    })
+
   // POST /api/battles/:battleId/action
   fastify.post<{ Params: { battleId: string } }>('/:battleId/action', { preHandler: authenticate },
     async (req, reply) => {

@@ -412,6 +412,12 @@ export const adminApi = {
       method: 'POST', body: { characterId, isDealer, reason },
     }),
 
+  /** Назначить или снять модератора игры. */
+  setModerator: (characterId: string, isModerator: boolean, reason: string) =>
+    request<{ actionId: string }>('/api/admin/characters/moderator', {
+      method: 'POST', body: { characterId, isModerator, reason },
+    }),
+
   /** Опыт. Уровень пересчитывает сервер: выдать опыт и забыть поднять
    *  уровень значило бы оставить персонажа с телом первого уровня. */
   grantExp: (characterId: string, track: string, amount: number, reason: string) =>

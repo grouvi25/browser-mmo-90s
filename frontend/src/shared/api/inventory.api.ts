@@ -2,6 +2,10 @@ import { api } from './client'
 import type { ItemInstance, ItemStatKey } from '../types/api.types'
 
 export const inventoryApi = {
+  outfits: () => api.get<{ slots: number; items: { slot: number; name: string; count: number }[] }>('/api/inventory/outfits'),
+  saveOutfit: (slot: number, name?: string) => api.post<{ slot: number; name: string; count: number }>(`/api/inventory/outfits/${slot}/save`, { name }),
+  wearOutfit: (slot: number) => api.post<{ equipped: number; skipped: string[] }>(`/api/inventory/outfits/${slot}/wear`, {}),
+
   getItems: () =>
     api.get<ItemInstance[]>('/api/inventory'),
 

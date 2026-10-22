@@ -3306,3 +3306,16 @@ button { font-family: inherit; }
 .auth-consent a, .auth-policy-link a { color: inherit; text-decoration: underline; }
 .auth-consent a:hover, .auth-policy-link a:hover { text-decoration: none; }
 .auth-policy-link { margin-top: 6px; font-size: 12.5px; opacity: .85; }
+.stats-derived { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; padding: 10px; background: var(--bg-panel2); border: 1px solid var(--border); font-size: 13.9px; }
+.stats-derived > div { display: flex; flex-direction: column; gap: 2px; }
+.stats-derived span { color: var(--text-dim); display: flex; align-items: center; gap: 3px; }
+.stats-derived b { font-family: var(--font-mono); }
+.stats-derived small { color: var(--text-dim); }
+.stats-delta { color: var(--success); font-size: 13px; }
+.stats-table__action { width: 84px; white-space: nowrap; }
+.stats-table__action .btn + .btn { margin-left: 4px; }
+.stats-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.stats-respec { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.stats-respec p { flex-basis: 100%; margin: 0; font-size: 13.5px; }
+.player-search { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
+.player-search label { display: grid; gap: 4px; flex: 1; }

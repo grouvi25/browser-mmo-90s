@@ -6,7 +6,7 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
 import { clanObjectLimit } from '../production/ownership.service'
-import { CLAN_CREATE_COST, CLAN_MIN_LEVEL, CLAN_REJOIN_HOURS, CLAN_RELATION_COOLDOWN_HOURS, DEFAULT_ROLES, clanMemberCapacity, clanStorageCapacity, storageWithdrawDailyLimit, treasurySpendDailyLimit, type ClanPermission } from './clans.formulas'
+import { CLAN_CREATE_COST, CLAN_JOIN_MIN_LEVEL, CLAN_MIN_LEVEL, CLAN_REJOIN_HOURS, CLAN_RELATION_COOLDOWN_HOURS, DEFAULT_ROLES, clanMemberCapacity, clanStorageCapacity, storageWithdrawDailyLimit, treasurySpendDailyLimit, type ClanPermission } from './clans.formulas'
 
 function permissions(role: { permissions: Prisma.JsonValue }): string[] {
   return Array.isArray(role.permissions) ? role.permissions.filter((value): value is string => typeof value === 'string') : []
@@ -155,6 +155,7 @@ export const ClansService = {
       if (!found) throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Боец с таким ником не найден', 404)
       if (found.id === characterId) throw new AppError(ErrorCode.CLAN_ALREADY_MEMBER, 'Себя пригласить нельзя', 409)
       if (found.clanId) throw new AppError(ErrorCode.CLAN_ALREADY_MEMBER, 'Игрок уже состоит в бригаде', 409)
+      if (found.battleLevel < CLAN_JOIN_MIN_LEVEL) throw new AppError(ErrorCode.CLAN_REQUIREMENTS, `В бригаду принимают с ${CLAN_JOIN_MIN_LEVEL}-го боевого уровня`, 403)
       // Новое приглашение заменяет прежнее. Раньше прежнее переводилось в
       // EXPIRED, и третье приглашение тому же бойцу падало на уникальном
       // индексе (бригада, боец, статус).
@@ -192,6 +193,7 @@ export const ClansService = {
       if (!invite) throw new AppError(ErrorCode.CLAN_INVITE_INVALID, 'Приглашение недействительно или истекло', 409)
       const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
       if (character.clanId) throw new AppError(ErrorCode.CLAN_ALREADY_MEMBER, 'Вы уже состоите в бригаде', 409)
+      if (character.battleLevel < CLAN_JOIN_MIN_LEVEL) throw new AppError(ErrorCode.CLAN_REQUIREMENTS, `В бригаду принимают с ${CLAN_JOIN_MIN_LEVEL}-го боевого уровня`, 403)
       const old = await tx.clanMember.findUnique({ where: { characterId } })
       if (old?.leftAt && Date.now() - old.leftAt.getTime() < CLAN_REJOIN_HOURS * 3_600_000) throw new AppError(ErrorCode.CLAN_REJOIN_COOLDOWN, 'Вступить в бригаду снова пока нельзя', 409)
       const count = await tx.clanMember.count({ where: { clanId: invite.clanId, status: 'ACTIVE' } })

@@ -589,6 +589,14 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
     await tx.character.update({ where: { id: str(payload, 'characterId') }, data: { isDealer: false } })
   },
 
+  SET_MODERATOR: async (tx, payload) => {
+    await tx.character.update({ where: { id: str(payload, 'characterId') }, data: { isModerator: true } })
+  },
+
+  UNSET_MODERATOR: async (tx, payload) => {
+    await tx.character.update({ where: { id: str(payload, 'characterId') }, data: { isModerator: false } })
+  },
+
   JAIL_CHARACTER: async (tx, payload) => {
     const characterId = str(payload, 'characterId')
     const char = must(await tx.character.findUnique({ where: { id: characterId } }), 'Персонажа больше нет')

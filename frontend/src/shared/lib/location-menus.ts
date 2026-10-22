@@ -24,6 +24,7 @@ const PERSONAL: LocationTab[] = [
   { key: 'black-market', label: 'Чёрный рынок', to: '/premium' },
   // Поддержка — в Центре (правка заказчика 21.10).
   { key: 'support', label: 'Поддержка', to: '/support' },
+  { key: 'library', label: 'Библиотека', to: '/library' },
 ]
 
 interface Place { key: string; match: string[]; tabs: LocationTab[] }
@@ -57,6 +58,7 @@ const PLACES: Place[] = [
   // Новости, обновления и форум — в верхней строке; полоса внизу у них пустая.
   { key: 'top', match: ['/news', '/updates', '/forum'], tabs: [] },
   { key: 'housing', match: ['/housing'], tabs: [] },
+  { key: 'library', match: ['/library'], tabs: [] },
   { key: 'shop', match: ['/shop'], tabs: [] },
   {
     // Вкладки «Промзона» и «Гаражи» с названием самой локации убраны: рядом
@@ -113,6 +115,7 @@ const PLACES: Place[] = [
     key: 'black-market', match: ['/premium'], tabs: [
       { key: 'showcase', label: 'Витрина', to: '/premium' },
       { key: 'helpers', label: 'Помощники', to: '/premium/helpers' },
+      { key: 'exchange', label: 'Обменник', to: '/premium/exchange' },
     ],
   },
 ]

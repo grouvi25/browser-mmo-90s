@@ -7,7 +7,10 @@ import { WeaponSkillsRepository } from '../weapon-skills/weapon-skills.repositor
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { prisma } from '../../shared/db/prisma'
+import { EconomyService } from '../economy/economy.service'
 import { z } from 'zod'
+import type { Prisma } from '@prisma/client'
+import { calcHpMax } from '../stats/stats.formulas'
 import { dogSummary } from '../city/city.config'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 
@@ -19,6 +22,30 @@ const DistributeStatSchema = z.object({
   stat: z.enum(['str', 'agi', 'rea', 'acc', 'end', 'luck', 'agr', 'auth']),
   amount: z.number().int().min(1).max(5),
 })
+
+const STAT_KEYS = ['str', 'agi', 'rea', 'acc', 'end', 'luck', 'agr', 'auth'] as const
+type StatKey = typeof STAT_KEYS[number]
+
+const ApplyStatsSchema = z.object({
+  deltas: z.record(z.enum(STAT_KEYS), z.number().int().min(0).max(100)),
+})
+
+/** С чего начинал персонаж: база плюс бонус архетипа. Ниже свиток не опускает. */
+function startingStats(archetype: string): Record<StatKey, number> {
+  const B = BalanceConfig.character
+  const base = { ...B.baseStats } as Record<StatKey, number>
+  for (const [stat, bonus] of Object.entries(B.archetypeBonuses[archetype] ?? {})) base[stat as StatKey] += bonus ?? 0
+  return base
+}
+
+/** Выносливость меняет запас HP — пересчитываем сразу, а не после боя. */
+async function syncHpMax(tx: Prisma.TransactionClient, characterId: string) {
+  const stats = await tx.characterStats.findUniqueOrThrow({ where: { characterId } })
+  const char = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { battleLevel: true, hpCurrent: true } })
+  const hpMax = calcHpMax(stats.end, char.battleLevel)
+  await tx.character.update({ where: { id: characterId }, data: { hpMax, hpCurrent: Math.min(char.hpCurrent, hpMax) } })
+  return stats
+}
 
 export async function charactersRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/creation-config', { preHandler: authenticate }, async (_req, reply) => {
@@ -143,6 +170,86 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
     async (req, reply) => {
       const char = await CharactersService.getById(req.params.id)
       return reply.send(char)
+    })
+
+  // POST /api/characters/stats/apply — черновик со страницы характеристик
+  // одним разом (обещание игрокам 22.10): игрок крутит «+» и «−», смотрит,
+  // что меняется, и только потом подтверждает.
+  fastify.post('/stats/apply', { preHandler: authenticate },
+    async (req, reply) => {
+      const parsed = ApplyStatsSchema.safeParse(req.body)
+      if (!parsed.success) throw AppError.validation('Неверный набор характеристик')
+      const deltas = Object.entries(parsed.data.deltas).filter(([, v]) => (v ?? 0) > 0) as Array<[StatKey, number]>
+      const total = deltas.reduce((sum, [, v]) => sum + v, 0)
+      if (total === 0) throw AppError.validation('Ничего не выбрано')
+      const char = await CharactersService.getProfile(req.authUser.userId)
+      const max = BalanceConfig.character.maxStat
+      const stats = await prisma.$transaction(async tx => {
+        // Условия в самом UPDATE: два одновременных подтверждения не потратят очки дважды.
+        const updated = await tx.characterStats.updateMany({
+          where: {
+            characterId: char.id,
+            pointsAvailable: { gte: total },
+            ...Object.fromEntries(deltas.map(([k, v]) => [k, { lte: max - v }])),
+          },
+          data: {
+            pointsAvailable: { decrement: total },
+            ...Object.fromEntries(deltas.map(([k, v]) => [k, { increment: v }])),
+          },
+        })
+        if (updated.count !== 1) throw new AppError(ErrorCode.CONFLICT, `Не хватает очков или характеристика выше ${max}`, 409)
+        return syncHpMax(tx, char.id)
+      })
+      return reply.send({ message: `Вложено очков: ${total}`, stats })
+    })
+
+  // POST /api/characters/stats/respec — свиток: все вложенные очки
+  // возвращаются, характеристики — к стартовым.
+  fastify.post('/stats/respec', { preHandler: authenticate },
+    async (req, reply) => {
+      const char = await CharactersService.getProfile(req.authUser.userId)
+      if (!char.stats) throw AppError.internal('Stats missing')
+      const start = startingStats(char.archetype)
+      const current = char.stats as unknown as Record<StatKey, number>
+      const spent = STAT_KEYS.reduce((sum, k) => sum + Math.max(0, current[k] - start[k]), 0)
+      if (spent === 0) throw new AppError(ErrorCode.CONFLICT, 'Возвращать нечего: очки не вложены', 409)
+      const stats = await prisma.$transaction(async tx => {
+        const used = await tx.characterStats.updateMany({
+          where: { characterId: char.id, respecScrolls: { gt: 0 }, ...Object.fromEntries(STAT_KEYS.map(k => [k, current[k]])) },
+          data: { respecScrolls: { decrement: 1 }, pointsAvailable: { increment: spent }, ...start },
+        })
+        if (used.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Нет свитка перераспределения или характеристики уже изменились', 409)
+        return syncHpMax(tx, char.id)
+      })
+      return reply.send({ message: `Очки возвращены: ${spent}`, stats })
+    })
+
+  // POST /api/characters/stats/respec/buy — свиток за рубли.
+  fastify.post('/stats/respec/buy', { preHandler: authenticate },
+    async (req, reply) => {
+      const char = await CharactersService.getProfile(req.authUser.userId)
+      const price = BalanceConfig.character.respecScrollPrice
+      const stats = await prisma.$transaction(async tx => {
+        await EconomyService.debit(tx, { characterId: char.id, amount: price, reasonCode: 'STAT_RESPEC_PURCHASE' })
+        return tx.characterStats.update({ where: { characterId: char.id }, data: { respecScrolls: { increment: 1 } } })
+      })
+      return reply.send({ message: 'Куплен свиток перераспределения', stats })
+    })
+
+  // GET /api/characters/search?q= — поиск бойцов по началу ника
+  fastify.get<{ Querystring: { q?: string } }>('/search', { preHandler: authenticate },
+    async (req, reply) => {
+      const q = (req.query.q ?? '').trim().slice(0, 30)
+      if (q.length < 2) return reply.send({ items: [] })
+      const rows = await prisma.character.findMany({
+        where: { nickname: { contains: q, mode: 'insensitive' }, isInvisible: false },
+        select: { nickname: true, battleLevel: true, battlesTotal: true, battlesWon: true, clanId: true },
+        orderBy: { battleLevel: 'desc' },
+        take: 20,
+      })
+      const clanIds = [...new Set(rows.flatMap(r => r.clanId ? [r.clanId] : []))]
+      const clans = new Map((await prisma.clan.findMany({ where: { id: { in: clanIds } }, select: { id: true, name: true } })).map(c => [c.id, c.name]))
+      return reply.send({ items: rows.map(r => ({ nickname: r.nickname, level: r.battleLevel, battles: r.battlesTotal, wins: r.battlesWon, clan: r.clanId ? clans.get(r.clanId) ?? null : null })) })
     })
 
   // GET /api/characters/by-nickname/:nickname — публичный профиль

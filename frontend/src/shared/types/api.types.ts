@@ -18,6 +18,7 @@ export interface CharacterStats {
   agr: number
   auth: number
   pointsAvailable: number
+  respecScrolls?: number
 }
 
 export interface Character {
@@ -231,6 +232,10 @@ export interface LiveBattleState {
   participants: LiveParticipant[]
   roundDeadline?: number
   distance?: number
+  /** Полоса дуэли (бой один на один); null — всё поле. */
+  arena?: { x0: number; x1: number; y0: number; y1: number } | null
+  /** Бочки: не пройти и не прострелить. */
+  obstacles?: { x: number; y: number }[]
 }
 
 export interface RepairItem extends ItemInstance {

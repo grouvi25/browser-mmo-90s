@@ -18,6 +18,9 @@ const REASON: Record<DollarMove['reason'], string> = {
   TRANSFER_OUT: 'Перевод игроку',
   TRANSFER_IN: 'Пополнение от дилера',
   PURCHASE: 'Покупка',
+  MARKET_SALE: 'Продажа на рынке',
+  MARKET_TAX: 'Налог рынка',
+  EXCHANGE: 'Обменник',
 }
 
 export function DollarsSection() {
