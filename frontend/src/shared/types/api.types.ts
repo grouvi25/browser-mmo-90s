@@ -31,6 +31,8 @@ export interface Character {
   battleExp: number
   economicLevel: number
   economicExp: number
+  /** Рейтинг (книга заказчика 23.10): статы с весами + надетые вещи. */
+  rating?: number
   productionLevel: number
   productionExp: number
   money: number

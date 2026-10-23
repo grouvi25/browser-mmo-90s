@@ -1,4 +1,5 @@
 import { BalanceConfig } from '../../config/balance.config'
+import { applyUpgradeModifiers } from '../upgrades/upgrades.formulas'
 
 const B = BalanceConfig
 
@@ -171,4 +172,55 @@ export function calcCharacterPower(
   const weaponPower = equippedWeaponPrice / 200   // 200₽ weapon ≈ 1 power unit
   const armorPower  = totalArmorValue / 10         // 10 ARM ≈ 1 power unit
   return Math.max(1, Math.round(naturalPower + weaponPower + armorPower))
+}
+
+// ---------------------------------------------------------------
+// Рейтинг персонажа (книга заказчика 23.10, лист «Рейтинг»):
+// базовые характеристики с весами + надетые вещи. Бонусов к самим
+// характеристикам у вещей нет, поэтому вклад вещи — её оружие и
+// броня, посчитанные с улучшениями, вложенными очками и камнями.
+// Авторитет — социальная величина, в рейтинг не входит.
+// ---------------------------------------------------------------
+export const RATING_WEIGHTS: Readonly<Record<'str' | 'agi' | 'rea' | 'acc' | 'end' | 'luck' | 'agr', number>> = {
+  str: 2, end: 2, agi: 1.5, rea: 1.5, acc: 1.5, luck: 1, agr: 1,
+}
+
+type RatingStats = { str: number; agi: number; rea: number; acc: number; end: number; luck: number; agr: number }
+
+export interface EquippedForRating {
+  template: {
+    type: string
+    minDamage: number | null
+    maxDamage: number | null
+    armor: number | null
+    durabilityMax: number
+    statAllocation?: unknown
+    weaponAccuracy?: number | null
+    critBonus?: number | null
+    antiCrit?: number | null
+  }
+  upgradeModifiersJson?: unknown
+  statAllocation?: unknown
+  socketsJson?: unknown
+}
+
+export function calcBaseRating(stats: RatingStats): number {
+  let sum = 0
+  for (const key of Object.keys(RATING_WEIGHTS) as (keyof RatingStats)[]) {
+    sum += (stats[key] ?? 0) * RATING_WEIGHTS[key]
+  }
+  return sum
+}
+
+export function calcEquippedItemRating(item: EquippedForRating): number {
+  if (item.template.type !== 'WEAPON' && item.template.type !== 'ARMOR' && item.template.type !== 'SHIELD') return 0
+  const mods = (item.upgradeModifiersJson ?? {}) as Parameters<typeof applyUpgradeModifiers>[1]
+  const eff = applyUpgradeModifiers(item.template, mods, item.statAllocation, item.socketsJson)
+  if (item.template.type === 'WEAPON') return 2 * ((eff.minDamage + eff.maxDamage) / 2)
+  return 1.5 * eff.armor
+}
+
+export function calcCharacterRating(stats: RatingStats, equipped: EquippedForRating[]): number {
+  const total = calcBaseRating(stats) + equipped.reduce((sum, item) => sum + calcEquippedItemRating(item), 0)
+  return Math.round(total * 10) / 10
 }

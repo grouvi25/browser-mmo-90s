@@ -14,6 +14,8 @@ export interface PublicProfile {
   createdAt?: string
   gender?: 'MALE' | 'FEMALE'
   economicLevel?: number
+  /** Рейтинг (книга заказчика 23.10): статы с весами + надетые вещи. */
+  rating?: number
   hpCurrent?: number
   hpMax?: number
   professions?: Array<{ professionCode: string; level: number; name: string }>

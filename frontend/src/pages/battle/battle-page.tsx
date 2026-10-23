@@ -202,6 +202,10 @@ export function BattlePage() {
   const [actionSnapshot, setActionSnapshot] = useState<BattleActionSnapshot | null>(null)
   const [battleOver, setBattleOver]     = useState(false)
   const [finishResult, setFinishResult] = useState<RoundResult | null>(null)
+  // Итог не выскакивает мгновенно: полторы секунды игрок ещё видит поле
+  // и последний удар в логе, потом итог мягко проявляется (правка
+  // заказчика 23.10: экран конца боя «пугает» резкой подменой).
+  const [showResult, setShowResult]     = useState(false)
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
   const [pocketsOpen, setPocketsOpen]   = useState(false)
@@ -491,10 +495,17 @@ export function BattlePage() {
     return () => clearInterval(interval)
   }, [currentRound, battleOver, live?.roundDeadline])
 
+  // Пауза перед итогом: досмотреть последний раунд.
+  useEffect(() => {
+    if (!battleOver) return
+    const t = setTimeout(() => setShowResult(true), 1500)
+    return () => clearTimeout(t)
+  }, [battleOver])
+
   if (!isValid) return null
 
   // ── Финальный экран ───────────────────────────────────────
-  if (battleOver && finishResult) {
+  if (battleOver && finishResult && showResult) {
     const won = isWin(finishResult)
     return (
       <div className="battle-page-v2">
@@ -521,7 +532,7 @@ export function BattlePage() {
             <div className="brv2-actions">
               <button className="btn btn-primary" onClick={() => navigate('/profile')}>Профиль</button>
               <button className="btn btn-gold"    onClick={() => navigate('/repair')}>Ремонт</button>
-              <button className="btn btn-danger"  onClick={() => navigate('/profile')}>Ещё раз</button>
+              <button className="btn btn-danger"  onClick={() => navigate('/pvp')}>Ещё раз</button>
             </div>
           </div>
 
