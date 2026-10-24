@@ -3,6 +3,8 @@ import {
   calcHpMax,
   calcCarryWeight,
   calcBattleExp,
+  calcRatingPower,
+  typicalTargetPower,
   getLevelFromExp,
   calcWeaponSkillExp,
   getWeaponSkillLevelFromExp,
@@ -58,47 +60,114 @@ describe('calcCarryWeight', () => {
 })
 
 // ---------------------------------------------------------------
-// Battle experience
+// Battle experience — формула «Ревизия 2» (книга заказчика 23.10)
 // ---------------------------------------------------------------
 describe('calcBattleExp', () => {
-  it('PvP win gives more exp than PvE win', () => {
-    const pvp = calcBattleExp(50, 20, 100, 0, 'PVP_WIN')
-    const pve = calcBattleExp(50, 20, 100, 0, 'PVE_WIN')
-    expect(pvp).toBeGreaterThan(pve)
+  it('пример книги «ранний уровень за один бой»: 1103 XP', () => {
+    // H = 100, P = 200, D = 200, R = 100, уровни равны:
+    // зачёт = MIN(200; 200; 300) = 200; 200 × 2 × 1 × 2,759375 = 1103,75 → 1103
+    expect(calcBattleExp({
+      damageDealt: 200, targetPower: 200, targetMaxHp: 100, targetHealed: 100,
+      playerLevel: 1, targetLevel: 1, result: 'PVP_WIN',
+    })).toBe(1103)
   })
 
-  it('PvP loss gives more exp than PvE loss', () => {
-    const pvp = calcBattleExp(50, 20, 100, 0, 'PVP_LOSS')
-    const pve = calcBattleExp(50, 20, 100, 0, 'PVE_LOSS')
-    expect(pvp).toBeGreaterThan(pve)
+  it('общий потолок 50 000 XP за бой', () => {
+    // Книга: P = H = 100 000, D = 300 000, R = 200 000 → за бой 50 000
+    expect(calcBattleExp({
+      damageDealt: 300000, targetPower: 100000, targetMaxHp: 100000, targetHealed: 200000,
+      playerLevel: 10, targetLevel: 10, result: 'PVP_WIN',
+    })).toBe(50000)
   })
 
-  it('PvE loss gives 0 exp', () => {
-    expect(calcBattleExp(50, 20, 100, 0, 'PVE_LOSS')).toBe(0)
+  it('проигравшему 10%, ничья 20%', () => {
+    const base = {
+      damageDealt: 200, targetPower: 200, targetMaxHp: 100,
+      playerLevel: 1, targetLevel: 1,
+    } as const
+    const win = calcBattleExp({ ...base, result: 'PVP_WIN' })
+    expect(calcBattleExp({ ...base, result: 'PVP_LOSS' })).toBe(Math.floor(win * 0.1))
+    expect(calcBattleExp({ ...base, result: 'DRAW' })).toBe(Math.floor(win * 0.2))
+    // PvE-поражение тоже 10%: «проигравшему 10%» без разбора типа боя.
+    expect(calcBattleExp({ ...base, result: 'PVE_LOSS' })).toBe(Math.floor(win * 0.1))
   })
 
-  it('large level diff reduces exp', () => {
-    const same    = calcBattleExp(50, 20, 100, 0, 'PVP_WIN')
-    const bigDiff = calcBattleExp(50, 20, 100, 15, 'PVP_WIN')
-    expect(same).toBeGreaterThan(0) // равные уровни — опыт начисляется
-    expect(bigDiff).toBe(0)         // diff >= 15 → 0
+  it('PvP победа даёт больше PvE победы (ставки 1 против 0,5)', () => {
+    const base = {
+      damageDealt: 100, targetPower: 150, targetMaxHp: 100,
+      playerLevel: 1, targetLevel: 1,
+    } as const
+    expect(calcBattleExp({ ...base, result: 'PVP_WIN' })).toBeGreaterThan(
+      calcBattleExp({ ...base, result: 'PVE_WIN' }))
   })
 
-  it('more damage dealt = more exp', () => {
-    const low  = calcBattleExp(20, 20, 100, 0, 'PVP_WIN')
-    const high = calcBattleExp(80, 20, 100, 0, 'PVP_WIN')
-    expect(high).toBeGreaterThan(low)
+  it('зачёт ограничен тремя шкалами HP: лечение не кормит опыт бесконечно', () => {
+    // Пример книги: H = 200, R = 1000, D = 1200 → зачёт 600 (H × 3),
+    // а не 1200 пережитых HP. Равен бою, где цель пережила ровно 600.
+    const capped = calcBattleExp({
+      damageDealt: 1200, targetPower: 300, targetMaxHp: 200, targetHealed: 1000,
+      playerLevel: 9, targetLevel: 9, result: 'PVP_WIN',
+    })
+    const reference = calcBattleExp({
+      damageDealt: 600, targetPower: 300, targetMaxHp: 200, targetHealed: 400,
+      playerLevel: 9, targetLevel: 9, result: 'PVP_WIN',
+    })
+    expect(capped).toBe(reference)
   })
 
-  it('anti-farm coefficient reduces exp', () => {
-    const full = calcBattleExp(50, 20, 100, 0, 'PVE_WIN', 1.0)
-    const half = calcBattleExp(50, 20, 100, 0, 'PVE_WIN', 0.5)
-    expect(half).toBeLessThan(full)
+  it('урон сверх убитой цели не засчитывается', () => {
+    // D = 400 по цели с H = 200 без лечения: зачёт 200, лишние HP нельзя приписать.
+    const overkill = calcBattleExp({
+      damageDealt: 400, targetPower: 300, targetMaxHp: 200,
+      playerLevel: 9, targetLevel: 9, result: 'PVP_WIN',
+    })
+    const exact = calcBattleExp({
+      damageDealt: 200, targetPower: 300, targetMaxHp: 200,
+      playerLevel: 9, targetLevel: 9, result: 'PVP_WIN',
+    })
+    expect(overkill).toBe(exact)
   })
 
-  it('result is never negative', () => {
-    expect(calcBattleExp(0, 0, 0, 0, 'PVE_LOSS')).toBeGreaterThanOrEqual(0)
-    expect(calcBattleExp(-100, 20, 100, 0, 'PVP_WIN')).toBeGreaterThanOrEqual(0)
+  it('K по уровням: младший против старшего получает меньше', () => {
+    const even = calcBattleExp({
+      damageDealt: 100, targetPower: 150, targetMaxHp: 100,
+      playerLevel: 8, targetLevel: 8, result: 'PVP_WIN',
+    })
+    const junior = calcBattleExp({
+      damageDealt: 100, targetPower: 150, targetMaxHp: 100,
+      playerLevel: 8, targetLevel: 10, result: 'PVP_WIN',
+    })
+    // K = 8/10 = 0,8; из-за floor по месту может срезаться копейка.
+    expect(junior).toBeGreaterThan(even * 0.79)
+    expect(junior).toBeLessThan(even * 0.81)
+  })
+
+  it('анти-фарм уменьшает опыт', () => {
+    const base = {
+      damageDealt: 100, targetPower: 150, targetMaxHp: 100,
+      playerLevel: 1, targetLevel: 1, result: 'PVE_WIN' as const,
+    }
+    expect(calcBattleExp({ ...base, antiFarmCoeff: 0.5 }))
+      .toBeLessThan(calcBattleExp({ ...base, antiFarmCoeff: 1 }))
+  })
+
+  it('результат никогда не отрицательный', () => {
+    expect(calcBattleExp({ damageDealt: 0, targetPower: 0, targetMaxHp: 0, playerLevel: 1, targetLevel: 1, result: 'PVE_LOSS' })).toBeGreaterThanOrEqual(0)
+    expect(calcBattleExp({ damageDealt: -100, targetPower: 20, targetMaxHp: 100, playerLevel: 1, targetLevel: 1, result: 'PVP_WIN' })).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('мощность «Ревизии 2»', () => {
+  it('типовая цель уровня 1 равна 100, уровня 2 — 190,25', () => {
+    expect(typicalTargetPower(1)).toBeCloseTo(100, 5)
+    expect(typicalTargetPower(2)).toBeCloseTo(190.25, 5)
+  })
+
+  it('рейтинговая мощность: полсуммы уровней + навык + базовый рейтинг', () => {
+    expect(calcRatingPower({
+      battleLevel: 3, economicLevel: 3, productionLevel: 3,
+      weaponSkillLevel: 3, baseRating: 70,
+    })).toBeCloseTo(0.5 * 9 + 3 + 70, 5)
   })
 })
 
@@ -124,6 +193,12 @@ describe('getLevelFromExp', () => {
 
   it('never goes below 1', () => {
     expect(getLevelFromExp(-999)).toBe(1)
+  })
+
+  it('15-й уровень — максимальный («Ревизия 2»)', () => {
+    expect(getLevelFromExp(30_316_376)).toBe(15)
+    expect(getLevelFromExp(62_601_345)).toBe(15)   // техническая граница 15-го из книги
+    expect(getLevelFromExp(999_999_999)).toBe(15)
   })
 })
 

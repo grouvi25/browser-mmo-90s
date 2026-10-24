@@ -57,6 +57,8 @@ import {
 } from './grid'
 import {
   calcBattleExp,
+  calcBaseRating,
+  calcRatingPower,
 } from '../stats/stats.formulas'
 import { withPetBonus } from '../city/city.config'
 import type { CharacterWithStats } from '../characters/characters.repository'
@@ -140,6 +142,8 @@ export interface LiveParticipant {
   rightWeaponInstanceId?: string
   pocketItemIds?: string[]
   damageDealt: number
+  /** HP, восстановленные аптечками за бой: входят в зачёт урона (Ревизия 2). */
+  healedTotal: number
   damageReceived: number
   hitsTaken: number
   hitsLanded: number
@@ -273,7 +277,9 @@ async function applyPendingUtility(part: LiveParticipant, char: CharacterWithSta
       if (!part.pocketItemIds?.includes(itemId)) return true
       const item = await ItemsRepository.findInstanceById(itemId)
       if (item && item.ownerId === char.id && item.template.type === 'CONSUMABLE' && !['CONSUMED', 'DELETED'].includes(item.status)) {
+        const healed = Math.min(item.template.hpBonus ?? 0, part.hpMax - part.hpCurrent)
         part.hpCurrent = Math.min(part.hpMax, part.hpCurrent + (item.template.hpBonus ?? 0))
+        part.healedTotal += healed
         part.pocketItemIds = part.pocketItemIds.filter(id => id !== itemId)
         await ItemsRepository.delete(itemId)
       }
@@ -632,7 +638,7 @@ export const BattleService = {
             pocketItemIds,
             helper,
             dog,
-            damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+            damageDealt: 0, damageReceived: 0, healedTotal: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
             position: teamSpawnPositions(1, 1)[0],
           },
@@ -645,7 +651,7 @@ export const BattleService = {
             isAlive: true,
             isSurrendered: false,
             hasActedThisRound: false,
-            damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+            damageDealt: 0, damageReceived: 0, healedTotal: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
             position: teamSpawnPositions(2, 1)[0],
           },
@@ -852,7 +858,7 @@ export const BattleService = {
           pocketItemIds: memberChar ? await loadBattlePocket(memberChar) : [],
           helper: memberChar ? await loadCombatHelper(memberChar.id) : undefined,
           dog: memberChar ? await loadCombatDog(memberChar.id) : undefined,
-          damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+          damageDealt: 0, damageReceived: 0, healedTotal: 0, hitsTaken: 0, hitsLanded: 0,
           skippedTurns: 0,
           position: spawns[index],
         })
@@ -907,7 +913,7 @@ export const BattleService = {
         leftWeaponInstanceId: weapons.LEFT_HAND?.id,
         rightWeaponInstanceId: weapons.RIGHT_HAND?.id,
         pocketItemIds: fighter ? await loadBattlePocket(fighter) : [],
-        damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+        damageDealt: 0, damageReceived: 0, healedTotal: 0, hitsTaken: 0, hitsLanded: 0,
         skippedTurns: 0,
         position: teamSpawnPositions(side, 1)[0],
       })
@@ -1039,7 +1045,7 @@ export const BattleService = {
             leftWeaponInstanceId: oppWeapons.LEFT_HAND?.id,
             rightWeaponInstanceId: oppWeapons.RIGHT_HAND?.id,
             pocketItemIds: opponentPocketItemIds,
-            damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+            damageDealt: 0, damageReceived: 0, healedTotal: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
             position: teamSpawnPositions(1, 1)[0],
           },
@@ -1056,7 +1062,7 @@ export const BattleService = {
             leftWeaponInstanceId: weapons.LEFT_HAND?.id,
             rightWeaponInstanceId: weapons.RIGHT_HAND?.id,
             pocketItemIds,
-            damageDealt: 0, damageReceived: 0, hitsTaken: 0, hitsLanded: 0,
+            damageDealt: 0, damageReceived: 0, healedTotal: 0, hitsTaken: 0, hitsLanded: 0,
             skippedTurns: 0,
             position: teamSpawnPositions(2, 1)[0],
           },
@@ -1952,14 +1958,16 @@ export const BattleService = {
     // территория отменяла бы ограничение фарма.
     const battleExpBonus = ((await TerritoriesService.bonusesForCharacter(char.id)).BATTLE_EXP ?? 0)
       + await CityService.expBonus(char.id)
-    const expGain = Math.round(calcBattleExp(
-      playerPart.damageDealt,
-      bot.power,
-      bot.hpMax,
-      levelDiff,
+    const expGain = Math.round(calcBattleExp({
+      damageDealt: playerPart.damageDealt,
+      targetPower: bot.power,
+      targetMaxHp: bot.hpMax,
+      targetHealed: botPart.healedTotal,
+      playerLevel: char.battleLevel,
+      targetLevel: bot.battleLevel,
       result,
-      antiFarmCoeff   // Apply daily anti-farm
-    ) * (1 + battleExpBonus))
+      antiFarmCoeff,   // Apply daily anti-farm
+    }) * (1 + battleExpBonus))
 
     // Премиум ускоряет НАБОР навыка, но не поднимает его потолок:
     // подписчик доходит до той же границы быстрее и там останавливается
@@ -2549,8 +2557,8 @@ export const BattleService = {
     winnerId: string | null,
     weapon1: ItemWithTemplate | null,
     weapon2: ItemWithTemplate | null,
-    _skill1Level: number,
-    _skill2Level: number
+    skill1Level: number,
+    skill2Level: number
   ) {
     const levelDiff = Math.abs(char1.battleLevel - char2.battleLevel)
 
@@ -2559,8 +2567,29 @@ export const BattleService = {
 
     const bonus1 = ((await TerritoriesService.bonusesForCharacter(char1.id)).BATTLE_EXP ?? 0) + await CityService.expBonus(char1.id)
     const bonus2 = ((await TerritoriesService.bonusesForCharacter(char2.id)).BATTLE_EXP ?? 0) + await CityService.expBonus(char2.id)
-    const exp1 = calcBattleExp(part1.damageDealt, char2.battleLevel * 5, char2.hpMax, levelDiff, result1 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW') * (1 + bonus1)
-    const exp2 = calcBattleExp(part2.damageDealt, char1.battleLevel * 5, char1.hpMax, levelDiff, result2 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW') * (1 + bonus2)
+    // Мощность цели — рейтинговая («Ревизия 2»): базовый рейтинг статов +
+    // половина суммы уровней + навык. Вклад вещей придёт с PR-2 тем же
+    // слагаемым; прежде «уровень × 5» занижало мощных соперников.
+    const power1 = calcRatingPower({
+      battleLevel: char1.battleLevel, economicLevel: char1.economicLevel, productionLevel: char1.productionLevel,
+      weaponSkillLevel: skill1Level, baseRating: calcBaseRating(char1.stats!),
+    })
+    const power2 = calcRatingPower({
+      battleLevel: char2.battleLevel, economicLevel: char2.economicLevel, productionLevel: char2.productionLevel,
+      weaponSkillLevel: skill2Level, baseRating: calcBaseRating(char2.stats!),
+    })
+    const exp1 = calcBattleExp({
+      damageDealt: part1.damageDealt, targetPower: power2, targetMaxHp: char2.hpMax,
+      targetHealed: part2.healedTotal,
+      playerLevel: char1.battleLevel, targetLevel: char2.battleLevel,
+      result: result1 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW',
+    }) * (1 + bonus1)
+    const exp2 = calcBattleExp({
+      damageDealt: part2.damageDealt, targetPower: power1, targetMaxHp: char1.hpMax,
+      targetHealed: part1.healedTotal,
+      playerLevel: char2.battleLevel, targetLevel: char1.battleLevel,
+      result: result2 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW',
+    }) * (1 + bonus2)
 
     const wskEntries1 = weaponExpByType(part1, weapon1, char2.hpMax, winnerId === char1.id, levelDiff)
     const wskEntries2 = weaponExpByType(part2, weapon2, char1.hpMax, winnerId === char2.id, levelDiff)

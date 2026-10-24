@@ -18,7 +18,7 @@ import { CharactersRepository, type CharacterWithStats } from '../characters/cha
 import { ItemsRepository, type ItemWithTemplate } from '../items/item-instance.repository'
 import { WeaponSkillsRepository, saveWeaponSkillExp } from '../weapon-skills/weapon-skills.repository'
 import { applyBattleProgression } from '../experience/progression'
-import { calcBattleExp } from '../stats/stats.formulas'
+import { calcBattleExp, calcBaseRating, calcRatingPower, typicalTargetPower } from '../stats/stats.formulas'
 import { CityService } from '../city/city.service'
 import { TerritoriesService } from '../territories/territories.service'
 import { calcInitiative, weaponExpByType } from './battle.formulas'
@@ -62,6 +62,8 @@ export interface LiveTeamParticipant {
   pocketItemIds?: string[]
   damageDealt: number
   damageReceived: number
+  /** HP, восстановленные аптечками за бой: входят в зачёт урона (Ревизия 2). */
+  healedTotal: number
   hitsTaken: number
   hitsLanded: number
   skippedTurns: number
@@ -207,13 +209,31 @@ export async function finishTeamBattle(
     const enemyLevel = averageLevel(enemySide)
     const levelDiff = Math.abs((ctx?.char.battleLevel ?? 1) - enemyLevel)
     const result = winnerSide === null ? 'DRAW' : winnerSide === part.side ? 'PVP_WIN' : 'PVP_LOSS'
-    const exp = calcBattleExp(
-      part.damageDealt,
-      enemyLevel * 5,
-      averageHp(enemySide),
-      levelDiff,
-      result as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW',
-    )
+    // Мощность стороны противника — средняя рейтинговая («Ревизия 2»):
+    // по игрокам из их статов, по тем, кого не успели загрузить, — типовая.
+    const enemies = state.participants.filter(p => p.side === enemySide)
+    const enemyPower = enemies.length === 0 ? typicalTargetPower(enemyLevel)
+      : enemies.reduce((sum, p) => {
+          const ectx = contexts.get(p.participantId)
+          return sum + (ectx
+            ? calcRatingPower({
+                battleLevel: ectx.char.battleLevel, economicLevel: ectx.char.economicLevel,
+                productionLevel: ectx.char.productionLevel, weaponSkillLevel: 1,
+                baseRating: calcBaseRating(ectx.char.stats!),
+              })
+            : typicalTargetPower(averageLevel(enemySide)))
+        }, 0) / enemies.length
+    const enemyHealed = enemies.length === 0 ? 0
+      : Math.round(enemies.reduce((sum, p) => sum + (p.healedTotal ?? 0), 0) / enemies.length)
+    const exp = calcBattleExp({
+      damageDealt: part.damageDealt,
+      targetPower: enemyPower,
+      targetMaxHp: averageHp(enemySide),
+      targetHealed: enemyHealed,
+      playerLevel: ctx?.char.battleLevel ?? 1,
+      targetLevel: enemyLevel,
+      result: result as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW',
+    })
     return {
       part, ctx, exp, levelDiff,
       enemyHp: averageHp(enemySide),

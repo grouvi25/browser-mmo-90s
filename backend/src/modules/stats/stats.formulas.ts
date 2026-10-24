@@ -18,32 +18,69 @@ export function calcCarryWeight(str: number, bagBonus = 0): number {
 }
 
 // ---------------------------------------------------------------
-// Battle experience — from TZ section 18.1
+// Battle experience — формула «Ревизия 2» (книга заказчика 23.10)
+//
+//   зачёт = MIN(урон; HP цели + её лечение; HP цели × q)
+//   K = MIN(L; Lцели) / MAX(L; Lцели)
+//   XP = зачёт × (мощность цели / её HP) × K × m × доля исхода
+//   — всё под общим потолком за бой (50 000).
 // ---------------------------------------------------------------
-export function calcBattleExp(
-  damageDealt: number,
-  enemyPower: number,
-  enemyMaxHp: number,
-  levelDiff: number,
-  result: 'PVP_WIN' | 'PVP_LOSS' | 'PVE_WIN' | 'PVE_LOSS' | 'DRAW',
-  antiFarmCoeff = 1.0
-): number {
-  const resultCoeff = B.battleExp.resultCoeff[result] ?? 0
-  const levelCoeff = getLevelDiffCoeff(levelDiff)
-  return Math.max(
-    0,
-    Math.floor(
-      (damageDealt * enemyPower / Math.max(enemyMaxHp, 1)) *
-      levelCoeff * resultCoeff * antiFarmCoeff
-    )
-  )
+export interface BattleExpInput {
+  /** Суммарный урон по цели за бой (D). */
+  damageDealt: number
+  /** Мощность цели (P). */
+  targetPower: number
+  /** Максимальное HP цели (H). */
+  targetMaxHp: number
+  /** HP, которые цель восстановила лечением за бой (R). */
+  targetHealed?: number
+  /** Уровень получателя опыта. */
+  playerLevel: number
+  /** Уровень цели. */
+  targetLevel: number
+  result: 'PVP_WIN' | 'PVP_LOSS' | 'PVE_WIN' | 'PVE_LOSS' | 'DRAW'
+  /** Анти-фарм множитель (PvE повторы), по умолчанию нейтрален. */
+  antiFarmCoeff?: number
 }
 
-function getLevelDiffCoeff(diff: number): number {
-  for (const [maxDiff, coeff] of B.battleExp.levelDiffCoeff) {
-    if (diff <= maxDiff) return coeff
-  }
-  return 0
+export function calcBattleExp(input: BattleExpInput): number {
+  const { damageDealt, targetPower, targetMaxHp, playerLevel, targetLevel, result } = input
+  const healed = input.targetHealed ?? 0
+  const antiFarmCoeff = input.antiFarmCoeff ?? 1.0
+  const cfg = B.battleExp
+  const hp = Math.max(targetMaxHp, 1)
+  // Зачёт: урон, но не больше, чем цель пережила (HP + лечение),
+  // и не больше трёх её полных шкал — лечение не кормит опыт бесконечно.
+  const credit = Math.min(damageDealt, hp + healed, hp * cfg.creditOverhealQ)
+  const k = Math.min(playerLevel, targetLevel) / Math.max(playerLevel, targetLevel, 1)
+  const raw = credit * (Math.max(targetPower, 0) / hp) * k * cfg.multiplierM
+  const capped = Math.min(raw, cfg.capPerBattle)
+  const resultCoeff = cfg.resultCoeff[result] ?? 0
+  return Math.max(0, Math.floor(capped * resultCoeff * antiFarmCoeff))
+}
+
+// ---------------------------------------------------------------
+// Мощность персонажа «Ревизия 2»: 0,5×(боевой + экономический +
+// производственный) + владение оружием + рейтинг. Рейтинг здесь —
+// базовый (статы); вклад вещей подключается вместе с выдачей
+// мощности наружу (PR-2), на формулу опыта он ляжет тем же слагаемым.
+// ---------------------------------------------------------------
+export function calcRatingPower(input: {
+  battleLevel: number
+  economicLevel: number
+  productionLevel: number
+  weaponSkillLevel: number
+  baseRating: number
+}): number {
+  return 0.5 * (input.battleLevel + input.economicLevel + input.productionLevel)
+    + input.weaponSkillLevel + input.baseRating
+}
+
+/** Мощность типовой цели уровня L (книга, лист «Уровни»):
+ *  Pтип(L) = 2,5 × L + 97,5 × 1,9^(L−1). Боты засеиваются ею. */
+export function typicalTargetPower(level: number): number {
+  const l = Math.max(1, level)
+  return 2.5 * l + 97.5 * Math.pow(1.9, l - 1)
 }
 
 // ---------------------------------------------------------------
@@ -80,10 +117,20 @@ export function calcWeaponSkillExp(
 ): number {
   if (damageWithWeapon <= 0) return 0
   const killFactor = Math.max(1, kills)
-  const levelCoeff = getLevelDiffCoeff(levelDiff)
+  // Навык оружия растёт от урона, а не от формулы опыта «Ревизии 2»:
+  // для него оставлена прежняя ступенчатая поправка на разницу уровней.
+  const levelCoeff = levelDiffCoeffSteps(levelDiff)
   const base = (damageWithWeapon / Math.max(totalEnemyHp, 1)) *
     killFactor * levelCoeff * activityCoeff
   return base * premiumMultiplier
+}
+
+/** Ступенчатая поправка на разницу уровней (только для навыка оружия). */
+function levelDiffCoeffSteps(diff: number): number {
+  for (const [maxDiff, coeff] of B.battleExp.levelDiffCoeff) {
+    if (diff <= maxDiff) return coeff
+  }
+  return 0
 }
 
 export function getWeaponSkillLevelFromExp(exp: number): number {
