@@ -7,7 +7,7 @@ export const RegisterSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6).max(100),
   // Согласие с политикой обработки персональных данных обязательно.
-  acceptPolicy: z.literal(true, { errorMap: () => ({ message: POLICY_REQUIRED }) }),
+  acceptPolicy: z.literal(true, { message: POLICY_REQUIRED }),
 })
 
 export const LoginSchema = z.object({

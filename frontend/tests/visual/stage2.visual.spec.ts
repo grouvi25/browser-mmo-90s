@@ -70,6 +70,21 @@ async function buyPrivateItem(request: APIRequestContext, account: Account, code
   return (await bought.json() as { itemIds: string[] }).itemIds[0]
 }
 
+
+// Локации гейтятся по боевому уровню (обещание игрокам 22.10): тестовым
+// персонажам нужен уровень, открывающий Промзону и Фермы. Опыт выдаёт
+// админ-роут — досыпаем столько, чтобы хватило при любой кривой порогов.
+async function unlockLocations(request: APIRequestContext, characterId: string) {
+  const login = await request.post('/api/admin/auth/login', { data: { username: 'admin', password: 'admin_change_me_now' } })
+  expect(login.status()).toBe(200)
+  const { token } = await login.json() as { token: string }
+  const grant = await request.post('/api/admin/characters/exp', {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { characterId, track: 'battle', amount: 50_000_000, reason: 'e2e: открыть локации по уровню' },
+  })
+  expect(grant.status()).toBe(200)
+}
+
 test.describe.configure({ mode: 'serial' })
 test.describe('Stage 2 visual and browser flow', () => {
   test.beforeAll(async ({}, testInfo) => {
@@ -78,6 +93,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     buyer = await createAccount(apiContext, `buyer_${testInfo.project.name}`)
     worker = await createAccount(apiContext, `worker_${testInfo.project.name}`)
     fighter = await createAccount(apiContext, `fighter_${testInfo.project.name}`)
+    for (const account of [seller, buyer, worker, fighter]) await unlockLocations(apiContext, account.characterId)
     await buyPrivateItem(apiContext, buyer, 'armor_leather_jacket_private')
     // На общий рынок — только ресурсы (правка заказчика 21.10): продавец
     // покупает ремкомплект у Коммерсанта и выставляет его.

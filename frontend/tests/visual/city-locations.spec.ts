@@ -1,13 +1,30 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type APIRequestContext } from '@playwright/test'
 import { CITY_LOCATIONS } from '../../src/shared/lib/city-locations'
 const API = process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:4000'
+
+// Локации гейтятся по боевому уровню (обещание игрокам 22.10), а тест
+// обходит их все. Опыт выдаёт админ-роут — досыпаем столько, чтобы
+// хватило до последнего уровня при любой кривой порогов.
+async function unlockLocations(request: APIRequestContext, characterId: string) {
+  const login = await request.post(`${API}/api/admin/auth/login`, { data: { username: 'admin', password: 'admin_change_me_now' } })
+  expect(login.status()).toBe(200)
+  const { token } = await login.json() as { token: string }
+  const grant = await request.post(`${API}/api/admin/characters/exp`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { characterId, track: 'battle', amount: 50_000_000, reason: 'e2e: открыть локации по уровню' },
+  })
+  expect(grant.status()).toBe(200)
+}
+
 test('city locations, return controls, readable fonts and resume after login', async ({ page, request }, testInfo) => {
   test.setTimeout(120_000)
   const login = `cityui_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
   const password = 'city_test_password_984'
   expect((await request.post(`${API}/api/auth/register`, { data: { acceptPolicy: true, login, email: `${login}@test.local`, password } })).status()).toBe(201)
   const auth = await (await request.post(`${API}/api/auth/login`, { data: { login, password } })).json()
-  expect((await request.post(`${API}/api/characters`, { headers: { Authorization: `Bearer ${auth.token}` }, data: { nickname: login, archetype: 'WORKER' } })).status()).toBe(201)
+  const created = await request.post(`${API}/api/characters`, { headers: { Authorization: `Bearer ${auth.token}` }, data: { nickname: login, archetype: 'WORKER' } })
+  expect(created.status()).toBe(201)
+  await unlockLocations(request, ((await created.json()) as { id: string }).id)
   await page.goto('/login')
   await page.getByPlaceholder('Ваш логин').fill(login); await page.getByPlaceholder('Пароль').fill(password)
   await page.getByRole('button', { name: 'Войти в игру' }).click()

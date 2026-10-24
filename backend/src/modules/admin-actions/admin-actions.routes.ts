@@ -206,6 +206,37 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     return reply.send(result)
   })
 
+  // ── Боевой опыт ─────────────────────────────────────────
+  // Приёмочная характеристика e2e и разбора инцидентов — поднять
+  // персонажа до нужного уровня: amount досыпается к боевому опыту,
+  // уровень, HP и очки характеристик пересчитает сервис.
+  fastify.post('/characters/exp', SUPER_ADMIN, async (req, reply) => {
+    const reason = reasonOf(req.body)
+    const parsed = z.object({
+      characterId: Id,
+      track: z.enum(['battle', 'economic', 'production']),
+      amount: z.number().int().refine(value => value !== 0).refine(value => Math.abs(value) <= 100_000_000),
+    }).safeParse(req.body)
+    if (!parsed.success) return invalid(reply)
+    const { characterId, track, amount } = parsed.data
+
+    const character = await prisma.character.findUnique({ where: { id: characterId } })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
+
+    const giving = amount > 0
+    const result = await AdminActionsService.perform(ctx(req), reason, {
+      kind: giving ? 'GRANT_EXP' : 'TAKE_EXP',
+      payload: { characterId, track, amount: Math.abs(amount) },
+      targetType: 'character',
+      targetId: characterId,
+      undo: {
+        kind: giving ? 'TAKE_EXP' : 'GRANT_EXP',
+        payload: { characterId, track, amount: Math.abs(amount) },
+      },
+    })
+    return reply.send(result)
+  })
+
   // ── Игровые доллары ─────────────────────────────────────
   // Выдача дилеру после оплаты и списание — одна ручка, знак задаёт
   // направление, как у рублей. Обе обратимы.

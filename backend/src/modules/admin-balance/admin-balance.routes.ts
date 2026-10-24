@@ -281,7 +281,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
 
   const ParamBody = z.object({
     path: z.string().min(3).max(120),
-    value: z.union([z.number(), z.string(), z.boolean(), z.record(z.unknown()), z.array(z.unknown())]),
+    value: z.union([z.number(), z.string(), z.boolean(), z.record(z.string(), z.unknown()), z.array(z.unknown())]),
     reason: REASON,
   })
 
