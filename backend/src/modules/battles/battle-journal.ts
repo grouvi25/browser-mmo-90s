@@ -31,15 +31,20 @@ export interface JournalTurn {
   hit: boolean; dodge: boolean; block: boolean; crit: boolean; blockPierced: boolean
   finalDamage: number
   logLine?: string | null
+  /** Ход дальнобойным оружием: в журнале «выстрел», а не «удар»
+   *  (просьба игрока 22.10: бандит с пистолетом «бьёт» с 4 клеток). */
+  ranged?: boolean
 }
 
 /** Снятая третьим попаданием вещь (wounds.ts) дописывается к строке удара. */
 const STRIP_NOTE = /(оружие выбито из (?:левой|правой) руки|броня на [а-яё ]+ сбита)/
 
-/** Текст хода без имён: «удар левой в корпус, −5 HP» / «в голову — уворот». */
+/** Текст хода без имён: «удар левой в корпус, −5 HP» / «выстрел в голову — уворот». */
 export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: string } {
   const zone = turn.zone ? ` ${ZONE_TO[turn.zone]}` : ''
-  const hand = turn.sourceHand ? ` ${HAND[turn.sourceHand]}` : ''
+  // У выстрела руки нет: «выстрел левой» звучит странно, а пистолет бьёт с любой.
+  const hand = turn.sourceHand && !turn.ranged ? ` ${HAND[turn.sourceHand]}` : ''
+  const attack = turn.ranged ? 'выстрел' : 'удар'
   const damage = turn.finalDamage > 0 ? `, −${turn.finalDamage} HP` : ''
   switch (turn.action) {
     // «Походил, ударил» (правка заказчика 22.10): шаг — отдельной строкой.
@@ -50,13 +55,13 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
     case 'SURRENDER': return { kind: 'surrender', text: 'сдаётся' }
     default: break
   }
-  if (!turn.hit && turn.block) return { kind: 'block', text: `удар${hand}${zone} — блок` }
-  if (!turn.hit) return { kind: 'dodge', text: `удар${hand}${zone} — уворот` }
+  if (!turn.hit && turn.block) return { kind: 'block', text: `${attack}${hand}${zone} — блок` }
+  if (!turn.hit) return { kind: 'dodge', text: `${attack}${hand}${zone} — уворот` }
   const strip = turn.logLine?.match(STRIP_NOTE)?.[1]
   const tail = strip ? ` — ${strip}` : ''
   if (turn.blockPierced) return { kind: 'pierce', text: `пробил блок${zone}${damage}${tail}` }
   if (turn.crit) return { kind: 'crit', text: `крит${zone}${damage}${tail}` }
-  return { kind: 'hit', text: `удар${hand}${zone}${damage}${tail}` }
+  return { kind: 'hit', text: `${attack}${hand}${zone}${damage}${tail}` }
 }
 
 export const BattleJournal = {
@@ -67,7 +72,7 @@ export const BattleJournal = {
       where: { id: battleId },
       select: {
         id: true, type: true, status: true, roundCount: true, startedAt: true, finishedAt: true, winnerParticipantId: true,
-        participants: { select: { id: true, characterId: true, botId: true, side: true, character: { select: { nickname: true } }, bot: { select: { name: true } } } },
+        participants: { select: { id: true, characterId: true, botId: true, side: true, character: { select: { nickname: true } }, bot: { select: { name: true, equipment: true } } } },
       },
     })
     if (!battle) throw new AppError(ErrorCode.BATTLE_NOT_FOUND, 'Бой не найден', 404)
@@ -105,6 +110,43 @@ export const BattleJournal = {
     const name = (id: string | null) => (id ? nameOf.get(id) ?? 'Боец' : null)
     const winner = battle.participants.find(p => p.id === battle.winnerParticipantId)
 
+    // Дальнобойность оружия каждого хода: выстрелы подписываются выстрелами.
+    // Игроки — по weaponId хода; боты weaponId не пишут, их оружие берём
+    // из equipment бота по коду шаблона.
+    const weaponIds = [...new Set(turns.map(t => t.weaponId).filter((id): id is string => !!id))]
+    const rangedOf = new Map<string, boolean>()
+    if (weaponIds.length) {
+      const weapons = await prisma.itemInstance.findMany({
+        where: { id: { in: weaponIds } },
+        select: { id: true, template: { select: { maxRange: true } } },
+      })
+      for (const w of weapons) rangedOf.set(w.id, (w.template.maxRange ?? 1) > 1)
+    }
+    const botRangedOf = new Map<string, boolean>()
+    const botCodes = new Set<string>()
+    for (const p of battle.participants) {
+      if (!p.bot?.equipment || typeof p.bot.equipment !== 'object') continue
+      const code = (p.bot.equipment as Record<string, unknown>).mainWeapon
+      if (typeof code === 'string' && code) botCodes.add(code)
+    }
+    if (botCodes.size) {
+      const templates = await prisma.itemTemplate.findMany({
+        where: { code: { in: [...botCodes] } },
+        select: { code: true, maxRange: true },
+      })
+      for (const t of templates) botRangedOf.set(t.code, (t.maxRange ?? 1) > 1)
+    }
+    const isRanged = (turn: { weaponId: string | null; actorBotId: string | null }) => {
+      if (turn.weaponId) return rangedOf.get(turn.weaponId) ?? false
+      if (turn.actorBotId) {
+        const bot = battle.participants.find(p => p.botId === turn.actorBotId)
+        const code = bot?.bot?.equipment && typeof bot.bot.equipment === 'object'
+          ? (bot.bot.equipment as Record<string, unknown>).mainWeapon : null
+        return typeof code === 'string' ? botRangedOf.get(code) ?? false : false
+      }
+      return false
+    }
+
     return {
       battle: {
         id: battle.id, type: battle.type, status: battle.status, rounds: battle.roundCount,
@@ -113,7 +155,7 @@ export const BattleJournal = {
       },
       items: turns.map(turn => {
         const actorId = turn.actorCharId ?? turn.actorBotId ?? turn.actorHelperId ?? turn.actorPetId
-        const described = describeTurn(turn)
+        const described = describeTurn({ ...turn, ranged: isRanged(turn) })
         // Удар по хозяину, принятый помощником на себя.
         const { kind, text } = turn.targetHelperId && turn.hit ? { kind: described.kind, text: described.text + ' — принял на себя' } : described
         return {
