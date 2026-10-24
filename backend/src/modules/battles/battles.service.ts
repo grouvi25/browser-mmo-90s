@@ -2043,6 +2043,7 @@ export const BattleService = {
         weaponExpGain,
         moneyReward,
         newLevel,
+        levelsGained: progression.levelsGained,
         newBattleExp: progression.newExp,
         playerHp: playerPart.hpCurrent,
         rounds: state.roundNumber,
@@ -2673,8 +2674,8 @@ export const BattleService = {
       return {
         battleOver: true,
         winnerId,
-        char1: { expGain: exp1, weaponExpGain: wskExp1, newLevel: progression1.newLevel, hp: Math.max(1, part1.hpCurrent) },
-        char2: { expGain: exp2, weaponExpGain: wskExp2, newLevel: progression2.newLevel, hp: Math.max(1, part2.hpCurrent) },
+        char1: { expGain: exp1, weaponExpGain: wskExp1, newLevel: progression1.newLevel, levelsGained: progression1.levelsGained, hp: Math.max(1, part1.hpCurrent) },
+        char2: { expGain: exp2, weaponExpGain: wskExp2, newLevel: progression2.newLevel, levelsGained: progression2.levelsGained, hp: Math.max(1, part2.hpCurrent) },
         rounds: state.roundNumber,
       }
     })

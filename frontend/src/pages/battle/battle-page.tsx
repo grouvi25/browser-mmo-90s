@@ -40,6 +40,8 @@ interface RoundResult {
   /** PvP отдаёт победителя, командный бой — победившую сторону, без result. */
   winnerId?: string | null; winnerSide?: number | null
   newLevel?: number; waiting?: boolean; turns?: TurnEvent[]
+  /** Сколько уровней прибавил этот бой: плашка «НОВЫЙ УРОВЕНЬ» — только когда реально вырос. */
+  levelsGained?: number
   botStance?: Stance; botAttackZones?: BodyZone[]; botBlockZones?: BodyZone[]
   distance?: number; playerRange?: number
   /** PvP: шаг применён сервером сразу, не дожидаясь хода противника. */
@@ -472,7 +474,7 @@ export function BattlePage() {
                 )}
               </div>
             )}
-            {(finishResult.newLevel ?? 0) > 1 && (
+            {(finishResult.levelsGained ?? 0) > 0 && (finishResult.newLevel ?? 0) > 1 && (
               <div className="brv2-levelup">НОВЫЙ УРОВЕНЬ {finishResult.newLevel}</div>
             )}
             <div className="brv2-actions">
