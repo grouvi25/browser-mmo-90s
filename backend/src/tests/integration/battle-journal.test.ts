@@ -84,4 +84,17 @@ describe('журнал боя', () => {
     expect(describeTurn({ ...base, zone: 'CHEST', hit: true, blockPierced: true, finalDamage: 7 })).toEqual({ kind: 'pierce', text: 'пробил блок в корпус, −7 HP' })
     expect(describeTurn({ ...base, action: 'MOVE', zone: null })).toEqual({ kind: 'move', text: 'делает шаг' })
   })
+
+  it('дальнобойный ход подписывается выстрелом — без руки (просьба из чата 22.10)', () => {
+    const base = { action: 'ATTACK' as const, sourceHand: 'RIGHT_HAND', hit: false, dodge: false, block: false, crit: false, blockPierced: false, finalDamage: 0 }
+    expect(describeTurn({ ...base, zone: 'CHEST', hit: true, finalDamage: 48, ranged: true }))
+      .toEqual({ kind: 'hit', text: 'выстрел в корпус, −48 HP' })
+    expect(describeTurn({ ...base, zone: 'HEAD', dodge: true, ranged: true }))
+      .toEqual({ kind: 'dodge', text: 'выстрел в голову — уворот' })
+    expect(describeTurn({ ...base, zone: 'HEAD', block: true, ranged: true }))
+      .toEqual({ kind: 'block', text: 'выстрел в голову — блок' })
+    // Рукопашный ход рука остаётся: «удар правой в корпус».
+    expect(describeTurn({ ...base, zone: 'CHEST', hit: true, finalDamage: 5, ranged: false }))
+      .toEqual({ kind: 'hit', text: 'удар правой в корпус, −5 HP' })
+  })
 })

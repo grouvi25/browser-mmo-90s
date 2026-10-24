@@ -1,0 +1,128 @@
+/* =============================================================
+   Боевой экран на телефоне (правка заказчика 23.10: «на моб
+   версии бой старый»).
+
+   Компьютер уже переведён на сцену города, а телефон показывал
+   старую композицию «Боевка.psd» с тёмным полем посреди светлой
+   оболочки. Здесь те же блоки нового боя — поле, списки зон,
+   кнопки-плашки, хроника, — но колонкой, в бумажной палитре
+   городской оболочки: экран боя должен выглядеть частью игры,
+   а не отдельным приложением.
+   ============================================================= */
+
+.m-battle {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background-color: #efeaea;
+  background-image: image-set(
+    url('../../shared/assets/battle/battle-bg@2x.webp') 2x,
+    url('../../shared/assets/battle/battle-bg.webp') 1x);
+  background-position: top center;
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+  color: oklch(28% .03 55);
+  font-family: var(--font-ui);
+  user-select: none;
+}
+
+/* ── Шапка: бой, таймер, раунд, статус, карман и сдача ────────── */
+.m-battle__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 3px 8px;
+  border-bottom: 1px solid oklch(46% .04 55);
+  background: oklch(90% .03 70 / .96);
+  font-size: 13px;
+}
+.m-battle__title { display: flex; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: .06em; }
+.m-battle__round { font: 700 13px/1 var(--font-mono); white-space: nowrap; }
+.m-battle__status { margin-left: auto; color: oklch(38% .09 135); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-battle__status.is-pending { color: oklch(45% .1 60); }
+.m-battle__tools { display: flex; gap: 4px; }
+.m-battle__tools button {
+  display: inline-flex; align-items: center; gap: 3px;
+  min-height: 26px; padding: 0 7px;
+  border: 1px solid oklch(46% .04 55); background: oklch(96% .017 75);
+  font: 600 12px/1 var(--font-ui); color: inherit; cursor: pointer;
+}
+.m-battle__tools button.is-surrender { color: oklch(42% .14 25); }
+.m-battle__tools button:disabled { opacity: .5; }
+.m-battle__tools i {
+  min-width: 14px; padding: 0 2px; border-radius: 7px;
+  background: oklch(52% .13 30); color: #fff;
+  font: 700 10px/14px var(--font-mono); font-style: normal; text-align: center;
+}
+
+/* ── Обе стороны одной строкой: имя, уровень, полоса здоровья ──── */
+.m-battle__fighters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: oklch(46% .04 55);
+  border-bottom: 1px solid oklch(46% .04 55);
+}
+.m-battle__fighter { min-width: 0; padding: 4px 8px 5px; background: oklch(96% .017 75 / .92); }
+.m-battle__name {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 700 13px/1.2 var(--font-sign); text-transform: uppercase;
+}
+.m-battle__hp {
+  position: relative; display: block; height: 13px; margin-top: 3px;
+  overflow: hidden; border: 1px solid #a8918f; background: #dccbca;
+}
+.m-battle__hp i {
+  position: absolute; inset: 0; transform-origin: left;
+  background: #3b7f39; transition: transform 300ms cubic-bezier(.22,1,.36,1);
+}
+.m-battle__hp.is-enemy i { background: #ce1818; }
+.m-battle__hp b {
+  position: absolute; inset: 0; display: block; text-align: center;
+  font: 700 11px/12px var(--font-mono); color: #fff; font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 3px rgba(0,0,0,.55);
+}
+
+/* ── Поле: главный элемент, занимает сколько есть ───────────────── */
+.m-battle__field { flex: 1; min-height: 220px; display: grid; padding: 4px 4px 0; }
+.m-battle__field .battle-field-v3 {
+  grid-template-rows: minmax(0, 1fr) auto;
+  border: 1px solid oklch(46% .04 55);
+}
+.m-battle__field .battle-field-v3__meta { flex-wrap: wrap; row-gap: 3px; padding: 4px 7px; font-size: 12px; }
+.m-battle__field .fighter-token .token-label { font-size: 11px; }
+.m-battle__buttons { display: flex; gap: 6px; margin-left: auto; }
+.m-battle__buttons button {
+  min-height: 32px; padding: 0 12px;
+  border: 1px solid #07090a; border-radius: 4px; background: #fad5c8;
+  font: 700 13px/1 var(--font-ui); color: #07090a; cursor: pointer;
+}
+.m-battle__buttons button.is-apply { background: #f3b8a3; }
+.m-battle__buttons button:disabled { opacity: .5; }
+
+/* ── Зоны блоков и ударов: два списка в ряд ────────────────────── */
+.m-battle__zones { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 0 4px; }
+.m-battle__zones .zone-list { border: 1px solid oklch(46% .04 55); }
+/* Пальцу нужна кнопка повыше ладонной (18 px из сцены): тап-зона
+   24×38, подпись зоны забирает остаток и режется многоточием. */
+.m-battle__zones .zone-list__row { grid-template-columns: 10px minmax(0, 1fr) 38px 38px; min-height: 24px; }
+.m-battle__zones .zone-list__btn { height: 24px; }
+
+/* ── Помощник и собака ──────────────────────────────────────────── */
+.m-battle__companions { display: flex; gap: 4px; padding: 4px 4px 0; }
+.m-battle__companions:empty { display: none; }
+
+/* ── Хроника внизу: листается на месте ─────────────────────────── */
+.m-battle__log { min-height: 118px; max-height: 150px; display: grid; padding: 4px; }
+.m-battle__log .battle-chronicle { height: auto; border: 1px solid oklch(46% .04 55); grid-template-rows: 24px minmax(0, 1fr); }
+.m-battle__log .battle-chronicle li { font-size: 13.5px; line-height: 1.35; padding: 2px 0; }
+.m-battle__log .battle-chronicle li i { width: auto; font-size: 12px; }
+
+/* Ошибка хода и ящики — поверх всего, на весь экран телефона. */
+.m-battle .battle-error-v3 { top: 42px; bottom: auto; z-index: 30; }
+.m-battle .battle-drawer { position: absolute; inset: 0; align-items: stretch; z-index: 40; }
+.m-battle .battle-drawer > section { width: 100%; max-width: none; margin: 0; max-height: none; }

@@ -1,6 +1,6 @@
 import { dogSummary } from '../city/city.config'
 import { CharactersRepository } from './characters.repository'
-import { calcHpMax } from '../stats/stats.formulas'
+import { calcCharacterRating, calcHpMax } from '../stats/stats.formulas'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
@@ -67,7 +67,7 @@ export const CharactersService = {
     if (!char) {
       throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     }
-    const [activeShift, professions, clan] = await Promise.all([
+    const [activeShift, professions, clan, equipped] = await Promise.all([
       prisma.workShift.findFirst({
         where: { characterId: char.id, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } },
         orderBy: { createdAt: 'desc' },
@@ -75,11 +75,18 @@ export const CharactersService = {
       prisma.characterProfession.findMany({ where: { characterId: char.id }, orderBy: { professionCode: 'asc' } }),
       // Досье показывало «не состоит» строкой в коде: бригады в профиле не было.
       char.clanId ? prisma.clan.findUnique({ where: { id: char.clanId }, select: { id: true, name: true, tag: true } }) : null,
+      // Рейтинг зависит от надетого — считается на сервере, чтобы клиент
+      // не собирал его по частям и не разошёлся с боем.
+      prisma.itemInstance.findMany({
+        where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' } },
+        include: { template: true },
+      }),
     ])
     return {
       ...char,
       clan,
       dog: dogSummary(char.pets),
+      rating: char.stats ? calcCharacterRating(char.stats, equipped) : 0,
       economy: {
         productionLevel: professions.reduce((max, item) => Math.max(max, item.level), 0),
         productionExp: professions.reduce((max, item) => Math.max(max, item.exp), 0),

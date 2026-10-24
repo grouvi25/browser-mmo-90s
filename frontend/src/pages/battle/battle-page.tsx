@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import {
-  Sword, Heart, RotateCcw, ChevronDown, Skull,
+  Sword, Heart, ChevronDown, Skull,
   CircleDot, Trophy, AlertTriangle, Backpack, Flag,
 } from 'lucide-react'
 import { battlesApi, type AttackHand, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
@@ -18,19 +18,11 @@ import fighterBlue from '../../shared/assets/battle/fighter-blue.webp'
 import fighterBlue2x from '../../shared/assets/battle/fighter-blue@2x.webp'
 import fighterRed from '../../shared/assets/battle/fighter-red.webp'
 import fighterRed2x from '../../shared/assets/battle/fighter-red@2x.webp'
-import { BattleFighterPanel } from './components/battle-fighter-panel'
-import { BattleChat, BATTLE_SCENE_H, BATTLE_CHAT_H } from './components/battle-chat'
-import { CardCutout } from '../../widgets/character-card/card-cutout'
-import { NavCutout } from '../../widgets/city-nav/nav-cutout'
-import { MENU } from '../../shared/lib/layout-map'
-import { PLATES } from '../../shared/ui/sprite'
-import { useViewportSize } from '../../shared/lib/stage'
-import { BattleCommandDock } from './components/battle-command-dock'
-import { EventIcon, getEvent, type RoundRecord, type TurnEvent } from './components/battle-events'
+import { EventIcon, getEvent, type TurnEvent } from './components/battle-events'
 import { BattlePockets } from './components/battle-pockets'
 import { BattleJournal } from '../../widgets/battle-journal/battle-journal'
 import { BattleSwap, type SwapPlan } from './components/battle-swap'
-import { battleDisplayState, canSelectBattleMove, type BattleActionSnapshot, removeAutomaticAttack, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
+import { battleDisplayState, canSelectBattleMove, type BattleActionSnapshot, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
 import { BattleDesk } from './battle-desk'
 import { BattleZoneList } from './components/battle-zone-list'
 import { BattleHelperBadge } from './components/battle-helper-badge'
@@ -38,6 +30,7 @@ import { PersistedBattleChronicle } from './components/battle-chronicle'
 import { getActionBudget, validateTurnPlan } from './battle-view-model'
 import { useIsMobile } from '../../shared/lib/use-media-query'
 import './battle-phase-a.css'
+import './battle-mobile.css'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -198,10 +191,13 @@ export function BattlePage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const [rounds, setRounds]             = useState<RoundRecord[]>([])
   const [actionSnapshot, setActionSnapshot] = useState<BattleActionSnapshot | null>(null)
   const [battleOver, setBattleOver]     = useState(false)
   const [finishResult, setFinishResult] = useState<RoundResult | null>(null)
+  // Итог не выскакивает мгновенно: полторы секунды игрок ещё видит поле
+  // и последний удар в логе, потом итог мягко проявляется (правка
+  // заказчика 23.10: экран конца боя «пугает» резкой подменой).
+  const [showResult, setShowResult]     = useState(false)
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
   const [pocketsOpen, setPocketsOpen]   = useState(false)
@@ -213,44 +209,6 @@ export function BattlePage() {
   // бойцов по краям и сцена макета посередине. Каждой нужен свой
   // расчёт от габаритов окна, поэтому берём сами габариты, а не
   // готовый коэффициент.
-  const view = useViewportSize()
-  // Высота сцены не зависит от чата: развёрнутый он ложится поверх
-  // журнала, а не удлиняет её. Иначе масштаб менялся на лету
-  // и всё содержимое дёргалось при каждом открытии.
-  const sceneH = BATTLE_SCENE_H
-  // Шапка — вырез полосы меню во всю ширину окна. Она масштабируется
-  // вместе со сценой города, поэтому на узком экране сжимается до
-  // нечитаемой полоски в несколько пикселей: ниже 1000 не показываем
-  // её вовсе, как и раньше на телефоне её тут не было.
-  const showNav = view.w >= 1000
-  const navH = showNav ? view.w * MENU.navStrip.h / MENU.navStrip.w : 0
-  // Порядок расчёта важен, иначе он зациклится: ширина карточек зависит
-  // от ширины сцены, а ширина сцены — от того, сколько осталось после
-  // карточек. Разрываем так: сцена берёт своё по ВЫСОТЕ (для вертикального
-  // макета на горизонтальном экране это и есть настоящее ограничение),
-  // а карточки делят остаток ширины.
-  const sceneGap = 10
-  // Чат всегда на виду (правка заказчика): у него своя полоса под сценой,
-  // и сцена вписывается в то, что осталось, а не прячет чат шторкой.
-  const freeH = view.h - navH - BATTLE_CHAT_H
-  // Сцена макета — 900x1312: полный холст 900x1600 минус полоса чата,
-  // которая теперь всплывает поверх, а не занимает своё место. Верхняя граница 1:
-  // увеличивать сверх исходного размера нечего, ассеты нарезаны под него.
-  const sceneScaleByHeight = Math.min(freeH / sceneH, 1)
-  const freeHalf = (view.w - 900 * sceneScaleByHeight) / 2 - 2 * sceneGap
-  // Ниже 1080 и уже 240 px на карточку поля нет: она бы смялась.
-  const showCards = view.w > 1080 && freeHalf >= 240
-  // Карточка растёт, пока есть место, но не выше свободной высоты и не
-  // крупнее полутора своих размеров — дальше портрет начинает мылиться.
-  const cardW = showCards
-    ? Math.min(freeHalf, freeH * MENU.card.cutout.w / MENU.card.cutout.h, MENU.card.cutout.w * 1.5)
-    : 0
-  const sceneScale = showCards
-    ? sceneScaleByHeight
-    : Math.min(sceneScaleByHeight, (view.w - 2 * sceneGap) / 900)
-  // За сценой — голая акварельная стена, как в городе. Полная подложка
-  // с нарисованным полем чата рядом с настоящим чатом читалась как второй чат.
-  const platePicture = `-webkit-image-set(url("${PLATES['menu-bg@2x']}") 2x, url("${PLATES['menu-bg']}") 1x)`
   const actionPendingRef = useRef(false)
   const [playerHit, setPlayerHit]       = useState(false)
   const [enemyHit, setEnemyHit]         = useState(false)
@@ -301,7 +259,6 @@ export function BattlePage() {
   // Fallback на DB participants для hpMax (важно: Redis может ещё не загрузиться)
   const dbEPart   = dbParts.find(p => !!p.botId || (p.characterId && p.characterId !== char?.id))
   const pHpMax    = pPart?.hpMax ?? char?.hpMax ?? 1
-  const weapon    = items.find(i => i.isEquipped && i.template.type === 'WEAPON')
   const profiles = battleData?.participantProfiles ?? []
   const playerProfile = profiles.find(profile => profile.participantId === pPart?.participantId)
   const display = battleDisplayState({ live, player: pPart, enemy: ePart, profile: playerProfile, dataUpdatedAt, action: actionSnapshot })
@@ -365,7 +322,6 @@ export function BattlePage() {
       if (variables.action === 'attack' || variables.action === 'block' || variables.action === 'move') {
         setStance('defense4'); setAttackZones([]); setAttackHands([]); setBlockZones([]); setSelectedMove(null)
       }
-      const rn = data.roundNumber ?? currentRound
       setActionSnapshot({ ...data, receivedAt: Date.now(), targetId: variables.opts?.targetParticipantId ?? ePart?.participantId })
 
       // Fix 1.1: аптечка пропадает сразу после использования
@@ -396,11 +352,6 @@ export function BattlePage() {
       })
       if (events.length > 0) setLastEvent(events[events.length - 1])
 
-      setRounds(prev => [...prev, {
-        round: rn, events, at: Date.now(),
-        type: data.battleOver ? (isWin(data) ? 'win' : 'lose') : 'normal',
-        ...data,
-      }])
 
       if (data.battleOver) {
         setBattleOver(true); setFinishResult(data)
@@ -446,7 +397,6 @@ export function BattlePage() {
   }
   const currentPlan = () => ({ stance, attackZones, attackHands, blockZones })
   const toggleAttackHand = (hand: AttackHand, zone: BodyZone) => applyAutomaticPlan(selectAutomaticAttack(currentPlan(), hand, zone))
-  const removeAttack = (index: number) => applyAutomaticPlan(removeAutomaticAttack(currentPlan(), index))
   const toggleBlock = (zone: BodyZone, slot = 0) => applyAutomaticPlan(toggleAutomaticBlockSlot(currentPlan(), zone, slot))
   const selectMove = (position: { x: number; y: number }) => {
     setSelectedMove(position); setAttackZones([]); setAttackHands([]); setBlockZones([])
@@ -491,10 +441,17 @@ export function BattlePage() {
     return () => clearInterval(interval)
   }, [currentRound, battleOver, live?.roundDeadline])
 
+  // Пауза перед итогом: досмотреть последний раунд.
+  useEffect(() => {
+    if (!battleOver) return
+    const t = setTimeout(() => setShowResult(true), 1500)
+    return () => clearTimeout(t)
+  }, [battleOver])
+
   if (!isValid) return null
 
   // ── Финальный экран ───────────────────────────────────────
-  if (battleOver && finishResult) {
+  if (battleOver && finishResult && showResult) {
     const won = isWin(finishResult)
     return (
       <div className="battle-page-v2">
@@ -521,7 +478,7 @@ export function BattlePage() {
             <div className="brv2-actions">
               <button className="btn btn-primary" onClick={() => navigate('/profile')}>Профиль</button>
               <button className="btn btn-gold"    onClick={() => navigate('/repair')}>Ремонт</button>
-              <button className="btn btn-danger"  onClick={() => navigate('/profile')}>Ещё раз</button>
+              <button className="btn btn-danger"  onClick={() => navigate('/pvp')}>Ещё раз</button>
             </div>
           </div>
 
@@ -541,22 +498,122 @@ export function BattlePage() {
     )
   }
 
-  // ── Компьютер: бой на сцене города (правка заказчика 22.10) ──
-  if (!isMobile) {
-    const budget = getActionBudget(stance)
-    const validation = validateTurnPlan({ stance, attackZones, attackHands, blockZones, targetParticipantId: ePart?.participantId, targetInRange, selectedMove })
-    const ready = !!selectedMove || validation.valid
-    const planEmpty = attackZones.length === 0 && blockZones.length === 0 && !selectedMove
-    const grid = <BattleGrid playerName={playerName} enemyName={enemyName}
-      playerDefeated={false} enemyDefeated={false}
-      playerHit={playerHit} enemyHit={enemyHit}
-      playerAttack={playerAttack} enemyAttack={enemyAttack} lastEvent={lastEvent}
-      distance={currentDistance} playerPosition={pPart?.position}
-      enemyPosition={ePart?.position} selectedMove={selectedMove} onSelectMove={selectMove}
-      participants={live?.participants} playerParticipantId={pPart?.participantId} arena={live?.arena} obstacles={live?.obstacles}
-      playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
-      onSelectTarget={setSelectedTargetId} range={playerRange ?? undefined} />
+  // ── Общие части обоих экранов: план хода и поле с клетками ──
+  const budget = getActionBudget(stance)
+  const validation = validateTurnPlan({ stance, attackZones, attackHands, blockZones, targetParticipantId: ePart?.participantId, targetInRange, selectedMove })
+  const ready = !!selectedMove || validation.valid
+  const planEmpty = attackZones.length === 0 && blockZones.length === 0 && !selectedMove
+  const grid = <BattleGrid playerName={playerName} enemyName={enemyName}
+    playerDefeated={false} enemyDefeated={false}
+    playerHit={playerHit} enemyHit={enemyHit}
+    playerAttack={playerAttack} enemyAttack={enemyAttack} lastEvent={lastEvent}
+    distance={currentDistance} playerPosition={pPart?.position}
+    enemyPosition={ePart?.position} selectedMove={selectedMove} onSelectMove={selectMove}
+    participants={live?.participants} playerParticipantId={pPart?.participantId} arena={live?.arena} obstacles={live?.obstacles}
+    playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
+    onSelectTarget={setSelectedTargetId} range={playerRange ?? undefined} />
+
+  // ── Телефон: тот же новый бой потоковой композицией (правка 23.10:
+  //    «на моб версии бой старый»). Блоки те же, что на сцене у
+  //    компьютера, — поле, списки зон, кнопки-плашки и хроника, — но
+  //    колонкой, в бумажной палитре городской оболочки. ──
+  if (isMobile) {
     return (
+      <div className="m-battle">
+        <header className="m-battle__head">
+          <span className="m-battle__title"><Sword size={13} /><b>Бой</b></span>
+          <span className="battle-desk__timer">{timerText}</span>
+          <b className="m-battle__round">Раунд {currentRound} / 30</b>
+          <span className={'m-battle__status' + (actionMut.isPending ? ' is-pending' : '')}>
+            {actionMut.isPending ? 'Ход отправляется…' : pPart?.hasActedThisRound ? 'Ждём противника' : 'Ваш ход'}
+          </span>
+          <span className="m-battle__tools">
+            <button type="button" onClick={() => { setShowLog(false); setPocketsOpen(value => !value) }}>
+              <Backpack size={13} />{pocketSlots.filter(Boolean).length > 0 && <i>{pocketSlots.filter(Boolean).length}</i>}
+            </button>
+            <button type="button" className="is-surrender" disabled={!canAct} onClick={() => act('surrender')}>
+              <Flag size={13} />
+            </button>
+          </span>
+        </header>
+
+        {/* Свои и чужие жизни — одной строкой: на телефоне места под
+            карточки-вырезы нет, а здоровье в бою главное. */}
+        <div className="m-battle__fighters">
+          <div className="m-battle__fighter">
+            <span className="m-battle__name">{playerName} · {char?.battleLevel ?? 0} ур.</span>
+            <span className="m-battle__hp"><i style={{ transform: `scaleX(${pHpMax ? pHp / pHpMax : 0})` }} /><b>{pHp}/{pHpMax}</b></span>
+          </div>
+          <div className="m-battle__fighter is-enemy">
+            <span className="m-battle__name">{enemyName} · {enemyProfile?.level ?? 0} ур.</span>
+            <span className="m-battle__hp is-enemy"><i style={{ transform: `scaleX(${eHpMax ? eHp / eHpMax : 0})` }} /><b>{eHp}/{eHpMax}</b></span>
+          </div>
+        </div>
+
+        <div className="m-battle__field">
+          <div className="battle-field-v3">
+            {grid}
+            <div className="battle-field-v3__meta battle-desk__meta">
+              <span>Дистанция: <b>{currentDistance}</b></span>
+              <span>Дальность: <b>{playerRange ?? '—'}</b></span>
+              <span className={'battle-desk__plan' + (ready ? ' is-ready' : '')}>
+                {selectedMove ? 'Выбран шаг' : validation.valid ? 'Ход готов' : validation.reason}
+              </span>
+              <span className="m-battle__buttons">
+                <button type="button" disabled={planEmpty} onClick={resetPlan}>Сбросить</button>
+                <button type="button" className="is-apply battle-submit-turn" disabled={!canAct || !ready || actionMut.isPending}
+                  onClick={selectedMove ? submitMove : submitTurn}>
+                  {actionMut.isPending ? 'Отправляем…' : selectedMove ? 'Перейти' : 'Применить'}
+                </button>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="m-battle__zones">
+          <BattleZoneList mode="block" title="Блок" selected={blockZones}
+            limit={attackHands.length > 0 ? 2 : 4} disabled={!canAct || attackHands.length === 2}
+            wounds={pPart?.wounds} onZone={toggleBlock} />
+          <BattleZoneList mode="attack" title="Удар" selected={attackZones}
+            selectedHands={attackHands} limit={blockZones.length > 0 ? 1 : 2}
+            disabled={!canAct || !ePart?.participantId} disabledHands={disabledAttackHands}
+            note={disabledAttackHands.length === 2 && outOfRangeHands.length > 0 ? 'Цель дальше, чем бьёт оружие' : undefined}
+            wounds={ePart?.wounds} onHandZone={toggleAttackHand} />
+        </div>
+
+        <div className="m-battle__companions">
+          {pPart?.helper && <BattleHelperBadge helper={pPart.helper} pending={helperTacticMut.isPending}
+            onTactic={tactic => helperTacticMut.mutate(tactic)} />}
+          {pPart?.dog && <div className="battle-dog" aria-label="Собака в бою">
+            <span><b>{pPart.dog.name}</b> ур. {pPart.dog.level}</span><span>укусила на {pPart.dog.damageDealt}</span>
+          </div>}
+        </div>
+
+        {battleId && <div className="m-battle__log">
+          <PersistedBattleChronicle battleId={battleId} refreshKey={currentRound}
+            playerSide={pPart?.side} onOpenLog={() => { setPocketsOpen(false); setShowLog(true) }} />
+        </div>}
+
+        {actionError && <div className="battle-error-v3" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
+        {(showLog || pocketsOpen) && <aside className="battle-drawer" aria-label={showLog ? 'Лог боя' : 'Боевой карман'}>
+          <button type="button" className="battle-drawer__scrim" aria-label="Закрыть" onClick={() => { setShowLog(false); setPocketsOpen(false) }} />
+          <section>
+            <header><b>{showLog ? 'Лог боя' : 'Боевой карман'}</b><button type="button" onClick={() => { setShowLog(false); setPocketsOpen(false) }}>Закрыть</button></header>
+            {showLog ? <div className="log-body-v2">
+              {battleId && <BattleJournal battleId={battleId} refreshKey={currentRound} />}
+            </div> : <>
+              <BattlePockets slots={pocketSlots} canAct={canAct} open
+                onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />
+              <BattleSwap inventory={items} plan={swapPlan} canAct={canAct} open onChange={setSwapPlan} />
+            </>}
+          </section>
+        </aside>}
+      </div>
+    )
+  }
+
+  // ── Компьютер: бой на сцене города (правка заказчика 22.10) ──
+  return (
       <BattleDesk
         playerWounds={pPart?.wounds ?? {}}
         enemyWounds={ePart?.wounds ?? {}}
@@ -646,190 +703,4 @@ export function BattlePage() {
         </>}
       />
     )
-  }
-
-  return (
-    <div className="battle-page-v3">
-    {/* Сцена боя — фиксированная композиция макета «Профиль игрока
-        Боевка.psd»: холст 1800x3200, сцена вдвое меньше. Вписывается
-        в окно целиком, по краям остаётся поле; прокрутки нет ни на
-        десктопе, ни на телефоне.
-
-        Чат из композиции вынут: сцена всегда 1312 в высоту, поэтому
-        поле и панели всегда идут по крупному масштабу. Развёрнутый чат
-        всплывает от нижнего края сцены поверх журнала. */}
-    {/* Поле по краям сцены — та же размытая плашка, что подстилает
-        главный экран. Плоская тёмная заливка, стоявшая тут раньше,
-        и делала бой не похожим на остальную игру: в городе пустое
-        место — это продолжение рисунка, а не провал. */}
-    <div className="stage-backdrop" aria-hidden="true" style={{ backgroundImage: platePicture }} />
-
-    {/* Шапка города — вырез той же полосы меню из той же подложки.
-        Без неё из боя некуда выйти, и экран читался как кусок другой
-        игры: в городе шапка есть везде. */}
-    {showNav && <NavCutout width={view.w} />}
-
-    <div className="battle-page-v3__body">
-
-    {/* Свой профиль слева, чужой справа — та самая карточка «личное
-        дело» с главного экрана, вырезанная окном из общей псд-бумаги.
-        Занимают поле, которое иначе простаивает: сцена вертикальная,
-        экран горизонтальный.
-
-        Данные отдаём готовыми, а не даём карточке сходить в свои
-        запросы: в бою здоровье меняется каждый ход, и /characters/me
-        с его обновлением раз в полминуты показывал бы вчерашнее. */}
-    {showCards && <CardCutout width={cardW} profile={{
-      nickname: playerName, level: char?.battleLevel ?? 0,
-      hp: pHp, hpMax: pHpMax,
-      avatar: playerProfile?.avatar ?? char?.avatar,
-      gender: playerProfile?.gender ?? char?.gender,
-      weaponName: playerProfile?.primaryHand ?? weapon?.template?.name,
-      weaponCode: playerProfile?.primaryWeaponCode ?? weapon?.template?.code,
-      weaponType: playerProfile?.primaryWeaponType ?? weapon?.template?.weaponType,
-      offhandName: playerProfile?.secondaryHand,
-      offhandCode: playerProfile?.secondaryWeaponCode,
-    }} />}
-
-    <div className="battle-mockup-scene-holder"
-      style={{ width: 900 * sceneScale, height: sceneH * sceneScale }}>
-    <div className="battle-mockup-scene"
-      style={{ height: sceneH, transform: `scale(${sceneScale})` }}>
-      <header className="battle-header-v3">
-        <div><Sword size={13} /><b>Бой</b><b className="battle-header-timer">{timerText}</b></div>
-        <strong>Раунд {currentRound} / 30</strong>
-        <span className={actionMut.isPending ? 'is-pending' : 'is-ready'}>
-          {actionMut.isPending ? <><RotateCcw size={11} className="spin" /> Ход отправляется</> : <><CircleDot size={9} /> Ваш ход</>}
-          {/* Карман, сдача и таймер в макете не нарисованы, а деть их
-              некуда: под зонами по макету стоят только «Закрыть» и
-              «Применить». Поэтому они живут в шапке — она и так лежит
-              поверх карты, вне композиции макета. Раньше здесь стояло
-              условие isMobile, и на десктопе карман со сдачей пропадали
-              совсем: компактная колодка их не рисует. */}
-          <span className="battle-header-tools">
-            <button type="button" aria-label="Боевой карман" title="Боевой карман"
-              onClick={() => setPocketsOpen(value => !value)}>
-              <Backpack size={13} />{pocketSlots.filter(Boolean).length > 0 && <i>{pocketSlots.filter(Boolean).length}</i>}
-            </button>
-            <button type="button" className="is-surrender" aria-label="Сдаться" title="Сдаться"
-              disabled={!canAct} onClick={() => act('surrender')}>
-              <Flag size={13} />
-            </button>
-          </span>
-        </span>
-      </header>
-
-      <main className="battle-duel-stage">
-        <BattleFighterPanel side="self" name={playerName} level={char?.battleLevel}
-          avatar={playerProfile?.avatar ?? char?.avatar}
-          hp={pHp} hpMax={pHpMax} mode="block" selected={blockZones} limit={attackHands.length > 0 ? 2 : 4}
-          disabled={!canAct || attackHands.length === 2}
-          primaryHand={playerProfile?.primaryHand ?? weapon?.template?.name} secondaryHand={playerProfile?.secondaryHand}
-          primaryWeaponCode={playerProfile?.primaryWeaponCode ?? weapon?.template?.code}
-          secondaryWeaponCode={playerProfile?.secondaryWeaponCode}
-          primaryWeaponType={playerProfile?.primaryWeaponType ?? weapon?.template?.weaponType}
-          secondaryWeaponType={playerProfile?.secondaryWeaponType}
-          onZone={toggleBlock} />
-
-        <div className="battle-field-v3">
-          <BattleGrid playerName={playerName} enemyName={enemyName}
-            playerDefeated={false} enemyDefeated={false}
-            playerHit={playerHit} enemyHit={enemyHit}
-            playerAttack={playerAttack} enemyAttack={enemyAttack} lastEvent={lastEvent}
-            distance={currentDistance} playerPosition={pPart?.position}
-            enemyPosition={ePart?.position} selectedMove={selectedMove} onSelectMove={selectMove}
-            participants={live?.participants} playerParticipantId={pPart?.participantId} arena={live?.arena} obstacles={live?.obstacles}
-            playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
-            onSelectTarget={setSelectedTargetId} />
-          {/* Хроника живёт только в нижней панели, как рисует макет.
-              Раньше на десктопе она создавалась ещё и здесь, под полем,
-              и после перехода на общую сцену показалась бы дважды. */}
-          <div className="battle-field-v3__meta">
-            <span>Дистанция: <b>{currentDistance}</b></span><span>Дальность: <b>{playerRange ?? '—'}</b></span>
-          </div>
-        </div>
-
-        <BattleFighterPanel side="enemy" name={enemyName} level={enemyProfile?.level}
-          avatar={enemyProfile?.avatar}
-          hp={eHp} hpMax={eHpMax} mode="attack" selected={attackZones} selectedHands={attackHands} limit={blockZones.length > 0 ? 1 : 2}
-          disabled={!canAct || !ePart?.participantId}
-          disabledHands={disabledAttackHands}
-          disabledReason={disabledAttackHands.length === 2 ? 'Цель вне дальности' : undefined}
-          primaryHand={enemyProfile?.primaryHand} secondaryHand={enemyProfile?.secondaryHand}
-          primaryWeaponCode={enemyProfile?.primaryWeaponCode} secondaryWeaponCode={enemyProfile?.secondaryWeaponCode}
-          primaryWeaponType={enemyProfile?.primaryWeaponType} secondaryWeaponType={enemyProfile?.secondaryWeaponType}
-          onZone={() => undefined} onHandZone={toggleAttackHand} />
-      </main>
-
-      {/* Колодка всегда компактная: сцена одна и та же на любом экране,
-          и кнопки в ней — те, что нарисованы в макете. */}
-      <BattleCommandDock stance={stance} attackZones={attackZones} attackHands={attackHands} blockZones={blockZones}
-        selectedMove={selectedMove} targetId={ePart?.participantId} targetInRange={targetInRange}
-        canAct={canAct} pending={actionMut.isPending} timeLeft={timeLeft}
-        roundsCount={rounds.length} pocketCount={pocketSlots.filter(Boolean).length}
-        compact battleId={battleId} currentRound={currentRound} playerSide={pPart?.side}
-        battleType={battleData?.battle?.type} startedAt={battleData?.battle?.startedAt}
-        selfFighter={{ name: playerName, level: char?.battleLevel, hp: pHp, hpMax: pHpMax, acted: pPart?.hasActedThisRound }}
-        helper={pPart?.helper} helperPending={helperTacticMut.isPending}
-        onHelperTactic={tactic => helperTacticMut.mutate(tactic)}
-        enemyFighter={{ name: enemyName, level: enemyProfile?.level, hp: eHp, hpMax: eHpMax, acted: ePart?.hasActedThisRound }}
-        onRemoveAttack={removeAttack}
-        onSubmitTurn={submitTurn} onSubmitMove={submitMove} onReset={resetPlan}
-        onToggleLog={() => setShowLog(value => !value)} onTogglePockets={() => setPocketsOpen(value => !value)}
-        onSurrender={() => act('surrender')} />
-    </div>
-
-    </div>
-
-    {showCards && <CardCutout width={cardW} className="is-enemy" profile={{
-      nickname: enemyName, level: enemyProfile?.level ?? 0,
-      hp: eHp, hpMax: eHpMax,
-      avatar: enemyProfile?.avatar,
-      gender: enemyProfile?.gender,
-      weaponName: enemyProfile?.primaryHand,
-      weaponCode: enemyProfile?.primaryWeaponCode,
-      weaponType: enemyProfile?.primaryWeaponType,
-      offhandName: enemyProfile?.secondaryHand,
-      offhandCode: enemyProfile?.secondaryWeaponCode,
-    }} />}
-
-    </div>
-
-      {/* В бою чат занимает ту же полосу у нижнего края окна, что и в городе. */}
-      <BattleChat />
-
-      {/* Сообщение об ошибке и выдвижные панели живут ВНЕ сцены.
-          Внутри они масштабировались бы вместе с ней: на телефоне
-          сцена ужимается до 0.42, и текст лога стал бы нечитаемым.
-          К макету они не относятся — это служебные наложения. */}
-      {actionError && <div className="battle-error-v3" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
-
-      {(showLog || pocketsOpen) && <aside className="battle-drawer" aria-label={showLog ? 'Лог боя' : 'Боевой карман'}>
-        <button type="button" className="battle-drawer__scrim" aria-label="Закрыть" onClick={() => { setShowLog(false); setPocketsOpen(false) }} />
-        <section>
-          <header><b>{showLog ? 'Лог боя' : 'Боевой карман'}</b><button type="button" onClick={() => { setShowLog(false); setPocketsOpen(false) }}>Закрыть</button></header>
-          {showLog ? <div className="log-body-v2">
-            {battleId && <BattleJournal battleId={battleId} refreshKey={currentRound} />}
-          </div> : (
-            <>
-              <BattlePockets slots={pocketSlots} canAct={canAct} open
-                onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />
-              {/* Переодевание живёт в том же ящике, что и карман: макет
-                  боевого экрана его не рисует, и втискивать кнопку в его
-                  геометрию значило бы ломать пиксель-перфект. */}
-              <BattleSwap
-                inventory={items}
-                plan={swapPlan}
-                canAct={canAct}
-                // В ящике раздел всегда развёрнут — как и карман рядом:
-                // ящик и есть раскрытие, второй уровень сворачивания в нём
-                // только прячет содержимое от глаз.
-                open
-                onChange={setSwapPlan}
-              />
-            </>
-          )}
-        </section>
-      </aside>}
-    </div>
-  )}
+}

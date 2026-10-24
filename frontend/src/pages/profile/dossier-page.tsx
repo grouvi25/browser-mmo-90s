@@ -50,6 +50,8 @@ interface DossierView {
   gender?: 'MALE' | 'FEMALE'
   battleLevel: number
   economicLevel: number
+  /** Рейтинг (книга заказчика 23.10): статы с весами + надетые вещи. */
+  rating?: number
   hpCurrent: number
   hpMax: number
   battlesTotal: number
@@ -101,7 +103,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
       const off = o.weapons?.find(x => x.armorSlot === 'RIGHT_HAND')
       view = {
         id: o.id, nickname: o.nickname, archetype: o.archetype, gender: o.gender,
-        battleLevel: o.battleLevel ?? 0, economicLevel: o.economicLevel ?? 0,
+        battleLevel: o.battleLevel ?? 0, economicLevel: o.economicLevel ?? 0, rating: o.rating,
         hpCurrent: o.hpCurrent ?? 0, hpMax: o.hpMax ?? 0,
         battlesTotal: o.battlesTotal ?? 0, battlesWon: o.battlesWon ?? 0,
         location: o.location, clan: o.clan, createdAt: o.createdAt,
@@ -113,7 +115,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
   } else if (char) {
     view = {
       id: char.id, nickname: char.nickname, archetype: char.archetype, gender: char.gender,
-      battleLevel: char.battleLevel, economicLevel: char.economicLevel,
+      battleLevel: char.battleLevel, economicLevel: char.economicLevel, rating: char.rating,
       hpCurrent: char.hpCurrent, hpMax: char.hpMax,
       battlesTotal: char.battlesTotal, battlesWon: char.battlesWon,
       location: char.location, clan: char.clan, createdAt: char.createdAt,
@@ -175,9 +177,10 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
     'Уровни:',
     `1. Боевой — ${view.battleLevel}`,
     `2. Экономический — ${view.economicLevel}`,
+    `3. Рейтинг — ${view.rating != null ? String(view.rating).replace('.', ',') : '—'}`,
     ...(view.professions.length
-      ? ['3. Профессии:', ...view.professions.map(p => `   ${p.name}: ур. ${p.level}${p.exp != null ? `, опыт ${p.exp}` : ''}`)]
-      : ['3. Профессии — не открыты']),
+      ? ['4. Профессии:', ...view.professions.map(p => `   ${p.name}: ур. ${p.level}${p.exp != null ? `, опыт ${p.exp}` : ''}`)]
+      : ['4. Профессии — не открыты']),
     '',
     'Владение оружием:',
     ...(view.skills.length

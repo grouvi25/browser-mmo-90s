@@ -10,7 +10,7 @@ import { prisma } from '../../shared/db/prisma'
 import { EconomyService } from '../economy/economy.service'
 import { z } from 'zod'
 import type { Prisma } from '@prisma/client'
-import { calcHpMax } from '../stats/stats.formulas'
+import { calcCharacterRating, calcHpMax } from '../stats/stats.formulas'
 import { dogSummary } from '../city/city.config'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 
@@ -261,17 +261,19 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
       })
       if (!char) throw AppError.notFound('Character', req.params.nickname)
       if (char.isInvisible) return reply.send({ hidden: true, nickname: req.params.nickname })
-      const [clan, professions, skills, pets, weapons] = await Promise.all([
+      const [clan, professions, skills, pets, equipped] = await Promise.all([
         char.clanId ? prisma.clan.findUnique({ where: { id: char.clanId }, select: { id: true, name: true, iconVersion: true } }) : null,
         prisma.characterProfession.findMany({ where: { characterId: char.id }, orderBy: { level: 'desc' } }),
         prisma.weaponSkill.findMany({ where: { characterId: char.id, skillLevel: { gt: 1 } }, orderBy: { skillLevel: 'desc' }, take: 3 }),
         prisma.characterPet.findMany({ where: { characterId: char.id } }),
-        // Надетое оружие видно и в бою, тайны в нём нет; инвентарь и деньги — нет.
+        // Надетое видно и в бою, тайны в нём нет; рейтинг считается по
+        // тому же правилу, что и в собственном досье.
         prisma.itemInstance.findMany({
-          where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' }, template: { type: 'WEAPON' } },
-          select: { armorSlot: true, template: { select: { name: true, code: true, weaponType: true } } },
+          where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' } },
+          include: { template: true },
         }),
       ])
+      const weapons = equipped.filter(i => i.template.type === 'WEAPON')
       // Правка заказчика 21.10: чужой профиль выглядит как свой — те же графы.
       return reply.send({
         id: char.id,
@@ -280,6 +282,7 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
         gender: char.gender,
         battleLevel: char.battleLevel,
         economicLevel: char.economicLevel,
+        rating: char.stats ? calcCharacterRating(char.stats, equipped) : 0,
         hpCurrent: char.hpCurrent,
         hpMax: char.hpMax,
         battlesTotal: char.battlesTotal,
@@ -289,7 +292,7 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
         professions: professions.map(p => ({ professionCode: p.professionCode, level: p.level, name: PROFESSION_NAMES[p.professionCode as ProfessionCode] ?? p.professionCode })),
         weaponSkills: skills.map(s => ({ weaponType: s.weaponType, skillLevel: s.skillLevel })),
         dog: dogSummary(pets),
-        weapons: weapons.map(w => ({ armorSlot: w.armorSlot, ...w.template })),
+        weapons: weapons.map(w => ({ armorSlot: w.armorSlot, name: w.template.name, code: w.template.code, weaponType: w.template.weaponType })),
         createdAt: char.createdAt,
       })
     })
