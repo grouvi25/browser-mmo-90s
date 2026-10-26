@@ -1,4 +1,5 @@
 import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
+import { unlockLocations } from './admin-session'
 import AxeBuilder from '@axe-core/playwright'
 import { DESIGNER_BATTLE_COLUMNS, DESIGNER_BATTLE_ROWS } from '../../src/shared/lib/designer-battle-grid'
 import { MENU } from '../../src/shared/lib/layout-map'
@@ -71,19 +72,6 @@ async function buyPrivateItem(request: APIRequestContext, account: Account, code
 }
 
 
-// Локации гейтятся по боевому уровню (обещание игрокам 22.10): тестовым
-// персонажам нужен уровень, открывающий Промзону и Фермы. Опыт выдаёт
-// админ-роут — досыпаем столько, чтобы хватило при любой кривой порогов.
-async function unlockLocations(request: APIRequestContext, characterId: string) {
-  const login = await request.post('/api/admin/auth/login', { data: { username: 'admin', password: 'admin_change_me_now' } })
-  expect(login.status()).toBe(200)
-  const { token } = await login.json() as { token: string }
-  const grant = await request.post('/api/admin/characters/exp', {
-    headers: { Authorization: `Bearer ${token}` },
-    data: { characterId, track: 'battle', amount: 50_000_000, reason: 'e2e: открыть локации по уровню' },
-  })
-  expect(grant.status()).toBe(200)
-}
 
 test.describe.configure({ mode: 'serial' })
 test.describe('Stage 2 visual and browser flow', () => {

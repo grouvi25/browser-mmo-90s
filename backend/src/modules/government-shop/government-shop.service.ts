@@ -60,6 +60,9 @@ export const GovernmentShopService = {
           durabilityMax: t.durabilityMax,
           weight: t.weight,
           sourceType: 'GOVERNMENT',
+          // Вещь с распределением «игрок сам» приходит со свободными очками,
+          // как из частной лавки: иначе бюджет статов пропадал бы.
+          freePoints: t.allocationMode === 'PLAYER' ? t.statBudget : 0,
           usesLeft: t.type === 'TOOL' ? t.usesMax : null,
         },
       })

@@ -18,6 +18,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Swords } from 'lucide-react'
 import { adminApi, REASON_MIN, type CombatResult, type CombatSide, type Fighter, type ItemTemplateRow } from '../admin-api'
 import { Skeleton, Fault, Note } from '../../stage3/stage3-ui'
+import { ItemCreateForm } from './item-create-form'
 
 const pct = (value: number) => `${(value * 100).toFixed(1)}%`
 
@@ -288,7 +289,7 @@ export function ItemsSection({ role }: { role?: string | null }) {
       </div>
 
       {adding && (
-        <NewItemForm onDone={() => {
+        <ItemCreateForm onDone={() => {
           setAdding(false)
           void qc.invalidateQueries({ queryKey: ['admin', 'items'] })
         }} />
@@ -407,86 +408,5 @@ function ItemRow({ item, canEdit }: { item: ItemTemplateRow; canEdit: boolean })
         </td>
       )}
     </tr>
-  )
-}
-
-/** Новый предмет. Код и тип задаются один раз и потом не меняются. */
-function NewItemForm({ onDone }: { onDone: () => void }) {
-  const [form, setForm] = useState({
-    code: '', name: '', type: 'WEAPON',
-    priceBase: 500, levelReq: 1, durabilityMax: 100, weight: 1,
-    minDamage: 10, maxDamage: 20, weaponAccuracy: 0.75, armor: 0,
-  })
-  const [reason, setReason] = useState('')
-  const [error, setError] = useState('')
-
-  const create = useMutation({
-    mutationFn: () => adminApi.createItem({
-      ...form,
-      // Оружейные поля осмысленны только у оружия, броня — у брони:
-      // пустое значение у остальных типов честнее нуля.
-      minDamage: form.type === 'WEAPON' ? form.minDamage : null,
-      maxDamage: form.type === 'WEAPON' ? form.maxDamage : null,
-      weaponAccuracy: form.type === 'WEAPON' ? form.weaponAccuracy : null,
-      armor: form.type === 'ARMOR' ? form.armor : null,
-    }, reason.trim()),
-    onSuccess: onDone,
-    onError: (err: Error) => setError(err.message),
-  })
-
-  const set = (key: string) => (value: string) =>
-    setForm({ ...form, [key]: ['code', 'name', 'type'].includes(key) ? value : Number(value) })
-
-  return (
-    <div className="adm-card-block adm-item__new">
-      <h4>Новый предмет</h4>
-      <div className="adm-item__fields">
-        <label><span>Код (латиница)</span>
-          <input value={form.code} onChange={e => set('code')(e.target.value)} placeholder="weapon_bat_new" /></label>
-        <label><span>Название</span>
-          <input value={form.name} onChange={e => set('name')(e.target.value)} placeholder="Бита" /></label>
-        <label><span>Тип</span>
-          <select value={form.type} onChange={e => set('type')(e.target.value)}>
-            {['WEAPON', 'ARMOR', 'CONSUMABLE', 'TOOL', 'MISC'].map(kind => (
-              <option key={kind} value={kind}>{kind}</option>
-            ))}
-          </select></label>
-        <label><span>Цена</span>
-          <input type="number" value={form.priceBase} onChange={e => set('priceBase')(e.target.value)} /></label>
-        <label><span>Уровень</span>
-          <input type="number" value={form.levelReq} onChange={e => set('levelReq')(e.target.value)} /></label>
-        <label><span>Прочность</span>
-          <input type="number" value={form.durabilityMax} onChange={e => set('durabilityMax')(e.target.value)} /></label>
-        <label><span>Вес</span>
-          <input type="number" step="0.1" value={form.weight} onChange={e => set('weight')(e.target.value)} /></label>
-        {form.type === 'WEAPON' && (
-          <>
-            <label><span>Урон от</span>
-              <input type="number" value={form.minDamage} onChange={e => set('minDamage')(e.target.value)} /></label>
-            <label><span>Урон до</span>
-              <input type="number" value={form.maxDamage} onChange={e => set('maxDamage')(e.target.value)} /></label>
-            <label><span>Точность</span>
-              <input type="number" step="0.01" value={form.weaponAccuracy} onChange={e => set('weaponAccuracy')(e.target.value)} /></label>
-          </>
-        )}
-        {form.type === 'ARMOR' && (
-          <label><span>Броня</span>
-            <input type="number" value={form.armor} onChange={e => set('armor')(e.target.value)} /></label>
-        )}
-      </div>
-      <div className="adm-item__save">
-        <input value={reason} onChange={e => setReason(e.target.value)}
-          placeholder={`Причина, от ${REASON_MIN} символов`} aria-label="Причина создания" />
-        <button type="button"
-          disabled={create.isPending || reason.trim().length < REASON_MIN || !form.code || !form.name}
-          onClick={() => create.mutate()}>Создать</button>
-      </div>
-      {error && <Note text={error} kind="bad" />}
-      <p className="adm-hint">
-        Предмет появится в игре сразу. Отменяется из журнала — но только пока
-        по нему никому ничего не выдали: у выданных вещей шаблон это их
-        происхождение.
-      </p>
-    </div>
   )
 }
