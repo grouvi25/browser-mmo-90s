@@ -97,4 +97,42 @@ describe('админка: новая вещь', () => {
     expect(await testPrisma.itemTemplate.count({ where: { code } })).toBe(0)
     expect(await testPrisma.governmentShopItem.count({ where: { templateId: template.id } })).toBe(0)
   })
+
+  // Правка 26.10: «статы в шмоте — сила, выносливость, фарт, ловкость,
+  // меткость, агрессия; обереги уворота, удачи, крита, ответа — в плюс и в минус».
+  it('вещь с выносливостью и здоровьем поднимает максимум HP, снял — вернулось; обереги в минус сохраняются', async () => {
+    const vest = {
+      name: 'Бронежилет Витязь', type: 'ARMOR', armorSlot: 'CHEST', priceBase: 100, levelReq: 0, durabilityMax: 100, weight: 3,
+      minDamage: null, maxDamage: null, weaponAccuracy: null, armor: 10, hpBonus: 10,
+      statBonuses: { end: 5, agi: -1 }, antiDodge: -0.05, antiCrit: 0.1,
+    }
+    const res = await create({ item: vest, sale: { shop: 'kommersant', price: 100 }, reason: REASON })
+    expect(res.statusCode).toBe(201)
+    const { code } = res.json<{ code: string }>()
+    const template = await testPrisma.itemTemplate.findUniqueOrThrow({ where: { code } })
+    expect(template).toMatchObject({ statBonuses: { end: 5, agi: -1 }, antiDodge: -0.05, antiCrit: 0.1, hpBonus: 10 })
+
+    const login = uid('vityaz')
+    const password = 'local_test_pw_123'
+    await app.inject({ method: 'POST', url: '/api/auth/register', payload: { acceptPolicy: true, login, email: `${login}@test.local`, password } })
+    const { token: userToken } = (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { login, password } })).json<{ token: string }>()
+    await app.inject({ method: 'POST', url: '/api/characters', headers: { authorization: `Bearer ${userToken}` }, payload: { nickname: 'Vit' + Math.random().toString(36).slice(2, 8), archetype: 'STREET' } })
+    const character = await testPrisma.character.findFirstOrThrow({ where: { user: { login } } })
+    await testPrisma.character.update({ where: { id: character.id }, data: { money: 5_000 } })
+    const listed = (await PrivateShopsService.listItems('kommersant')).find(row => row.code === code)!
+    const bought = await PrivateShopsService.buy(character.id, 'kommersant', listed.id, 1, uid('k'))
+    const before = character.hpMax
+
+    const wear = await app.inject({ method: 'POST', url: '/api/inventory/equip', headers: { authorization: `Bearer ${userToken}` }, payload: { itemInstanceId: bought.itemIds[0] } })
+    expect(wear.statusCode).toBe(200)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).hpMax).toBe(before + 5 * 6 + 10)
+
+    const off = await app.inject({ method: 'POST', url: '/api/inventory/unequip', headers: { authorization: `Bearer ${userToken}` }, payload: { itemInstanceId: bought.itemIds[0] } })
+    expect(off.statusCode).toBe(200)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).hpMax).toBe(before)
+
+    // Оберег за пределом ±200% и прибавка больше 50 — отказ.
+    expect((await create({ item: { ...vest, name: 'Сломанный', antiDodge: -2.5 }, reason: REASON })).statusCode).toBe(422)
+    expect((await create({ item: { ...vest, name: 'Сломанный', statBonuses: { str: 60 } }, reason: REASON })).statusCode).toBe(422)
+  })
 })

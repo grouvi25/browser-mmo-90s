@@ -1,5 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { cityApi } from '../../shared/api/city.api'
+import { locationLabel } from '../../shared/lib/city-locations'
 import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import {
   Sword, Heart, ChevronDown, Skull,
@@ -200,6 +202,7 @@ export function BattlePage() {
   // и последний удар в логе, потом итог мягко проявляется (правка
   // заказчика 23.10: экран конца боя «пугает» резкой подменой).
   const [showResult, setShowResult]     = useState(false)
+  const cameFrom = useQuery({ queryKey: ['city', 'location', 'before-battle'], queryFn: cityApi.location, staleTime: 60_000, retry: false })
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
   const [pocketsOpen, setPocketsOpen]   = useState(false)
@@ -455,6 +458,11 @@ export function BattlePage() {
   // ── Финальный экран ───────────────────────────────────────
   if (battleOver && finishResult && showResult) {
     const won = isWin(finishResult)
+    // Откуда пришли в бой: адрес боя в места не записывается, поэтому
+    // последняя сохранённая локация — та, с которой игрок зашёл в бой
+    // (правка заказчика: «после боя кнопка перехода на локацию, с которой
+    // игрок в бой зашёл»).
+    const origin = cameFrom.data?.path ?? '/'
     return (
       <div className="battle-page-v2">
         <div className="battle-main-col">
@@ -478,7 +486,10 @@ export function BattlePage() {
               <div className="brv2-levelup">НОВЫЙ УРОВЕНЬ {finishResult.newLevel}</div>
             )}
             <div className="brv2-actions">
-              <button className="btn btn-primary" onClick={() => navigate('/profile')}>Профиль</button>
+              <button className="btn btn-primary" onClick={() => navigate(origin)}>
+                Вернуться: {origin === '/' ? 'Центр' : locationLabel(origin)}
+              </button>
+              <button className="btn" onClick={() => navigate('/profile')}>Профиль</button>
               <button className="btn btn-gold"    onClick={() => navigate('/repair')}>Ремонт</button>
               <button className="btn btn-danger"  onClick={() => navigate('/pvp')}>Ещё раз</button>
             </div>

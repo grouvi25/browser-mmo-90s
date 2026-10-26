@@ -84,6 +84,28 @@ describe('telegram sender', () => {
     expect(calls).toHaveBeenCalledTimes(1)
   })
 
+  // Просьба 26.10: алерты и заказчику — получатели через запятую.
+  it('шлёт каждому из списка; отказ одного не мешает остальным', async () => {
+    envMock.TELEGRAM_CHAT_ID = '111, 222'
+    const chats: string[] = []
+    const calls = vi.fn(async (_url: string, init: { body: string }) => {
+      const chat = (JSON.parse(init.body) as { chat_id: string }).chat_id
+      chats.push(chat)
+      return (chat === '222'
+        ? { ok: false, status: 400, text: async () => 'chat not found' }
+        : { ok: true }) as unknown as Response
+    })
+    globalThis.fetch = calls as unknown as typeof fetch
+
+    const { sendTelegram, telegramChatIds } = await import('../../modules/admin-balance/telegram.service')
+    expect(telegramChatIds()).toEqual(['111', '222'])
+    const result = await run(sendTelegram('проверка'))
+
+    expect(chats.sort()).toEqual(['111', '222'])
+    expect(result.ok).toBe(true)
+    expect(result.error).toContain('222')
+  })
+
   it('без настроек молчит и в сеть не ходит', async () => {
     envMock.TELEGRAM_BOT_TOKEN = undefined
     const calls = vi.fn()

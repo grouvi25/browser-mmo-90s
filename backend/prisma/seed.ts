@@ -230,6 +230,72 @@ async function main() {
       moneyRewardMin: 100,
       moneyRewardMax: 300,
     },
+    // Боты для кача выше 4-го уровня (обещано игрокам в чате 23.10). Образы —
+    // по ТЗ на арты 24.10. Мощность — типовая цель книги заказчика:
+    // Pтип(L) = 2,5 × L + 97,5 × 1,9^(L−1). Здоровье растёт как у игрока того
+    // же уровня; урон к здоровью — в той же доле, что у Вооружённого бандита
+    // (около 0,7), чтобы бой длился, а не решался одним выстрелом. Числа
+    // стартовые: поправим по живым боям.
+    {
+      code: 'bratok',
+      name: 'Браток',
+      battleLevel: 6,
+      power: 2429,
+      hpMax: 115,
+      stats: { str: 5, agi: 4, rea: 3, acc: 5, end: 6, luck: 2, agr: 3, armor: 24 },
+      equipment: {
+        weapon: { minDamage: 60, maxDamage: 110, accuracy: 0.66, maxRange: 3 },
+        armor: { HEAD: 12, CHEST: 26, LEGS: 18, RIGHT_ARM: 11, LEFT_ARM: 11 },
+      },
+      expReward: 80,
+      moneyRewardMin: 200,
+      moneyRewardMax: 500,
+    },
+    {
+      code: 'boevik',
+      name: 'Боевик',
+      battleLevel: 8,
+      power: 8735,
+      hpMax: 140,
+      stats: { str: 6, agi: 5, rea: 4, acc: 6, end: 7, luck: 2, agr: 3, armor: 30 },
+      equipment: {
+        weapon: { minDamage: 75, maxDamage: 135, accuracy: 0.70, maxRange: 6 },
+        armor: { HEAD: 16, CHEST: 32, LEGS: 22, RIGHT_ARM: 14, LEFT_ARM: 14 },
+      },
+      expReward: 120,
+      moneyRewardMin: 350,
+      moneyRewardMax: 800,
+    },
+    {
+      code: 'avtoritet',
+      name: 'Авторитет',
+      battleLevel: 10,
+      power: 31487,
+      hpMax: 170,
+      stats: { str: 7, agi: 6, rea: 5, acc: 7, end: 8, luck: 3, agr: 4, armor: 38 },
+      equipment: {
+        weapon: { minDamage: 90, maxDamage: 160, accuracy: 0.78, maxRange: 5 },
+        armor: { HEAD: 20, CHEST: 40, LEGS: 28, RIGHT_ARM: 17, LEFT_ARM: 17 },
+      },
+      expReward: 180,
+      moneyRewardMin: 600,
+      moneyRewardMax: 1300,
+    },
+    {
+      code: 'smotryashchiy',
+      name: 'Смотрящий',
+      battleLevel: 15,
+      power: 779069,
+      hpMax: 250,
+      stats: { str: 10, agi: 8, rea: 7, acc: 10, end: 11, luck: 4, agr: 5, armor: 55 },
+      equipment: {
+        weapon: { minDamage: 120, maxDamage: 210, accuracy: 0.78, maxRange: 5 },
+        armor: { HEAD: 28, CHEST: 55, LEGS: 38, RIGHT_ARM: 24, LEFT_ARM: 24 },
+      },
+      expReward: 300,
+      moneyRewardMin: 1500,
+      moneyRewardMax: 3000,
+    },
   ]
 
   for (const bot of bots) {

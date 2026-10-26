@@ -62,6 +62,15 @@ export interface Character {
   hangoverUntil?: string | null
   stats: CharacterStats | null
   weaponSkills?: WeaponSkill[]
+  /** Прибавки и обереги от надетого — тем же расчётом, что в бою (26.10). */
+  gear?: {
+    stats: Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr', number>
+    antiDodge: number; antiLuck: number; antiCrit: number; antiCounter: number; hp: number
+    /** Минус-обереги: на сколько срезают тот же оберег противника. */
+    minus?: { antiDodge: number; antiLuck: number; antiCrit: number; antiCounter: number }
+  }
+  /** Сколько опыта нужно для следующего боевого уровня; null — последний. */
+  nextLevelExp?: number | null
   economy?: {
     productionLevel: number
     productionExp: number
@@ -96,6 +105,12 @@ export interface ItemTemplate {
   armor: number | null
   dodgeBonus: number | null
   antiCrit: number | null
+  /** Обереги: срезают у противника уворот, удачу и ответку (могут быть в минус). */
+  antiDodge?: number | null
+  antiLuck?: number | null
+  antiCounter?: number | null
+  /** Прибавки к характеристикам персонажа, пока вещь надета. */
+  statBonuses?: Partial<Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr', number>> | null
   blockBonus: number | null
   // Consumable
   hpBonus: number | null

@@ -12,6 +12,7 @@ import type { Prisma } from '@prisma/client'
 import { ITEM_STAT_KEYS } from '../items/item-stats.formulas'
 import { ItemStatsService } from '../items/item-stats.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
+import { syncHpWithGear } from '../items/gear-bonuses'
 
 const EquipSchema = z.object({ itemInstanceId: z.string().uuid(), hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional() })
 const UnequipSchema = z.object({ armorSlot: z.string().optional(), itemInstanceId: z.string().uuid().optional() })
@@ -147,6 +148,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       await tx.itemLog.create({
         data: { itemId: item.id, characterId: char.id, actionCode: 'EQUIPPED' },
       })
+      await syncHpWithGear(tx, char.id)
       return { characterId: char.id, itemId: item.id }
     })
 
@@ -183,6 +185,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       await tx.itemLog.create({
         data: { itemId: item.id, characterId: char.id, actionCode: 'UNEQUIPPED' },
       })
+      await syncHpWithGear(tx, char.id)
       return { characterId: char.id, itemId: item.id }
     })
 
@@ -255,6 +258,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         await tx.itemLog.create({ data: { itemId: item.id, characterId: char.id, actionCode: 'EQUIPPED' } })
         equipped++
       }
+      await syncHpWithGear(tx, char.id)
       return { characterId: char.id, equipped, skipped }
     })
     audit('item.outfit_worn', { characterId: result.characterId, slot: slot.data, equipped: result.equipped })

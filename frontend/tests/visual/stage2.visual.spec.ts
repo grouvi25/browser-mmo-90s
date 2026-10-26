@@ -196,6 +196,77 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.getByText('Армейские берцы').first()).toBeVisible()
   })
 
+  // Документ заказчика: «после боя — полный лог и кнопка для перехода на
+  // локацию, с которой игрок в бой зашёл».
+  test('после боя: журнал и кнопка «Вернуться» на локацию, откуда пришли', async ({ page }) => {
+    await authPage(page, worker)
+    await page.goto('/pvp')
+    await expect(page.locator('[data-stage-nav="center"]')).toBeVisible()
+    // Локация сохраняется на сервере — ждём, пока /pvp запишется последней.
+    await expect.poll(async () => (await (await page.request.get(`${API}/api/city/location`, { headers: { Authorization: `Bearer ${worker.token}` } })).json() as { path: string }).path).toBe('/pvp')
+    const started = await apiContext.post('/api/battles/pve/start', {
+      headers: { Authorization: `Bearer ${worker.token}` }, data: { botCode: 'training_bandit' },
+    })
+    expect(started.status()).toBe(201)
+    const battleId = (await started.json() as { battleId: string }).battleId
+    await page.goto(`/battle/${battleId}`)
+    await apiContext.post(`/api/battles/${battleId}/action`, {
+      headers: { Authorization: `Bearer ${worker.token}` }, data: { action: 'surrender' },
+    })
+    const back = page.getByRole('button', { name: 'Вернуться: Стрелки' })
+    await expect(back).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText('Журнал боя')).toBeVisible()
+    await back.click()
+    await expect(page).toHaveURL(/\/pvp$/)
+  })
+
+  // Вопрос заказчика 22.10 «откуда такая посещаемость»: счётчик Метрики
+  // грузился и на тестовой сборке, и каждый прогон автотестов шёл в визиты.
+  test('автотесты и чужие адреса не шлют визиты в Яндекс.Метрику', async ({ page }) => {
+    const hits: string[] = []
+    page.on('request', request => { if (request.url().includes('mc.yandex.ru')) hits.push(request.url()) })
+    await page.goto('/login')
+    await page.waitForLoadState('networkidle')
+    expect(hits).toEqual([])
+  })
+
+  // Обещание игрокам 23.10: боты для кача выше 4-го уровня. Список ботов на
+  // Стрелках собирается из базы, а бой с каждым новым ботом стартует.
+  test('на Стрелках боты из базы, включая новых 6–15 уровня', async ({ page }) => {
+    const listed = await apiContext.get('/api/battles/bots', { headers: { Authorization: `Bearer ${seller.token}` } })
+    expect(listed.status()).toBe(200)
+    const bots = (await listed.json() as { items: Array<{ code: string; battleLevel: number }> }).items
+    expect(bots.map(b => b.battleLevel)).toEqual([...bots.map(b => b.battleLevel)].sort((a, b) => a - b))
+    expect(bots.map(b => b.code)).toEqual(expect.arrayContaining(['training_bandit', 'bratok', 'boevik', 'avtoritet', 'smotryashchiy']))
+    for (const code of ['bratok', 'boevik', 'avtoritet', 'smotryashchiy']) {
+      const started = await apiContext.post('/api/battles/pve/start', { headers: { Authorization: `Bearer ${seller.token}` }, data: { botCode: code } })
+      expect(started.status(), code).toBe(201)
+      const { battleId } = await started.json() as { battleId: string }
+      await apiContext.post(`/api/battles/${battleId}/action`, { headers: { Authorization: `Bearer ${seller.token}` }, data: { action: 'surrender' } })
+    }
+    await authPage(page, seller)
+    await page.goto('/pvp')
+    await page.getByRole('button', { name: 'Бой с ботом' }).click()
+    await expect(page.locator('.arena-bot')).toHaveCount(bots.length)
+    await expect(page.locator('.arena-bot', { hasText: 'Смотрящий' })).toContainText('ур. 15')
+  })
+
+  // Правка 26.10 (образец — «Апеха»): вкладки карточки показывают
+  // характеристики с оберегами и личное дело с опытом и поражениями.
+  test('карточка персонажа: вкладки «Характеристики» и «Личное дело»', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Карточка со вкладками — на широком экране')
+    await authPage(page, seller)
+    await page.goto('/')
+    await page.getByTitle('Характеристики', { exact: true }).first().click()
+    const list = page.locator('.card-list').first()
+    await expect(list).toContainText('Сила')
+    await expect(list).toContainText('Меткость')
+    await expect(list).toContainText('Оберег ответа')
+    await page.getByTitle('Личное дело', { exact: true }).first().click()
+    await expect(page.locator('.card-list').first()).toContainText('Поражений')
+    await expect(page.locator('.card-list').first()).toContainText('Следующий уровень')
+  })
+
   test('expired session redirects instead of rendering empty Stage 2 data', async ({ page }) => {
     await page.goto('/login')
     await page.evaluate(() => {

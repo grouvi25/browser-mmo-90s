@@ -133,7 +133,10 @@ export interface ApplicationsResponse {
   active: RunningBattle[]
 }
 
+export interface PveBot { code: string; name: string; battleLevel: number; moneyRewardMin: number; moneyRewardMax: number }
+
 export const battlesApi = {
+  bots: () => api.get<{ items: PveBot[] }>('/api/battles/bots'),
   startPve: (botCode = 'training_bandit') =>
     api.post<StartPveResponse>('/api/battles/pve/start', { botCode }),
 

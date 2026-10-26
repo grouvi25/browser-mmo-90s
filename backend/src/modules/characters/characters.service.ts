@@ -1,6 +1,7 @@
 import { dogSummary } from '../city/city.config'
 import { CharactersRepository } from './characters.repository'
-import { calcCharacterRating, calcHpMax } from '../stats/stats.formulas'
+import { calcCharacterRating, calcHpMax, getExpForNextLevel } from '../stats/stats.formulas'
+import { gearOf } from '../items/gear-bonuses'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
@@ -87,6 +88,10 @@ export const CharactersService = {
       clan,
       dog: dogSummary(char.pets),
       rating: char.stats ? calcCharacterRating(char.stats, equipped) : 0,
+      // Для карточки персонажа (правка 26.10, как в «Апехе»): прибавки и обереги
+      // от надетого — тем же расчётом, что в бою, и порог следующего уровня.
+      gear: gearOf(equipped),
+      nextLevelExp: Number.isFinite(getExpForNextLevel(char.battleLevel)) ? getExpForNextLevel(char.battleLevel) : null,
       economy: {
         productionLevel: professions.reduce((max, item) => Math.max(max, item.level), 0),
         productionExp: professions.reduce((max, item) => Math.max(max, item.exp), 0),

@@ -687,6 +687,8 @@ model ItemTemplate {
   battleExpBonus      Float              @default(0) @map("battle_exp_bonus")
   statBudget          Int                @default(0) @map("stat_budget")
   statAllocation      Json?              @map("stat_allocation")
+  /// Прибавки к характеристикам персонажа, пока вещь надета: { str, end, luck, agi, acc, agr } (правка 26.10).
+  statBonuses         Json?              @map("stat_bonuses")
   allocationMode      ItemAllocationMode @default(FIXED) @map("allocation_mode")
   weaponType          WeaponType?        @map("weapon_type")
   armorSlot           ArmorSlot?         @map("armor_slot")

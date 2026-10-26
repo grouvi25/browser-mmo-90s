@@ -163,6 +163,19 @@ describe('city locations and purchases', () => {
     expect(after.exp).toBe(100)
     expect(after.level).toBe(2)
   })
+
+  // Документ заказчика: «за каждый лвл дается +3 стата».
+  it('новый боевой уровень даёт 3 очка характеристик', async () => {
+    const p = await player()
+    const { applyBattleProgression } = await import('../../modules/experience/progression')
+    const { getExpForLevel } = await import('../../modules/stats/stats.formulas')
+    await testPrisma.characterStats.create({ data: { characterId: p.character.id, pointsAvailable: 0 } })
+    const char = await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id }, include: { stats: true } })
+    const result = await testPrisma.$transaction(tx => applyBattleProgression(tx, char, { expGain: getExpForLevel(3) - char.battleExp, hpCurrentAfterBattle: 50, won: true }))
+    expect(result.newLevel).toBe(3)
+    const stats = await testPrisma.characterStats.findUniqueOrThrow({ where: { characterId: p.character.id } })
+    expect(stats.pointsAvailable).toBe((3 - char.battleLevel) * 3)
+  })
   it('enforces prison server-side, releases automatically, keeps GET available', async () => {
     const p = await player()
     await testPrisma.character.update({ where: { id: p.character.id }, data: { jailedUntil: new Date(Date.now() + 3600000), jailReason: 'Тестовое наказание' } })
