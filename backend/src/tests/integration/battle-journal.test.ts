@@ -80,6 +80,9 @@ describe('журнал боя', () => {
     const base = { action: 'ATTACK' as const, sourceHand: null, hit: false, dodge: false, block: false, crit: false, blockPierced: false, finalDamage: 0 }
     expect(describeTurn({ ...base, zone: 'LEFT_ARM', dodge: true })).toEqual({ kind: 'dodge', text: 'удар в левую руку — уворот' })
     expect(describeTurn({ ...base, zone: 'HEAD', block: true, sourceHand: 'RIGHT_HAND' })).toEqual({ kind: 'block', text: 'удар правой в голову — блок' })
+    // Так блок приходит из движка: удар был (hit), но погашен (block).
+    // Раньше такая строка выходила «удар в корпус» без урона (заказчик 26.10).
+    expect(describeTurn({ ...base, zone: 'CHEST', hit: true, block: true })).toEqual({ kind: 'block', text: 'удар в корпус — блок' })
     expect(describeTurn({ ...base, zone: 'RIGHT_LEG', hit: true, crit: true, finalDamage: 12 })).toEqual({ kind: 'crit', text: 'крит в правую ногу, −12 HP' })
     expect(describeTurn({ ...base, zone: 'CHEST', hit: true, blockPierced: true, finalDamage: 7 })).toEqual({ kind: 'pierce', text: 'пробил блок в корпус, −7 HP' })
     expect(describeTurn({ ...base, action: 'MOVE', zone: null })).toEqual({ kind: 'move', text: 'делает шаг' })

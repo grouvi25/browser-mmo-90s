@@ -35,10 +35,12 @@ export const DESK = {
 } as const
 
 export function BattleDesk({
-  playerWounds, enemy, enemyWounds, enemyTag,
+  playerWounds, playerHp, enemy, enemyWounds, enemyTag,
   header, field, blockZones, attackZones, log, actions, overlay,
 }: {
   playerWounds?: CardWounds
+  /** Своё здоровье в бою — из живого состояния, а не из профиля. */
+  playerHp?: { hp: number; hpMax: number }
   enemy: CardProfile
   enemyWounds?: CardWounds
   /** Подпись над карточкой противника: «Цель», «Бот» и т. п. */
@@ -60,7 +62,7 @@ export function BattleDesk({
       <div className="stage__plate" style={{ backgroundImage: plate, width: MENU_STAGE.w, height: MENU_STAGE.h }} />
       <TopNav />
       {/* Своя карточка — та же, что в городе, и на том же месте. */}
-      <CharacterCard wounds={playerWounds} />
+      <CharacterCard wounds={playerWounds} liveHp={playerHp} />
 
       <div className="battle-desk" style={box(DESK.center)}>
         {header}

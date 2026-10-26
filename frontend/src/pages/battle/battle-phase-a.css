@@ -1546,3 +1546,42 @@
   box-shadow: 0 3px 4px rgb(0 0 0 / .45), inset 0 4px 0 rgb(0 0 0 / .25);
   pointer-events: auto;
 }
+
+/* ── Своя фигура и здоровье над фигурами (правка заказчика 26.10) ──
+   «В групповом непонятно где свой»: союзники и сам игрок нарисованы
+   одним синим спрайтом. Своя фигура — с золотым контуром и золотой
+   подписью; у союзника подпись остаётся синей. Над каждой фигурой —
+   полоска здоровья, она уменьшается сразу после удара. */
+.battle-field-v3 .token-self > img {
+  filter: drop-shadow(0 0 1.5px oklch(80% .15 85)) drop-shadow(0 0 1.5px oklch(80% .15 85)) drop-shadow(0 2px 2px oklch(12% .02 245 / .55));
+}
+.battle-page-v3 .token-self .token-label,
+.battle-field-v3 .token-self .token-label {
+  background: oklch(78% .14 82);
+  color: oklch(22% .03 60);
+  font-weight: 700;
+}
+.battle-field-v3 .fighter-token .token-hp {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 2px);
+  transform: translateX(-50%);
+  width: 34px;
+  height: 4px;
+  background: oklch(22% .02 30 / .75);
+  border: 1px solid oklch(15% .02 30 / .8);
+  overflow: hidden;
+  pointer-events: none;
+}
+.battle-field-v3 .fighter-token .token-hp > i {
+  display: block;
+  height: 100%;
+  background: oklch(62% .19 27);
+  transform-origin: left center;
+  transition: transform 300ms ease-out;
+}
+.battle-field-v3 .token-player .token-hp > i { background: oklch(64% .15 145); }
+.battle-field-v3 .token-self .token-hp > i { background: oklch(76% .15 82); }
+@media (prefers-reduced-motion: reduce) {
+  .battle-field-v3 .fighter-token .token-hp > i { transition: none; }
+}
