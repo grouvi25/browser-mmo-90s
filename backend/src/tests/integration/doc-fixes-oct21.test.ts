@@ -72,10 +72,12 @@ describe('правки по документу 20.10', () => {
     const claimed = await finishShift(worker.id, object.id, 'oct21-claim-0002')
 
     await expect(WorkService.start(worker.id, object.id)).rejects.toMatchObject({ code: 'WORK_014', statusCode: 409 })
-    // 29 минут — ещё отдыхает, 31 — можно.
-    await testPrisma.workShift.update({ where: { id: claimed.shiftId }, data: { claimedAt: new Date(Date.now() - 29 * 60_000) } })
+    // Отдых считается от конца работы, а не от того, когда смену забрали
+    // (правка 24.10): работа кончилась 29 минут назад — ещё отдыхает, 31 — можно,
+    // даже если смену забрали только что.
+    await testPrisma.workShift.update({ where: { id: claimed.shiftId }, data: { endsAt: new Date(Date.now() - 29 * 60_000), claimedAt: new Date() } })
     await expect(WorkService.start(worker.id, object.id)).rejects.toMatchObject({ code: 'WORK_014' })
-    await testPrisma.workShift.update({ where: { id: claimed.shiftId }, data: { claimedAt: new Date(Date.now() - 31 * 60_000) } })
+    await testPrisma.workShift.update({ where: { id: claimed.shiftId }, data: { endsAt: new Date(Date.now() - 31 * 60_000), claimedAt: new Date() } })
     expect((await WorkService.start(worker.id, object.id)).shift.status).toBe('ACTIVE')
   })
 

@@ -189,15 +189,18 @@ export const WorkService = {
       if (await tx.workShift.findFirst({ where: { characterId, helperId: null, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } } })) throw new AppError(ErrorCode.WORK_ACTIVE_SHIFT, 'Active shift already exists', 409)
       // Отдых после смены, одинаковый для всех объектов (правка заказчика
       // 20.10: «после работы паузы должны быть… 30 минут, потом поправим»).
-      // Считаем от закрытия своей смены: смены помощника хозяина не держат.
+      // Считаем от КОНЦА работы, а не от того, когда смену забрали (правка
+      // 24.10: «поставил работать, 30 минут работаешь, 30 минут отдыха — и
+      // через час можно снова»). Смены помощника хозяина не держат.
       const restMs = WORK_LIMITS.restMinutesAfterShift * 60_000
-      const lastClaimed = await tx.workShift.findFirst({
-        where: { characterId, helperId: null, status: 'CLAIMED', claimedAt: { gt: new Date(Date.now() - restMs) } },
-        orderBy: { claimedAt: 'desc' }, select: { claimedAt: true },
+      const lastEnded = await tx.workShift.findFirst({
+        where: { characterId, helperId: null, status: 'CLAIMED', endsAt: { gt: new Date(Date.now() - restMs) } },
+        orderBy: { endsAt: 'desc' }, select: { endsAt: true },
       })
-      if (lastClaimed?.claimedAt) {
-        const left = Math.max(1, Math.ceil((lastClaimed.claimedAt.getTime() + restMs - Date.now()) / 60_000))
-        throw new AppError(ErrorCode.WORK_RESTING, `Отдых после смены: следующую можно начать через ${left} мин`, 409, { restUntil: new Date(lastClaimed.claimedAt.getTime() + restMs).toISOString() })
+      if (lastEnded) {
+        const restUntil = new Date(lastEnded.endsAt.getTime() + restMs)
+        const left = Math.max(1, Math.ceil((restUntil.getTime() - Date.now()) / 60_000))
+        throw new AppError(ErrorCode.WORK_RESTING, `Отдых после смены: следующую можно начать через ${left} мин`, 409, { restUntil: restUntil.toISOString() })
       }
       const slots = await tx.workShift.count({ where: { productionObjectId, status: 'ACTIVE' } })
       if (slots >= object.workerSlots) throw new AppError(ErrorCode.WORK_NO_SLOTS, 'No free worker slots', 409)
