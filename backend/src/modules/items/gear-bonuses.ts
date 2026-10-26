@@ -6,6 +6,14 @@
 //     плюс, и в минус;
 //   • здоровье.
 //
+// Плюс и минус оберега — по правилу «5 королей» и «Апехи» (их библиотека:
+// «баланс оберегов между двумя персонажами складывается из положительного
+// оберега одного персонажа и отрицательного оберега второго»; «отрицательные
+// обереги работают на понижение соответствующего оберега у противника»).
+// Плюс на вещи — свой оберег. Минус — не уменьшает свой, а срезает тот же
+// оберег у противника: так обереги противника перестают действовать.
+// В бою оберег = свой плюс − минус противника, не ниже нуля.
+//
 // Обереги в движке боя уже были (как в «Апехе»), но считались кусками:
 // уворот и ответ — только с оружия, удача и крит — только с брони, и амулет
 // с оберегом ничего не давал. Теперь — сумма по всему надетому.
@@ -20,8 +28,13 @@ export type GearStats = Record<GearStatKey, number>
 /** Предел одной прибавки к характеристике с одной вещи. */
 export const GEAR_STAT_LIMIT = 50
 
+export type CharmKey = 'antiDodge' | 'antiLuck' | 'antiCrit' | 'antiCounter'
+export const CHARM_KEYS: CharmKey[] = ['antiDodge', 'antiLuck', 'antiCrit', 'antiCounter']
+
 export interface GearBonuses {
   stats: GearStats
+  /** Минус-обереги: на сколько срезать тот же оберег у противника (доли, ≥ 0). */
+  minus: Record<CharmKey, number>
   /** Оберег уворота: срезает уворот противника. */
   antiDodge: number
   /** Оберег удачи: срезает удачу (удачный удар) противника. */
@@ -46,8 +59,14 @@ type TemplateLike = {
 type ItemLike = { id: string; durabilityCurrent?: number; template: TemplateLike } | null | undefined
 
 const zeroStats = (): GearStats => ({ str: 0, end: 0, luck: 0, agi: 0, acc: 0, agr: 0 })
+const zeroCharms = (): Record<CharmKey, number> => ({ antiDodge: 0, antiLuck: 0, antiCrit: 0, antiCounter: 0 })
 
-export const EMPTY_GEAR: GearBonuses = Object.freeze({ stats: Object.freeze(zeroStats()), antiDodge: 0, antiLuck: 0, antiCrit: 0, antiCounter: 0, hp: 0 }) as GearBonuses
+export const EMPTY_GEAR: GearBonuses = Object.freeze({ stats: Object.freeze(zeroStats()), minus: Object.freeze(zeroCharms()), antiDodge: 0, antiLuck: 0, antiCrit: 0, antiCounter: 0, hp: 0 }) as GearBonuses
+
+/** Оберег в бою: свой плюс минус минус-оберег противника, не ниже нуля. */
+export function charmBalance(own: number, opponentMinus: number): number {
+  return Math.max(0, own - opponentMinus)
+}
 
 /** Прибавки вещи к характеристикам из базы: только известные ключи, целые, в пределах. */
 export function normalizeStatBonuses(value: unknown): Partial<GearStats> {
@@ -66,7 +85,7 @@ export function normalizeStatBonuses(value: unknown): Partial<GearStats> {
  * дважды (оружие в обеих руках списком), считается один раз.
  */
 export function gearOf(items: ItemLike[]): GearBonuses {
-  const gear: GearBonuses = { stats: zeroStats(), antiDodge: 0, antiLuck: 0, antiCrit: 0, antiCounter: 0, hp: 0 }
+  const gear: GearBonuses = { stats: zeroStats(), minus: zeroCharms(), antiDodge: 0, antiLuck: 0, antiCrit: 0, antiCounter: 0, hp: 0 }
   const seen = new Set<string>()
   for (const item of items) {
     if (!item || seen.has(item.id)) continue
@@ -77,10 +96,12 @@ export function gearOf(items: ItemLike[]): GearBonuses {
     for (const [key, amount] of Object.entries(normalizeStatBonuses(t.statBonuses)) as [GearStatKey, number][]) {
       gear.stats[key] += amount
     }
-    gear.antiDodge += t.antiDodge ?? 0
-    gear.antiLuck += t.antiLuck ?? 0
-    gear.antiCrit += t.antiCrit ?? 0
-    gear.antiCounter += t.antiCounter ?? 0
+    // Плюс — в свой оберег, минус — в минус-оберег против противника.
+    for (const key of CHARM_KEYS) {
+      const value = t[key] ?? 0
+      if (value > 0) gear[key] += value
+      else if (value < 0) gear.minus[key] += -value
+    }
     gear.hp += t.hpBonus ?? 0
   }
   return gear

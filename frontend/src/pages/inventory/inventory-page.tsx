@@ -296,8 +296,9 @@ export function InventoryPage() {
                           {Object.entries(t.statBonuses ?? {}).filter(([, v]) => !!v).map(([key, v]) => (
                             <div key={key}><dt>{GEAR_STAT_LABELS[key] ?? key}</dt><dd>{signed(v as number)}</dd></div>
                           ))}
+                          {/* Минус-оберег срезает тот же оберег у противника (правило «Апехи»). */}
                           {CHARM_LABELS.filter(([key]) => !!t[key]).map(([key, label]) => (
-                            <div key={key}><dt>{label}</dt><dd>{signed(pct(t[key] as number))}%</dd></div>
+                            <div key={key}><dt>{(t[key] as number) < 0 ? `${label} противника` : label}</dt><dd>{signed(pct(t[key] as number))}%</dd></div>
                           ))}
                           {t.strReq > 0 && <div><dt>Требует силы</dt><dd>{t.strReq}</dd></div>}
                           {/* Характеристики, которых у вещи в базе нет, — новой строкой внизу. */}
@@ -307,7 +308,7 @@ export function InventoryPage() {
                           {!!eff?.critBonus && <PercentRow label="Крит" total={eff.critBonus} base={t.critBonus ?? 0} />}
                           {!!eff?.antiCrit && (eff.antiCrit > 0
                             ? <PercentRow label="Оберег крита" total={eff.antiCrit} base={t.antiCrit ?? 0} />
-                            : <div><dt>Оберег крита</dt><dd>{signed(pct(eff.antiCrit))}%</dd></div>)}
+                            : <div><dt>Оберег крита противника</dt><dd>{signed(pct(eff.antiCrit))}%</dd></div>)}
                         </dl>
                         <div className="inv-card__side">
                           {t.allocationMode === 'PLAYER' && item.freePoints > 0 && (

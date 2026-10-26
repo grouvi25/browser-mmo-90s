@@ -185,7 +185,8 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
               onChange={e => setGearStats({ ...gearStats, [key]: Number(e.target.value) })} /></label>)}
         </div>
 
-        <h5>Обереги, % (можно в минус)</h5>
+        <h5>Обереги, %</h5>
+        <p className="adm-hint">Плюс — свой оберег. Минус — срезает этот оберег у противника, как в «Апехе»: в бою оберег = свой плюс − минус противника.</p>
         <div className="adm-item__fields">
           {CHARMS.map(([key, label]) => <label key={key}><span>{label}</span>
             <input type="number" min={-200} max={200} step="0.5" value={charms[key] ?? 0}

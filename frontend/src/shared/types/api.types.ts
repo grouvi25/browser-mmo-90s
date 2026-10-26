@@ -66,6 +66,8 @@ export interface Character {
   gear?: {
     stats: Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr', number>
     antiDodge: number; antiLuck: number; antiCrit: number; antiCounter: number; hp: number
+    /** Минус-обереги: на сколько срезают тот же оберег противника. */
+    minus?: { antiDodge: number; antiLuck: number; antiCrit: number; antiCounter: number }
   }
   /** Сколько опыта нужно для следующего боевого уровня; null — последний. */
   nextLevelExp?: number | null

@@ -310,6 +310,10 @@ export function CharacterCard({ profile, wounds }: { profile?: CardProfile; woun
           {CARD_CHARMS.map(([key, label]) => (
             <div key={key} className="card-list__kv"><span>{label}</span><b>{pctText(char?.gear?.[key] ?? 0)}</b></div>
           ))}
+          {/* Минус-обереги срезают тот же оберег у противника (правило «Апехи»). */}
+          {CARD_CHARMS.filter(([key]) => (char?.gear?.minus?.[key] ?? 0) > 0).map(([key, label]) => (
+            <div key={`minus-${key}`} className="card-list__kv"><span>{label} противника</span><b>−{pctText(char!.gear!.minus![key])}</b></div>
+          ))}
         </Layer>
       )}
 
