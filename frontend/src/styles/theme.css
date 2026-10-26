@@ -781,6 +781,7 @@ html, body {
   display: flex; justify-content: space-between; padding: 2px 2px;
   border-bottom: 1px dotted rgba(43, 43, 43, .3);
 }
+.card-list__gain { color: #2f6b2a; font-size: 13px; font-weight: 400; }
 .card-list__more {
   margin-top: 4px; background: none; border: 0; padding: 0; cursor: pointer;
   font: inherit; color: var(--red);

@@ -20,7 +20,7 @@ import { MENU, ZONE_ARMOR_SLOTS } from '../../shared/lib/layout-map'
 import { FitText, Layer } from '../../shared/lib/stage'
 import { Sprite, SpriteButton, SPRITES } from '../../shared/ui/sprite'
 import type { ItemInstance } from '../../shared/types/api.types'
-import { ARMOR_SLOT_LABELS, WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
+import { WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
 import { itemImage } from '../../shared/assets/shop/shop-images'
 import { IntoxicationBadge } from '../intoxication-badge/intoxication-badge'
 import { dogTitle } from '../../shared/lib/dog'
@@ -46,8 +46,15 @@ function weaponSprite(item: ItemInstance | undefined): string {
   return 'item-bat'
 }
 
-/** Строк снаряжения помещается в бумагу карточки; остальное — ссылкой. */
-const GEAR_ROWS = 5
+/** Характеристики во вкладке карточки — в порядке «Апехи» (правка 26.10). */
+const CARD_STATS: [key: 'str' | 'agi' | 'rea' | 'agr' | 'luck' | 'end' | 'acc', label: string][] = [
+  ['str', 'Сила'], ['agi', 'Ловкость'], ['rea', 'Реакция'], ['agr', 'Агрессия'],
+  ['luck', 'Фарт'], ['end', 'Выносливость'], ['acc', 'Меткость'],
+]
+const CARD_CHARMS: [key: 'antiDodge' | 'antiLuck' | 'antiCrit' | 'antiCounter', label: string][] = [
+  ['antiDodge', 'Оберег уворота'], ['antiLuck', 'Оберег удачи'], ['antiCrit', 'Оберег крита'], ['antiCounter', 'Оберег ответа'],
+]
+const pctText = (share: number) => `${Math.round(share * 1000) / 10}%`
 
 /** Чужой профиль: ровно то, что о бойце известно боевому экрану. */
 export interface CardProfile {
@@ -285,31 +292,24 @@ export function CharacterCard({ profile, wounds }: { profile?: CardProfile; woun
         </>
       )}
 
+      {/* Вкладка характеристик — как у «Апехи» (правка 26.10): статы с
+          прибавками от надетого, владение оружием и обереги. Надетое и так
+          видно на портрете и на складе. */}
       {tab === 'gear' && (
         <Layer box={C.body} className="card-list">
-          <div className="card-list__title">Надето</div>
-          {equipped.length === 0 && <div className="card-list__empty">Ничего не надето</div>}
-          {equipped.slice(0, GEAR_ROWS).map(i => (
-            <button
-              key={i.id}
-              type="button"
-              className="card-list__row"
-              onClick={() => navigate('/inventory')}
-              title="Открыть снаряжение"
-            >
-              <span className="card-list__name">{i.template.name}</span>
-              <span className="card-list__meta">
-                {i.armorSlot ? ARMOR_SLOT_LABELS[i.armorSlot] ?? i.armorSlot
-                  : i.template.weaponType ? WEAPON_TYPE_LABELS[i.template.weaponType] : ''}
-              </span>
-              <span className="card-list__dur">{i.durabilityCurrent}/{i.durabilityMax}</span>
-            </button>
+          <div className="card-list__title">Характеристики</div>
+          {CARD_STATS.map(([key, label]) => {
+            const base = char?.stats?.[key] ?? 0
+            const plus = key === 'rea' ? 0 : char?.gear?.stats[key] ?? 0
+            return <div key={key} className="card-list__kv"><span>{label}</span>
+              <b>{base + plus}{plus !== 0 && <small className="card-list__gain"> ({plus > 0 ? '+' : '−'}{Math.abs(plus)})</small>}</b></div>
+          })}
+          {(char?.weaponSkills ?? []).filter(s => s.skillLevel > 0).map(s => (
+            <div key={s.id} className="card-list__kv"><span>{WEAPON_TYPE_LABELS[s.weaponType] ?? s.weaponType}</span><b>ур. {s.skillLevel}</b></div>
           ))}
-          {equipped.length > GEAR_ROWS && (
-            <button type="button" className="card-list__more" onClick={() => navigate('/inventory')}>
-              ещё {equipped.length - GEAR_ROWS} →
-            </button>
-          )}
+          {CARD_CHARMS.map(([key, label]) => (
+            <div key={key} className="card-list__kv"><span>{label}</span><b>{pctText(char?.gear?.[key] ?? 0)}</b></div>
+          ))}
         </Layer>
       )}
 
@@ -320,8 +320,10 @@ export function CharacterCard({ profile, wounds }: { profile?: CardProfile; woun
           <div className="card-list__kv"><span>Здоровье</span><b>{hp} / {char?.hpMax ?? '—'}</b></div>
           <div className="card-list__kv"><span>Наличные</span><b>{(char?.money ?? 0).toLocaleString('ru')} ₽</b></div>
           <div className="card-list__kv"><span>Доллары</span><b>{(char?.dollars ?? 0).toLocaleString('ru')} $</b></div>
-          <div className="card-list__kv"><span>Боёв</span><b>{char?.battlesTotal ?? 0}</b></div>
           <div className="card-list__kv"><span>Побед</span><b>{char?.battlesWon ?? 0}</b></div>
+          <div className="card-list__kv"><span>Поражений</span><b>{Math.max(0, (char?.battlesTotal ?? 0) - (char?.battlesWon ?? 0))}</b></div>
+          <div className="card-list__kv"><span>Опыт</span><b>{(char?.battleExp ?? 0).toLocaleString('ru')}</b></div>
+          <div className="card-list__kv"><span>Следующий уровень</span><b>{char?.nextLevelExp != null ? char.nextLevelExp.toLocaleString('ru') : 'максимум'}</b></div>
           <div className="card-list__kv"><span>Очки статов</span><b>{char?.stats?.pointsAvailable ?? 0}</b></div>
           <button type="button" className="card-list__more" onClick={() => navigate('/profile')}>
             Открыть полностью →

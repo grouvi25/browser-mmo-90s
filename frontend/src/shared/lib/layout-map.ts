@@ -167,7 +167,7 @@ export const MENU = {
     cutout: box(-2.5, 58, 349, 616),
     tabs: [
       { key: 'overview', sprite: 'tab-eye', box: box(54, 73, 48, 25.5), label: 'Обзор' },
-      { key: 'gear', sprite: 'tab-wrench', box: box(117.5, 69.5, 47, 30.5), label: 'Снаряжение' },
+      { key: 'gear', sprite: 'tab-wrench', box: box(117.5, 69.5, 47, 30.5), label: 'Характеристики' },
       { key: 'person', sprite: 'tab-person', box: box(185, 65, 37, 41.5), label: 'Личное дело' },
     ],
     portrait: box(99, 134, 159.5, 219.5),

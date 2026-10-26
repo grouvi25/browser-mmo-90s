@@ -62,6 +62,13 @@ export interface Character {
   hangoverUntil?: string | null
   stats: CharacterStats | null
   weaponSkills?: WeaponSkill[]
+  /** Прибавки и обереги от надетого — тем же расчётом, что в бою (26.10). */
+  gear?: {
+    stats: Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr', number>
+    antiDodge: number; antiLuck: number; antiCrit: number; antiCounter: number; hp: number
+  }
+  /** Сколько опыта нужно для следующего боевого уровня; null — последний. */
+  nextLevelExp?: number | null
   economy?: {
     productionLevel: number
     productionExp: number

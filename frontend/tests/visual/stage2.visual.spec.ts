@@ -251,6 +251,22 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.locator('.arena-bot', { hasText: 'Смотрящий' })).toContainText('ур. 15')
   })
 
+  // Правка 26.10 (образец — «Апеха»): вкладки карточки показывают
+  // характеристики с оберегами и личное дело с опытом и поражениями.
+  test('карточка персонажа: вкладки «Характеристики» и «Личное дело»', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Карточка со вкладками — на широком экране')
+    await authPage(page, seller)
+    await page.goto('/')
+    await page.getByTitle('Характеристики', { exact: true }).first().click()
+    const list = page.locator('.card-list').first()
+    await expect(list).toContainText('Сила')
+    await expect(list).toContainText('Меткость')
+    await expect(list).toContainText('Оберег ответа')
+    await page.getByTitle('Личное дело', { exact: true }).first().click()
+    await expect(page.locator('.card-list').first()).toContainText('Поражений')
+    await expect(page.locator('.card-list').first()).toContainText('Следующий уровень')
+  })
+
   test('expired session redirects instead of rendering empty Stage 2 data', async ({ page }) => {
     await page.goto('/login')
     await page.evaluate(() => {
