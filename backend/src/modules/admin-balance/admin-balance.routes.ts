@@ -19,6 +19,17 @@ import {
 } from './balance-overrides.service'
 import { buildCatalog } from './catalog.service'
 import { ITEM_STAT_KEYS, allowedItemStats } from '../items/item-stats.formulas'
+import { GEAR_STAT_KEYS, GEAR_STAT_LIMIT } from '../items/gear-bonuses'
+
+// Прибавки вещи к характеристикам персонажа и обереги — в плюс и в минус
+// (правка заказчика 26.10). Оберег — доля: 0,1 = 10%, предел ±200%.
+const GEAR_FIELDS = {
+  statBonuses: z.partialRecord(z.enum(GEAR_STAT_KEYS), z.number().int().min(-GEAR_STAT_LIMIT).max(GEAR_STAT_LIMIT)).optional(),
+  antiDodge: z.number().min(-2).max(2).optional(),
+  antiLuck: z.number().min(-2).max(2).optional(),
+  antiCrit: z.number().min(-2).max(2).optional(),
+  antiCounter: z.number().min(-2).max(2).optional(),
+}
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { reasonFlowLabel, reasonTitle } from './reason-codes'
 import { sendTelegram, telegramConfigured } from './telegram.service'
@@ -536,6 +547,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     armor: z.number().int().min(0).max(500).nullable().optional(),
     durabilityMax: z.number().int().min(1).max(10_000).optional(),
     weight: z.number().min(0).max(100).optional(),
+    ...GEAR_FIELDS,
   })
 
   fastify.patch<{ Params: { code: string } }>('/items/:code', WRITE_ADMIN, async (req, reply) => {
@@ -585,8 +597,8 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     armor: z.number().int().min(0).max(500).nullable(),
     critBonus: z.number().min(0).max(1).optional(),
     dodgeBonus: z.number().min(0).max(1).optional(),
-    antiCrit: z.number().min(0).max(1).optional(),
     hpBonus: z.number().int().min(0).max(1000).optional(),
+    ...GEAR_FIELDS,
     statBudget: z.number().int().min(0).max(200).optional(),
     allocationMode: z.enum(['FIXED', 'PLAYER']).optional(),
     statAllocation: z.partialRecord(z.enum(ITEM_STAT_KEYS), z.number().int().min(0).max(200)).optional(),

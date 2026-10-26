@@ -3,6 +3,7 @@ import { BalanceConfig } from '../../config/balance.config'
 import { calcHpMax, getLevelFromExp } from '../stats/stats.formulas'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import { DOG_BREEDS, DOG_EXP_SHARE, dogLevelFromExp } from '../city/dogs'
+import { gearFor } from '../items/gear-bonuses'
 
 export interface BattleProgressionResult {
   newExp: number
@@ -19,7 +20,9 @@ export async function applyBattleProgression(
   const newExp = char.battleExp + params.expGain
   const newLevel = getLevelFromExp(newExp)
   const levelsGained = Math.max(0, newLevel - char.battleLevel)
-  const newHpMax = calcHpMax(char.stats!.end, newLevel)
+  // Здоровье — с выносливостью и здоровьем от надетого (правка 26.10).
+  const gear = await gearFor(tx, char.id)
+  const newHpMax = calcHpMax(Math.max(0, char.stats!.end + gear.stats.end), newLevel, gear.hp)
 
   // Денежная премия за каждый новый уровень («Ревизия 2»): выдаётся
   // по одному разу, премия 1-го относится к созданию персонажа.

@@ -61,6 +61,7 @@ import {
   calcRatingPower,
 } from '../stats/stats.formulas'
 import { withPetBonus } from '../city/city.config'
+import { gearOf, withGearStats, type GearBonuses } from '../items/gear-bonuses'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
 import { applyBattleProgression } from '../experience/progression'
@@ -325,10 +326,12 @@ async function buildAttackerSnapshotAsync(
   char: CharacterWithStats,
   weapon: ItemWithTemplate | null,
   weaponSkillLevel: number,
-  equippedArmor: ItemWithTemplate[]
+  equippedArmor: ItemWithTemplate[],
+  gear: GearBonuses,
 ): Promise<AttackerSnapshot> {
-  // Сытая собака из Зоомагазина добавляет к характеристикам (правка заказчика).
-  const s = withPetBonus(char.stats!, char.pets)
+  // Сытая собака из Зоомагазина добавляет к характеристикам (правка заказчика),
+  // надетые вещи — тоже (правка 26.10).
+  const s = withGearStats(withPetBonus(char.stats!, char.pets), gear)
   const t = weapon?.template
   const effectiveWeapon = t
     ? applyUpgradeModifiers(t, ((weapon?.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), weapon?.statAllocation, weapon?.socketsJson)
@@ -352,8 +355,9 @@ async function buildAttackerSnapshotAsync(
     blockPierce: t?.blockPierce ?? 0,
     flatDamageBonus: 0,
     equipmentWeight,   // Real equipment weight for initiative calc
-    antiDodgeBonus: t?.antiDodge ?? 0,
-    antiCounterBonus: t?.antiCounter ?? 0,
+    // Обереги уворота и ответа — со всего надетого, не только с этого оружия.
+    antiDodgeBonus: gear.antiDodge,
+    antiCounterBonus: gear.antiCounter,
     outgoingDamageMultiplier: 1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0),
   }
 }
@@ -361,17 +365,21 @@ async function buildAttackerSnapshotAsync(
 function buildDefenderSnapshot(
   char: CharacterWithStats,
   equippedArmor: ItemWithTemplate[],
+  gear: GearBonuses,
   antiSkillLevel = 0,
   equippedWeapon?: ItemWithTemplate | null  // нужен для ответки
 ): DefenderSnapshot {
-  const s = withPetBonus(char.stats!, char.pets)
+  const s = withGearStats(withPetBonus(char.stats!, char.pets), gear)
   const effectiveArmor = equippedArmor.map(a => applyUpgradeModifiers(a.template, ((a.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), a.statAllocation, a.socketsJson))
   const totalArmor   = effectiveArmor.reduce((sum, a) => sum + a.armor, 0)
-  const antiCrit     = effectiveArmor.reduce((sum, a) => sum + a.antiCrit, 0)
+  // Оберег крита: броня с очками вещи (как раньше) плюс обереги остальных
+  // вещей — оружия, щита (правка 26.10).
+  const armorAntiCritBase = equippedArmor.reduce((sum, a) => sum + (a.template.antiCrit ?? 0), 0)
+  const antiCrit     = effectiveArmor.reduce((sum, a) => sum + a.antiCrit, 0) + (gear.antiCrit - armorAntiCritBase)
   const blockBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.blockBonus ?? 0), 0)
   const dodgeBonus   = equippedArmor.reduce((sum, a) => sum + (a.template.dodgeBonus ?? 0), 0)
   const armorWeight  = equippedArmor.reduce((sum, a) => sum + a.weight, 0)
-  const antiLuck     = equippedArmor.reduce((sum, a) => sum + (a.template.antiLuck ?? 0), 0)
+  const antiLuck     = gear.antiLuck
   // Базовый урон для ответки (оружие защитника или кулаки)
   const wMin = equippedWeapon?.template.minDamage ?? 2
   const wMax = equippedWeapon?.template.maxDamage ?? 5
@@ -1489,7 +1497,7 @@ export const BattleService = {
       const equippedItems = await ItemsRepository.findEquipped(char.id)
       const equippedArmor = equippedItems.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
       const playerArmorList = armorListFromEquipped(equippedArmor)
-      const playerDefSnap = buildDefenderSnapshot(char, equippedArmor)
+      const playerDefSnap = buildDefenderSnapshot(char, equippedArmor, gearOf(equippedItems))
       const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
 
       const botTurn = botChooseTurn()
@@ -1668,10 +1676,11 @@ export const BattleService = {
     const equippedItems = await ItemsRepository.findEquipped(char.id)
     const equippedArmor = equippedItems.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
     const playerArmorList = armorListFromEquipped(equippedArmor)
+    const playerGear = gearOf(equippedItems)
 
     const [leftAttackerSnap, rightAttackerSnap] = await Promise.all([
-      buildAttackerSnapshotAsync(char, leftWeapon, leftSkill.skillLevel, equippedArmor),
-      buildAttackerSnapshotAsync(char, rightWeapon, rightSkill.skillLevel, equippedArmor),
+      buildAttackerSnapshotAsync(char, leftWeapon, leftSkill.skillLevel, equippedArmor, playerGear),
+      buildAttackerSnapshotAsync(char, rightWeapon, rightSkill.skillLevel, equippedArmor, playerGear),
     ])
     const totalEquipmentWeight = equippedArmor.reduce((sum, item) => sum + item.weight, 0) + (leftWeapon?.weight ?? 0) + (rightWeapon?.weight ?? 0)
     leftAttackerSnap.equipmentWeight = totalEquipmentWeight
@@ -1679,7 +1688,7 @@ export const BattleService = {
     const attackerSnap = leftAttackerSnap
     const defenderSnap = buildBotDefenderSnapshot(botStats)   // бот как защитник
     const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
-    const playerDefSnap = buildDefenderSnapshot(char, equippedArmor)
+    const playerDefSnap = buildDefenderSnapshot(char, equippedArmor, playerGear)
 
     // Бот выбирает свою стойку и зоны
     const botTurn = botChooseTurn()
@@ -2158,11 +2167,12 @@ export const BattleService = {
       const skillLeft = await WeaponSkillsRepository.findOrCreate(ctx.char.id, wtLeft)
       const skillRight = await WeaponSkillsRepository.findOrCreate(ctx.char.id, wtRight)
       const antiLeft = await WeaponSkillsRepository.findOrCreate(targetCtx.char.id, wtLeft)
+      const actorGear = gearOf([ctx.weaponLeft, ctx.weaponRight, ...ctx.armor])
       const [atkLeft, atkRight] = await Promise.all([
-        buildAttackerSnapshotAsync(ctx.char, ctx.weaponLeft, skillLeft.skillLevel, ctx.armor),
-        buildAttackerSnapshotAsync(ctx.char, ctx.weaponRight, skillRight.skillLevel, ctx.armor),
+        buildAttackerSnapshotAsync(ctx.char, ctx.weaponLeft, skillLeft.skillLevel, ctx.armor, actorGear),
+        buildAttackerSnapshotAsync(ctx.char, ctx.weaponRight, skillRight.skillLevel, ctx.armor, actorGear),
       ])
-      const defSnap = buildDefenderSnapshot(targetCtx.char, targetCtx.armor, antiLeft.antiSkillLevel, targetCtx.weaponLeft)
+      const defSnap = buildDefenderSnapshot(targetCtx.char, targetCtx.armor, gearOf([targetCtx.weaponLeft, targetCtx.weaponRight, ...targetCtx.armor]), antiLeft.antiSkillLevel, targetCtx.weaponLeft)
       const defArmorList = armorListFromEquipped(targetCtx.armor)
 
       const res = executeStrikes({
@@ -2362,20 +2372,22 @@ export const BattleService = {
     const antiSkill2vs1 = await WeaponSkillsRepository.findOrCreate(char2.id, wtype1)
     const antiSkill2vs1Right = await WeaponSkillsRepository.findOrCreate(char2.id, wtype1Right)
 
+    const gear1 = gearOf([weapon1Left, weapon1Right, ...armor1])
+    const gear2 = gearOf([weapon2Left, weapon2Right, ...armor2])
     const [snap1Atk, snap1RightAtk, snap2Atk, snap2RightAtk] = await Promise.all([
-      buildAttackerSnapshotAsync(char1, weapon1Left, skill1.skillLevel, armor1),
-      buildAttackerSnapshotAsync(char1, weapon1Right, skill1Right.skillLevel, armor1),
-      buildAttackerSnapshotAsync(char2, weapon2Left, skill2.skillLevel, armor2),
-      buildAttackerSnapshotAsync(char2, weapon2Right, skill2Right.skillLevel, armor2),
+      buildAttackerSnapshotAsync(char1, weapon1Left, skill1.skillLevel, armor1, gear1),
+      buildAttackerSnapshotAsync(char1, weapon1Right, skill1Right.skillLevel, armor1, gear1),
+      buildAttackerSnapshotAsync(char2, weapon2Left, skill2.skillLevel, armor2, gear2),
+      buildAttackerSnapshotAsync(char2, weapon2Right, skill2Right.skillLevel, armor2, gear2),
     ])
     const weight1 = armor1.reduce((sum, item) => sum + item.weight, 0) + (weapon1Left?.weight ?? 0) + (weapon1Right?.weight ?? 0)
     const weight2 = armor2.reduce((sum, item) => sum + item.weight, 0) + (weapon2Left?.weight ?? 0) + (weapon2Right?.weight ?? 0)
     snap1Atk.equipmentWeight = weight1; snap1RightAtk.equipmentWeight = weight1
     snap2Atk.equipmentWeight = weight2; snap2RightAtk.equipmentWeight = weight2
-    const snap1Def = buildDefenderSnapshot(char1, armor1, antiSkill1vs2.antiSkillLevel, weapon1)
-    const snap1DefRight = buildDefenderSnapshot(char1, armor1, antiSkill1vs2Right.antiSkillLevel, weapon1)
-    const snap2Def = buildDefenderSnapshot(char2, armor2, antiSkill2vs1.antiSkillLevel, weapon2)
-    const snap2DefRight = buildDefenderSnapshot(char2, armor2, antiSkill2vs1Right.antiSkillLevel, weapon2)
+    const snap1Def = buildDefenderSnapshot(char1, armor1, gear1, antiSkill1vs2.antiSkillLevel, weapon1)
+    const snap1DefRight = buildDefenderSnapshot(char1, armor1, gear1, antiSkill1vs2Right.antiSkillLevel, weapon1)
+    const snap2Def = buildDefenderSnapshot(char2, armor2, gear2, antiSkill2vs1.antiSkillLevel, weapon2)
+    const snap2DefRight = buildDefenderSnapshot(char2, armor2, gear2, antiSkill2vs1Right.antiSkillLevel, weapon2)
 
     const init1 = calcInitiative(char1.stats!.rea, char1.stats!.agi, skill1.skillLevel, snap1Atk.equipmentWeight)
     const init2 = calcInitiative(char2.stats!.rea, char2.stats!.agi, skill2.skillLevel, snap2Atk.equipmentWeight)

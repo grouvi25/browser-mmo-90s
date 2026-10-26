@@ -89,6 +89,16 @@ const ITEM_STAT_LABELS: Record<ItemStatKey, string> = {
 function Gain({ value }: { value: number }) {
   return value > 0 ? <span className="inv-card__gain"> (+{value})</span> : null
 }
+/** Прибавки вещи к характеристикам персонажа (правка 26.10). */
+const GEAR_STAT_LABELS: Record<string, string> = {
+  str: 'Сила', end: 'Выносливость', luck: 'Фарт', agi: 'Ловкость', acc: 'Меткость', agr: 'Агрессия',
+}
+const CHARM_LABELS: [keyof ItemTemplateCharms, string][] = [
+  ['antiDodge', 'Оберег уворота'], ['antiLuck', 'Оберег удачи'], ['antiCounter', 'Оберег ответа'],
+]
+type ItemTemplateCharms = { antiDodge?: number | null; antiLuck?: number | null; antiCounter?: number | null }
+const signed = (value: number) => (value > 0 ? '+' : '−') + Math.abs(value)
+
 /** Доли (0.05) в проценты с одним знаком после запятой, без хвостовых нулей. */
 const pct = (share: number) => Math.round(share * 1000) / 10
 /** Процентная характеристика: базовая — итогом с прибавкой, новая — «+N%». */
@@ -282,14 +292,22 @@ export function InventoryPage() {
                           {t.minDamage != null && <div><dt>Урон</dt><dd>{eff?.minDamage ?? t.minDamage}–{eff?.maxDamage ?? t.maxDamage}<Gain value={(eff?.maxDamage ?? 0) - (t.maxDamage ?? 0)} /></dd></div>}
                           {t.type === 'WEAPON' && !!t.maxRange && <div><dt>Дальность</dt><dd>{rangeLabel(t.maxRange)}</dd></div>}
                           {!!t.armor && <div><dt>Броня тела</dt><dd>+{eff?.armor ?? t.armor}<Gain value={(eff?.armor ?? 0) - (t.armor ?? 0)} /></dd></div>}
-                          {!!t.hpBonus && <div><dt>Восстановит</dt><dd>+{t.hpBonus} HP</dd></div>}
+                          {!!t.hpBonus && <div><dt>{t.type === 'CONSUMABLE' ? 'Восстановит' : 'Здоровье'}</dt><dd>+{t.hpBonus} HP</dd></div>}
+                          {Object.entries(t.statBonuses ?? {}).filter(([, v]) => !!v).map(([key, v]) => (
+                            <div key={key}><dt>{GEAR_STAT_LABELS[key] ?? key}</dt><dd>{signed(v as number)}</dd></div>
+                          ))}
+                          {CHARM_LABELS.filter(([key]) => !!t[key]).map(([key, label]) => (
+                            <div key={key}><dt>{label}</dt><dd>{signed(pct(t[key] as number))}%</dd></div>
+                          ))}
                           {t.strReq > 0 && <div><dt>Требует силы</dt><dd>{t.strReq}</dd></div>}
                           {/* Характеристики, которых у вещи в базе нет, — новой строкой внизу. */}
                           {/* Есть в базе — итог и прибавка (точность ножа 70% → «71% (+1)»);
                               нет в базе — «+N%» новой строкой. */}
                           {!!eff?.weaponAccuracy && <PercentRow label="Точность" total={eff.weaponAccuracy} base={t.weaponAccuracy ?? 0} />}
                           {!!eff?.critBonus && <PercentRow label="Крит" total={eff.critBonus} base={t.critBonus ?? 0} />}
-                          {!!eff?.antiCrit && <PercentRow label="Защита от крита" total={eff.antiCrit} base={t.antiCrit ?? 0} />}
+                          {!!eff?.antiCrit && (eff.antiCrit > 0
+                            ? <PercentRow label="Оберег крита" total={eff.antiCrit} base={t.antiCrit ?? 0} />
+                            : <div><dt>Оберег крита</dt><dd>{signed(pct(eff.antiCrit))}%</dd></div>)}
                         </dl>
                         <div className="inv-card__side">
                           {t.allocationMode === 'PLAYER' && item.freePoints > 0 && (

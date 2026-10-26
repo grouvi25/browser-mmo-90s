@@ -96,6 +96,12 @@ export interface ItemTemplate {
   armor: number | null
   dodgeBonus: number | null
   antiCrit: number | null
+  /** Обереги: срезают у противника уворот, удачу и ответку (могут быть в минус). */
+  antiDodge?: number | null
+  antiLuck?: number | null
+  antiCounter?: number | null
+  /** Прибавки к характеристикам персонажа, пока вещь надета. */
+  statBonuses?: Partial<Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr', number>> | null
   blockBonus: number | null
   // Consumable
   hpBonus: number | null

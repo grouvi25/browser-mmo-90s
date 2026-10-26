@@ -23,6 +23,7 @@ import { EconomyService } from '../economy/economy.service'
 import { DollarsService } from '../dollars/dollars.service'
 import { calcHpMax, getEconomicLevelFromExp, getLevelFromExp } from '../stats/stats.formulas'
 import { clearOverride, setOverride } from '../admin-balance/balance-overrides.service'
+import { gearFor } from '../items/gear-bonuses'
 
 /** Минимальная длина причины. Правило П2 в числе. */
 export const REASON_MIN = 10
@@ -97,7 +98,8 @@ async function applyExp(
     // уровней, и расчёт следующего уровня в интерфейсе игрока.
     const exp = Math.max(0, character.battleExp + amount)
     const level = getLevelFromExp(exp)
-    const hpMax = character.stats ? calcHpMax(character.stats.end, level) : character.hpMax
+    const gear = await gearFor(tx, characterId)
+    const hpMax = character.stats ? calcHpMax(Math.max(0, character.stats.end + gear.stats.end), level, gear.hp) : character.hpMax
     await tx.character.update({
       where: { id: characterId },
       data: { battleExp: exp, battleLevel: level, hpMax, hpCurrent: Math.min(character.hpCurrent, hpMax) },

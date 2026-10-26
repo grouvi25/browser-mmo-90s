@@ -10,9 +10,10 @@ import { prisma } from '../../shared/db/prisma'
 import { EconomyService } from '../economy/economy.service'
 import { z } from 'zod'
 import type { Prisma } from '@prisma/client'
-import { calcCharacterRating, calcHpMax } from '../stats/stats.formulas'
+import { calcCharacterRating } from '../stats/stats.formulas'
 import { dogSummary } from '../city/city.config'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
+import { syncHpWithGear } from '../items/gear-bonuses'
 
 const BattleLoadoutSchema = z.object({
   itemInstanceIds: z.array(z.string().uuid()).max(4),
@@ -40,12 +41,11 @@ function startingStats(archetype: string): Record<StatKey, number> {
   return base
 }
 
-/** Выносливость меняет запас HP — пересчитываем сразу, а не после боя. */
+/** Выносливость меняет запас HP — пересчитываем сразу, а не после боя
+    (с прибавками от надетых вещей). */
 async function syncHpMax(tx: Prisma.TransactionClient, characterId: string) {
   const stats = await tx.characterStats.findUniqueOrThrow({ where: { characterId } })
-  const char = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { battleLevel: true, hpCurrent: true } })
-  const hpMax = calcHpMax(stats.end, char.battleLevel)
-  await tx.character.update({ where: { id: characterId }, data: { hpMax, hpCurrent: Math.min(char.hpCurrent, hpMax) } })
+  await syncHpWithGear(tx, characterId)
   return stats
 }
 

@@ -6,7 +6,9 @@
 // нельзя было надеть (нет слота), статов не было, а купить вещь было
 // негде. Здесь всё, что нужно вещи, чтобы её купили и надели: слот или
 // вид оружия, очки статов (по правилу заказчика — подставляются по уровню),
-// бонусы и магазин.
+// прибавки к характеристикам персонажа и обереги (правка 26.10: «сила,
+// выносливость, фарт, ловкость, меткость, агрессия» и «обереги уворота,
+// удачи, крита, ответа — в плюс и в минус»), бонусы и магазин.
 // =============================================================
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
@@ -31,6 +33,15 @@ const SLOTS: [string, string][] = [
 const SHOPS: [string, string][] = [
   ['', 'Не продавать (только выдача)'], ['GOVERNMENT', 'Госмагазин'], ['kommersant', 'Коммерсант'], ['armory_garage', 'Оружейный гараж'],
 ]
+/** Характеристики персонажа, которые вещь прибавляет, пока надета. */
+const GEAR_STATS: [string, string][] = [
+  ['str', 'Сила'], ['end', 'Выносливость'], ['luck', 'Фарт'], ['agi', 'Ловкость'], ['acc', 'Меткость'], ['agr', 'Агрессия'],
+]
+/** Обереги: срезают у противника уворот, удачу, крит и ответку. */
+const CHARMS: [string, string][] = [
+  ['antiDodge', 'Оберег уворота'], ['antiLuck', 'Оберег удачи'], ['antiCrit', 'Оберег крита'], ['antiCounter', 'Оберег ответа'],
+]
+
 const STAT_LABEL: Record<StatKey, string> = {
   DAMAGE: 'Урон', ACCURACY: 'Точность', CRIT: 'Крит', ARMOR: 'Броня', DURABILITY: 'Прочность', ANTI_CRIT: 'Защита от крита',
 }
@@ -51,7 +62,6 @@ function statBudgetForLevel(level: number): number {
   return level <= 1 ? 3 : 3 * level - 2
 }
 
-const pct = (value: number) => Math.round(value * 1000) / 10
 
 export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
   const [kind, setKind] = useState<Kind>('ARMOR')
@@ -70,8 +80,9 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
   const [armor, setArmor] = useState(3)
   const [crit, setCrit] = useState(0)
   const [dodge, setDodge] = useState(0)
-  const [antiCrit, setAntiCrit] = useState(0)
   const [hp, setHp] = useState(0)
+  const [gearStats, setGearStats] = useState<Record<string, number>>({})
+  const [charms, setCharms] = useState<Record<string, number>>({})
   const [budget, setBudget] = useState(statBudgetForLevel(1))
   const [budgetTouched, setBudgetTouched] = useState(false)
   const [mode, setMode] = useState<'PLAYER' | 'FIXED'>('PLAYER')
@@ -107,7 +118,9 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
       weaponAccuracy: kind === 'WEAPON' ? accuracy / 100 : null,
       maxRange: kind === 'WEAPON' ? range : null,
       armor: ['ARMOR', 'SHIELD', 'ACCESSORY'].includes(kind) ? armor : null,
-      critBonus: crit / 100, dodgeBonus: dodge / 100, antiCrit: antiCrit / 100, hpBonus: hp,
+      critBonus: crit / 100, dodgeBonus: dodge / 100, hpBonus: hp,
+      statBonuses: Object.fromEntries(Object.entries(gearStats).filter(([, v]) => v)),
+      ...Object.fromEntries(CHARMS.map(([key]) => [key, (charms[key] ?? 0) / 100])),
       ...(wearable ? {
         statBudget: budget,
         allocationMode: mode,
@@ -164,12 +177,27 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
         <label><span>Броня</span><input type="number" min={0} value={armor} onChange={num(setArmor)} /></label>
       </div>}
 
+      {kind !== 'CONSUMABLE' && kind !== 'TOOL' && <>
+        <h5>Характеристики персонажа, пока вещь надета</h5>
+        <div className="adm-item__fields">
+          {GEAR_STATS.map(([key, label]) => <label key={key}><span>{label}</span>
+            <input type="number" min={-50} max={50} value={gearStats[key] ?? 0}
+              onChange={e => setGearStats({ ...gearStats, [key]: Number(e.target.value) })} /></label>)}
+        </div>
+
+        <h5>Обереги, % (можно в минус)</h5>
+        <div className="adm-item__fields">
+          {CHARMS.map(([key, label]) => <label key={key}><span>{label}</span>
+            <input type="number" min={-200} max={200} step="0.5" value={charms[key] ?? 0}
+              onChange={e => setCharms({ ...charms, [key]: Number(e.target.value) })} /></label>)}
+        </div>
+      </>}
+
       <h5>Бонусы</h5>
       <div className="adm-item__fields">
         <label><span>Крит, %</span><input type="number" min={0} max={100} step="0.5" value={crit} onChange={num(setCrit)} /></label>
         <label><span>Уворот, %</span><input type="number" min={0} max={100} step="0.5" value={dodge} onChange={num(setDodge)} /></label>
-        <label><span>Защита от крита, %</span><input type="number" min={0} max={100} step="0.5" value={antiCrit} onChange={num(setAntiCrit)} /></label>
-        <label><span>HP</span><input type="number" min={0} value={hp} onChange={num(setHp)} /></label>
+        <label><span>{kind === 'CONSUMABLE' ? 'Лечит HP' : 'Здоровье, HP'}</span><input type="number" min={0} value={hp} onChange={num(setHp)} /></label>
       </div>
 
       {wearable && <>
@@ -226,8 +254,7 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
       {problem && name.trim() && <p className="adm-hint">{problem}</p>}
       {error && <Note text={error} kind="bad" />}
       <p className="adm-hint">
-        Вещь появится в игре сразу{shop ? ' и сразу в продаже' : ''}: крит {pct(crit / 100)}%, уворот {pct(dodge / 100)}%.
-        Отменяется из журнала, пока её никому не продали и не выдали.
+        Вещь появится в игре сразу{shop ? ' и сразу в продаже' : ''}. Отменяется из журнала, пока её никому не продали и не выдали.
       </p>
     </div>
   )
