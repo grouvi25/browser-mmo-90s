@@ -40,6 +40,38 @@ const MODERATE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR'
 
 const REASON = z.string().min(10).max(500)
 
+/** Поля админских форм по-русски — для понятной ошибки проверки. */
+const FIELD_LABELS: Record<string, string> = {
+  reason: 'Причина', name: 'Название', code: 'Код', description: 'Описание', type: 'Что это',
+  weaponType: 'Вид оружия', armorSlot: 'Куда надевается', priceBase: 'Цена', levelReq: 'Уровень',
+  durabilityMax: 'Прочность', weight: 'Вес', minDamage: 'Урон от', maxDamage: 'Урон до',
+  weaponAccuracy: 'Точность', maxRange: 'Дальность', armor: 'Броня', critBonus: 'Крит',
+  dodgeBonus: 'Уворот', hpBonus: 'Здоровье', statBudget: 'Очков статов', allocationMode: 'Кто распределяет',
+  statAllocation: 'Распределение очков', statBonuses: 'Характеристики персонажа',
+  antiDodge: 'Оберег уворота', antiLuck: 'Оберег удачи', antiCrit: 'Оберег крита', antiCounter: 'Оберег ответа',
+  sale: 'Магазин', price: 'Цена в магазине', shop: 'Магазин',
+  str: 'Сила', end: 'Выносливость', luck: 'Фарт', agi: 'Ловкость', acc: 'Меткость', agr: 'Агрессия',
+}
+
+/**
+ * «Validation error» ничего не говорит человеку (заказчик 26.10: «вещи не
+ * создаются, пишет Валидейшн эррор»). Называем поле и что с ним не так.
+ */
+function validationMessage(error: z.ZodError): string {
+  const parts = error.issues.slice(0, 4).map(issue => {
+    const field = issue.path.filter(p => typeof p === 'string' && p !== 'item' && p !== 'fields').map(p => FIELD_LABELS[p as string] ?? String(p)).join(' → ') || 'Поле'
+    const i = issue as { code: string; message: string; minimum?: number | bigint; maximum?: number | bigint; expected?: string }
+    const what = i.code === 'too_small' ? `не меньше ${i.minimum}`
+      : i.code === 'too_big' ? `не больше ${i.maximum}`
+        : i.code === 'invalid_type' && i.expected === 'int' ? 'целое число'
+          : i.code === 'invalid_type' ? 'нужно заполнить'
+            : i.code === 'invalid_value' || i.code === 'invalid_enum_value' ? 'нет такого варианта'
+              : i.message
+    return `${field}: ${what}`
+  })
+  return `Проверьте: ${parts.join('; ')}`
+}
+
 /** Почему новую вещь в таком виде создать нельзя, или null. */
 function newItemProblem(item: {
   type: string; weaponType?: string | null; armorSlot?: string | null; minDamage: number | null; maxDamage: number | null
@@ -327,7 +359,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   fastify.patch('/balance/param', WRITE_ADMIN, async (req, reply) => {
     const parsed = ParamBody.safeParse(req.body)
     if (!parsed.success) {
-      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+      return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
     }
     const { path, value, reason } = parsed.data
 
@@ -357,7 +389,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   fastify.delete('/balance/param', WRITE_ADMIN, async (req, reply) => {
     const parsed = z.object({ path: z.string().min(3), reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
-      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+      return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
     }
     const { path, reason } = parsed.data
     const previous = currentValue(path)
@@ -411,7 +443,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   fastify.patch<{ Params: { code: string } }>('/catalog/resource/:code', WRITE_ADMIN, async (req, reply) => {
     const parsed = z.object({ fields: RESOURCE_FIELDS, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
-      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+      return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
     }
     const code = req.params.code
     const before = await prisma.resourceTemplate.findUnique({ where: { code } })
@@ -439,7 +471,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   fastify.patch<{ Params: { code: string } }>('/catalog/shop/:code', WRITE_ADMIN, async (req, reply) => {
     const parsed = z.object({ fields: SHOP_FIELDS, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
-      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+      return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
     }
     // Адресуемся кодом предмета: id позиции магазина в панели не виден и
     // человеку ничего не говорит.
@@ -473,7 +505,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   fastify.patch<{ Params: { code: string } }>('/catalog/bar/:code', WRITE_ADMIN, async (req, reply) => {
     const parsed = z.object({ fields: BAR_FIELDS, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
-      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+      return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
     }
     const code = req.params.code
     const before = await prisma.barOffer.findUnique({ where: { code } })
@@ -506,7 +538,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   fastify.patch<{ Params: { code: string } }>('/catalog/object/:code', WRITE_ADMIN, async (req, reply) => {
     const parsed = z.object({ fields: OBJECT_FIELDS, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
-      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+      return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
     }
     const code = req.params.code
     const before = await prisma.productionObject.findUnique({ where: { code } })
@@ -553,7 +585,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   fastify.patch<{ Params: { code: string } }>('/items/:code', WRITE_ADMIN, async (req, reply) => {
     const parsed = z.object({ fields: ITEM_FIELDS, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
-      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+      return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
     }
     const code = req.params.code
     const before = await prisma.itemTemplate.findUnique({ where: { code } })
@@ -583,7 +615,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     code: z.string().min(3).max(60).regex(/^[a-z0-9_]+$/, 'только строчные латинские, цифры и подчёркивание').optional(),
     name: z.string().min(1).max(60),
     description: z.string().max(300).optional(),
-    type: z.enum(['WEAPON', 'ARMOR', 'SHIELD', 'ACCESSORY', 'CONSUMABLE', 'TOOL', 'MISC']),
+    type: z.enum(['WEAPON', 'ARMOR', 'SHIELD', 'ACCESSORY', 'CONSUMABLE', 'TOOL']),
     weaponType: z.enum(['MELEE', 'KNIFE', 'CLUB', 'PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 'THROWN']).nullable().optional(),
     armorSlot: z.enum(['HEAD', 'CHEST', 'LEGS', 'FEET', 'GLOVES', 'BELT', 'BACK', 'ACCESSORY']).nullable().optional(),
     priceBase: z.number().int().min(0).max(10_000_000),
@@ -611,7 +643,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   fastify.post('/items', WRITE_ADMIN, async (req, reply) => {
     const parsed = z.object({ item: NEW_ITEM, sale: SALE, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
-      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+      return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
     }
     const { item, reason } = parsed.data
     const sale = parsed.data.sale ?? null
@@ -793,7 +825,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
       reason: REASON,
     }).safeParse(req.body)
     if (!parsed.success) {
-      return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
+      return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
     }
     const character = await prisma.character.findUnique({
       where: { id: req.params.id }, select: { id: true },
