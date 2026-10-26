@@ -10,7 +10,9 @@
 import { useEffect, type RefObject } from 'react'
 
 function stamp(root: HTMLElement): void {
-  root.querySelectorAll('table.data-table').forEach(table => {
+  // s3-table — таблицы бригады, огорода, бара и склада бригады (27.10:
+  // на телефоне кнопки «Союз»/«Вражда» уезжали за край).
+  root.querySelectorAll('table.data-table, table.s3-table').forEach(table => {
     const heads = [...table.querySelectorAll('thead th')].map(th => th.textContent?.trim() ?? '')
     if (!heads.length) return
     table.querySelectorAll('tbody tr').forEach(row => {

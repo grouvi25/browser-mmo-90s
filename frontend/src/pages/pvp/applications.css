@@ -47,3 +47,10 @@
    контраста AA (4.07 и 4.22 из 4.5). */
 .bapps-row .muted, .bapps-empty { color: #5c5047; }
 .bapps-row a { color: #6a5000; }
+
+/* Телефон (27.10): поля заявки были по 26 px — под палец мало. */
+@media (max-width: 900px) {
+  .bapps-fields select, .bapps-fields input { min-height: 40px; padding: 4px 8px; }
+  .bapps-levels input { width: 72px; }
+  .bapps-refresh { min-width: 44px; justify-content: center; }
+}

@@ -471,6 +471,22 @@ export function BattlePage() {
     return () => clearTimeout(t)
   }, [battleOver])
 
+  // Телефон: карта шире экрана и листается вбок. Своя фигура встаёт по
+  // центру при открытии и после каждого своего шага; между шагами
+  // прокрутку игрока не трогаем.
+  const mobileFieldRef = useRef<HTMLDivElement>(null)
+  const myX = pPart?.position?.x
+  const myY = pPart?.position?.y
+  useEffect(() => {
+    if (!isMobile || myX == null) return
+    const board = mobileFieldRef.current?.querySelector<HTMLElement>('.hex-board')
+    const self = board?.querySelector<HTMLElement>('.token-self')
+    if (!board || !self) return
+    const boardBox = board.getBoundingClientRect()
+    const selfBox = self.getBoundingClientRect()
+    board.scrollLeft += selfBox.left + selfBox.width / 2 - (boardBox.left + boardBox.width / 2)
+  }, [isMobile, myX, myY])
+
   if (!isValid) return null
 
   // ── Финальный экран ───────────────────────────────────────
@@ -583,7 +599,7 @@ export function BattlePage() {
           </div>
         </div>
 
-        <div className="m-battle__field">
+        <div className="m-battle__field" ref={mobileFieldRef}>
           <div className="battle-field-v3">
             {grid}
             <div className="battle-field-v3__meta battle-desk__meta">

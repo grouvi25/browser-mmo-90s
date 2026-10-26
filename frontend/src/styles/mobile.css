@@ -179,6 +179,10 @@
 @media (max-width: 900px) {
   /* заголовок раздела: кнопка возврата не нужна — есть вкладки */
   .viewport__content { padding: 10px 12px; overflow-y: auto; }
+  /* На телефоне небо вьюпорта растянуто на всю высоту экрана, и серый
+     текст разделов ложился прямо на акварель — читалось плохо. Под
+     содержимым — бумага; рваная рамка (border-image) остаётся сверху. */
+  .m-view .viewport__content { background: rgba(249, 238, 228, .88) padding-box; }
   .viewport__back { display: none; }
   .viewport__head { flex-wrap: wrap; row-gap: 2px; }
   .viewport__title { font-size: 18px; }
@@ -201,12 +205,37 @@
     color: var(--text-dim); text-align: left;
   }
   .data-table td:empty { display: none; }
+  /* Таблицы разделов бригады, огорода и бара — так же карточками. */
+  .m-view .s3-scroll { overflow: visible; }
+  .m-view .s3-table thead { display: none; }
+  .m-view .s3-table, .m-view .s3-table tbody, .m-view .s3-table tr, .m-view .s3-table td { display: block; width: 100%; }
+  .m-view .s3-table tr {
+    margin-bottom: 8px; padding: 8px 10px;
+    background: rgba(255, 255, 255, .45); border: 1px solid rgba(43, 43, 43, .4);
+  }
+  .m-view .s3-table td {
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 10px;
+    padding: 3px 0; border: 0; text-align: right;
+  }
+  .m-view .s3-table td::before {
+    content: attr(data-label); flex: 0 0 auto;
+    font-family: var(--font-sign); text-transform: uppercase; font-size: 11px;
+    color: var(--text-dim); text-align: left;
+  }
+  .m-view .s3-table td:not([data-label])::before, .m-view .s3-table td[data-label='']::before { content: none; }
+  .m-view .s3-table td:empty { display: none; }
+  /* Кнопки строки — во всю ширину карточки, по 44 px. */
+  .m-view .s3-table td:has(> button) { justify-content: stretch; }
+  .m-view .s3-table td > button { flex: 1 1 110px; min-height: 44px; justify-content: center; }
   /* Характеристики — одной строкой: название, значение, «+». Подписи
      колонок здесь лишние, описание спрятано (global.css). */
   .data-table.stats-table tr { display: flex; align-items: center; gap: 10px; }
   .data-table.stats-table td { width: auto; padding: 0; }
   .data-table.stats-table td::before { content: none; }
   .data-table.stats-table td:first-child { flex: 1; justify-content: flex-start; text-align: left; }
+  /* «−» и «+» были 26 px шириной — пальцем мимо. */
+  .data-table.stats-table .stats-table__action { gap: 6px; }
+  .data-table.stats-table .stats-table__action .btn { min-width: 44px; justify-content: center; font-size: 18px; }
 
   /* формы и кнопки внутри разделов: пальцем, а не мышью */
   .panel-body select, .panel-body input, .btn { min-height: 44px; }
@@ -218,6 +247,13 @@
     align-items: center;
   }
   .panel-body input[type='number'] { max-width: 110px; }
+  /* Формы рынка: поля разной ширины шли лесенкой. Ровная сетка:
+     выбор и поиск — во всю строку, числа и валюта — парой. */
+  .market-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-items: center; }
+  .market-form > select:first-child, .market-form > input:first-child,
+  .market-form > span, .market-form > .btn-primary:last-child { grid-column: 1 / -1; }
+  .panel-body.market-form input, .panel-body.market-form select, .panel-body.market-form .btn { width: 100%; max-width: none; min-width: 0; }
+  .market-form input[aria-label='Номер магазина'] { min-width: 0; }
 
   /* локация: картинка и действия под ней, а не поверх */
   .hub { position: relative; inset: auto; display: flex; flex-direction: column; height: 100%; }
