@@ -11,11 +11,42 @@ export const ProductionService = {
     include: { equipment: true },
     orderBy: { purchasePrice: 'asc' },
   }),
-  mine: (characterId: string) => prisma.productionObject.findMany({
-    where: { ownerType: 'PRIVATE', ownerCharacterId: characterId },
-    include: { equipment: true, inventory: true, cycles: { where: { status: { in: ['PENDING', 'RUNNING'] } }, include: { recipe: true } } },
-    orderBy: { name: 'asc' },
-  }),
+  /** Свои объекты: склад с названиями ресурсов, кто сейчас на смене и
+   *  сколько выплачено за сутки — владелец видит, что завод работает. */
+  mine: async (characterId: string) => {
+    const objects = await prisma.productionObject.findMany({
+      where: { ownerType: 'PRIVATE', ownerCharacterId: characterId },
+      include: { equipment: true, inventory: true, cycles: { where: { status: { in: ['PENDING', 'RUNNING'] } }, include: { recipe: true } } },
+      orderBy: { name: 'asc' },
+    })
+    if (objects.length === 0) return []
+    const ids = objects.map(object => object.id)
+    const since = new Date(Date.now() - 24 * 3600_000)
+    const [templates, active, paid] = await Promise.all([
+      prisma.resourceTemplate.findMany({ select: { code: true, name: true } }),
+      prisma.workShift.findMany({
+        where: { productionObjectId: { in: ids }, helperId: null, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } },
+        select: { productionObjectId: true, endsAt: true, character: { select: { nickname: true } } },
+        orderBy: { endsAt: 'asc' },
+      }),
+      prisma.workShift.groupBy({
+        by: ['productionObjectId'],
+        where: { productionObjectId: { in: ids }, status: 'CLAIMED', claimedAt: { gte: since } },
+        _sum: { finalSalary: true }, _count: { _all: true },
+      }),
+    ])
+    const names = new Map(templates.map(item => [item.code, item.name]))
+    return objects.map(object => {
+      const day = paid.find(row => row.productionObjectId === object.id)
+      return {
+        ...object,
+        inventory: object.inventory.map(row => ({ ...row, resourceName: names.get(row.resourceCode) ?? row.resourceCode })),
+        producesResourceName: object.producesResourceCode ? names.get(object.producesResourceCode) ?? object.producesResourceCode : null,
+        workers: active.filter(shift => shift.productionObjectId === object.id).map(shift => ({ nickname: shift.character.nickname, endsAt: shift.endsAt })),
+        day: { shifts: day?._count._all ?? 0, salaryPaid: day?._sum.finalSalary ?? 0 },
+      }
+    })
+  },
   recipes: (objectCode: string, characterId: string) => RecipeService.listForObject(objectCode, characterId),
   startCycle: (objectId: string) => CycleService.tryStart(objectId),
   cycles: (objectId: string, limit = 20) => prisma.productionCycle.findMany({

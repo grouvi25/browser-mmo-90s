@@ -3298,6 +3298,8 @@ button { font-family: inherit; }
 .work-xp>div { margin-top:0; height:5px; }
 .work-xp small { display:block; margin-top:3px; color:var(--text-dim); font-size:13.49px; }
 .work-reason { display:block; margin-top:3px; color:var(--danger); font-size:13.49px; }
+/* Частный завод: чей он (обещание игрокам 23.10). */
+.work-employer { display:block; margin-top:2px; color:var(--text-dim, #6b5a48); font-size:13px; }
 .work-award .panel-header { border-bottom-style:double; border-bottom-width:3px; }
 .work-award tbody tr:last-child td { border-top:2px solid var(--border); font-weight:700; }
 .is-muted { background: rgba(96, 76, 60, .08); }

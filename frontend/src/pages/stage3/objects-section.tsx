@@ -4,6 +4,7 @@ import { Factory, Wrench, PackageOpen, Play, Banknote, Repeat, Users } from 'luc
 import { productionApi, type ProductionObject, type StartCycleResult } from '../../shared/api/production.api'
 import { fmt, remaining, timer, Skeleton, Fault, Empty, Note } from './stage3-ui'
 import { objectWarApi } from '../../shared/api/strategy.api'
+import { resourcesApi } from '../../shared/api/resources.api'
 
 /** Причина простоя — словами, а не кодом: требование к интерфейсу этапа. */
 const FAILURE_TEXT: Record<string, string> = {
@@ -149,6 +150,9 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
         <div><dt>Баланс</dt><dd>{fmt(object.balance)} ₽</dd></div>
         <div><dt>Износ</dt><dd>{object.durabilityCurrent}/{object.durabilityMax}</dd></div>
         <div><dt>Склад</dt><dd>{stored}/{object.storageCapacity}</dd></div>
+        {mode === 'mine' && object.workers && (
+          <div><dt>На смене</dt><dd>{object.workers.length}</dd></div>
+        )}
       </dl>
 
       <div className="cycle">
@@ -218,6 +222,19 @@ function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, on
 
   return (
     <div className="object-controls">
+      <StockControls object={object} busy={busy} onDone={onDone} onFail={onFail} />
+
+      <fieldset>
+        <legend><Users size={14} /> Рабочие</legend>
+        {object.workers?.length
+          ? <p className="object-workers">{object.workers.map(worker => `${worker.nickname} (до ${timer(worker.endsAt)})`).join(', ')}</p>
+          : <small>сейчас никто не работает</small>}
+        <small>
+          за сутки смен: {object.day?.shifts ?? 0}, выплачено {fmt(object.day?.salaryPaid ?? 0)} ₽
+          {object.producesResourceName ? ` · сырьё со смен («${object.producesResourceName}») приходит вам` : ''}
+        </small>
+      </fieldset>
+
       <fieldset>
         <legend><Banknote size={14} /> Деньги объекта</legend>
         <input type="number" min={1} value={amount} aria-label="Сумма" onChange={e => setAmount(Number(e.target.value))} />
@@ -262,6 +279,63 @@ function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, on
   )
 }
 
+/**
+ * Склад объекта (обещание игрокам 23.10): владелец забирает выпуск к себе
+ * и кладёт своё сырьё, которым питается цикл. Раньше склад нельзя было ни
+ * пополнить, ни разобрать — цикл с сырьём на входе не стартовал никогда.
+ */
+function StockControls({ object, busy, onDone, onFail }: {
+  object: ProductionObject
+  busy: boolean
+  onDone: (text: string) => void
+  onFail: (e: Error) => void
+}) {
+  const [code, setCode] = useState('')
+  const [amount, setAmount] = useState(1)
+  const mine = useQuery({ queryKey: ['resources'], queryFn: resourcesApi.list })
+  const qc = useQueryClient()
+  const after = (text: string) => { void qc.invalidateQueries({ queryKey: ['resources'] }); onDone(text) }
+  const take = useMutation({
+    mutationFn: (row: { resourceCode: string; amount: number; name: string }) => productionApi.stockTake(object.id, row.resourceCode, row.amount),
+    onSuccess: (_result, row) => after(`Забрано к себе: ${row.name} × ${row.amount}`),
+    onError: onFail,
+  })
+  const put = useMutation({
+    mutationFn: () => productionApi.stockPut(object.id, code, amount),
+    onSuccess: () => after('Сырьё на складе объекта'),
+    onError: onFail,
+  })
+  // Одна строка на ресурс: качество на складе объекта у игрока не различается.
+  const rows = Object.values((object.inventory ?? []).reduce<Record<string, { resourceCode: string; name: string; free: number }>>((acc, row) => {
+    const item = acc[row.resourceCode] ?? { resourceCode: row.resourceCode, name: row.resourceName ?? row.resourceCode, free: 0 }
+    item.free += row.amount - row.reservedAmount
+    acc[row.resourceCode] = item
+    return acc
+  }, {})).filter(row => row.free > 0)
+  const own = (mine.data?.items ?? []).filter(stack => stack.availableAmount > 0)
+  const picked = own.find(stack => stack.template.code === code)
+
+  return (
+    <fieldset>
+      <legend><PackageOpen size={14} /> Склад объекта</legend>
+      {rows.length === 0
+        ? <small>пусто</small>
+        : rows.map(row => (
+          <button key={row.resourceCode} disabled={busy || take.isPending}
+            onClick={() => take.mutate({ resourceCode: row.resourceCode, amount: row.free, name: row.name })}>
+            Забрать {row.name} × {row.free}
+          </button>
+        ))}
+      <select value={code} onChange={e => { setCode(e.target.value); setAmount(1) }} aria-label="Что положить">
+        <option value="">— положить своё сырьё —</option>
+        {own.map(stack => <option key={stack.template.code} value={stack.template.code}>{stack.template.name} (есть {stack.availableAmount})</option>)}
+      </select>
+      <input type="number" min={1} max={picked?.availableAmount ?? 1} value={amount} aria-label="Сколько положить"
+        onChange={e => setAmount(Math.max(1, Math.floor(Number(e.target.value) || 1)))} />
+      <button onClick={() => put.mutate()} disabled={busy || put.isPending || !code || amount > (picked?.availableAmount ?? 0)}>Положить</button>
+    </fieldset>
+  )
+}
 
 /** Почему передать нельзя — словами, как и везде в стратегическом слое. */
 const TRANSFER_BLOCKED: Record<string, (d: { clanObjectLimit: number }) => string> = {

@@ -81,6 +81,19 @@ export async function productionRoutes(fastify: FastifyInstance) {
     return reply.send(await OwnershipService.withdraw(actor.id, req.params.id, parsed.data.amount, key))
   })
 
+  // Склад объекта: забрать к себе и положить своё сырьё под цикл.
+  const Stock = z.object({ resourceCode: z.string().min(1).max(64), amount: z.number().int().positive().max(100_000) })
+  for (const [path, action] of [['take', 'stockTake'], ['put', 'stockPut']] as const) {
+    fastify.post<{ Params: { id: string } }>(`/objects/:id/stock/${path}`, { preHandler: authenticate }, async (req, reply) => {
+      const parsed = Stock.safeParse(req.body)
+      if (!Id.safeParse(req.params.id).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Проверьте ресурс и количество' })
+      const key = req.headers['idempotency-key']
+      if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+      const actor = await character(req.authUser.userId)
+      return reply.send(await OwnershipService[action](actor.id, req.params.id, parsed.data.resourceCode, parsed.data.amount, key))
+    })
+  }
+
   fastify.patch<{ Params: { id: string }; Body: { salary: number } }>('/objects/:id/salary', { preHandler: authenticate }, async (req, reply) => {
     const parsed = z.object({ salary: z.number().int().positive() }).safeParse(req.body)
     if (!Id.safeParse(req.params.id).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })

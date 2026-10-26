@@ -221,10 +221,17 @@ async function main() {
       battleLevel: 4,
       power: 679,
       hpMax: 90,
-      stats: { str: 4, agi: 3, rea: 2, acc: 4, end: 4, luck: 1, agr: 2, armor: 18 },
+      // Ослаблен 26.10 (жалоба игрока 22.10: «−48 и −62 с четырёх клеток»).
+      // Был пистолет 40–80 на 5 клеток при точности 72% и броне 18: игрок
+      // 4-го уровня с трубой побеждал в 6% боёв — пока он подходил, бандит
+      // успевал выстрелить три-четыре раза. Теперь бьёт с 3 клеток слабее
+      // и бронирован легче: по прогону 4 000 боёв на формулах боя игрок
+      // 4-го уровня с трубой побеждает в ~40%, с ПМ — в ~83% (Гопник — 82%
+      // и 97%). Дальше правится в админке, «Боты».
+      stats: { str: 4, agi: 3, rea: 2, acc: 4, end: 4, luck: 1, agr: 2, armor: 14 },
       equipment: {
-        weapon: { minDamage: 40, maxDamage: 80, accuracy: 0.72, maxRange: 5 },
-        armor: { HEAD: 10, CHEST: 22, LEGS: 15, RIGHT_ARM: 9, LEFT_ARM: 9 },
+        weapon: { minDamage: 25, maxDamage: 50, accuracy: 0.65, maxRange: 3 },
+        armor: { HEAD: 8, CHEST: 16, LEGS: 11, RIGHT_ARM: 7, LEFT_ARM: 7 },
       },
       expReward: 50,
       moneyRewardMin: 100,
@@ -378,9 +385,16 @@ async function main() {
         data: inputs.map(input => ({ recipeId: saved.id, ...input })),
       })
     }
+    // Профиль ставим только объекту без профиля. Раньше каждый выкат
+    // переписывал его на последний рецепт объекта в этом списке — и у
+    // владельцев частных заводов сбрасывался выбранный ими рецепт.
+    await prisma.productionObject.updateMany({
+      where: { code: recipe.productionObjectCode, activeRecipeId: null },
+      data: { activeRecipeId: saved.id },
+    })
     await prisma.productionObject.update({
       where: { code: recipe.productionObjectCode },
-      data: { activeRecipeId: saved.id, storageCapacity: 1000 },
+      data: { storageCapacity: 1000 },
     })
   }
   const equipmentByObject: Record<string, { code: string; name: string; tier: number; requiredToolTier: number }> = {

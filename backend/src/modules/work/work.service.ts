@@ -53,6 +53,9 @@ export const WorkService = {
       prisma.resourceTemplate.findMany({ select: { code: true, name: true } }),
       prisma.itemInstance.findMany({ where: { ownerId: characterId, status: 'NORMAL', usesLeft: { gt: 0 }, template: { type: 'TOOL' } }, include: { template: true } }),
     ])
+    const ownerIds = [...new Set(objects.map(object => object.ownerCharacterId).filter((id): id is string => !!id))]
+    const owners = ownerIds.length ? await prisma.character.findMany({ where: { id: { in: ownerIds } }, select: { id: true, nickname: true } }) : []
+    const ownerNames = new Map(owners.map(item => [item.id, item.nickname]))
     const dailyCap = await PremiumService.dailyShiftCap(characterId)
     const professionByCode = new Map(professions.map(item => [item.professionCode, item]))
     const resourceNames = new Map(templates.map(item => [item.code, item.name]))
@@ -68,6 +71,14 @@ export const WorkService = {
         return {
           ...object,
           offeredSalary: object.salaryOverride ?? object.baseSalary,
+          // Частный завод (обещание игрокам 23.10): платит владелец из кассы
+          // объекта, сырьё со смены уходит ему. Работнику видно, чей это
+          // завод и хватит ли в кассе на его зарплату.
+          employer: object.ownerType === 'PRIVATE' && object.ownerCharacterId ? {
+            nickname: ownerNames.get(object.ownerCharacterId) ?? null,
+            isMe: object.ownerCharacterId === characterId,
+            canPay: object.ownerCharacterId === characterId || object.balance >= (object.salaryOverride ?? object.baseSalary),
+          } : null,
           producesResourceName: object.producesResourceCode ? resourceNames.get(object.producesResourceCode) ?? object.producesResourceCode : null,
           profession: {
             code: object.requiredProfessionCode,
@@ -202,6 +213,12 @@ export const WorkService = {
         const left = Math.max(1, Math.ceil((restUntil.getTime() - Date.now()) / 60_000))
         throw new AppError(ErrorCode.WORK_RESTING, `Отдых после смены: следующую можно начать через ${left} мин`, 409, { restUntil: restUntil.toISOString() })
       }
+      // Частный завод платит из своей кассы. Раньше смена начиналась и при
+      // пустой кассе, зарплата бралась из воздуха, а владельцу копился долг.
+      if (object.ownerType === 'PRIVATE' && object.ownerCharacterId !== characterId
+        && object.balance < (object.salaryOverride ?? object.baseSalary)) {
+        throw new AppError(ErrorCode.WORK_EMPLOYER_NO_MONEY, 'У владельца завода нет денег на зарплату — выберите другую работу', 409)
+      }
       const slots = await tx.workShift.count({ where: { productionObjectId, status: 'ACTIVE' } })
       if (slots >= object.workerSlots) throw new AppError(ErrorCode.WORK_NO_SLOTS, 'No free worker slots', 409)
       const claimed = await tx.character.updateMany({ where: { id: characterId, status: 'ACTIVE' }, data: { status: 'WORKING' } })
@@ -304,20 +321,32 @@ export const WorkService = {
       // раньше рецепт забирал смену целиком в цикл владельца, и игрок после
       // работы оставался без ресурсов (правка заказчика 20.10). Трудочасы
       // в цикл владельца при этом идут, как и раньше.
+      //
+      // Частный завод — иначе (обещание игрокам 23.10: «на работу устраиваются
+      // игроки, получают зарплату, а владелец завода получает ресурсы»):
+      // сырьё уходит владельцу, работнику — зарплата. Своя смена владельца на
+      // своём заводе — ему же.
       let resourceReward: { code: string; amount: number } | null = null
+      let resourceToOwner: { code: string; amount: number } | null = null
       if (shift.productionObject.producesResourceCode && shift.productionObject.outputAmountMax > 0) {
         const template = await tx.resourceTemplate.findUnique({ where: { code: shift.productionObject.producesResourceCode } })
         if (template) {
           const amount = Math.floor(Math.random() * (shift.productionObject.outputAmountMax - shift.productionObject.outputAmountMin + 1)) + shift.productionObject.outputAmountMin
-          await ResourcesService.add(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'WORK_REWARD', refType: 'work_shift', refId: shift.id })
-          resourceReward = { code: template.code, amount }
+          const owner = shift.productionObject.ownerType === 'PRIVATE' ? shift.productionObject.ownerCharacterId : null
+          if (owner && owner !== characterId) {
+            await ResourcesService.add(tx, { characterId: owner, resourceTemplateId: template.id, amount, reasonCode: 'WORK_REWARD', refType: 'work_shift', refId: shift.id })
+            resourceToOwner = { code: template.code, amount }
+          } else {
+            await ResourcesService.add(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'WORK_REWARD', refType: 'work_shift', refId: shift.id })
+            resourceReward = { code: template.code, amount }
+          }
         }
       }
       await tx.characterProfession.update({ where: { id: profession.id }, data: { exp: professionExp, level: professionLevel } })
       const aggregate = await tx.characterProfession.aggregate({ where: { characterId }, _max: { level: true, exp: true } })
       await tx.character.update({ where: { id: characterId }, data: { status: 'ACTIVE', productionLevel: aggregate._max.level ?? professionLevel, productionExp: aggregate._max.exp ?? professionExp } })
-      await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CLAIMED', metadataJson: { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionLevel, resourceReward, toolUse, cycleContribution } } })
-      return { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionExp, professionLevel, resourceReward, toolUse, cycleContribution, newBalance }
+      await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CLAIMED', metadataJson: { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionLevel, resourceReward, resourceToOwner, toolUse, cycleContribution } } })
+      return { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionExp, professionLevel, resourceReward, resourceToOwner, toolUse, cycleContribution, newBalance }
     } })
   },
 
