@@ -293,7 +293,7 @@ const ZONE_LABEL: Record<BodyZone, string> = {
   LEGS: 'ноги',
 }
 
-// РЁР°РЅСЃ В«СѓРґР°С‡РЅРѕРіРѕ СѓРґР°СЂР°В» (РїСЂРѕР±РёС‚РёРµ Р±Р»РѕРєР°/Р±СЂРѕРЅРё) вЂ” Р·Р°РІРёСЃРёС‚ РѕС‚ РЈР”РђР§Р Р°С‚Р°РєСѓСЋС‰РµРіРѕ.
+// Шанс «удачного удара» (пробитие блока/брони) — зависит от УДАЧИ атакующего.
 export function calcLuckyPierceChance(attackerLuck: number, antiLuck = 0): number {
   return clamp((attackerLuck ?? 0) * 0.02 - antiLuck, 0, 0.25) // до 25%
 }
@@ -360,7 +360,7 @@ export function resolveZonalAttack(
 
   // 5. Сырой урон
   rawDamage = incomingForce * critMult
-  if (crit) log.push('РљР РРў!')
+  if (crit) log.push('КРИТ!')
 
   // 6. Броня зоны (lucky пробивает броню)
   let dmg = applyArmor(rawDamage, zoneArmor, crit)

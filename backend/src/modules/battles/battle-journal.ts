@@ -55,7 +55,10 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
     case 'SURRENDER': return { kind: 'surrender', text: 'сдаётся' }
     default: break
   }
-  if (!turn.hit && turn.block) return { kind: 'block', text: `${attack}${hand}${zone} — блок` }
+  // Удар в выставленный блок: движок помечает его hit=true и block=true
+  // (удар был, его погасили), поэтому проверяем блок первым — иначе в логе
+  // выходил «удар в корпус» без урона, а не «блок» (заказчик 26.10).
+  if (turn.block) return { kind: 'block', text: `${attack}${hand}${zone} — блок` }
   if (!turn.hit) return { kind: 'dodge', text: `${attack}${hand}${zone} — уворот` }
   const strip = turn.logLine?.match(STRIP_NOTE)?.[1]
   const tail = strip ? ` — ${strip}` : ''

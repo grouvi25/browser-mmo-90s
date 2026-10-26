@@ -74,6 +74,12 @@ describe('админка: новая вещь', () => {
     expect((await create({ item: overBudget, reason: REASON })).json()).toMatchObject({ message: expect.stringMatching(/Расставлено 4/) })
     const wrongStat = { ...knife, weaponType: 'KNIFE', statBudget: 3, allocationMode: 'FIXED', statAllocation: { ARMOR: 1 } }
     expect((await create({ item: wrongStat, reason: REASON })).statusCode).toBe(422)
+    // Заказчик 26.10: «пишет Валидейшн эррор» — теперь сказано, какое поле и что не так.
+    const bad = await create({ item: { ...boots, priceBase: 99.5, dodgeBonus: 3 }, reason: REASON })
+    expect(bad.statusCode).toBe(422)
+    expect(bad.json<{ message: string }>().message).toMatch(/Цена: целое число/)
+    expect(bad.json<{ message: string }>().message).toMatch(/Уворот: не больше 1/)
+    expect((await create({ item: { ...boots, type: 'MISC' }, reason: REASON })).statusCode).toBe(422)
     const shirt = { ...boots, armorSlot: null }
     expect((await create({ item: shirt, reason: REASON })).json()).toMatchObject({ message: expect.stringMatching(/слот/) })
   })

@@ -15,12 +15,12 @@ import { useMutation } from '@tanstack/react-query'
 import { adminApi, REASON_MIN } from '../admin-api'
 import { Note } from '../../stage3/stage3-ui'
 
-type Kind = 'WEAPON' | 'ARMOR' | 'SHIELD' | 'ACCESSORY' | 'CONSUMABLE' | 'TOOL' | 'MISC'
+type Kind = 'WEAPON' | 'ARMOR' | 'SHIELD' | 'ACCESSORY' | 'CONSUMABLE' | 'TOOL'
 type StatKey = 'DAMAGE' | 'ACCURACY' | 'CRIT' | 'ARMOR' | 'DURABILITY' | 'ANTI_CRIT'
 
 const KINDS: [Kind, string][] = [
   ['WEAPON', 'Оружие'], ['ARMOR', 'Одежда и броня'], ['SHIELD', 'Щит'], ['ACCESSORY', 'Амулет'],
-  ['CONSUMABLE', 'Расходник'], ['TOOL', 'Инструмент'], ['MISC', 'Прочее'],
+  ['CONSUMABLE', 'Расходник'], ['TOOL', 'Инструмент'],
 ]
 const WEAPON_TYPES: [string, string][] = [
   ['MELEE', 'Рукопашка'], ['KNIFE', 'Нож'], ['CLUB', 'Дубинка'], ['PISTOL', 'Пистолет'], ['SHOTGUN', 'Дробовик'],
@@ -58,6 +58,12 @@ const STATS_FOR: Partial<Record<Kind, StatKey[]>> = {
  * 3 стата (+ урон у оружия), 2-й — 4, 3-й — 7, 4-й — 10, «и так далее в
  * пропорции»: с 2-го уровня +3 за уровень.
  */
+const toNumber = (raw: string) => { const n = Number(String(raw).replace(',', '.')); return Number.isFinite(n) ? n : 0 }
+/** Целое в пределах — так же, как проверяет сервер. */
+const int = (value: number, min: number, max: number) => Math.min(max, Math.max(min, Math.round(value)))
+/** Проценты из поля (5 = 5%) в долю для сервера, в пределах. */
+const share = (percent: number, min: number, max: number) => Math.min(max, Math.max(min, percent)) / 100
+
 function statBudgetForLevel(level: number): number {
   return level <= 1 ? 3 : 3 * level - 2
 }
@@ -112,26 +118,29 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
       type: kind,
       weaponType: kind === 'WEAPON' ? weaponType : null,
       armorSlot: kind === 'ARMOR' ? slot : kind === 'ACCESSORY' ? 'ACCESSORY' : null,
-      priceBase: price, levelReq: level, durabilityMax: durability, weight,
-      minDamage: kind === 'WEAPON' ? minDamage : null,
-      maxDamage: kind === 'WEAPON' ? maxDamage : null,
-      weaponAccuracy: kind === 'WEAPON' ? accuracy / 100 : null,
-      maxRange: kind === 'WEAPON' ? range : null,
-      armor: ['ARMOR', 'SHIELD', 'ACCESSORY'].includes(kind) ? armor : null,
-      critBonus: crit / 100, dodgeBonus: dodge / 100, hpBonus: hp,
-      statBonuses: Object.fromEntries(Object.entries(gearStats).filter(([, v]) => v)),
-      ...Object.fromEntries(CHARMS.map(([key]) => [key, (charms[key] ?? 0) / 100])),
+      priceBase: int(price, 0, 10_000_000), levelReq: int(level, 0, 30), durabilityMax: int(durability, 1, 10_000),
+      weight: Math.min(100, Math.max(0, weight)),
+      minDamage: kind === 'WEAPON' ? int(minDamage, 0, 1000) : null,
+      maxDamage: kind === 'WEAPON' ? int(maxDamage, 0, 1000) : null,
+      weaponAccuracy: kind === 'WEAPON' ? share(accuracy, 0, 100) : null,
+      maxRange: kind === 'WEAPON' ? int(range, 1, 20) : null,
+      armor: ['ARMOR', 'SHIELD', 'ACCESSORY'].includes(kind) ? int(armor, 0, 500) : null,
+      critBonus: share(crit, 0, 100), dodgeBonus: share(dodge, 0, 100), hpBonus: int(hp, 0, 1000),
+      statBonuses: Object.fromEntries(Object.entries(gearStats).map(([k, v]) => [k, int(v, -50, 50)]).filter(([, v]) => v)),
+      ...Object.fromEntries(CHARMS.map(([key]) => [key, share(charms[key] ?? 0, -200, 200)])),
       ...(wearable ? {
-        statBudget: budget,
+        statBudget: int(budget, 0, 200),
         allocationMode: mode,
-        ...(mode === 'FIXED' ? { statAllocation: Object.fromEntries(stats.map(key => [key, alloc[key] ?? 0])) } : {}),
+        ...(mode === 'FIXED' ? { statAllocation: Object.fromEntries(stats.map(key => [key, int(alloc[key] ?? 0, 0, 200)])) } : {}),
       } : {}),
-    }, shop ? { shop, price: salePrice ?? price } : null, reasonText),
+    }, shop ? { shop, price: int(salePrice ?? price, 0, 10_000_000) } : null, reasonText),
     onSuccess: result => { setError(''); onDone(result.code) },
     onError: (err: Error) => setError(err.message),
   })
 
-  const num = (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => setter(Number(e.target.value))
+  // Поле число: пустое или «1,5» в русской раскладке не должно уходить на
+  // сервер мусором — запятую читаем как точку, пустое — как ноль.
+  const num = (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => setter(toNumber(e.target.value))
   const problem = !name.trim() ? 'Нужно название'
     : kind === 'WEAPON' && minDamage > maxDamage ? 'Урон «от» больше, чем «до»'
       : mode === 'FIXED' && spent > budget ? `Расставлено ${spent} из ${budget} очков`
@@ -182,7 +191,7 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
         <div className="adm-item__fields">
           {GEAR_STATS.map(([key, label]) => <label key={key}><span>{label}</span>
             <input type="number" min={-50} max={50} value={gearStats[key] ?? 0}
-              onChange={e => setGearStats({ ...gearStats, [key]: Number(e.target.value) })} /></label>)}
+              onChange={e => setGearStats({ ...gearStats, [key]: toNumber(e.target.value) })} /></label>)}
         </div>
 
         <h5>Обереги, %</h5>
@@ -190,7 +199,7 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
         <div className="adm-item__fields">
           {CHARMS.map(([key, label]) => <label key={key}><span>{label}</span>
             <input type="number" min={-200} max={200} step="0.5" value={charms[key] ?? 0}
-              onChange={e => setCharms({ ...charms, [key]: Number(e.target.value) })} /></label>)}
+              onChange={e => setCharms({ ...charms, [key]: toNumber(e.target.value) })} /></label>)}
         </div>
       </>}
 
@@ -206,7 +215,7 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
         <div className="adm-item__fields">
           <label><span>Очков</span>
             <input type="number" min={0} max={200} value={budget}
-              onChange={e => { setBudgetTouched(true); setBudget(Number(e.target.value)) }} /></label>
+              onChange={e => { setBudgetTouched(true); setBudget(toNumber(e.target.value)) }} /></label>
           <label><span>Кто распределяет</span>
             <select value={mode} onChange={e => setMode(e.target.value as 'PLAYER' | 'FIXED')}>
               <option value="PLAYER">Игрок сам, на складе</option>
@@ -221,7 +230,7 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
         {mode === 'FIXED' && <div className="adm-item__fields">
           {stats.map(key => <label key={key}><span>{STAT_LABEL[key]}</span>
             <input type="number" min={0} max={budget} value={alloc[key] ?? 0}
-              onChange={e => setAlloc({ ...alloc, [key]: Number(e.target.value) })} /></label>)}
+              onChange={e => setAlloc({ ...alloc, [key]: toNumber(e.target.value) })} /></label>)}
           <p className={spent > budget ? 'adm-bad' : 'adm-hint'}>Расставлено {spent} из {budget}</p>
         </div>}
       </>}
@@ -233,7 +242,7 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
             {SHOPS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select></label>
         {shop && <label><span>Цена в магазине, ₽</span>
-          <input type="number" min={0} value={salePrice ?? price} onChange={e => setSalePrice(Number(e.target.value))} /></label>}
+          <input type="number" min={0} value={salePrice ?? price} onChange={e => setSalePrice(toNumber(e.target.value))} /></label>}
       </div>
 
       <details className="adm-item__more">

@@ -75,7 +75,14 @@ export interface CardProfile {
 export type CardWounds = Partial<Record<string, number>>
 const WOUND_STRIP_AT = 3
 
-export function CharacterCard({ profile, wounds }: { profile?: CardProfile; wounds?: CardWounds } = {}) {
+export function CharacterCard({ profile, wounds, liveHp }: {
+  profile?: CardProfile
+  wounds?: CardWounds
+  /** Здоровье своего бойца в идущем бою. Профиль персонажа обновляется
+   *  раз в 30 секунд и в бою не меняется — без этого цифра на своей
+   *  карточке не падала от ударов (заказчик 26.10). */
+  liveHp?: { hp: number; hpMax: number }
+} = {}) {
   const navigate = useNavigate()
   const [tab, setTab] = useState<CardTab>('overview')
   const [zone, setZone] = useState<ZoneKey | null>(null)
@@ -124,10 +131,10 @@ export function CharacterCard({ profile, wounds }: { profile?: CardProfile; woun
   const leftKnocked = (wounds?.LEFT_ARM ?? 0) >= WOUND_STRIP_AT
   const rightKnocked = (wounds?.RIGHT_ARM ?? 0) >= WOUND_STRIP_AT
 
-  const hp = profile?.hp ?? char?.hpCurrent ?? 0
+  const hp = profile?.hp ?? liveHp?.hp ?? char?.hpCurrent ?? 0
   const energy = profile?.level ?? char?.battleLevel ?? 0
   const nickname = profile?.nickname ?? char?.nickname ?? '—'
-  const hpMax = profile?.hpMax ?? char?.hpMax
+  const hpMax = profile?.hpMax ?? liveHp?.hpMax ?? char?.hpMax
 
   return (
     <>
@@ -321,7 +328,7 @@ export function CharacterCard({ profile, wounds }: { profile?: CardProfile; woun
         <Layer box={C.body} className="card-list">
           <div className="card-list__title">Личное дело</div>
           <div className="card-list__kv"><span>Уровень</span><b>{char?.battleLevel ?? '—'}</b></div>
-          <div className="card-list__kv"><span>Здоровье</span><b>{hp} / {char?.hpMax ?? '—'}</b></div>
+          <div className="card-list__kv"><span>Здоровье</span><b>{hp} / {hpMax ?? '—'}</b></div>
           <div className="card-list__kv"><span>Наличные</span><b>{(char?.money ?? 0).toLocaleString('ru')} ₽</b></div>
           <div className="card-list__kv"><span>Доллары</span><b>{(char?.dollars ?? 0).toLocaleString('ru')} $</b></div>
           <div className="card-list__kv"><span>Побед</span><b>{char?.battlesWon ?? 0}</b></div>
