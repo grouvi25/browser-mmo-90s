@@ -9,7 +9,7 @@ const time = (seconds:number) => {
   return h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`
 }
 const errorText=(error:unknown)=>error instanceof Error?error.message:'Не удалось выполнить действие'
-type Receipt={salary:number;professionExpGain:number;professionLevel:number;resourceReward:{code:string;amount:number}|null;toolUse:{itemId:string;usesLeft:number}|null;newBalance?:number;resourceName?:string;levelBefore:number}
+type Receipt={salary:number;professionExpGain:number;professionLevel:number;resourceReward:{code:string;amount:number}|null;resourceToOwner?:{code:string;amount:number}|null;toolUse:{itemId:string;usesLeft:number}|null;newBalance?:number;resourceName?:string;levelBefore:number}
 
 function Progress({level,exp}:{level:number;exp:number}){
   const floor=XP[level]??XP[XP.length-1], ceiling=XP[level+1]
@@ -56,6 +56,7 @@ export function WorkPage(){
         <tr><td>Заработок</td><td className="num"><b>+{receipt.salary.toLocaleString('ru')} ₽</b></td></tr>
         <tr><td>Опыт профессии</td><td className="num">+{receipt.professionExpGain} XP</td></tr>
         {receipt.resourceReward&&<tr><td>{receipt.resourceName??receipt.resourceReward.code}</td><td className="num">+{receipt.resourceReward.amount}</td></tr>}
+        {receipt.resourceToOwner&&<tr><td>Сырьё ушло владельцу завода</td><td className="num">{receipt.resourceToOwner.amount}</td></tr>}
         {receipt.toolUse&&<tr><td>Осталось использований инструмента</td><td className="num">{receipt.toolUse.usesLeft}</td></tr>}
         {receipt.professionLevel>receipt.levelBefore&&<tr><td>Новый уровень профессии</td><td className="num"><b>{receipt.professionLevel}</b></td></tr>}
         <tr><td>Новый баланс</td><td className="num">{(receipt.newBalance??0).toLocaleString('ru')} ₽</td></tr>

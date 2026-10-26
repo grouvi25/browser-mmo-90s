@@ -93,6 +93,11 @@ const ITEM_PRICES: Record<string, number> = {
   // STAGE2_TOOL_TIERS[4].price. Без неё rcp_import_tool считался выходом
   // в 0 ₽ и ложно попадал в список убыточных.
   tool_work_import: 2_500,
+  // Лёгкая одежда Швейного цеха (27.10) — цены госмагазина из seed.ts.
+  armor_cap_basic: 100,
+  armor_jeans_basic: 200,
+  armor_boots_basic: 250,
+  armor_jacket_basic: 300,
 }
 /**
  * Наценка рынка к базовой цене ресурса.
