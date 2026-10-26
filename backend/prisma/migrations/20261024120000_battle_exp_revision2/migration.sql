@@ -40,6 +40,9 @@ SET battle_exp = GREATEST(0, FLOOR(s.n_from + s.frac * (s.n_to - s.n_from))::int
 FROM scaled s
 WHERE c.id = s.id;
 
--- Кап 15-го уровня для гипотетических оверлевелованных персонажей.
-UPDATE characters SET battle_exp = 30316376 WHERE battle_level > 15;
+-- 15-й уровень — последний: следующего порога нет, долю пути переносить
+-- некуда. Ставим ровно на порог 15-го: без этого старый опыт (тысячи)
+-- при пороге 30 млн опустил бы персонажа уровня до 2-го при пересчёте.
+-- Сюда же — гипотетические персонажи выше 15-го.
+UPDATE characters SET battle_exp = 30316376 WHERE battle_level >= 15;
 UPDATE characters SET battle_level = 15 WHERE battle_level > 15;

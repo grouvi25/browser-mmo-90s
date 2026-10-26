@@ -530,10 +530,11 @@ export function BattlePage() {
             {actionMut.isPending ? 'Ход отправляется…' : pPart?.hasActedThisRound ? 'Ждём противника' : 'Ваш ход'}
           </span>
           <span className="m-battle__tools">
-            <button type="button" onClick={() => { setShowLog(false); setPocketsOpen(value => !value) }}>
+            <button type="button" aria-label="Боевой карман" title="Боевой карман" aria-expanded={pocketsOpen}
+              onClick={() => { setShowLog(false); setPocketsOpen(value => !value) }}>
               <Backpack size={13} />{pocketSlots.filter(Boolean).length > 0 && <i>{pocketSlots.filter(Boolean).length}</i>}
             </button>
-            <button type="button" className="is-surrender" disabled={!canAct} onClick={() => act('surrender')}>
+            <button type="button" className="is-surrender" aria-label="Сдаться" title="Сдаться" disabled={!canAct} onClick={() => act('surrender')}>
               <Flag size={13} />
             </button>
           </span>
