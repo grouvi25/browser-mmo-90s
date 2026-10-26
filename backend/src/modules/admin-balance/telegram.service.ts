@@ -28,8 +28,18 @@ const sentKey = (code: string, date: string) => `telegram:sent:${date}:${code}`
 /** Сколько живёт отметка об отправке — до конца следующих суток. */
 const SENT_TTL_SECONDS = 36 * 60 * 60
 
+/**
+ * Получатели алертов: TELEGRAM_CHAT_ID — один id или несколько через
+ * запятую (просьба 26.10: алерты и заказчику). Каждый получатель должен
+ * сам один раз нажать «Старт» у бота — иначе Telegram отвечает
+ * «chat not found», и этому получателю ничего не уйдёт.
+ */
+export function telegramChatIds(): string[] {
+  return (env.TELEGRAM_CHAT_ID ?? '').split(/[\s,;]+/).map(id => id.trim()).filter(Boolean)
+}
+
 export function telegramConfigured(): boolean {
-  return Boolean(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID)
+  return Boolean(env.TELEGRAM_BOT_TOKEN && telegramChatIds().length)
 }
 
 /**
@@ -66,7 +76,15 @@ export async function sendTelegram(text: string): Promise<{ ok: boolean; error?:
   if (!telegramConfigured()) {
     return { ok: false, error: 'Не настроено: нет TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID' }
   }
+  // Каждому получателю — своя отправка: отказ одного (не нажал «Старт»)
+  // не мешает остальным. Успех — если дошло хоть кому-то.
+  const results = await Promise.all(telegramChatIds().map(chatId => sendToChat(chatId, text)))
+  if (results.every(r => r.ok)) return { ok: true }
+  const failed = results.map((r, i) => r.ok ? null : `${telegramChatIds()[i]}: ${r.error}`).filter(Boolean).join('; ')
+  return results.some(r => r.ok) ? { ok: true, error: `Не всем: ${failed}` } : { ok: false, error: failed }
+}
 
+async function sendToChat(chatId: string, text: string): Promise<{ ok: boolean; error?: string }> {
   let lastError = 'Не удалось связаться с Telegram'
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     try {
@@ -74,7 +92,7 @@ export async function sendTelegram(text: string): Promise<{ ok: boolean; error?:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: env.TELEGRAM_CHAT_ID,
+          chat_id: chatId,
           text,
           parse_mode: 'HTML',
           disable_web_page_preview: true,
