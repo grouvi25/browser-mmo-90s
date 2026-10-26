@@ -1,20 +1,8 @@
-import { expect, test, type APIRequestContext } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { unlockLocations } from './admin-session'
 import { CITY_LOCATIONS } from '../../src/shared/lib/city-locations'
 const API = process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:4000'
 
-// Локации гейтятся по боевому уровню (обещание игрокам 22.10), а тест
-// обходит их все. Опыт выдаёт админ-роут — досыпаем столько, чтобы
-// хватило до последнего уровня при любой кривой порогов.
-async function unlockLocations(request: APIRequestContext, characterId: string) {
-  const login = await request.post(`${API}/api/admin/auth/login`, { data: { username: 'admin', password: 'admin_change_me_now' } })
-  expect(login.status()).toBe(200)
-  const { token } = await login.json() as { token: string }
-  const grant = await request.post(`${API}/api/admin/characters/exp`, {
-    headers: { Authorization: `Bearer ${token}` },
-    data: { characterId, track: 'battle', amount: 50_000_000, reason: 'e2e: открыть локации по уровню' },
-  })
-  expect(grant.status()).toBe(200)
-}
 
 test('city locations, return controls, readable fonts and resume after login', async ({ page, request }, testInfo) => {
   test.setTimeout(120_000)

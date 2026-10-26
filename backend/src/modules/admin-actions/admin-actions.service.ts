@@ -525,7 +525,14 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
   },
 
   CREATE_ITEM_TEMPLATE: async (tx, payload) => {
-    await tx.itemTemplate.create({ data: payload.fields as Prisma.ItemTemplateCreateInput })
+    const template = await tx.itemTemplate.create({ data: payload.fields as Prisma.ItemTemplateCreateInput })
+    // Сразу в продажу, если указан магазин: госмагазин или частная лавка.
+    const sale = payload.sale as { shop: string; price: number } | null | undefined
+    if (sale?.shop === 'GOVERNMENT') {
+      await tx.governmentShopItem.create({ data: { templateId: template.id, overridePrice: sale.price } })
+    } else if (sale) {
+      await tx.privateShopItem.create({ data: { shopCode: sale.shop, itemTemplateId: template.id, price: sale.price, minBattleLevel: template.levelReq } })
+    }
   },
 
   /**
@@ -547,6 +554,9 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
         409,
       )
     }
+    // Витрины по шаблону уходят вместе с ним: вещь, которой больше нет, не продают.
+    await tx.governmentShopItem.deleteMany({ where: { templateId: template.id } })
+    await tx.privateShopItem.deleteMany({ where: { itemTemplateId: template.id } })
     await tx.itemTemplate.delete({ where: { code } })
   },
 

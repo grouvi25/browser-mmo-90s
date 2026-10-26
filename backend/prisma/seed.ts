@@ -189,7 +189,7 @@ async function main() {
       code: 'training_bandit',
       name: 'Тренировочный хулиган',
       battleLevel: 1,
-      power: 5,
+      power: 100,
       hpMax: 40,
       stats: { str: 2, agi: 2, rea: 1, acc: 2, end: 2, luck: 1, agr: 1, armor: 5 },
       equipment: {
@@ -204,7 +204,7 @@ async function main() {
       code: 'basic_gangster',
       name: 'Гопник',
       battleLevel: 2,
-      power: 12,
+      power: 190,
       hpMax: 75,
       stats: { str: 3, agi: 3, rea: 2, acc: 3, end: 3, luck: 1, agr: 2, armor: 10 },
       equipment: {
@@ -219,7 +219,7 @@ async function main() {
       code: 'armed_thug',
       name: 'Вооружённый бандит',
       battleLevel: 4,
-      power: 25,
+      power: 679,
       hpMax: 90,
       stats: { str: 4, agi: 3, rea: 2, acc: 4, end: 4, luck: 1, agr: 2, armor: 18 },
       equipment: {

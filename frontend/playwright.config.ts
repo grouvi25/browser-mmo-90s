@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests/visual',
+  // Один вход в админку на прогон: тесты досыпают персонажам опыт (admin-session.ts).
+  globalSetup: './tests/visual/admin-session.ts',
   timeout: 45_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

@@ -21,6 +21,13 @@ export async function applyBattleProgression(
   const levelsGained = Math.max(0, newLevel - char.battleLevel)
   const newHpMax = calcHpMax(char.stats!.end, newLevel)
 
+  // Денежная премия за каждый новый уровень («Ревизия 2»): выдаётся
+  // по одному разу, премия 1-го относится к созданию персонажа.
+  const moneyBonus = levelsGained > 0
+    ? Array.from({ length: levelsGained }, (_, i) => char.battleLevel + 1 + i)
+        .reduce((sum, level) => sum + (BalanceConfig.battleExp.levelMoneyBonus[level - 1] ?? 0), 0)
+    : 0
+
   await tx.character.update({
     where: { id: char.id },
     data: {
@@ -31,6 +38,7 @@ export async function applyBattleProgression(
       status: 'ACTIVE',
       battlesTotal: { increment: 1 },
       battlesWon: params.won ? { increment: 1 } : undefined,
+      ...(moneyBonus > 0 ? { money: { increment: moneyBonus } } : {}),
       lastBattleFinishedAt: new Date(),
     },
   })

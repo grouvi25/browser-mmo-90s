@@ -40,6 +40,8 @@ interface RoundResult {
   /** PvP отдаёт победителя, командный бой — победившую сторону, без result. */
   winnerId?: string | null; winnerSide?: number | null
   newLevel?: number; waiting?: boolean; turns?: TurnEvent[]
+  /** Сколько уровней прибавил этот бой: плашка «НОВЫЙ УРОВЕНЬ» — только когда реально вырос. */
+  levelsGained?: number
   botStance?: Stance; botAttackZones?: BodyZone[]; botBlockZones?: BodyZone[]
   distance?: number; playerRange?: number
   /** PvP: шаг применён сервером сразу, не дожидаясь хода противника. */
@@ -472,7 +474,7 @@ export function BattlePage() {
                 )}
               </div>
             )}
-            {(finishResult.newLevel ?? 0) > 1 && (
+            {(finishResult.levelsGained ?? 0) > 0 && (finishResult.newLevel ?? 0) > 1 && (
               <div className="brv2-levelup">НОВЫЙ УРОВЕНЬ {finishResult.newLevel}</div>
             )}
             <div className="brv2-actions">
@@ -528,10 +530,11 @@ export function BattlePage() {
             {actionMut.isPending ? 'Ход отправляется…' : pPart?.hasActedThisRound ? 'Ждём противника' : 'Ваш ход'}
           </span>
           <span className="m-battle__tools">
-            <button type="button" onClick={() => { setShowLog(false); setPocketsOpen(value => !value) }}>
+            <button type="button" aria-label="Боевой карман" title="Боевой карман" aria-expanded={pocketsOpen}
+              onClick={() => { setShowLog(false); setPocketsOpen(value => !value) }}>
               <Backpack size={13} />{pocketSlots.filter(Boolean).length > 0 && <i>{pocketSlots.filter(Boolean).length}</i>}
             </button>
-            <button type="button" className="is-surrender" disabled={!canAct} onClick={() => act('surrender')}>
+            <button type="button" className="is-surrender" aria-label="Сдаться" title="Сдаться" disabled={!canAct} onClick={() => act('surrender')}>
               <Flag size={13} />
             </button>
           </span>

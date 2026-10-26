@@ -27,7 +27,9 @@ const STAT_KEYS = ['str', 'agi', 'rea', 'acc', 'end', 'luck', 'agr', 'auth'] as 
 type StatKey = typeof STAT_KEYS[number]
 
 const ApplyStatsSchema = z.object({
-  deltas: z.record(z.enum(STAT_KEYS), z.number().int().min(0).max(100)),
+  // zod v4: record с enum-ключами требует ВСЕ ключи — а черновик статов
+  // приходит частичным, поэтому partialRecord.
+  deltas: z.partialRecord(z.enum(STAT_KEYS), z.number().int().min(0).max(100)),
 })
 
 /** С чего начинал персонаж: база плюс бонус архетипа. Ниже свиток не опускает. */

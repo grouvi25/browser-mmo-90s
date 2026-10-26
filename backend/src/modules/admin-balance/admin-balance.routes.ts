@@ -18,6 +18,7 @@ import {
   currentValue, defaultValue, limitsFor, listOverrides, validatePath,
 } from './balance-overrides.service'
 import { buildCatalog } from './catalog.service'
+import { ITEM_STAT_KEYS, allowedItemStats } from '../items/item-stats.formulas'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { reasonFlowLabel, reasonTitle } from './reason-codes'
 import { sendTelegram, telegramConfigured } from './telegram.service'
@@ -27,6 +28,33 @@ const WRITE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN') }
 const MODERATE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }
 
 const REASON = z.string().min(10).max(500)
+
+/** Почему новую вещь в таком виде создать нельзя, или null. */
+function newItemProblem(item: {
+  type: string; weaponType?: string | null; armorSlot?: string | null; minDamage: number | null; maxDamage: number | null
+  statBudget?: number; allocationMode?: string; statAllocation?: Partial<Record<string, number>>
+}): string | null {
+  if (item.type === 'WEAPON') {
+    if (!item.weaponType) return 'У оружия нужен вид: нож, дубинка, пистолет…'
+    if (item.minDamage == null || item.maxDamage == null) return 'У оружия нужен урон от и до'
+    if (item.minDamage > item.maxDamage) return 'Урон «от» больше, чем «до»'
+  }
+  if (item.type === 'ARMOR' && !item.armorSlot) return 'У одежды нужен слот: шапка, броня, штаны, обувь…'
+  if (item.allocationMode === 'FIXED') {
+    const allowed = new Set<string>(allowedItemStats(item.type === 'ACCESSORY' ? 'ARMOR' : item.type))
+    const entries = Object.entries(item.statAllocation ?? {}).filter(([, v]) => (v ?? 0) > 0)
+    const wrong = entries.find(([key]) => !allowed.has(key))
+    if (wrong) return `Стат «${wrong[0]}» этой вещи не положен`
+    const sum = entries.reduce((total, [, v]) => total + (v ?? 0), 0)
+    if (sum > (item.statBudget ?? 0)) return `Расставлено ${sum} очков при бюджете ${item.statBudget ?? 0}`
+  }
+  return null
+}
+
+/** Код для новой вещи, если его не задали: вид + слот + случайный хвост. */
+function newItemCode(type: string, kind: string | null): string {
+  return [type, kind, Date.now().toString(36), Math.random().toString(36).slice(2, 5)].filter(Boolean).join('_').toLowerCase()
+}
 
 // Состояния из enum'ов Prisma по-русски. Код рядом остаётся: по нему
 // ищут в базе, а вот считать «CANCELLED» с экрана и понимать, отменил ли
@@ -536,10 +564,16 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     return reply.send({ actionId: action.actionId, code, fields, previous })
   })
 
+  // Новая вещь целиком (просьба заказчика 25.10: «по шмоту — буду сам
+  // добавлять»): слот, вид оружия, очки статов и как они распределяются,
+  // бонусы и магазин, где вещь продаётся. Код можно не задавать — соберём.
   const NEW_ITEM = z.object({
-    code: z.string().min(3).max(60).regex(/^[a-z0-9_]+$/, 'только строчные латинские, цифры и подчёркивание'),
+    code: z.string().min(3).max(60).regex(/^[a-z0-9_]+$/, 'только строчные латинские, цифры и подчёркивание').optional(),
     name: z.string().min(1).max(60),
-    type: z.enum(['WEAPON', 'ARMOR', 'CONSUMABLE', 'TOOL', 'RESOURCE', 'MISC']),
+    description: z.string().max(300).optional(),
+    type: z.enum(['WEAPON', 'ARMOR', 'SHIELD', 'ACCESSORY', 'CONSUMABLE', 'TOOL', 'MISC']),
+    weaponType: z.enum(['MELEE', 'KNIFE', 'CLUB', 'PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 'THROWN']).nullable().optional(),
+    armorSlot: z.enum(['HEAD', 'CHEST', 'LEGS', 'FEET', 'GLOVES', 'BELT', 'BACK', 'ACCESSORY']).nullable().optional(),
     priceBase: z.number().int().min(0).max(10_000_000),
     levelReq: z.number().int().min(0).max(30),
     durabilityMax: z.number().int().min(1).max(10_000),
@@ -547,27 +581,55 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     minDamage: z.number().int().min(0).max(1000).nullable(),
     maxDamage: z.number().int().min(0).max(1000).nullable(),
     weaponAccuracy: z.number().min(0).max(1).nullable(),
+    maxRange: z.number().int().min(1).max(20).nullable().optional(),
     armor: z.number().int().min(0).max(500).nullable(),
+    critBonus: z.number().min(0).max(1).optional(),
+    dodgeBonus: z.number().min(0).max(1).optional(),
+    antiCrit: z.number().min(0).max(1).optional(),
+    hpBonus: z.number().int().min(0).max(1000).optional(),
+    statBudget: z.number().int().min(0).max(200).optional(),
+    allocationMode: z.enum(['FIXED', 'PLAYER']).optional(),
+    statAllocation: z.partialRecord(z.enum(ITEM_STAT_KEYS), z.number().int().min(0).max(200)).optional(),
   })
+  const SALE = z.object({
+    shop: z.enum(['GOVERNMENT', 'kommersant', 'armory_garage']),
+    price: z.number().int().min(0).max(10_000_000),
+  }).nullable().optional()
 
   fastify.post('/items', WRITE_ADMIN, async (req, reply) => {
-    const parsed = z.object({ item: NEW_ITEM, reason: REASON }).safeParse(req.body)
+    const parsed = z.object({ item: NEW_ITEM, sale: SALE, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
       return reply.code(422).send({ code: 'GEN_001', message: 'Validation error', details: parsed.error.flatten() })
     }
     const { item, reason } = parsed.data
-    if (await prisma.itemTemplate.findUnique({ where: { code: item.code } })) {
-      return reply.code(409).send({ code: 'GEN_005', message: `Предмет «${item.code}» уже есть` })
+    const sale = parsed.data.sale ?? null
+    const problem = newItemProblem(item)
+    if (problem) return reply.code(422).send({ code: 'GEN_001', message: problem })
+    const code = item.code ?? newItemCode(item.type, item.armorSlot ?? item.weaponType ?? null)
+    if (await prisma.itemTemplate.findUnique({ where: { code } })) {
+      return reply.code(409).send({ code: 'GEN_005', message: `Предмет «${code}» уже есть` })
+    }
+    const fields = {
+      ...item, code,
+      weaponType: item.type === 'WEAPON' ? item.weaponType ?? null : null,
+      armorSlot: item.type === 'WEAPON' ? null : item.type === 'SHIELD' ? 'RIGHT_HAND' : item.armorSlot ?? null,
+      optimalRange: item.maxRange ?? 1,
+      // Вещь, которую продаёт лавка, — частная; госмагазин — государственная.
+      sourceType: sale?.shop === 'GOVERNMENT' ? 'GOVERNMENT' : sale ? 'PRIVATE' : 'ADMIN',
+      privateShopAllowed: !!sale && sale.shop !== 'GOVERNMENT',
+      upgradeAllowed: ['WEAPON', 'ARMOR', 'SHIELD'].includes(item.type),
+      isEquippable: ['WEAPON', 'ARMOR', 'SHIELD', 'ACCESSORY'].includes(item.type),
+      statAllocation: item.allocationMode === 'FIXED' ? item.statAllocation ?? {} : undefined,
     }
 
     const action = await AdminActionsService.perform(admin(req), reason, {
       kind: 'CREATE_ITEM_TEMPLATE',
       targetType: 'item_template',
-      targetId: item.code,
-      payload: { fields: item },
-      undo: { kind: 'DELETE_ITEM_TEMPLATE', payload: { code: item.code } },
+      targetId: code,
+      payload: { fields: fields as Prisma.InputJsonValue, sale: sale as Prisma.InputJsonValue },
+      undo: { kind: 'DELETE_ITEM_TEMPLATE', payload: { code } },
     })
-    return reply.code(201).send({ actionId: action.actionId, code: item.code })
+    return reply.code(201).send({ actionId: action.actionId, code })
   })
 
   // ── Игроки ───────────────────────────────────────────────────

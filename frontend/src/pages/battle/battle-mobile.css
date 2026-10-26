@@ -118,7 +118,9 @@
 
 /* ── Хроника внизу: листается на месте ─────────────────────────── */
 .m-battle__log { min-height: 118px; max-height: 150px; display: grid; padding: 4px; }
-.m-battle__log .battle-chronicle { height: auto; border: 1px solid oklch(46% .04 55); grid-template-rows: 24px minmax(0, 1fr); }
+/* Старое правило «хроника скрыта на узком экране» (battle-phase-a.css)
+   относилось к прежнему мобильному бою; в новом хроника — своя полоса. */
+.m-battle__log .battle-chronicle { display: grid; height: auto; border: 1px solid oklch(46% .04 55); grid-template-rows: 24px minmax(0, 1fr); }
 .m-battle__log .battle-chronicle li { font-size: 13.5px; line-height: 1.35; padding: 2px 0; }
 .m-battle__log .battle-chronicle li i { width: auto; font-size: 12px; }
 

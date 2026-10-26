@@ -1,4 +1,5 @@
 import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
+import { unlockLocations } from './admin-session'
 import AxeBuilder from '@axe-core/playwright'
 import { DESIGNER_BATTLE_COLUMNS, DESIGNER_BATTLE_ROWS } from '../../src/shared/lib/designer-battle-grid'
 import { MENU } from '../../src/shared/lib/layout-map'
@@ -71,19 +72,6 @@ async function buyPrivateItem(request: APIRequestContext, account: Account, code
 }
 
 
-// Локации гейтятся по боевому уровню (обещание игрокам 22.10): тестовым
-// персонажам нужен уровень, открывающий Промзону и Фермы. Опыт выдаёт
-// админ-роут — досыпаем столько, чтобы хватило при любой кривой порогов.
-async function unlockLocations(request: APIRequestContext, characterId: string) {
-  const login = await request.post('/api/admin/auth/login', { data: { username: 'admin', password: 'admin_change_me_now' } })
-  expect(login.status()).toBe(200)
-  const { token } = await login.json() as { token: string }
-  const grant = await request.post('/api/admin/characters/exp', {
-    headers: { Authorization: `Bearer ${token}` },
-    data: { characterId, track: 'battle', amount: 50_000_000, reason: 'e2e: открыть локации по уровню' },
-  })
-  expect(grant.status()).toBe(200)
-}
 
 test.describe.configure({ mode: 'serial' })
 test.describe('Stage 2 visual and browser flow', () => {
@@ -554,41 +542,27 @@ test.describe('Stage 2 visual and browser flow', () => {
       await page.getByRole('button', { name: 'Поставить блок: корпус', exact: true }).click()
       await page.getByRole('button', { name: 'Поставить блок: ноги', exact: true }).click()
     } else {
-      await expect(page.locator('.battle-page-v3')).toBeVisible()
-      await expect(page.locator('.battle-fighter-panel')).toHaveCount(2)
-      await expect(page.locator('.battle-command-dock')).toBeVisible()
+      // Телефон (правка заказчика 23.10): бой потоковой композицией m-battle —
+      // шапка с таймером, строка HP обоих бойцов, поле, списки зон, хроника.
+      await expect(page.locator('.m-battle')).toBeVisible()
+      await expect(page.locator('.m-battle__fighter')).toHaveCount(2)
+      await expect(page.locator('.m-battle__zones .zone-list')).toHaveCount(2)
 
-      // Экран боя — фиксированная сцена макета, ужатая под окно. Мерить её
-      // scrollHeight бессмысленно: он показывает размер ДО масштабирования,
-      // то есть всегда 1312 или 1600. Смотрим то, что видит игрок: сцена
-      // после масштабирования влезает в окно и документ не прокручивается.
-      const geometry = await page.locator('.battle-mockup-scene').evaluate(element => {
-        const box = element.getBoundingClientRect()
-        return {
-          sceneWidth: box.width,
-          sceneHeight: box.height,
-          viewportWidth: window.innerWidth,
-          viewportHeight: window.innerHeight,
-          documentWidth: document.documentElement.scrollWidth,
-          documentHeight: document.documentElement.scrollHeight,
-        }
-      })
-      expect(geometry.sceneWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1)
-      expect(geometry.sceneHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1)
+      // Бой занимает весь экран без прокрутки.
+      const geometry = await page.evaluate(() => ({
+        documentWidth: document.documentElement.scrollWidth,
+        documentHeight: document.documentElement.scrollHeight,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      }))
       expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1)
       expect(geometry.documentHeight).toBeLessThanOrEqual(geometry.viewportHeight + 1)
 
-      // Обе панели стоят в один ряд: так их рисует макет телефона.
-      const rows = await page.locator('.battle-fighter-panel').evaluateAll(
-        panels => panels.map(panel => Math.round(panel.getBoundingClientRect().y)))
-      expect(new Set(rows).size, 'панели зон должны стоять на одной строке').toBe(1)
-
-      await page.locator('.battle-fighter-panel.is-enemy .battle-zone-cell.is-head').nth(1).click()
-      // Десять ячеек — ровно столько нарисовано в макете: у головы, корпуса
-      // и каждой руки по две, у ног (одна зона) тоже две.
-      await expect(page.locator('.battle-fighter-panel.is-self .battle-zone-cell')).toHaveCount(10)
-      await page.locator('.battle-fighter-panel.is-self .battle-zone-cell.is-chest').first().click()
-      await page.locator('.battle-fighter-panel.is-self .battle-zone-cell.is-legs').first().click()
+      // Списки зон — те же, что на сцене у компьютера: кнопки рук и блоков
+      // называются одинаково на обоих экранах.
+      await page.getByRole('button', { name: 'Удар правой рукой, цель: голова', exact: true }).click()
+      await page.getByRole('button', { name: 'Поставить блок: корпус', exact: true }).click()
+      await page.getByRole('button', { name: 'Поставить блок: ноги', exact: true }).click()
     }
 
     const actionRequest = page.waitForRequest(request => request.url().endsWith(`/api/battles/${battleId}/action`))

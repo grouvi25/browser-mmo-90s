@@ -434,8 +434,9 @@ export const adminApi = {
 
   updateItem: (code: string, fields: Record<string, unknown>, reason: string) =>
     request<{ actionId: string }>(`/api/admin/items/${code}`, { method: 'PATCH', body: { fields, reason } }),
-  createItem: (item: Record<string, unknown>, reason: string) =>
-    request<{ actionId: string; code: string }>('/api/admin/items', { method: 'POST', body: { item, reason } }),
+  /** Новая вещь; sale — сразу выставить в магазин (госмагазин или частная лавка). */
+  createItem: (item: Record<string, unknown>, sale: { shop: string; price: number } | null, reason: string) =>
+    request<{ actionId: string; code: string }>('/api/admin/items', { method: 'POST', body: { item, sale, reason } }),
   /** Та же симуляция, что на игровой ручке, но под админским токеном. */
   simulateBalance: <TIn, TOut>(input: TIn) =>
     request<TOut>('/api/admin/balance/simulate', { method: 'POST', body: input }),
