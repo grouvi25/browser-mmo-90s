@@ -9,6 +9,7 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { announcementsApi, type AnnouncementKind } from '../../shared/api/announcements.api'
+import { useMarkAnnouncementsSeen } from '../../shared/lib/unread-announcements'
 // Стили ленты жили в radio.css страницы Радио; Радио убрано, лента осталась
 // у Новостей и Обновлений.
 import './radio.css'
@@ -36,6 +37,7 @@ export function AnnouncementsFeed({ kind, empty }: { kind?: AnnouncementKind; em
   })
 
   const items = data?.items ?? []
+  useMarkAnnouncementsSeen(kind, data?.items)
 
   if (!isLoading && !items.length) {
     return <p className="radio__empty">{empty ?? 'Объявлений пока нет.'}</p>

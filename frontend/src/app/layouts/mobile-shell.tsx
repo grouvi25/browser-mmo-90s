@@ -22,6 +22,7 @@ import { LocationTabs } from '../../widgets/city-nav/location-tabs'
 import { MobileChat } from '../../widgets/city-feed/mobile-chat'
 import { useTableLabels } from '../../shared/lib/use-table-labels'
 import { ErrorBoundary } from '../error-boundary'
+import { useUnreadAnnouncements } from '../../shared/lib/unread-announcements'
 
 type Sheet = 'chat' | 'menu' | null
 
@@ -30,6 +31,10 @@ export function MobileShell() {
   const location = useLocation()
   const qc = useQueryClient()
   const { signOut } = useAuth()
+  const unread: Record<string, boolean> = {
+    news: useUnreadAnnouncements('NEWS'),
+    updates: useUnreadAnnouncements('PATCH'),
+  }
   const [sheet, setSheet] = useState<Sheet>(null)
   const viewRef = useRef<HTMLElement>(null)
   const sheetCloseRef = useRef<HTMLButtonElement>(null)
@@ -94,7 +99,7 @@ export function MobileShell() {
         <button type="button" className={'m-tabbar__btn' + (sheet === 'chat' ? ' is-active' : '')}
           onClick={() => setSheet(sheet === 'chat' ? null : 'chat')}>Чат</button>
         <button type="button" className={'m-tabbar__btn' + (sheet === 'menu' ? ' is-active' : '')}
-          onClick={() => setSheet(sheet === 'menu' ? null : 'menu')}>Ещё</button>
+          onClick={() => setSheet(sheet === 'menu' ? null : 'menu')}>Ещё{(unread.news || unread.updates) && <i className="m-unread" aria-label="есть новое" />}</button>
       </nav>
 
       {sheet && (
@@ -113,7 +118,7 @@ export function MobileShell() {
               <div className="m-menu">
                 {MENU.nav.filter(n => !n.action).map(n => (
                   <button key={n.key} type="button" className="m-menu__item" onClick={() => go(n.to)}>
-                    {n.label}
+                    {n.label}{unread[n.key] && <i className="m-unread" aria-label="есть новое" />}
                   </button>
                 ))}
                 <button type="button" className="m-menu__item" onClick={() => go('/inventory')}>склад</button>

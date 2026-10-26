@@ -60,6 +60,16 @@ export const AnnouncementsService = {
     })
   },
 
+  /** Закрепить или открепить: закреплённое висит сверху ленты. */
+  async pin(id: string, pinned: boolean) {
+    const { count } = await prisma.announcement.updateMany({
+      where: { id, removedAt: null },
+      data: { pinned },
+    })
+    if (!count) throw new AppError(ErrorCode.NOT_FOUND, 'Announcement not found', 404)
+    return { id, pinned }
+  },
+
   /** Убрать из ленты, оставив в истории. */
   async remove(id: string) {
     const { count } = await prisma.announcement.updateMany({

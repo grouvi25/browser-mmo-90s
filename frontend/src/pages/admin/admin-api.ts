@@ -10,6 +10,8 @@
 // Токен лежит в отдельном ключе. Смешивать их в одном нельзя: выход из игры
 // не должен выкидывать из админки, и наоборот.
 // =============================================================
+import type { Announcement, AnnouncementKind } from '../../shared/api/announcements.api'
+
 const BASE = (import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_API_BASE_URL || ''
 const TOKEN_KEY = 'mmo_admin_token'
 const ROLE_KEY = 'mmo_admin_role'
@@ -335,6 +337,12 @@ export interface ItemTemplateRow {
 // ── Ручки ────────────────────────────────────────────────────
 
 export const adminApi = {
+  // Объявления: «Обновления» и «Новости» в верхнем меню игры.
+  announcements: () => request<{ items: Announcement[] }>('/api/announcements/admin'),
+  publishAnnouncement: (body: { kind: AnnouncementKind; title: string; body: string; pinned: boolean }) =>
+    request<Announcement>('/api/announcements', { method: 'POST', body }),
+  pinAnnouncement: (id: string, pinned: boolean) => request(`/api/announcements/${id}/pin`, { method: 'PATCH', body: { pinned } }),
+  removeAnnouncement: (id: string) => request(`/api/announcements/${id}`, { method: 'DELETE' }),
   chatLog: (days: number) => request<{ days: number; items: ChatLogRow[] }>(`/api/admin/chat?days=${days}`),
   support: (status?: SupportStatus) => request<{ items: SupportRow[] }>(`/api/admin/support${status ? `?status=${status}` : ''}`),
   supportImage: (id: string) => requestBlobUrl(`/api/admin/support/${id}/image`),

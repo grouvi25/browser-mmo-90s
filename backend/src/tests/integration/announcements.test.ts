@@ -66,6 +66,19 @@ describe('объявления', () => {
     expect(row?.removedAt).not.toBeNull()
   })
 
+  it('закрепляет и открепляет из админки; снятое не закрепить', async () => {
+    const who = await admin()
+    await AnnouncementsService.publish({ kind: 'PATCH', title: 'Старое', body: 'Текст.', adminId: who.id })
+    const posted = await AnnouncementsService.publish({ kind: 'PATCH', title: 'Свежее', body: 'Текст.', adminId: who.id })
+    const old = (await AnnouncementsService.feed()).find(a => a.title === 'Старое')!
+    await AnnouncementsService.pin(old.id, true)
+    expect((await AnnouncementsService.feed()).map(a => a.title)).toEqual(['Старое', 'Свежее'])
+    await AnnouncementsService.pin(old.id, false)
+    expect((await AnnouncementsService.feed()).map(a => a.title)).toEqual(['Свежее', 'Старое'])
+    await AnnouncementsService.remove(posted.id)
+    await expect(AnnouncementsService.pin(posted.id, true)).rejects.toMatchObject({ statusCode: 404 })
+  })
+
   it('не снимает то, чего нет, и не снимает дважды', async () => {
     const who = await admin()
     const posted = await AnnouncementsService.publish({ kind: 'NEWS', title: 'Раз', body: 'Текст.', adminId: who.id })

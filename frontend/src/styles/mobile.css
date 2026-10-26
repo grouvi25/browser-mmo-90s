@@ -321,3 +321,6 @@
 /* Выбор смайлов не выше листа чата: иначе верхний ряд срезает край листа. */
 .m-chat__form .ether-emoji__grid { grid-template-columns: repeat(6, 44px); max-height: 212px; }
 .m-chat__form .ether-emoji__grid button { min-height: 44px; padding: 0; border: 0; background: none; font-size: 22px; }
+
+/* «Новое» в Новостях/Обновлениях (27.10): точка рядом с подписью. */
+.m-unread { display: inline-block; width: 7px; height: 7px; margin-left: 5px; border-radius: 50%; background: var(--red, #a12a2a); vertical-align: super; }

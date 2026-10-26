@@ -292,6 +292,10 @@ html, body {
 .stage-link { cursor: pointer; background: none; border: 0; padding: 0; }
 .stage-link:hover { color: var(--red); }
 .stage-link.is-active { color: var(--red); }
+/* «Новое» в Новостях/Обновлениях: опубликовано, ещё не прочитано. Точка
+   поверх кнопки, раскладку не двигает. */
+.stage-link.has-unread { color: var(--red); }
+.stage-link.has-unread::after { content: ""; position: absolute; top: 3px; right: -9px; width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 2px rgba(255, 255, 255, .8); pointer-events: none; }
 .stage-link.is-locked { color: #6f6f6f; cursor: not-allowed; }
 .stage-link.is-locked:hover { color: #6f6f6f; }
 .stage-link--exit { color: var(--red); }
