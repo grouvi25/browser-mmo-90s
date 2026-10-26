@@ -220,6 +220,16 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page).toHaveURL(/\/pvp$/)
   })
 
+  // Вопрос заказчика 22.10 «откуда такая посещаемость»: счётчик Метрики
+  // грузился и на тестовой сборке, и каждый прогон автотестов шёл в визиты.
+  test('автотесты и чужие адреса не шлют визиты в Яндекс.Метрику', async ({ page }) => {
+    const hits: string[] = []
+    page.on('request', request => { if (request.url().includes('mc.yandex.ru')) hits.push(request.url()) })
+    await page.goto('/login')
+    await page.waitForLoadState('networkidle')
+    expect(hits).toEqual([])
+  })
+
   test('expired session redirects instead of rendering empty Stage 2 data', async ({ page }) => {
     await page.goto('/login')
     await page.evaluate(() => {
