@@ -31,9 +31,13 @@ export interface ProductionObject {
   storageCapacity: number
   activeRecipeId?: string | null
   profileSwitchEndsAt: string | null
-  inventory: Array<{ resourceCode: string; quality: string; amount: number; reservedAmount: number }>
+  inventory: Array<{ resourceCode: string; resourceName?: string; quality: string; amount: number; reservedAmount: number }>
   cycles: ObjectCycle[]
   equipment?: { name: string; tier: number } | null
+  /** Только в «Моих объектах»: что объект добывает, кто сейчас на смене, выплаты за сутки. */
+  producesResourceName?: string | null
+  workers?: Array<{ nickname: string; endsAt: string }>
+  day?: { shifts: number; salaryPaid: number }
 }
 
 export interface ObjectRecipe {
@@ -80,4 +84,8 @@ export const productionApi = {
   switchProfile: (id: string, recipeId: string) =>
     api.post(`/api/production/objects/${id}/profile`, { recipeId }, idem()),
   startCycle: (id: string) => api.post<StartCycleResult>(`/api/production/objects/${id}/cycles/start`),
+  stockTake: (id: string, resourceCode: string, amount: number) =>
+    api.post(`/api/production/objects/${id}/stock/take`, { resourceCode, amount }, idem()),
+  stockPut: (id: string, resourceCode: string, amount: number) =>
+    api.post(`/api/production/objects/${id}/stock/put`, { resourceCode, amount }, idem()),
 }

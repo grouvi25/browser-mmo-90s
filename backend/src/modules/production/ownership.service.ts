@@ -4,6 +4,8 @@ import { withIdempotency } from '../../shared/db/idempotency'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
+import { ResourcesService } from '../resources/resources.service'
+import { ObjectInventoryService } from './inventory.service'
 import { objectRepairQuote, objectResalePayout, objectSalaryRange, objectWithdrawTax, profileSwitchEndsAt } from './ownership.formulas'
 
 const config = BalanceConfig.economy.production
@@ -145,6 +147,55 @@ export const OwnershipService = {
         data: { characterId, productionObjectId: objectId, eventType: 'OBJECT_BALANCE_CHANGED', metadataJson: { withdraw: amount, tax, payout } },
       })
       return { payout, tax, newBalance }
+    } })
+  },
+
+  /**
+   * Забрать со склада объекта к себе (обещание игрокам 23.10: «владелец
+   * завода получает ресурсы, которые остаются у него, и он может
+   * перерабатывать или продавать их»). Раньше склад объекта нельзя было ни
+   * пополнить, ни разобрать: выпуск копился там навсегда, а цикл с сырьём
+   * на входе не мог стартовать вовсе.
+   */
+  async stockTake(characterId: string, objectId: string, resourceCode: string, amount: number, key: string) {
+    return withIdempotency({ characterId, scope: 'objects.stock.take', key, execute: async tx => {
+      const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
+      if (object.ownerType !== 'PRIVATE' || object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Объект вам не принадлежит', 403)
+      const template = await tx.resourceTemplate.findUnique({ where: { code: resourceCode } })
+      if (!template) throw new AppError(ErrorCode.PROD_INVARIANT, 'Нет такого ресурса', 404)
+      const rows = await tx.productionObjectInventory.findMany({ where: { productionObjectId: objectId, resourceCode } })
+      const free = rows.reduce((sum, row) => sum + row.amount - row.reservedAmount, 0)
+      if (free < amount) throw new AppError(ErrorCode.PROD_RESERVED, `На складе объекта свободно только ${free}`, 409, { free })
+      let left = amount
+      for (const row of rows) {
+        const take = Math.min(left, row.amount - row.reservedAmount)
+        if (take <= 0) continue
+        const changed = await tx.productionObjectInventory.updateMany({
+          where: { id: row.id, amount: row.amount, reservedAmount: row.reservedAmount },
+          data: { amount: { decrement: take } },
+        })
+        if (changed.count !== 1) throw new AppError(ErrorCode.PROD_INVARIANT, 'Склад объекта изменился, повторите', 409)
+        left -= take
+        if (left === 0) break
+      }
+      const stack = await ResourcesService.add(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'OBJECT_STOCK_TAKE', refType: 'production_object', refId: objectId })
+      return { resourceCode, amount, ownAmount: stack.amount, objectLeft: free - amount }
+    } })
+  },
+
+  /** Положить своё сырьё на склад объекта — им цикл и питается. */
+  async stockPut(characterId: string, objectId: string, resourceCode: string, amount: number, key: string) {
+    return withIdempotency({ characterId, scope: 'objects.stock.put', key, execute: async tx => {
+      const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
+      if (object.ownerType !== 'PRIVATE' || object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Объект вам не принадлежит', 403)
+      const template = await tx.resourceTemplate.findUnique({ where: { code: resourceCode } })
+      if (!template) throw new AppError(ErrorCode.PROD_INVARIANT, 'Нет такого ресурса', 404)
+      const stack = await tx.resourceStack.findUnique({ where: { characterId_resourceTemplateId: { characterId, resourceTemplateId: template.id } } })
+      const free = Math.max(0, (stack?.amount ?? 0) - (stack?.reservedAmount ?? 0))
+      if (free < amount) throw new AppError(ErrorCode.RES_INSUFFICIENT, `У вас свободно только ${free}`, 409, { free })
+      await ResourcesService.consume(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'OBJECT_STOCK_PUT', refType: 'production_object', refId: objectId })
+      const row = await ObjectInventoryService.put(tx, { objectId, resourceCode, quality: 'NORMAL', amount, capacity: object.storageCapacity })
+      return { resourceCode, amount, objectAmount: row.amount }
     } })
   },
 

@@ -9,7 +9,7 @@ const time = (seconds:number) => {
   return h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`
 }
 const errorText=(error:unknown)=>error instanceof Error?error.message:'Не удалось выполнить действие'
-type Receipt={salary:number;professionExpGain:number;professionLevel:number;resourceReward:{code:string;amount:number}|null;toolUse:{itemId:string;usesLeft:number}|null;newBalance?:number;resourceName?:string;levelBefore:number}
+type Receipt={salary:number;professionExpGain:number;professionLevel:number;resourceReward:{code:string;amount:number}|null;resourceToOwner?:{code:string;amount:number}|null;toolUse:{itemId:string;usesLeft:number}|null;newBalance?:number;resourceName?:string;levelBefore:number}
 
 function Progress({level,exp}:{level:number;exp:number}){
   const floor=XP[level]??XP[XP.length-1], ceiling=XP[level+1]
@@ -22,6 +22,7 @@ function lockReason(object:ProductionObjectView,busy:boolean,limit:boolean){
   if(!object.toolAvailable)return `Нужен инструмент T${object.equipment?.requiredToolTier??1}`
   if(limit)return 'Лимит смен на сегодня исчерпан'
   if(busy)return 'Сначала завершите текущую смену'
+  if(object.employer&&!object.employer.canPay)return 'У владельца нет денег на зарплату'
   return ''
 }
 
@@ -55,6 +56,7 @@ export function WorkPage(){
         <tr><td>Заработок</td><td className="num"><b>+{receipt.salary.toLocaleString('ru')} ₽</b></td></tr>
         <tr><td>Опыт профессии</td><td className="num">+{receipt.professionExpGain} XP</td></tr>
         {receipt.resourceReward&&<tr><td>{receipt.resourceName??receipt.resourceReward.code}</td><td className="num">+{receipt.resourceReward.amount}</td></tr>}
+        {receipt.resourceToOwner&&<tr><td>Сырьё ушло владельцу завода</td><td className="num">{receipt.resourceToOwner.amount}</td></tr>}
         {receipt.toolUse&&<tr><td>Осталось использований инструмента</td><td className="num">{receipt.toolUse.usesLeft}</td></tr>}
         {receipt.professionLevel>receipt.levelBefore&&<tr><td>Новый уровень профессии</td><td className="num"><b>{receipt.professionLevel}</b></td></tr>}
         <tr><td>Новый баланс</td><td className="num">{(receipt.newBalance??0).toLocaleString('ru')} ₽</td></tr>
@@ -75,7 +77,7 @@ export function WorkPage(){
     </div></div>
 
     <div className="panel" id="vacancies"><div className="panel-header"><span className="panel-title">Вакансии</span><span>Оплата и выработка за смену</span></div><div className="panel-body">
-      {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items?.map(object=>{const reason=lockReason(object,!!shift,used>=limit);return <tr key={object.id} className={reason?'is-muted':''}><td><b>{object.name}</b>{reason&&<small className="work-reason">{reason}{!object.profession.learned&&<> · <Link to="/school">в Училище</Link></>}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{object.shiftDurationMinutes} мин</td><td>{object.baseSalary.toLocaleString('ru')} ₽</td><td>+{object.baseProductionExp} XP</td><td>{object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}`:'—'}</td><td><button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate(object)}>Выйти</button></td></tr>})}</tbody></table>}
+      {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items?.map(object=>{const reason=lockReason(object,!!shift,used>=limit);return <tr key={object.id} className={reason?'is-muted':''}><td><b>{object.name}</b>{object.employer&&<small className="work-employer">{object.employer.isMe?'ваш завод':`частный · ${object.employer.nickname??'владелец'}`}</small>}{reason&&<small className="work-reason">{reason}{!object.profession.learned&&<> · <Link to="/school">в Училище</Link></>}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{object.shiftDurationMinutes} мин</td><td>{(object.offeredSalary??object.baseSalary).toLocaleString('ru')} ₽</td><td>+{object.baseProductionExp} XP</td><td>{object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}${object.employer&&!object.employer.isMe?' — владельцу':''}`:'—'}</td><td><button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate(object)}>Выйти</button></td></tr>})}</tbody></table>}
     </div></div>
   </div>
 }

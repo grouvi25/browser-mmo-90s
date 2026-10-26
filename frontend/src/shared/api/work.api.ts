@@ -5,6 +5,10 @@ export interface ProductionObjectView {
   id:string; code:string; name:string; requiredProfessionCode:string; requiredProfessionLevel:number
   shiftDurationMinutes:number; baseSalary:number; baseProductionExp:number; producesResourceCode:string|null
   producesResourceName:string|null; outputAmountMin:number; outputAmountMax:number; locked:boolean; toolAvailable:boolean; equipment:{code:string;name:string;tier:number;requiredToolTier:number}|null; profession:ProfessionView&{learned:boolean}
+  /** Ставка, которую платят: у частного завода её задаёт владелец. */
+  offeredSalary?:number
+  /** Частный завод: чей он и хватит ли в кассе на зарплату. */
+  employer?:{nickname:string|null;isMe:boolean;canPay:boolean}|null
 }
 export interface WorkShiftView {
   id:string; status:string; startedAt:string; endsAt:string; baseSalary:number; professionCode:string

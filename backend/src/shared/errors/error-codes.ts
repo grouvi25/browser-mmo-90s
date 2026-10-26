@@ -57,6 +57,7 @@ export enum ErrorCode {
   WORK_TOOL_UNAVAILABLE   = 'WORK_012',
   WORK_PROFESSION_REQUIRED = 'WORK_013',
   WORK_RESTING            = 'WORK_014',
+  WORK_EMPLOYER_NO_MONEY  = 'WORK_015',
 
   // Stage 2 resources / shops / market / upgrades / economy
   RES_INVALID_AMOUNT       = 'RES_001',
