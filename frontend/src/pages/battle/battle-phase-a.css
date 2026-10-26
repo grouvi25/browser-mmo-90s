@@ -1585,3 +1585,34 @@
 @media (prefers-reduced-motion: reduce) {
   .battle-field-v3 .fighter-token .token-hp > i { transition: none; }
 }
+
+/* ── Точное здоровье при наведении на фигуру (заказчик 27.10) ──
+   Клетка целиком на мышь не реагирует (см. .hex-cell выше), поэтому
+   наведение ловит сама картинка бойца: «ровно на самой иконке». Нажатие
+   по фигуре противника всплывает к клетке и выбирает его целью, как раньше.
+   Подсказка не двигает раскладку и не перехватывает мышь. */
+.battle-field-v3 .fighter-token > img.token-figure { pointer-events: auto; }
+.battle-field-v3 .hex-cell.is-clickable .fighter-token > img.token-figure { cursor: pointer; }
+.battle-field-v3 .fighter-token .token-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 9px);
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 2px 6px;
+  white-space: nowrap;
+  font: 700 12px/1.3 var(--font-ui, Arial, sans-serif);
+  color: oklch(97% .01 70);
+  background: oklch(22% .02 30 / .92);
+  border: 1px solid oklch(15% .02 30);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 120ms;
+}
+.battle-field-v3 .fighter-token > img.token-figure:hover ~ .token-tip,
+.battle-field-v3 .fighter-token > img.token-figure:active ~ .token-tip { opacity: 1; visibility: visible; }
+.battle-field-v3 .fighter-token:has(> img.token-figure:hover) { z-index: 15; }
+@media (prefers-reduced-motion: reduce) {
+  .battle-field-v3 .fighter-token .token-tip { transition: none; }
+}

@@ -58,7 +58,7 @@ function BattleGrid({
   playerHit, enemyHit, playerAttack, enemyAttack, lastEvent,
   playerPosition, selectedMove, onSelectMove,
   participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget, range, arena, obstacles,
-  playerHp, enemyHp,
+  playerHp, enemyHp, names,
 }: {
   playerName: string
   enemyName: string
@@ -85,6 +85,8 @@ function BattleGrid({
    *  чем живое состояние до следующего опроса. */
   playerHp?: number
   enemyHp?: number
+  /** Имена бойцов по участнику — для подсказки при наведении на фигуру. */
+  names?: Record<string, string>
 }) {
   const midRow = Math.floor(GRID_ROWS / 2)
   return (
@@ -124,10 +126,15 @@ function BattleGrid({
                 : isTarget ? (enemyHp ?? occupant.hpCurrent)
                   : occupant.hpCurrent
             const hpBar = occupant && occupant.hpMax > 0 && (
-              <span className="token-hp" title={`${hpNow} / ${occupant.hpMax}`}>
+              <span className="token-hp">
                 <i style={{ transform: `scaleX(${Math.max(0, Math.min(1, hpNow / occupant.hpMax))})` }} />
               </span>
             )
+            // Точное здоровье — при наведении ровно на фигуру (заказчик 27.10:
+            // «главное, чтобы при наведении считалось ровно на самой иконке
+            // персонажа»; полоска остаётся, цифры над ней в толпе — каша).
+            const who = occupant ? (isPlayer ? playerName : names?.[occupant.participantId] ?? (isEnemy ? 'Противник' : 'Союзник')) : ''
+            const tip = occupant && <span className="token-tip" role="tooltip">{who} · {hpNow} / {occupant.hpMax} HP</span>
             return (
               <div
                 key={`${row}-${col}`}
@@ -161,14 +168,16 @@ function BattleGrid({
                 {barrel && <span className="hex-barrel" style={fighterStyle} title="Бочка: не пройти и не прострелить" role="img" aria-label="Бочка" />}
                 {(isPlayer || isAlly) && occupant && (
                   <div style={fighterStyle} className={`fighter-token token-player ${isPlayer ? 'token-self' : 'token-ally'} ${isPlayer && playerHit ? 'token-hit' : ''} ${isPlayer && playerAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
-                    {!occupant.isAlive ? <Skull size={16} /> : <img src={fighterBlue} srcSet={`${fighterBlue2x} 2x`} alt="" />}
+                    {!occupant.isAlive ? <Skull size={16} /> : <img className="token-figure" src={fighterBlue} srcSet={`${fighterBlue2x} 2x`} alt={who} />}
+                    {tip}
                     {hpBar}
                     <span className="token-label">{isPlayer ? playerName.slice(0, 5) : 'Союзн.'}</span>
                   </div>
                 )}
                 {isEnemy && occupant && (
                   <div style={fighterStyle} className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${isTarget && enemyAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
-                    {!occupant.isAlive ? <Skull size={16} /> : <img src={fighterRed} srcSet={`${fighterRed2x} 2x`} alt="" />}
+                    {!occupant.isAlive ? <Skull size={16} /> : <img className="token-figure" src={fighterRed} srcSet={`${fighterRed2x} 2x`} alt={who} />}
+                    {tip}
                     {hpBar}
                     <span className="token-label">{isTarget ? enemyName.slice(0, 5) : 'Враг'}</span>
                     {isTarget && <span className="token-target-label">ЦЕЛЬ</span>}
@@ -543,7 +552,8 @@ export function BattlePage() {
     participants={live?.participants} playerParticipantId={pPart?.participantId} arena={live?.arena} obstacles={live?.obstacles}
     playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
     onSelectTarget={setSelectedTargetId} range={playerRange ?? undefined}
-    playerHp={pHp} enemyHp={ePart ? eHp : undefined} />
+    playerHp={pHp} enemyHp={ePart ? eHp : undefined}
+    names={Object.fromEntries(profiles.map(profile => [profile.participantId, profile.name]))} />
 
   // ── Телефон: тот же новый бой потоковой композицией (правка 23.10:
   //    «на моб версии бой старый»). Блоки те же, что на сцене у
