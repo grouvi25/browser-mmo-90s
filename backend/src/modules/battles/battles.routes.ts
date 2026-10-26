@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { authenticate } from '../../shared/security/auth-middleware'
+import { prisma } from '../../shared/db/prisma'
 import { BattleService } from './battles.service'
 import { BattleJournal } from './battle-journal'
 import { ApplicationsService, APPLICATION_DELAYS, APPLICATION_MAX_TEAM } from './applications.service'
@@ -62,6 +63,17 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
   // прежние ручки «создал — и сразу в бой» убраны по правке заказчика.
 
   // GET /api/battles/applications — общий список заявок и идущих боёв
+  // ── Боты для боя: список собирается из базы, а не зашит в интерфейс —
+  // новый бот появляется на Стрелках сам.
+  fastify.get('/bots', { preHandler: authenticate },
+    async (_req, reply) => {
+      const bots = await prisma.bot.findMany({
+        where: { isActive: true }, orderBy: { battleLevel: 'asc' },
+        select: { code: true, name: true, battleLevel: true, moneyRewardMin: true, moneyRewardMax: true },
+      })
+      return reply.send({ items: bots })
+    })
+
   fastify.get('/applications', { preHandler: authenticate },
     async (req, reply) => reply.send(await ApplicationsService.list(req.authUser.userId)))
 

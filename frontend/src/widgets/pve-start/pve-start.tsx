@@ -16,18 +16,20 @@ import { inventoryApi } from '../../shared/api/inventory.api'
 import { ApiError } from '../../shared/api/client'
 import { useBattleLoadout } from '../../shared/lib/battle-loadout'
 
-const BOTS = [
-  { code: 'training_bandit', label: 'Тренировочный хулиган', level: 1, reward: '20–50 ₽', tone: 'ok' },
-  { code: 'basic_gangster', label: 'Гопник', level: 2, reward: '50–120 ₽', tone: 'warn' },
-  { code: 'armed_thug', label: 'Вооружённый бандит', level: 4, reward: '100–300 ₽', tone: 'danger' },
-] as const
+/** Насколько бот опасен для этого игрока — по разнице уровней. */
+function toneOf(botLevel: number, myLevel: number): 'ok' | 'warn' | 'danger' {
+  return botLevel <= myLevel ? 'ok' : botLevel <= myLevel + 2 ? 'warn' : 'danger'
+}
 
 /** embedded — внутри формы заявок Стрелков: без своей рамки и заголовка. */
 export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const [bot, setBot] = useState<string>(BOTS[0].code)
+  const [picked, setPicked] = useState<string | null>(null)
   const [error, setError] = useState('')
+  // Список ботов — с сервера: новый бот появляется здесь сам.
+  const bots = useQuery({ queryKey: ['battle', 'bots'], queryFn: battlesApi.bots, staleTime: 300_000 })
+  const list = bots.data?.items ?? []
 
   const { data: char } = useQuery({
     queryKey: ['character', 'me'],
@@ -39,8 +41,9 @@ export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
     enabled: !!char,
   })
 
+  const bot = picked ?? list[0]?.code ?? null
   const start = useMutation({
-    mutationFn: () => battlesApi.startPve(bot),
+    mutationFn: () => battlesApi.startPve(bot!),
     onSuccess: data => {
       qc.invalidateQueries({ queryKey: ['character'] })
       localStorage.setItem('mmo_current_battle', data.battleId)
@@ -72,18 +75,22 @@ export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
 
       <div className={embedded ? '' : 'panel-body'}>
         <div className="arena-pve__bots">
-          {BOTS.map(b => {
-            const tooStrong = char ? b.level > char.battleLevel + 3 : false
+          {bots.isLoading && <p role="status" className="arena-pve__loading">Загрузка…</p>}
+          {bots.isError && <p role="alert">Список не загрузился. <button type="button" className="linklike" onClick={() => void bots.refetch()}>Повторить</button></p>}
+          {list.map(b => {
+            const myLevel = char?.battleLevel ?? 1
+            const tooStrong = b.battleLevel > myLevel + 3
             return (
               <button
                 key={b.code}
                 type="button"
-                className={'arena-bot arena-bot--' + b.tone + (bot === b.code ? ' is-active' : '')}
-                onClick={() => setBot(b.code)}
-                title={tooStrong ? 'Заметно сильнее вас — опыт срежется' : undefined}
+                className={'arena-bot arena-bot--' + toneOf(b.battleLevel, myLevel) + (bot === b.code ? ' is-active' : '')}
+                aria-pressed={bot === b.code}
+                onClick={() => setPicked(b.code)}
+                title={tooStrong ? 'Заметно сильнее вас — бой рискованный' : undefined}
               >
-                <span className="arena-bot__name">{b.label}</span>
-                <span className="arena-bot__meta">ур. {b.level} · {b.reward}</span>
+                <span className="arena-bot__name">{b.name}</span>
+                <span className="arena-bot__meta">ур. {b.battleLevel} · {b.moneyRewardMin}–{b.moneyRewardMax} ₽</span>
                 {tooStrong && <span className="arena-bot__warn">рискованно</span>}
               </button>
             )
@@ -125,7 +132,7 @@ export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
           <button
             type="button"
             className="btn btn-primary arena-pve__go"
-            disabled={start.isPending || !char || inBattle}
+            disabled={start.isPending || !char || inBattle || !bot}
             onClick={() => { setError(''); start.mutate() }}
           >
             {start.isPending ? 'Начинаем…' : 'В бой'}

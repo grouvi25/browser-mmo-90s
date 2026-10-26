@@ -230,6 +230,27 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(hits).toEqual([])
   })
 
+  // Обещание игрокам 23.10: боты для кача выше 4-го уровня. Список ботов на
+  // Стрелках собирается из базы, а бой с каждым новым ботом стартует.
+  test('на Стрелках боты из базы, включая новых 6–15 уровня', async ({ page }) => {
+    const listed = await apiContext.get('/api/battles/bots', { headers: { Authorization: `Bearer ${seller.token}` } })
+    expect(listed.status()).toBe(200)
+    const bots = (await listed.json() as { items: Array<{ code: string; battleLevel: number }> }).items
+    expect(bots.map(b => b.battleLevel)).toEqual([...bots.map(b => b.battleLevel)].sort((a, b) => a - b))
+    expect(bots.map(b => b.code)).toEqual(expect.arrayContaining(['training_bandit', 'bratok', 'boevik', 'avtoritet', 'smotryashchiy']))
+    for (const code of ['bratok', 'boevik', 'avtoritet', 'smotryashchiy']) {
+      const started = await apiContext.post('/api/battles/pve/start', { headers: { Authorization: `Bearer ${seller.token}` }, data: { botCode: code } })
+      expect(started.status(), code).toBe(201)
+      const { battleId } = await started.json() as { battleId: string }
+      await apiContext.post(`/api/battles/${battleId}/action`, { headers: { Authorization: `Bearer ${seller.token}` }, data: { action: 'surrender' } })
+    }
+    await authPage(page, seller)
+    await page.goto('/pvp')
+    await page.getByRole('button', { name: 'Бой с ботом' }).click()
+    await expect(page.locator('.arena-bot')).toHaveCount(bots.length)
+    await expect(page.locator('.arena-bot', { hasText: 'Смотрящий' })).toContainText('ур. 15')
+  })
+
   test('expired session redirects instead of rendering empty Stage 2 data', async ({ page }) => {
     await page.goto('/login')
     await page.evaluate(() => {
