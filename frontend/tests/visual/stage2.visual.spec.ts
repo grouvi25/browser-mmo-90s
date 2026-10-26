@@ -196,6 +196,30 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.getByText('Армейские берцы').first()).toBeVisible()
   })
 
+  // Документ заказчика: «после боя — полный лог и кнопка для перехода на
+  // локацию, с которой игрок в бой зашёл».
+  test('после боя: журнал и кнопка «Вернуться» на локацию, откуда пришли', async ({ page }) => {
+    await authPage(page, worker)
+    await page.goto('/pvp')
+    await expect(page.locator('[data-stage-nav="center"]')).toBeVisible()
+    // Локация сохраняется на сервере — ждём, пока /pvp запишется последней.
+    await expect.poll(async () => (await (await page.request.get(`${API}/api/city/location`, { headers: { Authorization: `Bearer ${worker.token}` } })).json() as { path: string }).path).toBe('/pvp')
+    const started = await apiContext.post('/api/battles/pve/start', {
+      headers: { Authorization: `Bearer ${worker.token}` }, data: { botCode: 'training_bandit' },
+    })
+    expect(started.status()).toBe(201)
+    const battleId = (await started.json() as { battleId: string }).battleId
+    await page.goto(`/battle/${battleId}`)
+    await apiContext.post(`/api/battles/${battleId}/action`, {
+      headers: { Authorization: `Bearer ${worker.token}` }, data: { action: 'surrender' },
+    })
+    const back = page.getByRole('button', { name: 'Вернуться: Стрелки' })
+    await expect(back).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText('Журнал боя')).toBeVisible()
+    await back.click()
+    await expect(page).toHaveURL(/\/pvp$/)
+  })
+
   test('expired session redirects instead of rendering empty Stage 2 data', async ({ page }) => {
     await page.goto('/login')
     await page.evaluate(() => {
