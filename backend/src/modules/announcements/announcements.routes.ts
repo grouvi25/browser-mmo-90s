@@ -50,6 +50,26 @@ export async function announcementsRoutes(fastify: FastifyInstance) {
     },
   )
 
+  // Лента для админки: игровая ручка требует игровой токен, а у
+  // администратора свой вход. Те же объявления всех видов.
+  fastify.get(
+    '/admin',
+    { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') },
+    async (_req, reply) => reply.send({ items: await AnnouncementsService.feed() }),
+  )
+
+  fastify.patch<{ Params: { id: string }; Body: unknown }>(
+    '/:id/pin',
+    { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') },
+    async (req, reply) => {
+      const parsed = z.object({ pinned: z.boolean() }).safeParse(req.body)
+      if (!z.string().uuid().safeParse(req.params.id).success || !parsed.success) {
+        return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      }
+      return reply.send(await AnnouncementsService.pin(req.params.id, parsed.data.pinned))
+    },
+  )
+
   fastify.delete<{ Params: { id: string } }>(
     '/:id',
     { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') },

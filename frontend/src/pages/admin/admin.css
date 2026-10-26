@@ -471,3 +471,21 @@
 .adm-ticket__form { display: grid; gap: 6px; }
 .adm-ticket__form textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 6px 8px; font: inherit; }
 .adm-ticket__actions { display: flex; gap: 6px; }
+
+/* Объявления: «Обновления» и «Новости» в меню игры (27.10). */
+.adm-announce-form { display: grid; gap: 8px; margin-bottom: 14px; }
+.adm-announce-form .adm-check { display: flex; align-items: center; gap: 6px; align-self: end; min-height: 32px; font-size: 13px; }
+.adm-announce-form .adm-check input { width: auto; min-height: 0; }
+.adm-announce-title { grid-column: span 2; }
+.adm-announce-body { display: grid; gap: 2px; }
+.adm-announce-body span { font-size: 12px; color: var(--s3-dim, #6b5b4a); }
+.adm-announce-body textarea { width: 100%; min-height: 140px; padding: 6px 8px; font: inherit; resize: vertical; }
+.adm-announce-list { display: grid; gap: 10px; }
+.adm-announce-list article { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--s3-line, #c9b8a5); background: rgba(255, 255, 255, .45); }
+.adm-announce-list article.is-pinned { border-color: #a4762a; background: rgba(164, 118, 42, .08); }
+.adm-announce-list header { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.adm-announce-list header small { color: var(--s3-dim, #6b5b4a); }
+.adm-announce-list p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.adm-announce-actions { display: flex; gap: 8px; }
+.adm-announce-actions .danger { color: #a12a2a; }
+@media (max-width: 640px) { .adm-announce-title { grid-column: auto; } }

@@ -7,6 +7,7 @@ import { FitText, MIN_SQUEEZE, type StageBox } from '../../shared/lib/stage'
 import { useAuth } from '../../app/providers/auth-provider'
 import { authApi } from '../../shared/api/auth.api'
 import { charactersApi } from '../../shared/api/characters.api'
+import { useUnreadAnnouncements } from '../../shared/lib/unread-announcements'
 
 interface StageTab {
   key: string
@@ -172,6 +173,11 @@ export function TopNav() {
   const location = useLocation()
   const qc = useQueryClient()
   const { signOut } = useAuth()
+  // Отметка «новое»: администрация что-то опубликовала, игрок ещё не читал.
+  const unread: Record<string, boolean> = {
+    news: useUnreadAnnouncements('NEWS'),
+    updates: useUnreadAnnouncements('PATCH'),
+  }
 
   const handleLogout = async () => {
     try { await authApi.logout() } catch { /* Сессия могла истечь, выходим всё равно. */ }
@@ -192,9 +198,10 @@ export function TopNav() {
           x={n.x} y={n.y} w={n.w} size={MENU.navFontSize} dy={MENU.navDy}
           as="button"
           className={'t-sign stage-link'
-            + (!n.action && location.pathname === n.to ? ' is-active' : '')}
+            + (!n.action && location.pathname === n.to ? ' is-active' : '')
+            + (unread[n.key] ? ' has-unread' : '')}
           onClick={() => go(n.to)}
-          title={n.label}
+          title={unread[n.key] ? n.label + ' — есть новое' : n.label}
         >
           {n.label}
         </FitText>
