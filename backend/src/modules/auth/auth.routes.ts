@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { AuthService } from './auth.service'
-import { RegisterSchema, LoginSchema, POLICY_REQUIRED } from './auth.schemas'
+import { RegisterSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema, POLICY_REQUIRED } from './auth.schemas'
+import { PasswordResetService } from './password-reset.service'
 import { authenticate } from '../../shared/security/auth-middleware'
 
 const AUTH_RATE_LIMIT = {
@@ -11,6 +12,10 @@ const AUTH_RATE_LIMIT = {
     },
   },
 }
+
+// Заявок на сброс — не больше пяти за четверть часа с адреса: иначе
+// бот администрации завалят по чужим логинам.
+const RESET_RATE_LIMIT = { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }
 
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/register', AUTH_RATE_LIMIT, async (req: FastifyRequest, reply: FastifyReply) => {
@@ -51,6 +56,18 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
     )
 
     return reply.send({ token, userId, login })
+  })
+
+  fastify.post('/password/forgot', RESET_RATE_LIMIT, async (req: FastifyRequest, reply: FastifyReply) => {
+    const parsed = ForgotPasswordSchema.safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Укажите логин или почту' })
+    return reply.send(await PasswordResetService.request(parsed.data.login, req.ip))
+  })
+
+  fastify.post('/password/reset', AUTH_RATE_LIMIT, async (req: FastifyRequest, reply: FastifyReply) => {
+    const parsed = ResetPasswordSchema.safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Пароль — от 6 до 100 символов' })
+    return reply.send(await PasswordResetService.reset(parsed.data.token, parsed.data.password))
   })
 
   fastify.post('/logout', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {

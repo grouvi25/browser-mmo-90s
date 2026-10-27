@@ -3313,6 +3313,9 @@ button { font-family: inherit; }
 .auth-consent input:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 2px; }
 .auth-consent a, .auth-policy-link a { color: inherit; text-decoration: underline; }
 .auth-consent a:hover, .auth-policy-link a:hover { text-decoration: none; }
+/* «Забыли пароль?» под полем пароля. */
+.auth-forgot { display: inline-block; margin-top: 6px; font-size: 13px; color: inherit; text-decoration: underline; }
+.auth-forgot:hover { text-decoration: none; }
 .auth-policy-link { margin-top: 6px; font-size: 12.5px; opacity: .85; }
 .stats-derived { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; padding: 10px; background: var(--bg-panel2); border: 1px solid var(--border); font-size: 13.9px; }
 .stats-derived > div { display: flex; flex-direction: column; gap: 2px; }

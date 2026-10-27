@@ -69,6 +69,7 @@ export function LoginPage() {
                 value={form.password}
                 onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
               />
+              <Link className="auth-forgot" to="/forgot-password">Забыли пароль?</Link>
             </div>
 
             <button
