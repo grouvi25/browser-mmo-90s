@@ -128,3 +128,38 @@
 .m-battle .battle-error-v3 { top: 42px; bottom: auto; z-index: 30; }
 .m-battle .battle-drawer { position: absolute; inset: 0; align-items: stretch; z-index: 40; }
 .m-battle .battle-drawer > section { width: 100%; max-width: none; margin: 0; max-height: none; }
+
+/* ── Поле крупнее (доводка телефона 27.10) ─────────────────────────
+   Раньше карта вписывалась по ширине телефона: 380 px на 208, фигурки
+   по 20 px, а сверху и снизу оставались пустые полосы — в групповом бою
+   своих было не разглядеть. Теперь карта занимает всю высоту поля и
+   листается пальцем вбок; при открытии своя фигура встаёт по центру
+   (battle-page.tsx). */
+.m-battle__field { align-content: stretch; }
+/* grid-area: field — от сцены компьютера; здесь такой области нет, и
+   поле уезжало во второй, неявный ряд под пустым первым. */
+.m-battle__field .battle-field-v3 { grid-area: auto; min-height: 0; }
+.m-battle__field .hex-board {
+  padding: 0;
+  justify-items: start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.m-battle__field .hex-board::-webkit-scrollbar { display: none; }
+.m-battle__field .grid-arena { min-height: 0; }
+.m-battle__field .hex-board { position: relative; flex: 1 1 auto; min-height: 0; }
+/* Высота карты — от высоты поля, ширина — по пропорции рисунка. */
+.m-battle__field .designer-battle-field { position: absolute; top: 0; left: 0; height: 100%; width: auto; max-width: none; max-height: none; aspect-ratio: 3280 / 1798; }
+/* Подсказка о ходе — целиком, отдельной строкой: многоточие съедало,
+   сколько зон ещё выбрать. */
+.m-battle__field .battle-desk__plan { flex-basis: 100%; order: 3; white-space: normal; overflow: visible; }
+
+/* Узкий телефон (360 px): «Левая рука» и «Правая рука» резались
+   многоточием — кнопки зон чуть уже, подпись мельче. */
+@media (max-width: 370px) {
+  .m-battle__zones .zone-list__row { grid-template-columns: 9px minmax(0, 1fr) 33px 33px; }
+  .m-battle__zones .zone-list__label { font-size: 12.5px; }
+}

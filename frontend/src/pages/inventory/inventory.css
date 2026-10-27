@@ -221,6 +221,18 @@
 .inv-pockets__head small { color: #4a4345; font-size: 13.25px; }
 .inv-pockets__list { display: flex; gap: 5px; flex-wrap: wrap; }
 
+/* Телефон (доводка 27.10): рисованная рамка макета на узких кнопках
+   рвётся и съезжает, вкладки разной ширины шли лесенкой. Здесь —
+   обычная рамка, ровная сетка вкладок и кнопки под палец. */
+@media (max-width: 900px) {
+  .inv .gshop-frame { display: none; }
+  .inv-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .inv-tabs button { min-width: 0; min-height: 44px; padding: 6px 8px; border: 1px solid #2b2b2b; background: #fffdf8; }
+  .inv-tabs button.active { background: #e8dcd0; color: var(--red, #b81e2c); }
+  .inv-btn { min-height: 44px; padding: 0 12px; border: 1px solid #2b2b2b; background: #fffdf8; }
+  .inv-card__actions { justify-content: stretch; gap: 6px; }
+  .inv-card__actions .inv-btn { flex: 1 1 100px; }
+}
 @media (max-width: 900px) {
   .inv-body { grid-template-columns: minmax(0, 1fr); }
   .inv-grid { grid-template-columns: minmax(0, 1fr); }

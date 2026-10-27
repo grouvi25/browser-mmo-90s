@@ -214,4 +214,7 @@ button.upg-price__row:hover { text-decoration: underline; }
   .upg-panel { max-width: none; }
   .upg-slots { grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .upg-slot__box { width: 100%; }
+  /* Полоска выбора внизу слота была 19 px — мимо пальца. */
+  .upg .upg-slot__box { height: 100px; }
+  .upg .upg-slot__pick { min-height: 34px; font-size: 14px; }
 }
