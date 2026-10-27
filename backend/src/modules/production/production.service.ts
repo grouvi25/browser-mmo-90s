@@ -3,6 +3,8 @@ import { ProductionErrors } from './production.errors'
 import { prisma } from '../../shared/db/prisma'
 import { RecipeService } from './recipe.service'
 import { CycleService } from './cycle.service'
+import { AppError } from '../../shared/errors/app-error'
+import { ErrorCode } from '../../shared/errors/error-codes'
 export const ProductionService = {
   list: async () => ({ items: await ProductionRepository.listActive() }),
   get: async (id: string) => { const item = await ProductionRepository.findActiveById(id); if (!item) throw ProductionErrors.notFound(); return item },
@@ -48,7 +50,19 @@ export const ProductionService = {
     })
   },
   recipes: (objectCode: string, characterId: string) => RecipeService.listForObject(objectCode, characterId),
-  startCycle: (objectId: string) => CycleService.tryStart(objectId),
+  /** Запустить цикл может только хозяин: владелец частного объекта или
+   *  член бригады-владельца. Раньше ручка запускала цикл на любом объекте
+   *  любому вошедшему — и тратила чужое сырьё со склада (28.10). Объекты
+   *  государства запускает сам сервер (production-cycle.worker). */
+  startCycle: async (objectId: string, characterId: string) => {
+    const object = await prisma.productionObject.findUnique({ where: { id: objectId }, select: { ownerType: true, ownerCharacterId: true, ownerClanId: true } })
+    if (!object) throw ProductionErrors.notFound()
+    const allowed = object.ownerType === 'PRIVATE' ? object.ownerCharacterId === characterId
+      : object.ownerType === 'CLAN' ? !!(await prisma.clanMember.findFirst({ where: { characterId, clanId: object.ownerClanId ?? '', status: 'ACTIVE' }, select: { id: true } }))
+        : false
+    if (!allowed) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Запускать цикл может только хозяин объекта', 403)
+    return CycleService.tryStart(objectId)
+  },
   cycles: (objectId: string, limit = 20) => prisma.productionCycle.findMany({
     where: { productionObjectId: objectId },
     include: { recipe: true, contributions: true, inputReservations: true },

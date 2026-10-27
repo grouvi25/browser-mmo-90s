@@ -57,7 +57,7 @@ import {
 } from './grid'
 import {
   calcBattleExp,
-  calcBaseRating,
+  calcCharacterRating,
   calcRatingPower,
 } from '../stats/stats.formulas'
 import { withPetBonus } from '../city/city.config'
@@ -2586,16 +2586,20 @@ export const BattleService = {
 
     const bonus1 = ((await TerritoriesService.bonusesForCharacter(char1.id)).BATTLE_EXP ?? 0) + await CityService.expBonus(char1.id)
     const bonus2 = ((await TerritoriesService.bonusesForCharacter(char2.id)).BATTLE_EXP ?? 0) + await CityService.expBonus(char2.id)
-    // Мощность цели — рейтинговая («Ревизия 2»): базовый рейтинг статов +
-    // половина суммы уровней + навык. Вклад вещей придёт с PR-2 тем же
-    // слагаемым; прежде «уровень × 5» занижало мощных соперников.
+    // Мощность цели — рейтинговая («Ревизия 2»): рейтинг статов вместе с
+    // надетыми вещами (то же правило, что в досье) + половина суммы уровней
+    // + навык. До 28.10 вещи в мощность не входили, и победа над хорошо
+    // одетым соперником стоила столько же, сколько над голым.
+    const [gear1, gear2] = await Promise.all([char1.id, char2.id].map(ownerId => prisma.itemInstance.findMany({
+      where: { ownerId, isEquipped: true, status: { not: 'DELETED' } }, include: { template: true },
+    })))
     const power1 = calcRatingPower({
       battleLevel: char1.battleLevel, economicLevel: char1.economicLevel, productionLevel: char1.productionLevel,
-      weaponSkillLevel: skill1Level, baseRating: calcBaseRating(char1.stats!),
+      weaponSkillLevel: skill1Level, baseRating: calcCharacterRating(char1.stats!, gear1),
     })
     const power2 = calcRatingPower({
       battleLevel: char2.battleLevel, economicLevel: char2.economicLevel, productionLevel: char2.productionLevel,
-      weaponSkillLevel: skill2Level, baseRating: calcBaseRating(char2.stats!),
+      weaponSkillLevel: skill2Level, baseRating: calcCharacterRating(char2.stats!, gear2),
     })
     const exp1 = calcBattleExp({
       damageDealt: part1.damageDealt, targetPower: power2, targetMaxHp: char2.hpMax,

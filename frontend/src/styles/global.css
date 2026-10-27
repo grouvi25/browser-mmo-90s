@@ -3330,3 +3330,7 @@ button { font-family: inherit; }
 .stats-respec p { flex-basis: 100%; margin: 0; font-size: 13.5px; }
 .player-search { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
 .player-search label { display: grid; gap: 4px; flex: 1; }
+
+/* Ловушка для ботов на регистрации: вне экрана, не display:none — иначе
+   часть ботов пропускает скрытые поля. */
+.auth-trap { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }

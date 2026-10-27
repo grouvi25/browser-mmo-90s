@@ -120,7 +120,8 @@ export async function productionRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { id: string } }>('/objects/:id/cycles/start', { preHandler: authenticate }, async (req, reply) => {
     if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
-    const result = await ProductionService.startCycle(req.params.id)
+    const actor = await character(req.authUser.userId)
+    const result = await ProductionService.startCycle(req.params.id, actor.id)
     return reply.code('cycle' in result ? 201 : 409).send(result)
   })
 }

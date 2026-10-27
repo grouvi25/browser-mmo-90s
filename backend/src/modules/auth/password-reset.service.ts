@@ -30,6 +30,8 @@ import { mailConfigured, sendMail } from '../../shared/mail/mailer'
 export const RESET_TTL_MS = 60 * 60_000
 /** Не чаще раза в пять минут на аккаунт: иначе бот завалят заявками. */
 export const RESET_COOLDOWN_MS = 5 * 60_000
+/** И не больше пяти писем в сутки: иначе чужую почту можно забросать письмами. */
+export const RESET_DAILY_LIMIT = 5
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex')
 const escapeHtml = (value: string) => value.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]!))
@@ -50,6 +52,8 @@ export const PasswordResetService = {
       select: { id: true },
     })
     if (recent) return { ok: true }
+    const today = await prisma.passwordReset.count({ where: { userId: user.id, createdAt: { gt: new Date(Date.now() - 24 * 3_600_000) } } })
+    if (today >= RESET_DAILY_LIMIT) return { ok: true }
 
     const token = randomBytes(32).toString('base64url')
     await prisma.passwordReset.create({

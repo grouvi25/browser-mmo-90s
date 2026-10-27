@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../app/providers/auth-provider'
 import { authApi } from '../../shared/api/auth.api'
 import { ApiError } from '../../shared/api/client'
+import { SmartCaptcha, useCaptchaKey } from '../../shared/ui/smart-captcha'
 
 export function RegisterPage() {
   const { signIn } = useAuth()
@@ -13,6 +14,12 @@ export function RegisterPage() {
   const [agree, setAgree] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Защита от ботов (28.10): капча, если включена на сервере, и поле-ловушка,
+  // невидимое человеку, — автозаполнение ботов его заполняет.
+  const captchaKey = useCaptchaKey()
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaReset, setCaptchaReset] = useState(0)
+  const [trap, setTrap] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,17 +39,23 @@ export function RegisterPage() {
       setError('Нужно согласие с политикой обработки персональных данных')
       return
     }
+    if (captchaKey && !captchaToken) {
+      setError('Подтвердите, что вы не робот')
+      return
+    }
     setError('')
     setLoading(true)
     try {
-      await authApi.register({ login: form.login, email: form.email, password: form.password, acceptPolicy: true })
+      await authApi.register({ login: form.login, email: form.email, password: form.password, acceptPolicy: true, website: trap, captchaToken: captchaToken || undefined })
       // Auto-login after register
       const res = await authApi.login({ login: form.login, password: form.password })
       signIn(res.token, res.userId, res.login)
       navigate('/character/create')
     } catch (err) {
+      // Токен капчи одноразовый: после отказа её надо пройти заново.
+      setCaptchaReset(n => n + 1)
       if (err instanceof ApiError) {
-        if (err.status === 409) setError('Логин или email уже зарегистрированы')
+        if (err.status === 409) setError('Логин или почта уже зарегистрированы (у Gmail точки и «+метка» в адресе не считаются)')
         else setError(err.message)
       } else {
         setError('Ошибка подключения к серверу')
@@ -108,6 +121,13 @@ export function RegisterPage() {
                 onChange={e => setForm(f => ({ ...f, password2: e.target.value }))}
               />
             </div>
+
+            {/* Ловушка: человек поле не видит и не заполняет. */}
+            <div className="auth-trap" aria-hidden="true">
+              <label>Сайт<input type="text" name="website" tabIndex={-1} autoComplete="off" value={trap} onChange={e => setTrap(e.target.value)} /></label>
+            </div>
+
+            {captchaKey && <SmartCaptcha sitekey={captchaKey} onToken={setCaptchaToken} resetSignal={captchaReset} />}
 
             <label className="auth-consent">
               <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} />

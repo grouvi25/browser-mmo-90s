@@ -54,8 +54,15 @@ import { balanceSandboxRoutes } from './modules/balance-sandbox/balance-sandbox.
 export async function buildApp() {
   const fastify = Fastify({
     logger: false,
-    // Production publishes the API on loopback only; nginx is the sole proxy.
-    trustProxy: true,
+    // Доверяем заголовку X-Forwarded-For только от своих прокси: nginx на
+    // хосте (127.0.0.1) и шлюз докера (частные сети). Раньше стояло
+    // trustProxy: true — Fastify брал самый левый адрес цепочки, а его
+    // присылает клиент: подставив «X-Forwarded-For: 1.2.3.4», бот обнулял
+    // любой предел по IP — регистрации, входа, подбора пароля (28.10).
+    trustProxy: ['127.0.0.1', '::1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
+    // Игровые запросы — сотни байт; мегабайтный JSON по умолчанию лишь
+    // даёт забить разбор. Скриншот в поддержку задаёт свой предел.
+    bodyLimit: 128 * 1024,
   })
 
   await fastify.register(fastifyHelmet)
@@ -197,10 +204,17 @@ function socketBearerToken(socket: Socket): string | null {
   return null
 }
 
+/** Не больше 20 событий за секунду с одного соединения. */
+const SOCKET_EVENT_WINDOW_MS = 1000
+const SOCKET_EVENT_LIMIT = 20
+
 export async function setupSocketIO(app: FastifyInstance) {
   const io = new SocketIO(app.server, {
     cors: { origin: AppConfig.server.corsOrigin, credentials: true },
     transports: ['websocket', 'polling'],
+    // Клиент шлёт только идентификаторы боя и района — сотни байт.
+    // Мегабайт по умолчанию лишь даёт забить разбор большим сообщением.
+    maxHttpBufferSize: 16 * 1024,
   })
 
   const pubClient = getRedis()
@@ -227,6 +241,23 @@ export async function setupSocketIO(app: FastifyInstance) {
   })
 
   io.on('connection', (socket) => {
+    // Предел событий на соединение (28.10): каждое join:battle — запрос в
+    // базу, и скрипт, сыплющий их тысячами в секунду, грузил бы её из
+    // обычного клиента. Живой игрок шлёт единицы событий в минуту.
+    let windowStart = Date.now()
+    let events = 0
+    socket.use((_packet, next) => {
+      const now = Date.now()
+      if (now - windowStart >= SOCKET_EVENT_WINDOW_MS) { windowStart = now; events = 0 }
+      events += 1
+      if (events > SOCKET_EVENT_LIMIT) {
+        logger.warn({ userId: socket.data.userId, events }, '[Socket.io] Поток событий — соединение закрыто')
+        socket.disconnect(true)
+        return
+      }
+      next()
+    })
+
     socket.on('join:battle', async (battleId: unknown, acknowledge?: (result: { ok: boolean; error?: string }) => void) => {
       try {
         if (typeof battleId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(battleId)) {

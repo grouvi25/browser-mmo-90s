@@ -1,7 +1,7 @@
 import { api, setToken, removeToken } from './client'
 
 export const authApi = {
-  register: (data: { login: string; email: string; password: string; acceptPolicy?: boolean }) =>
+  register: (data: { login: string; email: string; password: string; acceptPolicy?: boolean; website?: string; captchaToken?: string }) =>
     api.post<{ id: string; login: string; email: string }>('/api/auth/register', data, { noAuth: true }),
 
   login: (data: { login: string; password: string }) =>
@@ -12,8 +12,8 @@ export const authApi = {
   me: () => api.get<{ userId: string }>('/api/auth/me'),
 
   // Восстановление пароля: заявка по логину или почте, затем новый пароль по ссылке.
-  forgotPassword: (login: string) =>
-    api.post<{ ok: true }>('/api/auth/password/forgot', { login }, { noAuth: true }),
+  forgotPassword: (login: string, captchaToken?: string) =>
+    api.post<{ ok: true }>('/api/auth/password/forgot', { login, captchaToken }, { noAuth: true }),
   resetPassword: (token: string, password: string) =>
     api.post<{ login: string }>('/api/auth/password/reset', { token, password }, { noAuth: true }),
 }

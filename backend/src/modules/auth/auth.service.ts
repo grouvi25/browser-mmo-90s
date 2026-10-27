@@ -6,13 +6,22 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { audit } from '../../shared/logger/audit-logger'
 import type { RegisterInput, LoginInput } from './auth.schemas'
+import { RegistrationGuard } from './registration-guard'
+import { prisma } from '../../shared/db/prisma'
 
 export const AuthService = {
   async register(input: RegisterInput, ip?: string, userAgent?: string) {
+    // Защита от массовых регистраций (registration-guard.ts): ловушка,
+    // предел по адресу, капча, годная почта — до любой работы с базой.
+    RegistrationGuard.checkHoneypot(input.website)
+    await RegistrationGuard.checkIpQuota(ip)
+    await RegistrationGuard.checkCaptcha(input.captchaToken, ip)
+    const emailNormalized = await RegistrationGuard.checkEmail(input.email)
+
     // Check uniqueness
     const [existingLogin, existingEmail] = await Promise.all([
       AuthRepository.findByLogin(input.login),
-      AuthRepository.findByEmail(input.email),
+      prisma.user.findFirst({ where: { OR: [{ email: input.email }, { emailNormalized }] }, select: { id: true } }),
     ])
 
     if (existingLogin) {
@@ -26,17 +35,21 @@ export const AuthService = {
     const user = await AuthRepository.create({
       login: input.login,
       email: input.email,
+      emailNormalized,
       passwordHash,
       lastIp: ip,
       lastUserAgent: userAgent,
       policyAcceptedAt: new Date(),
     })
 
+    await RegistrationGuard.recordRegistration(ip)
     audit('user.registered', { userId: user.id, login: user.login, ip })
     return { id: user.id, login: user.login, email: user.email }
   },
 
   async login(input: LoginInput, ip?: string, userAgent?: string) {
+    // Подбор пароля к одному логину режется с любого адреса.
+    await RegistrationGuard.assertLoginNotLocked(input.login)
     const user = await AuthRepository.findByLogin(input.login)
     if (!user) {
       audit('user.login_failed', { login: input.login, reason: 'not_found', ip })
@@ -49,10 +62,12 @@ export const AuthService = {
 
     const valid = await verifyPassword(input.password, user.passwordHash)
     if (!valid) {
+      await RegistrationGuard.recordLoginFailure(input.login)
       audit('user.login_failed', { userId: user.id, login: user.login, reason: 'bad_password', ip })
       throw new AppError(ErrorCode.INVALID_CREDENTIALS, 'Invalid login or password', 401)
     }
 
+    await RegistrationGuard.clearLoginFailures(input.login)
     await AuthRepository.updateLastLogin(user.id, ip, userAgent)
 
     // SINGLE DEVICE: revoke all previous sessions before creating new one
