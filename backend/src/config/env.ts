@@ -25,6 +25,14 @@ const EnvSchema = z.object({
   // админке означал бы и доступ к боту.
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID:   z.string().optional(),
+
+  // Почта игры (noreply@kooperativ.space на Beget): письма со ссылкой на
+  // новый пароль. Необязательна: без неё ссылка уходит в бот администрации.
+  SMTP_HOST:          z.string().optional(),
+  SMTP_PORT:          z.coerce.number().int().default(465),
+  SMTP_USER:          z.string().optional(),
+  SMTP_PASS:          z.string().optional(),
+  MAIL_FROM:          z.string().email().optional(),
 })
 
 function loadEnv() {
