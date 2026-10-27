@@ -33,6 +33,15 @@ const EnvSchema = z.object({
   SMTP_USER:          z.string().optional(),
   SMTP_PASS:          z.string().optional(),
   MAIL_FROM:          z.string().email().optional(),
+
+  // Защита регистрации (auth/registration-guard.ts). По умолчанию предел по
+  // IP и проверка почтового домена включены только на проде.
+  REGISTRATION_IP_DAILY_LIMIT: z.coerce.number().int().min(0).optional(),
+  EMAIL_MX_CHECK:     z.enum(['on', 'off']).optional(),
+  // Яндекс SmartCaptcha: серверный ключ — секрет, клиентский отдаётся
+  // странице регистрации. Без ключей капча выключена.
+  SMARTCAPTCHA_SERVER_KEY: z.string().optional(),
+  SMARTCAPTCHA_CLIENT_KEY: z.string().optional(),
 })
 
 function loadEnv() {

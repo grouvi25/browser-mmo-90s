@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { AuthService } from './auth.service'
 import { RegisterSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema, POLICY_REQUIRED } from './auth.schemas'
 import { PasswordResetService } from './password-reset.service'
+import { RegistrationGuard } from './registration-guard'
+import { env } from '../../config/env'
 import { authenticate } from '../../shared/security/auth-middleware'
 
 const AUTH_RATE_LIMIT = {
@@ -58,9 +60,13 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
     return reply.send({ token, userId, login })
   })
 
+  // Что показать на странице регистрации: ключ капчи (публичный) или ничего.
+  fastify.get('/config', async (_req, reply) => reply.send({ captchaClientKey: env.SMARTCAPTCHA_CLIENT_KEY ?? null }))
+
   fastify.post('/password/forgot', RESET_RATE_LIMIT, async (req: FastifyRequest, reply: FastifyReply) => {
     const parsed = ForgotPasswordSchema.safeParse(req.body)
     if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Укажите логин или почту' })
+    await RegistrationGuard.checkCaptcha(parsed.data.captchaToken, req.ip)
     return reply.send(await PasswordResetService.request(parsed.data.login, req.ip))
   })
 

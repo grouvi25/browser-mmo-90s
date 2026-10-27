@@ -492,6 +492,10 @@ model User {
   id               String     @id @default(uuid())
   login            String     @unique
   email            String     @unique
+  /// Почта без псевдонимов: у Gmail без точек, у всех без «+метки», Яндекс
+  /// к одному домену (auth/email-policy.ts). Уникальна: один ящик — один
+  /// аккаунт (просьба 28.10). У аккаунтов до 28.10 заполнена миграцией.
+  emailNormalized  String?    @unique @map("email_normalized")
   passwordHash     String     @map("password_hash")
   status           UserStatus @default(ACTIVE)
   emailVerified    Boolean    @default(false) @map("email_verified")

@@ -54,8 +54,15 @@ import { balanceSandboxRoutes } from './modules/balance-sandbox/balance-sandbox.
 export async function buildApp() {
   const fastify = Fastify({
     logger: false,
-    // Production publishes the API on loopback only; nginx is the sole proxy.
-    trustProxy: true,
+    // Доверяем заголовку X-Forwarded-For только от своих прокси: nginx на
+    // хосте (127.0.0.1) и шлюз докера (частные сети). Раньше стояло
+    // trustProxy: true — Fastify брал самый левый адрес цепочки, а его
+    // присылает клиент: подставив «X-Forwarded-For: 1.2.3.4», бот обнулял
+    // любой предел по IP — регистрации, входа, подбора пароля (28.10).
+    trustProxy: ['127.0.0.1', '::1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
+    // Игровые запросы — сотни байт; мегабайтный JSON по умолчанию лишь
+    // даёт забить разбор. Скриншот в поддержку задаёт свой предел.
+    bodyLimit: 128 * 1024,
   })
 
   await fastify.register(fastifyHelmet)

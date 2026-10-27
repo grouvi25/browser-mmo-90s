@@ -17,6 +17,7 @@ export const AuthRepository = {
   async create(data: {
     login: string
     email: string
+    emailNormalized?: string
     passwordHash: string
     lastIp?: string
     lastUserAgent?: string

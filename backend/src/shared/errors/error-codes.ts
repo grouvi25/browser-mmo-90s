@@ -6,6 +6,9 @@ export enum ErrorCode {
   SESSION_REVOKED        = 'AUTH_004',
   UNAUTHORIZED           = 'AUTH_005',
   FORBIDDEN              = 'AUTH_006',
+  AUTH_EMAIL_REJECTED    = 'AUTH_007',
+  AUTH_TOO_MANY          = 'AUTH_008',
+  AUTH_CAPTCHA           = 'AUTH_009',
 
   // User / Character
   USER_NOT_FOUND         = 'USER_001',

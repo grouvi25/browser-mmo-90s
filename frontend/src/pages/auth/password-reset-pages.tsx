@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../../shared/api/auth.api'
 import { ApiError } from '../../shared/api/client'
+import { SmartCaptcha, useCaptchaKey } from '../../shared/ui/smart-captcha'
 
 function AuthShell({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) {
   return (
@@ -26,15 +27,20 @@ export function ForgotPasswordPage() {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const captchaKey = useCaptchaKey()
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaReset, setCaptchaReset] = useState(0)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!login.trim()) { setError('Укажите логин или почту'); return }
+    if (captchaKey && !captchaToken) { setError('Подтвердите, что вы не робот'); return }
     setError(''); setLoading(true)
     try {
-      await authApi.forgotPassword(login.trim())
+      await authApi.forgotPassword(login.trim(), captchaToken || undefined)
       setSent(true)
     } catch (err) {
+      setCaptchaReset(n => n + 1)
       setError(err instanceof ApiError && err.status === 429 ? 'Слишком много заявок — попробуйте через 15 минут' : err instanceof ApiError ? err.message : 'Ошибка подключения к серверу')
     } finally {
       setLoading(false)
@@ -62,6 +68,7 @@ export function ForgotPasswordPage() {
             placeholder="Логин или почта, указанная при регистрации" value={login}
             onChange={e => setLogin(e.target.value)} autoFocus />
         </div>
+        {captchaKey && <SmartCaptcha sitekey={captchaKey} onToken={setCaptchaToken} resetSignal={captchaReset} />}
         <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
           {loading ? <><span className="spinner" />Отправляем…</> : 'Получить ссылку'}
         </button>
