@@ -15,5 +15,15 @@ export const LoginSchema = z.object({
   password: z.string().min(1),
 })
 
+// Восстановление пароля: логин или почта, затем новый пароль по ссылке.
+export const ForgotPasswordSchema = z.object({
+  login: z.string().trim().min(1).max(120),
+})
+
+export const ResetPasswordSchema = z.object({
+  token: z.string().min(20).max(200),
+  password: z.string().min(6).max(100),
+})
+
 export type RegisterInput = z.infer<typeof RegisterSchema>
 export type LoginInput = z.infer<typeof LoginSchema>

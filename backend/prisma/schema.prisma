@@ -506,10 +506,29 @@ model User {
   policyAcceptedAt DateTime?  @map("policy_accepted_at")
 
   // Relations
-  character Character?
-  sessions  Session[]
+  character      Character?
+  sessions       Session[]
+  passwordResets PasswordReset[]
 
   @@map("users")
+}
+
+/// Одноразовая ссылка на новый пароль (просьба игроков 26.10: «нет
+/// возможности восстановить пароль при входе с нового устройства»).
+/// В базе — только хеш токена: утечка таблицы не даёт войти в аккаунт.
+model PasswordReset {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  ip        String?
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("password_resets")
 }
 
 model Session {

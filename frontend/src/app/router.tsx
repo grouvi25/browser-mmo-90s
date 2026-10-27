@@ -14,6 +14,7 @@ import { AnnouncementsFeed } from '../pages/radio/announcements-feed'
 
 import { LoginPage }           from '../pages/auth/login-page'
 import { RegisterPage }        from '../pages/auth/register-page'
+import { ForgotPasswordPage, ResetPasswordPage } from '../pages/auth/password-reset-pages'
 import { CreateCharacterPage } from '../pages/character/create-character-page'
 import { HubPage }             from '../pages/hub/hub-page'
 import { DossierPage }         from '../pages/profile/dossier-page'
@@ -137,6 +138,9 @@ export function AppRouter() {
       <Route element={<PublicLayout />}>
         <Route path="/login"    element={<RequireGuest authenticatedTo="/resume"><LoginPage /></RequireGuest>} />
         <Route path="/register" element={<RequireGuest authenticatedTo="/character/create"><RegisterPage /></RequireGuest>} />
+        {/* Восстановление пароля — без входа: ссылку открывают с нового устройства. */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         {/* Политика открыта всем: на неё ведёт согласие при регистрации. */}
         <Route path="/politika" element={<PolitikaPage />} />
       </Route>

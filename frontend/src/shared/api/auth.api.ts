@@ -10,6 +10,12 @@ export const authApi = {
   logout: () => api.post<void>('/api/auth/logout'),
 
   me: () => api.get<{ userId: string }>('/api/auth/me'),
+
+  // Восстановление пароля: заявка по логину или почте, затем новый пароль по ссылке.
+  forgotPassword: (login: string) =>
+    api.post<{ ok: true }>('/api/auth/password/forgot', { login }, { noAuth: true }),
+  resetPassword: (token: string, password: string) =>
+    api.post<{ login: string }>('/api/auth/password/reset', { token, password }, { noAuth: true }),
 }
 
 export function saveAuthSession(token: string, userId: string, login: string): void {
