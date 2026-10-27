@@ -9,12 +9,22 @@ import { getRedis, disconnectRedis } from '../../shared/db/redis'
 import { AuthService } from '../../modules/auth/auth.service'
 import { PasswordResetService } from '../../modules/auth/password-reset.service'
 
-// Бот администрации — заглушкой: тест не должен слать в настоящий Telegram.
+// Бот администрации и почта — заглушками: тест не шлёт ни в Telegram, ни на почту.
 const sent: string[] = []
+const mails: { to: string; text: string }[] = []
+const mailState = { configured: true, works: true }
 vi.mock('../../modules/admin-balance/telegram.service', () => ({
   telegramConfigured: () => true,
   sendTelegram: async (text: string) => { sent.push(text); return { ok: true } },
 }))
+vi.mock('../../shared/mail/mailer', () => ({
+  mailConfigured: () => mailState.configured,
+  sendMail: async (message: { to: string; text: string }) => {
+    if (!mailState.works) return { ok: false, error: 'SMTP недоступен' }
+    mails.push(message); return { ok: true }
+  },
+}))
+const LINK = /\/reset-password\?token=[A-Za-z0-9_-]{43}/
 
 async function account() {
   const login = uid('pw')
@@ -30,23 +40,37 @@ async function knownToken(login: string, token: string, expiresAt = new Date(Dat
 
 describe('восстановление пароля', () => {
   beforeAll(async () => { await testPrisma.$connect(); await getRedis().ping() })
-  beforeEach(async () => { await cleanDatabase(); await getRedis().flushdb(); sent.length = 0 })
+  beforeEach(async () => {
+    await cleanDatabase(); await getRedis().flushdb()
+    sent.length = 0; mails.length = 0; mailState.configured = true; mailState.works = true
+  })
   afterAll(async () => { await testPrisma.$disconnect(); await disconnectRedis() })
 
   it('заявка по логину и по почте в любом регистре; чужой логин — тот же ответ без записи', async () => {
     const login = await account()
     await expect(PasswordResetService.request(login)).resolves.toEqual({ ok: true })
     expect(await testPrisma.passwordReset.count()).toBe(1)
-    // Администрации — логин, почта и ссылка на страницу нового пароля.
-    expect(sent).toHaveLength(1)
-    expect(sent[0]).toContain(login)
-    expect(sent[0]).toMatch(/\/reset-password\?token=[A-Za-z0-9_-]{43}/)
+    // Письмо игроку на почту из регистрации, со ссылкой; бот молчит.
+    await vi.waitFor(() => expect(mails).toHaveLength(1))
+    expect(mails[0].to).toBe(`${login}@Example.test`)
+    expect(mails[0].text).toMatch(LINK)
+    expect(sent).toHaveLength(0)
     await expect(PasswordResetService.request('nobody_here')).resolves.toEqual({ ok: true })
     expect(await testPrisma.passwordReset.count()).toBe(1)
-    expect(sent).toHaveLength(1)
+    expect(mails).toHaveLength(1)
     // Повтор в течение пяти минут новую ссылку не плодит.
     await PasswordResetService.request(`${login}@example.TEST`)
     expect(await testPrisma.passwordReset.count()).toBe(1)
+  })
+
+  it('письмо не ушло — ссылка администрации в бот, с логином и почтой', async () => {
+    const login = await account()
+    mailState.works = false
+    await PasswordResetService.request(login)
+    await vi.waitFor(() => expect(sent).toHaveLength(1))
+    expect(sent[0]).toContain(login)
+    expect(sent[0]).toContain('письмо ему не ушло')
+    expect(sent[0]).toMatch(LINK)
   })
 
   it('по ссылке ставится новый пароль, старый перестаёт подходить, ссылка второй раз не работает', async () => {
