@@ -204,10 +204,17 @@ function socketBearerToken(socket: Socket): string | null {
   return null
 }
 
+/** Не больше 20 событий за секунду с одного соединения. */
+const SOCKET_EVENT_WINDOW_MS = 1000
+const SOCKET_EVENT_LIMIT = 20
+
 export async function setupSocketIO(app: FastifyInstance) {
   const io = new SocketIO(app.server, {
     cors: { origin: AppConfig.server.corsOrigin, credentials: true },
     transports: ['websocket', 'polling'],
+    // Клиент шлёт только идентификаторы боя и района — сотни байт.
+    // Мегабайт по умолчанию лишь даёт забить разбор большим сообщением.
+    maxHttpBufferSize: 16 * 1024,
   })
 
   const pubClient = getRedis()
@@ -234,6 +241,23 @@ export async function setupSocketIO(app: FastifyInstance) {
   })
 
   io.on('connection', (socket) => {
+    // Предел событий на соединение (28.10): каждое join:battle — запрос в
+    // базу, и скрипт, сыплющий их тысячами в секунду, грузил бы её из
+    // обычного клиента. Живой игрок шлёт единицы событий в минуту.
+    let windowStart = Date.now()
+    let events = 0
+    socket.use((_packet, next) => {
+      const now = Date.now()
+      if (now - windowStart >= SOCKET_EVENT_WINDOW_MS) { windowStart = now; events = 0 }
+      events += 1
+      if (events > SOCKET_EVENT_LIMIT) {
+        logger.warn({ userId: socket.data.userId, events }, '[Socket.io] Поток событий — соединение закрыто')
+        socket.disconnect(true)
+        return
+      }
+      next()
+    })
+
     socket.on('join:battle', async (battleId: unknown, acknowledge?: (result: { ok: boolean; error?: string }) => void) => {
       try {
         if (typeof battleId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(battleId)) {

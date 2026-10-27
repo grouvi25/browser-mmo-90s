@@ -121,7 +121,7 @@ export const RegistrationGuard = {
     }
     try {
       const body = new URLSearchParams({ secret: env.SMARTCAPTCHA_SERVER_KEY, token, ...(ip ? { ip } : {}) })
-      const response = await fetch('https://smartcaptcha.yandexcloud.net/validate', {
+      const response = await fetch('https://smartcaptcha.cloud.yandex.ru/validate', {
         method: 'POST', body, signal: AbortSignal.timeout(5000),
       })
       if (!response.ok) {

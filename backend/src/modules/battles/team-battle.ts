@@ -18,7 +18,7 @@ import { CharactersRepository, type CharacterWithStats } from '../characters/cha
 import { ItemsRepository, type ItemWithTemplate } from '../items/item-instance.repository'
 import { WeaponSkillsRepository, saveWeaponSkillExp } from '../weapon-skills/weapon-skills.repository'
 import { applyBattleProgression } from '../experience/progression'
-import { calcBattleExp, calcBaseRating, calcRatingPower, typicalTargetPower } from '../stats/stats.formulas'
+import { calcBattleExp, calcCharacterRating, calcRatingPower, typicalTargetPower } from '../stats/stats.formulas'
 import { CityService } from '../city/city.service'
 import { TerritoriesService } from '../territories/territories.service'
 import { calcInitiative, weaponExpByType } from './battle.formulas'
@@ -180,6 +180,12 @@ export function canReach(
  * дуэли, но точкой отсчёта берётся средний уровень вражеской стороны:
  * иначе награда прыгала бы от того, кого именно поставили первым.
  */
+/** Надетое бойца для рейтинга: оружие в обеих руках и броня, без повторов. */
+function wornBy(ctx: TeamFighterContext): ItemWithTemplate[] {
+  const all = [ctx.weaponLeft, ctx.weaponRight, ...ctx.armor].filter((item): item is ItemWithTemplate => !!item)
+  return [...new Map(all.map(item => [item.id, item])).values()]
+}
+
 export async function finishTeamBattle(
   battleId: string,
   state: LiveTeamState,
@@ -210,7 +216,8 @@ export async function finishTeamBattle(
     const levelDiff = Math.abs((ctx?.char.battleLevel ?? 1) - enemyLevel)
     const result = winnerSide === null ? 'DRAW' : winnerSide === part.side ? 'PVP_WIN' : 'PVP_LOSS'
     // Мощность стороны противника — средняя рейтинговая («Ревизия 2»):
-    // по игрокам из их статов, по тем, кого не успели загрузить, — типовая.
+    // по игрокам из их статов и надетого (с 28.10), по тем, кого не успели
+    // загрузить, — типовая.
     const enemies = state.participants.filter(p => p.side === enemySide)
     const enemyPower = enemies.length === 0 ? typicalTargetPower(enemyLevel)
       : enemies.reduce((sum, p) => {
@@ -219,7 +226,7 @@ export async function finishTeamBattle(
             ? calcRatingPower({
                 battleLevel: ectx.char.battleLevel, economicLevel: ectx.char.economicLevel,
                 productionLevel: ectx.char.productionLevel, weaponSkillLevel: 1,
-                baseRating: calcBaseRating(ectx.char.stats!),
+                baseRating: calcCharacterRating(ectx.char.stats!, wornBy(ectx)),
               })
             : typicalTargetPower(averageLevel(enemySide)))
         }, 0) / enemies.length

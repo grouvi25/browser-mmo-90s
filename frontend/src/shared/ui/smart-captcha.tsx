@@ -12,7 +12,7 @@ type SmartCaptchaApi = {
 }
 declare global { interface Window { smartCaptcha?: SmartCaptchaApi } }
 
-const SCRIPT = 'https://smartcaptcha.yandexcloud.net/captcha.js'
+const SCRIPT = 'https://smartcaptcha.cloud.yandex.ru/captcha.js'
 let scriptPromise: Promise<void> | null = null
 
 function loadScript(): Promise<void> {
