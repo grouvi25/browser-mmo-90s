@@ -14,7 +14,7 @@ import { runWorkShiftFinalize } from '../../workers/work-shift-finalize.worker'
 async function player(prefix: string, money: number) {
   const login = uid(prefix)
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
-  const character = await testPrisma.character.create({ data: { userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 80, hpMax: 80, money } })
+  const character = await testPrisma.character.create({ data: { userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 80, hpMax: 80, money, dollars: 6000 } })
   await testPrisma.characterProfession.create({ data: { characterId: character.id, professionCode: 'scrap_collector' } })
   return character
 }

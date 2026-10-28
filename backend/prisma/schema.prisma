@@ -508,12 +508,16 @@ model User {
   /// Когда игрок согласился с политикой обработки персональных данных
   /// (152-ФЗ, галочка при регистрации с 21.10.2026). У старых аккаунтов пусто.
   policyAcceptedAt DateTime?  @map("policy_accepted_at")
+  /// Кто пригласил (персонаж по реферальной ссылке ?ref=ник). Ставится
+  /// только при регистрации и больше не меняется.
+  referrerCharacterId String? @map("referrer_character_id")
 
   // Relations
   character      Character?
   sessions       Session[]
   passwordResets PasswordReset[]
 
+  @@index([referrerCharacterId])
   @@map("users")
 }
 
@@ -583,6 +587,9 @@ model Character {
   dollars     Int       @default(0) @map("dollars")
   /// Дилер получает доллары от администрации и пополняет ими счета игроков.
   isDealer    Boolean   @default(false) @map("is_dealer")
+  /// Реферальные $, которые ещё можно вывести на карту. Сами доллары лежат в
+  /// dollars; вывести можно не больше этого числа — купленные не выводятся.
+  referralBalance Int   @default(0) @map("referral_balance")
   /// Модератор игры («Красные»): виден во вкладке Поддержки «Модераторы».
   isModerator Boolean   @default(false) @map("is_moderator")
   /// «Кровавая травма» после проигранной осады: до этого времени в бой нельзя.
@@ -1239,6 +1246,9 @@ model ProductionObject {
   economicExpReward       Int                         @default(0) @map("economic_exp_reward")
   balance                 Int                         @default(0)
   purchasePrice           Int?                        @map("purchase_price")
+  /// Сколько $ заплатил нынешний владелец. NULL — куплен за рубли до 28.10,
+  /// такому владельцу выкуп остаётся рублёвым.
+  paidUsd                 Int?                        @map("paid_usd")
   isForSale               Boolean                     @default(false) @map("is_for_sale")
   salaryOverride          Int?                        @map("salary_override")
   maintenanceDebt         Int                         @default(0) @map("maintenance_debt")
@@ -2192,6 +2202,9 @@ enum DollarReason {
   MARKET_SALE // выручка с продажи на рынке за доллары
   MARKET_TAX // налог с такой продажи
   EXCHANGE // обменник Чёрного рынка (знак — направление)
+  OBJECT_SALE // выкуп государством объекта, купленного за доллары
+  REFERRAL // процент с пополнения приглашённого игрока
+  REFERRAL_PAYOUT // заявка на вывод реферальных на карту (возврат при отказе — с плюсом)
 }
 
 enum MarketCurrency {
@@ -2215,6 +2228,31 @@ model DollarLog {
   @@index([characterId, createdAt])
   @@index([counterpartyId, createdAt])
   @@map("dollar_logs")
+}
+
+enum ReferralPayoutStatus {
+  PENDING
+  PAID
+  REJECTED
+}
+
+/// Заявка на вывод реферальных на карту. Выплаты ручные (заказчик 28.10):
+/// доллары списываются при заявке, администрация переводит рубли сама и
+/// отмечает «выплачено»; при отказе доллары возвращаются.
+model ReferralPayout {
+  id          String               @id @default(uuid())
+  characterId String               @map("character_id")
+  amount      Int
+  details     String
+  status      ReferralPayoutStatus @default(PENDING)
+  adminNote   String?              @map("admin_note")
+  processedBy String?              @map("processed_by")
+  processedAt DateTime?            @map("processed_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@index([characterId, createdAt])
+  @@map("referral_payouts")
 }
 
 /// Осада дома бригады — правка заказчика, по образцу захвата замков в «Королях».

@@ -4,6 +4,7 @@ import { withIdempotency } from '../../shared/db/idempotency'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
+import { DollarsService } from '../dollars/dollars.service'
 import { ResourcesService } from '../resources/resources.service'
 import { ObjectInventoryService } from './inventory.service'
 import { objectRepairQuote, objectResalePayout, objectSalaryRange, objectWithdrawTax, profileSwitchEndsAt } from './ownership.formulas'
@@ -34,16 +35,15 @@ export const OwnershipService = {
       if ((profession?.level ?? 0) < object.requiredProfessionLevel) {
         throw new AppError(ErrorCode.PROD_PROFESSION_TOO_LOW, 'Недостаточный уровень профессии', 400)
       }
-      const newBalance = await EconomyService.debit(tx, {
-        characterId,
-        amount: object.purchasePrice,
-        reasonCode: 'OBJECT_PURCHASE',
-        refType: 'production_object',
-        refId: objectId,
+      // Заказчик 28.10: у государства объекты только за доллары. Рублёвая
+      // purchasePrice осталась для выкупа у тех, кто купил раньше за рубли.
+      const priceUsd = config.objectPriceUsd
+      const newDollars = await DollarsService.debit(tx, {
+        characterId, amount: priceUsd, reason: 'PURCHASE', refId: objectId, note: object.name,
       })
       const claimed = await tx.productionObject.updateMany({
         where: { id: objectId, ownerType: 'SYSTEM', isForSale: true },
-        data: { ownerType: 'PRIVATE', ownerCharacterId: characterId, isForSale: false },
+        data: { ownerType: 'PRIVATE', ownerCharacterId: characterId, isForSale: false, paidUsd: priceUsd },
       })
       if (claimed.count !== 1) throw new AppError(ErrorCode.PROD_ALREADY_SOLD, 'Объект уже продан', 409)
       await tx.productionLog.create({
@@ -51,10 +51,10 @@ export const OwnershipService = {
           characterId,
           productionObjectId: objectId,
           eventType: 'OBJECT_OWNERSHIP_CHANGED',
-          metadataJson: { from: 'SYSTEM', to: characterId, price: object.purchasePrice },
+          metadataJson: { from: 'SYSTEM', to: characterId, priceUsd },
         },
       })
-      return { objectId, newBalance }
+      return { objectId, priceUsd, newDollars }
     } })
   },
 
@@ -77,7 +77,10 @@ export const OwnershipService = {
       if (object.balance !== 0 || object.maintenanceDebt !== 0) {
         throw new AppError(ErrorCode.PROD_BALANCE_LOW, 'Перед продажей выведите баланс и погасите долг', 409)
       }
-      const payout = objectResalePayout(object.purchasePrice ?? 0)
+      // Выкуп в той валюте, в которой объект куплен: купленные до 28.10 за
+      // рубли (paidUsd пуст) так и выкупаются за рубли — их не трогаем.
+      const currency = object.paidUsd ? 'USD' as const : 'RUB' as const
+      const payout = objectResalePayout(object.paidUsd ?? object.purchasePrice ?? 0)
       if (payout <= 0) throw new AppError(ErrorCode.PROD_NOT_FOR_SALE, 'Для объекта не задана цена выкупа', 409)
       const claimed = await tx.productionObject.updateMany({
         where: { id: objectId, ownerType: 'PRIVATE', ownerCharacterId: characterId },
@@ -88,21 +91,24 @@ export const OwnershipService = {
           balance: 0,
           salaryOverride: null,
           maintenanceDebt: 0,
+          paidUsd: null,
         },
       })
       if (claimed.count !== 1) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Владелец объекта изменился', 409)
-      const newBalance = await EconomyService.credit(tx, {
-        characterId, amount: payout, reasonCode: 'OBJECT_SALE', refType: 'production_object', refId: objectId,
-      })
+      const newBalance = currency === 'USD'
+        ? await DollarsService.credit(tx, { characterId, amount: payout, reason: 'OBJECT_SALE', refId: objectId, note: object.name })
+        : await EconomyService.credit(tx, {
+          characterId, amount: payout, reasonCode: 'OBJECT_SALE', refType: 'production_object', refId: objectId,
+        })
       await tx.productionLog.create({
         data: {
           characterId,
           productionObjectId: objectId,
           eventType: 'OBJECT_OWNERSHIP_CHANGED',
-          metadataJson: { from: characterId, to: 'SYSTEM', payout },
+          metadataJson: { from: characterId, to: 'SYSTEM', payout, currency },
         },
       })
-      return { payout, newBalance }
+      return { payout, currency, newBalance }
     } })
   },
 

@@ -3,9 +3,12 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { App } from './app/App'
+import { rememberReferral } from './shared/lib/referral'
 import './styles/global.css'
 import './styles/theme.css'
 import './styles/mobile.css'
+
+rememberReferral()
 
 const queryClient = new QueryClient({
   defaultOptions: {

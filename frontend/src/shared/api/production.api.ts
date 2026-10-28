@@ -23,6 +23,10 @@ export interface ProductionObject {
   ownerType: string
   ownerCharacterId: string | null
   purchasePrice: number | null
+  /** Цена у государства в долларах — только на «Рынке объектов». */
+  priceUsd?: number
+  /** Сколько $ заплатил владелец; пусто — куплен за рубли до 28.10. */
+  paidUsd?: number | null
   balance: number
   baseSalary?: number
   salaryOverride?: number | null
@@ -76,7 +80,7 @@ export const productionApi = {
     api.get<{ items: ObjectCycle[] }>(`/api/production/objects/${id}/cycles?limit=${limit}`),
 
   buy: (id: string) => api.post(`/api/production/objects/${id}/buy`, undefined, idem()),
-  sell: (id: string) => api.post(`/api/production/objects/${id}/sell`, undefined, idem()),
+  sell: (id: string) => api.post<{ payout: number; currency: 'USD' | 'RUB' }>(`/api/production/objects/${id}/sell`, undefined, idem()),
   topup: (id: string, amount: number) => api.post(`/api/production/objects/${id}/balance`, { amount }, idem()),
   withdraw: (id: string, amount: number) => api.post(`/api/production/objects/${id}/withdraw`, { amount }, idem()),
   repair: (id: string) => api.post(`/api/production/objects/${id}/repair`, undefined, idem()),

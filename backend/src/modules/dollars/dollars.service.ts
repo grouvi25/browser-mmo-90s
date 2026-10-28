@@ -15,6 +15,7 @@ import { withIdempotency } from '../../shared/db/idempotency'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
+import { BalanceConfig } from '../../config/balance.config'
 
 /** Предел одного перевода дилера: опечатка в сумме не должна стоить миллионы. */
 export const DEALER_TRANSFER_MAX = 100_000
@@ -61,6 +62,25 @@ async function debit(tx: Prisma.TransactionClient, move: Movement): Promise<numb
   return after.dollars
 }
 
+/**
+ * Реферальная доля (обещание игрокам 23.10): пригласившему — процент с
+ * покупки долларов. Считается только покупка у дилера: выдачи администрации
+ * бывают подарками и оптом для самих дилеров, это не оплата. Дилер не
+ * получает долю со своих же продаж — иначе он гонял бы доллары по кругу.
+ * Доля сразу ложится на счёт и в referralBalance — её можно вывести на карту.
+ */
+async function rewardReferrer(tx: Prisma.TransactionClient, buyerId: string, amount: number, sellerId: string): Promise<void> {
+  const share = Math.floor(amount * BalanceConfig.referral.topUpShare)
+  if (share <= 0) return
+  const buyer = await tx.character.findUnique({ where: { id: buyerId }, select: { isDealer: true, user: { select: { referrerCharacterId: true } } } })
+  const referrerId = buyer?.user.referrerCharacterId
+  if (!referrerId || buyer.isDealer || referrerId === buyerId || referrerId === sellerId) return
+  const referrer = await tx.character.findUnique({ where: { id: referrerId }, select: { id: true } })
+  if (!referrer) return
+  await credit(tx, { characterId: referrerId, amount: share, reason: 'REFERRAL', counterpartyId: buyerId })
+  await tx.character.update({ where: { id: referrerId }, data: { referralBalance: { increment: share } } })
+}
+
 /** Обменник Чёрного рынка (обещание игрокам 22.10: «в одну и в другую
  *  сторону»). Курсы стартовые, заказчик их не задавал. Разница курсов —
  *  комиссия обменника; потолок покупки в сутки бережёт дилеров. */
@@ -73,6 +93,7 @@ export const EXCHANGE = {
 export const DollarsService = {
   credit,
   debit,
+  rewardReferrer,
 
   exchangeInfo: async (characterId: string) => {
     const bought = await boughtToday(characterId)
@@ -143,6 +164,7 @@ export const DollarsService = {
       if (target.id === dealerId) throw AppError.validation('Себе переводить нельзя')
       const dealerBalance = await debit(tx, { characterId: dealerId, amount, reason: 'TRANSFER_OUT', counterpartyId: target.id })
       const targetBalance = await credit(tx, { characterId: target.id, amount, reason: 'TRANSFER_IN', counterpartyId: dealerId })
+      await rewardReferrer(tx, target.id, amount, dealerId)
       return { to: target.nickname, amount, dealerBalance, targetBalance }
     } })
   },

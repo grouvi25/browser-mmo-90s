@@ -17,6 +17,7 @@ import { premiumApi, type PremiumProduct } from '../../shared/api/strategy.api'
 import { dollarsApi } from '../../shared/api/dollars.api'
 import { ApiError } from '../../shared/api/client'
 import { DollarsSection } from './dollars-section'
+import { ReferralSection } from './referral-section'
 import { fmt, Skeleton, Fault, Empty } from '../stage3/stage3-ui'
 
 const KIND: Record<PremiumProduct['kind'], { title: string; icon: typeof Clock; hint: string }> = {
@@ -60,6 +61,7 @@ export function PremiumShopSection() {
   return (
     <>
       <DollarsSection />
+      <ReferralSection />
       <div className="s4-summary">
         <div className={`s4-stat ${me?.isPremium ? 's4-stat--good' : ''}`}>
           <span className="s4-stat__label"><BadgeCheck size={13} /> Подписка</span>

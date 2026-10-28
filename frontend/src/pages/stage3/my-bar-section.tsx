@@ -16,11 +16,10 @@ export function MyBarSection() {
   const mine = bars.data?.items?.filter(bar => bar.ownerCharacterId && bar.ownerCharacterId === me.data?.id) ?? []
 
   if (mine.length === 0) {
-    const price = bars.data?.items?.find(bar => bar.purchasePrice != null)?.purchasePrice
     return (
       <Empty
         title="У вас нет своего бара"
-        hint={`Бар покупается как обычный объект — на «Рынке объектов» в Промзоне.${price != null ? ` Цена ${fmt(price)} ₽.` : ''}`}
+        hint="Бар покупается как обычный объект — за доллары, на «Рынке объектов» в Промзоне."
       />
     )
   }

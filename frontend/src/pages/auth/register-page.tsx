@@ -4,6 +4,7 @@ import { useAuth } from '../../app/providers/auth-provider'
 import { authApi } from '../../shared/api/auth.api'
 import { ApiError } from '../../shared/api/client'
 import { SmartCaptcha, useCaptchaKey } from '../../shared/ui/smart-captcha'
+import { storedReferral } from '../../shared/lib/referral'
 
 export function RegisterPage() {
   const { signIn } = useAuth()
@@ -46,7 +47,7 @@ export function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      await authApi.register({ login: form.login, email: form.email, password: form.password, acceptPolicy: true, website: trap, captchaToken: captchaToken || undefined })
+      await authApi.register({ login: form.login, email: form.email, password: form.password, acceptPolicy: true, website: trap, captchaToken: captchaToken || undefined, ref: storedReferral() })
       // Auto-login after register
       const res = await authApi.login({ login: form.login, password: form.password })
       signIn(res.token, res.userId, res.login)

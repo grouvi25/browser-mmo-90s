@@ -5,14 +5,19 @@ import { RecipeService } from './recipe.service'
 import { CycleService } from './cycle.service'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
+import { BalanceConfig } from '../../config/balance.config'
 export const ProductionService = {
   list: async () => ({ items: await ProductionRepository.listActive() }),
   get: async (id: string) => { const item = await ProductionRepository.findActiveById(id); if (!item) throw ProductionErrors.notFound(); return item },
-  market: () => prisma.productionObject.findMany({
-    where: { ownerType: 'SYSTEM', isForSale: true, isActive: true },
-    include: { equipment: true },
-    orderBy: { purchasePrice: 'asc' },
-  }),
+  /** Объекты государства. Цена у всех одна и в долларах (заказчик 28.10). */
+  market: async () => {
+    const objects = await prisma.productionObject.findMany({
+      where: { ownerType: 'SYSTEM', isForSale: true, isActive: true },
+      include: { equipment: true },
+      orderBy: { name: 'asc' },
+    })
+    return objects.map(object => ({ ...object, priceUsd: BalanceConfig.economy.production.objectPriceUsd }))
+  },
   /** Свои объекты: склад с названиями ресурсов, кто сейчас на смене и
    *  сколько выплачено за сутки — владелец видит, что завод работает. */
   mine: async (characterId: string) => {

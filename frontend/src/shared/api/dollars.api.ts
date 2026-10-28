@@ -5,7 +5,7 @@ export interface DollarMove {
   id: string
   amount: number
   balanceAfter: number
-  reason: 'ISSUE' | 'WITHDRAW' | 'TRANSFER_OUT' | 'TRANSFER_IN' | 'PURCHASE' | 'MARKET_SALE' | 'MARKET_TAX' | 'EXCHANGE'
+  reason: 'ISSUE' | 'WITHDRAW' | 'TRANSFER_OUT' | 'TRANSFER_IN' | 'PURCHASE' | 'MARKET_SALE' | 'MARKET_TAX' | 'EXCHANGE' | 'OBJECT_SALE' | 'REFERRAL' | 'REFERRAL_PAYOUT'
   counterparty: string | null
   note: string | null
   createdAt: string

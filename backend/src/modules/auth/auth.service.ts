@@ -8,6 +8,8 @@ import { audit } from '../../shared/logger/audit-logger'
 import type { RegisterInput, LoginInput } from './auth.schemas'
 import { RegistrationGuard } from './registration-guard'
 import { prisma } from '../../shared/db/prisma'
+import { ReferralService } from '../referral/referral.service'
+import { logger } from '../../shared/logger/logger'
 
 export const AuthService = {
   async register(input: RegisterInput, ip?: string, userAgent?: string) {
@@ -42,6 +44,8 @@ export const AuthService = {
       policyAcceptedAt: new Date(),
     })
 
+    // Пригласивший — не повод сорвать регистрацию.
+    await ReferralService.attach(user.id, input.ref).catch(error => logger.warn({ error }, 'referral attach failed'))
     await RegistrationGuard.recordRegistration(ip)
     audit('user.registered', { userId: user.id, login: user.login, ip })
     return { id: user.id, login: user.login, email: user.email }
