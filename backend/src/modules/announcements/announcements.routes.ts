@@ -34,6 +34,18 @@ export async function announcementsRoutes(fastify: FastifyInstance) {
     },
   )
 
+  // Сводка для главной страницы (28.10): её видит и гость. Только новости и
+  // обновления администрации — события мира остаются внутри игры.
+  fastify.get<{ Querystring: { kind?: string; limit?: number } }>(
+    '/public',
+    async (req, reply) => {
+      const parsed = Query.safeParse(req.query)
+      if (!parsed.success || parsed.data.kind === 'WORLD') return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      const items = await AnnouncementsService.feed(parsed.data.kind, parsed.data.limit ?? 6)
+      return reply.send({ items: items.filter(item => item.kind !== 'WORLD').map(({ authorLogin: _author, ...item }) => item) })
+    },
+  )
+
   fastify.post<{ Body: unknown }>(
     '/',
     { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') },

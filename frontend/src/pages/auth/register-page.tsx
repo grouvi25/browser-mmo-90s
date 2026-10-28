@@ -69,7 +69,7 @@ export function RegisterPage() {
     <div className="auth-page">
       <div className="auth-box">
         <div className="auth-header">
-          <div className="logo">БРАТВА 90-Х</div>
+          <div className="logo">КООПЕРАТИВ</div>
           <div className="subtitle">Создать новый аккаунт</div>
         </div>
 

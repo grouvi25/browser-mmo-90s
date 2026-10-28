@@ -1,0 +1,133 @@
+/* Главная для гостя (28.10). Бумага и тушь — как в самой игре: та же
+   палитра оболочки, те же рисованные сцены города. Страница длинная и
+   листается сама: корневые html/body у игры держат высоту окна. */
+.landing {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--paper, #faeadd);
+  color: #17130f;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  scroll-behavior: smooth;
+}
+.landing h1, .landing h2, .landing h3 { font-family: 'Sign', 'Oswald', var(--font-sign); text-transform: uppercase; letter-spacing: .02em; margin: 0; }
+.landing__muted { color: #6b5b4a; }
+
+/* Шапка */
+.landing__bar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 10px clamp(16px, 4vw, 48px);
+  background: rgba(250, 234, 221, .94);
+  border-bottom: 2px solid #17130f;
+}
+.landing__logo { font: 700 22px/1 'Sign', 'Oswald', var(--font-sign); letter-spacing: .06em; color: var(--ink-red, #ab0303); text-decoration: none; }
+.landing__bar nav { display: flex; align-items: center; gap: clamp(10px, 2vw, 24px); }
+.landing__bar nav a { color: #17130f; text-decoration: none; font: 700 14px/1 'Sign', 'Oswald', var(--font-sign); text-transform: uppercase; }
+.landing__bar nav a:hover { color: var(--red, #b81e2c); }
+.landing__bar nav a:focus-visible, .landing a:focus-visible, .landing button:focus-visible { outline: 3px solid var(--red, #b81e2c); outline-offset: 2px; }
+.landing__bar nav .landing__enter { padding: 8px 14px; border: 2px solid #17130f; background: #fffdf8; }
+.landing__bar nav .landing__enter:hover { background: #fde7d3; color: #17130f; }
+
+/* Баннер: надпись поднята к верху картинки (просьба заказчика). */
+.landing__hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 380px);
+  gap: clamp(16px, 3vw, 40px);
+  align-items: start;
+  padding: clamp(24px, 5vw, 56px) clamp(16px, 4vw, 48px) clamp(36px, 6vw, 72px);
+  background-size: cover;
+  background-position: center 60%;
+  border-bottom: 2px solid #17130f;
+}
+.landing__hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(250, 234, 221, .92) 0%, rgba(250, 234, 221, .55) 45%, rgba(250, 234, 221, .15) 100%);
+  pointer-events: none;
+}
+.landing__hero > * { position: relative; }
+.landing__kicker { margin: 0 0 6px; font: 700 13px/1.3 'Sign', 'Oswald', var(--font-sign); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-red, #ab0303); }
+.landing__hero h1 { font-size: clamp(40px, 7vw, 88px); line-height: .95; color: #17130f; text-shadow: 0 2px 0 rgba(250, 234, 221, .8); }
+.landing__sub { margin: 12px 0 0; font-weight: 700; }
+.landing__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.landing__btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 46px; padding: 0 20px;
+  border: 2px solid #17130f; background: #fffdf8; color: #17130f;
+  font: 700 15px/1 'Sign', 'Oswald', var(--font-sign); text-transform: uppercase; text-decoration: none;
+  transition: background-color 120ms;
+}
+.landing__btn:hover { background: #fde7d3; }
+.landing__btn:active { background: #f3cdb1; }
+.landing__btn--main { background: var(--ink-red, #ab0303); border-color: var(--ink-red, #ab0303); color: #fff; }
+.landing__btn--main:hover { background: #8f0202; }
+.landing__btn--main:active { background: #6f0101; }
+
+.landing__login {
+  padding: 18px 20px;
+  background: #fffdf8;
+  border: 2px solid #17130f;
+  box-shadow: 6px 6px 0 rgba(23, 19, 15, .85);
+}
+.landing__login h2 { font-size: 22px; margin-bottom: 10px; }
+.landing__login-foot { margin: 10px 0 0; font-size: 14px; }
+
+/* Об игре */
+.landing__about, .landing__news, .landing__cta { padding: clamp(28px, 5vw, 56px) clamp(16px, 4vw, 48px); }
+.landing__about h2, .landing__news h2, .landing__cta h2 { font-size: clamp(26px, 4vw, 40px); }
+.landing__lead { max-width: 760px; margin: 10px 0 20px; font-size: 16px; }
+.landing__features { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.landing__feature { padding: 16px; background: #fffdf8; border: 2px solid #17130f; }
+.landing__feature h3 { font-size: 19px; margin-bottom: 6px; color: var(--ink-red, #ab0303); }
+.landing__feature p { margin: 0; }
+
+/* Сводка района */
+.landing__news { background: #f3e2d0; border-top: 2px solid #17130f; border-bottom: 2px solid #17130f; }
+.landing__news-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.landing__filters { display: flex; gap: 6px; }
+.landing__filters button { min-height: 38px; padding: 0 14px; border: 2px solid #17130f; background: #fffdf8; font: 700 13px/1 'Sign', 'Oswald', var(--font-sign); text-transform: uppercase; cursor: pointer; }
+.landing__filters button:hover { background: #fde7d3; }
+.landing__filters button.is-active { background: #17130f; color: #fff; }
+.landing__cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.landing__card { display: flex; flex-direction: column; gap: 6px; padding: 16px; background: #fffdf8; border: 2px solid #17130f; }
+.landing__tag { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #6b5b4a; }
+.landing__card h3 { font-size: 19px; }
+.landing__body { margin: 0; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.landing__body.is-open { display: block; -webkit-line-clamp: unset; }
+.landing__link { align-self: start; margin-top: auto; padding: 4px 0; border: 0; background: none; color: var(--ink-red, #ab0303); text-decoration: underline; font: inherit; cursor: pointer; }
+.landing__link:hover { color: #6f0101; }
+
+/* Призыв и подвал */
+.landing__cta { text-align: center; display: grid; justify-items: center; gap: 12px; }
+.landing__footer { display: grid; gap: 6px; padding: 24px clamp(16px, 4vw, 48px) 32px; background: #17130f; color: #f3e2d0; font-size: 14px; }
+.landing__footer b { font: 700 18px/1.2 'Sign', 'Oswald', var(--font-sign); text-transform: uppercase; letter-spacing: .04em; }
+.landing__footer a { color: #fde7d3; }
+.landing__footer .landing__muted { color: #b8a690; }
+
+@media (max-width: 1000px) {
+  .landing__features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .landing__cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .landing__hero { grid-template-columns: 1fr; background-position: center top; }
+  .landing__bar nav a:not(.landing__enter) { display: none; }
+  .landing__features { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing { scroll-behavior: auto; }
+  .landing__btn { transition: none; }
+}
+
+/* Кнопка формы входа — в цвете главной, а не в зелёном старой формы. */
+.landing .landing__login .btn-primary {
+  min-height: 46px; border: 2px solid var(--ink-red, #ab0303); border-radius: 0;
+  background: var(--ink-red, #ab0303); color: #fff;
+  font: 700 15px/1 'Sign', 'Oswald', var(--font-sign); text-transform: uppercase;
+}
+.landing .landing__login .btn-primary:hover:not(:disabled) { background: #8f0202; }
+.landing .landing__login .btn-primary:active:not(:disabled) { background: #6f0101; }
+.landing__hero .landing__kicker { margin-bottom: 12px; }
