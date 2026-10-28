@@ -3,8 +3,9 @@
  *
  * Каждые 10 секунд восстанавливает HP персонажам не в бою.
  *
- * Промежуточная формула: 100% HP за 1 минуту.
- * Финальная (задел): Standard=20мин, Premium=10мин, +клановая лечебница -50%
+ * Правило заказчика (28.10): с нуля до полного — 10 минут с премиум-
+ * подпиской и 30 минут без неё, пропорционально: половина здоровья
+ * восстанавливается за 5 и 15 минут. Премиум — пока не истёк его срок.
  *
  * tickPerSecond = hpMax / recoverySeconds
  * Запускается каждые TICK_MS и добавляет tickPerSecond * (TICK_MS/1000)
@@ -13,18 +14,18 @@
 import { prisma } from '../shared/db/prisma'
 
 export const TICK_MS = 10_000 // каждые 10 секунд
-const RECOVERY_SECONDS_DEFAULT = 60 // 100% HP за 1 минуту (промежуток)
+export const RECOVERY_SECONDS_PREMIUM = 10 * 60
+export const RECOVERY_SECONDS_STANDARD = 30 * 60
 
-function getRecoverySeconds(_isPremium: boolean): number {
-  // Будущая формула:
-  // isPremium ? 10 * 60 : 20 * 60
-  return RECOVERY_SECONDS_DEFAULT
+export function getRecoverySeconds(isPremium: boolean): number {
+  return isPremium ? RECOVERY_SECONDS_PREMIUM : RECOVERY_SECONDS_STANDARD
 }
 
 export async function runHpRecovery(): Promise<void> {
   // Находим всех персонажей не в бою с неполным HP через raw сравнение
   const characters = await prisma.$queryRaw<Array<{id: string; hp_current: number; hp_max: number; is_premium: boolean}>>`
-    SELECT id, hp_current, hp_max, is_premium
+    SELECT id, hp_current, hp_max,
+      (is_premium AND (premium_expires_at IS NULL OR premium_expires_at > now())) AS is_premium
     FROM characters
     WHERE status != 'IN_BATTLE' AND hp_current < hp_max
     LIMIT 500

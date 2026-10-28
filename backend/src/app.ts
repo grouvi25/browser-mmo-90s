@@ -42,6 +42,7 @@ import { farmRoutes } from './modules/farm/farm.routes'
 import { barsRoutes } from './modules/bars/bars.routes'
 import { chatRoutes } from './modules/chat/chat.routes'
 import { announcementsRoutes } from './modules/announcements/announcements.routes'
+import { libraryRoutes } from './modules/library/library.routes'
 import { clansRoutes } from './modules/clans/clans.routes'
 import { territoriesRoutes, clanTerritoriesRoutes, objectWarRoutes } from './modules/territories/territories.routes'
 import { premiumRoutes, helpersRoutes } from './modules/premium/premium.routes'
@@ -167,6 +168,7 @@ export async function buildApp() {
   await fastify.register(barsRoutes,           { prefix: '/api/bars' })
   await fastify.register(chatRoutes,           { prefix: '/api/chat' })
   await fastify.register(announcementsRoutes,  { prefix: '/api/announcements' })
+  await fastify.register(libraryRoutes,        { prefix: '/api/library' })
   await fastify.register(clansRoutes,          { prefix: '/api/clans' })
   // Территории клана — под тем же префиксом, что и сам клан:
   // адрес /api/clans/:id/territories задан в STAGE4_API 1.3.

@@ -12,7 +12,7 @@ import { ResumeLocation } from './location-persistence'
 import { CityPage } from '../pages/locations/city-page'
 import { AnnouncementsFeed } from '../pages/radio/announcements-feed'
 
-import { LoginPage }           from '../pages/auth/login-page'
+import { LandingPage }         from '../pages/landing/landing-page'
 import { RegisterPage }        from '../pages/auth/register-page'
 import { ForgotPasswordPage, ResetPasswordPage } from '../pages/auth/password-reset-pages'
 import { CreateCharacterPage } from '../pages/character/create-character-page'
@@ -136,7 +136,8 @@ export function AppRouter() {
     <Routes>
       {/* ── Публичная часть ───────────────────────────────── */}
       <Route element={<PublicLayout />}>
-        <Route path="/login"    element={<RequireGuest authenticatedTo="/resume"><LoginPage /></RequireGuest>} />
+        {/* Гостя встречает главная с рассказом об игре и формой входа (28.10). */}
+        <Route path="/login"    element={<RequireGuest authenticatedTo="/resume"><LandingPage /></RequireGuest>} />
         <Route path="/register" element={<RequireGuest authenticatedTo="/character/create"><RegisterPage /></RequireGuest>} />
         {/* Восстановление пароля — без входа: ссылку открывают с нового устройства. */}
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

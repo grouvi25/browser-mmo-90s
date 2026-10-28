@@ -5,3 +5,14 @@
 .library__text h2 { margin: 0 0 8px; }
 .library__text p { margin: 0 0 8px; line-height: 1.45; }
 @media (max-width: 640px) { .library { grid-template-columns: 1fr; } }
+
+/* Таблицы уровней и профессий (28.10). */
+.library__text h3 { margin: 14px 0 6px; font-size: 15px; }
+.library__muted { color: var(--text-dim, #6b5b4a); }
+.library__scroll { overflow-x: auto; margin: 0 0 10px; }
+.library__table { border-collapse: collapse; min-width: 100%; font-size: 13.5px; }
+.library__table th, .library__table td { border: 1px solid var(--border, #c9b8a5); padding: 4px 8px; text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.library__table th { background: var(--paper-dark, #e6d8bd); font-weight: 700; }
+.library__table tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .35); }
+.library__chain { margin-top: 10px; }
+.library__step { margin: 6px 0 10px; }

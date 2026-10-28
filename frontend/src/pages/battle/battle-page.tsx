@@ -171,7 +171,6 @@ function BattleGrid({
                     {!occupant.isAlive ? <Skull size={16} /> : <img className="token-figure" src={fighterBlue} srcSet={`${fighterBlue2x} 2x`} alt={who} />}
                     {tip}
                     {hpBar}
-                    <span className="token-label">{isPlayer ? playerName.slice(0, 5) : 'Союзн.'}</span>
                   </div>
                 )}
                 {isEnemy && occupant && (
@@ -179,7 +178,6 @@ function BattleGrid({
                     {!occupant.isAlive ? <Skull size={16} /> : <img className="token-figure" src={fighterRed} srcSet={`${fighterRed2x} 2x`} alt={who} />}
                     {tip}
                     {hpBar}
-                    <span className="token-label">{isTarget ? enemyName.slice(0, 5) : 'Враг'}</span>
                     {isTarget && <span className="token-target-label">ЦЕЛЬ</span>}
                   </div>
                 )}
@@ -600,12 +598,12 @@ export function BattlePage() {
             карточки-вырезы нет, а здоровье в бою главное. */}
         <div className="m-battle__fighters">
           <div className="m-battle__fighter">
-            <span className="m-battle__name">{playerName} · {char?.battleLevel ?? 0} ур.</span>
-            <span className="m-battle__hp"><i style={{ transform: `scaleX(${pHpMax ? pHp / pHpMax : 0})` }} /><b>{pHp}/{pHpMax}</b></span>
+            <span className="m-battle__name"><span className="m-battle__who">{playerName} · {char?.battleLevel ?? 0} ур.</span><b className="m-battle__hpnum">{pHp}/{pHpMax}</b></span>
+            <span className="m-battle__hp"><i style={{ transform: `scaleX(${pHpMax ? pHp / pHpMax : 0})` }} /></span>
           </div>
           <div className="m-battle__fighter is-enemy">
-            <span className="m-battle__name">{enemyName} · {enemyProfile?.level ?? 0} ур.</span>
-            <span className="m-battle__hp is-enemy"><i style={{ transform: `scaleX(${eHpMax ? eHp / eHpMax : 0})` }} /><b>{eHp}/{eHpMax}</b></span>
+            <span className="m-battle__name"><span className="m-battle__who">{enemyName} · {enemyProfile?.level ?? 0} ур.</span><b className="m-battle__hpnum">{eHp}/{eHpMax}</b></span>
+            <span className="m-battle__hp is-enemy"><i style={{ transform: `scaleX(${eHpMax ? eHp / eHpMax : 0})` }} /></span>
           </div>
         </div>
 

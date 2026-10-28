@@ -2,6 +2,7 @@ import type { CurrencyLogReason, Prisma } from '@prisma/client'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { getEconomicLevelFromExp } from '../stats/stats.formulas'
+import { BalanceConfig } from '../../config/balance.config'
 
 interface MoneyOperation {
   characterId: string
@@ -49,10 +50,22 @@ export const EconomyService = {
 
   async grantEconomicExp(tx: Prisma.TransactionClient, characterId: string, amount: number) {
     if (!Number.isInteger(amount) || amount < 0) throw new AppError(ErrorCode.ECON_INVALID_AMOUNT, 'Invalid economic exp', 422)
-    const character = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { economicExp: true } })
+    const character = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { economicExp: true, economicLevel: true } })
     const economicExp = character.economicExp + amount
     const economicLevel = getEconomicLevelFromExp(economicExp)
-    await tx.character.update({ where: { id: characterId }, data: { economicExp, economicLevel } })
-    return { economicExp, economicLevel }
+    // За каждый новый уровень — по разу: сила и премия десятой долей порога
+    // (книга «Ревизия 2»). Уровень вниз не идёт: опыт только копится.
+    const gained = Math.max(0, economicLevel - character.economicLevel)
+    const E = BalanceConfig.economicExp
+    const levelMoney = Array.from({ length: gained }, (_, i) => character.economicLevel + 1 + i)
+      .reduce((sum, level) => sum + Math.floor(E.levelMoneyShare * (E.levelThresholds[level] ?? 0)), 0)
+    await tx.character.update({
+      where: { id: characterId },
+      data: { economicExp, economicLevel: Math.max(economicLevel, character.economicLevel), ...(levelMoney > 0 ? { money: { increment: levelMoney } } : {}) },
+    })
+    if (gained > 0 && E.strPerLevel > 0) {
+      await tx.characterStats.update({ where: { characterId }, data: { str: { increment: gained * E.strPerLevel } } })
+    }
+    return { economicExp, economicLevel, levelsGained: gained, levelMoney }
   },
 }

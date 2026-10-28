@@ -121,12 +121,9 @@ export const GovernmentShopService = {
         characterId, amount: sellPrice, reasonCode: 'SHOP_SELL', refType: 'item', refId: itemInstanceId,
       })
 
-      // Economic exp for selling (GanjaWars: price × 0.047 for new item, × 0.067 for broken)
-      const isBroken = item.status === 'BROKEN'
-      const ecoExpRate = isBroken
-        ? BalanceConfig.economicExp.sellBrokenRate
-        : BalanceConfig.economicExp.sellNewRate
-      const ecoExpGain = Math.floor(item.template.priceBase * ecoExpRate)
+      // Экономический опыт — 2% полученной суммы, как у любой продажи
+      // (книга «Ревизия 2»). Раньше считался от цены вещи по своим ставкам.
+      const ecoExpGain = Math.floor(sellPrice * BalanceConfig.economicExp.turnoverRate)
 
       const newEcoExp = char.economicExp + ecoExpGain
       const newEcoLevel = getEconomicLevelFromExp(newEcoExp)
