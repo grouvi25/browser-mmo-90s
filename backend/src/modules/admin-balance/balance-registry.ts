@@ -368,7 +368,7 @@ export function balanceRegistry(): BalanceGroup[] {
         {
           id: 'production.owner',
           title: 'Владение объектом',
-          formula: 'вывод прибыли облагается 5%; перепродажа возвращает половину цены',
+          formula: 'у государства объект покупается за $; вывод прибыли облагается 5%; перепродажа возвращает половину цены в той валюте, в которой объект куплен',
           what: 'Правила владения производственным объектом.',
           affects: 'Объектов на персонажа не больше двух — иначе один игрок скупает передел целиком. Смена профиля объекта стоит денег и трёх часов простоя, чтобы под каждый заказ не переключались туда-сюда.',
           inputs: ['баланс объекта', 'цена объекта'],
@@ -376,6 +376,7 @@ export function balanceRegistry(): BalanceGroup[] {
             p('economy.production.maxObjectsPerCharacter', B.economy.production.maxObjectsPerCharacter, 'объектов в одни руки'),
             p('economy.production.objectWithdrawTaxRate', B.economy.production.objectWithdrawTaxRate, 'налог на вывод прибыли'),
             p('economy.production.objectResaleRate', B.economy.production.objectResaleRate, 'сколько вернут при продаже'),
+            p('economy.production.objectPriceUsd', B.economy.production.objectPriceUsd, 'цена объекта у государства, долларов'),
             p('economy.production.profileSwitchCost', B.economy.production.profileSwitchCost, 'смена профиля объекта'),
             p('economy.production.profileSwitchMinutes', B.economy.production.profileSwitchMinutes, 'простой при смене профиля'),
             p('strategy.clanObjects.base', B.strategy.clanObjects.base, 'объектов у бригады без районов'),

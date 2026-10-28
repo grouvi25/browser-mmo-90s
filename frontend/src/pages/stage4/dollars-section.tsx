@@ -21,6 +21,9 @@ const REASON: Record<DollarMove['reason'], string> = {
   MARKET_SALE: 'Продажа на рынке',
   MARKET_TAX: 'Налог рынка',
   EXCHANGE: 'Обменник',
+  OBJECT_SALE: 'Продажа объекта государству',
+  REFERRAL: 'Реферальные',
+  REFERRAL_PAYOUT: 'Вывод реферальных',
 }
 
 export function DollarsSection() {

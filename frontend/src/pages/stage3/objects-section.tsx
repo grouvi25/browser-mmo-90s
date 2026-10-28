@@ -45,8 +45,15 @@ export function ObjectsSection() {
   }
   const fail = (e: Error) => { setBad(true); setMsg(e.message) }
 
-  const buy = useMutation({ mutationFn: productionApi.buy, onSuccess: () => done('Объект куплен'), onError: fail })
-  const sell = useMutation({ mutationFn: productionApi.sell, onSuccess: () => done('Объект продан государству'), onError: fail })
+  const buy = useMutation({ mutationFn: productionApi.buy, onSuccess: () => { done('Объект куплен'); void qc.invalidateQueries({ queryKey: ['dollars'] }) }, onError: fail })
+  const sell = useMutation({
+    mutationFn: productionApi.sell,
+    onSuccess: (result: { payout: number; currency: 'USD' | 'RUB' }) => {
+      done(`Объект продан государству за ${fmt(result.payout)} ${result.currency === 'USD' ? '$' : '₽'}`)
+      void qc.invalidateQueries({ queryKey: ['dollars'] })
+    },
+    onError: fail,
+  })
   const repair = useMutation({ mutationFn: productionApi.repair, onSuccess: () => done('Объект отремонтирован'), onError: fail })
   // Этап 4: перевод объекта в бригаду. Операция НЕОБРАТИМА, поэтому
   // подтверждение показывает, что именно уедет в общак, а не спрашивает
@@ -175,7 +182,7 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
 
       <div className="object-actions">
         {mode === 'market' ? (
-          <button onClick={onBuy} disabled={busy}>Купить за {fmt(object.purchasePrice ?? 0)} ₽</button>
+          <button onClick={onBuy} disabled={busy}>Купить за {fmt(object.priceUsd ?? 0)} $</button>
         ) : (
           <>
             <button onClick={onStart} disabled={busy}><Play size={15} /> Запустить</button>
@@ -219,6 +226,10 @@ function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, on
   const profile = useMutation({ mutationFn: () => productionApi.switchProfile(object.id, recipeId), onSuccess: () => onDone('Профиль меняется: 1 500 ₽ и 180 минут простоя'), onError: onFail })
 
   const base = object.baseSalary ?? 0
+  // Купленные за доллары выкупаются за доллары; купленные до 28.10 за рубли — за рубли.
+  const resale = object.paidUsd
+    ? `${fmt(Math.floor(object.paidUsd * 0.5))} $`
+    : `${fmt(Math.floor((object.purchasePrice ?? 0) * 0.5))} ₽`
 
   return (
     <div className="object-controls">
@@ -271,7 +282,7 @@ function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, on
           onClick={() => { if (window.confirm('Продать объект государству за 50% цены?')) onSell() }}
           disabled={busy}
         >
-          Продать за {fmt(Math.floor((object.purchasePrice ?? 0) * 0.5))} ₽
+          Продать за {resale}
         </button>
         <TransferToClan object={object} busy={busy} onTransfer={onTransfer} />
       </fieldset>

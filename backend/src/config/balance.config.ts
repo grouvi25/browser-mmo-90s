@@ -99,6 +99,8 @@ export const BalanceConfig = {
       salaryRangeMax: 2.0,
       maxObjectsPerCharacter: 2,
       objectResaleRate: 0.5,
+      /** Заказчик 28.10: «Заводы продаются ТОЛЬКО за доллары. Завод 6т долларов стоит». */
+      objectPriceUsd: 6000,
       profileSwitchCost: 1500,
       profileSwitchMinutes: 180,
       repairCostPerDurability: 20,
@@ -359,5 +361,12 @@ export const BalanceConfig = {
   // --- Government shop ---
   shop: {
     sellBackMultiplier: 0.3,  // игрок получает 30% от base price при продаже
+  },
+
+  // --- Реферальная система (обещание игрокам 23.10, процент на наше усмотрение 28.10) ---
+  referral: {
+    topUpShare: 0.10,     // пригласившему — 10% долларов с каждой покупки у дилера
+    minPayoutUsd: 50,     // меньше этого заявку на вывод не принимаем
+    maxPendingPayouts: 1, // одна заявка в работе за раз
   },
 } as const

@@ -28,11 +28,12 @@ import { PlayersSection } from './sections/players-section'
 import { SupportSection } from './sections/support-section'
 import { ChatSection } from './sections/chat-section'
 import { AnnouncementsSection } from './sections/announcements-section'
+import { PayoutsSection } from './sections/payouts-section'
 import '../stage3/stage3.css'
 import './admin.css'
 
 type Tab = 'overview' | 'clans' | 'territories' | 'claims' | 'signals' | 'actions' | 'trace'
-  | 'balance' | 'sandbox' | 'duel' | 'items' | 'players' | 'support' | 'chat' | 'news'
+  | 'balance' | 'sandbox' | 'duel' | 'items' | 'players' | 'support' | 'chat' | 'news' | 'payouts'
 
 const TABS: { key: Tab; title: string }[] = [
   { key: 'overview', title: 'Обзор' },
@@ -40,6 +41,7 @@ const TABS: { key: Tab; title: string }[] = [
   { key: 'support', title: 'Поддержка' },
   { key: 'chat', title: 'Чат' },
   { key: 'news', title: 'Объявления' },
+  { key: 'payouts', title: 'Выплаты' },
   { key: 'clans', title: 'Бригады' },
   { key: 'territories', title: 'Районы' },
   { key: 'claims', title: 'Заявки' },
@@ -117,6 +119,7 @@ export function AdminPage() {
       {tab === 'support' && <SupportSection />}
       {tab === 'chat' && <ChatSection />}
       {tab === 'news' && <AnnouncementsSection />}
+      {tab === 'payouts' && <PayoutsSection />}
       {tab === 'clans' && <ClansSection />}
       {tab === 'territories' && <TerritoriesSection role={role} />}
       {tab === 'claims' && <ClaimsSection role={role} />}

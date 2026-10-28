@@ -11,6 +11,8 @@ export const RegisterSchema = z.object({
   // Ловушка для ботов (скрытое поле формы) и ответ капчи.
   website: z.string().max(200).optional(),
   captchaToken: z.string().max(4000).optional(),
+  // Ник пригласившего из реферальной ссылки ?ref=.
+  ref: z.string().max(64).optional(),
 })
 
 export const LoginSchema = z.object({

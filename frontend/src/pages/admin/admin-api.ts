@@ -11,6 +11,7 @@
 // не должен выкидывать из админки, и наоборот.
 // =============================================================
 import type { Announcement, AnnouncementKind } from '../../shared/api/announcements.api'
+import type { AdminPayout, PayoutStatus } from '../../shared/api/referral.api'
 
 const BASE = (import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_API_BASE_URL || ''
 const TOKEN_KEY = 'mmo_admin_token'
@@ -343,6 +344,10 @@ export const adminApi = {
     request<Announcement>('/api/announcements', { method: 'POST', body }),
   pinAnnouncement: (id: string, pinned: boolean) => request(`/api/announcements/${id}/pin`, { method: 'PATCH', body: { pinned } }),
   removeAnnouncement: (id: string) => request(`/api/announcements/${id}`, { method: 'DELETE' }),
+  // Заявки на вывод реферальных: выплата вручную, здесь только отметка.
+  payouts: (status?: PayoutStatus) => request<{ items: AdminPayout[] }>(`/api/referral/admin/payouts${status ? `?status=${status}` : ''}`),
+  payoutPaid: (id: string, note?: string) => request<AdminPayout>(`/api/referral/admin/payouts/${id}/paid`, { method: 'POST', body: { note } }),
+  payoutReject: (id: string, note?: string) => request<AdminPayout>(`/api/referral/admin/payouts/${id}/reject`, { method: 'POST', body: { note } }),
   chatLog: (days: number) => request<{ days: number; items: ChatLogRow[] }>(`/api/admin/chat?days=${days}`),
   support: (status?: SupportStatus) => request<{ items: SupportRow[] }>(`/api/admin/support${status ? `?status=${status}` : ''}`),
   supportImage: (id: string) => requestBlobUrl(`/api/admin/support/${id}/image`),
