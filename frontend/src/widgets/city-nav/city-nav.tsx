@@ -104,9 +104,10 @@ function FramedTabs({
   )
 }
 
-/** Наличные в шапке. Тот же запрос, что у карточки персонажа, поэтому
- *  сумма и в шапке, и в «личном деле» обновляется одним ответом сервера. */
-function NavMoney() {
+/** Наличные в шапке: рубли и слева от них доллары. Тот же запрос, что у
+ *  карточки персонажа, поэтому суммы и в шапке, и в «личном деле»
+ *  обновляются одним ответом сервера. */
+function NavMoney({ currency }: { currency: 'rub' | 'usd' }) {
   const { data: char } = useQuery({
     queryKey: ['character', 'me'],
     queryFn: () => charactersApi.getMe(),
@@ -116,7 +117,8 @@ function NavMoney() {
   const textRef = useRef<HTMLSpanElement>(null)
   const [squeeze, setSqueeze] = useState(1)
   const [fontScale, setFontScale] = useState(1)
-  const money = char ? char.money.toLocaleString('ru') : ''
+  const cell = currency === 'usd' ? MENU.navDollars : MENU.navMoney
+  const money = char ? (currency === 'usd' ? char.dollars ?? 0 : char.money).toLocaleString('ru') : ''
 
   // Сумма — единственная надпись шапки, длину которой задаёт не макет, а
   // игрок. Пока помещается в свою ячейку, кегль макетный; переросла —
@@ -135,26 +137,26 @@ function NavMoney() {
       text.style.transform = prevTransform
       text.style.fontSize = prevFont
       if (natural <= 0) return
-      const fit = Math.min(1, MENU.navMoney.w / natural)
+      const fit = Math.min(1, cell.w / natural)
       if (fit >= MIN_SQUEEZE) { setSqueeze(fit); setFontScale(1) }
       else { setSqueeze(MIN_SQUEEZE); setFontScale(fit / MIN_SQUEEZE) }
     }
     measure()
     if (document.fonts?.ready) void document.fonts.ready.then(measure)
-  }, [money])
+  }, [money, cell.w])
 
   if (!char) return null
   return (
     <div
       className="t-sign stage-money"
       style={{
-        left: MENU.navMoney.x, top: MENU.navMoney.y, width: MENU.navMoney.w,
+        left: cell.x, top: cell.y, width: cell.w,
         fontSize: MENU.navFontSize,
         // Тот же сдвиг, что у пунктов меню: они рисуются через FitText
         // с MENU.navDy, и без него сумма садилась на четыре пикселя ниже.
         transform: `translateY(${MENU.navDy}px)`,
       }}
-      title={'Наличные: ' + money + ' рублей'}
+      title={currency === 'usd' ? `Доллары: ${money} $` : `Наличные: ${money} рублей`}
     >
       <span
         ref={textRef}
@@ -162,7 +164,7 @@ function NavMoney() {
         style={{ fontSize: MENU.navFontSize * fontScale, transform: `scaleX(${squeeze})` }}
       >
         <span className="stage-money__sum">{money}</span>
-        <span className="stage-money__cur">&#8381;</span>
+        <span className="stage-money__cur">{currency === 'usd' ? '$' : '₽'}</span>
       </span>
     </div>
   )
@@ -216,7 +218,8 @@ export function TopNav() {
       >
         {MENU.navExit.label}
       </FitText>
-      <NavMoney />
+      <NavMoney currency="usd" />
+      <NavMoney currency="rub" />
     </>
   )
 }

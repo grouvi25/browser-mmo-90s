@@ -11,7 +11,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
-import { EtherComposer, EtherLine, useComposer } from '../chat/ether'
+import { EtherComposer, EtherLine, PrivateArrow, onWritePrivately, useComposer } from '../chat/ether'
 import { levelTone } from '../../shared/lib/chat-format'
 
 export function MobileChat() {
@@ -22,6 +22,8 @@ export function MobileChat() {
   const ether = useEther()
   const composer = useComposer(ether)
   const online = useOnline()
+  // Стрелочка у ника во вкладке «Онлайн» открывает личку — переходим в чат.
+  useEffect(() => onWritePrivately(() => setTab('chat')), [])
   // Лента открывается на последних сообщениях, а не на самых старых.
   const logRef = useRef<HTMLDivElement>(null)
   const lastId = ether.messages[ether.messages.length - 1]?.id
@@ -64,15 +66,17 @@ export function MobileChat() {
       ) : (
         <div className="m-chat__online">
           {players.map(p => (
-            <button
-              key={p.characterId}
-              type="button"
-              className={'m-chat__player' + (p.self ? ' is-self' : '')}
-              onClick={() => navigate(p.self ? '/profile' : `/u/${encodeURIComponent(p.nickname)}`)}
-            >
-              <span>{p.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(p.clan.id, p.clan.iconVersion)} alt="" width={16} height={16} /> : null} {p.nickname}</span>
-              <b className={`online-list__lvl online-list__lvl--${p.self ? 'o' : levelTone(p.level)}`}>{p.level}</b>
-            </button>
+            <div key={p.characterId} className="m-chat__player-row">
+              {!p.self && <PrivateArrow nick={p.nickname} />}
+              <button
+                type="button"
+                className={'m-chat__player' + (p.self ? ' is-self' : '')}
+                onClick={() => navigate(p.self ? '/profile' : `/u/${encodeURIComponent(p.nickname)}`)}
+              >
+                <span>{p.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(p.clan.id, p.clan.iconVersion)} alt="" width={16} height={16} /> : null} {p.nickname}</span>
+                <b className={`online-list__lvl online-list__lvl--${p.self ? 'o' : levelTone(p.level)}`}>{p.level}</b>
+              </button>
+            </div>
           ))}
           {!players.length && <div className="m-chat__row">В эфире пусто.</div>}
         </div>

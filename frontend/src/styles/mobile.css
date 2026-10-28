@@ -172,6 +172,9 @@
   font-family: var(--font-ui); font-size: 14px; color: #17130f;
 }
 .m-chat__player.is-self { color: var(--ink-red); font-weight: 700; }
+.m-chat__player-row { display: flex; gap: 4px; }
+.m-chat__player-row .m-chat__player { flex: 1 1 auto; min-width: 0; }
+.m-chat__player-row .ether-arrow { flex: 0 0 44px; min-height: 44px; font-size: 18px; border: 1px solid rgba(43, 43, 43, .35); background: rgba(255, 255, 255, .45); }
 
 /* =============================================================
    УЗКИЙ ЭКРАН: правки для содержимого разделов

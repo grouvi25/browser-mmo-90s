@@ -443,7 +443,8 @@ test.describe('Stage 2 visual and browser flow', () => {
     // Магазин»: уровень выбирается селектором, а не рядом кнопок.
     await authPage(page, seller)
     await page.goto('/shop')
-    await page.getByRole('button', { name: 'Оружие', exact: true }).click()
+    // Вкладки по месту на теле (правка 28.10): пистолет 2-го уровня — в «Стрелковом».
+    await page.getByRole('button', { name: 'Стрелковое', exact: true }).click()
     const cards = page.locator('.gshop-card')
     await expect(cards.first()).toBeVisible()
     await page.getByLabel('Для уровня:').selectOption('2')

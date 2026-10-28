@@ -12,7 +12,8 @@ import { prisma } from '../../shared/db/prisma'
 import { ChatRedis } from '../../shared/db/redis'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
-import { FLOOD, MAX_BODY, chatDayStart, floodKeys, normalizeBody, scopeFor, type Rejection } from './chat.formulas'
+import { FLOOD, MAX_BODY, chatDayStart, chatRoom, floodKeys, normalizeBody, privateRoom, scopeFor, type Rejection } from './chat.formulas'
+import { publish } from '../../shared/realtime/io'
 
 /**
  * Сколько ник держится в списке онлайн после последнего действия игрока.
@@ -228,5 +229,29 @@ export const ChatService = {
       where: { id: messageId, deletedAt: null },
       data: { deletedAt: new Date(), deletedBy: byUserId },
     })
+  },
+
+  /**
+   * Удалить реплику из эфира (заказчик 28.10: «возможность удалять админу
+   * сообщения из чата»). В базе она остаётся спрятанной — для разбора
+   * жалоб, а у всех, кто сейчас в эфире, исчезает сразу.
+   * by — кто удалил: «admin:<id>» из админки или «moderator:<id>» из игры.
+   */
+  async remove(messageId: string, by: string): Promise<boolean> {
+    const row = await prisma.chatMessage.findUnique({
+      where: { id: messageId },
+      select: { id: true, channel: true, scope: true, authorId: true, recipientId: true, deletedAt: true },
+    })
+    if (!row) throw new AppError(ErrorCode.NOT_FOUND, 'Сообщение не найдено', 404)
+    if (row.deletedAt) return false
+    await this.hide(row.id, by)
+    const event = { id: row.id, channel: row.channel }
+    if (row.channel === 'PRIVATE') {
+      publish(privateRoom(row.authorId), 'chat:deleted', event)
+      if (row.recipientId) publish(privateRoom(row.recipientId), 'chat:deleted', event)
+    } else {
+      publish(chatRoom(row.channel, row.scope), 'chat:deleted', event)
+    }
+    return true
   },
 }

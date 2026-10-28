@@ -47,10 +47,10 @@ const STAT_LABEL: Record<StatKey, string> = {
 }
 /** Какие статы положены вещи — как на складе при распределении очков. */
 const STATS_FOR: Partial<Record<Kind, StatKey[]>> = {
-  WEAPON: ['DAMAGE', 'ACCURACY', 'CRIT', 'DURABILITY'],
-  ARMOR: ['ARMOR', 'DURABILITY', 'ANTI_CRIT'],
-  SHIELD: ['ARMOR', 'DURABILITY', 'ANTI_CRIT'],
-  ACCESSORY: ['ARMOR', 'DURABILITY', 'ANTI_CRIT'],
+  WEAPON: ['DAMAGE', 'ACCURACY', 'CRIT'],
+  ARMOR: ['ARMOR', 'ANTI_CRIT'],
+  SHIELD: ['ARMOR', 'ANTI_CRIT'],
+  ACCESSORY: ['ARMOR', 'ANTI_CRIT'],
 }
 
 /**

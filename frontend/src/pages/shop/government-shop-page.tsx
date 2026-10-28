@@ -17,15 +17,33 @@ import { SPRITES } from '../../shared/ui/sprite'
 import { rangeLabel } from '../../shared/lib/weapon-range'
 import './shop.css'
 
-type Category = 'WEAPON' | 'ARMOR' | 'MEDICINE' | 'TOOL' | 'FOOD' | 'DRINK'
+/** Стрелковое отделено от ближнего боя — как на Складе. */
+const RANGED = new Set(['PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 'THROWN'])
 
-/** Вкладки идут в том порядке, в каком нарисованы в макете. */
-const CATEGORIES: Array<{ key: Category; label: string }> = [
-  { key: 'WEAPON', label: 'Оружие' },
-  { key: 'ARMOR', label: 'Броня' },
-  { key: 'MEDICINE', label: 'Аптечки' },
-  { key: 'TOOL', label: 'Инструменты' },
-  { key: 'FOOD', label: 'Бафф-еда' },
+type Category = 'MELEE' | 'RANGED' | 'HEAD' | 'NECK' | 'BODY' | 'FEET' | 'HANDS' | 'RINGS'
+  | 'BRACERS' | 'PANTS' | 'BRACELETS' | 'TOOL' | 'PAPERS' | 'MEDICINE' | 'DRINK'
+
+/**
+ * Вкладки по правке заказчика 28.10: вместо «Оружие» и «Броня» — по месту
+ * на теле, в его порядке; «Бафф-еду» убрали, напитки оставили. «Бумаги» —
+ * будущие свитки нападения и иммунитета (заказчик просил назвать ближе к
+ * жизни). Кольца и браслеты пока пусты: таких вещей в игре ещё нет.
+ */
+const CATEGORIES: Array<{ key: Category; label: string; match?: (item: ShopItem) => boolean }> = [
+  { key: 'MELEE', label: 'Ближний бой', match: i => i.template.type === 'WEAPON' && !RANGED.has(i.template.weaponType ?? '') },
+  { key: 'RANGED', label: 'Стрелковое', match: i => i.template.type === 'WEAPON' && RANGED.has(i.template.weaponType ?? '') },
+  { key: 'HEAD', label: 'Голова', match: i => i.template.armorSlot === 'HEAD' },
+  { key: 'NECK', label: 'Шея', match: i => i.template.armorSlot === 'ACCESSORY' },
+  { key: 'BODY', label: 'Тело', match: i => i.template.armorSlot === 'CHEST' },
+  { key: 'FEET', label: 'Ноги', match: i => i.template.armorSlot === 'FEET' },
+  { key: 'HANDS', label: 'Руки', match: i => i.template.type === 'SHIELD' || i.template.armorSlot === 'RIGHT_HAND' },
+  { key: 'RINGS', label: 'Кольца' },
+  { key: 'BRACERS', label: 'Наручи', match: i => i.template.armorSlot === 'GLOVES' || i.template.armorSlot === 'HANDS' },
+  { key: 'PANTS', label: 'Штаны', match: i => i.template.armorSlot === 'LEGS' },
+  { key: 'BRACELETS', label: 'Браслеты' },
+  { key: 'TOOL', label: 'Инструменты', match: i => i.template.type === 'TOOL' },
+  { key: 'PAPERS', label: 'Бумаги' },
+  { key: 'MEDICINE', label: 'Аптечки', match: i => i.template.type === 'CONSUMABLE' },
   { key: 'DRINK', label: 'Напитки' },
 ]
 
@@ -53,18 +71,10 @@ function bonusLines(item: ShopItem): string[] {
   return out
 }
 
-function categoryOf(item: ShopItem): Category | null {
-  const t = item.template
-  if (t.type === 'WEAPON') return 'WEAPON'
-  if (t.type === 'ARMOR') return 'ARMOR'
-  if (t.type === 'TOOL') return 'TOOL'
-  if (t.type === 'CONSUMABLE') return 'MEDICINE'
-  return null
-}
 
 export function GovernmentShopPage() {
   const qc = useQueryClient()
-  const [category, setCategory] = useState<Category>('WEAPON')
+  const [category, setCategory] = useState<Category>('MELEE')
   const [level, setLevel] = useState<number | 'ALL'>('ALL')
   const [cart, setCart] = useState<string[]>([])
   const [cartOpen, setCartOpen] = useState(false)
@@ -77,7 +87,7 @@ export function GovernmentShopPage() {
   const bars = useQuery({
     queryKey: ['bars'],
     queryFn: barsApi.list,
-    enabled: category === 'FOOD' || category === 'DRINK',
+    enabled: category === 'DRINK',
   })
 
   const showMsg = (type: 'success' | 'error', text: string) => {
@@ -127,8 +137,9 @@ export function GovernmentShopPage() {
     [items],
   )
 
+  const matches = CATEGORIES.find(tab => tab.key === category)?.match
   const visible = items.filter(item => {
-    if (categoryOf(item) !== category) return false
+    if (!matches?.(item)) return false
     if (level !== 'ALL' && item.template.levelReq !== level) return false
     return true
   })
@@ -219,8 +230,8 @@ export function GovernmentShopPage() {
         </section>
       )}
 
-      {category === 'FOOD' || category === 'DRINK' ? (
-        <BarShowcase category={category} loading={bars.isLoading} bars={bars.data?.items ?? []} />
+      {category === 'DRINK' ? (
+        <BarShowcase loading={bars.isLoading} bars={bars.data?.items ?? []} />
       ) : visible.length === 0 ? (
         <p className="gshop-empty">В этой категории пока пусто.</p>
       ) : (
@@ -281,15 +292,14 @@ export function GovernmentShopPage() {
 }
 
 /** Витрина барного меню: тут только смотрят, покупают в самом баре. */
-function BarShowcase({ category, loading, bars }: {
-  category: 'FOOD' | 'DRINK'
+function BarShowcase({ loading, bars }: {
   loading: boolean
   bars: Array<{ id: string; name: string; barOffers: Array<{ id: string; name: string; price: number; hpRestore: number; alcoholDegrees: number; accuracyBuff: number; damageBuff: number; buffMinutes: number }> }>
 }) {
   if (loading) return <div className="loading"><span className="spinner" />Загрузка меню…</div>
 
   const rows = bars.flatMap(bar => bar.barOffers
-    .filter(offer => (category === 'DRINK' ? offer.alcoholDegrees > 0 : offer.alcoholDegrees === 0))
+    .filter(offer => offer.alcoholDegrees > 0)
     .map(offer => ({ bar, offer })))
 
   if (rows.length === 0) {

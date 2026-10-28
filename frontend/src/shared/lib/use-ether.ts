@@ -51,6 +51,9 @@ export interface Ether {
   notice: string
   clearNotice: () => void
   send: (mode: EtherMode, body: string, to?: string) => Promise<boolean>
+  /** Модератор игры («Красные») может удалять реплики. */
+  canModerate: boolean
+  remove: (id: string) => Promise<void>
 }
 
 export function useEther(): Ether {
@@ -70,10 +73,25 @@ export function useEther(): Ether {
 
   useEffect(() => onChatConnect(() => { void qc.invalidateQueries({ queryKey: ['chat'] }) }), [qc])
 
+  const drop = useCallback((id: string) => {
+    for (const channel of ['GLOBAL', 'CLAN', 'PRIVATE'] as const) {
+      qc.setQueryData<ChatFeed>(feedKey(channel), prev => prev && { ...prev, messages: prev.messages.filter(m => m.id !== id) })
+    }
+  }, [qc])
+
   useEffect(() => subscribeChat(line => {
     if (line.channel === 'DISTRICT') return
     qc.setQueryData<ChatFeed>(feedKey(line.channel), prev => prev && { ...prev, messages: merge(prev.messages, line) })
-  }), [qc])
+  }, event => drop(event.id)), [qc, drop])
+
+  const remove = useCallback(async (id: string) => {
+    try {
+      await chatApi.remove(id)
+      drop(id)
+    } catch (error) {
+      setNotice(error instanceof ApiError ? error.message : 'Не удалось удалить.')
+    }
+  }, [drop])
 
   const send = useCallback(async (mode: EtherMode, body: string, to?: string) => {
     const text = body.trim()
@@ -111,6 +129,8 @@ export function useEther(): Ether {
     notice,
     clearNotice: () => setNotice(''),
     send,
+    canModerate: !!char?.isModerator,
+    remove,
   }
 }
 

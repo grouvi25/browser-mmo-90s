@@ -256,12 +256,12 @@
 .dollars__plus { color: #2f6b3a; font-variant-numeric: tabular-nums; }
 .dollars__minus { color: var(--ink-red, #ab0303); font-variant-numeric: tabular-nums; }
 /* Рефералы */
-.referral { display: grid; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.referral { display: grid; gap: 12px; }
 .referral h4 { margin: 0; }
 .referral__link { display: flex; gap: 8px; }
 .referral__link input { flex: 1 1 auto; min-width: 0; font: inherit; padding: 3px 6px; }
-.referral__payout { padding: 10px; border: 1px solid var(--border); background: var(--paper-warm); display: grid; gap: 8px; }
-.referral__payout p { margin: 0; }
+.referral__box { padding: 10px; border: 1px solid var(--border); background: var(--paper-warm); display: grid; gap: 8px; }
+.referral__box p { margin: 0; }
 #ref-details { width: min(320px, 100%); }
 .s4-goods__confirm { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .exchange { display: grid; gap: 10px; }

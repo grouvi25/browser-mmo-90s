@@ -21,8 +21,16 @@ export const ProductionService = {
   /** Свои объекты: склад с названиями ресурсов, кто сейчас на смене и
    *  сколько выплачено за сутки — владелец видит, что завод работает. */
   mine: async (characterId: string) => {
+    // И объекты бригады, если у игрока право «Объекты» (правка 28.10): глава
+    // управляет ими отсюда же, деньги и сырьё ходят через общак и склад.
+    const member = await prisma.clanMember.findUnique({ where: { characterId }, include: { role: true, clan: { select: { name: true } } } })
+    const rights = Array.isArray(member?.role.permissions) ? member.role.permissions : []
+    const clanId = member?.status === 'ACTIVE' && rights.includes('OBJECTS') ? member.clanId : null
     const objects = await prisma.productionObject.findMany({
-      where: { ownerType: 'PRIVATE', ownerCharacterId: characterId },
+      where: { OR: [
+        { ownerType: 'PRIVATE', ownerCharacterId: characterId },
+        ...(clanId ? [{ ownerType: 'CLAN' as const, ownerClanId: clanId }] : []),
+      ] },
       include: { equipment: true, inventory: true, cycles: { where: { status: { in: ['PENDING', 'RUNNING'] } }, include: { recipe: true } } },
       orderBy: { name: 'asc' },
     })
@@ -51,6 +59,7 @@ export const ProductionService = {
         producesResourceName: object.producesResourceCode ? names.get(object.producesResourceCode) ?? object.producesResourceCode : null,
         workers: active.filter(shift => shift.productionObjectId === object.id).map(shift => ({ nickname: shift.character.nickname, endsAt: shift.endsAt })),
         day: { shifts: day?._count._all ?? 0, salaryPaid: day?._sum.finalSalary ?? 0 },
+        clanName: object.ownerType === 'CLAN' ? member?.clan.name ?? null : null,
       }
     })
   },

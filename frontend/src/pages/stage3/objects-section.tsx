@@ -149,7 +149,10 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
         <Factory />
         <div>
           <h2>{object.name}</h2>
-          <span>{object.type} · {object.equipment?.name ?? 'без оборудования'}</span>
+          <span>
+            {object.ownerType === 'CLAN' ? `бригада «${object.clanName ?? ''}» · ` : ''}
+            {object.type} · {object.equipment?.name ?? 'без оборудования'}
+          </span>
         </div>
       </div>
 
@@ -220,8 +223,10 @@ function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, on
     enabled: Boolean(object.code),
   })
 
-  const topup = useMutation({ mutationFn: () => productionApi.topup(object.id, amount), onSuccess: () => onDone('Баланс пополнен'), onError: onFail })
-  const withdraw = useMutation({ mutationFn: () => productionApi.withdraw(object.id, amount), onSuccess: () => onDone('Прибыль выведена, налог 5%'), onError: onFail })
+  // Объект бригады (правка 28.10): деньги идут из общака и в общак.
+  const clan = object.ownerType === 'CLAN'
+  const topup = useMutation({ mutationFn: () => productionApi.topup(object.id, amount), onSuccess: () => onDone(clan ? 'Баланс пополнен из общака' : 'Баланс пополнен'), onError: onFail })
+  const withdraw = useMutation({ mutationFn: () => productionApi.withdraw(object.id, amount), onSuccess: () => onDone(clan ? 'Прибыль ушла в общак, налог 5%' : 'Прибыль выведена, налог 5%'), onError: onFail })
   const setPay = useMutation({ mutationFn: () => productionApi.setSalary(object.id, salary), onSuccess: () => onDone('Ставка обновлена'), onError: onFail })
   const profile = useMutation({ mutationFn: () => productionApi.switchProfile(object.id, recipeId), onSuccess: () => onDone('Профиль меняется: 1 500 ₽ и 180 минут простоя'), onError: onFail })
 
@@ -249,8 +254,8 @@ function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, on
       <fieldset>
         <legend><Banknote size={14} /> Деньги объекта</legend>
         <input type="number" min={1} value={amount} aria-label="Сумма" onChange={e => setAmount(Number(e.target.value))} />
-        <button onClick={() => topup.mutate()} disabled={busy || topup.isPending}>Пополнить</button>
-        <button onClick={() => withdraw.mutate()} disabled={busy || withdraw.isPending}>Вывести</button>
+        <button onClick={() => topup.mutate()} disabled={busy || topup.isPending}>{clan ? 'Пополнить из общака' : 'Пополнить'}</button>
+        <button onClick={() => withdraw.mutate()} disabled={busy || withdraw.isPending}>{clan ? 'Вывести в общак' : 'Вывести'}</button>
       </fieldset>
 
       <fieldset>
@@ -277,14 +282,18 @@ function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, on
       <fieldset>
         <legend>Объект</legend>
         <button onClick={onRepair} disabled={busy}><Wrench size={15} /> Ремонт</button>
-        <button
-          className="danger"
-          onClick={() => { if (window.confirm('Продать объект государству за 50% цены?')) onSell() }}
-          disabled={busy}
-        >
-          Продать за {resale}
-        </button>
-        <TransferToClan object={object} busy={busy} onTransfer={onTransfer} />
+        {!clan && (
+          <>
+            <button
+              className="danger"
+              onClick={() => { if (window.confirm('Продать объект государству за 50% цены?')) onSell() }}
+              disabled={busy}
+            >
+              Продать за {resale}
+            </button>
+            <TransferToClan object={object} busy={busy} onTransfer={onTransfer} />
+          </>
+        )}
       </fieldset>
     </div>
   )
@@ -308,7 +317,7 @@ function StockControls({ object, busy, onDone, onFail }: {
   const after = (text: string) => { void qc.invalidateQueries({ queryKey: ['resources'] }); onDone(text) }
   const take = useMutation({
     mutationFn: (row: { resourceCode: string; amount: number; name: string }) => productionApi.stockTake(object.id, row.resourceCode, row.amount),
-    onSuccess: (_result, row) => after(`Забрано к себе: ${row.name} × ${row.amount}`),
+    onSuccess: (_result, row) => after(object.ownerType === 'CLAN' ? `На склад бригады: ${row.name} × ${row.amount}` : `Забрано к себе: ${row.name} × ${row.amount}`),
     onError: onFail,
   })
   const put = useMutation({
@@ -334,7 +343,7 @@ function StockControls({ object, busy, onDone, onFail }: {
         : rows.map(row => (
           <button key={row.resourceCode} disabled={busy || take.isPending}
             onClick={() => take.mutate({ resourceCode: row.resourceCode, amount: row.free, name: row.name })}>
-            Забрать {row.name} × {row.free}
+            {object.ownerType === 'CLAN' ? 'На склад бригады' : 'Забрать'} {row.name} × {row.free}
           </button>
         ))}
       <select value={code} onChange={e => { setCode(e.target.value); setAmount(1) }} aria-label="Что положить">

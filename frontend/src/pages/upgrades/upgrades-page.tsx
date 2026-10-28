@@ -31,7 +31,8 @@ import { SPRITES } from '../../shared/ui/sprite'
 import '../shop/shop.css'
 import './upgrades.css'
 
-const TYPES: UpgradeType[] = ['DAMAGE', 'ACCURACY', 'CRIT', 'ARMOR', 'DURABILITY', 'ANTI_CRIT']
+// Прочность больше не улучшается (правка 28.10: у всех вещей прочность 100).
+const TYPES: UpgradeType[] = ['DAMAGE', 'ACCURACY', 'CRIT', 'ARMOR', 'ANTI_CRIT']
 const TYPE_LABELS: Record<UpgradeType, string> = {
   DAMAGE: 'Урон', ACCURACY: 'Точность', CRIT: 'Крит',
   ARMOR: 'Броня', DURABILITY: 'Прочность', ANTI_CRIT: 'Защита от крита',

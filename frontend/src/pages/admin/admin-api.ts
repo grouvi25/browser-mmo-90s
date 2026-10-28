@@ -348,6 +348,7 @@ export const adminApi = {
   payouts: (status?: PayoutStatus) => request<{ items: AdminPayout[] }>(`/api/referral/admin/payouts${status ? `?status=${status}` : ''}`),
   payoutPaid: (id: string, note?: string) => request<AdminPayout>(`/api/referral/admin/payouts/${id}/paid`, { method: 'POST', body: { note } }),
   payoutReject: (id: string, note?: string) => request<AdminPayout>(`/api/referral/admin/payouts/${id}/reject`, { method: 'POST', body: { note } }),
+  chatHide: (id: string) => request<{ removed: boolean }>(`/api/admin/chat/${id}/hide`, { method: 'POST', body: {} }),
   chatLog: (days: number) => request<{ days: number; items: ChatLogRow[] }>(`/api/admin/chat?days=${days}`),
   support: (status?: SupportStatus) => request<{ items: SupportRow[] }>(`/api/admin/support${status ? `?status=${status}` : ''}`),
   supportImage: (id: string) => requestBlobUrl(`/api/admin/support/${id}/image`),

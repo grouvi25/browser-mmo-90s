@@ -11,6 +11,51 @@ import { objectRepairQuote, objectResalePayout, objectSalaryRange, objectWithdra
 
 const config = BalanceConfig.economy.production
 
+/**
+ * Кто распоряжается объектом. Частным — хозяин. Объектом бригады — её
+ * участник с правом «Объекты» (главарь и бригадир по умолчанию): правка
+ * заказчика 28.10 «нет возможности главе клана управлять недвижкой —
+ * забирать ресурсы, пополнять деньги на объект». Деньги и сырьё объекта
+ * бригады ходят через общак и склад бригады, а не через карман того, кто
+ * нажал кнопку: иначе право «Объекты» стало бы правом вынести общее.
+ */
+type Manager = { kind: 'PRIVATE' } | { kind: 'CLAN'; clanId: string }
+
+async function managerOf(
+  tx: Prisma.TransactionClient,
+  object: { ownerType: string; ownerCharacterId: string | null; ownerClanId: string | null },
+  characterId: string,
+): Promise<Manager> {
+  if (object.ownerType === 'PRIVATE' && object.ownerCharacterId === characterId) return { kind: 'PRIVATE' }
+  if (object.ownerType === 'CLAN' && object.ownerClanId) {
+    const member = await tx.clanMember.findUnique({ where: { characterId }, include: { role: true } })
+    if (member?.status === 'ACTIVE' && member.clanId === object.ownerClanId && permissionsOf(member.role).includes('OBJECTS')) {
+      return { kind: 'CLAN', clanId: object.ownerClanId }
+    }
+  }
+  throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Объект вам не принадлежит', 403)
+}
+
+/** Условие на владельца для атомарных UPDATE: объект не сменил хозяина между чтением и записью. */
+function ownedBy(manager: Manager, characterId: string) {
+  return manager.kind === 'PRIVATE'
+    ? { ownerType: 'PRIVATE' as const, ownerCharacterId: characterId }
+    : { ownerType: 'CLAN' as const, ownerClanId: manager.clanId }
+}
+
+/** Движение по общаку бригады с записью в журнал. Списание — только если хватает. */
+async function moveTreasury(tx: Prisma.TransactionClient, clanId: string, characterId: string, amount: number, reason: string): Promise<number> {
+  if (amount < 0) {
+    const taken = await tx.clan.updateMany({ where: { id: clanId, treasury: { gte: -amount } }, data: { treasury: { decrement: -amount } } })
+    if (taken.count !== 1) throw new AppError(ErrorCode.PROD_BALANCE_LOW, 'В общаке бригады не хватает денег', 409)
+  } else {
+    await tx.clan.update({ where: { id: clanId }, data: { treasury: { increment: amount } } })
+  }
+  const clan = await tx.clan.findUniqueOrThrow({ where: { id: clanId }, select: { treasury: true } })
+  await tx.clanTreasuryLog.create({ data: { clanId, characterId, amount, balanceAfter: clan.treasury, reason } })
+  return clan.treasury
+}
+
 export const OwnershipService = {
   async buy(characterId: string, objectId: string, key: string) {
     return withIdempotency({ characterId, scope: 'objects.buy', key, execute: async tx => {
@@ -115,10 +160,14 @@ export const OwnershipService = {
   async topUp(characterId: string, objectId: string, amount: number, key: string) {
     return withIdempotency({ characterId, scope: 'objects.balance.topup', key, execute: async tx => {
       const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
-      if (object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Объект вам не принадлежит', 403)
-      const newCharacterBalance = await EconomyService.debit(tx, {
-        characterId, amount, reasonCode: 'OBJECT_BALANCE_TOP_UP', refType: 'production_object', refId: objectId,
-      })
+      const manager = await managerOf(tx, object, characterId)
+      // Объект бригады пополняется из общака, частный — из кармана хозяина.
+      const newCharacterBalance = manager.kind === 'CLAN'
+        ? null
+        : await EconomyService.debit(tx, {
+          characterId, amount, reasonCode: 'OBJECT_BALANCE_TOP_UP', refType: 'production_object', refId: objectId,
+        })
+      const treasury = manager.kind === 'CLAN' ? await moveTreasury(tx, manager.clanId, characterId, -amount, 'OBJECT_TOP_UP') : null
       const debtPaid = Math.min(object.maintenanceDebt, amount)
       const balanceIncrement = amount - debtPaid
       const updated = await tx.productionObject.update({
@@ -131,28 +180,32 @@ export const OwnershipService = {
       await tx.productionLog.create({
         data: { characterId, productionObjectId: objectId, eventType: 'OBJECT_BALANCE_CHANGED', metadataJson: { topUp: amount, balance: updated.balance } },
       })
-      return { balance: updated.balance, newCharacterBalance }
+      return { balance: updated.balance, newCharacterBalance, treasury }
     } })
   },
 
   async withdraw(characterId: string, objectId: string, amount: number, key: string) {
     return withIdempotency({ characterId, scope: 'objects.withdraw', key, execute: async tx => {
       const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
-      if (object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Объект вам не принадлежит', 403)
+      const manager = await managerOf(tx, object, characterId)
       const claimed = await tx.productionObject.updateMany({
-        where: { id: objectId, ownerCharacterId: characterId, balance: { gte: amount } },
+        where: { id: objectId, ...ownedBy(manager, characterId), balance: { gte: amount } },
         data: { balance: { decrement: amount } },
       })
       if (claimed.count !== 1) throw new AppError(ErrorCode.PROD_BALANCE_LOW, 'Недостаточно денег на балансе объекта', 409)
       const tax = objectWithdrawTax(amount)
       const payout = amount - tax
-      const newBalance = await EconomyService.credit(tx, {
-        characterId, amount: payout, reasonCode: 'OBJECT_WITHDRAW', refType: 'production_object', refId: objectId,
-      })
+      // Прибыль объекта бригады уходит в общак, а не тому, кто её снял.
+      const newBalance = manager.kind === 'CLAN'
+        ? null
+        : await EconomyService.credit(tx, {
+          characterId, amount: payout, reasonCode: 'OBJECT_WITHDRAW', refType: 'production_object', refId: objectId,
+        })
+      const treasury = manager.kind === 'CLAN' ? await moveTreasury(tx, manager.clanId, characterId, payout, 'OBJECT_WITHDRAW') : null
       await tx.productionLog.create({
         data: { characterId, productionObjectId: objectId, eventType: 'OBJECT_BALANCE_CHANGED', metadataJson: { withdraw: amount, tax, payout } },
       })
-      return { payout, tax, newBalance }
+      return { payout, tax, newBalance, treasury }
     } })
   },
 
@@ -166,7 +219,7 @@ export const OwnershipService = {
   async stockTake(characterId: string, objectId: string, resourceCode: string, amount: number, key: string) {
     return withIdempotency({ characterId, scope: 'objects.stock.take', key, execute: async tx => {
       const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
-      if (object.ownerType !== 'PRIVATE' || object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Объект вам не принадлежит', 403)
+      const manager = await managerOf(tx, object, characterId)
       const template = await tx.resourceTemplate.findUnique({ where: { code: resourceCode } })
       if (!template) throw new AppError(ErrorCode.PROD_INVARIANT, 'Нет такого ресурса', 404)
       const rows = await tx.productionObjectInventory.findMany({ where: { productionObjectId: objectId, resourceCode } })
@@ -184,8 +237,18 @@ export const OwnershipService = {
         left -= take
         if (left === 0) break
       }
+      // Выпуск объекта бригады — на склад бригады, оттуда берут по праву «Склад».
+      if (manager.kind === 'CLAN') {
+        const storage = await tx.clanStorage.upsert({
+          where: { clanId_resourceCode: { clanId: manager.clanId, resourceCode } },
+          update: { amount: { increment: amount } },
+          create: { clanId: manager.clanId, resourceCode, amount },
+        })
+        await tx.clanStorageLog.create({ data: { clanId: manager.clanId, characterId, resourceCode, amount } })
+        return { resourceCode, amount, ownAmount: storage.amount, objectLeft: free - amount, to: 'CLAN_STORAGE' as const }
+      }
       const stack = await ResourcesService.add(tx, { characterId, resourceTemplateId: template.id, amount, reasonCode: 'OBJECT_STOCK_TAKE', refType: 'production_object', refId: objectId })
-      return { resourceCode, amount, ownAmount: stack.amount, objectLeft: free - amount }
+      return { resourceCode, amount, ownAmount: stack.amount, objectLeft: free - amount, to: 'OWN' as const }
     } })
   },
 
@@ -193,7 +256,7 @@ export const OwnershipService = {
   async stockPut(characterId: string, objectId: string, resourceCode: string, amount: number, key: string) {
     return withIdempotency({ characterId, scope: 'objects.stock.put', key, execute: async tx => {
       const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
-      if (object.ownerType !== 'PRIVATE' || object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Объект вам не принадлежит', 403)
+      await managerOf(tx, object, characterId)
       const template = await tx.resourceTemplate.findUnique({ where: { code: resourceCode } })
       if (!template) throw new AppError(ErrorCode.PROD_INVARIANT, 'Нет такого ресурса', 404)
       const stack = await tx.resourceStack.findUnique({ where: { characterId_resourceTemplateId: { characterId, resourceTemplateId: template.id } } })
@@ -207,7 +270,7 @@ export const OwnershipService = {
 
   async setSalary(characterId: string, objectId: string, salary: number) {
     const object = await prisma.productionObject.findUniqueOrThrow({ where: { id: objectId } })
-    if (object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Объект вам не принадлежит', 403)
+    await managerOf(prisma, object, characterId)
     const { min, max } = objectSalaryRange(object.baseSalary)
     if (!Number.isInteger(salary) || salary < min || salary > max) {
       throw new AppError(ErrorCode.PROD_SALARY_RANGE, 'Ставка вне допустимого коридора', 422, { min, max })
@@ -221,7 +284,7 @@ export const OwnershipService = {
   async switchProfile(characterId: string, objectId: string, recipeId: string, key: string) {
     return withIdempotency({ characterId, scope: 'objects.profile', key, execute: async tx => {
       const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
-      if (object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Object is not owned by character', 403)
+      await managerOf(tx, object, characterId)
       if (object.profileSwitchEndsAt) throw new AppError(ErrorCode.PROD_CYCLE_BLOCKED, 'Object profile is already switching', 409)
       const activeCycles = await tx.productionCycle.count({ where: { productionObjectId: objectId, status: { in: ['PENDING', 'RUNNING'] } } })
       if (activeCycles > 0) throw new AppError(ErrorCode.PROD_CYCLE_ACTIVE, 'Production cycle is active', 409)
@@ -245,7 +308,7 @@ export const OwnershipService = {
   async repair(characterId: string, objectId: string, key: string) {
     return withIdempotency({ characterId, scope: 'objects.repair', key, execute: async tx => {
       const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
-      if (object.ownerCharacterId !== characterId) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Object is not owned by character', 403)
+      const manager = await managerOf(tx, object, characterId)
       const activeCycles = await tx.productionCycle.count({ where: { productionObjectId: objectId, status: { in: ['PENDING', 'RUNNING'] } } })
       if (activeCycles > 0) throw new AppError(ErrorCode.PROD_CYCLE_ACTIVE, 'Cannot repair during a production cycle', 409)
       const quote = objectRepairQuote(object.durabilityCurrent, object.durabilityMax)
@@ -261,7 +324,7 @@ export const OwnershipService = {
       // циклы на нём больше не запускались, и разовая диверсия стирала
       // объект насовсем — прямо против принципа П1.
       const paid = await tx.productionObject.updateMany({
-        where: { id: objectId, ownerCharacterId: characterId, balance: { gte: quote.cost } },
+        where: { id: objectId, ...ownedBy(manager, characterId), balance: { gte: quote.cost } },
         data: {
           balance: { decrement: quote.cost },
           durabilityCurrent: object.durabilityMax,

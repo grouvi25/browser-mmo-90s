@@ -272,8 +272,8 @@ export function InventoryPage() {
                 const tooLow = (char?.battleLevel ?? 0) < t.levelReq
                 const eff = item.effective
                 const stats = t.type === 'WEAPON'
-                  ? (['DAMAGE', 'ACCURACY', 'CRIT', 'DURABILITY'] as ItemStatKey[])
-                  : (['ARMOR', 'DURABILITY', 'ANTI_CRIT'] as ItemStatKey[])
+                  ? (['DAMAGE', 'ACCURACY', 'CRIT'] as ItemStatKey[])
+                  : (['ARMOR', 'ANTI_CRIT'] as ItemStatKey[])
                 return (
                   <article key={item.id} className="inv-card">
                     <img src={itemImage(t.code, t.weaponType, t.type)} alt="" />

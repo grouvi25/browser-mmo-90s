@@ -13,7 +13,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
-import { EtherComposer, EtherLine, useComposer } from '../chat/ether'
+import { EtherComposer, EtherLine, PrivateArrow, useComposer } from '../chat/ether'
 import { levelTone } from '../../shared/lib/chat-format'
 import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useFitBlock } from '../../shared/lib/use-fit-block'
@@ -211,6 +211,7 @@ export function OnlineList() {
             title={p.self ? 'Это вы — открыть личное дело' : `Открыть профиль ${p.nick}`}
           >
             {p.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(p.clan.id, p.clan.iconVersion)} alt="" title={`Бригада «${p.clan.name}»`} width={14} height={14} /> : null}
+            {!p.self && <PrivateArrow nick={p.nick} />}
             <span className="online-list__nick">{p.nick}</span>
             <span className={`online-lvl online-lvl--${p.tone}`}>{p.level}</span>
           </div>

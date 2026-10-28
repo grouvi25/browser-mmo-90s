@@ -67,7 +67,8 @@ async function debit(tx: Prisma.TransactionClient, move: Movement): Promise<numb
  * покупки долларов. Считается только покупка у дилера: выдачи администрации
  * бывают подарками и оптом для самих дилеров, это не оплата. Дилер не
  * получает долю со своих же продаж — иначе он гонял бы доллары по кругу.
- * Доля сразу ложится на счёт и в referralBalance — её можно вывести на карту.
+ * Доля ложится на отдельный реферальный счёт (заказчик 28.10), откуда игрок
+ * сам зачисляет её на персонажа или выводит на карту (referral.service.ts).
  */
 async function rewardReferrer(tx: Prisma.TransactionClient, buyerId: string, amount: number, sellerId: string): Promise<void> {
   const share = Math.floor(amount * BalanceConfig.referral.topUpShare)
@@ -77,8 +78,7 @@ async function rewardReferrer(tx: Prisma.TransactionClient, buyerId: string, amo
   if (!referrerId || buyer.isDealer || referrerId === buyerId || referrerId === sellerId) return
   const referrer = await tx.character.findUnique({ where: { id: referrerId }, select: { id: true } })
   if (!referrer) return
-  await credit(tx, { characterId: referrerId, amount: share, reason: 'REFERRAL', counterpartyId: buyerId })
-  await tx.character.update({ where: { id: referrerId }, data: { referralBalance: { increment: share } } })
+  await tx.character.update({ where: { id: referrerId }, data: { referralBalance: { increment: share }, referralEarned: { increment: share } } })
 }
 
 /** Обменник Чёрного рынка (обещание игрокам 22.10: «в одну и в другую

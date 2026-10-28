@@ -133,6 +133,12 @@ function ClanHoldings({ objects, territories }: { objects: ClanObject[]; territo
           </table>
         </div>
       )}
+      {objects.length > 0 && (
+        <p className="s3-hint">
+          Управлять объектами бригады — пополнять кассу из общака, выводить прибыль в общак, забирать выпуск
+          на склад бригады — могут главарь и бригадир: <Link to="/objects">Мои объекты</Link>.
+        </p>
+      )}
       {territories.length > 0 && (
         <>
           <h3>Районы</h3>

@@ -12,6 +12,7 @@ import { authenticate } from '../../shared/security/auth-middleware'
 import { NoticesService } from './notices.service'
 import { ChatService } from './chat.service'
 import { publish } from '../../shared/realtime/io'
+import { prisma } from '../../shared/db/prisma'
 import { FLOOD, MAX_BODY, chatRoom, privateRoom, type Rejection } from './chat.formulas'
 
 const Channel = z.enum(['DISTRICT', 'CLAN', 'GLOBAL', 'PRIVATE'])
@@ -66,6 +67,15 @@ export async function chatRoutes(fastify: FastifyInstance) {
     const who = await ChatService.speaker(req.authUser.userId)
     await ChatService.touch(who.characterId)
     return reply.send({ players: await ChatService.online() })
+  })
+
+  /** Модератор игры («Красные») удаляет реплику прямо из ленты. */
+  fastify.delete<{ Params: { id: string } }>('/messages/:id', { preHandler: authenticate }, async (req, reply) => {
+    if (!z.string().uuid().safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const who = await ChatService.speaker(req.authUser.userId)
+    const me = await prisma.character.findUnique({ where: { id: who.characterId }, select: { isModerator: true } })
+    if (!me?.isModerator) return reply.code(403).send({ code: 'AUTH_006', message: 'Удалять сообщения может только модератор' })
+    return reply.send({ removed: await ChatService.remove(req.params.id, `moderator:${who.characterId}`) })
   })
 
   fastify.post<{ Params: { channel: string }; Body: { scope?: string; to?: string; body: string } }>(

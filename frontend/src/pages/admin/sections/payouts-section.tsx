@@ -1,7 +1,7 @@
 // Выплаты реферальных (заказчик 28.10: «выплаты выводятся все вручную, если
-// вывод на реальные ₽»). Доллары у игрока уже списаны заявкой; админ
-// переводит деньги сам и отмечает «Выплачено» или отклоняет — тогда
-// доллары возвращаются игроку. Решает только главный админ.
+// вывод на реальные ₽»). Сумма уже списана с реферального счёта игрока;
+// админ переводит деньги сам и отмечает «Выплачено» или отклоняет — тогда
+// сумма возвращается на реферальный счёт. Решает только главный админ.
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '../admin-api'
@@ -28,7 +28,7 @@ export function PayoutsSection() {
   })
   const reject = useMutation({
     mutationFn: (row: { id: string; note: string }) => adminApi.payoutReject(row.id, row.note),
-    onSuccess: row => refresh(`Отклонено, ${row.amount} $ вернулись игроку`),
+    onSuccess: row => refresh(`Отклонено, ${row.amount} $ вернулись на реферальный счёт игрока`),
     onError: fail,
   })
   const busy = paid.isPending || reject.isPending
@@ -47,7 +47,7 @@ export function PayoutsSection() {
       {list.isLoading && <Skeleton rows={3} />}
       {list.isError && <Fault retry={() => list.refetch()} />}
       {list.data && (items.length === 0
-        ? <Empty title="Заявок нет" hint="Игроки подают их на вкладке «Премиум», блок «Приглашай своих»." />
+        ? <Empty title="Заявок нет" hint="Игроки подают их на Чёрном рынке, вкладка «Рефералы»." />
         : <div className="adm-announce-list">
             {items.map(row => (
               <article key={row.id}>
