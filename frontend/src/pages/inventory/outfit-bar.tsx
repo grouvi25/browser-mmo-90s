@@ -9,7 +9,7 @@ export function OutfitBar({ disabled, onMessage }: { disabled: boolean; onMessag
   const list = useQuery({ queryKey: ['inventory', 'outfits'], queryFn: inventoryApi.outfits })
   const fail = (e: unknown) => onMessage('error', e instanceof ApiError ? e.message : 'Не получилось')
   const save = useMutation({
-    mutationFn: (slot: number) => inventoryApi.saveOutfit(slot),
+    mutationFn: ({ slot, name }: { slot: number; name?: string }) => inventoryApi.saveOutfit(slot, name),
     onSuccess: r => { void qc.invalidateQueries({ queryKey: ['inventory', 'outfits'] }); onMessage('success', `${r.name}: сохранено вещей — ${r.count}`) },
     onError: fail,
   })
@@ -23,19 +23,29 @@ export function OutfitBar({ disabled, onMessage }: { disabled: boolean; onMessag
   })
   const slots = Array.from({ length: list.data?.slots ?? 3 }, (_, i) => i + 1)
   const busy = disabled || save.isPending || wear.isPending
+  // Правка заказчика 28.10: «есть комплекты, а создать их нельзя». Создавались
+  // они кнопкой «Сохранить», но пустой комплект выглядел мёртвой кнопкой и
+  // было неясно, что сохраняется. Теперь подписи прямые и имя задаётся сразу.
+  const remember = (slot: number, current?: string) => {
+    if (current && !window.confirm(`Перезаписать «${current}» тем, что надето сейчас?`)) return
+    const name = window.prompt('Как назвать комплект? Сохранится то, что сейчас надето.', current ?? `Комплект ${slot}`)
+    if (name === null) return
+    save.mutate({ slot, name: name.trim().slice(0, 30) || undefined })
+  }
   return (
     <div className="inv-outfits" aria-label="Комплекты">
+      <span className="inv-outfits__title">Комплекты:</span>
       {slots.map(slot => {
         const preset = list.data?.items?.find(p => p.slot === slot)
         return <span key={slot} className="inv-outfit">
           <button type="button" className="btn btn-sm btn-primary" disabled={busy || !preset}
-            title={preset ? `Надеть: ${preset.count} вещ.` : 'Комплект пуст'} onClick={() => wear.mutate(slot)}>
-            {preset?.name ?? `Комплект ${slot}`}
+            title={preset ? `Надеть: ${preset.count} вещ.` : 'Пусто: наденьте вещи и нажмите «Запомнить надетое»'} onClick={() => wear.mutate(slot)}>
+            {preset ? `Надеть «${preset.name}»` : `Комплект ${slot} пуст`}
           </button>
           <button type="button" className="btn btn-sm" disabled={busy}
-            title="Сохранить сюда то, что надето сейчас"
-            onClick={() => { if (!preset || window.confirm(`Перезаписать «${preset.name}» тем, что надето сейчас?`)) save.mutate(slot) }}>
-            Сохранить
+            title="Запомнить в этот комплект всё, что надето сейчас"
+            onClick={() => remember(slot, preset?.name)}>
+            Запомнить надетое
           </button>
         </span>
       })}

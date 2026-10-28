@@ -61,11 +61,21 @@ function CityHall() {
 function School() {
   const q = useQuery({ queryKey: ['city', 'professions'], queryFn: cityApi.professions })
   const action = useCityAction(cityApi.learn)
-  return <><p>Покупка открывает профессию. Уровень растёт за работу и практику в Промзоне, а не за повторные покупки.</p>
-    <QueryState loading={q.isLoading} error={q.isError} retry={q.refetch} /><Message error={action.error} success={action.isSuccess} />
+  // Правка заказчика 28.10: второй уровень профессии — за доллары; с ним
+  // ресурсы продаются на рынке за доллары.
+  const level2 = useCityAction(cityApi.buyLevel2)
+  const usd = q.data?.level2Usd ?? 0
+  return <><p>Покупка открывает профессию. Уровень растёт за работу и практику в Промзоне. Второй уровень изученной профессии можно взять сразу за доллары — с ним добытые ресурсы продаются на рынке за доллары.</p>
+    <QueryState loading={q.isLoading} error={q.isError} retry={q.refetch} /><Message error={action.error ?? level2.error} success={action.isSuccess || level2.isSuccess} />
     <div className="city-cards">{q.data?.items.map(p => <article className="city-card" key={p.code}><h2>{p.name}</h2>
       <p>{p.owned ? `Изучена · уровень ${p.level}` : `${p.price.toLocaleString('ru')} ₽`}</p>
-      <button className="btn" disabled={p.owned || action.isPending} onClick={() => action.mutate(p.code)}>{p.owned ? 'Изучено' : 'Купить профессию'}</button></article>)}</div>
+      <button className="btn" disabled={p.owned || action.isPending} onClick={() => action.mutate(p.code)}>{p.owned ? 'Изучено' : 'Купить профессию'}</button>
+      {p.owned && p.level < 2 && usd > 0 && (
+        <button className="btn" disabled={level2.isPending}
+          onClick={() => { if (window.confirm(`Поднять «${p.name}» до 2-го уровня за ${usd} $?`)) level2.mutate(p.code) }}>
+          2-й уровень за {usd} $
+        </button>
+      )}</article>)}</div>
     <Link to="/work">Работать по профессии →</Link></>
 }
 /** ЦУМ и Берёзка выглядят как обычный магазин — плитки Госмагазина, —

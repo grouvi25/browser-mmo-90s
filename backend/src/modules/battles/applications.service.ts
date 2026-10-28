@@ -19,6 +19,7 @@ import { logger } from '../../shared/logger/logger'
 import { CharactersRepository } from '../characters/characters.repository'
 import { BattleService, assertIntoxicationAllowsBattle } from './battles.service'
 import { TEAM_MAX_PER_SIDE } from './team-battle'
+import { calcCharacterRating } from '../stats/stats.formulas'
 
 export type ApplicationKind = 'DUEL' | 'GROUP' | 'CHAOTIC'
 
@@ -39,6 +40,24 @@ export interface CreateApplicationInput {
 function kindOf(battle: { type: string; isChaotic: boolean }): ApplicationKind {
   if (battle.type === 'PVP_DUEL') return 'DUEL'
   return battle.isChaotic ? 'CHAOTIC' : 'GROUP'
+}
+
+/**
+ * Стороны хаотичного боя по рейтингу (правка заказчика 28.10: «игроки
+ * автоматически распределяются по рейтингу в противников»). Сильнейшие
+ * идут первыми, каждый — на сторону со слабейшей суммой, пока на ней есть
+ * место; численность сторон отличается не больше чем на одного.
+ */
+export function splitByRating<T extends { rating: number }>(fighters: T[]): [T[], T[]] {
+  const sorted = [...fighters].sort((a, b) => b.rating - a.rating)
+  const cap = Math.ceil(sorted.length / 2)
+  const one: T[] = []; const two: T[] = []
+  let sumOne = 0; let sumTwo = 0
+  for (const fighter of sorted) {
+    const toOne = two.length >= cap || (one.length < cap && sumOne <= sumTwo)
+    if (toOne) { one.push(fighter); sumOne += fighter.rating } else { two.push(fighter); sumTwo += fighter.rating }
+  }
+  return [one, two]
 }
 
 /** Мест в заявке всего: у хаотичной стороны появляются только на старте. */
@@ -299,12 +318,20 @@ export const ApplicationsService = {
         ready.push(await tx.battleParticipant.update({ where: { id: part.id }, data: { hpMax: fresh.hpMax, hpCurrent: fresh.hpCurrent } }))
       }
       if (kind === 'CHAOTIC') {
-        // Жребий: перемешать и раздать по очереди — стороны выходят равными
-        // с точностью до одного бойца.
-        const shuffled = [...ready].sort(() => Math.random() - 0.5)
-        for (const [index, part] of shuffled.entries()) {
-          part.side = index % 2 === 0 ? 1 : 2
-          await tx.battleParticipant.update({ where: { id: part.id }, data: { side: part.side } })
+        // Стороны по рейтингу — тому же, что в досье и в бою, с надетыми вещами.
+        const rated = await Promise.all(ready.map(async part => {
+          const [stats, worn] = await Promise.all([
+            tx.characterStats.findUnique({ where: { characterId: part.characterId! } }),
+            tx.itemInstance.findMany({ where: { ownerId: part.characterId!, isEquipped: true, status: { not: 'DELETED' } }, include: { template: true } }),
+          ])
+          return { part, rating: stats ? calcCharacterRating(stats, worn) : 0 }
+        }))
+        const [one, two] = splitByRating(rated)
+        for (const [side, list] of [[1, one], [2, two]] as const) {
+          for (const { part } of list) {
+            part.side = side
+            await tx.battleParticipant.update({ where: { id: part.id }, data: { side } })
+          }
         }
       }
       const sideOne = ready.filter(p => p.side === 1).length

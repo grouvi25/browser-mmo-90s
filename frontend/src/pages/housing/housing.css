@@ -3,6 +3,7 @@
 .housing__msg { margin: 0; padding: 6px 10px; border-left: 3px solid #2f6b2a; background: rgba(255, 255, 255, .5); }
 .housing__msg.is-bad { border-left-color: #a02a30; }
 .housing__block { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, .35); }
+.housing__mine { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--ink-red, #ab0303); background: rgba(255, 255, 255, .5); }
 .housing__block h3 { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 16px; }
 .housing__sub { margin: 6px 0 0; font-size: 14px; }
 .housing__muted { margin: 0; color: var(--text-dim); font-size: 13.5px; }

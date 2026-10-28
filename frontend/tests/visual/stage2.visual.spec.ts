@@ -246,7 +246,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     }
     await authPage(page, seller)
     await page.goto('/pvp')
-    await page.getByRole('button', { name: 'Бой с ботом' }).click()
+    await page.getByRole('button', { name: 'Боты', exact: true }).click()
     await expect(page.locator('.arena-bot')).toHaveCount(bots.length)
     await expect(page.locator('.arena-bot', { hasText: 'Смотрящий' })).toContainText('ур. 15')
   })

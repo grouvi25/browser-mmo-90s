@@ -45,7 +45,9 @@ type Match = (item: ItemInstance) => boolean
 interface Tab { key: string; label: string; match?: Match }
 
 /** Порядок и подписи — как нарисовано (плюс «Обувь»): восемь вкладок в
- *  первом ряду, остальные во втором. Без `match` вкладка закрыта: наполнения нет. */
+ *  первом ряду, остальные во втором. Все вкладки открыты (правка заказчика
+ *  28.10: «сделать все вкладки со шмотом активные»): где вещей пока нет,
+ *  вкладка просто пустая. */
 const TABS: Tab[] = [
   { key: 'caps',    label: 'Шапки',    match: i => i.template.armorSlot === 'HEAD' },
   { key: 'amulets', label: 'Амулеты',  match: i => i.template.armorSlot === 'ACCESSORY' },
@@ -58,11 +60,11 @@ const TABS: Tab[] = [
   { key: 'armor',   label: 'Броня',    match: i => i.template.armorSlot === 'CHEST' },
   { key: 'melee',   label: 'Оружие',   match: i => i.template.type === 'WEAPON' && !RANGED.has(i.template.weaponType ?? '') },
   { key: 'ranged',  label: 'Стрелковое оружие', match: i => i.template.type === 'WEAPON' && RANGED.has(i.template.weaponType ?? '') },
-  { key: 'rings',   label: 'Кольца' },
+  { key: 'rings',   label: 'Кольца',   match: () => false },
   { key: 'bracers', label: 'Наручи',   match: i => i.template.armorSlot === 'GLOVES' || i.template.armorSlot === 'HANDS' },
-  { key: 'chains',  label: 'Цепочки' },
-  { key: 'stones',  label: 'Камни' },
-  { key: 'special', label: 'Специальные изделия' },
+  { key: 'chains',  label: 'Цепочки',  match: () => false },
+  { key: 'stones',  label: 'Камни',    match: i => i.template.type === 'UPGRADE_MODULE' },
+  { key: 'special', label: 'Специальные изделия', match: i => i.template.type === 'SHIELD' || i.template.type === 'COMPONENT' },
   { key: 'tools',   label: 'Инструменты', match: i => i.template.type === 'TOOL' || i.template.type === 'CONSUMABLE' },
 ]
 
@@ -251,8 +253,7 @@ export function InventoryPage() {
           <button key={t.key} type="button"
             className={tabKey === t.key ? 'active' : ''}
             aria-current={tabKey === t.key}
-            disabled={!t.match}
-            title={t.match ? t.label : 'В игре пока нет таких вещей'}
+            title={t.label}
             onClick={() => setTabKey(t.key)}>
             <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
             <span>{t.label}</span>
