@@ -16,6 +16,14 @@ export async function referralRoutes(fastify: FastifyInstance) {
 
   fastify.get('/me', { preHandler: authenticate }, async req => ReferralService.summary((await me(req.authUser.userId)).id))
 
+  fastify.post('/claim', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ amount: z.number().int().min(1).max(1_000_000) }).safeParse(req.body)
+    const key = req.headers['idempotency-key']
+    if (!parsed.success || typeof key !== 'string') return reply.code(422).send({ code: 'GEN_001', message: 'Укажите сумму' })
+    const character = await me(req.authUser.userId)
+    return reply.send(await ReferralService.claim(character.id, parsed.data.amount, key))
+  })
+
   fastify.post('/payouts', { preHandler: authenticate }, async (req, reply) => {
     const parsed = z.object({
       amount: z.number().int().min(1).max(1_000_000),

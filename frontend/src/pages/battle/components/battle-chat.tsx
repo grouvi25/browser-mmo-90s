@@ -14,7 +14,7 @@ import { levelTone } from '../../../shared/lib/chat-format'
 import { clansApi } from '../../../shared/api/clans.api'
 import { useOnline } from '../../../shared/lib/use-chat'
 import { useEther } from '../../../shared/lib/use-ether'
-import { EtherComposer, EtherLine, useComposer } from '../../../widgets/chat/ether'
+import { EtherComposer, EtherLine, PrivateArrow, useComposer } from '../../../widgets/chat/ether'
 
 /** Высота сцены боя. Постоянная: и со свёрнутым чатом, и с развёрнутым.
  *  Раньше открытый чат растягивал сцену до 1600, и вся вёрстка ужималась
@@ -58,7 +58,7 @@ export function BattleChat() {
             <ul>
               {online.map(player => (
                 <li key={player.characterId}>
-                  <span>{player.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(player.clan.id, player.clan.iconVersion)} alt="" width={14} height={14} /> : null} {player.nickname}</span>
+                  <span>{player.characterId !== ether.me?.id && <PrivateArrow nick={player.nickname} />}{player.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(player.clan.id, player.clan.iconVersion)} alt="" width={14} height={14} /> : null} {player.nickname}</span>
                   <b className={`online-lvl online-lvl--${levelTone(player.level)}`}>{player.level}</b>
                 </li>
               ))}

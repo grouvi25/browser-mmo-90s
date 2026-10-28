@@ -47,7 +47,10 @@ function connect(): Socket | null {
  * Подписка на реплики канала. Возвращает отписку; когда отписался
  * последний, соединение закрывается — сервер снимает игрока с эфира.
  */
-export function subscribeChat(onMessage: (line: ChatLine) => void): () => void {
+export function subscribeChat(
+  onMessage: (line: ChatLine) => void,
+  onDeleted?: (event: { id: string; channel: ChatLine['channel'] }) => void,
+): () => void {
   const active = connect()
   // Соединения нет — лента живёт одним запросом истории. Это рабочий
   // режим, а не сбой: сообщения приходят с задержкой, но приходят.
@@ -55,9 +58,12 @@ export function subscribeChat(onMessage: (line: ChatLine) => void): () => void {
 
   refCount++
   active.on('chat:message', onMessage)
+  // Модератор удалил реплику — убираем у всех, кто в эфире (28.10).
+  if (onDeleted) active.on('chat:deleted', onDeleted)
 
   return () => {
     active.off('chat:message', onMessage)
+    if (onDeleted) active.off('chat:deleted', onDeleted)
     refCount = Math.max(0, refCount - 1)
     if (refCount === 0) {
       active.disconnect()

@@ -52,6 +52,9 @@ export const chatApi = {
   send: (channel: ChatChannel, body: string, scope?: string, to?: string) =>
     api.post<ChatLine>(`/api/chat/${channel.toLowerCase()}`, { body, scope, to }),
 
+  /** Модератор игры удаляет реплику из эфира. */
+  remove: (id: string) => api.delete<{ removed: boolean }>(`/api/chat/messages/${id}`),
+
   online: () => api.get<{ players: OnlinePlayer[] }>('/api/chat/online/list'),
 
   notices: () => api.get<{ items: Array<{ id: string; text: string; createdAt: string }> }>('/api/chat/notices'),

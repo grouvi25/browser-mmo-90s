@@ -13,11 +13,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router-dom'
-import { Swords, Clock, ShieldAlert, Users } from 'lucide-react'
+import { Swords, Clock, ShieldAlert } from 'lucide-react'
 import { territoriesApi, type ClaimSide, type ClaimStatus } from '../../shared/api/strategy.api'
 import { remaining, Skeleton, Fault, Note } from '../stage3/stage3-ui'
 import { useMyClan } from '../stage3/use-my-clan'
-import { RosterPicker } from './roster-picker'
 
 const STATUS: Record<ClaimStatus, string> = {
   PENDING: 'заявка подана, бой назначен',
@@ -32,7 +31,6 @@ export function ClaimSection() {
   const { code = '', id = '' } = useParams()
   const qc = useQueryClient()
   const clan = useMyClan()
-  const [picking, setPicking] = useState(false)
   const [msg, setMsg] = useState('')
   const [bad, setBad] = useState(false)
 
@@ -45,17 +43,12 @@ export function ClaimSection() {
   })
 
   const finish = (text: string) => {
-    setBad(false); setMsg(text); setPicking(false)
+    setBad(false); setMsg(text)
     void qc.invalidateQueries({ queryKey: ['claim', code, id] })
     void qc.invalidateQueries({ queryKey: ['territories'] })
   }
   const fail = (e: Error) => { setBad(true); setMsg(e.message) }
 
-  const defence = useMutation({
-    mutationFn: (roster: string[]) => territoriesApi.defence(code, id, roster),
-    onSuccess: () => finish('Состав обороны выставлен.'),
-    onError: fail,
-  })
   const join = useMutation({
     mutationFn: () => territoriesApi.joinClaim(code, id),
     onSuccess: () => finish('Вы в составе. Бой начнётся по таймеру.'),
@@ -76,8 +69,7 @@ export function ClaimSection() {
   const iAttack = myTag === claim.attacker.clanTag
   const iDefend = !!claim.defender && myTag === claim.defender.clanTag
   const live = claim.status === 'PENDING'
-  const defenceSet = (claim.defender?.roster?.length ?? 0) > 0
-  const busy = defence.isPending || cancel.isPending || join.isPending
+  const busy = cancel.isPending || join.isPending
   // Отзыв и состав обороны — только с правом WAR (глава, бригадир): рядовой
   // видел эти кнопки, а сервер ему отказывал.
   const command = clan.can('WAR')
@@ -140,27 +132,14 @@ export function ClaimSection() {
           «ничего не произошло». */}
       {/* Подаёт заявку и выставляет состав глава или бригадир, остальные
           бойцы бригады встают в бой сами (правка заказчика 20.10). */}
-      {live && (iAttack || iDefend) && !claim.inRoster && !picking && (
+      {/* Запись как на налёт на дом (правка заказчика 28.10): каждый боец
+          бригады сам встаёт на свою сторону, составы никто не выбирает. */}
+      {live && (iAttack || iDefend) && !claim.inRoster && (
         <button type="button" disabled={busy} onClick={() => join.mutate()}>
-          <Swords size={13} /> {join.isPending ? 'Записываемся…' : 'Присоединиться'}
+          <Swords size={13} /> {join.isPending ? 'Записываемся…' : iAttack ? 'В нападение' : 'В оборону'}
         </button>
       )}
-      {live && iDefend && command && !picking && (
-        <button type="button" disabled={busy} onClick={() => setPicking(true)}>
-          <Users size={13} /> {defenceSet ? 'Изменить состав обороны' : 'Выставить состав обороны'}
-        </button>
-      )}
-      {live && iDefend && picking && (
-        <RosterPicker
-          members={clan.clan?.members ?? []}
-          minSize={1}
-          busy={busy}
-          submitLabel="Выставить оборону"
-          note="Состав закрывается за 10 минут до боя."
-          onCancel={() => setPicking(false)}
-          onSubmit={roster => defence.mutate(roster)}
-        />
-      )}
+      {live && claim.inRoster && <p className="s4-muted">Вы записаны. Состав закрывается за 10 минут до боя.</p>}
       {live && iAttack && command && (
         <button
           type="button"

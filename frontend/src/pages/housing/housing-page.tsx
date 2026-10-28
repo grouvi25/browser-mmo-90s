@@ -49,6 +49,9 @@ export function HousingPage() {
 
   const data = query.data
   const lot = data && picked ? data.lots[picked - 1] : null
+  // Правка заказчика 28.10: при входе — картинка и список жилья, управление
+  // своим открывается только по нажатию на него, а не висит сверху сразу.
+  const myLot = data?.lots.find(l => l.home?.mine) ?? null
 
   return (
     <div className="housing">
@@ -57,14 +60,22 @@ export function HousingPage() {
       {query.isLoading && <p role="status">Загрузка…</p>}
       {query.isError && <p role="alert">Сектор не загрузился. <button type="button" className="btn btn-sm" onClick={() => void query.refetch()}>Повторить</button></p>}
       {data && <>
-        {data.home && <MyHome data={data} busy={busy} onTunnel={code => tunnel.mutate(code)} onRepair={() => repair.mutate()} onGo={to => navigate(to)} onWalk={code => go.mutate(code)} />}
         <section className="housing__block">
-          <h3>План сектора</h3>
+          <h3>Недвижимость</h3>
+          {myLot && (
+            <div className="housing__actions">
+              <button type="button" className="btn" aria-pressed={picked === myLot.lot} onClick={() => setPicked(myLot.lot)}>
+                <Home size={13} /> Моё жильё · {myLot.label}
+              </button>
+            </div>
+          )}
           <SectorPlan lots={data.lots} picked={picked} onPick={setPicked} />
-          {lot
-            ? <LotCard lot={lot} data={data} busy={busy} onBuy={() => buy.mutate(lot.lot)} onRaid={id => fileRaid.mutate(id)}
-                onSide={(raidId, side) => raidAction.mutate({ raidId, side })} />
-            : <p className="housing__muted">{data.home ? 'Выберите чужое жильё для налёта.' : `Выберите свободное жильё. Покупка только за доллары, у вас ${data.wallet.dollars} $.`}</p>}
+          {lot && lot.home?.mine && data.home
+            ? <MyHome data={data} busy={busy} onTunnel={code => tunnel.mutate(code)} onRepair={() => repair.mutate()} onGo={to => navigate(to)} onWalk={code => go.mutate(code)} />
+            : lot
+              ? <LotCard lot={lot} data={data} busy={busy} onBuy={() => buy.mutate(lot.lot)} onRaid={id => fileRaid.mutate(id)}
+                  onSide={(raidId, side) => raidAction.mutate({ raidId, side })} />
+              : <p className="housing__muted">{data.home ? 'Нажмите на своё жильё, чтобы им управлять, или на чужое — для налёта.' : `Выберите свободное жильё. Покупка только за доллары, у вас ${data.wallet.dollars} $.`}</p>}
         </section>
       </>}
     </div>
@@ -133,9 +144,6 @@ function LotCard({ lot, data, busy, onBuy, onRaid, onSide }: {
       </article>
     )
   }
-  if (lot.home.mine) {
-    return <article className="housing__offer"><h4><Icon size={16} /> {lot.label} · ваше жильё</h4></article>
-  }
   const r = data.raidRules
   const home = lot.home
   return (
@@ -195,7 +203,7 @@ function MyHome({ data, busy, onTunnel, onRepair, onGo, onWalk }: {
   const Icon = KIND_ICON[home.kind]
   const repairCost = Math.ceil((100 - home.durability) / 10) * data.repairPer10
   return (
-    <section className="housing__block">
+    <section className="housing__mine">
       <h3><Icon size={16} /> {home.kind === 'HOUSE' ? 'Ваш дом' : 'Ваша квартира'}{home.label && ` · ${home.label}`}</h3>
       <dl className="housing__facts">
         <div><dt>Прочность</dt><dd>

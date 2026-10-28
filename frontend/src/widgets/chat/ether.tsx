@@ -6,7 +6,7 @@
 // цветами; смайлики. Одна разметка на все три окна, иначе они
 // разъедутся при первой же доработке.
 // =============================================================
-import { useRef, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { ChatLine } from '../../shared/api/chat.api'
@@ -22,6 +22,32 @@ export const EMOJIS = [
 ]
 
 const MODE_LABEL: Record<EtherMode, string> = { GLOBAL: 'Всем', CLAN: 'Бригаде', PRIVATE: 'Лично' }
+
+/**
+ * Написать лично из любого места, не только из строки чата (заказчик 28.10:
+ * «справа, где ники, стрелочки, как в апехе» — раньше личку можно было
+ * открыть только тому, кто сам что-то написал). Список онлайн и поле ввода —
+ * разные компоненты, поэтому адресат передаётся событием окна.
+ */
+const PRIVATE_EVENT = 'ether:private'
+export function writePrivately(nick: string) {
+  window.dispatchEvent(new CustomEvent<string>(PRIVATE_EVENT, { detail: nick }))
+}
+export function onWritePrivately(handler: (nick: string) => void) {
+  const listener = (event: Event) => handler((event as CustomEvent<string>).detail)
+  window.addEventListener(PRIVATE_EVENT, listener)
+  return () => window.removeEventListener(PRIVATE_EVENT, listener)
+}
+
+/** Стрелочка у ника в списке онлайн: сразу личка этому игроку. */
+export function PrivateArrow({ nick }: { nick: string }) {
+  return (
+    <button type="button" className="ether-arrow" aria-label={`Написать лично ${nick}`} title={`Написать лично ${nick}`}
+      onClick={event => { event.stopPropagation(); writePrivately(nick) }}>
+      &#10148;
+    </button>
+  )
+}
 
 /** Состояние поля ввода: куда пишем, кому и что. */
 export function useComposer(ether: Ether) {
@@ -47,6 +73,8 @@ export function useComposer(ether: Ether) {
     setDraft(d => d.replace(/^[^,]{2,30}, /, ''))
     inputRef.current?.focus()
   }
+
+  useEffect(() => onWritePrivately(replyPrivately), [])
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault()
@@ -90,6 +118,12 @@ export function EtherLine({ line, ether, composer, className = '' }: {
         {line.nickname}:
       </button>{' '}
       <span className="ether-body">{withSmiles(line.body)}</span>
+      {ether.canModerate && (
+        <button type="button" className="ether-remove" aria-label="Удалить сообщение" title="Удалить сообщение"
+          onClick={() => { if (window.confirm(`Удалить сообщение ${line.nickname}?`)) void ether.remove(line.id) }}>
+          ×
+        </button>
+      )}
     </div>
   )
 }

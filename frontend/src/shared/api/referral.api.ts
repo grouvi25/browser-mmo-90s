@@ -8,7 +8,8 @@ export interface ReferralSummary {
   minPayout: number
   invited: number
   earned: number
-  withdrawable: number
+  /** Реферальный счёт: отсюда на персонажа или на вывод. */
+  balance: number
   payouts: { id: string; amount: number; status: PayoutStatus; adminNote: string | null; createdAt: string; processedAt: string | null }[]
 }
 
@@ -26,6 +27,8 @@ export interface AdminPayout {
 
 export const referralApi = {
   me: () => api.get<ReferralSummary>('/api/referral/me'),
+  claim: (amount: number) =>
+    api.post<{ amount: number; dollars: number }>('/api/referral/claim', { amount }, { headers: { 'Idempotency-Key': crypto.randomUUID() } }),
   requestPayout: (amount: number, details: string) =>
     api.post<{ id: string; amount: number; status: PayoutStatus }>(
       '/api/referral/payouts', { amount, details }, { headers: { 'Idempotency-Key': crypto.randomUUID() } }),

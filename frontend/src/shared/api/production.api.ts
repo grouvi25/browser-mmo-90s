@@ -27,6 +27,8 @@ export interface ProductionObject {
   priceUsd?: number
   /** Сколько $ заплатил владелец; пусто — куплен за рубли до 28.10. */
   paidUsd?: number | null
+  /** Объект бригады, которым игрок управляет по праву «Объекты» (28.10). */
+  clanName?: string | null
   balance: number
   baseSalary?: number
   salaryOverride?: number | null

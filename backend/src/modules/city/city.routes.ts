@@ -20,6 +20,7 @@ export async function cityRoutes(app: FastifyInstance) {
   app.put('/location', async req => CityService.move(req.authUser.userId, z.object({ path: z.string().max(200) }).strict().parse(req.body).path))
   app.get('/professions', async req => CityService.professions((await char(req)).id))
   app.post('/professions', async req => CityService.learn((await char(req)).id, codeSchema.parse(req.body).code, key(req)))
+  app.post('/professions/level2', async req => CityService.buyLevel2((await char(req)).id, codeSchema.parse(req.body).code, key(req)))
   app.get<{ Params: { kind: string } }>('/shops/:kind', async req => CityService.catalog(kindSchema.parse(req.params.kind)))
   app.post<{ Params: { kind: string } }>('/shops/:kind/buy', async req => CityService.buyItem((await char(req)).id,
     kindSchema.parse(req.params.kind), z.object({ templateId: z.string().uuid() }).strict().parse(req.body).templateId, key(req)))

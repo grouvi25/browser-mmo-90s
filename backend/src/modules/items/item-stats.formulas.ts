@@ -1,9 +1,12 @@
 export const ITEM_STAT_KEYS = ['DAMAGE', 'ACCURACY', 'CRIT', 'ARMOR', 'DURABILITY', 'ANTI_CRIT'] as const
 export type ItemStatKey = typeof ITEM_STAT_KEYS[number]
 export type ItemStatAllocation = Partial<Record<ItemStatKey, number>>
+// Прочности среди очков вещи нет (правка заказчика 28.10: «прочность из доп
+// характеристик убрать вообще, на всех вещах стандартно 100»). Ключ остался
+// в ITEM_STAT_KEYS, чтобы старые записи читались, но вложить в него нельзя.
 export function allowedItemStats(itemType: string): ItemStatKey[] {
-  if (itemType === 'WEAPON') return ['DAMAGE', 'ACCURACY', 'CRIT', 'DURABILITY']
-  if (itemType === 'ARMOR' || itemType === 'SHIELD') return ['ARMOR', 'DURABILITY', 'ANTI_CRIT']
+  if (itemType === 'WEAPON') return ['DAMAGE', 'ACCURACY', 'CRIT']
+  if (itemType === 'ARMOR' || itemType === 'SHIELD') return ['ARMOR', 'ANTI_CRIT']
   return []
 }
 export function normalizeAllocation(value: unknown): ItemStatAllocation {

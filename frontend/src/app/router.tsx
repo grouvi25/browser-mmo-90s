@@ -203,6 +203,7 @@ export function AppRouter() {
         <Route path="/premium" element={<Stage4Page section="premium" />} />
         <Route path="/premium/helpers" element={<Stage4Page section="helpers" />} />
         <Route path="/premium/exchange" element={<Stage4Page section="exchange" />} />
+        <Route path="/premium/referral" element={<Stage4Page section="referral" />} />
 
         <Route path="/shop" element={
           <ViewportPanel title="Госмагазин" subtitle="Государственные цены">

@@ -45,22 +45,27 @@ describe('реферальная система', () => {
     expect((await testPrisma.user.findUniqueOrThrow({ where: { id: self.id } })).referrerCharacterId).toBeNull()
   })
 
-  it('пригласивший получает 10% с покупки у дилера, но не дилер со своих продаж', async () => {
+  it('пригласившему — 10% на реферальный счёт с покупки у дилера, но не дилеру со своих продаж', async () => {
     const host = await player('host')
     const dealer = await player('dealer', { dollars: 1000, isDealer: true })
     const guest = await player('guest', { referrerId: host.id })
     await DollarsService.transfer(dealer.id, guest.nickname, 250, randomUUID())
-    expect(await row(host.id)).toMatchObject({ dollars: 25, referralBalance: 25 })
+    expect(await row(host.id)).toMatchObject({ dollars: 0, referralBalance: 25, referralEarned: 25 })
     expect(await row(guest.id)).toMatchObject({ dollars: 250 })
 
     const dealersOwn = await player('own', { referrerId: dealer.id })
     await DollarsService.transfer(dealer.id, dealersOwn.nickname, 100, randomUUID())
     expect(await row(dealer.id)).toMatchObject({ dollars: 650, referralBalance: 0 })
+
+    // С реферального счёта — на персонажа, не больше, чем там лежит.
+    await expect(ReferralService.claim(host.id, 26, randomUUID())).rejects.toMatchObject({ code: 'ECON_002' })
+    await ReferralService.claim(host.id, 20, randomUUID())
+    expect(await row(host.id)).toMatchObject({ dollars: 20, referralBalance: 5, referralEarned: 25 })
   })
 
-  it('выводятся только реферальные: заявка списывает, отказ возвращает, выплата закрывает', async () => {
+  it('вывод с реферального счёта: заявка списывает, отказ возвращает, выплата закрывает', async () => {
     const host = await player('host', { dollars: 500 })
-    await testPrisma.character.update({ where: { id: host.id }, data: { dollars: 560, referralBalance: 60 } })
+    await testPrisma.character.update({ where: { id: host.id }, data: { referralBalance: 60 } })
     await expect(ReferralService.requestPayout(host.id, 100, 'карта 2200 ****', randomUUID())).rejects.toMatchObject({ code: 'ECON_002' })
     await expect(ReferralService.requestPayout(host.id, 10, 'карта 2200 ****', randomUUID())).rejects.toMatchObject({ statusCode: 422 })
 
@@ -72,16 +77,16 @@ describe('реферальная система', () => {
 
     const adm = await testPrisma.adminUser.create({ data: { username: uid('adm'), passwordHash: 'x', role: 'SUPER_ADMIN' } })
     await ReferralService.reject(first.id, adm.id, 'нет реквизитов')
-    expect(await row(host.id)).toMatchObject({ dollars: 560, referralBalance: 60 })
+    expect(await row(host.id)).toMatchObject({ dollars: 500, referralBalance: 60 })
     await expect(ReferralService.markPaid(first.id, adm.id)).rejects.toMatchObject({ statusCode: 409 })
 
     const second = await ReferralService.requestPayout(host.id, 50, 'карта 2200 ****', randomUUID())
     const paid = await ReferralService.markPaid(second.id, adm.id)
     expect(paid).toMatchObject({ status: 'PAID', processedBy: adm.id })
-    expect(await row(host.id)).toMatchObject({ dollars: 510, referralBalance: 10 })
+    expect(await row(host.id)).toMatchObject({ dollars: 500, referralBalance: 10 })
 
     const summary = await ReferralService.summary(host.id)
-    expect(summary).toMatchObject({ sharePercent: 10, minPayout: 50, withdrawable: 10 })
+    expect(summary).toMatchObject({ sharePercent: 10, minPayout: 50, balance: 10 })
     expect(summary.payouts.map(item => item.status)).toEqual(['PAID', 'REJECTED'])
   })
 })

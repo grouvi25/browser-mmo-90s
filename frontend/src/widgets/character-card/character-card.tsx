@@ -331,6 +331,7 @@ export function CharacterCard({ profile, wounds, liveHp }: {
           <div className="card-list__kv"><span>Здоровье</span><b>{hp} / {hpMax ?? '—'}</b></div>
           <div className="card-list__kv"><span>Наличные</span><b>{(char?.money ?? 0).toLocaleString('ru')} ₽</b></div>
           <div className="card-list__kv"><span>Доллары</span><b>{(char?.dollars ?? 0).toLocaleString('ru')} $</b></div>
+          <div className="card-list__kv"><span>Доллары</span><b>{(char?.dollars ?? 0).toLocaleString('ru')} $</b></div>
           <div className="card-list__kv"><span>Побед</span><b>{char?.battlesWon ?? 0}</b></div>
           <div className="card-list__kv"><span>Поражений</span><b>{Math.max(0, (char?.battlesTotal ?? 0) - (char?.battlesWon ?? 0))}</b></div>
           <div className="card-list__kv"><span>Опыт</span><b>{(char?.battleExp ?? 0).toLocaleString('ru')}</b></div>

@@ -246,7 +246,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     }
     await authPage(page, seller)
     await page.goto('/pvp')
-    await page.getByRole('button', { name: 'Бой с ботом' }).click()
+    await page.getByRole('button', { name: 'Боты', exact: true }).click()
     await expect(page.locator('.arena-bot')).toHaveCount(bots.length)
     await expect(page.locator('.arena-bot', { hasText: 'Смотрящий' })).toContainText('ур. 15')
   })
@@ -443,7 +443,8 @@ test.describe('Stage 2 visual and browser flow', () => {
     // Магазин»: уровень выбирается селектором, а не рядом кнопок.
     await authPage(page, seller)
     await page.goto('/shop')
-    await page.getByRole('button', { name: 'Оружие', exact: true }).click()
+    // Вкладки по месту на теле (правка 28.10): пистолет 2-го уровня — в «Стрелковом».
+    await page.getByRole('button', { name: 'Стрелковое', exact: true }).click()
     const cards = page.locator('.gshop-card')
     await expect(cards.first()).toBeVisible()
     await page.getByLabel('Для уровня:').selectOption('2')

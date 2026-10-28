@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { requireAdminRole } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
+import { ChatService } from '../chat/chat.service'
 import { getEconomyMetricsHistory, getLatestEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
 import { BalanceSandboxSchema, simulateBalanceSandbox } from '../balance-sandbox/balance-sandbox.service'
 import { CombatSandboxSchema, simulateCombat } from '../admin-balance/combat-sandbox.service'
@@ -45,6 +46,12 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
         author: r.author.nickname, level: r.author.battleLevel, text: r.body, hidden: !!r.deletedAt,
       })),
     })
+  })
+
+  // POST /api/admin/chat/:id/hide — удалить реплику из эфира (заказчик 28.10).
+  fastify.post<{ Params: { id: string } }>('/chat/:id/hide', { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }, async (req, reply) => {
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    return reply.send({ removed: await ChatService.remove(req.params.id, `admin:${req.adminUser.adminId}`) })
   })
 
   // GET /api/admin/users?login=xxx — поиск пользователя

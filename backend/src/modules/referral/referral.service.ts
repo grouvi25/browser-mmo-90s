@@ -4,10 +4,11 @@
 // начисления»).
 //
 // Ссылка — /register?ref=ник. Пригласивший получает долю с каждой покупки
-// долларов приглашённым у дилера (DollarsService.rewardReferrer). Вывод на
-// карту ручной (заказчик 28.10): заявка сразу списывает доллары, админ
-// переводит рубли сам и отмечает «выплачено»; при отказе доллары
-// возвращаются. Вывести можно только реферальные — купленные не выводятся.
+// долларов приглашённым у дилера (DollarsService.rewardReferrer). Доля
+// копится на отдельном реферальном счёте (заказчик 28.10): оттуда игрок сам
+// зачисляет её на персонажа или подаёт заявку на вывод на карту. Вывод
+// ручной: заявка списывает с реферального счёта, админ переводит рубли сам
+// и отмечает «выплачено»; при отказе сумма возвращается на реферальный счёт.
 // =============================================================
 import type { Prisma } from '@prisma/client'
 import { BalanceConfig } from '../../config/balance.config'
@@ -41,11 +42,10 @@ export const ReferralService = {
   async summary(characterId: string) {
     const character = await prisma.character.findUniqueOrThrow({
       where: { id: characterId },
-      select: { nickname: true, dollars: true, referralBalance: true },
+      select: { nickname: true, referralBalance: true, referralEarned: true },
     })
-    const [invited, earned, payouts] = await Promise.all([
+    const [invited, payouts] = await Promise.all([
       prisma.user.count({ where: { referrerCharacterId: characterId } }),
-      prisma.dollarLog.aggregate({ where: { characterId, reason: 'REFERRAL' }, _sum: { amount: true } }),
       prisma.referralPayout.findMany({ where: { characterId }, orderBy: { createdAt: 'desc' }, take: 10 }),
     ])
     return {
@@ -53,14 +53,27 @@ export const ReferralService = {
       sharePercent: Math.round(config.topUpShare * 100),
       minPayout: config.minPayoutUsd,
       invited,
-      earned: earned._sum.amount ?? 0,
-      // Вывести можно не больше реферальных и не больше, чем лежит на счёте.
-      withdrawable: Math.min(character.referralBalance, character.dollars),
+      earned: character.referralEarned,
+      balance: character.referralBalance,
       payouts: payouts.map(row => ({
         id: row.id, amount: row.amount, status: row.status, adminNote: row.adminNote,
         createdAt: row.createdAt, processedAt: row.processedAt,
       })),
     }
+  },
+
+  /** Зачислить с реферального счёта на персонажа — в обычные доллары. */
+  async claim(characterId: string, amount: number, key: string) {
+    if (!Number.isInteger(amount) || amount <= 0) throw AppError.validation('Сумма должна быть больше нуля')
+    return withIdempotency({ characterId, scope: 'referral.claim', key, execute: async tx => {
+      const taken = await tx.character.updateMany({
+        where: { id: characterId, referralBalance: { gte: amount } },
+        data: { referralBalance: { decrement: amount } },
+      })
+      if (taken.count !== 1) throw new AppError(ErrorCode.ECON_INSUFFICIENT_FUNDS, 'Столько на реферальном счёте нет', 409)
+      const dollars = await DollarsService.credit(tx, { characterId, amount, reason: 'REFERRAL', note: 'с реферального счёта' })
+      return { amount, dollars }
+    } })
   },
 
   async requestPayout(characterId: string, amount: number, details: string, key: string) {
@@ -78,9 +91,8 @@ export const ReferralService = {
         where: { id: characterId, referralBalance: { gte: amount } },
         data: { referralBalance: { decrement: amount } },
       })
-      if (taken.count !== 1) throw new AppError(ErrorCode.ECON_INSUFFICIENT_FUNDS, 'Столько реферальных нет', 409)
+      if (taken.count !== 1) throw new AppError(ErrorCode.ECON_INSUFFICIENT_FUNDS, 'Столько на реферальном счёте нет', 409)
       const payout = await tx.referralPayout.create({ data: { characterId, amount, details: details.trim() } })
-      await DollarsService.debit(tx, { characterId, amount, reason: 'REFERRAL_PAYOUT', refId: payout.id })
       const who = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { nickname: true } })
       return { id: payout.id, amount, status: payout.status, nickname: who.nickname }
     } })
@@ -110,10 +122,9 @@ export const ReferralService = {
     return close(id, adminId, 'PAID', note)
   },
 
-  /** Отказ: доллары и право вывода возвращаются игроку. */
+  /** Отказ: сумма возвращается на реферальный счёт. */
   async reject(id: string, adminId: string, note?: string) {
     return close(id, adminId, 'REJECTED', note, async (tx, payout) => {
-      await DollarsService.credit(tx, { characterId: payout.characterId, amount: payout.amount, reason: 'REFERRAL_PAYOUT', refId: payout.id, note: 'возврат заявки' })
       await tx.character.update({ where: { id: payout.characterId }, data: { referralBalance: { increment: payout.amount } } })
     })
   },

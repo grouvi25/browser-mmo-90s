@@ -13,7 +13,7 @@ export function LevelGate({ children }: { children: React.ReactNode }) {
   return <div className="level-gate" role="status">
     <h2>Откроется с {need.level}-го боевого уровня</h2>
     <p>{LOCATION_HINTS[need.key]}</p>
-    <p>Сейчас у вас {me.data.battleLevel}-й. Опыт дают бои — начните со Стрелок, вкладка «Бой с ботом».</p>
+    <p>Сейчас у вас {me.data.battleLevel}-й. Опыт дают бои — начните со Стрелок, кнопка «Боты».</p>
     <Link to="/pvp">В Стрелки →</Link>
   </div>
 }

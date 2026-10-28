@@ -9,7 +9,7 @@
 // Без подписки помощник остаётся в профиле, но не работает. Экран это
 // показывает прямо, а не прячет кнопку.
 // =============================================================
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, Hammer, Moon, Trash2 } from 'lucide-react'
 import { helpersApi, type Helper } from '../../shared/api/strategy.api'
@@ -174,9 +174,19 @@ function HelperCard({
   // профессия должна совпадать с требованием объекта.
   const suitable = objects.filter(object =>
     !object.requiredProfessionCode || object.requiredProfessionCode === helper.professionCode)
-  const [objectId, setObjectId] = useState(suitable[0]?.id ?? '')
+  // Выбор не запоминаем с первой отрисовки: список объектов приходит позже,
+  // и пустой выбор держал «На смену» серой до перезагрузки (правка 28.10).
+  const [picked, setObjectId] = useState('')
+  const objectId = suitable.some(object => object.id === picked) ? picked : suitable[0]?.id ?? ''
   const shift = helper.activeShift
-  const ready = shift && new Date(shift.endsAt).getTime() <= Date.now()
+  // Часы для таймера: смена кончилась — «Забрать» включается сразу, без ожидания опроса.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!shift) return
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [shift])
+  const ready = shift && new Date(shift.endsAt).getTime() <= now
   const dormant = helper.status === 'DORMANT'
 
   return (
@@ -199,7 +209,7 @@ function HelperCard({
 
       {shift ? (
         <div className="s4-helper__shift">
-          <span><Hammer size={12} /> На смене · {ready ? 'готово' : remaining(shift.endsAt)}</span>
+          <span><Hammer size={12} /> На смене · {ready ? 'готово' : remaining(shift.endsAt, now)}</span>
           <button type="button" disabled={busy || !ready} onClick={onClaim}>Забрать смену</button>
         </div>
       ) : (

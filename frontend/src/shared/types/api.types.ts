@@ -39,6 +39,8 @@ export interface Character {
   /** Игровые доллары — донатная валюта, покупаются у дилера. */
   dollars?: number
   isDealer?: boolean
+  /** Модератор игры («Красные»): удаляет реплики в эфире. */
+  isModerator?: boolean
   /** Кровавая травма после отбитой осады: до этого времени в бой нельзя. */
   traumaUntil?: string | null
   hpCurrent: number

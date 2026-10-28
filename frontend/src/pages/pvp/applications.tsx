@@ -19,11 +19,11 @@ import { PveStart } from '../../widgets/pve-start/pve-start'
 import { WornGear } from '../../widgets/worn-gear/worn-gear'
 import './applications.css'
 
-const KIND_LABEL: Record<ApplicationKind | 'SIEGE', string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Хаотичный', SIEGE: 'Осада дома' }
+const KIND_LABEL: Record<ApplicationKind | 'SIEGE', string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Хаот', SIEGE: 'Осада дома' }
 const KIND_HINT: Record<ApplicationKind, string> = {
   DUEL: 'Один на один: подаёте вызов, соперник его принимает.',
   GROUP: 'Бой двух команд. Вы сами выбираете, за какую сторону встать: можно собрать своих на одну сторону и ждать противников на другую.',
-  CHAOTIC: 'Каждый записывается в общую заявку, не зная, с кем будет в одной команде: на старте всех делит жребий на две равные команды.',
+  CHAOTIC: 'Каждый записывается в общую заявку, не зная, с кем будет в одной команде: на старте игра сама делит всех на две команды по рейтингу, чтобы силы были равны.',
 }
 const DELAYS = [1, 3, 5, 10]
 type Tab = 'ALL' | ApplicationKind | 'RUNNING'
@@ -130,14 +130,14 @@ export function BattleApplications() {
       <form className="bapps-create" onSubmit={event => { event.preventDefault(); if (kind !== 'BOT') create.mutate() }}>
         <fieldset className="bapps-kinds">
           <legend>Подать заявку</legend>
-          {/* Хаотичный бой из подачи убран (правка заказчика 20.10: «не вижу разницы
-              с групповым, хаот удалить»); старые хаотичные заявки и история
-              по-прежнему показываются со своей подписью. */}
-          {(['DUEL', 'GROUP', 'BOT'] as CreateKind[]).map(item => (
+          {/* Хаот вернулся (правка заказчика 28.10) — теперь стороны делит рейтинг,
+              а не жребий, этим он и отличается от группового. Порядок — его:
+              «Дуэль, Хаот, Групповой, Боты». */}
+          {(['DUEL', 'CHAOTIC', 'GROUP', 'BOT'] as CreateKind[]).map(item => (
             <button type="button" key={item} aria-pressed={kind === item}
               className={'bapps-kind' + (kind === item ? ' is-active' : '')} onClick={() => setKind(item)}>
               {item === 'DUEL' ? <Swords size={13} /> : item === 'GROUP' ? <Users size={13} /> : item === 'CHAOTIC' ? <Shuffle size={13} /> : <Bot size={13} />}
-              {item === 'BOT' ? 'Бой с ботом' : KIND_LABEL[item]}
+              {item === 'BOT' ? 'Боты' : KIND_LABEL[item]}
             </button>
           ))}
         </fieldset>

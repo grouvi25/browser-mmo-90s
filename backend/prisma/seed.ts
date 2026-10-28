@@ -44,14 +44,14 @@ async function main() {
       code: 'weapon_knife_basic', name: 'Перочинный нож', type: 'WEAPON' as const,
       weaponType: 'KNIFE' as const,
       minDamage: 20, maxDamage: 45, weaponAccuracy: 0.80, critBonus: 0.03,
-      weight: 0.5, durabilityMax: 80, qualityBase: 'COMMON' as const,
+      weight: 0.5, durabilityMax: 100, qualityBase: 'COMMON' as const,
       priceBase: 200, levelReq: 0, sourceType: 'GOVERNMENT' as const,
     },
     {
       code: 'weapon_pipe_basic', name: 'Водопроводная труба', type: 'WEAPON' as const,
       weaponType: 'CLUB' as const,
       minDamage: 30, maxDamage: 65, weaponAccuracy: 0.70,
-      weight: 2.0, durabilityMax: 120, qualityBase: 'COMMON' as const,
+      weight: 2.0, durabilityMax: 100, qualityBase: 'COMMON' as const,
       priceBase: 350, levelReq: 0, strReq: 2, sourceType: 'GOVERNMENT' as const,
     },
     {
@@ -67,7 +67,7 @@ async function main() {
       weaponType: 'SHOTGUN' as const,
       minDamage: 70, maxDamage: 140, weaponAccuracy: 0.60,
       optimalRange: 2, maxRange: 3,
-      weight: 3.5, durabilityMax: 90, qualityBase: 'COMMON' as const,
+      weight: 3.5, durabilityMax: 100, qualityBase: 'COMMON' as const,
       priceBase: 1500, levelReq: 4, strReq: 3, sourceType: 'GOVERNMENT' as const,
     },
   ]
@@ -85,28 +85,28 @@ async function main() {
       code: 'armor_cap_basic', name: 'Кепка', type: 'ARMOR' as const,
       armorSlot: 'HEAD' as const,
       armor: 4,
-      weight: 0.2, durabilityMax: 70, qualityBase: 'COMMON' as const,
+      weight: 0.2, durabilityMax: 100, qualityBase: 'COMMON' as const,
       priceBase: 100, levelReq: 0, sourceType: 'GOVERNMENT' as const,
     },
     {
       code: 'armor_jeans_basic', name: 'Джинсы', type: 'ARMOR' as const,
       armorSlot: 'LEGS' as const,
       armor: 6,
-      weight: 0.8, durabilityMax: 90, qualityBase: 'COMMON' as const,
+      weight: 0.8, durabilityMax: 100, qualityBase: 'COMMON' as const,
       priceBase: 200, levelReq: 0, sourceType: 'GOVERNMENT' as const,
     },
     {
       code: 'armor_boots_basic', name: 'Берцы', type: 'ARMOR' as const,
       armorSlot: 'FEET' as const,
       armor: 6, dodgeBonus: 0.02,
-      weight: 1.0, durabilityMax: 90, qualityBase: 'COMMON' as const,
+      weight: 1.0, durabilityMax: 100, qualityBase: 'COMMON' as const,
       priceBase: 250, levelReq: 0, sourceType: 'GOVERNMENT' as const,
     },
     {
       code: 'armor_vest_basic', name: 'Советский бронежилет', type: 'ARMOR' as const,
       armorSlot: 'CHEST' as const,
       armor: 25, antiCrit: 0.05,
-      weight: 5.0, durabilityMax: 120, qualityBase: 'COMMON' as const,
+      weight: 5.0, durabilityMax: 100, qualityBase: 'COMMON' as const,
       priceBase: 2000, levelReq: 3, strReq: 3, sourceType: 'GOVERNMENT' as const,
     },
   ]
@@ -148,7 +148,7 @@ async function main() {
     { code: 'tool_work_import', name: 'Импортная оснастка', description: 'Редкий инструмент четвёртой ступени. Государство им не торгует — только собственная сборка из деталей верхнего передела.', type: 'TOOL' as const, toolTier: 4, usesMax: STAGE2_TOOL_TIERS[4].uses, weight: 2.5, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[4].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'PRIVATE' as const, isEquippable: false },
   ]
 
-  // Upsert templates
+  // Upsert templates. Прочность всех вещей — 100 (правка заказчика 28.10).
   for (const tpl of [...weaponTemplates, ...armorTemplates, ...consumableTemplates, ...toolTemplates]) {
     const { code, ...data } = tpl
     await prisma.itemTemplate.upsert({
@@ -327,9 +327,9 @@ async function main() {
 
   const privateTemplates = [
     {code:'weapon_tt_private',name:'Пистолет ТТ',type:'WEAPON' as const,weaponType:'PISTOL' as const,minDamage:45,maxDamage:90,weaponAccuracy:.78,optimalRange:4,maxRange:5,weight:1.1,durabilityMax:100,priceBase:2400,levelReq:3,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_weapon_part'},
-    {code:'weapon_sawnoff_private',name:'Обрез',type:'WEAPON' as const,weaponType:'SHOTGUN' as const,minDamage:80,maxDamage:150,weaponAccuracy:.63,optimalRange:2,maxRange:3,weight:3,durabilityMax:90,priceBase:3900,levelReq:4,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_weapon_part'},
-    {code:'armor_leather_jacket_private',name:'Кожаная куртка с пластинами',type:'ARMOR' as const,armorSlot:'CHEST' as const,armor:16,weight:2,durabilityMax:110,priceBase:1300,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
-    {code:'armor_army_vest_private',name:'Армейский бронежилет',type:'ARMOR' as const,armorSlot:'CHEST' as const,armor:34,antiCrit:.07,weight:6,durabilityMax:130,priceBase:5200,levelReq:4,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
+    {code:'weapon_sawnoff_private',name:'Обрез',type:'WEAPON' as const,weaponType:'SHOTGUN' as const,minDamage:80,maxDamage:150,weaponAccuracy:.63,optimalRange:2,maxRange:3,weight:3,durabilityMax:100,priceBase:3900,levelReq:4,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_weapon_part'},
+    {code:'armor_leather_jacket_private',name:'Кожаная куртка с пластинами',type:'ARMOR' as const,armorSlot:'CHEST' as const,armor:16,weight:2,durabilityMax:100,priceBase:1300,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
+    {code:'armor_army_vest_private',name:'Армейский бронежилет',type:'ARMOR' as const,armorSlot:'CHEST' as const,armor:34,antiCrit:.07,weight:6,durabilityMax:100,priceBase:5200,levelReq:4,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
     {code:'armor_boots_army_private',name:'Армейские берцы',type:'ARMOR' as const,armorSlot:'FEET' as const,armor:9,dodgeBonus:.03,weight:1.2,durabilityMax:100,priceBase:700,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
   ]
   for(const tpl of privateTemplates){await prisma.itemTemplate.upsert({where:{code:tpl.code},update:tpl,create:tpl})}

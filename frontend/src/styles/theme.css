@@ -449,6 +449,19 @@ html, body {
 }
 .online-list__row:hover .online-list__nick { color: var(--ink-red); }
 .online-list__nick { white-space: nowrap; }
+/* Стрелочка у ника, как в «Апехе»: сразу личка этому игроку (28.10). */
+.ether-arrow {
+  padding: 0 2px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: .8em; line-height: 1; color: var(--text-dim, #6b5b4a);
+  transition: color 120ms;
+}
+.ether-arrow:hover { color: var(--ink-red); }
+.ether-remove { margin-left: 4px; padding: 0 3px; border: 0; background: none; cursor: pointer; font: inherit; line-height: 1; color: var(--text-dim, #6b5b4a); transition: color 120ms; }
+.ether-remove:hover { color: var(--ink-red); }
+.ether-remove:active { color: var(--red-dim, #6f0101); }
+.ether-remove:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
+.ether-arrow:active { color: var(--red-dim, #6f0101); }
+.ether-arrow:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
 .online-lvl { font-family: var(--font-ui); line-height: 1;
               text-shadow: 0 0 2px rgba(0, 0, 0, .55); }
 .online-lvl--r { color: var(--lvl-red); }
