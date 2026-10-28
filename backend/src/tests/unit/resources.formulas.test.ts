@@ -17,8 +17,10 @@ describe('stage 2 resource formulas', () => {
     expect(availableResourceAmount(10, 3)).toBe(7)
     expect(availableResourceAmount(2, 4)).toBe(0)
   })
-  it('calculates government sell economic exp with round', () => {
-    expect(calcGovernmentResourceEcoExp(10, 8)).toBe(1)
+  // Книга «Ревизия 2» (28.10): опыт — 2% полученной суммы, с округлением вниз.
+  it('экономический опыт за сырьё — 2% выплаты', () => {
+    expect(calcGovernmentResourceEcoExp(100, 100)).toBe(50)
+    expect(calcGovernmentResourceEcoExp(10, 8)).toBe(0)
   })
   it('allows only positive integer reservations within available amount', () => {
     expect(canReserveResource(10, 3, 7)).toBe(true)

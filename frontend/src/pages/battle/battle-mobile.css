@@ -163,3 +163,13 @@
   .m-battle__zones .zone-list__row { grid-template-columns: 9px minmax(0, 1fr) 33px 33px; }
   .m-battle__zones .zone-list__label { font-size: 12.5px; }
 }
+
+/* Полоса здоровья в шапке тоньше (заказчик 28.10: «на моб версии в бою
+   очень большая полоска здоровья»): цифры — рядом с именем, полоса — 5 px. */
+.m-battle__hp { height: 5px; margin-top: 2px; border-width: 0; }
+.m-battle__hpnum { font: 700 11.5px/1 var(--font-mono); color: oklch(40% .03 55); text-transform: none; letter-spacing: 0; margin-left: 4px; }
+.m-battle__fighter.is-enemy .m-battle__hpnum { color: #a51818; }
+/* Имя режется многоточием, цифры здоровья — никогда. */
+.m-battle__fighter .m-battle__name { display: flex; align-items: baseline; gap: 4px; overflow: visible; }
+.m-battle__who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-battle__hpnum { flex: 0 0 auto; margin-left: auto; }

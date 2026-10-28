@@ -86,8 +86,8 @@ export const BalanceConfig = {
 
   economy: {
     work: { efficiencyPerProfessionLevel: 0.03, objectLevelStep: 0.25, salaryRandomMin: 0.9, salaryRandomMax: 1.1, salaryCapMultiplier: 3, dailyShiftLimit: 12, dailyShiftMinutes: 360, salaryFatigueStep: 0.20, salaryFatigueFloor: 0.20, restMinutesAfterShift: 30 },
-    resources: { governmentPayoutRate: 0.25, governmentEcoExpRate: 0.01 },
-    market: { listingFeeRate: 0.02, listingFeeMin: 5, saleTaxRate: 0.05, sellerEcoExpRate: 0.03, listingDurationHours: 72, maxActiveListings: 10 },
+    resources: { governmentPayoutRate: 0.25 },
+    market: { listingFeeRate: 0.02, listingFeeMin: 5, saleTaxRate: 0.05, listingDurationHours: 72, maxActiveListings: 10 },
     tools: { tiers: { 1: { price: 500, uses: 50 }, 2: { price: 1250, uses: 50 }, 3: { price: 1800, uses: 50 } } },
     production: {
       cycleTickSeconds: 60,
@@ -306,10 +306,12 @@ export const BalanceConfig = {
     ],
 
     // Денежная премия за достижение уровня L (индекс = уровень − 1),
-    // Премия(L) = ROUND(650 × L^1,9); выдаётся по одному разу за уровень.
+    // выдаётся по одному разу за уровень. Решение заказчика 28.10: старт
+    // 1 250 ₽, за каждый следующий уровень — ровно 650 ₽. Прежняя таблица
+    // книги «Ревизия 2» (650 × L^1,9: 2 426 за 2-й, 13 834 за 5-й…) отменена.
     levelMoneyBonus: [
-      650, 2_426, 5_241, 9_054, 13_834, 19_561, 26_218, 33_790, 42_264, 51_631,
-      61_881, 73_006, 84_997, 97_849, 111_554,
+      650, 650, 650, 650, 650, 650, 650, 650, 650, 650,
+      650, 650, 650, 650, 650,
     ],
 
     // Очки характеристик за новый боевой уровень. Документ заказчика:
@@ -322,18 +324,17 @@ export const BalanceConfig = {
     maxStatValue: 20,
   },
 
-  // --- Economic exp (GanjaWars reference: price × 0.047) ---
+  // --- Экономический опыт (книга «Ревизия 2», перевод по решению заказчика 28.10) ---
+  // Опыт = оборот продаж и торговли × 2%: продажа вещи и сырья государству,
+  // продажа на рынке. Раньше ставки были разные по видам (4,7 / 6,7 / 3 / 1%).
   economicExp: {
-    // При продаже нового предмета
-    sellNewRate: 0.047,
-    // При продаже сломанного предмета
-    sellBrokenRate: 0.067,
-
-    // Таблица уровней экономического опыта (GanjaWars source)
-    levelThresholds: [
-      0, 1250, 3864, 9241, 19060, 35658, 62224, 103032, 163721, 251646, 376282,
-      549727, 787291, 1108199, 1536424, 2101672, 2840541, 3797878, 5028368, 6598393, 8588189,
-    ],
+    turnoverRate: 0.02,
+    // За новый экономический уровень: сила +1 и премия деньгами — десятая
+    // доля накопленного порога этого уровня (E(1) = 1450 → 145 ₽).
+    strPerLevel: 1,
+    levelMoneyShare: 0.1,
+    // Порог уровня L: E(0) = 0, E(L) = ROUND(1450 × e^(0,30 × (L − 1)) × L^0,9), L = 1..30.
+    levelThresholds: [0, ...Array.from({ length: 30 }, (_, i) => Math.round(1450 * Math.exp(0.30 * i) * Math.pow(i + 1, 0.9)))],
   },
 
   // --- Durability ---

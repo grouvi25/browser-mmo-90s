@@ -6,9 +6,9 @@ export function calcGovernmentResourcePayout(amount: number, basePrice: number):
 }
 export function calcResourceWeight(amount: number, unitWeight: number): number { return Math.max(0, amount) * Math.max(0, unitWeight) }
 export function availableResourceAmount(amount: number, reservedAmount: number): number { return Math.max(0, amount - reservedAmount) }
+/** Экономический опыт за сдачу сырья — 2% полученной суммы (книга «Ревизия 2»). */
 export function calcGovernmentResourceEcoExp(amount: number, basePrice: number): number {
-  if (!Number.isInteger(amount) || amount <= 0 || !Number.isInteger(basePrice) || basePrice < 0) return 0
-  return Math.round(amount * basePrice * B.governmentEcoExpRate)
+  return Math.floor(calcGovernmentResourcePayout(amount, basePrice) * BalanceConfig.economicExp.turnoverRate)
 }
 export function canReserveResource(amount: number, reservedAmount: number, requested: number): boolean { return Number.isInteger(requested) && requested > 0 && availableResourceAmount(amount, reservedAmount) >= requested }
 export function assertResourceStackInvariant(amount: number, reservedAmount: number): void {
