@@ -120,6 +120,15 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
   const priceBase = dollars ? rubValue : price
   const reasonText = reason.trim() || (name.trim() ? `Новая вещь «${name.trim()}»` : '')
 
+  // Смена валюты: рубли не превращаются в доллары. Уходя в ЦУМ или Берёзку,
+  // рублёвая цена становится стоимостью вещи, а витрине — 10 $ для начала.
+  const chooseShop = (next: Shop) => {
+    const nextDollars = SHOPS.find(item => item.value === next)?.currency === '$'
+    if (nextDollars && !dollars) { setRubValue(price); setPrice(10) }
+    if (!nextDollars && dollars) setPrice(rubValue)
+    setShop(next)
+  }
+
   const changeLevel = (next: number) => {
     setLevel(next)
     if (!budgetTouched) setBudget(statBudgetForLevel(next))
@@ -193,7 +202,7 @@ export function ItemCreateForm({ onDone }: { onDone: (code: string) => void }) {
       <div className="adm-item__shops" role="radiogroup" aria-label="Где продаётся">
         {SHOPS.map(item => (
           <label key={item.value || 'none'} className={'adm-item__shop' + (shop === item.value ? ' is-on' : '')}>
-            <input type="radio" name="item-shop" checked={shop === item.value} onChange={() => setShop(item.value)} />
+            <input type="radio" name="item-shop" checked={shop === item.value} onChange={() => chooseShop(item.value)} />
             <span><b>{item.title}</b><small>{item.hint}</small></span>
           </label>
         ))}

@@ -283,7 +283,7 @@ export function ItemsSection({ role }: { role?: string | null }) {
         </div>
         {canEdit && (
           <button type="button" className="adm-link" onClick={() => setAdding(!adding)}>
-            <Plus size={12} /> {adding ? 'скрыть форму' : 'Добавить предмет'}
+            <Plus size={12} /> {adding ? 'скрыть форму' : 'Добавить вещь'}
           </button>
         )}
       </div>
