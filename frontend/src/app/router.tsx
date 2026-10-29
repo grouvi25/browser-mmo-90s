@@ -282,6 +282,10 @@ export function AppRouter() {
           <ViewportPanel title="Поддержка" subtitle="Вопросы и ошибки">
             <SupportPage />
           </ViewportPanel>} />
+        <Route path="/support/:ticketId" element={
+          <ViewportPanel title="Поддержка" subtitle="Обращение">
+            <SupportPage />
+          </ViewportPanel>} />
         <Route path="/housing" element={
           <ViewportPanel title="Жилой сектор" subtitle="Квартиры и дома">
             <HousingPage />

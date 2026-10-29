@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { activeTabKey, locationMenu, type LocationTab } from '../../shared/lib/location-menus'
 import { housingApi } from '../../shared/api/housing.api'
 import { charactersApi } from '../../shared/api/characters.api'
+import { supportApi } from '../../shared/api/support.api'
 import { LOCATION_HINTS, LOCATION_LEVELS, levelGateApplies } from '../../shared/lib/location-levels'
 
 const within = (path: string, prefix: string) => path === prefix || path.startsWith(prefix + '/')
@@ -27,6 +28,9 @@ export function LocationTabs() {
   const active = activeTabKey(menu.tabs, pathname, search)
   const me = useQuery({ queryKey: ['character', 'me'], queryFn: charactersApi.getMe, staleTime: 30_000 })
   const level = me.data?.battleLevel ?? 1
+  // Ответ поддержки — отметка на кнопке «Поддержка» (правка 29.10).
+  const support = useQuery({ queryKey: ['support', 'unread'], queryFn: supportApi.unread, enabled: menu.key === 'center', refetchInterval: 60_000, retry: false })
+  const supportNew = support.data?.count ?? 0
   const gated = levelGateApplies(me.data)
   const lockOf = (key: string) => gated && menu.key === 'center' && (LOCATION_LEVELS[key]?.level ?? 0) > level ? LOCATION_LEVELS[key].level : null
   const hintOf = (key: string) => {
@@ -41,11 +45,12 @@ export function LocationTabs() {
       const lock = lockOf(item.key)
       return <button type="button" key={item.key}
         data-stage-nav={item.key} aria-current={active === item.key ? 'page' : undefined}
-        className={(active === item.key ? 'is-active' : '') + (item.key === 'center' && menu.key !== 'center' ? ' is-center' : '') + (lock ? ' is-locked' : '')}
-        title={hintOf(item.key)} aria-disabled={lock ? true : undefined}
+        className={(active === item.key ? 'is-active' : '') + (item.key === 'support' && supportNew > 0 ? ' has-unread' : '') + (item.key === 'center' && menu.key !== 'center' ? ' is-center' : '') + (lock ? ' is-locked' : '')}
+        title={item.key === 'support' && supportNew > 0 ? 'Поддержка ответила' : hintOf(item.key)} aria-disabled={lock ? true : undefined}
         disabled={item === homeTab && back.isPending}
         onClick={() => lock ? undefined : item === homeTab ? back.mutate() : navigate(item.to)}>
-        {item.label}{lock ? <small className="city-locations__lock"> · с {lock} ур.</small> : null}</button>
+        {item.label}{lock ? <small className="city-locations__lock"> · с {lock} ур.</small> : null}
+        {item.key === 'support' && supportNew > 0 ? <small className="city-locations__new"> · {supportNew}</small> : null}</button>
     })}
   </nav>
 }

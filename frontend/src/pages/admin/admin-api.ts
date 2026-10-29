@@ -12,6 +12,7 @@
 // =============================================================
 import type { Announcement, AnnouncementKind } from '../../shared/api/announcements.api'
 import type { AdminPayout, PayoutStatus } from '../../shared/api/referral.api'
+import type { SupportAuthor, SupportCategory } from '../../shared/api/support.api'
 
 const BASE = (import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_API_BASE_URL || ''
 const TOKEN_KEY = 'mmo_admin_token'
@@ -82,12 +83,39 @@ export interface ChatLogRow {
 }
 
 export type SupportStatus = 'OPEN' | 'ANSWERED' | 'CLOSED'
-export interface SupportRow {
-  id: string; text: string; status: SupportStatus
-  reply: string | null; repliedAt: string | null; repliedBy: string | null
-  createdAt: string; hasImage: boolean
-  characterId: string; character: { nickname: string; battleLevel: number }
+export type SupportPriority = 'LOW' | 'NORMAL' | 'HIGH'
+export type { SupportCategory }
+export interface SupportTicketInfo {
+  id: string; number: number; subject: string; category: SupportCategory; priority: SupportPriority
+  status: SupportStatus; assignedTo: string | null; lastMessageAt: string; createdAt: string
+  closedAt: string | null; closedBy: string | null; rating: number | null
+  playerUnread: boolean; staffUnread: boolean
 }
+export interface SupportRow extends SupportTicketInfo {
+  characterId: string; character: { nickname: string; battleLevel: number }
+  messagesCount: number
+  last: { author: SupportAuthor; internal: boolean; text: string } | null
+}
+export interface SupportList {
+  items: SupportRow[]; total: number; counts: Record<SupportStatus, number>; unread: number; page: number; pageSize: number
+}
+export interface SupportFilter {
+  status?: SupportStatus; category?: SupportCategory; assigned?: 'me' | 'none'; q?: string; page?: number
+}
+export interface SupportStaffMessage {
+  id: string; author: SupportAuthor; authorLabel: string | null; text: string; hasImage: boolean; internal: boolean; createdAt: string
+}
+export interface SupportStaffThread {
+  ticket: SupportTicketInfo
+  player: {
+    id: string; nickname: string; battleLevel: number; money: number; dollars: number; isPremium: boolean
+    createdAt: string; lastActiveAt: string | null; login: string; email: string
+  }
+  others: { id: string; number: number; subject: string; status: SupportStatus; createdAt: string }[]
+  messages: SupportStaffMessage[]
+}
+/** Окно при входе в игру (правка 29.10). */
+export interface WelcomeSetting { enabled: boolean; title: string; text: string; version: number }
 
 export interface ClanRow {
   id: string; name: string; tag: string; level: number
@@ -350,10 +378,19 @@ export const adminApi = {
   payoutReject: (id: string, note?: string) => request<AdminPayout>(`/api/referral/admin/payouts/${id}/reject`, { method: 'POST', body: { note } }),
   chatHide: (id: string) => request<{ removed: boolean }>(`/api/admin/chat/${id}/hide`, { method: 'POST', body: {} }),
   chatLog: (days: number) => request<{ days: number; items: ChatLogRow[] }>(`/api/admin/chat?days=${days}`),
-  support: (status?: SupportStatus) => request<{ items: SupportRow[] }>(`/api/admin/support${status ? `?status=${status}` : ''}`),
-  supportImage: (id: string) => requestBlobUrl(`/api/admin/support/${id}/image`),
-  supportReply: (id: string, text: string) => request(`/api/admin/support/${id}/reply`, { method: 'POST', body: { text } }),
-  supportClose: (id: string) => request(`/api/admin/support/${id}/close`, { method: 'POST', body: {} }),
+  support: (filter: SupportFilter) => {
+    const query = new URLSearchParams(Object.entries(filter).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)])).toString()
+    return request<SupportList>(`/api/admin/support${query ? `?${query}` : ''}`)
+  },
+  supportThread: (id: string) => request<SupportStaffThread>(`/api/admin/support/${id}`),
+  supportImage: (id: string, messageId: string) => requestBlobUrl(`/api/admin/support/${id}/messages/${messageId}/image`),
+  supportWrite: (id: string, body: { text: string; internal?: boolean; close?: boolean }) =>
+    request<SupportStaffThread>(`/api/admin/support/${id}/messages`, { method: 'POST', body }),
+  supportUpdate: (id: string, body: { status?: SupportStatus; priority?: SupportPriority; category?: SupportCategory; assign?: 'me' | 'none' }) =>
+    request<SupportStaffThread>(`/api/admin/support/${id}`, { method: 'PATCH', body }),
+  welcome: () => request<{ welcome: WelcomeSetting | null }>('/api/admin/site/welcome'),
+  saveWelcome: (body: { enabled: boolean; title: string; text: string }) =>
+    request<{ welcome: WelcomeSetting }>('/api/admin/site/welcome', { method: 'PUT', body }),
   prison: (characterId: string, hours: number, reason: string) => request('/api/admin/city/prison', { method: 'POST', body: { characterId, hours, reason } }),
   async login(username: string, password: string) {
     const result = await request<{ token: string; adminId: string; role: AdminRole }>(

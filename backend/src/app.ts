@@ -50,6 +50,7 @@ import { dollarsRoutes } from './modules/dollars/dollars.routes'
 import { referralRoutes } from './modules/referral/referral.routes'
 import { housingRoutes } from './modules/housing/housing.routes'
 import { adminSupportRoutes, supportRoutes } from './modules/support/support.routes'
+import { siteRoutes, adminSiteRoutes } from './modules/site/site.routes'
 import { stage3AcceptanceRoutes } from './modules/stage3-acceptance/stage3-acceptance.routes'
 import { balanceSandboxRoutes } from './modules/balance-sandbox/balance-sandbox.routes'
 
@@ -158,6 +159,7 @@ export async function buildApp() {
   await fastify.register(cityRoutes, { prefix: '/api/city' })
   await fastify.register(housingRoutes, { prefix: '/api/housing' })
   await fastify.register(supportRoutes, { prefix: '/api/support' })
+  await fastify.register(siteRoutes, { prefix: '/api/site' })
   await fastify.register(cityAdminRoutes, { prefix: '/api/admin/city' })
   await fastify.register(governmentShopRoutes, { prefix: '/api/shops/government' })
   await fastify.register(battlesRoutes,        { prefix: '/api/battles' })
@@ -193,6 +195,7 @@ export async function buildApp() {
   await fastify.register(adminActionsRoutes,  { prefix: '/api/admin' })
   await fastify.register(adminBalanceRoutes,  { prefix: '/api/admin' })
   await fastify.register(adminSupportRoutes,  { prefix: '/api/admin/support' })
+  await fastify.register(adminSiteRoutes,     { prefix: '/api/admin/site' })
 
   return fastify
 }

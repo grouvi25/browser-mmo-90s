@@ -8,6 +8,7 @@ import { adminApi } from '../admin-api'
 import type { AnnouncementKind } from '../../../shared/api/announcements.api'
 import { Skeleton, Fault, Empty, Note } from '../../stage3/stage3-ui'
 import { when } from '../admin-ui'
+import { WelcomeEditor } from './welcome-editor'
 
 const KINDS: [AnnouncementKind, string][] = [['PATCH', 'Обновление'], ['NEWS', 'Новость']]
 const KIND_LABEL: Record<AnnouncementKind, string> = { PATCH: 'обновление', NEWS: 'новость', WORLD: 'в городе' }
@@ -46,6 +47,7 @@ export function AnnouncementsSection() {
 
   return (
     <>
+      <WelcomeEditor />
       <section className="adm-card-block adm-announce-form">
         <h4>Новое объявление</h4>
         <div className="adm-item__fields">

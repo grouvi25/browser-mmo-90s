@@ -1055,5 +1055,7 @@ html, body {
 .city-locations button.is-locked { opacity:.45; cursor:not-allowed; }
 .city-locations button.is-locked:hover { background:var(--paper-warm); border-color:var(--border); }
 .city-locations__lock { font-weight:400; font-size:11px; }
+/* Новый ответ поддержки: только цвет, кнопка не сдвигается. */
+.city-locations__new { font-weight:700; font-size:11px; color:#a01818; }
 .level-gate { padding:24px; text-align:center; }
 .level-gate h2 { margin:0 0 8px; }

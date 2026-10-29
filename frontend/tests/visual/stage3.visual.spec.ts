@@ -114,25 +114,60 @@ test('на списке домов бригад внизу только ЦЕНТ
   await expect(page.locator('[data-stage-nav="storage"]')).toHaveCount(1)
 })
 
-// Правка 21.10: «Поддержка» в Центре — текст и форма со скриншотом.
-test('поддержка: обращение со скриншотом уходит и видно в списке', async ({ page }) => {
+// Поддержка тикетами (правка 29.10): тема, раздел, скриншот, переписка.
+test('поддержка: обращение с темой и скриншотом открывается перепиской и видно в списке', async ({ page }) => {
   await authPage(page, owner)
   await page.goto('/')
   await page.locator('[data-stage-nav="support"]').click()
   await expect(page).toHaveURL(/\/support$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Поддержка' })).toBeVisible()
-  await page.getByLabel('Обращение').fill('Не открывается склад после боя')
+  await page.goto('/support/new')
+  await page.getByLabel('Тема', { exact: true }).fill('Склад после боя')
+  await page.getByLabel('Раздел', { exact: true }).selectOption('BUG')
+  await page.getByLabel('Подробности').fill('Не открывается склад после боя')
   // Картинка 1×1 PNG: страница сама ужмёт её в JPEG.
   await page.locator('.support input[type=file]').setInputFiles({
     name: 'shot.png', mimeType: 'image/png',
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'),
   })
-  await expect(page.getByAltText('Скриншот к обращению')).toBeVisible()
+  await expect(page.getByAltText('Скриншот к сообщению')).toBeVisible()
   await page.locator('.support').getByRole('button', { name: 'Отправить' }).click()
-  await expect(page.locator('.support__msg')).toContainText('Обращение отправлено')
-  await expect(page.locator('.support__ticket').first()).toContainText('Не открывается склад после боя')
-  await expect(page.locator('.support__ticket').first()).toContainText('со скриншотом')
+  await expect(page).toHaveURL(/\/support\/[0-9a-f-]{36}$/)
+  await expect(page.locator('.support__thread-head')).toContainText('Склад после боя')
+  await expect(page.locator('.support__chat')).toContainText('Не открывается склад после боя')
+  await expect(page.locator('.support__chat').getByAltText('Скриншот')).toBeVisible()
   await expectNoAxeViolations(page)
+
+  // Дописать в обращение и вернуться к списку.
+  await page.getByLabel('Ваше сообщение').fill('И снаряжение не надевается')
+  await page.locator('.support').getByRole('button', { name: 'Отправить' }).click()
+  await expect(page.locator('.support__bubble.is-mine')).toHaveCount(2)
+  await page.getByRole('link', { name: 'Мои обращения' }).click()
+  await expect(page.locator('.support__row').first()).toContainText('Склад после боя')
+})
+
+// Окно при входе (просьба Дмитрия 29.10). Ответ сервера подменён только для
+// этой страницы: в общей базе окно перекрыло бы остальные тесты.
+test('окно при входе: показывается раз за сеанс и ведёт в поддержку', async ({ page }) => {
+  await page.route('**/api/site/welcome', route => route.fulfill({
+    json: { welcome: { enabled: true, title: 'Игра на стадии тестирования', text: 'Тестируем формулы и механики.\n\nВопросы — в Поддержку.', version: 7 } },
+  }))
+  await authPage(page, owner)
+  await page.goto('/')
+  const dialog = page.getByRole('dialog', { name: 'Игра на стадии тестирования' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('p')).toHaveCount(2)
+  await expectNoAxeViolations(page)
+  await dialog.getByRole('button', { name: 'Понятно' }).click()
+  await expect(dialog).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('[data-stage-nav="support"]')).toBeVisible()
+  await expect(dialog).toHaveCount(0)
+
+  await page.evaluate(() => sessionStorage.removeItem('mmo_welcome_seen'))
+  await page.reload()
+  await page.getByRole('dialog').getByRole('button', { name: 'Написать в поддержку' }).click()
+  await expect(page).toHaveURL(/\/support\/new$/)
 })
 
 // Правка 21.10: свой набор смайлов в стиле игры.
