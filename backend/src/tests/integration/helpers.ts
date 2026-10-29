@@ -16,6 +16,7 @@ export async function cleanDatabase(): Promise<void> {
     testPrisma.dollarLog.deleteMany(),
     testPrisma.referralPayout.deleteMany(),
     testPrisma.gameNotice.deleteMany(),
+    testPrisma.siteSetting.deleteMany(),
     testPrisma.outfitPreset.deleteMany(),
     testPrisma.clanStorageLog.deleteMany(),
     testPrisma.houseWallNote.deleteMany(),

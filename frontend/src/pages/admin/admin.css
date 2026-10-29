@@ -489,3 +489,54 @@
 .adm-announce-actions { display: flex; gap: 8px; }
 .adm-announce-actions .danger { color: #a12a2a; }
 @media (max-width: 640px) { .adm-announce-title { grid-column: auto; } }
+
+/* Поддержка тикетами (правка 29.10): очередь слева, обращение справа. */
+.adm-desk { display: grid; gap: 12px; align-items: start; }
+@media (min-width: 1100px) { .adm-desk { grid-template-columns: minmax(340px, 2fr) 3fr; } }
+.adm-desk__queue, .adm-desk__ticket { display: grid; gap: 8px; min-width: 0; }
+.adm-desk__ticket { scroll-margin-top: 8px; }
+@media (min-width: 1100px) { .adm-desk__ticket { position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow-y: auto; } }
+.adm-switch--wrap { flex-wrap: wrap; margin-bottom: 0; }
+.adm-desk__filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.adm-desk__filters input { flex: 1 1 160px; min-width: 0; padding: 4px 8px; font: inherit; }
+.adm-desk__filters select { padding: 4px 6px; font: inherit; }
+.adm-desk__pages { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.adm-queue { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.adm-queue__row {
+  display: grid; gap: 2px; width: 100%; padding: 6px 9px; text-align: left; font: inherit; cursor: pointer;
+  border: 1px solid var(--s3-line, #c9b8a5); border-left: 3px solid var(--s3-line, #c9b8a5); background: rgba(255, 255, 255, .45);
+}
+.adm-queue__row:hover { background: rgba(255, 255, 255, .7); }
+.adm-queue__row:active { background: rgba(255, 255, 255, .85); }
+.adm-queue__row:focus-visible { outline: 2px solid #7a1010; outline-offset: 1px; }
+.adm-queue__row.is-high { border-left-color: #ab0303; }
+.adm-queue__row.is-low { border-left-color: #9a9088; }
+.adm-queue__row.is-current { background: var(--paper, #faeadd); border-color: #7a5a3a; }
+.adm-queue__row.is-unread .adm-queue__head b::before { content: '● '; color: #ab0303; }
+.adm-queue__head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.adm-queue__head b { overflow-wrap: anywhere; }
+.adm-queue__when, .adm-queue__meta { font-size: 12.5px; color: var(--s3-dim, #6b5b4a); }
+.adm-queue__when { flex: none; }
+.adm-queue__last { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.adm-tk { display: grid; gap: 10px; padding: 10px 12px; border: 1px solid var(--s3-line, #c9b8a5); background: rgba(255, 255, 255, .45); }
+.adm-tk__head h4 { margin: 0; font: 700 15px/1.3 var(--font-ui); overflow-wrap: anywhere; }
+.adm-tk__controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.adm-tk__controls label { display: grid; gap: 2px; font-size: 12.5px; color: var(--s3-dim, #6b5b4a); }
+.adm-tk__controls select { padding: 3px 6px; font: inherit; font-size: 13.5px; }
+.adm-tk__assign { display: flex; align-items: center; gap: 6px; color: var(--s3-ink, #2b2118); font-size: 13.5px; }
+.adm-tk__player { display: grid; gap: 3px; padding: 6px 8px; border: 1px dashed var(--s3-line, #c9b8a5); }
+.adm-tk__others { font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.adm-tk__others .adm-link { margin-top: 0; }
+.adm-tk__chat { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.adm-tk__bubble { display: grid; gap: 3px; max-width: 88%; padding: 6px 9px; border: 1px solid var(--s3-line, #c9b8a5); }
+.adm-tk__bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.adm-tk__bubble.is-player { justify-self: start; background: rgba(255, 255, 255, .6); }
+.adm-tk__bubble.is-staff { justify-self: end; background: rgba(47, 107, 42, .1); border-right: 3px solid #2f6b2a; }
+.adm-tk__bubble.is-note { justify-self: end; background: oklch(95% .06 95); border-style: dashed; }
+.adm-tk__system { justify-self: center; font-size: 12px; font-style: italic; color: var(--s3-dim, #6b5b4a); }
+.adm-tk__form { display: grid; gap: 6px; }
+.adm-tk__form textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 6px 8px; font: inherit; }
+.adm-tk__form textarea.is-internal { background: oklch(96% .05 95); }
+.adm-tk__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.adm-tk__tools select { padding: 3px 6px; font: inherit; }
+.adm-tk__tools .adm-check { display: flex; align-items: center; gap: 6px; font-size: 13px; }

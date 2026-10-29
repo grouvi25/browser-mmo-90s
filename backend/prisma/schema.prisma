@@ -489,28 +489,28 @@ enum UpgradeLogResult {
 // =============================================================
 
 model User {
-  id               String     @id @default(uuid())
-  login            String     @unique
-  email            String     @unique
+  id                  String     @id @default(uuid())
+  login               String     @unique
+  email               String     @unique
   /// Почта без псевдонимов: у Gmail без точек, у всех без «+метки», Яндекс
   /// к одному домену (auth/email-policy.ts). Уникальна: один ящик — один
   /// аккаунт (просьба 28.10). У аккаунтов до 28.10 заполнена миграцией.
-  emailNormalized  String?    @unique @map("email_normalized")
-  passwordHash     String     @map("password_hash")
-  status           UserStatus @default(ACTIVE)
-  emailVerified    Boolean    @default(false) @map("email_verified")
-  banReason        String?    @map("ban_reason")
-  mutedUntil       DateTime?  @map("muted_until")
-  lastIp           String?    @map("last_ip")
-  lastUserAgent    String?    @map("last_user_agent")
-  lastLoginAt      DateTime?  @map("last_login_at")
-  registeredAt     DateTime   @default(now()) @map("registered_at")
+  emailNormalized     String?    @unique @map("email_normalized")
+  passwordHash        String     @map("password_hash")
+  status              UserStatus @default(ACTIVE)
+  emailVerified       Boolean    @default(false) @map("email_verified")
+  banReason           String?    @map("ban_reason")
+  mutedUntil          DateTime?  @map("muted_until")
+  lastIp              String?    @map("last_ip")
+  lastUserAgent       String?    @map("last_user_agent")
+  lastLoginAt         DateTime?  @map("last_login_at")
+  registeredAt        DateTime   @default(now()) @map("registered_at")
   /// Когда игрок согласился с политикой обработки персональных данных
   /// (152-ФЗ, галочка при регистрации с 21.10.2026). У старых аккаунтов пусто.
-  policyAcceptedAt DateTime?  @map("policy_accepted_at")
+  policyAcceptedAt    DateTime?  @map("policy_accepted_at")
   /// Кто пригласил (персонаж по реферальной ссылке ?ref=ник). Ставится
   /// только при регистрации и больше не меняется.
-  referrerCharacterId String? @map("referrer_character_id")
+  referrerCharacterId String?    @map("referrer_character_id")
 
   // Relations
   character      Character?
@@ -581,21 +581,21 @@ model Character {
   battleLoadoutJson Json? @map("battle_loadout_json")
 
   // Money
-  money       Int       @default(1250) // Стартовые деньги по ТЗ
+  money           Int       @default(1250) // Стартовые деньги по ТЗ
   /// Игровые доллары — донатная валюта. Покупаются у дилера, тратятся на
   /// премиум и плюшки. Рубли (money) — обычная игровая валюта, не путать.
-  dollars     Int       @default(0) @map("dollars")
+  dollars         Int       @default(0) @map("dollars")
   /// Дилер получает доллары от администрации и пополняет ими счета игроков.
-  isDealer    Boolean   @default(false) @map("is_dealer")
+  isDealer        Boolean   @default(false) @map("is_dealer")
   /// Реферальный счёт в $ — отдельно от dollars (заказчик 28.10): отсюда
   /// игрок сам зачисляет на персонажа или подаёт заявку на вывод на карту.
-  referralBalance Int   @default(0) @map("referral_balance")
+  referralBalance Int       @default(0) @map("referral_balance")
   /// Всего начислено по рефералке за всё время — для вкладки.
-  referralEarned  Int   @default(0) @map("referral_earned")
+  referralEarned  Int       @default(0) @map("referral_earned")
   /// Модератор игры («Красные»): виден во вкладке Поддержки «Модераторы».
-  isModerator Boolean   @default(false) @map("is_moderator")
+  isModerator     Boolean   @default(false) @map("is_moderator")
   /// «Кровавая травма» после проигранной осады: до этого времени в бой нельзя.
-  traumaUntil DateTime? @map("trauma_until")
+  traumaUntil     DateTime? @map("trauma_until")
 
   // HP
   hpCurrent Int @map("hp_current")
@@ -2459,33 +2459,98 @@ model HomeRaidSignup {
   @@map("home_raid_signups")
 }
 
-// Обращения в поддержку (правка заказчика 21.10: кнопка «Поддержка» в
-// Центре — текст и форма со скриншотом). Ответ приходит игроку уведомлением.
+// Поддержка тикетами (правка 29.10: «нормальная поддержка, удобно и
+// функционально»). Обращение — тема, категория и переписка в обе стороны:
+// игрок может дописать, поддержка — ответить или оставить заметку для своих.
+// OPEN — ждёт поддержку, ANSWERED — ждёт игрока, CLOSED — закрыто.
 enum SupportStatus {
   OPEN
   ANSWERED
   CLOSED
 }
 
+enum SupportCategory {
+  BUG
+  PAYMENT
+  ITEMS
+  ACCOUNT
+  COMPLAINT
+  QUESTION
+  IDEA
+  OTHER
+}
+
+enum SupportPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+enum SupportAuthor {
+  PLAYER
+  STAFF
+  SYSTEM
+}
+
 model SupportTicket {
+  id            String          @id @default(uuid())
+  /// Номер для людей: «обращение №17» проще назвать в чате, чем uuid.
+  number        Int             @unique @default(autoincrement())
+  characterId   String          @map("character_id")
+  subject       String          @db.VarChar(120)
+  category      SupportCategory @default(OTHER)
+  priority      SupportPriority @default(NORMAL)
+  status        SupportStatus   @default(OPEN)
+  /// Кто из поддержки взял обращение (логин админки).
+  assignedTo    String?         @map("assigned_to")
+  lastMessageAt DateTime        @default(now()) @map("last_message_at")
+  /// Непрочитанное: у игрока — новый ответ, у поддержки — новое от игрока.
+  playerUnread  Boolean         @default(false) @map("player_unread")
+  staffUnread   Boolean         @default(true) @map("staff_unread")
+  closedAt      DateTime?       @map("closed_at")
+  closedBy      String?         @map("closed_by")
+  /// Оценка игрока после закрытия, 1–5.
+  rating        Int?
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  character Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  messages  SupportMessage[]
+
+  @@index([characterId, lastMessageAt])
+  @@index([status, lastMessageAt])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
   id          String        @id @default(uuid())
-  characterId String        @map("character_id")
+  ticketId    String        @map("ticket_id")
+  author      SupportAuthor
+  /// Логин админки у ответа поддержки; у игрока пусто — он и так виден.
+  authorLabel String?       @map("author_label")
   text        String
   /// Скриншот — base64 без префикса data:, как иконка бригады.
   imageData   String?       @map("image_data")
   imageMime   String?       @map("image_mime")
-  status      SupportStatus @default(OPEN)
-  reply       String?
-  repliedAt   DateTime?     @map("replied_at")
-  repliedBy   String?       @map("replied_by")
+  /// Заметка поддержки для своих: игрок её не видит.
+  internal    Boolean       @default(false)
   createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
 
-  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
-  @@index([characterId, createdAt])
-  @@index([status, createdAt])
-  @@map("support_tickets")
+  @@index([ticketId, createdAt])
+  @@map("support_messages")
+}
+
+/// Настройки сайта, которые админка меняет без выкатки (правка 29.10:
+/// окно при входе в игру). value — JSON, форма своя у каждого ключа.
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@map("site_settings")
 }
 
 /// Комплект одежды (обещание игрокам 22.10): до трёх на персонажа, надевается

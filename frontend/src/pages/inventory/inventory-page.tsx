@@ -192,8 +192,11 @@ export function InventoryPage() {
     onSuccess: data => { refresh(); showMsg('success', `${data.itemName}: +${data.hpRestored} HP (теперь ${data.newHp} HP)`) },
     onError: err => fail(err, 'Ошибка'),
   })
+  // Вещи, которым в этом заходе распределяли очки: их блок «+» остаётся на месте.
+  const [allocatedIds, setAllocatedIds] = useState<ReadonlySet<string>>(() => new Set())
   const allocateMut = useMutation({
     mutationFn: ({ id, stat }: { id: string; stat: ItemStatKey }) => inventoryApi.allocatePoints(id, stat),
+    onMutate: ({ id }) => setAllocatedIds(prev => prev.has(id) ? prev : new Set(prev).add(id)),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['inventory'] }); showMsg('success', 'Очко распределено') },
     onError: err => fail(err, 'Не удалось распределить очко'),
   })
@@ -312,12 +315,15 @@ export function InventoryPage() {
                             : <div><dt>Оберег крита противника</dt><dd>{signed(pct(eff.antiCrit))}%</dd></div>)}
                         </dl>
                         <div className="inv-card__side">
-                          {t.allocationMode === 'PLAYER' && item.freePoints > 0 && (
+                          {/* Блок очков не пропадает, пока игрок распределяет: иначе на
+                              последнем очке кнопки ниже подпрыгивали под палец, и следующее
+                              нажатие попадало в «Выбросить» (жалоба игрока 29.10). */}
+                          {t.allocationMode === 'PLAYER' && (item.freePoints > 0 || allocatedIds.has(item.id)) && (
                             <div className="inv-card__actions">
                               <span className="inv-card__count">Очки: {item.freePoints}</span>
                               {stats.map(stat => (
                                 <button key={stat} type="button" className="inv-btn"
-                                  disabled={allocateMut.isPending || inBattle}
+                                  disabled={allocateMut.isPending || inBattle || item.freePoints <= 0}
                                   onClick={() => allocateMut.mutate({ id: item.id, stat })}>
                                   <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
                                   <span>+ {ITEM_STAT_LABELS[stat]}</span>
@@ -358,12 +364,12 @@ export function InventoryPage() {
                             {!item.isEquipped && (
                               <>
                                 <button type="button" className="inv-btn" disabled={sellMut.isPending}
-                                  onClick={() => sellMut.mutate(item.id)}>
+                                  onClick={() => { if (window.confirm(`Продать «${t.name}»? Вернуть вещь будет нельзя.`)) sellMut.mutate(item.id) }}>
                                   <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
                                   <span>Продать</span>
                                 </button>
                                 <button type="button" className="inv-btn" disabled={discardMut.isPending}
-                                  onClick={() => discardMut.mutate(item.id)}>
+                                  onClick={() => { if (window.confirm(`Выбросить «${t.name}»? Вещь пропадёт насовсем.`)) discardMut.mutate(item.id) }}>
                                   <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
                                   <span>Выбросить</span>
                                 </button>
