@@ -71,7 +71,7 @@ export const AuthService = {
       if (await verifyPassword(input.password, candidate.passwordHash)) { user = candidate; break }
     }
     if (!user) {
-      await RegistrationGuard.recordLoginFailure(lockKey)
+      if (candidates.length) await RegistrationGuard.recordLoginFailure(lockKey)
       audit('user.login_failed', { login: input.login, reason: candidates.length ? 'bad_password' : 'not_found', ip })
       throw new AppError(ErrorCode.INVALID_CREDENTIALS, 'Invalid login or password', 401)
     }

@@ -17,15 +17,24 @@ import type { SupportAuthor, SupportCategory } from '../../shared/api/support.ap
 const BASE = (import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_API_BASE_URL || ''
 const TOKEN_KEY = 'mmo_admin_token'
 const ROLE_KEY = 'mmo_admin_role'
+/** «Запомнить устройство»: ключ, с которым вход сотрудника обходится без кода. */
+const DEVICE_KEY = 'mmo_admin_device'
+
+export const adminDevice = {
+  get: () => { try { return localStorage.getItem(DEVICE_KEY) ?? undefined } catch { return undefined } },
+  set: (token: string) => { try { localStorage.setItem(DEVICE_KEY, token) } catch { /* приватный режим */ } },
+  clear: () => { try { localStorage.removeItem(DEVICE_KEY) } catch { /* приватный режим */ } },
+}
 
 export type AdminRole = 'SUPER_ADMIN' | 'MODERATOR' | 'SUPPORT'
 
 export const adminToken = {
   get: () => localStorage.getItem(TOKEN_KEY),
   role: () => localStorage.getItem(ROLE_KEY) as AdminRole | null,
-  set(token: string, role: AdminRole) {
+  set(token: string, role?: AdminRole) {
     localStorage.setItem(TOKEN_KEY, token)
-    localStorage.setItem(ROLE_KEY, role)
+    if (role) localStorage.setItem(ROLE_KEY, role)
+    else localStorage.removeItem(ROLE_KEY)
   },
   clear() {
     localStorage.removeItem(TOKEN_KEY)
@@ -114,6 +123,22 @@ export interface SupportStaffThread {
   others: { id: string; number: number; subject: string; status: SupportStatus; createdAt: string }[]
   messages: SupportStaffMessage[]
 }
+// Сотрудники и права (правка 30.10): сервер проверяет право, меню строится по ним же.
+export type StaffRole = 'OWNER' | 'ADMIN' | 'GAMEDESIGNER' | 'MODERATOR' | 'SUPPORT' | 'FINANCE'
+export type Permission = 'view' | 'moderate' | 'support' | 'content' | 'catalog' | 'balance' | 'grant' | 'finance' | 'staff'
+export interface AdminMe {
+  label: string; staffRole: StaffRole | null; roleTitle: string
+  permissions: Permission[]; permissionTitles: Record<Permission, string>
+}
+export type StaffLoginStep =
+  | { step: 'code'; challengeId: string; email: string }
+  | { step: 'done'; token: string; staffRole: StaffRole; label: string; deviceToken?: string }
+export interface StaffRow {
+  id: string; role: StaffRole; roleTitle: string; isActive: boolean; createdBy: string | null; createdAt: string; lastLoginAt: string | null
+  nickname: string; login: string; email: string; level: number | null
+}
+export interface StaffEventRow { id: string; label: string; action: string; details: Record<string, unknown> | null; ip: string | null; createdAt: string }
+
 /** Окно при входе в игру (правка 29.10). */
 export interface WelcomeSetting { enabled: boolean; title: string; text: string; version: number }
 
@@ -366,6 +391,18 @@ export interface ItemTemplateRow {
 // ── Ручки ────────────────────────────────────────────────────
 
 export const adminApi = {
+  // Вход сотрудника (правка 30.10): ник и пароль, затем код из письма.
+  staffLogin: (body: { nickname: string; password: string; deviceToken?: string }) =>
+    request<StaffLoginStep>('/api/admin/auth/staff/login', { method: 'POST', body }),
+  staffVerify: (body: { challengeId: string; code: string; remember: boolean }) =>
+    request<StaffLoginStep>('/api/admin/auth/staff/verify', { method: 'POST', body }),
+  me: () => request<AdminMe>('/api/admin/auth/me'),
+  logout: () => request('/api/admin/auth/logout', { method: 'POST', body: {} }),
+  logoutAll: () => request<{ sessions: number; devices: number }>('/api/admin/auth/logout-all', { method: 'POST', body: {} }),
+  staff: () => request<{ items: StaffRow[]; roles: { role: StaffRole; title: string; permissions: Permission[] }[] }>('/api/admin/staff'),
+  staffEvents: () => request<{ items: StaffEventRow[] }>('/api/admin/staff/events'),
+  staffAdd: (nickname: string, role: StaffRole) => request<{ id: string }>('/api/admin/staff', { method: 'POST', body: { nickname, role } }),
+  staffUpdate: (id: string, body: { role?: StaffRole; isActive?: boolean }) => request(`/api/admin/staff/${id}`, { method: 'PATCH', body }),
   // Объявления: «Обновления» и «Новости» в верхнем меню игры.
   announcements: () => request<{ items: Announcement[] }>('/api/announcements/admin'),
   publishAnnouncement: (body: { kind: AnnouncementKind; title: string; body: string; pinned: boolean }) =>

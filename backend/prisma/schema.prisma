@@ -516,6 +516,7 @@ model User {
   character      Character?
   sessions       Session[]
   passwordResets PasswordReset[]
+  staff          StaffMember?
 
   @@index([referrerCharacterId])
   @@map("users")
@@ -1777,6 +1778,76 @@ model AdminActionLog {
   @@index([adminId, createdAt])
   @@index([targetType, targetId])
   @@map("admin_action_logs")
+}
+
+/// Роль сотрудника (правка 30.10: личные входы в админку вместо общего
+/// «admin»). Сотрудник — обычный игровой аккаунт с ролью; права роли
+/// перечислены в shared/security/permissions.ts.
+enum StaffRole {
+  OWNER
+  ADMIN
+  GAMEDESIGNER
+  MODERATOR
+  SUPPORT
+  FINANCE
+}
+
+model StaffMember {
+  id          String    @id @default(uuid())
+  userId      String    @unique @map("user_id")
+  role        StaffRole
+  isActive    Boolean   @default(true) @map("is_active")
+  createdBy   String?   @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("staff_members")
+}
+
+/// Код из письма — второй шаг входа сотрудника. Хранится только хэш.
+model StaffLoginCode {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  codeHash  String    @map("code_hash")
+  attempts  Int       @default(0)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  ip        String?
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("staff_login_codes")
+}
+
+/// «Запомнить устройство на 30 дней»: код из письма не спрашивается.
+model StaffTrustedDevice {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  tokenHash  String   @unique @map("token_hash")
+  userAgent  String?  @map("user_agent")
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+
+  @@index([userId])
+  @@map("staff_trusted_devices")
+}
+
+/// Журнал сотрудников: входы, неудачные попытки, назначения и снятия ролей.
+model StaffEvent {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  label     String
+  action    String
+  details   Json?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("staff_events")
 }
 
 model AdminUser {

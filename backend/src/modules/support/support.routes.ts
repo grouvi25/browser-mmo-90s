@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import { z } from 'zod'
-import { authenticate, requireAdminRole } from '../../shared/security/auth-middleware'
+import { authenticate, requirePermission } from '../../shared/security/auth-middleware'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { prisma } from '../../shared/db/prisma'
@@ -82,13 +82,10 @@ export async function supportRoutes(fastify: FastifyInstance) {
   })
 }
 
-const SUPPORT_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
+const SUPPORT_ADMIN = { preHandler: requirePermission('support') }
 
 /** Обращения в админке — /api/admin/support. */
 export async function adminSupportRoutes(fastify: FastifyInstance) {
-  const label = async (adminId: string) =>
-    (await prisma.adminUser.findUnique({ where: { id: adminId }, select: { username: true } }))?.username ?? 'admin'
-
   fastify.get('/', SUPPORT_ADMIN, async (req, reply) => {
     const parsed = z.object({
       status: Status.optional(),
@@ -98,7 +95,7 @@ export async function adminSupportRoutes(fastify: FastifyInstance) {
       page: z.coerce.number().int().min(0).max(1000).optional(),
     }).safeParse(Object.fromEntries(Object.entries(req.query as Record<string, string>).filter(([, v]) => v !== '')))
     if (!parsed.success) return reply.code(422).send(bad)
-    return reply.send(await SupportService.adminList(parsed.data, await label(req.adminUser.adminId)))
+    return reply.send(await SupportService.adminList(parsed.data, req.adminUser.label))
   })
 
   fastify.get<{ Params: { id: string } }>('/:id', SUPPORT_ADMIN, async (req, reply) => {
@@ -109,7 +106,7 @@ export async function adminSupportRoutes(fastify: FastifyInstance) {
   fastify.post<{ Params: { id: string } }>('/:id/messages', SUPPORT_ADMIN, async (req, reply) => {
     const parsed = z.object({ text: z.string().max(SUPPORT.textMax), internal: z.boolean().optional(), close: z.boolean().optional() }).safeParse(req.body)
     if (!Id.safeParse(req.params.id).success || !parsed.success) return reply.code(422).send(bad)
-    return reply.send(await SupportService.adminMessage(req.params.id, await label(req.adminUser.adminId), parsed.data))
+    return reply.send(await SupportService.adminMessage(req.params.id, req.adminUser.label, parsed.data))
   })
 
   fastify.patch<{ Params: { id: string } }>('/:id', SUPPORT_ADMIN, async (req, reply) => {
@@ -120,7 +117,7 @@ export async function adminSupportRoutes(fastify: FastifyInstance) {
       assign: z.enum(['me', 'none']).optional(),
     }).safeParse(req.body)
     if (!Id.safeParse(req.params.id).success || !parsed.success) return reply.code(422).send(bad)
-    return reply.send(await SupportService.adminUpdate(req.params.id, await label(req.adminUser.adminId), parsed.data))
+    return reply.send(await SupportService.adminUpdate(req.params.id, req.adminUser.label, parsed.data))
   })
 
   // Скриншот отдаётся по админскому токену: в админке он грузится fetch'ем.

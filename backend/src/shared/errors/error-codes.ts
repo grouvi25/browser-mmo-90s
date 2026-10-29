@@ -209,4 +209,5 @@ export enum ErrorCode {
   INTERNAL_ERROR         = 'GEN_003',
   RATE_LIMITED           = 'GEN_004',
   CONFLICT               = 'GEN_005',
+  SERVICE_UNAVAILABLE    = 'GEN_006',
 }

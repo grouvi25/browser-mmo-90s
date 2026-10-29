@@ -7,7 +7,7 @@
 // =============================================================
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { authenticate, requireAdminRole } from '../../shared/security/auth-middleware'
+import { authenticate, requirePermission } from '../../shared/security/auth-middleware'
 import { AnnouncementsService } from './announcements.service'
 import { MAX_BODY, MAX_TITLE } from './announcements.formulas'
 
@@ -48,16 +48,15 @@ export async function announcementsRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Body: unknown }>(
     '/',
-    { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') },
+    { preHandler: requirePermission('content') },
     async (req, reply) => {
       const parsed = Publish.safeParse(req.body)
       if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
-      // Имя админа в запросе не лежит — в токене только идентификатор
-      // и роль. Подпись под объявлением читают игроки, поэтому берём
-      // настоящее имя из базы, а не показываем UUID.
+      // Подпись под объявлением читают игроки: имя сотрудника, а не UUID.
       return reply.code(201).send(await AnnouncementsService.publish({
         ...parsed.data,
         adminId: req.adminUser.adminId,
+        authorLabel: req.adminUser.label,
       }))
     },
   )
@@ -66,13 +65,13 @@ export async function announcementsRoutes(fastify: FastifyInstance) {
   // администратора свой вход. Те же объявления всех видов.
   fastify.get(
     '/admin',
-    { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') },
+    { preHandler: requirePermission('content') },
     async (_req, reply) => reply.send({ items: await AnnouncementsService.feed() }),
   )
 
   fastify.patch<{ Params: { id: string }; Body: unknown }>(
     '/:id/pin',
-    { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') },
+    { preHandler: requirePermission('content') },
     async (req, reply) => {
       const parsed = z.object({ pinned: z.boolean() }).safeParse(req.body)
       if (!z.string().uuid().safeParse(req.params.id).success || !parsed.success) {
@@ -84,7 +83,7 @@ export async function announcementsRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { id: string } }>(
     '/:id',
-    { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') },
+    { preHandler: requirePermission('content') },
     async (req, reply) => {
       if (!z.string().uuid().safeParse(req.params.id).success) {
         return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })

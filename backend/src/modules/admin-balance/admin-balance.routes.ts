@@ -8,7 +8,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { requireAdminRole } from '../../shared/security/auth-middleware'
+import { requirePermission } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
 import { AdminActionsService, type AdminContext } from '../admin-actions/admin-actions.service'
 import { getLatestEconomyMetrics, collectEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
@@ -34,9 +34,12 @@ import { PROFESSION_NAMES, type ProfessionCode } from '../professions/profession
 import { reasonFlowLabel, reasonTitle } from './reason-codes'
 import { sendTelegram, telegramConfigured } from './telegram.service'
 
-const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
-const WRITE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN') }
-const MODERATE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }
+const READ_ADMIN = { preHandler: requirePermission('view') }
+// Права по смыслу ручки (правка 30.10): справочник, баланс, выдача.
+const CATALOG_ADMIN = { preHandler: requirePermission('catalog') }
+const BALANCE_ADMIN = { preHandler: requirePermission('balance') }
+const GRANT_ADMIN = { preHandler: requirePermission('grant') }
+const MODERATE_ADMIN = { preHandler: requirePermission('moderate') }
 
 const REASON = z.string().min(10).max(500)
 
@@ -151,7 +154,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   })
 
   /** Проверка связи: одно сообщение в тот же чат, куда уходят алерты. */
-  fastify.post('/telegram/test', WRITE_ADMIN, async (req, reply) => {
+  fastify.post('/telegram/test', BALANCE_ADMIN, async (req, reply) => {
     const result = await sendTelegram(
       `✅ Проверка связи из админки «Кооператива». Отправил ${admin(req).adminId.slice(0, 8)}.`,
     )
@@ -356,7 +359,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     reason: REASON,
   })
 
-  fastify.patch('/balance/param', WRITE_ADMIN, async (req, reply) => {
+  fastify.patch('/balance/param', BALANCE_ADMIN, async (req, reply) => {
     const parsed = ParamBody.safeParse(req.body)
     if (!parsed.success) {
       return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
@@ -386,7 +389,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   })
 
   /** Снять правку: значение возвращается к тому, что стоит в коде. */
-  fastify.delete('/balance/param', WRITE_ADMIN, async (req, reply) => {
+  fastify.delete('/balance/param', BALANCE_ADMIN, async (req, reply) => {
     const parsed = z.object({ path: z.string().min(3), reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
       return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
@@ -440,7 +443,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     isActive: z.boolean().optional(),
   })
 
-  fastify.patch<{ Params: { code: string } }>('/catalog/resource/:code', WRITE_ADMIN, async (req, reply) => {
+  fastify.patch<{ Params: { code: string } }>('/catalog/resource/:code', CATALOG_ADMIN, async (req, reply) => {
     const parsed = z.object({ fields: RESOURCE_FIELDS, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
       return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
@@ -468,7 +471,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     isAvailable: z.boolean().optional(),
   })
 
-  fastify.patch<{ Params: { code: string } }>('/catalog/shop/:code', WRITE_ADMIN, async (req, reply) => {
+  fastify.patch<{ Params: { code: string } }>('/catalog/shop/:code', CATALOG_ADMIN, async (req, reply) => {
     const parsed = z.object({ fields: SHOP_FIELDS, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
       return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
@@ -502,7 +505,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     isActive: z.boolean().optional(),
   })
 
-  fastify.patch<{ Params: { code: string } }>('/catalog/bar/:code', WRITE_ADMIN, async (req, reply) => {
+  fastify.patch<{ Params: { code: string } }>('/catalog/bar/:code', CATALOG_ADMIN, async (req, reply) => {
     const parsed = z.object({ fields: BAR_FIELDS, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
       return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
@@ -535,7 +538,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     isActive: z.boolean().optional(),
   })
 
-  fastify.patch<{ Params: { code: string } }>('/catalog/object/:code', WRITE_ADMIN, async (req, reply) => {
+  fastify.patch<{ Params: { code: string } }>('/catalog/object/:code', CATALOG_ADMIN, async (req, reply) => {
     const parsed = z.object({ fields: OBJECT_FIELDS, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
       return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
@@ -582,7 +585,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     ...GEAR_FIELDS,
   })
 
-  fastify.patch<{ Params: { code: string } }>('/items/:code', WRITE_ADMIN, async (req, reply) => {
+  fastify.patch<{ Params: { code: string } }>('/items/:code', CATALOG_ADMIN, async (req, reply) => {
     const parsed = z.object({ fields: ITEM_FIELDS, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
       return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
@@ -640,7 +643,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     price: z.number().int().min(0).max(10_000_000),
   }).nullable().optional()
 
-  fastify.post('/items', WRITE_ADMIN, async (req, reply) => {
+  fastify.post('/items', CATALOG_ADMIN, async (req, reply) => {
     const parsed = z.object({ item: NEW_ITEM, sale: SALE, reason: REASON }).safeParse(req.body)
     if (!parsed.success) {
       return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error), details: parsed.error.flatten() })
@@ -817,7 +820,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
    * Уровень пересчитывается исполнителем, поэтому выдать опыт и забыть
    * поднять уровень нельзя.
    */
-  fastify.post<{ Params: { id: string } }>('/players/:id/exp', WRITE_ADMIN, async (req, reply) => {
+  fastify.post<{ Params: { id: string } }>('/players/:id/exp', GRANT_ADMIN, async (req, reply) => {
     const parsed = z.object({
       track: z.enum(['battle', 'economic', 'production']),
       amount: z.number().int().refine(value => value !== 0, 'Ноль ничего не меняет')

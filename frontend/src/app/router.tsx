@@ -129,7 +129,27 @@ function MetrikaTracker() {
   return null
 }
 
+/**
+ * Админка на своём поддомене (правка 30.10): на admin.kooperativ.space
+ * панель живёт в корне и игры там нет. Когда поддомен заведён
+ * (VITE_ADMIN_ORIGIN), /admin основного сайта уводит туда.
+ */
+const ADMIN_ORIGIN = (import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_ADMIN_ORIGIN || ''
+const isAdminHost = () => typeof window !== 'undefined' && window.location.hostname.startsWith('admin.')
+
+function AdminEntry() {
+  const location = useLocation()
+  useEffect(() => {
+    if (ADMIN_ORIGIN && !isAdminHost()) window.location.replace(ADMIN_ORIGIN + location.pathname.replace(/^\/admin/, '') + location.search)
+  }, [location.pathname, location.search])
+  if (ADMIN_ORIGIN && !isAdminHost()) return null
+  return <AdminPage base="/admin" />
+}
+
 export function AppRouter() {
+  if (isAdminHost()) {
+    return <Routes><Route path="/*" element={<AdminPage base="" />} /></Routes>
+  }
   return (
     <>
     <MetrikaTracker />
@@ -152,7 +172,7 @@ export function AppRouter() {
           него игрового персонажа неправильно — на проде админ может вовсе
           не играть. Раньше маршрут стоял внутри города, и попасть в него
           можно было только залогинившись игроком. */}
-      <Route path="/admin" element={<AdminPage />} />
+      <Route path="/admin/*" element={<AdminEntry />} />
 
       <Route path="/character/create"
         element={<RequireAuth><CreateCharacterPage /></RequireAuth>} />

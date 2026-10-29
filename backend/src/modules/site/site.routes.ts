@@ -1,6 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { requireAdminRole } from '../../shared/security/auth-middleware'
-import { prisma } from '../../shared/db/prisma'
+import { requirePermission } from '../../shared/security/auth-middleware'
 import { SiteService } from './site.service'
 
 /** Окно при входе для игроков — /api/site/welcome. Открыто без входа: текст общий. */
@@ -11,14 +10,13 @@ export async function siteRoutes(fastify: FastifyInstance) {
   })
 }
 
-const SITE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }
+const SITE_ADMIN = { preHandler: requirePermission('content') }
 
 /** Правка окна в админке — /api/admin/site/welcome. */
 export async function adminSiteRoutes(fastify: FastifyInstance) {
   fastify.get('/welcome', SITE_ADMIN, async () => ({ welcome: await SiteService.welcome() }))
 
   fastify.put('/welcome', SITE_ADMIN, async req => {
-    const admin = await prisma.adminUser.findUnique({ where: { id: req.adminUser.adminId }, select: { username: true } })
-    return { welcome: await SiteService.saveWelcome(req.body, admin?.username ?? 'admin') }
+    return { welcome: await SiteService.saveWelcome(req.body, req.adminUser.label) }
   })
 }

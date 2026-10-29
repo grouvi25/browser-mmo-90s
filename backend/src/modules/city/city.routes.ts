@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { authenticate, requireAdminRole } from '../../shared/security/auth-middleware'
+import { authenticate, requirePermission } from '../../shared/security/auth-middleware'
 import { CityService } from './city.service'
 import { AppError } from '../../shared/errors/app-error'
 import { AdminActionsService } from '../admin-actions/admin-actions.service'
@@ -42,7 +42,7 @@ export async function cityRoutes(app: FastifyInstance) {
   app.post('/pets/feed', async req => CityService.feed((await char(req)).id, z.object({ petId: z.string().uuid() }).strict().parse(req.body).petId, key(req)))
 }
 export async function cityAdminRoutes(app: FastifyInstance) {
-  app.post('/prison', { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }, async req => {
+  app.post('/prison', { preHandler: requirePermission('moderate') }, async req => {
     const b = z.object({ characterId: z.string().uuid(), hours: z.number().int().min(0).max(24 * 365), reason: z.string().trim().min(10).max(1000) }).strict().parse(req.body)
     const before = await prisma.character.findUnique({ where: { id: b.characterId } })
     if (!before) throw AppError.notFound('Персонаж')

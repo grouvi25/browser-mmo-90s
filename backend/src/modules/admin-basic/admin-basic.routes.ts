@@ -1,12 +1,12 @@
 import type { FastifyInstance } from 'fastify'
-import { requireAdminRole } from '../../shared/security/auth-middleware'
+import { requirePermission } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
 import { ChatService } from '../chat/chat.service'
 import { getEconomyMetricsHistory, getLatestEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
 import { BalanceSandboxSchema, simulateBalanceSandbox } from '../balance-sandbox/balance-sandbox.service'
 import { CombatSandboxSchema, simulateCombat } from '../admin-balance/combat-sandbox.service'
 
-const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
+const READ_ADMIN = { preHandler: requirePermission('view') }
 
 export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> {
 
@@ -49,9 +49,9 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
   })
 
   // POST /api/admin/chat/:id/hide — удалить реплику из эфира (заказчик 28.10).
-  fastify.post<{ Params: { id: string } }>('/chat/:id/hide', { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }, async (req, reply) => {
+  fastify.post<{ Params: { id: string } }>('/chat/:id/hide', { preHandler: requirePermission('moderate') }, async (req, reply) => {
     if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
-    return reply.send({ removed: await ChatService.remove(req.params.id, `admin:${req.adminUser.adminId}`) })
+    return reply.send({ removed: await ChatService.remove(req.params.id, `admin:${req.adminUser.label}`) })
   })
 
   // GET /api/admin/users?login=xxx — поиск пользователя

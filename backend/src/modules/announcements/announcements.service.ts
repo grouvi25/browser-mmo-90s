@@ -37,13 +37,15 @@ export const AnnouncementsService = {
     body: string
     pinned?: boolean
     adminId: string
+    /** Подпись под объявлением: ник сотрудника или логин старой учётки. */
+    authorLabel?: string
   }) {
     const title = trimTo(input.title, MAX_TITLE)
     const body = trimTo(input.body, MAX_BODY)
     if (!title || !body) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, 'Заголовок и текст обязательны', 422)
     }
-    const admin = await prisma.adminUser.findUnique({
+    const admin = input.authorLabel ? { username: input.authorLabel } : await prisma.adminUser.findUnique({
       where: { id: input.adminId },
       select: { username: true },
     })
