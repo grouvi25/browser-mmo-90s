@@ -1016,6 +1016,8 @@ model BattleTurn {
   targetHelperId String? @map("target_helper_id")
   /// Собака хозяина укусила цель (правка заказчика 22.10).
   actorPetId     String? @map("actor_pet_id")
+  /// По собаке на поле ударили (правка 28.10: собака — фигура на поле).
+  targetPetId    String? @map("target_pet_id")
 
   createdAt DateTime @default(now()) @map("created_at")
 

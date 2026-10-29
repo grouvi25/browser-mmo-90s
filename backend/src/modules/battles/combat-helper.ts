@@ -16,6 +16,7 @@
 import type { HelperTactic } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { PremiumService } from '../premium/premium.service'
+import { gridDistance, type GridPosition } from './grid'
 
 /** Стартовые числа; согласуются с заказчиком, как и остальной баланс. */
 export const COMBAT_HELPER = {
@@ -45,6 +46,9 @@ export interface LiveHelper {
   hpMax: number
   alive: boolean
   damageDealt: number
+  /** На поле только после вызова (companions.ts, правка 28.10). */
+  position?: GridPosition
+  summoned?: boolean
 }
 
 export function helperHpMax(level: number): number {
@@ -76,9 +80,11 @@ export function helperStrike(helper: LiveHelper, rnd: () => number = Math.random
   return { hit: true, crit, damage }
 }
 
-/** Принимает ли помощник этот удар по хозяину на себя. */
-export function helperIntercepts(helper: LiveHelper | undefined, rnd: () => number = Math.random): boolean {
-  if (!helper?.alive) return false
+/** Принимает ли помощник этот удар по хозяину на себя: только вызванный на
+ *  поле и стоящий вплотную к хозяину (правка 28.10 — помощник теперь фигура). */
+export function helperIntercepts(helper: LiveHelper | undefined, owner?: GridPosition, rnd: () => number = Math.random): boolean {
+  if (!helper?.alive || !helper.summoned || !helper.position || !owner) return false
+  if (gridDistance(helper.position, owner) > 1) return false
   return rnd() < COMBAT_HELPER.tactics[helper.tactic].intercept
 }
 

@@ -10,6 +10,7 @@
 // =============================================================
 import type { AttackHand, BattleAction, BodyZone } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
+import { INTERCEPT_MARK } from './companions'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 
@@ -104,8 +105,8 @@ export const BattleJournal = {
       const helpers = await prisma.helper.findMany({ where: { id: { in: helperIds } }, select: { id: true, name: true, characterId: true } })
       for (const h of helpers) { nameOf.set(h.id, `${h.name} (помощник)`); sideOf.set(h.id, sideOf.get(h.characterId) ?? 1) }
     }
-    // Собака хозяина — тоже своим именем и за его сторону.
-    const petIds = [...new Set(turns.map(t => t.actorPetId).filter((id): id is string => !!id))]
+    // Собака хозяина — тоже своим именем и за его сторону; по ней тоже бьют (28.10).
+    const petIds = [...new Set(turns.flatMap(t => [t.actorPetId, t.targetPetId]).filter((id): id is string => !!id))]
     if (petIds.length) {
       const pets = await prisma.characterPet.findMany({ where: { id: { in: petIds } }, select: { id: true, name: true, characterId: true } })
       for (const pet of pets) { nameOf.set(pet.id, `${pet.name} (собака)`); sideOf.set(pet.id, sideOf.get(pet.characterId) ?? 1) }
@@ -159,14 +160,16 @@ export const BattleJournal = {
       items: turns.map(turn => {
         const actorId = turn.actorCharId ?? turn.actorBotId ?? turn.actorHelperId ?? turn.actorPetId
         const described = describeTurn({ ...turn, ranged: isRanged(turn) })
-        // Удар по хозяину, принятый помощником на себя.
-        const { kind, text } = turn.targetHelperId && turn.hit ? { kind: described.kind, text: described.text + ' — принял на себя' } : described
+        // Удар по хозяину, принятый помощником на себя. Прямой удар по
+        // помощнику на поле (с 28.10) так не подписывается.
+        const intercepted = !!turn.targetHelperId && turn.hit && (turn.logLine ?? '').startsWith(INTERCEPT_MARK)
+        const { kind, text } = intercepted ? { kind: described.kind, text: described.text + ' — принял на себя' } : described
         return {
           id: turn.id,
           round: turn.roundNumber,
           at: turn.createdAt,
           actor: name(actorId) ?? 'Боец',
-          target: name(turn.targetCharId ?? turn.targetBotId ?? turn.targetHelperId),
+          target: name(turn.targetCharId ?? turn.targetBotId ?? turn.targetHelperId ?? turn.targetPetId),
           side: actorId ? sideOf.get(actorId) ?? 1 : 1,
           kind,
           text,

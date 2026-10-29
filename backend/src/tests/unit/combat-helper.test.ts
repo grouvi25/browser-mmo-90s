@@ -4,6 +4,7 @@ import {
   COMBAT_HELPER, damageHelper, expToNextLevel, helperHpMax, helperIntercepts, helperLevelFromExp, helperStrike,
   type LiveHelper,
 } from '../../modules/battles/combat-helper'
+import { hexNeighbours } from '../../modules/battles/grid'
 
 const helper = (over: Partial<LiveHelper> = {}): LiveHelper => ({
   id: 'h', name: 'Рекс', level: 3, tactic: 'STANDARD', hp: 66, hpMax: 66, alive: true, damageDealt: 0, ...over,
@@ -35,11 +36,18 @@ describe('боевой помощник', () => {
   })
 
   it('перехват зависит от тактики; выбитый помощник не перехватывает', () => {
-    expect(helperIntercepts(helper({ tactic: 'ATTACK' }), () => 0)).toBe(false)
-    expect(helperIntercepts(helper({ tactic: 'DEFENSIVE' }), () => 0.3)).toBe(true)
-    expect(helperIntercepts(helper({ tactic: 'STANDARD' }), () => 0.3)).toBe(false)
-    expect(helperIntercepts(helper({ alive: false, tactic: 'DEFENSIVE' }), () => 0)).toBe(false)
-    expect(helperIntercepts(undefined, () => 0)).toBe(false)
+    // С 28.10 помощник — фигура на поле: принимает удар, только если вызван и стоит вплотную.
+    const owner = { x: 2, y: 5 }
+    const near = hexNeighbours(owner)[0]
+    const onField = (over: Partial<LiveHelper> = {}) => helper({ summoned: true, position: near, ...over })
+    expect(helperIntercepts(onField({ tactic: 'ATTACK' }), owner, () => 0)).toBe(false)
+    expect(helperIntercepts(onField({ tactic: 'DEFENSIVE' }), owner, () => 0.3)).toBe(true)
+    expect(helperIntercepts(onField({ tactic: 'STANDARD' }), owner, () => 0.3)).toBe(false)
+    expect(helperIntercepts(onField({ alive: false, tactic: 'DEFENSIVE' }), owner, () => 0)).toBe(false)
+    expect(helperIntercepts(undefined, owner, () => 0)).toBe(false)
+    // Не вызван или стоит далеко — не перехватывает.
+    expect(helperIntercepts(helper({ tactic: 'DEFENSIVE' }), owner, () => 0)).toBe(false)
+    expect(helperIntercepts(onField({ tactic: 'DEFENSIVE', position: { x: 8, y: 5 } }), owner, () => 0)).toBe(false)
   })
 
   it('урон по помощнику: при нуле он выбывает', () => {

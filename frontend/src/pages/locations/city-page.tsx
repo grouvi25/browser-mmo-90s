@@ -10,6 +10,7 @@ import { itemImage } from '../../shared/assets/shop/shop-images'
 import '../shop/shop.css'
 import { dogBonusText } from '../../shared/lib/dog'
 import { BrigadeHouses } from './brigade-houses'
+import { DogGoods, type DogGoodsKind } from './dog-goods'
 import { IncomingInvites } from '../stage3/clan-invites'
 import { ClanIconPicker } from '../stage3/clan-icon-upload'
 import '../stage3/stage3.css'
@@ -81,6 +82,8 @@ function School() {
 /** ЦУМ и Берёзка выглядят как обычный магазин — плитки Госмагазина, —
     только цена в долларах (правка заказчика). */
 function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
+  // В ЦУМе вкладка «Для собак» (правка 28.10): донатная собака и долгий корм.
+  const [tab, setTab] = useState<'items' | 'dogs'>('items')
   const q = useQuery({ queryKey: ['city', 'catalog', kind], queryFn: () => cityApi.catalog(kind) })
   const me = useQuery({ queryKey: ['character', 'me'], queryFn: charactersApi.getMe })
   const action = useCityAction((id: string) => cityApi.buy(kind, id))
@@ -93,6 +96,14 @@ function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
       </span>
       <Link to="/premium">Пополнить у дилера →</Link>
     </header>
+    {kind === 'tsum' && <nav className="gshop-tabs" aria-label="Отделы ЦУМа">
+      {([['items', 'Именные вещи'], ['dogs', 'Для собак']] as const).map(([value, label]) => (
+        <button key={value} className={tab === value ? 'active' : ''} aria-current={tab === value} onClick={() => setTab(value)}>
+          <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} /><span>{label}</span>
+        </button>
+      ))}
+    </nav>}
+    {tab === 'dogs' ? <DogGoods currency="USD" /> : <>
     <p className="gshop-note">{kind === 'tsum'
       ? 'Именные вещи: все очки характеристик вы распределяете сами на Складе.'
       : 'Артефакты: характеристики и дополнительный боевой опыт, пока вещь надета и цела.'}</p>
@@ -128,6 +139,7 @@ function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
       </article>
     })}</section>
     <Link to="/inventory">На Склад: надеть и распределить характеристики →</Link>
+    </>}
   </div>
 }
 
@@ -137,6 +149,7 @@ const STAT_NAMES: Record<string, string> = { str: 'Сила', agi: 'Ловкос
     снаряжением (намордник, защита, ошейник, обувь); донатная собака —
     очков на 50% больше, распределяет игрок. Корм — сроком. */
 function Pets() {
+  const [zooTab, setZooTab] = useState<DogGoodsKind>('dogs')
   const q = useQuery({ queryKey: ['city', 'pets'], queryFn: cityApi.pets, refetchInterval: 60_000 })
   const action = useCityAction(async (value: { kind: 'buy' | 'exchange' | 'food' | 'feed' | 'gear' | 'alloc'; id: string; pack?: string; stat?: string; delta?: 1 | -1 }) =>
     value.kind === 'buy' ? cityApi.buyPet(value.id) : value.kind === 'exchange' ? cityApi.exchangePet(value.id)
@@ -147,8 +160,6 @@ function Pets() {
   const petRow = q.data?.owned.find(p => p.id === dog?.id)
   // Кот и пёс прошлого выката: бесплатная замена на собаку любой породы.
   const legacy = dog ? [] : (q.data?.owned ?? []).filter(p => p.code === 'cat' || p.code === 'dog')
-  const breedHint = (b: { mainStat?: string; freeAllocation?: boolean; points: number }) =>
-    b.freeAllocation ? `${b.points} очка распределяете сами` : `+${b.points} ${(STAT_NAMES[b.mainStat ?? ''] ?? '').toLowerCase()}, растёт с уровнем`
   const progress = dog && dog.nextLevelExp ? Math.round(((dog.exp - dog.levelExp) / (dog.nextLevelExp - dog.levelExp)) * 100) : 100
   return <><p>Собака даёт бонус к характеристикам в бою, пока сыта, и растёт вместе с вами: ей идёт половина вашего боевого опыта.</p>
     <QueryState loading={q.isLoading} error={q.isError} retry={q.refetch} /><Message error={action.error} success={action.isSuccess} />
@@ -177,28 +188,25 @@ function Pets() {
       <h3>Снаряжение</h3>
       <div className="dog-gear">{Object.entries(q.data?.gearSlots ?? {}).map(([slot, label]) => {
         const worn = dog.gear[slot]
-        const offer = q.data?.gear.find(g => g.slot === slot)
         return <div key={slot} className="dog-gear__slot">
           <b>{label}</b>
           <span>{worn ? `${worn.name} (${dogBonusText(worn.bonus)})` : 'пусто'}</span>
-          {offer && worn?.code !== offer.code && <button className="btn btn-sm" disabled={action.isPending}
-            onClick={() => action.mutate({ kind: 'gear', id: dog.id, pack: offer.code })}>{offer.name} · {dogBonusText(offer.bonus)} · {offer.price.toLocaleString('ru')} ₽</button>}
         </div>
       })}</div>
-      <p><b>{dog.fed ? `Сыта до ${new Date(dog.fedUntil!).toLocaleString('ru')}` : 'Голодная'}</b></p>
-      <div className="city-feed">{q.data?.packs.map(pack => <button key={pack.code} className="btn" disabled={action.isPending}
-        onClick={() => action.mutate({ kind: 'food', id: dog.id, pack: pack.code })}>
-        {pack.name} · {pack.price.toLocaleString('ru')} {pack.currency === 'USD' ? '$' : '₽'}</button>)}
-        {petRow && petRow.food > 0 && !dog.fed && <button className="btn" disabled={action.isPending} onClick={() => action.mutate({ kind: 'feed', id: dog.id })}>Скормить старую порцию ({petRow.food})</button>}
-      </div>
-      <p className="muted">Корм прибавляет срок к уже купленному.</p>
+      <p><b>{dog.fed ? `Сыта до ${new Date(dog.fedUntil!).toLocaleString('ru')}` : 'Голодная — корм в отделе «Корм»'}</b></p>
+      {petRow && petRow.food > 0 && !dog.fed && <div className="city-feed"><button className="btn" disabled={action.isPending} onClick={() => action.mutate({ kind: 'feed', id: dog.id })}>Скормить старую порцию ({petRow.food})</button></div>}
     </article>}
-    <div className="city-cards">{catalog.map(p => <article className="city-card" key={p.code}><h2>{p.name}</h2>
-      <p>{p.role} · {breedHint(p)}</p><b>{p.priceDollars ? `${p.priceDollars} $` : `${p.price.toLocaleString('ru')} ₽`}</b>
-      <button className="btn" disabled={action.isPending || !!dog || legacy.length > 0}
-        title={dog ? 'Собака у вас уже есть' : legacy.length > 0 ? 'Сначала обменяйте старого питомца — это бесплатно' : undefined}
-        onClick={() => action.mutate({ kind: 'buy', id: p.code })}>{dog?.code === p.code ? 'Ваша собака' : 'Купить собаку'}</button></article>)}</div></>
+    {/* Витрина как в обычном магазине (правка заказчика 28.10). */}
+    <nav className="gshop-tabs" aria-label="Отделы Зоомагазина">
+      {ZOO_TABS.map(([value, label]) => (
+        <button key={value} className={zooTab === value ? 'active' : ''} aria-current={zooTab === value} onClick={() => setZooTab(value)}>
+          <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} /><span>{label}</span>
+        </button>
+      ))}
+    </nav>
+    <DogGoods kinds={[zooTab]} /></>
 }
+const ZOO_TABS: Array<[DogGoodsKind, string]> = [['dogs', 'Собаки'], ['food', 'Корм'], ['gear', 'Снаряжение']]
 function Prison() {
   const q = useQuery({ queryKey: ['city', 'prison'], queryFn: cityApi.location, refetchInterval: 10_000 })
   const jailed = !!q.data?.jailedUntil && new Date(q.data.jailedUntil) > new Date()

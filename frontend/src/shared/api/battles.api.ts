@@ -155,6 +155,10 @@ export const battlesApi = {
   current: () =>
     api.get<{ battleId: string | null; application: { battleId: string; startsAt: string } | null }>('/api/battles/me/current'),
 
+  /** Вызвать помощника или собаку на поле: встаёт справа от хозяина. */
+  summon: (battleId: string, kind: 'helper' | 'dog') =>
+    api.post<{ kind: string; position: { x: number; y: number }; hp: number; hpMax: number }>(`/api/battles/${battleId}/summon`, { kind }),
+
   setHelperTactic: (battleId: string, tactic: 'ATTACK' | 'STANDARD' | 'DEFENSIVE') =>
     api.post<{ tactic: string }>(`/api/battles/${battleId}/helper-tactic`, { tactic }),
 

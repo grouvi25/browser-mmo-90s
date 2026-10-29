@@ -1,7 +1,8 @@
 /**
  * Боевой помощник в настоящем бою с ботом (правка заказчика 21.10): выходит
- * с хозяином, бьёт вслед за ним, принимает удары на себя, пишется в журнал
- * своим именем, получает опыт. Без подписки в бой не выходит.
+ * с хозяином, пишется в журнал своим именем, получает опыт. Без подписки в
+ * бой не выходит. С 28.10 он фигура на поле: его вызывают, он встаёт справа
+ * от хозяина, ходит и бьёт сам, и по нему можно бить.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BattleService, type LiveBattleState } from '../../modules/battles/battles.service'
@@ -65,6 +66,14 @@ describe('боевой помощник в бою', () => {
     const started = (await BattleRedis.getState<LiveBattleState>(battleId))!
     expect(started.participants.find(p => p.characterId === a.character.id)!.helper).toMatchObject({ name: 'Рекс', tactic: 'DEFENSIVE', alive: true, level: 1 })
     await closeIn(battleId)
+    // До вызова помощника на поле нет; вызванный встаёт справа от хозяина
+    // (клетка вплотную занята ботом — значит, следующая) и рядом с ботом.
+    expect(started.participants.find(p => p.characterId === a.character.id)!.helper!.summoned).toBeFalsy()
+    const owner = started.participants.find(p => p.characterId === a.character.id)!
+    const summoned = await BattleService.summonCompanion(battleId, a.user.id, 'helper')
+    expect(summoned.position).toEqual({ x: owner.position.x + 2, y: owner.position.y })
+    await expect(BattleService.summonCompanion(battleId, a.user.id, 'helper')).rejects.toMatchObject({ statusCode: 409 })
+    await expect(BattleService.summonCompanion(battleId, a.user.id, 'dog')).rejects.toMatchObject({ statusCode: 409 })
 
     let over = false
     for (let i = 0; i < 30 && !over; i++) {
@@ -127,6 +136,7 @@ describe('боевой помощник в бою', () => {
     await BattleService.joinTeamBattle(b.user.id, battleId, 2)
     await BattleService.startTeamBattle(a.user.id, battleId)
     await closeIn(battleId)
+    await BattleService.summonCompanion(battleId, a.user.id, 'helper')
     const turn = { action: 'attack', stance: 'mixed' as const, attackZones: ['CHEST' as const], attackHands: ['LEFT_HAND' as const], blockZones: ['HEAD' as const, 'LEFT_ARM' as const] }
     for (let i = 0; i < 6; i++) {
       const state = await BattleRedis.getState<LiveBattleState>(battleId)
@@ -139,5 +149,48 @@ describe('боевой помощник в бою', () => {
     expect(await testPrisma.battleTurn.count({ where: { battleId, actorHelperId: hired.id, targetCharId: b.character.id } })).toBeGreaterThan(0)
     const journal = await BattleJournal.page(battleId, 1)
     expect(journal.items.some(l => l.actor === 'Тузик (помощник)' && l.side === 1)).toBe(true)
+  })
+
+  it('по чужому помощнику на поле можно ударить, выбитый уходит с поля', async () => {
+    const a = await fighter('ownerA')
+    const b = await fighter('hitterB', false)
+    await HelpersService.hire(a.character.id, 'Барбос', '', 'COMBAT')
+    const { battleId } = await BattleService.createTeamBattle(a.user.id, 1)
+    await BattleService.joinTeamBattle(b.user.id, battleId, 2)
+    await BattleService.startTeamBattle(a.user.id, battleId)
+    const state = (await BattleRedis.getState<LiveBattleState>(battleId))!
+    const [pa, pb] = state.participants
+    // Хозяин далеко, помощник встанет справа от него, а B — вплотную к помощнику.
+    pa.position = { x: 1, y: 5 }
+    pb.position = { x: 3, y: 5 }
+    await BattleRedis.setState(battleId, state)
+    const cell = (await BattleService.summonCompanion(battleId, a.user.id, 'helper')).position
+    expect(cell).toEqual({ x: 2, y: 5 })
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.1)
+    for (let i = 0; i < 12; i++) {
+      const live = (await BattleRedis.getState<LiveBattleState>(battleId))!
+      if (live.status !== 'active') break
+      if (!live.participants.find(p => p.participantId === pa.participantId)!.helper!.alive) break
+      await BattleService.submitAction(a.user.id, battleId, { action: 'attack', stance: 'defense4', attackZones: [], attackHands: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'RIGHT_ARM'] })
+      await BattleService.submitAction(b.user.id, battleId, {
+        action: 'attack', stance: 'mixed', attackZones: ['CHEST'], attackHands: ['LEFT_HAND'], blockZones: ['HEAD'],
+        targetParticipantId: `helper:${pa.participantId}`,
+      })
+    }
+    random.mockRestore()
+    const hits = await testPrisma.battleTurn.count({ where: { battleId, actorCharId: b.character.id, targetHelperId: { not: null } } })
+    expect(hits).toBeGreaterThan(0)
+    const live = await BattleRedis.getState<LiveBattleState>(battleId)
+    const helper = live?.participants.find(p => p.participantId === pa.participantId)?.helper
+    if (helper) expect(helper.hp).toBeLessThan(helper.hpMax)
+  })
+
+  it('в дуэли вызвать нельзя', async () => {
+    const a = await fighter('duelA')
+    await HelpersService.hire(a.character.id, 'Пират', '', 'COMBAT')
+    const b = await fighter('duelB', false)
+    const { battleId } = await BattleService.createPvpDuel(a.user.id)
+    await BattleService.acceptPvpDuel(b.user.id, battleId)
+    await expect(BattleService.summonCompanion(battleId, a.user.id, 'helper')).rejects.toMatchObject({ statusCode: 409 })
   })
 })

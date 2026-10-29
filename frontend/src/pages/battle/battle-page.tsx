@@ -5,7 +5,7 @@ import { locationLabel } from '../../shared/lib/city-locations'
 import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import {
   Sword, Heart, ChevronDown, Skull,
-  CircleDot, Trophy, AlertTriangle, Backpack, Flag,
+  CircleDot, Trophy, AlertTriangle, Backpack, Flag, Dog, UserRound,
 } from 'lucide-react'
 import { battlesApi, type AttackHand, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
@@ -52,6 +52,25 @@ interface RoundResult {
 
 // Tactical field
 const PLAYER_COL = 1
+
+/**
+ * Вызванные помощники и собаки — фигуры на поле (правка заказчика 28.10).
+ * Для поля, расстояния и выбора цели они — участники со своим адресом
+ * «helper:<хозяин>» / «dog:<хозяин>»: так их видно, по ним можно бить, и
+ * дальность считается теми же правилами.
+ */
+function companionFigures(parts: readonly LiveParticipant[]): LiveParticipant[] {
+  return parts.flatMap(owner => (['helper', 'dog'] as const).flatMap(kind => {
+    const body = kind === 'helper' ? owner.helper : owner.dog
+    if (!body?.summoned || !body.alive || !body.position) return []
+    return [{
+      participantId: `${kind}:${owner.participantId}`, companion: kind, side: owner.side,
+      isAlive: true, isSurrendered: false, hasActedThisRound: true,
+      hpCurrent: body.hp, hpMax: body.hpMax, damageDealt: body.damageDealt ?? 0, damageReceived: 0,
+      position: body.position,
+    } as LiveParticipant]
+  }))
+}
 
 function BattleGrid({
   playerName, enemyName,
@@ -166,14 +185,22 @@ function BattleGrid({
               >
                 <span className="designer-cell-hit" style={{ clipPath: designerCell.polygon }} />
                 {barrel && <span className="hex-barrel" style={fighterStyle} title="Бочка: не пройти и не прострелить" role="img" aria-label="Бочка" />}
-                {(isPlayer || isAlly) && occupant && (
+                {occupant?.companion && (
+                  <div style={fighterStyle} className={`fighter-token token-companion ${isEnemy ? 'is-enemy' : 'is-ally'}`}>
+                    {occupant.companion === 'dog' ? <Dog size={22} aria-hidden="true" /> : <UserRound size={22} aria-hidden="true" />}
+                    {tip}
+                    {hpBar}
+                    {isTarget && <span className="token-target-label">ЦЕЛЬ</span>}
+                  </div>
+                )}
+                {(isPlayer || isAlly) && occupant && !occupant.companion && (
                   <div style={fighterStyle} className={`fighter-token token-player ${isPlayer ? 'token-self' : 'token-ally'} ${isPlayer && playerHit ? 'token-hit' : ''} ${isPlayer && playerAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
                     {!occupant.isAlive ? <Skull size={16} /> : <img className="token-figure" src={fighterBlue} srcSet={`${fighterBlue2x} 2x`} alt={who} />}
                     {tip}
                     {hpBar}
                   </div>
                 )}
-                {isEnemy && occupant && (
+                {isEnemy && occupant && !occupant.companion && (
                   <div style={fighterStyle} className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${isTarget && enemyAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
                     {!occupant.isAlive ? <Skull size={16} /> : <img className="token-figure" src={fighterRed} srcSet={`${fighterRed2x} 2x`} alt={who} />}
                     {tip}
@@ -279,12 +306,21 @@ export function BattlePage() {
     onError: (err) => { setActionError(err instanceof ApiError ? err.message : 'Ошибка'); setTimeout(() => setActionError(''), 4000) },
   })
 
+  // Вызов помощника или собаки на поле (правка 28.10).
+  const summonMut = useMutation({
+    mutationFn: (kind: 'helper' | 'dog') => battlesApi.summon(battleId!, kind),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['battle', battleId] }) },
+    onError: (err) => { setActionError(err instanceof ApiError ? err.message : 'Ошибка'); setTimeout(() => setActionError(''), 4000) },
+  })
+
   // ── Данные из liveState (Redis) и БД ──────────────────────
   const live      = battleData?.liveState
   const dbParts   = (battleData?.battle?.participants ?? []) as Array<{ characterId?: string | null; botId?: string | null; hpMax?: number; hpCurrent?: number }>
   const pPart     = live?.participants?.find((p: { characterId?: string }) => p.characterId === char?.id)
   const loadoutIds: string[] = pPart?.pocketItemIds ?? []
-  const enemyParts = pPart ? (live?.participants ?? []).filter((p: LiveParticipant) => p.isAlive && p.side !== pPart.side) : []
+  const figures = companionFigures(live?.participants ?? [])
+  const boardParts: LiveParticipant[] = [...(live?.participants ?? []), ...figures]
+  const enemyParts = pPart ? boardParts.filter((p: LiveParticipant) => p.isAlive && p.side !== pPart.side) : []
   const ePart     = enemyParts.find((p: LiveParticipant) => p.participantId === selectedTargetId) ?? enemyParts[0]
   // Fallback на DB participants для hpMax (важно: Redis может ещё не загрузиться)
   const dbEPart   = dbParts.find(p => !!p.botId || (p.characterId && p.characterId !== char?.id))
@@ -557,17 +593,45 @@ export function BattlePage() {
   const validation = validateTurnPlan({ stance, attackZones, attackHands, blockZones, targetParticipantId: ePart?.participantId, targetInRange, selectedMove })
   const ready = !!selectedMove || validation.valid
   const planEmpty = attackZones.length === 0 && blockZones.length === 0 && !selectedMove
+  // Помощник и собака: вызов на поле, здоровье, тактика помощника.
+  // В дуэли их нет — дуэль один на один.
+  const canSummon = canAct && live?.type !== 'PVP_DUEL' && !!pPart?.isAlive
+  const companionsBlock = <>
+    {pPart?.helper && <div className="battle-companion">
+      <BattleHelperBadge helper={pPart.helper} pending={helperTacticMut.isPending}
+        onTactic={tactic => helperTacticMut.mutate(tactic)} />
+      {!pPart.helper.summoned && pPart.helper.alive && (
+        <button type="button" className="battle-summon" disabled={!canSummon || summonMut.isPending}
+          onClick={() => summonMut.mutate('helper')}>Вызвать помощника</button>
+      )}
+    </div>}
+    {pPart?.dog && <div className={'battle-dog' + (pPart.dog.alive ? '' : ' is-down')} aria-label="Собака в бою">
+      <span><b>{pPart.dog.name}</b> ур. {pPart.dog.level}</span>
+      <span>{pPart.dog.alive ? `${pPart.dog.hp}/${pPart.dog.hpMax} HP` : 'выбита'}{pPart.dog.damageDealt > 0 ? ` · укусила на ${pPart.dog.damageDealt}` : ''}</span>
+      {!pPart.dog.summoned && pPart.dog.alive && (
+        <button type="button" className="battle-summon" disabled={!canSummon || summonMut.isPending}
+          onClick={() => summonMut.mutate('dog')}>Вызвать собаку</button>
+      )}
+    </div>}
+  </>
+
   const grid = <BattleGrid playerName={playerName} enemyName={enemyName}
     playerDefeated={false} enemyDefeated={false}
     playerHit={playerHit} enemyHit={enemyHit}
     playerAttack={playerAttack} enemyAttack={enemyAttack} lastEvent={lastEvent}
     distance={currentDistance} playerPosition={pPart?.position}
     enemyPosition={ePart?.position} selectedMove={selectedMove} onSelectMove={selectMove}
-    participants={live?.participants} playerParticipantId={pPart?.participantId} arena={live?.arena} obstacles={live?.obstacles}
+    participants={boardParts} playerParticipantId={pPart?.participantId} arena={live?.arena} obstacles={live?.obstacles}
     playerSide={pPart?.side} selectedTargetId={ePart?.participantId}
     onSelectTarget={setSelectedTargetId} range={playerRange ?? undefined}
     playerHp={pHp} enemyHp={ePart ? eHp : undefined}
-    names={Object.fromEntries(profiles.map(profile => [profile.participantId, profile.name]))} />
+    names={Object.fromEntries([
+      ...profiles.map(profile => [profile.participantId, profile.name]),
+      ...(live?.participants ?? []).flatMap((p: LiveParticipant) => [
+        ...(p.helper ? [[`helper:${p.participantId}`, `${p.helper.name} (помощник)`]] : []),
+        ...(p.dog ? [[`dog:${p.participantId}`, `${p.dog.name} (собака)`]] : []),
+      ]),
+    ])} />
 
   // ── Телефон: тот же новый бой потоковой композицией (правка 23.10:
   //    «на моб версии бой старый»). Блоки те же, что на сцене у
@@ -639,11 +703,7 @@ export function BattlePage() {
         </div>
 
         <div className="m-battle__companions">
-          {pPart?.helper && <BattleHelperBadge helper={pPart.helper} pending={helperTacticMut.isPending}
-            onTactic={tactic => helperTacticMut.mutate(tactic)} />}
-          {pPart?.dog && <div className="battle-dog" aria-label="Собака в бою">
-            <span><b>{pPart.dog.name}</b> ур. {pPart.dog.level}</span><span>укусила на {pPart.dog.damageDealt}</span>
-          </div>}
+          {companionsBlock}
         </div>
 
         {battleId && <div className="m-battle__log">
@@ -736,11 +796,7 @@ export function BattlePage() {
           playerSide={pPart?.side} onOpenLog={() => { setPocketsOpen(false); setShowLog(true) }} /> : null}
         actions={<>
           <div className="battle-desk__companions">
-            {pPart?.helper && <BattleHelperBadge helper={pPart.helper} pending={helperTacticMut.isPending}
-              onTactic={tactic => helperTacticMut.mutate(tactic)} />}
-            {pPart?.dog && <div className="battle-dog" aria-label="Собака в бою">
-              <span><b>{pPart.dog.name}</b> ур. {pPart.dog.level}</span><span>укусила на {pPart.dog.damageDealt}</span>
-            </div>}
+            {companionsBlock}
           </div>
         </>}
         overlay={<>
