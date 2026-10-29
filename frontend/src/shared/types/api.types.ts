@@ -214,13 +214,24 @@ export type HelperTactic = 'ATTACK' | 'STANDARD' | 'DEFENSIVE'
 export interface LiveHelper {
   id: string; name: string; level: number; tactic: HelperTactic
   hp: number; hpMax: number; alive: boolean
+  damageDealt?: number
+  /** Вызван на поле (правка 28.10): стоит на клетке, ходит и бьёт сам. */
+  summoned?: boolean
+  position?: { x: number; y: number }
 }
 
-/** Собака хозяина в бою: кусает его цель вслед за ним. */
-export interface LiveDog { id: string; name: string; level: number; damageDealt: number }
+/** Собака хозяина в бою: после вызова — фигура на поле со своим здоровьем. */
+export interface LiveDog {
+  id: string; name: string; level: number; damageDealt: number
+  hp: number; hpMax: number; alive: boolean
+  summoned?: boolean
+  position?: { x: number; y: number }
+}
 
 export interface LiveParticipant {
   participantId: string
+  /** Фигура на поле: помощник или собака хозяина (адрес «helper:…» / «dog:…»). */
+  companion?: 'helper' | 'dog'
   helper?: LiveHelper | null
   dog?: LiveDog | null
   /** Попадания по зонам: 1 — жёлтая, 2 — оранжевая, 3 — красная, вещь снята. */

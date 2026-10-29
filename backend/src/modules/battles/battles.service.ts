@@ -1,7 +1,8 @@
 import type { BattleAction, WeaponType as PrismaWeaponType } from '@prisma/client'
-import { dogStrike, loadCombatDog, type DogStrike, type LiveDog } from './combat-dog'
+import { loadCombatDog, type LiveDog } from './combat-dog'
 import { heldWeapon, registerWound, woundedArmor, woundedBotEquip, type Wounds } from './wounds'
-import { awardCombatHelper, damageHelper, helperIntercepts, helperStrike, loadCombatHelper, type HelperStrike, type LiveHelper } from './combat-helper'
+import { awardCombatHelper, damageHelper, helperIntercepts, loadCombatHelper, type LiveHelper } from './combat-helper'
+import { INTERCEPT_MARK, companionCells, companionDefenceStats, companionTurn, damageCompanion, parseCompanionId, summonCell, type CompanionEvent, type CompanionKind } from './companions'
 import { prisma } from '../../shared/db/prisma'
 import { BattleRedis, AntiFarmRedis } from '../../shared/db/redis'
 import { CharactersRepository } from '../characters/characters.repository'
@@ -103,6 +104,31 @@ function blockedOnly(turn: { attackZones: BodyZone[]; blockZones: BodyZone[]; mo
   return !moved && turn.attackZones.length === 0 && turn.blockZones.length > 0
 }
 
+/** Строка журнала для хода фигуры: удар или шаг (companions.ts). */
+function companionRecord(
+  battleId: string,
+  roundNumber: number,
+  e: CompanionEvent,
+  target: (targetId: string) => Record<string, string | null | undefined>,
+) {
+  const actor = e.kind === 'helper' ? { actorHelperId: e.owner.helper?.id } : { actorPetId: e.owner.dog?.id }
+  if (e.type === 'move') {
+    return { battleId, roundNumber, ...actor, action: 'MOVE' as BattleAction, fromX: e.from.x, fromY: e.from.y, toX: e.to.x, toY: e.to.y }
+  }
+  return {
+    battleId, roundNumber, ...actor, ...target(e.targetId),
+    action: 'ATTACK' as BattleAction, hit: e.strike.hit, dodge: !e.strike.hit, crit: e.strike.crit,
+    rawDamage: e.strike.damage, finalDamage: e.strike.damage,
+  }
+}
+
+/** Событие хода фигуры для ответа клиенту (анимация и хроника раунда). */
+function companionTurnEvent(e: CompanionEvent) {
+  return e.type === 'move'
+    ? { actor: e.kind, action: 'move', to: e.to, hit: false, dodge: false, block: false, crit: false, lucky: false, blockPierced: false, rawDamage: 0, finalDamage: 0, counterDamage: 0, logParts: [] }
+    : { actor: e.kind, action: 'attack', hit: e.strike.hit, dodge: !e.strike.hit, block: false, crit: e.strike.crit, lucky: false, blockPierced: false, rawDamage: e.strike.damage, finalDamage: e.strike.damage, counterDamage: 0, logParts: [] }
+}
+
 function recordWeaponDamage(part: LiveParticipant, weapon: ItemWithTemplate | null | undefined, damage: number): void {
   if (damage <= 0) return
   const weaponType = (weapon?.template.weaponType ?? 'MELEE') as PrismaWeaponType
@@ -197,12 +223,16 @@ function positionedParticipants(state: LiveBattleState): PositionedParticipant[]
 }
 
 function livePositioned(state: LiveBattleState): PositionedParticipant[] {
-  return state.participants.map(p => ({
-    participantId: p.participantId,
-    side: p.side,
-    isAlive: p.isAlive,
-    position: p.position,
-  }))
+  return [
+    ...state.participants.map(p => ({
+      participantId: p.participantId,
+      side: p.side,
+      isAlive: p.isAlive,
+      position: p.position,
+    })),
+    // Вызванные помощник и собака занимают клетки (companions.ts).
+    ...companionCells(state.participants),
+  ]
 }
 
 function applyRequestedMove(state: LiveBattleState, part: LiveParticipant, moveTo?: GridPosition): boolean {
@@ -1091,6 +1121,43 @@ export const BattleService = {
   // -------------------------------------------------------
   /** Смена тактики боевого помощника по ходу боя (как в «Апехе»):
    *  действует со следующего раунда и запоминается на будущие бои. */
+  /**
+   * Вызвать помощника или собаку на поле (правка заказчика 28.10). Фигура
+   * встаёт на клетку справа от хозяина (занято — дальше вправо, потом ряды
+   * сверху вниз) и со следующего раунда ходит и бьёт сама. Хода хозяина
+   * вызов не тратит. В дуэли фигур нет: дуэль — один на один.
+   */
+  async summonCompanion(battleId: string, userId: string, kind: CompanionKind) {
+    const char = await CharactersRepository.findByUserId(userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
+    const lockToken = await BattleRedis.acquireLock(battleId, BATTLE_LOCK_TTL_MS)
+    if (!lockToken) throw new AppError(ErrorCode.BATTLE_LOCK_FAILED, 'Бой занят расчётом, повторите', 409)
+    try {
+      const state = await BattleRedis.getState<LiveBattleState>(battleId)
+      if (!state || state.status !== 'active') throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Бой уже закончился', 409)
+      if (state.type === 'PVP_DUEL') throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'В дуэли бьются один на один', 409)
+      const part = state.participants.find(p => p.characterId === char.id)
+      if (!part) throw new AppError(ErrorCode.BATTLE_NOT_PARTICIPANT, 'Вы не участвуете в этом бою', 403)
+      if (!part.isAlive || part.isSurrendered) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Вы выбыли из боя', 409)
+      const body = kind === 'helper' ? part.helper : part.dog
+      if (!body) {
+        throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, kind === 'helper'
+          ? 'Боевого помощника нет или он спит без подписки'
+          : 'Собаки нет или она голодная: сытая собака выходит в бой', 409)
+      }
+      if (body.summoned) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, body.alive ? 'Уже на поле' : 'Выбит до конца боя', 409)
+      if (!body.alive) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Выбит до конца боя', 409)
+      const cell = summonCell(part.position, positionedParticipants(state))
+      if (!cell) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'На поле нет свободной клетки', 409)
+      body.summoned = true
+      body.position = cell
+      await BattleRedis.setState(battleId, state)
+      return { kind, position: cell, hp: body.hp, hpMax: body.hpMax }
+    } finally {
+      await BattleRedis.releaseLock(battleId, lockToken)
+    }
+  },
+
   async setHelperTactic(battleId: string, userId: string, tactic: 'ATTACK' | 'STANDARD' | 'DEFENSIVE') {
     const char = await CharactersRepository.findByUserId(userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
@@ -1741,7 +1808,6 @@ export const BattleService = {
     type TurnRec = { actor: 'player' | 'bot'; r: HandStrikeResult; intercepted?: boolean }
     const turns: TurnRec[] = []
     const helper = playerPart.helper
-    const helperTurns: HelperStrike[] = []
     const botHitZonesOnPlayer: BodyZone[] = []
 
     const playerStrike = () => {
@@ -1783,7 +1849,7 @@ export const BattleService = {
       })
       let intercepted = 0
       for (const r of res.results) {
-        if (r.hit && !r.dodge && !r.block && helperIntercepts(helper)) {
+        if (r.hit && !r.dodge && !r.block && helperIntercepts(helper, playerPart.position)) {
           // Помощник принял удар на себя: урон идёт в него, не в хозяина.
           damageHelper(helper!, r.finalDamage); botPart.hitsLanded++; intercepted += r.finalDamage
           turns.push({ actor: 'bot', r, intercepted: true })
@@ -1813,20 +1879,27 @@ export const BattleService = {
       if (doBotStrike) botStrike()
       if (doPlayerStrike && playerHp > 0 && botHp > 0) playerStrike()
     }
-    // Помощник бьёт цель хозяина вслед за его ударом (на сетке он не стоит:
-    // бьёт только когда хозяин сам дотянулся до цели), пока оба на ногах.
-    if (helper?.alive && doPlayerStrike && playerHp > 0 && botHp > 0) {
-      const hs = helperStrike(helper)
-      if (hs.hit) { botHp = Math.max(0, botHp - hs.damage); helper.damageDealt += hs.damage; botPart.damageReceived += hs.damage; botPart.hitsTaken++ }
-      helperTurns.push(hs)
-    }
-    // Собака кусает ту же цель следом, тоже только когда хозяин дотянулся.
+    // Вызванные помощник и собака ходят сами, как боты (правка 28.10):
+    // бот рядом — бьют, нет — шаг к нему. Бот бьёт только хозяина.
     const dog = playerPart.dog
-    const dogTurns: DogStrike[] = []
-    if (dog && doPlayerStrike && playerHp > 0 && botHp > 0) {
-      const ds = dogStrike(dog)
-      if (ds.hit) { botHp = Math.max(0, botHp - ds.damage); dog.damageDealt += ds.damage; botPart.damageReceived += ds.damage; botPart.hitsTaken++ }
-      dogTurns.push(ds)
+    const companionEvents: CompanionEvent[] = []
+    for (const kind of ['helper', 'dog'] as const) {
+      if (playerHp <= 0 || botHp <= 0) break
+      const event = companionTurn({
+        owner: playerPart, kind,
+        enemies: [{ id: botPart.participantId, side: botPart.side, position: botPart.position }],
+        ownerTargetId: botPart.participantId,
+        board: () => positionedParticipants(state),
+        strike: (_targetId, hit) => {
+          if (!hit.hit) return
+          botHp = Math.max(0, botHp - hit.damage)
+          const body = kind === 'helper' ? helper! : dog!
+          body.damageDealt += hit.damage
+          botPart.damageReceived += hit.damage
+          botPart.hitsTaken++
+        },
+      })
+      if (event) companionEvents.push(event)
     }
 
     // Переодевание попадает в журнал первым событием раунда: игрок должен
@@ -1876,28 +1949,19 @@ export const BattleService = {
       hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit,
       rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage,
       weaponDurLoss: t.actor === 'player' && t.r.hit ? 1 : 0,
-      logLine: t.r.logParts.join(', '),
+      logLine: [...(t.intercepted ? [INTERCEPT_MARK] : []), ...t.r.logParts].join(', '),
     }))
     const moveRecords = [
       ...(playerMoved ? [{ battleId, roundNumber, actorCharId: char.id, action: 'MOVE' as BattleAction, fromX: playerFrom.x, fromY: playerFrom.y, toX: playerPart.position.x, toY: playerPart.position.y }] : []),
       ...(botMoved ? [{ battleId, roundNumber, actorBotId: botPart.botId, action: 'MOVE' as BattleAction, fromX: botFrom.x, fromY: botFrom.y, toX: botPart.position.x, toY: botPart.position.y }] : []),
     ]
-    const helperRecords = helper ? helperTurns.map(hs => ({
-      battleId, roundNumber, actorHelperId: helper.id, targetBotId: botPart.botId,
-      action: 'ATTACK' as BattleAction, hit: hs.hit, dodge: !hs.hit, crit: hs.crit,
-      rawDamage: hs.damage, finalDamage: hs.damage,
-    })) : []
-    const dogRecords = dog ? dogTurns.map(ds => ({
-      battleId, roundNumber, actorPetId: dog.id, targetBotId: botPart.botId,
-      action: 'ATTACK' as BattleAction, hit: ds.hit, dodge: !ds.hit, crit: ds.crit,
-      rawDamage: ds.damage, finalDamage: ds.damage,
-    })) : []
+    const companionRecords = companionEvents.map(e => companionRecord(battleId, roundNumber, e, () => ({ targetBotId: botPart.botId })))
     const blockRecords = [
       ...(blockedOnly(playerTurn, playerMoved) ? [{ battleId, roundNumber, actorCharId: char.id, action: 'BLOCK' as BattleAction }] : []),
       ...(blockedOnly(botTurn, botMoved) ? [{ battleId, roundNumber, actorBotId: botPart.botId, action: 'BLOCK' as BattleAction }] : []),
     ]
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await prisma.battleTurn.createMany({ data: [...moveRecords, ...blockRecords, ...turnRecords, ...helperRecords, ...dogRecords] as any })
+    await prisma.battleTurn.createMany({ data: [...moveRecords, ...blockRecords, ...turnRecords, ...companionRecords] as any })
 
     if (battleOver) {
       state.status = 'finishing'
@@ -1921,8 +1985,7 @@ export const BattleService = {
       playerRange,
       turns: [...swapEvents,
       ...moveEvents, ...turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r, intercepted: t.intercepted ?? false })),
-      ...helperTurns.map(hs => ({ actor: 'helper', action: 'attack', hit: hs.hit, dodge: !hs.hit, block: false, crit: hs.crit, lucky: false, blockPierced: false, rawDamage: hs.damage, finalDamage: hs.damage, counterDamage: 0, logParts: [] })),
-      ...dogTurns.map(ds => ({ actor: 'dog', action: 'attack', hit: ds.hit, dodge: !ds.hit, block: false, crit: ds.crit, lucky: false, blockPierced: false, rawDamage: ds.damage, finalDamage: ds.damage, counterDamage: 0, logParts: [] }))],
+      ...companionEvents.map(companionTurnEvent)],
       helper: helper ? { name: helper.name, hp: helper.hp, hpMax: helper.hpMax, alive: helper.alive, tactic: helper.tactic, level: helper.level } : null,
       playerHp,
       botHp,
@@ -2138,8 +2201,8 @@ export const BattleService = {
 
     // ── Удары по одному, в порядке инициативы ──────────────
     const roundTurns: Array<{ actor: LiveParticipant; target: LiveParticipant; r: HandStrikeResult; intercepted?: boolean }> = []
-    const helperRoundTurns: Array<{ owner: LiveParticipant; target: LiveParticipant; hs: HelperStrike }> = []
-    const dogRoundTurns: Array<{ owner: LiveParticipant; target: LiveParticipant; ds: DogStrike }> = []
+    // Удары бойцов по чужим помощникам и собакам на поле (правка 28.10).
+    const companionHits: Array<{ actor: LiveParticipant; owner: LiveParticipant; kind: CompanionKind; r: HandStrikeResult }> = []
     const hitZones = new Map<string, BodyZone[]>()
 
     for (const ctx of orderByInitiative([...contexts.values()])) {
@@ -2147,6 +2210,54 @@ export const BattleService = {
       if (!actor.isAlive || actor.isSurrendered) continue
       if (moved.has(actor.participantId)) continue
       if (ctx.turn.attackZones.length === 0) continue
+
+      // Цель — чужой помощник или собака на поле: бьём по ним теми же
+      // формулами удара, защита фигуры — как у бота её уровня.
+      const companionTarget = parseCompanionId(ctx.turn.targetParticipantId)
+      if (companionTarget) {
+        const owner = state.participants.find(p => p.participantId === companionTarget.ownerParticipantId)
+        const body = owner && (companionTarget.kind === 'helper' ? owner.helper : owner.dog)
+        if (owner && body && owner.side !== actor.side && body.summoned && body.alive && body.position) {
+          const board = teamPositioned(teamState)
+          const actorCell = board.find(p => p.participantId === actor.participantId)!
+          const targetCell = board.find(p => p.participantId === ctx.turn.targetParticipantId)
+          const reach = targetCell && ctx.turn.attackHands.every(hand => canAttackTarget(
+            actorCell, targetCell, board,
+            weaponRangeOf(hand === 'RIGHT_HAND' ? ctx.weaponRight : ctx.weaponLeft),
+          ))
+          if (reach) {
+            const wl = (ctx.weaponLeft?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+            const wr = (ctx.weaponRight?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
+            const [sl, sr] = await Promise.all([WeaponSkillsRepository.findOrCreate(ctx.char.id, wl), WeaponSkillsRepository.findOrCreate(ctx.char.id, wr)])
+            const gear = gearOf([ctx.weaponLeft, ctx.weaponRight, ...ctx.armor])
+            const [aL, aR] = await Promise.all([
+              buildAttackerSnapshotAsync(ctx.char, ctx.weaponLeft, sl.skillLevel, ctx.armor, gear),
+              buildAttackerSnapshotAsync(ctx.char, ctx.weaponRight, sr.skillLevel, ctx.armor, gear),
+            ])
+            const res = executeStrikes({
+              attackerSnap: aL,
+              attackerSnaps: { LEFT_HAND: aL, RIGHT_HAND: aR },
+              weaponIds: { LEFT_HAND: ctx.weaponLeft?.id ?? null, RIGHT_HAND: ctx.weaponRight?.id ?? null },
+              defenderSnap: buildBotDefenderSnapshot({ ...companionDefenceStats(owner, companionTarget.kind), armor: 1 }),
+              zoneArmorFor: () => 1,
+              attackZones: ctx.turn.attackZones,
+              attackHands: ctx.turn.attackHands,
+              blockedZones: [],
+              defenderHp: body.hp,
+            })
+            for (const r of res.results) {
+              if (r.hit && !r.dodge && !r.block) {
+                damageCompanion(body, r.finalDamage)
+                actor.hitsLanded++
+                recordWeaponDamage(actor, r.sourceHand === 'RIGHT_HAND' ? ctx.weaponRight : ctx.weaponLeft, r.finalDamage)
+              }
+              companionHits.push({ actor, owner, kind: companionTarget.kind, r })
+            }
+            actor.damageDealt += res.damageToDefender
+          }
+          continue
+        }
+      }
 
       const targetLite = pickTeamTarget(
         actor as unknown as TeamFighterContext['part'],
@@ -2195,7 +2306,7 @@ export const BattleService = {
       })
       let intercepted = 0
       for (const r of res.results) {
-        if (r.hit && !r.dodge && !r.block && helperIntercepts(target.helper)) {
+        if (r.hit && !r.dodge && !r.block && helperIntercepts(target.helper, target.position)) {
           // Помощник цели принял удар на себя.
           damageHelper(target.helper!, r.finalDamage); actor.hitsLanded++; intercepted += r.finalDamage
           roundTurns.push({ actor, target, r, intercepted: true })
@@ -2223,19 +2334,42 @@ export const BattleService = {
       }
       target.isAlive = target.hpCurrent > 0
       actor.isAlive = actor.hpCurrent > 0
-      // Помощник бойца бьёт ту же цель вслед за хозяином.
-      if (actor.helper?.alive && actor.isAlive && target.isAlive) {
-        const hs = helperStrike(actor.helper)
-        if (hs.hit) { target.hpCurrent = Math.max(0, target.hpCurrent - hs.damage); actor.helper.damageDealt += hs.damage; target.damageReceived += hs.damage; target.hitsTaken++ }
-        target.isAlive = target.hpCurrent > 0
-        helperRoundTurns.push({ owner: actor, target, hs })
-      }
-      // Собака бойца кусает ту же цель.
-      if (actor.dog && actor.isAlive && target.isAlive) {
-        const ds = dogStrike(actor.dog)
-        if (ds.hit) { target.hpCurrent = Math.max(0, target.hpCurrent - ds.damage); actor.dog.damageDealt += ds.damage; target.damageReceived += ds.damage; target.hitsTaken++ }
-        target.isAlive = target.hpCurrent > 0
-        dogRoundTurns.push({ owner: actor, target, ds })
+    }
+
+    // ── Помощники и собаки на поле ходят сами, как боты (правка 28.10) ──
+    const companionEvents: CompanionEvent[] = []
+    for (const owner of orderByInitiative([...contexts.values()]).map(ctx => state.participants.find(p => p.participantId === ctx.part.participantId)!)) {
+      for (const kind of ['helper', 'dog'] as const) {
+        const enemies = [
+          ...state.participants.filter(p => p.side !== owner.side && p.isAlive && !p.isSurrendered)
+            .map(p => ({ id: p.participantId, side: p.side, position: p.position })),
+          ...companionCells(state.participants.filter(p => p.side !== owner.side))
+            .map(c => ({ id: c.participantId, side: c.side, position: c.position })),
+        ]
+        const event = companionTurn({
+          owner, kind, enemies,
+          ownerTargetId: contexts.get(owner.participantId)?.turn.targetParticipantId ?? null,
+          board: () => teamPositioned(teamState),
+          strike: (targetId, hit) => {
+            if (!hit.hit) return
+            const body = kind === 'helper' ? owner.helper! : owner.dog!
+            body.damageDealt += hit.damage
+            const other = parseCompanionId(targetId)
+            if (other) {
+              const otherOwner = state.participants.find(p => p.participantId === other.ownerParticipantId)
+              const otherBody = otherOwner && (other.kind === 'helper' ? otherOwner.helper : otherOwner.dog)
+              if (otherBody) damageCompanion(otherBody, hit.damage)
+              return
+            }
+            const victim = state.participants.find(p => p.participantId === targetId)
+            if (!victim) return
+            victim.hpCurrent = Math.max(0, victim.hpCurrent - hit.damage)
+            victim.damageReceived += hit.damage
+            victim.hitsTaken++
+            victim.isAlive = victim.hpCurrent > 0
+          },
+        })
+        if (event) companionEvents.push(event)
       }
     }
 
@@ -2257,23 +2391,30 @@ export const BattleService = {
       blockPierced: t.r.blockPierced,
       hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit,
       rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage,
+      logLine: [...(t.intercepted ? [INTERCEPT_MARK] : []), ...t.r.logParts].join(', '),
+    }))
+    // Удары бойцов по чужим фигурам и ходы самих фигур.
+    const companionHitRecords = companionHits.map(t => ({
+      battleId, roundNumber,
+      actorCharId: t.actor.characterId ?? null,
+      ...(t.kind === 'helper' ? { targetHelperId: t.owner.helper?.id } : { targetPetId: t.owner.dog?.id }),
+      action: 'ATTACK' as BattleAction,
+      weaponId: t.r.weaponId, sourceHand: t.r.sourceHand, zone: t.r.zone,
+      hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit,
+      rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage,
       logLine: t.r.logParts.join(', '),
     }))
-    const helperTurnRecords = helperRoundTurns.map(t => ({
-      battleId, roundNumber, actorHelperId: t.owner.helper!.id, targetCharId: t.target.characterId ?? null,
-      action: 'ATTACK' as BattleAction, hit: t.hs.hit, dodge: !t.hs.hit, crit: t.hs.crit,
-      rawDamage: t.hs.damage, finalDamage: t.hs.damage,
-    }))
-    const dogTurnRecords = dogRoundTurns.map(t => ({
-      battleId, roundNumber, actorPetId: t.owner.dog!.id, targetCharId: t.target.characterId ?? null,
-      action: 'ATTACK' as BattleAction, hit: t.ds.hit, dodge: !t.ds.hit, crit: t.ds.crit,
-      rawDamage: t.ds.damage, finalDamage: t.ds.damage,
+    const companionRecords = companionEvents.map(e => companionRecord(battleId, roundNumber, e, targetId => {
+      const other = parseCompanionId(targetId)
+      if (!other) return { targetCharId: state.participants.find(p => p.participantId === targetId)?.characterId ?? null }
+      const otherOwner = state.participants.find(p => p.participantId === other.ownerParticipantId)
+      return other.kind === 'helper' ? { targetHelperId: otherOwner?.helper?.id } : { targetPetId: otherOwner?.dog?.id }
     }))
     const blockRecords = [...contexts.values()]
       .filter(ctx => blockedOnly(ctx.turn, moved.has(ctx.part.participantId)))
       .map(ctx => ({ battleId, roundNumber, actorCharId: ctx.char.id, action: 'BLOCK' as BattleAction }))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await prisma.battleTurn.createMany({ data: [...moveRecords, ...blockRecords, ...turnRecords, ...helperTurnRecords, ...dogTurnRecords] as any })
+    await prisma.battleTurn.createMany({ data: [...moveRecords, ...blockRecords, ...turnRecords, ...companionHitRecords, ...companionRecords] as any })
     for (const [participantId, zones] of hitZones) {
       const ctx = contexts.get(participantId)
       if (ctx) await applyZonalArmorWear(ctx.armor, zones)
@@ -2313,13 +2454,16 @@ export const BattleService = {
         position: p.position,
         helper: p.helper ? { name: p.helper.name, hp: p.helper.hp, hpMax: p.helper.hpMax, alive: p.helper.alive, tactic: p.helper.tactic, level: p.helper.level } : null,
       })),
-      turns: roundTurns.map(t => ({
-        actor: t.actor.characterId, target: t.target.characterId, action: 'attack',
-        hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit, lucky: t.r.lucky,
-        zone: t.r.zone, sourceHand: t.r.sourceHand,
-        rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage, counterDamage: 0,
-        logParts: t.r.logParts,
-      })),
+      turns: [
+        ...roundTurns.map(t => ({
+          actor: t.actor.characterId, target: t.target.characterId, action: 'attack',
+          hit: t.r.hit, dodge: t.r.dodge, block: t.r.block, crit: t.r.crit, lucky: t.r.lucky,
+          zone: t.r.zone, sourceHand: t.r.sourceHand,
+          rawDamage: t.r.rawDamage, finalDamage: t.r.finalDamage, counterDamage: 0,
+          logParts: t.r.logParts,
+        })),
+        ...companionEvents.map(companionTurnEvent),
+      ],
     }
   },
 

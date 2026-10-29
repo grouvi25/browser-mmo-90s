@@ -12,20 +12,32 @@
 // Числа стартовые, их пересчитает математик.
 // =============================================================
 import { prisma } from '../../shared/db/prisma'
-import { DOG_BREEDS } from '../city/dogs'
+import { DOG_BREEDS, dogBonus } from '../city/dogs'
+import { dogHpMax, type DogCombatStats } from './companions'
+import type { GridPosition } from './grid'
 
 export const COMBAT_DOG = {
   damageMin: 1, damageMinPerLevel: 1,
   damageMax: 3, damageMaxPerLevel: 1.5,
   hitChance: 0.7, critChance: 0.1, critMultiplier: 1.5,
+  /** На поле (правка 28.10): своё здоровье и вклад характеристик собаки. */
+  hpBase: 25, hpPerLevel: 6, hpPerEnd: 6,
+  damagePerStr: 0.5, hitPerAcc: 0.02, critPerLuck: 0.01,
 } as const
 
-/** Собака в бою (лежит в Redis вместе с хозяином). */
+/** Собака в бою (лежит в Redis вместе с хозяином). На поле её нет, пока
+ *  хозяин её не вызовет (companions.ts). */
 export interface LiveDog {
   id: string
   name: string
   level: number
   damageDealt: number
+  hp: number
+  hpMax: number
+  alive: boolean
+  stats: DogCombatStats
+  position?: GridPosition
+  summoned?: boolean
 }
 
 export interface DogStrike { hit: boolean; crit: boolean; damage: number }
@@ -44,9 +56,17 @@ export function dogStrike(dog: LiveDog, rnd: () => number = Math.random): DogStr
 export async function loadCombatDog(characterId: string, now = new Date()): Promise<LiveDog | undefined> {
   const pet = await prisma.characterPet.findFirst({
     where: { characterId, code: { in: DOG_BREEDS.map(b => b.code) }, fedUntil: { gt: now } },
-    select: { id: true, name: true, level: true },
+    select: { id: true, name: true, level: true, code: true, fedUntil: true, allocation: true, gear: true },
   })
   if (!pet) return undefined
-  return { id: pet.id, name: pet.name, level: pet.level, damageDealt: 0 }
+  // Характеристики собаки: стандартной — по породе, донатной — как
+  // распределил хозяин, плюс снаряжение (dogs.ts).
+  const bonus = dogBonus(pet)
+  const stats: DogCombatStats = {
+    str: bonus.str ?? 0, agi: bonus.agi ?? 0, rea: bonus.rea ?? 0,
+    acc: bonus.acc ?? 0, end: bonus.end ?? 0, luck: bonus.luck ?? 0,
+  }
+  const hpMax = dogHpMax(pet.level, stats.end)
+  return { id: pet.id, name: pet.name, level: pet.level, damageDealt: 0, hp: hpMax, hpMax, alive: true, stats }
 }
 

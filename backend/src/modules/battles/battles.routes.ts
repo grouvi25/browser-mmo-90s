@@ -148,6 +148,14 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.send(result)
     })
 
+  // POST /api/battles/:battleId/summon — вызвать помощника или собаку на поле
+  fastify.post<{ Params: { battleId: string }; Body: { kind: string } }>('/:battleId/summon', { preHandler: authenticate },
+    async (req, reply) => {
+      const parsed = z.object({ kind: z.enum(['helper', 'dog']) }).safeParse(req.body)
+      if (!z.string().uuid().safeParse(req.params.battleId).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      return reply.send(await BattleService.summonCompanion(req.params.battleId, req.authUser.userId, parsed.data.kind))
+    })
+
   // POST /api/battles/:battleId/helper-tactic — тактика боевого помощника в бою
   fastify.post<{ Params: { battleId: string }; Body: { tactic: string } }>('/:battleId/helper-tactic', { preHandler: authenticate },
     async (req, reply) => {

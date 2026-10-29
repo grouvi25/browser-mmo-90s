@@ -22,6 +22,7 @@ import { calcBattleExp, calcCharacterRating, calcRatingPower, typicalTargetPower
 import { CityService } from '../city/city.service'
 import { TerritoriesService } from '../territories/territories.service'
 import { calcInitiative, weaponExpByType } from './battle.formulas'
+import { companionCells, type CompanionOwner } from './companions'
 import { normalizeTurn, type ZonalTurnInput } from './zones'
 import {
   canAttackTarget,
@@ -95,12 +96,16 @@ export function teamOutcome(state: LiveTeamState): { over: boolean; winnerSide: 
 }
 
 export function teamPositioned(state: LiveTeamState): PositionedParticipant[] {
-  return state.participants.map(p => ({
-    participantId: p.participantId,
-    side: p.side,
-    isAlive: p.isAlive,
-    position: p.position,
-  }))
+  return [
+    ...state.participants.map(p => ({
+      participantId: p.participantId,
+      side: p.side,
+      isAlive: p.isAlive,
+      position: p.position,
+    })),
+    // Вызванные помощник и собака занимают клетки (companions.ts).
+    ...companionCells(state.participants as unknown as CompanionOwner[]),
+  ]
 }
 
 /**

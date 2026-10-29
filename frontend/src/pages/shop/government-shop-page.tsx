@@ -15,13 +15,14 @@ import { ApiError } from '../../shared/api/client'
 import { SHOP_IMAGES } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
 import { rangeLabel } from '../../shared/lib/weapon-range'
+import { DogGoods } from '../locations/dog-goods'
 import './shop.css'
 
 /** Стрелковое отделено от ближнего боя — как на Складе. */
 const RANGED = new Set(['PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 'THROWN'])
 
 type Category = 'MELEE' | 'RANGED' | 'HEAD' | 'NECK' | 'BODY' | 'FEET' | 'HANDS' | 'RINGS'
-  | 'BRACERS' | 'PANTS' | 'BRACELETS' | 'TOOL' | 'PAPERS' | 'MEDICINE' | 'DRINK'
+  | 'BRACERS' | 'PANTS' | 'BRACELETS' | 'TOOL' | 'PAPERS' | 'MEDICINE' | 'DRINK' | 'DOGS'
 
 /**
  * Вкладки по правке заказчика 28.10: вместо «Оружие» и «Броня» — по месту
@@ -45,6 +46,8 @@ const CATEGORIES: Array<{ key: Category; label: string; match?: (item: ShopItem)
   { key: 'PAPERS', label: 'Бумаги' },
   { key: 'MEDICINE', label: 'Аптечки', match: i => i.template.type === 'CONSUMABLE' },
   { key: 'DRINK', label: 'Напитки' },
+  // Корм и снаряжение собаки за рубли (правка 28.10: вкладка «Для собак»).
+  { key: 'DOGS', label: 'Для собак' },
 ]
 
 const money = (value: number) => value.toLocaleString('ru-RU')
@@ -230,7 +233,9 @@ export function GovernmentShopPage() {
         </section>
       )}
 
-      {category === 'DRINK' ? (
+      {category === 'DOGS' ? (
+        <DogGoods currency="RUB" kinds={['food', 'gear']} />
+      ) : category === 'DRINK' ? (
         <BarShowcase loading={bars.isLoading} bars={bars.data?.items ?? []} />
       ) : visible.length === 0 ? (
         <p className="gshop-empty">В этой категории пока пусто.</p>
