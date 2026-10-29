@@ -291,8 +291,11 @@ describe('E2E: Security invariants (ТЗ раздел 4)', () => {
       templateId: string; template: { priceBase: number }
     }>
     items.sort((a, b) => a.template.priceBase - b.template.priceBase)
-    for (let i = 0; i < 20; i++) {
-      await api('POST', '/api/shops/government/buy', { templateId: items[0].templateId }, tok1, 'e2e-gov-buy-' + Date.now() + '-3')
+    // Покупаем самое дешёвое до первого отказа: от стартовых денег не
+    // зависит (5 000 ₽ с 29.10, раньше 1 250).
+    for (let i = 0; i < 200; i++) {
+      const bought = await api('POST', '/api/shops/government/buy', { templateId: items[0].templateId }, tok1, `e2e-gov-buy-${Date.now()}-${i}-3`)
+      if (bought.status !== 200 && bought.status !== 201) break
     }
     const expensive = items[items.length - 1]
     const r = await api('POST', '/api/shops/government/buy', { templateId: expensive.templateId }, tok1, 'e2e-gov-buy-' + Date.now() + '-4')
