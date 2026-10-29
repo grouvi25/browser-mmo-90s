@@ -19,7 +19,7 @@ import { PveStart } from '../../widgets/pve-start/pve-start'
 import { WornGear } from '../../widgets/worn-gear/worn-gear'
 import './applications.css'
 
-const KIND_LABEL: Record<ApplicationKind | 'SIEGE', string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Хаот', SIEGE: 'Осада дома' }
+const KIND_LABEL: Record<ApplicationKind | 'SIEGE', string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Замес', SIEGE: 'Осада дома' }
 const KIND_HINT: Record<ApplicationKind, string> = {
   DUEL: 'Один на один: подаёте вызов, соперник его принимает.',
   GROUP: 'Бой двух команд. Вы сами выбираете, за какую сторону встать: можно собрать своих на одну сторону и ждать противников на другую.',
@@ -30,7 +30,7 @@ type Tab = 'ALL' | ApplicationKind | 'RUNNING'
 // Виды списка выбираются в нижней полосе Стрелков (?tab=…): правка
 // заказчика перенесла разделы локации вниз, под кнопку ЦЕНТР.
 const TAB_LABEL: Record<Tab, string> = {
-  ALL: 'Все заявки', DUEL: 'Дуэли', GROUP: 'Групповые', CHAOTIC: 'Хаотичные', RUNNING: 'Идут сейчас',
+  ALL: 'Все заявки', DUEL: 'Дуэли', GROUP: 'Групповые', CHAOTIC: 'Замесы', RUNNING: 'Идут сейчас',
 }
 /** «Бой с ботом» — крайняя кнопка в ряду видов боя; он начинается сразу. */
 type CreateKind = ApplicationKind | 'BOT'
@@ -130,9 +130,9 @@ export function BattleApplications() {
       <form className="bapps-create" onSubmit={event => { event.preventDefault(); if (kind !== 'BOT') create.mutate() }}>
         <fieldset className="bapps-kinds">
           <legend>Подать заявку</legend>
-          {/* Хаот вернулся (правка заказчика 28.10) — теперь стороны делит рейтинг,
+          {/* Замес (бывший «Хаот», переименован 30.10) вернулся (правка заказчика 28.10) — теперь стороны делит рейтинг,
               а не жребий, этим он и отличается от группового. Порядок — его:
-              «Дуэль, Хаот, Групповой, Боты». */}
+              «Дуэль, Замес, Групповой, Боты». */}
           {(['DUEL', 'CHAOTIC', 'GROUP', 'BOT'] as CreateKind[]).map(item => (
             <button type="button" key={item} aria-pressed={kind === item}
               className={'bapps-kind' + (kind === item ? ' is-active' : '')} onClick={() => setKind(item)}>
