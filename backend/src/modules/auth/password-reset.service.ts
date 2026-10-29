@@ -15,6 +15,7 @@
 // есть ли такой игрок (письмо уходит секунду-две, «нет игрока» — сразу).
 // =============================================================
 import { createHash, randomBytes } from 'node:crypto'
+import { AuthRepository } from './auth.repository'
 import { prisma } from '../../shared/db/prisma'
 import { hashPassword } from '../../shared/security/password'
 import { SessionRedis } from '../../shared/db/redis'
@@ -39,10 +40,8 @@ const escapeHtml = (value: string) => value.replace(/[&<>"]/g, ch => ({ '&': '&a
 export const PasswordResetService = {
   async request(loginOrEmail: string, ip?: string): Promise<{ ok: true }> {
     const needle = loginOrEmail.trim()
-    const user = await prisma.user.findFirst({
-      where: { OR: [{ login: needle }, { email: { equals: needle, mode: 'insensitive' } }] },
-      select: { id: true, login: true, email: true, status: true },
-    })
+    // Ник, старый логин или почта — тот же поиск, что и при входе (правка 29.10).
+    const user = (await AuthRepository.findForSignIn(needle))[0] ?? null
     if (!user || user.status === 'BANNED') {
       audit('user.password_reset_unknown', { needle: needle.slice(0, 64), ip })
       return { ok: true }

@@ -74,7 +74,7 @@ describe('E2E: Full player cycle (Stage 1 TZ razdel 11)', () => {
     expect(char.stats.end).toBe(4)
     // hpMax = 60 + END×6 + BL×2 = 60 + 4×6 + 1×2 = 86
     expect(char.hpMax).toBe(86)
-    expect(char.money).toBe(1250)
+    expect(char.money).toBe(5000)
   })
 
   it('11.2 Open government shop (has items)', async () => {

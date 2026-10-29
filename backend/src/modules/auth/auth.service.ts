@@ -10,6 +10,7 @@ import { RegistrationGuard } from './registration-guard'
 import { prisma } from '../../shared/db/prisma'
 import { ReferralService } from '../referral/referral.service'
 import { logger } from '../../shared/logger/logger'
+import { Nickname } from '../characters/characters.schemas'
 
 export const AuthService = {
   async register(input: RegisterInput, ip?: string, userAgent?: string) {
@@ -20,22 +21,30 @@ export const AuthService = {
     await RegistrationGuard.checkCaptcha(input.captchaToken, ip)
     const emailNormalized = await RegistrationGuard.checkEmail(input.email)
 
-    // Check uniqueness
-    const [existingLogin, existingEmail] = await Promise.all([
-      AuthRepository.findByLogin(input.login),
+    // Регистрация по нику (правка 29.10): ник становится именем для входа и
+    // занимается сразу, до создания персонажа. Старые клиенты шлют логин.
+    let nickname: string | undefined
+    if (input.nickname !== undefined) {
+      const parsed = Nickname.safeParse(input.nickname)
+      if (!parsed.success) throw new AppError(ErrorCode.VALIDATION_ERROR, parsed.error.issues[0]?.message ?? 'Неверный ник', 422)
+      nickname = parsed.data
+    }
+    const login = nickname ?? input.login!
+    const [loginTaken, existingEmail] = await Promise.all([
+      nickname ? AuthRepository.nicknameTaken(nickname) : AuthRepository.findByLogin(login).then(Boolean),
       prisma.user.findFirst({ where: { OR: [{ email: input.email }, { emailNormalized }] }, select: { id: true } }),
     ])
 
-    if (existingLogin) {
-      throw new AppError(ErrorCode.USER_ALREADY_EXISTS, 'Login is already taken', 409)
+    if (loginTaken) {
+      throw new AppError(ErrorCode.USER_ALREADY_EXISTS, nickname ? 'Такой ник уже занят' : 'Login is already taken', 409)
     }
     if (existingEmail) {
-      throw new AppError(ErrorCode.USER_ALREADY_EXISTS, 'Email is already registered', 409)
+      throw new AppError(ErrorCode.USER_ALREADY_EXISTS, 'Эта почта уже зарегистрирована', 409)
     }
 
     const passwordHash = await hashPassword(input.password)
     const user = await AuthRepository.create({
-      login: input.login,
+      login,
       email: input.email,
       emailNormalized,
       passwordHash,
@@ -52,11 +61,18 @@ export const AuthService = {
   },
 
   async login(input: LoginInput, ip?: string, userAgent?: string) {
-    // Подбор пароля к одному логину режется с любого адреса.
-    await RegistrationGuard.assertLoginNotLocked(input.login)
-    const user = await AuthRepository.findByLogin(input.login)
+    // Вход по нику (правка 29.10); у старых аккаунтов — и по логину или почте.
+    // Подбор пароля к одному имени режется с любого адреса.
+    const lockKey = input.login.trim().toLowerCase()
+    await RegistrationGuard.assertLoginNotLocked(lockKey)
+    const candidates = await AuthRepository.findForSignIn(input.login)
+    let user: (typeof candidates)[number] | undefined
+    for (const candidate of candidates) {
+      if (await verifyPassword(input.password, candidate.passwordHash)) { user = candidate; break }
+    }
     if (!user) {
-      audit('user.login_failed', { login: input.login, reason: 'not_found', ip })
+      await RegistrationGuard.recordLoginFailure(lockKey)
+      audit('user.login_failed', { login: input.login, reason: candidates.length ? 'bad_password' : 'not_found', ip })
       throw new AppError(ErrorCode.INVALID_CREDENTIALS, 'Invalid login or password', 401)
     }
 
@@ -64,14 +80,7 @@ export const AuthService = {
       throw new AppError(ErrorCode.USER_BANNED, `Account banned: ${user.banReason ?? 'no reason'}`, 403)
     }
 
-    const valid = await verifyPassword(input.password, user.passwordHash)
-    if (!valid) {
-      await RegistrationGuard.recordLoginFailure(input.login)
-      audit('user.login_failed', { userId: user.id, login: user.login, reason: 'bad_password', ip })
-      throw new AppError(ErrorCode.INVALID_CREDENTIALS, 'Invalid login or password', 401)
-    }
-
-    await RegistrationGuard.clearLoginFailures(input.login)
+    await RegistrationGuard.clearLoginFailures(lockKey)
     await AuthRepository.updateLastLogin(user.id, ip, userAgent)
 
     // SINGLE DEVICE: revoke all previous sessions before creating new one

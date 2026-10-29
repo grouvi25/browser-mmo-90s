@@ -5,12 +5,14 @@ import { User, Check } from 'lucide-react'
 import { charactersApi } from '../../shared/api/characters.api'
 import { ARCHETYPE_LABELS, ARCHETYPE_BONUS } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
+import { getStoredUser } from '../../shared/api/auth.api'
 
 const ARCHETYPES = Object.keys(ARCHETYPE_LABELS)
 
 export function CreateCharacterPage() {
   const navigate = useNavigate()
-  const [nickname, setNickname] = useState('')
+  // Ник выбран при регистрации (правка 29.10) — подставляем его, поменять можно.
+  const [nickname, setNickname] = useState(() => getStoredUser()?.login ?? '')
   const [archetype, setArchetype] = useState('ATHLETE')
   const [gender, setGender] = useState<'MALE' | 'FEMALE'>('MALE')
   const [error, setError] = useState('')
@@ -29,7 +31,7 @@ export function CreateCharacterPage() {
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => charactersApi.create({ nickname, archetype, gender }),
+    mutationFn: () => charactersApi.create({ nickname: nickname.trim(), archetype, gender }),
     onSuccess: () => navigate('/profile'),
     onError: (err) => {
       if (err instanceof ApiError) {

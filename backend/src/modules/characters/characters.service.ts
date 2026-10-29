@@ -6,7 +6,8 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
 import { audit } from '../../shared/logger/audit-logger'
-import type { CreateCharacterInput } from './characters.schemas'
+import { Nickname, type CreateCharacterInput } from './characters.schemas'
+import { AuthRepository } from '../auth/auth.repository'
 import { prisma } from '../../shared/db/prisma'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 
@@ -18,9 +19,14 @@ export const CharactersService = {
       throw new AppError(ErrorCode.CHARACTER_ALREADY_EXISTS, 'You already have a character', 409)
     }
 
-    // Check nickname uniqueness
-    const existingNick = await CharactersRepository.findByNickname(input.nickname)
-    if (existingNick) {
+    // Ник по умолчанию — тот, что выбран при регистрации (он же имя для
+    // входа, правка 29.10). Занятость — без учёта регистра и с чужими
+    // логинами: по нику входят, и у одного имени должен быть один хозяин.
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { login: true } })
+    const parsedNick = Nickname.safeParse(input.nickname ?? user.login)
+    if (!parsedNick.success) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Введите ник персонажа', 422)
+    const nickname = parsedNick.data
+    if (await AuthRepository.nicknameTaken(nickname, userId)) {
       throw new AppError(ErrorCode.CONFLICT, 'Такой ник уже занят', 409)
     }
 
@@ -42,7 +48,7 @@ export const CharactersService = {
     // Create character
     const char = await CharactersRepository.create({
       userId,
-      nickname: input.nickname,
+      nickname,
       archetype: arch,
       gender: input.gender ?? 'MALE',
       hpCurrent: hpMax,
