@@ -10,6 +10,8 @@ import { DOG_BASE_POINTS, DOG_GEAR, DOG_GEAR_SLOTS, breedOf, dogAllocation, free
 import { dogSummary } from './city.config'
 import { CityConfig, artifactBonus, inPrison, validCityPath } from './city.config'
 
+const DOLLAR_SHOP = { tsum: 'TSUM', berezka: 'BEREZKA' } as const
+
 export const CityService = {
   async character(userId: string) {
     const char = await prisma.character.findUnique({ where: { userId } })
@@ -67,20 +69,25 @@ export const CityService = {
       return { profession, dollars }
     } })
   },
+  /** Витрина ЦУМа или Берёзки — из базы (правка 30.10: вещи выставляют из админки). */
   async catalog(kind: 'tsum' | 'berezka') {
-    const codes = kind === 'tsum' ? CityConfig.namedItems.map(i => i.code) : [CityConfig.artifact.code]
-    const items = await prisma.itemTemplate.findMany({ where: { code: { in: codes }, isActive: true }, orderBy: { priceBase: 'asc' } })
-    return { currency: 'USD' as const, items: items.map(item => ({ ...item, priceDollars: CityConfig.dollarPrices[item.code] ?? null })) }
+    const rows = await prisma.dollarShopItem.findMany({
+      where: { shop: DOLLAR_SHOP[kind], isAvailable: true, template: { isActive: true } },
+      orderBy: [{ sortOrder: 'asc' }, { priceDollars: 'asc' }],
+      include: { template: true },
+    })
+    return { currency: 'USD' as const, items: rows.map(row => ({ ...row.template, priceDollars: row.priceDollars })) }
   },
   async buyItem(characterId: string, kind: 'tsum' | 'berezka', templateId: string, key: string) {
     return withIdempotency({ characterId, scope: `city.${kind}.${templateId}`, key, execute: async tx => {
-      const template = await tx.itemTemplate.findUnique({ where: { id: templateId } })
-      const codes: readonly string[] = kind === 'tsum' ? CityConfig.namedItems.map(i => i.code) : [CityConfig.artifact.code]
-      if (!template?.isActive || !codes.includes(template.code)) throw AppError.notFound('Предмет')
+      const listing = await tx.dollarShopItem.findUnique({
+        where: { shop_templateId: { shop: DOLLAR_SHOP[kind], templateId } }, include: { template: true },
+      })
+      const template = listing?.template
+      if (!listing?.isAvailable || !template?.isActive) throw AppError.notFound('Предмет')
       const char = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
       if (char.status === 'IN_BATTLE') throw AppError.conflict('Покупка недоступна во время боя')
-      const priceDollars = CityConfig.dollarPrices[template.code]
-      if (!priceDollars) throw AppError.notFound('Предмет')
+      const priceDollars = listing.priceDollars
       const dollars = await DollarsService.debit(tx, { characterId, amount: priceDollars, reason: 'PURCHASE', refId: template.id, note: template.name })
       const item = await tx.itemInstance.create({ data: { templateId, ownerId: characterId, sourceType: 'DONATE', quality: template.qualityBase,
         durabilityCurrent: template.durabilityMax, durabilityMax: template.durabilityMax, weight: template.weight,

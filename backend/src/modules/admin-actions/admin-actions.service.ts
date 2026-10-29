@@ -532,6 +532,9 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
     const sale = payload.sale as { shop: string; price: number } | null | undefined
     if (sale?.shop === 'GOVERNMENT') {
       await tx.governmentShopItem.create({ data: { templateId: template.id, overridePrice: sale.price } })
+    } else if (sale?.shop === 'TSUM' || sale?.shop === 'BEREZKA') {
+      // ЦУМ и Берёзка: цена в долларах (правка 30.10).
+      await tx.dollarShopItem.create({ data: { shop: sale.shop, templateId: template.id, priceDollars: sale.price } })
     } else if (sale) {
       await tx.privateShopItem.create({ data: { shopCode: sale.shop, itemTemplateId: template.id, price: sale.price, minBattleLevel: template.levelReq } })
     }
@@ -559,6 +562,7 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
     // Витрины по шаблону уходят вместе с ним: вещь, которой больше нет, не продают.
     await tx.governmentShopItem.deleteMany({ where: { templateId: template.id } })
     await tx.privateShopItem.deleteMany({ where: { itemTemplateId: template.id } })
+    await tx.dollarShopItem.deleteMany({ where: { templateId: template.id } })
     await tx.itemTemplate.delete({ where: { code } })
   },
 
@@ -685,6 +689,30 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
     await tx.governmentShopItem.update({
       where: { id }, data: payload.fields as Prisma.GovernmentShopItemUpdateInput,
     })
+  },
+
+  // Витрина ЦУМа или Берёзки (правка 30.10). Позиция ищется парой «магазин +
+  // вещь»; нет её — создаётся. Откат возвращает прежние поля, а позицию,
+  // которой до действия не было, снимает с продажи (строку не удаляем:
+  // по ней могли купить).
+  SET_DOLLAR_SHOP_ITEM: async (tx, payload) => {
+    const shop = str(payload, 'shop') as 'TSUM' | 'BEREZKA'
+    const templateId = str(payload, 'templateId')
+    const fields = payload.fields as { priceDollars?: number; isAvailable?: boolean }
+    const existing = await tx.dollarShopItem.findUnique({ where: { shop_templateId: { shop, templateId } } })
+    if (existing) await tx.dollarShopItem.update({ where: { id: existing.id }, data: fields })
+    else {
+      if (!fields.priceDollars) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Укажите цену в долларах', 422)
+      await tx.dollarShopItem.create({ data: { shop, templateId, priceDollars: fields.priceDollars, isAvailable: fields.isAvailable ?? true } })
+    }
+  },
+
+  RESTORE_DOLLAR_SHOP_ITEM: async (tx, payload) => {
+    const shop = str(payload, 'shop') as 'TSUM' | 'BEREZKA'
+    const templateId = str(payload, 'templateId')
+    const row = must(await tx.dollarShopItem.findUnique({ where: { shop_templateId: { shop, templateId } } }), 'Позиции витрины больше нет')
+    const previous = payload.fields as { priceDollars?: number; isAvailable?: boolean } | null
+    await tx.dollarShopItem.update({ where: { id: row.id }, data: previous ?? { isAvailable: false } })
   },
 
   SET_BAR_OFFER: async (tx, payload) => {

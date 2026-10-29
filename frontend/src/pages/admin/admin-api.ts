@@ -139,6 +139,13 @@ export interface StaffRow {
 }
 export interface StaffEventRow { id: string; label: string; action: string; details: Record<string, unknown> | null; ip: string | null; createdAt: string }
 
+/** Витрины за доллары (правка 30.10). */
+export type DollarShopCode = 'TSUM' | 'BEREZKA'
+export interface DollarShopRow {
+  id: string; shop: DollarShopCode; priceDollars: number; isAvailable: boolean
+  template: { code: string; name: string; type: string; levelReq: number; isActive: boolean }
+}
+
 /** Окно при входе в игру (правка 29.10). */
 export interface WelcomeSetting { enabled: boolean; title: string; text: string; version: number }
 
@@ -523,6 +530,9 @@ export const adminApi = {
   updateItem: (code: string, fields: Record<string, unknown>, reason: string) =>
     request<{ actionId: string }>(`/api/admin/items/${code}`, { method: 'PATCH', body: { fields, reason } }),
   /** Новая вещь; sale — сразу выставить в магазин (госмагазин или частная лавка). */
+  dollarShops: () => request<{ items: DollarShopRow[] }>('/api/admin/catalog/dollar-shops'),
+  setDollarShopItem: (shop: DollarShopCode, code: string, fields: { priceDollars?: number; isAvailable?: boolean }, reason: string) =>
+    request(`/api/admin/catalog/dollar-shops/${shop}/${encodeURIComponent(code)}`, { method: 'PUT', body: { fields, reason } }),
   createItem: (item: Record<string, unknown>, sale: { shop: string; price: number } | null, reason: string) =>
     request<{ actionId: string; code: string }>('/api/admin/items', { method: 'POST', body: { item, sale, reason } }),
   /** Та же симуляция, что на игровой ручке, но под админским токеном. */

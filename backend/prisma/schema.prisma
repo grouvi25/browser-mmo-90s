@@ -320,6 +320,9 @@ enum AdminActionKind {
   GRANT_EXP
   TAKE_EXP
   ROLLBACK
+  // Витрины ЦУМа и Берёзки (правка 30.10): выставить, сменить цену, снять.
+  SET_DOLLAR_SHOP_ITEM
+  RESTORE_DOLLAR_SHOP_ITEM
 }
 
 enum FarmBuildingType {
@@ -777,8 +780,9 @@ model ItemTemplate {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  instances   ItemInstance[]
-  shopEntries GovernmentShopItem[]
+  instances       ItemInstance[]
+  shopEntries     GovernmentShopItem[]
+  dollarShopItems DollarShopItem[]
 
   @@map("item_templates")
 }
@@ -828,6 +832,30 @@ model ItemInstance {
 // =============================================================
 // GOVERNMENT SHOP
 // =============================================================
+
+/// Магазины за доллары (правка 30.10: «не понятно, как добавлять в Берёзку и
+/// в ЦУМ»). Раньше витрины были зашиты в код; теперь вещь выставляется из
+/// админки, как в госмагазин. Снять с продажи — isAvailable, строку не удаляем:
+/// сид города ставит стартовые товары только если их ещё нет.
+enum DollarShop {
+  TSUM
+  BEREZKA
+}
+
+model DollarShopItem {
+  id           String     @id @default(uuid())
+  shop         DollarShop
+  templateId   String     @map("template_id")
+  priceDollars Int        @map("price_dollars")
+  isAvailable  Boolean    @default(true) @map("is_available")
+  sortOrder    Int        @default(0) @map("sort_order")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  template ItemTemplate @relation(fields: [templateId], references: [id])
+
+  @@unique([shop, templateId])
+  @@map("shop_items_dollar")
+}
 
 model GovernmentShopItem {
   id            String  @id @default(uuid())
