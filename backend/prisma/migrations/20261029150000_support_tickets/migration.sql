@@ -69,13 +69,9 @@ SELECT setval(pg_get_serial_sequence('support_tickets', 'number'), COALESCE((SEL
 
 ALTER TABLE "support_tickets" ALTER COLUMN "subject" SET NOT NULL;
 
--- Старые поля больше не нужны: всё уже в сообщениях.
-ALTER TABLE "support_tickets" DROP COLUMN "image_data",
-DROP COLUMN "image_mime",
-DROP COLUMN "replied_at",
-DROP COLUMN "replied_by",
-DROP COLUMN "reply",
-DROP COLUMN "text";
+-- Старые поля не удаляем (миграции только добавляют): данные уже в сообщениях,
+-- а текст больше не обязателен — новые обращения его не заполняют.
+ALTER TABLE "support_tickets" ALTER COLUMN "text" DROP NOT NULL;
 
 -- CreateTable
 CREATE TABLE "site_settings" (

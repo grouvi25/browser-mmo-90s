@@ -2493,26 +2493,35 @@ enum SupportAuthor {
 }
 
 model SupportTicket {
-  id            String          @id @default(uuid())
+  id              String          @id @default(uuid())
   /// Номер для людей: «обращение №17» проще назвать в чате, чем uuid.
-  number        Int             @unique @default(autoincrement())
-  characterId   String          @map("character_id")
-  subject       String          @db.VarChar(120)
-  category      SupportCategory @default(OTHER)
-  priority      SupportPriority @default(NORMAL)
-  status        SupportStatus   @default(OPEN)
+  number          Int             @unique @default(autoincrement())
+  characterId     String          @map("character_id")
+  subject         String          @db.VarChar(120)
+  category        SupportCategory @default(OTHER)
+  priority        SupportPriority @default(NORMAL)
+  status          SupportStatus   @default(OPEN)
   /// Кто из поддержки взял обращение (логин админки).
-  assignedTo    String?         @map("assigned_to")
-  lastMessageAt DateTime        @default(now()) @map("last_message_at")
+  assignedTo      String?         @map("assigned_to")
+  lastMessageAt   DateTime        @default(now()) @map("last_message_at")
   /// Непрочитанное: у игрока — новый ответ, у поддержки — новое от игрока.
-  playerUnread  Boolean         @default(false) @map("player_unread")
-  staffUnread   Boolean         @default(true) @map("staff_unread")
-  closedAt      DateTime?       @map("closed_at")
-  closedBy      String?         @map("closed_by")
+  playerUnread    Boolean         @default(false) @map("player_unread")
+  staffUnread     Boolean         @default(true) @map("staff_unread")
+  closedAt        DateTime?       @map("closed_at")
+  closedBy        String?         @map("closed_by")
   /// Оценка игрока после закрытия, 1–5.
-  rating        Int?
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime        @updatedAt @map("updated_at")
+  rating          Int?
+  /// Устарело (до 29.10): обращение было одним текстом и одним ответом.
+  /// Миграция перенесла всё в support_messages; поля оставлены, потому что
+  /// миграции в проекте только добавляют. Новый код их не читает и не пишет.
+  legacyText      String?         @map("text")
+  legacyImageData String?         @map("image_data")
+  legacyImageMime String?         @map("image_mime")
+  legacyReply     String?         @map("reply")
+  legacyRepliedAt DateTime?       @map("replied_at")
+  legacyRepliedBy String?         @map("replied_by")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
 
   character Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
   messages  SupportMessage[]
