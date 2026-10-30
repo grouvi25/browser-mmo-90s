@@ -26,6 +26,7 @@ import { prisma } from '../src/shared/db/prisma'
 import { buildApp } from '../src/app'
 import { hashPassword } from '../src/shared/security/password'
 import { generateJti, storeAdminSession } from '../src/shared/security/jwt'
+import { CLAN_CREATE_COST_USD } from '../src/modules/clans/clans.formulas'
 import { ClansService } from '../src/modules/clans/clans.service'
 import { ClaimsService } from '../src/modules/territories/claims.service'
 import { PremiumService, isGrantImplemented } from '../src/modules/premium/premium.service'
@@ -141,6 +142,7 @@ async function player(prefix: string, money = 200_000) {
 
 async function warClan(prefix: string) {
   const boss = await player(prefix)
+  await prisma.character.update({ where: { id: boss.character.id }, data: { dollars: { increment: CLAN_CREATE_COST_USD } } })
   const clan = await ClansService.create(
     boss.character.id, uid(`${prefix}-clan`), Math.random().toString(36).slice(2, 6).toUpperCase())
   const role = await prisma.clanRole.findFirstOrThrow({ where: { clanId: clan.id, code: 'fighter' } })

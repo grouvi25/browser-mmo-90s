@@ -5,7 +5,7 @@ import { ClanOwnershipService, clanObjectLimit } from '../../modules/production/
 import { AuthorityService, AUTHORITY_COSTS } from '../../modules/territories/authority.service'
 import { BalanceConfig } from '../../config/balance.config'
 import { TERRITORIES } from '../../../prisma/economy-data'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 const O = BalanceConfig.strategy.objectAttack
 
@@ -19,7 +19,7 @@ async function player(prefix: string, battleLevel = 5) {
 
 async function clanWith(prefix: string, authority = 100) {
   const boss = await player(prefix)
-  const clan = await ClansService.create(boss.id, uid(`${prefix}-clan`), Math.random().toString(36).slice(2, 6).toUpperCase())
+  const clan = await paidClan(boss.id, uid(`${prefix}-clan`), Math.random().toString(36).slice(2, 6).toUpperCase())
   await testPrisma.clan.update({ where: { id: clan.id }, data: { treasury: 100_000, authority } })
   await testPrisma.clanAuthorityLog.create({
     data: { clanId: clan.id, amount: authority, reason: 'ADMIN_ADJUST', balanceAfter: authority },

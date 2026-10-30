@@ -18,9 +18,8 @@ import {
 import {
   pairFlowToday, checkPairFlow, repeatBattleCoeff, pairBattlesToday,
 } from '../../modules/antiabuse/antiabuse.limits'
-import { ClansService } from '../../modules/clans/clans.service'
 import { BalanceConfig } from '../../config/balance.config'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 const A = BalanceConfig.antiAbuse
 
@@ -260,7 +259,7 @@ describe('антиабуз', () => {
 
   it('сверка авторитета с журналом ловит правку мимо приложения', async () => {
     const boss = await player('ledger', 100_000)
-    const clan = await ClansService.create(boss.character.id, uid('led-clan'), 'LEDG1')
+    const clan = await paidClan(boss.character.id, uid('led-clan'), 'LEDG1')
     await testPrisma.clanAuthorityLog.create({
       data: { clanId: clan.id, amount: 40, reason: 'ADMIN_ADJUST', balanceAfter: 40 },
     })
@@ -280,8 +279,8 @@ describe('антиабуз', () => {
   it('ограбления сверх нормы за сутки видны бригадой, а не игроком', async () => {
     const boss = await player('rob', 100_000)
     const victim = await player('rob-v', 100_000)
-    const attacker = await ClansService.create(boss.character.id, uid('rob-a'), 'ROBA1')
-    const defender = await ClansService.create(victim.character.id, uid('rob-d'), 'ROBD1')
+    const attacker = await paidClan(boss.character.id, uid('rob-a'), 'ROBA1')
+    const defender = await paidClan(victim.character.id, uid('rob-d'), 'ROBD1')
     const object = await testPrisma.productionObject.create({
       data: {
         code: uid('obj'), name: 'Цех', type: 'WORKSHOP', locationId: 'industrial',

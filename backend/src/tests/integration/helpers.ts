@@ -3,6 +3,8 @@
  * Used by all integration tests.
  */
 import { PrismaClient } from '@prisma/client'
+import { CLAN_CREATE_COST_USD } from '../../modules/clans/clans.formulas'
+import { ClansService } from '../../modules/clans/clans.service'
 
 export const testPrisma = new PrismaClient({
   log: [],
@@ -75,6 +77,12 @@ export async function cleanDatabase(): Promise<void> {
     testPrisma.session.deleteMany(),
     testPrisma.user.deleteMany(),
   ])
+}
+
+/** Регистрация бригады — за доллары (заказчик 30.10): основателю выдаём их здесь. */
+export async function paidClan(characterId: string, name: string, tag?: string) {
+  await testPrisma.character.update({ where: { id: characterId }, data: { dollars: { increment: CLAN_CREATE_COST_USD } } })
+  return ClansService.create(characterId, name, tag)
 }
 
 /** Generate unique test identifiers */

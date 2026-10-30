@@ -30,7 +30,7 @@ import { normalizeTurn } from '../src/modules/battles/zones'
 import { BattleRedis } from '../src/shared/db/redis'
 import { calcFinalSalary } from '../src/modules/work/work.formulas'
 import { BalanceConfig } from '../src/config/balance.config'
-import { CLAN_MAINTENANCE_DAILY } from '../src/modules/clans/clans.formulas'
+import { CLAN_CREATE_COST_USD, CLAN_MAINTENANCE_DAILY } from '../src/modules/clans/clans.formulas'
 import {
   TERRITORIES, PREMIUM_PRODUCTS, PREMIUM_PRODUCTS_DEFERRED, PREMIUM_GRANT_CODES,
 } from '../prisma/economy-data'
@@ -150,6 +150,7 @@ async function player(prefix: string, battleLevel = 5) {
 /** Бригада с главарём, бойцами, общаком и авторитетом — готовая воевать. */
 async function warClan(prefix: string, fighters = 5, treasury = 100_000, authority = 100) {
   const boss = await player(prefix)
+  await prisma.character.update({ where: { id: boss.id }, data: { dollars: { increment: CLAN_CREATE_COST_USD } } })
   const clan = await ClansService.create(
     boss.id, uid(`${prefix}-clan`), Math.random().toString(36).slice(2, 6).toUpperCase())
   const role = await prisma.clanRole.findFirstOrThrow({ where: { clanId: clan.id, code: 'fighter' } })

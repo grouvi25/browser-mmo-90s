@@ -14,7 +14,7 @@ import { RecipeService } from '../../modules/production/recipe.service'
 import { ClaimsService } from '../../modules/territories/claims.service'
 import { NOTICE_RULES } from '../../modules/chat/notices.hook'
 import { runWorkShiftFinalize } from '../../workers/work-shift-finalize.worker'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 async function player(prefix: string) {
   const login = uid(prefix)
@@ -107,7 +107,7 @@ describe('правки по документу 20.10', () => {
 
   it('журнал склада листается по 10 строк, новые сверху', async () => {
     const boss = await player('boss')
-    const clan = await ClansService.create(boss.id, uid('clan').slice(0, 30), Math.random().toString(36).slice(2, 6).toUpperCase())
+    const clan = await paidClan(boss.id, uid('clan').slice(0, 30), Math.random().toString(36).slice(2, 6).toUpperCase())
     const base = Date.now()
     await testPrisma.clanStorageLog.createMany({
       data: Array.from({ length: 23 }, (_, i) => ({ clanId: clan.id, characterId: boss.id, resourceCode: 'res_greens', amount: i + 1, createdAt: new Date(base - (23 - i) * 1000) })),
@@ -144,7 +144,7 @@ describe('правки по документу 20.10', () => {
 
   it('рядовой боец сам встаёт в заявку на район, один раз и только пока состав открыт', async () => {
     const boss = await player('warboss')
-    const clan = await ClansService.create(boss.id, uid('war').slice(0, 30), Math.random().toString(36).slice(2, 6).toUpperCase())
+    const clan = await paidClan(boss.id, uid('war').slice(0, 30), Math.random().toString(36).slice(2, 6).toUpperCase())
     const fighterRole = await testPrisma.clanRole.findFirstOrThrow({ where: { clanId: clan.id, code: 'fighter' } })
     const fighter = await player('fighter')
     await testPrisma.clanMember.create({ data: { clanId: clan.id, characterId: fighter.id, roleId: fighterRole.id } })

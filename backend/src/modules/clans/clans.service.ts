@@ -3,10 +3,11 @@ import { prisma } from '../../shared/db/prisma'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
+import { DollarsService } from '../dollars/dollars.service'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
 import { clanObjectLimit } from '../production/ownership.service'
-import { CLAN_CREATE_COST, CLAN_JOIN_MIN_LEVEL, CLAN_MIN_LEVEL, CLAN_REJOIN_HOURS, CLAN_RELATION_COOLDOWN_HOURS, DEFAULT_ROLES, clanMemberCapacity, clanStorageCapacity, storageWithdrawDailyLimit, treasurySpendDailyLimit, type ClanPermission } from './clans.formulas'
+import { CLAN_CREATE_COST_USD, CLAN_JOIN_MIN_LEVEL, CLAN_MIN_LEVEL, CLAN_REJOIN_HOURS, CLAN_RELATION_COOLDOWN_HOURS, DEFAULT_ROLES, clanMemberCapacity, clanStorageCapacity, storageWithdrawDailyLimit, treasurySpendDailyLimit, type ClanPermission } from './clans.formulas'
 
 function permissions(role: { permissions: Prisma.JsonValue }): string[] {
   return Array.isArray(role.permissions) ? role.permissions.filter((value): value is string => typeof value === 'string') : []
@@ -131,7 +132,7 @@ export const ClansService = {
       if (tag && await tx.clan.findUnique({ where: { tag: finalTag }, select: { id: true } })) {
         throw new AppError(ErrorCode.CLAN_REQUIREMENTS, 'Такой тег уже занят', 409)
       }
-      await EconomyService.debit(tx, { characterId, amount: CLAN_CREATE_COST, reasonCode: 'CLAN_CREATE', refType: 'clan' })
+      await DollarsService.debit(tx, { characterId, amount: CLAN_CREATE_COST_USD, reason: 'PURCHASE', note: `Регистрация бригады «${name}»` })
       const clan = await tx.clan.create({ data: { name, tag: finalTag } })
       await tx.clanRole.createMany({ data: DEFAULT_ROLES.map(role => ({ clanId: clan.id, ...role, permissions: [...role.permissions] })) })
       const boss = await tx.clanRole.findUniqueOrThrow({ where: { clanId_code: { clanId: clan.id, code: 'boss' } } })

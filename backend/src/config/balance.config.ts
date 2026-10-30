@@ -99,8 +99,8 @@ export const BalanceConfig = {
       salaryRangeMax: 2.0,
       maxObjectsPerCharacter: 2,
       objectResaleRate: 0.5,
-      /** Заказчик 28.10: «Заводы продаются ТОЛЬКО за доллары. Завод 6т долларов стоит». */
-      objectPriceUsd: 6000,
+      /** Заказчик 28.10: «Заводы продаются ТОЛЬКО за доллары»; 30.10: «Стоимость заводов 15000$». */
+      objectPriceUsd: 15000,
       profileSwitchCost: 1500,
       profileSwitchMinutes: 180,
       repairCostPerDurability: 20,

@@ -6,7 +6,7 @@ async function fixture() {
   const login = uid('owner')
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
   const character = await testPrisma.character.create({
-    data: { userId: user.id, nickname: login, archetype: 'MERCHANT', hpCurrent: 80, hpMax: 80, money: 50000, dollars: 10000 },
+    data: { userId: user.id, nickname: login, archetype: 'MERCHANT', hpCurrent: 80, hpMax: 80, money: 50000, dollars: 20000 },
   })
   const object = await testPrisma.productionObject.create({
     data: {
@@ -34,7 +34,7 @@ describe('object ownership', () => {
     const { character, object } = await fixture()
     // Заказчик 28.10: у государства объекты только за доллары, рубли не трогаются.
     const bought = await OwnershipService.buy(character.id, object.id, 'buy-object-0001')
-    expect(bought).toMatchObject({ priceUsd: 6000, newDollars: 4000 })
+    expect(bought).toMatchObject({ priceUsd: 15000, newDollars: 5000 })
     expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).money).toBe(50000)
     expect((await testPrisma.productionObject.findUniqueOrThrow({ where: { id: object.id } })).ownerCharacterId).toBe(character.id)
 
@@ -44,14 +44,14 @@ describe('object ownership', () => {
     expect(withdrawn).toMatchObject({ payout: 950, tax: 50 })
 
     const sold = await OwnershipService.sell(character.id, object.id, 'sell-object-0001')
-    expect(sold).toMatchObject({ payout: 3000, currency: 'USD', newBalance: 7000 })
+    expect(sold).toMatchObject({ payout: 7500, currency: 'USD', newBalance: 12500 })
     const back = await testPrisma.productionObject.findUniqueOrThrow({ where: { id: object.id } })
     expect(back).toMatchObject({ ownerType: 'SYSTEM', paidUsd: null })
   })
 
   it('refuses to buy without enough dollars, whatever the rubles', async () => {
     const { character, object } = await fixture()
-    await testPrisma.character.update({ where: { id: character.id }, data: { dollars: 5999, money: 10_000_000 } })
+    await testPrisma.character.update({ where: { id: character.id }, data: { dollars: 14999, money: 10_000_000 } })
     await expect(OwnershipService.buy(character.id, object.id, 'buy-object-poor')).rejects.toMatchObject({ code: 'ECON_002' })
     expect((await testPrisma.productionObject.findUniqueOrThrow({ where: { id: object.id } })).ownerType).toBe('SYSTEM')
   })
@@ -63,7 +63,7 @@ describe('object ownership', () => {
     })
     const sold = await OwnershipService.sell(character.id, object.id, 'sell-object-rub')
     expect(sold).toMatchObject({ payout: 6000, currency: 'RUB', newBalance: 56000 })
-    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).dollars).toBe(10000)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).dollars).toBe(20000)
   })
 
   it('rejects a salary outside the configured corridor', async () => {
