@@ -215,6 +215,7 @@ describe('GovernmentShopService.sell', () => {
     const char2 = await CharactersService.create(userId2, {
       nickname: uid('Other'), archetype: 'WORKER',
     })
+    await testPrisma.character.update({ where: { id: char2.id }, data: { money: 5_000 } })
 
     // Buy item with char2 but try to sell with first char
     const { char: char1 } = await createCharacterWithTemplate()

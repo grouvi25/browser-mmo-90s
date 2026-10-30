@@ -334,7 +334,9 @@ describe('E2E: Mathematical correctness', () => {
       body: JSON.stringify({ login: l, password: 'pass123' }),
     })).json()) as { token: string }
     token = r.token
-    await api('POST', '/api/characters', { nickname: uid('Math'), archetype: 'ATHLETE' }, token)
+    const created = await api('POST', '/api/characters', { nickname: uid('Math'), archetype: 'ATHLETE' }, token)
+    // Стартовых денег нет (30.10) — на оружие выдаём сами.
+    await testPrisma.character.update({ where: { id: (created.data as { id: string }).id }, data: { money: 5_000 } })
   })
 
   afterAll(async () => { await testPrisma.$disconnect() })
