@@ -184,7 +184,7 @@ function ClanDirectory({ onDone, onFail, msg, bad }: {
             disabled={create.isPending || name.trim().length < 3}
             onClick={() => create.mutate()}
           >
-            Создать · 25 000 ₽
+            Создать · 1 000 $
           </button>
           <small className="muted">Нужен 5-й боевой уровень. Содержание 500 ₽ в сутки из общака.</small>
           <Note text={msg} kind={bad ? 'bad' : 'ok'} />

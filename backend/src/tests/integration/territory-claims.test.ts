@@ -1,10 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { ClansService } from '../../modules/clans/clans.service'
 import { ClaimsService } from '../../modules/territories/claims.service'
 import { AuthorityService, AUTHORITY_COSTS, AUTHORITY_GAINS } from '../../modules/territories/authority.service'
 import { runTerritoryClaims } from '../../workers/territory-claims.worker'
 import { TERRITORIES } from '../../../prisma/economy-data'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 const HOUR_MS = 3_600_000
 
@@ -19,7 +18,7 @@ async function player(prefix: string, battleLevel = 5) {
 /** Клан с главарём и нужным числом бойцов, готовый воевать. */
 async function warClan(prefix: string, fighters = 5, treasury = 100_000, authority = 100) {
   const boss = await player(prefix)
-  const clan = await ClansService.create(boss.id, uid(`${prefix}-clan`), Math.random().toString(36).slice(2, 6).toUpperCase())
+  const clan = await paidClan(boss.id, uid(`${prefix}-clan`), Math.random().toString(36).slice(2, 6).toUpperCase())
   const role = await testPrisma.clanRole.findFirstOrThrow({ where: { clanId: clan.id, code: 'fighter' } })
   const roster = [boss.id]
   for (let i = 1; i < fighters; i++) {

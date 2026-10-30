@@ -55,7 +55,7 @@ function CityHall() {
     <form className="city-card" onSubmit={event => { event.preventDefault(); action.mutate(undefined) }}>
       <label>Название<input required minLength={3} maxLength={32} value={name} onChange={e => setName(e.target.value)} /></label>
       <div>Иконка бригады (видна в списке игроков онлайн; ставится один раз, потом не поменять)<ClanIconPicker value={icon} onChange={setIcon} /></div>
-      <p>Регистрация: 25 000 ₽, нужен 5-й боевой уровень. Содержание: 500 ₽ в сутки из общака.</p>
+      <p>Регистрация: 1 000 $, нужен 5-й боевой уровень. Содержание: 500 ₽ в сутки из общака.</p>
       <button className="btn btn-primary" disabled={action.isPending}>Зарегистрировать бригаду</button>
     </form><Message error={action.error} success={action.isSuccess} /><Link to="/clan-houses">Перейти в Дома бригад →</Link></>
 }

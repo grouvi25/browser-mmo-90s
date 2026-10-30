@@ -15,7 +15,7 @@ import { HousingService } from '../../modules/housing/housing.service'
 import { LOTS } from '../../modules/housing/housing.config'
 import { EXCHANGE } from '../../modules/dollars/dollars.service'
 import { applyBattleProgression } from '../../modules/experience/progression'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 let app: FastifyInstance
 beforeAll(async () => { app = await buildApp(); await app.ready() })
@@ -110,7 +110,7 @@ describe('Обещания из чата 22.10', () => {
 
   it('бригада принимает с 7-го уровня', async () => {
     const boss = await player({ level: 7 })
-    await ClansService.create(boss.character.id, uid('br').slice(0, 30))
+    await paidClan(boss.character.id, uid('br').slice(0, 30))
     const young = await player({ level: 6 })
     await expect(ClansService.invite(boss.character.id, { characterId: young.character.id })).rejects.toMatchObject({ statusCode: 403 })
     const grown = await player({ level: 7 })
@@ -118,7 +118,7 @@ describe('Обещания из чата 22.10', () => {
   })
 
   it('на дом новичка налёт не объявить', async () => {
-    const owner = await player({ level: 2, dollars: 500 })
+    const owner = await player({ level: 2, dollars: 5000 })
     const { home } = await HousingService.buy(owner.character.id, LOTS.apartments + 1)
     const raider = await player({ level: 5 })
     await expect(HousingService.fileRaid(raider.character.id, home.id)).rejects.toThrow(/новичок/)

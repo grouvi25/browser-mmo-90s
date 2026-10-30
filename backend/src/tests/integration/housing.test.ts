@@ -15,7 +15,7 @@ import { BattleRedis, disconnectRedis, getRedis } from '../../shared/db/redis'
 const HOUR = 3_600_000
 import { cleanDatabase, testPrisma, uid } from './helpers'
 
-async function player(prefix: string, dollars = 500, money = 50_000) {
+async function player(prefix: string, dollars = 5000, money = 50_000) {
   const login = uid(prefix)
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
   const character = await testPrisma.character.create({
@@ -34,14 +34,14 @@ describe('Жилой сектор', () => {
   afterAll(async () => { await testPrisma.$disconnect(); await disconnectRedis() })
 
   it('жильё покупается только за доллары; квартиру можно улучшить до дома доплатой', async () => {
-    const a = await player('buyer', 200)
+    const a = await player('buyer', 3000)
     const flat = await HousingService.buy(a.character.id, FLAT)
     expect(flat.cost).toBe(HOUSING.kinds.APARTMENT.priceDollars)
     await expect(HousingService.buy(a.character.id, FLAT + 1)).rejects.toMatchObject({ statusCode: 409 })
     const house = await HousingService.buy(a.character.id, HOUSE)
     expect(house.cost).toBe(HOUSING.kinds.HOUSE.priceDollars - HOUSING.kinds.APARTMENT.priceDollars)
     const ch = await testPrisma.character.findUniqueOrThrow({ where: { id: a.character.id } })
-    expect(ch.dollars).toBe(200 - HOUSING.kinds.HOUSE.priceDollars)
+    expect(ch.dollars).toBe(3000 - HOUSING.kinds.HOUSE.priceDollars)
     expect(ch.money).toBe(50_000)
     // Переехал: квартира освободилась, дом занят.
     expect(house.home).toMatchObject({ kind: 'HOUSE', lot: HOUSE })
@@ -186,7 +186,7 @@ describe('Жилой сектор', () => {
     await HousingService.buy(a.character.id, FLAT)
     await expect(HousingService.buyTunnel(a.character.id, 'pvp')).rejects.toMatchObject({ statusCode: 409 })
     const ch = await testPrisma.character.findUniqueOrThrow({ where: { id: a.character.id } })
-    expect(ch.dollars).toBe(500 - HOUSING.kinds.APARTMENT.priceDollars)
+    expect(ch.dollars).toBe(5000 - HOUSING.kinds.APARTMENT.priceDollars)
   })
 
   it('склад жилья: ящики по видам, из центра не видно, вместимость по виду жилья', async () => {

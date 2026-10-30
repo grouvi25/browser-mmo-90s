@@ -1,11 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { ClansService } from '../../modules/clans/clans.service'
 import { MarketService } from '../../modules/market/market.service'
 import { calcRepairCost } from '../../modules/stats/stats.formulas'
 import { cycleDurationMinutes } from '../../modules/production/cycle.formulas'
 import { TerritoriesService } from '../../modules/territories/territories.service'
 import { TERRITORIES } from '../../../prisma/economy-data'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 /**
  * Бонусы районов должны РАБОТАТЬ, а не просто храниться. Каждый из шести
@@ -23,7 +22,7 @@ async function player(prefix: string, money = 100_000, battleLevel = 5) {
 
 async function clanWithBoss(prefix = 'bonus') {
   const boss = await player(prefix)
-  const clan = await ClansService.create(boss.id, uid(`${prefix}-clan`), Math.random().toString(36).slice(2, 6).toUpperCase())
+  const clan = await paidClan(boss.id, uid(`${prefix}-clan`), Math.random().toString(36).slice(2, 6).toUpperCase())
   return { boss, clan }
 }
 

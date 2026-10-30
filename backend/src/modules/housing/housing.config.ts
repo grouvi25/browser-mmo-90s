@@ -3,8 +3,8 @@ import type { HomeKind } from '@prisma/client'
 
 export const HOUSING = {
   kinds: {
-    APARTMENT: { name: 'Квартира', priceDollars: 40, expBonus: 0.05 },
-    HOUSE: { name: 'Дом', priceDollars: 120, expBonus: 0.1 },
+    APARTMENT: { name: 'Квартира', priceDollars: 2000, expBonus: 0.05 },
+    HOUSE: { name: 'Дом', priceDollars: 2500, expBonus: 0.1 },
   } satisfies Record<HomeKind, { name: string; priceDollars: number; expBonus: number }>,
   tunnelPriceDollars: 15,
   /** Победа нападавших снимает 10% прочности (заказчик). */

@@ -13,12 +13,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { BattleRedis } from '../../shared/db/redis'
 import { BattleService } from '../../modules/battles/battles.service'
-import { ClansService } from '../../modules/clans/clans.service'
 import { ClaimsService } from '../../modules/territories/claims.service'
 import { runTerritoryClaims } from '../../workers/territory-claims.worker'
 import { AUTHORITY_GAINS } from '../../modules/territories/authority.service'
 import { TERRITORIES } from '../../../prisma/economy-data'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 type LiveState = {
   participants: Array<{
@@ -55,7 +54,7 @@ async function brigade(prefix: string, hp: number) {
   const boss = await player(prefix, hp)
   // Тег выдаёт сервис: «префикс + 2 случайных знака» у двух бригад одного
   // теста совпадал примерно раз на 1300 прогонов и ронял CI.
-  const clan = await ClansService.create(boss.character.id, uid(`${prefix}-clan`))
+  const clan = await paidClan(boss.character.id, uid(`${prefix}-clan`))
   const role = await testPrisma.clanRole.findFirstOrThrow({ where: { clanId: clan.id, code: 'fighter' } })
   const men = [boss]
   for (let i = 1; i < 5; i++) {

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { ClansService } from '../../modules/clans/clans.service'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 async function player(prefix: string, money = 100_000, battleLevel = 7) {
   const login = uid(prefix)
@@ -14,7 +14,7 @@ async function clanWithBoss(prefix = 'boss') {
   const boss = await player(prefix)
   const name = uid(`${prefix}-clan`)
   const tag = Math.random().toString(36).slice(2, 6).toUpperCase()
-  const clan = await ClansService.create(boss.id, name, tag)
+  const clan = await paidClan(boss.id, name, tag)
   return { boss, clan }
 }
 
@@ -23,14 +23,20 @@ describe('clans', () => {
   beforeEach(async () => cleanDatabase())
   afterAll(async () => testPrisma.$disconnect())
 
-  it('creates a clan for 25000, requires battle level 5 and seeds four default roles', async () => {
+  it('creates a clan for 1000 $, requires battle level 5 and seeds four default roles', async () => {
     const low = await player('lowlevel', 100_000, 4)
-    await expect(ClansService.create(low.id, 'Too Young', 'TY')).rejects.toThrow()
+    await expect(paidClan(low.id, 'Too Young', 'TY')).rejects.toThrow()
+
+    // Заказчик 30.10: регистрация за доллары, рублями не оплатить.
+    const poor = await player('nodollars')
+    await expect(ClansService.create(poor.id, 'Без долларов', 'NOUSD')).rejects.toMatchObject({ code: 'ECON_002' })
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: poor.id } })).clanId).toBeNull()
 
     const boss = await player('founder')
-    const clan = await ClansService.create(boss.id, 'Кооператив', 'COOP')
+    const clan = await paidClan(boss.id, 'Кооператив', 'COOP')
     const bossAfter = await testPrisma.character.findUniqueOrThrow({ where: { id: boss.id } })
-    expect(bossAfter.money).toBe(100_000 - 25_000)
+    expect(bossAfter.money).toBe(100_000)
+    expect(bossAfter.dollars).toBe(0)
     expect(bossAfter.clanId).toBe(clan.id)
 
     const roles = await testPrisma.clanRole.findMany({ where: { clanId: clan.id } })
@@ -64,10 +70,10 @@ describe('clans', () => {
   it('бригада регистрируется без тега: тег выдаётся сам, название уникально', async () => {
     const boss = await player('notag')
     const name = uid('без-тега')
-    const clan = await ClansService.create(boss.id, name)
+    const clan = await paidClan(boss.id, name)
     expect(clan.tag).toMatch(/^[A-Z0-9]{4}$/)
     const other = await player('dup')
-    await expect(ClansService.create(other.id, name.toUpperCase())).rejects.toThrow('уже есть')
+    await expect(paidClan(other.id, name.toUpperCase())).rejects.toThrow('уже есть')
   })
 
   it('иконку ставит глава: картинка отдаётся отдельно, в карточке — только версия', async () => {

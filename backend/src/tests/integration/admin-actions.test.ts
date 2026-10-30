@@ -14,10 +14,9 @@ import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../../app'
 import { hashPassword } from '../../shared/security/password'
 import { generateJti, storeAdminSession } from '../../shared/security/jwt'
-import { ClansService } from '../../modules/clans/clans.service'
 import { ClaimsService } from '../../modules/territories/claims.service'
 import { TERRITORIES, PREMIUM_PRODUCTS } from '../../../prisma/economy-data'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 const REASON = 'разбор жалобы номер сорок два'
 
@@ -222,7 +221,7 @@ describe('админка: обратимость действий', () => {
 
   it('сброс района откатывается снимком: владелец, ступень и защита', async () => {
     const boss = await player('terr', 100_000)
-    const clan = await ClansService.create(boss.id, uid('terr-clan'), 'TERR1')
+    const clan = await paidClan(boss.id, uid('terr-clan'), 'TERR1')
     const protectedUntil = new Date(Date.now() + 3_600_000)
     await testPrisma.territory.update({
       where: { code: 'garages' },
@@ -259,7 +258,7 @@ describe('админка: обратимость действий', () => {
 
   it('район в бою не сбрасывается: бой закончился бы в никуда', async () => {
     const boss = await player('battle', 100_000)
-    const clan = await ClansService.create(boss.id, uid('bat-clan'), 'BATL1')
+    const clan = await paidClan(boss.id, uid('bat-clan'), 'BATL1')
     const territory = await testPrisma.territory.update({
       where: { code: 'market' },
       data: { ownerClanId: clan.id, status: 'UNDER_ATTACK', controlledAt: new Date() },
@@ -284,7 +283,7 @@ describe('админка: обратимость действий', () => {
 
   it('правка авторитета обратима и оставляет след в журнале бригады', async () => {
     const boss = await player('auth', 100_000)
-    const clan = await ClansService.create(boss.id, uid('auth-clan'), 'AUTH1')
+    const clan = await paidClan(boss.id, uid('auth-clan'), 'AUTH1')
     await testPrisma.clan.update({ where: { id: clan.id }, data: { authority: 50 } })
     await testPrisma.clanAuthorityLog.create({
       data: { clanId: clan.id, amount: 50, reason: 'ADMIN_ADJUST', balanceAfter: 50 },
@@ -353,7 +352,7 @@ describe('админка: обратимость действий', () => {
 
   it('гашение заявки обратимо, потому что деньги не двигались', async () => {
     const boss = await player('claim', 100_000)
-    const clan = await ClansService.create(boss.id, uid('claim-clan'), 'CLM1')
+    const clan = await paidClan(boss.id, uid('claim-clan'), 'CLM1')
     const role = await testPrisma.clanRole.findFirstOrThrow({ where: { clanId: clan.id, code: 'fighter' } })
     const roster = [boss.id]
     for (let i = 0; i < 4; i++) {

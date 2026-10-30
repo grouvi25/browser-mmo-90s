@@ -7,12 +7,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { HouseSiegeService, runHouseSieges } from '../../modules/clans/house-siege.service'
 import { BalanceConfig } from '../../config/balance.config'
-import { ClansService } from '../../modules/clans/clans.service'
 import { ChatService } from '../../modules/chat/chat.service'
 import { ApplicationsService } from '../../modules/battles/applications.service'
 import { TerritoriesService } from '../../modules/territories/territories.service'
 import { BattleRedis, disconnectRedis, getRedis } from '../../shared/db/redis'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 const HOUR = 3_600_000
 
@@ -40,7 +39,7 @@ describe('осада дома бригады', () => {
   }
   async function brigade(prefix: string, fighters = 1) {
     const boss = await player(`${prefix}b`)
-    const clan = await ClansService.create(boss.character.id, uid(`${prefix}-c`).slice(0, 30), Math.random().toString(36).slice(2, 6).toUpperCase())
+    const clan = await paidClan(boss.character.id, uid(`${prefix}-c`).slice(0, 30), Math.random().toString(36).slice(2, 6).toUpperCase())
     const role = await testPrisma.clanRole.findFirstOrThrow({ where: { clanId: clan.id, code: 'fighter' } })
     const others = []
     for (let i = 1; i < fighters; i++) {

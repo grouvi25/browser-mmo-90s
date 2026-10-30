@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { ClansService } from '../../modules/clans/clans.service'
 import { NoticesService } from '../../modules/chat/notices.service'
 import { NOTICE_RULES } from '../../modules/chat/notices.hook'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 async function player(prefix: string) {
   const login = uid(prefix)
@@ -23,7 +23,7 @@ describe('журнал склада и уведомления', () => {
 
   async function brigade() {
     const boss = await player('boss')
-    const clan = await ClansService.create(boss.id, uid('clan').slice(0, 30), Math.random().toString(36).slice(2, 6).toUpperCase())
+    const clan = await paidClan(boss.id, uid('clan').slice(0, 30), Math.random().toString(36).slice(2, 6).toUpperCase())
     const roles = await testPrisma.clanRole.findMany({ where: { clanId: clan.id } })
     const byCode = (code: string) => roles.find(r => r.code === code)!
     const join = async (prefix: string, code: string) => {

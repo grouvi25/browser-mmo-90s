@@ -11,13 +11,12 @@ import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../../app'
 import { hashPassword } from '../../shared/security/password'
 import { generateJti, storeAdminSession } from '../../shared/security/jwt'
-import { ClansService } from '../../modules/clans/clans.service'
 import { ClaimsService } from '../../modules/territories/claims.service'
 import { ObjectAttacksService } from '../../modules/territories/object-attacks.service'
 import { PremiumService } from '../../modules/premium/premium.service'
 import { HelpersService } from '../../modules/premium/helpers.service'
 import { TERRITORIES, PREMIUM_PRODUCTS } from '../../../prisma/economy-data'
-import { cleanDatabase, testPrisma, uid } from './helpers'
+import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
 
 describe('админка: разделы стратегического слоя', () => {
   let app: FastifyInstance
@@ -39,7 +38,7 @@ describe('админка: разделы стратегического слоя
 
   async function warClan(prefix: string, fighters = 5) {
     const boss = await player(prefix)
-    const clan = await ClansService.create(
+    const clan = await paidClan(
       boss.id, uid(`${prefix}-clan`), Math.random().toString(36).slice(2, 6).toUpperCase())
     const role = await testPrisma.clanRole.findFirstOrThrow({ where: { clanId: clan.id, code: 'fighter' } })
     const roster = [boss.id]
