@@ -10,7 +10,7 @@
 // На поддомене admin. панель живёт в корне, на основном сайте — в /admin.
 // =============================================================
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link, NavLink, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { NavLink, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LogOut, Menu, ShieldCheck, X } from 'lucide-react'
 import { adminApi, adminDevice, adminToken, AdminApiError, type AdminRole, type Permission } from './admin-api'
@@ -90,6 +90,13 @@ const SECTIONS: Section[] = [
   { key: 'staff', group: 'Система', title: 'Сотрудники', need: 'staff', hint: 'Кто работает в админке и с какой ролью.',
     render: () => <StaffSection /> },
 ]
+
+// На поддомене admin. игры нет: «В игру» ведёт на основной домен.
+function gameHref(): string {
+  const { protocol, hostname, port } = window.location
+  if (!hostname.startsWith('admin.')) return '/'
+  return `${protocol}//${hostname.slice('admin.'.length)}${port ? `:${port}` : ''}/`
+}
 
 export function AdminPage({ base = '/admin' }: { base?: string }) {
   const [token, setToken] = useState(adminToken.get())
@@ -276,7 +283,7 @@ function AdminLogin({ onDone }: { onDone: (token: string) => void }) {
           </form>
         )}
         {error && <Note text={error} kind="bad" />}
-        <p className="admx-login__foot">Вход только для сотрудников. <Link to="/">В игру</Link></p>
+        <p className="admx-login__foot">Вход только для сотрудников. <a href={gameHref()}>В игру</a></p>
       </div>
     </div>
   )
