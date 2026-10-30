@@ -145,7 +145,7 @@ export const BalanceConfig = {
 
   // --- Character base values ---
   character: {
-    startMoney:         0,     // стартовых денег нет (документ Дмитрия 30.10): деньги — премиями за уровни
+    startMoney:         5000,  // стартовые деньги 5 000 ₽ (чат Дмитрия 29.10; решение владельца 30.10)
     baseHp:             60,
     hpPerEnd:           6,     // HP за 1 END
     hpPerBattleLevel:   2,
