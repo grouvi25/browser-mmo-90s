@@ -9,7 +9,8 @@ import { storedReferral } from '../../shared/lib/referral'
 export function RegisterPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ login: '', email: '', password: '', password2: '' })
+  // Регистрация по нику (правка Дмитрия 29.10): ник персонажа и есть имя для входа.
+  const [form, setForm] = useState({ nickname: '', email: '', password: '', password2: '' })
   // Согласие с политикой обработки персональных данных (152-ФЗ, правка
   // заказчика 21.10): без него сервер регистрацию не примет.
   const [agree, setAgree] = useState(false)
@@ -24,7 +25,7 @@ export function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.login || !form.email || !form.password) {
+    if (!form.nickname.trim() || !form.email || !form.password) {
       setError('Заполните все поля')
       return
     }
@@ -47,16 +48,16 @@ export function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      await authApi.register({ login: form.login, email: form.email, password: form.password, acceptPolicy: true, website: trap, captchaToken: captchaToken || undefined, ref: storedReferral() })
+      await authApi.register({ nickname: form.nickname.trim(), email: form.email, password: form.password, acceptPolicy: true, website: trap, captchaToken: captchaToken || undefined, ref: storedReferral() })
       // Auto-login after register
-      const res = await authApi.login({ login: form.login, password: form.password })
+      const res = await authApi.login({ login: form.nickname.trim(), password: form.password })
       signIn(res.token, res.userId, res.login)
       navigate('/character/create')
     } catch (err) {
       // Токен капчи одноразовый: после отказа её надо пройти заново.
       setCaptchaReset(n => n + 1)
       if (err instanceof ApiError) {
-        if (err.status === 409) setError('Логин или почта уже зарегистрированы (у Gmail точки и «+метка» в адресе не считаются)')
+        if (err.status === 409) setError(err.message === 'Такой ник уже занят' ? 'Такой ник уже занят — придумайте другой' : 'Эта почта уже зарегистрирована (у Gmail точки и «+метка» в адресе не считаются)')
         else setError(err.message)
       } else {
         setError('Ошибка подключения к серверу')
@@ -79,20 +80,24 @@ export function RegisterPage() {
             {error && <div className="alert alert-error">{error}</div>}
 
             <div className="form-group">
-              <label className="form-label">Логин (латиница, цифры, _)</label>
+              <label className="form-label" htmlFor="reg-nickname">Ник персонажа — по нему вы входите в игру</label>
               <input
+                id="reg-nickname"
                 className="form-input"
                 type="text"
-                placeholder="Мой_логин123"
-                value={form.login}
-                onChange={e => setForm(f => ({ ...f, login: e.target.value }))}
+                placeholder="Например: Седой"
+                maxLength={30}
+                autoComplete="username"
+                value={form.nickname}
+                onChange={e => setForm(f => ({ ...f, nickname: e.target.value }))}
                 autoFocus
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label">Email</label>
+              <label className="form-label" htmlFor="reg-email">Почта — для восстановления пароля</label>
               <input
+                id="reg-email"
                 className="form-input"
                 type="email"
                 placeholder="example@mail.ru"

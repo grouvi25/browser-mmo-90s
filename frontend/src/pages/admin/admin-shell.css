@@ -1,0 +1,104 @@
+/* Панель управления (переделка 30.10): сайдбар слева, раздел справа.
+   Кнопки и ссылки меняют только цвет — ничего не сдвигается. */
+.admx {
+  --admx-side: #2b2118; --admx-side-ink: #efe3cf; --admx-side-dim: #b7a68d; --admx-accent: #c0392b;
+  --admx-paper: #f6eee2; --admx-ink: #2b2118; --admx-line: #d6c4a8;
+  display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; color: var(--admx-ink);
+  /* Колонка сайдбара тёмная во всю высоту страницы, а не только окна. */
+  background: linear-gradient(to right, var(--admx-side) 240px, var(--admx-paper) 240px);
+}
+.admx-side {
+  position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; overflow-y: auto;
+  background: var(--admx-side); color: var(--admx-side-ink);
+}
+.admx-brand { display: flex; align-items: center; gap: 10px; padding: 18px 16px 14px; border-bottom: 1px solid rgba(255, 255, 255, .1); }
+.admx-brand b { display: block; font: 700 15px/1.1 var(--font-ui, sans-serif); letter-spacing: 2px; }
+.admx-brand small { display: block; font-size: 12px; color: var(--admx-side-dim); }
+.admx-close { display: none; margin-left: auto; padding: 4px; border: 0; background: none; color: inherit; cursor: pointer; }
+.admx-nav { flex: 1; padding: 8px 0; }
+.admx-group { padding: 6px 0; }
+.admx-group__title { display: block; padding: 6px 16px 4px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--admx-side-dim); }
+.admx-link {
+  display: block; padding: 7px 16px 7px 13px; border-left: 3px solid transparent; color: var(--admx-side-ink); text-decoration: none; font-size: 14px;
+}
+.admx-link:hover { background: rgba(255, 255, 255, .06); }
+.admx-link:active { background: rgba(255, 255, 255, .12); }
+.admx-link:focus-visible { outline: 2px solid #f0c27b; outline-offset: -2px; }
+.admx-link.is-active { border-left-color: var(--admx-accent); background: rgba(255, 255, 255, .1); font-weight: 700; }
+.admx-user { display: grid; gap: 2px; padding: 12px 16px 16px; border-top: 1px solid rgba(255, 255, 255, .1); }
+.admx-user__name { font-weight: 700; overflow-wrap: anywhere; }
+.admx-user__role { font-size: 12px; color: var(--admx-side-dim); }
+.admx-user__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.admx-user__actions button {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; font: inherit; font-size: 12.5px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, .25); background: transparent; color: var(--admx-side-ink);
+}
+.admx-user__actions button:hover { background: rgba(255, 255, 255, .1); }
+.admx-user__actions button:active { background: rgba(255, 255, 255, .18); }
+.admx-user__actions button:focus-visible { outline: 2px solid #f0c27b; outline-offset: 1px; }
+.admx-user__actions button:disabled { opacity: .6; cursor: progress; }
+.admx-scrim { display: none; }
+.admx-main { min-width: 0; display: flex; flex-direction: column; }
+.admx-top { display: flex; align-items: center; gap: 12px; padding: 16px 24px 12px; border-bottom: 1px solid var(--admx-line); background: var(--admx-paper); }
+.admx-top h1 { margin: 0; font: 700 20px/1.2 var(--font-ui, sans-serif); }
+.admx-top p { margin: 2px 0 0; font-size: 13.5px; color: #6b5b4a; }
+.admx-burger { display: none; padding: 6px; border: 1px solid var(--admx-line); background: #fffaf2; color: inherit; cursor: pointer; line-height: 0; }
+.admx-burger:hover { background: #f1e6d5; }
+.admx-burger:active { background: #e8d9c3; }
+.admx-burger:focus-visible { outline: 2px solid var(--admx-accent); outline-offset: 1px; }
+/* Разделы — прежние компоненты; у главной области свои поля вместо старой рамки. */
+.admx-content.adm { max-width: none; margin: 0; padding: 16px 24px 32px; }
+.admx-loading { padding: 40px 24px; font-size: 15px; }
+.admx-loading button { margin-left: 6px; }
+
+/* Сотрудники */
+.admx-staff-add { display: flex; flex-wrap: wrap; gap: 6px; }
+.admx-staff-add input { flex: 1 1 200px; min-width: 0; padding: 5px 8px; font: inherit; }
+.admx-staff-add select { padding: 5px 6px; font: inherit; }
+.admx-roles { display: grid; gap: 6px; margin: 0; }
+.admx-roles div { display: grid; grid-template-columns: 140px 1fr; gap: 8px; }
+.admx-roles dt { font-weight: 700; }
+.admx-roles dd { margin: 0; font-size: 13.5px; }
+.adm-table tr.is-muted td { color: #9a8a76; }
+.adm-table td.is-bad { color: #a01818; }
+
+/* Вход */
+.admx-login { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: #2b2118; }
+.admx-login__box { box-sizing: border-box; width: min(100%, 380px); padding: 22px 22px 18px; background: #f6eee2; color: #2b2118; border: 1px solid #d6c4a8; }
+.admx-brand--login { padding: 0 0 14px; margin-bottom: 14px; border-bottom: 1px solid #d6c4a8; }
+.admx-brand--login small { color: #6b5b4a; }
+.admx-login form { display: grid; gap: 6px; }
+.admx-login label { font-size: 13px; font-weight: 700; margin-top: 4px; }
+.admx-login input:not([type=checkbox]) { box-sizing: border-box; width: 100%; padding: 8px 10px; font: inherit; border: 1px solid #b9a382; background: #fffaf2; }
+.admx-login input:not([type=checkbox]):hover { border-color: #8a7458; }
+.admx-login input:focus-visible { outline: 2px solid #c0392b; outline-offset: 1px; }
+.admx-login__code { font: 700 24px/1.2 'Courier New', monospace !important; letter-spacing: 8px; text-align: center; }
+.admx-login__check { display: flex; align-items: center; gap: 8px; font-weight: 400 !important; }
+.admx-login__hint { margin: 0 0 4px; font-size: 13.5px; line-height: 1.4; }
+.admx-login button[type=submit] {
+  margin-top: 8px; padding: 9px 12px; font: 700 14px/1 var(--font-ui, sans-serif); cursor: pointer;
+  border: 1px solid #2b2118; background: #2b2118; color: #f6eee2;
+}
+.admx-login button[type=submit]:hover { background: #45362a; }
+.admx-login button[type=submit]:active { background: #1c150f; }
+.admx-login button[type=submit]:focus-visible { outline: 2px solid #c0392b; outline-offset: 2px; }
+.admx-login button[type=submit]:disabled { opacity: .55; cursor: not-allowed; }
+.admx-login__back { justify-self: start; padding: 4px 0; border: 0; background: none; color: #7a1010; font: inherit; font-size: 13px; cursor: pointer; }
+.admx-login__back:hover { text-decoration: underline; }
+.admx-login__back:focus-visible { outline: 2px solid #c0392b; outline-offset: 1px; }
+.admx-login__foot { margin: 14px 0 0; font-size: 12.5px; color: #6b5b4a; }
+.admx-login__foot a { color: #7a1010; }
+
+/* Телефон и узкое окно: меню выезжает слева. */
+@media (max-width: 900px) {
+  .admx { grid-template-columns: minmax(0, 1fr); background: var(--admx-paper); }
+  .admx-side { position: fixed; z-index: 30; left: 0; top: 0; width: min(82vw, 280px); transform: translateX(-100%); transition: transform .2s ease; }
+  .admx.is-menu .admx-side { transform: none; }
+  .admx.is-menu .admx-scrim { display: block; position: fixed; inset: 0; z-index: 20; border: 0; padding: 0; background: rgba(28, 23, 18, .45); }
+  .admx-close { display: inline-flex; }
+  .admx-burger { display: inline-flex; }
+  .admx-top { padding: 12px 16px 10px; }
+  .admx-content.adm { padding: 12px 16px 24px; }
+  .admx-roles div { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { .admx-side { transition: none; } }

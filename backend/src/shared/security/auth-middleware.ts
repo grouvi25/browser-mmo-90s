@@ -1,6 +1,7 @@
 import { inPrison } from '../../modules/city/city.config'
 import type { FastifyRequest, FastifyReply } from 'fastify'
-import type { AdminRole } from '@prisma/client'
+import type { AdminRole, StaffRole } from '@prisma/client'
+import { LEGACY_PERMISSIONS, STAFF_ROLES, journalRole, type Permission } from './permissions'
 import { AppError } from '../errors/app-error'
 import { ErrorCode } from '../errors/error-codes'
 import { prisma } from '../db/prisma'
@@ -12,9 +13,16 @@ export interface AuthUser {
 }
 
 export interface AdminAuthUser {
+  /** id учётки: сотрудника (staff_members) или старой админки (admin_users). */
   adminId: string
   jti: string
+  /** Роль для журнала действий — прежние три. */
   role: AdminRole
+  /** Роль сотрудника; у старой учётки — null. */
+  staffRole: StaffRole | null
+  /** Кто: ник сотрудника или логин старой учётки — для журналов и ответов. */
+  label: string
+  permissions: ReadonlySet<Permission>
 }
 
 declare module 'fastify' {
@@ -70,21 +78,41 @@ export async function authenticateAdmin(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const payload = await request.jwtVerify<{ role?: string; adminId?: string; jti: string }>()
-    if (payload.role !== 'admin' || !payload.adminId) {
+    const payload = await request.jwtVerify<{ role?: string; adminId?: string; staffId?: string; jti: string }>()
+    const accountId = payload.staffId ?? payload.adminId
+    if (payload.role !== 'admin' || !accountId) {
       throw AppError.forbidden('Admin access required')
     }
-    if (!(await isAdminSessionValid(payload.jti, payload.adminId))) {
+    if (!(await isAdminSessionValid(payload.jti, accountId))) {
       throw new AppError(ErrorCode.SESSION_REVOKED, 'Session has been revoked', 401)
     }
+    if (payload.staffId) {
+      // Сотрудник — игровой аккаунт с ролью (правка 30.10). Снятая роль,
+      // выключенный сотрудник или забаненный аккаунт закрывают доступ сразу.
+      const staff = await prisma.staffMember.findUnique({
+        where: { id: payload.staffId },
+        select: { role: true, isActive: true, user: { select: { login: true, status: true, character: { select: { nickname: true } } } } },
+      })
+      if (!staff?.isActive || staff.user.status === 'BANNED') {
+        throw new AppError(ErrorCode.SESSION_REVOKED, 'Admin account is inactive', 401)
+      }
+      request.adminUser = {
+        adminId: payload.staffId, jti: payload.jti, role: journalRole(staff.role), staffRole: staff.role,
+        label: staff.user.character?.nickname ?? staff.user.login, permissions: new Set(STAFF_ROLES[staff.role].permissions),
+      }
+      return
+    }
     const admin = await prisma.adminUser.findUnique({
-      where: { id: payload.adminId },
-      select: { role: true, isActive: true },
+      where: { id: accountId },
+      select: { role: true, isActive: true, username: true },
     })
     if (!admin?.isActive) {
       throw new AppError(ErrorCode.SESSION_REVOKED, 'Admin account is inactive', 401)
     }
-    request.adminUser = { adminId: payload.adminId, jti: payload.jti, role: admin.role }
+    request.adminUser = {
+      adminId: accountId, jti: payload.jti, role: admin.role, staffRole: null,
+      label: admin.username, permissions: new Set(LEGACY_PERMISSIONS[admin.role]),
+    }
   } catch (err: unknown) {
     if (err instanceof AppError) {
       reply.code(err.statusCode).send({ code: err.code, message: err.message })
@@ -94,12 +122,13 @@ export async function authenticateAdmin(
   }
 }
 
-export function requireAdminRole(...roles: AdminRole[]) {
-  return async function authorizeAdminRole(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+/** Ручка админки требует одно право (shared/security/permissions.ts). */
+export function requirePermission(permission: Permission) {
+  return async function authorizePermission(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await authenticateAdmin(request, reply)
     if (reply.sent) return
-    if (!roles.includes(request.adminUser.role)) {
-      reply.code(403).send({ code: ErrorCode.FORBIDDEN, message: 'Insufficient admin role' })
+    if (!request.adminUser.permissions.has(permission)) {
+      reply.code(403).send({ code: ErrorCode.FORBIDDEN, message: 'Недостаточно прав для этого действия' })
     }
   }
 }

@@ -66,6 +66,13 @@ export const EconomyService = {
     if (gained > 0 && E.strPerLevel > 0) {
       await tx.characterStats.update({ where: { characterId }, data: { str: { increment: gained * E.strPerLevel } } })
     }
+    // Игрок видит, за что пришли сила и деньги (Дмитрий 29.10 не заметил
+    // премий: начислялись молча). Запись в той же транзакции, что и премия.
+    if (gained > 0) {
+      const reached = Math.max(economicLevel, character.economicLevel)
+      const parts = [E.strPerLevel > 0 ? `+${gained * E.strPerLevel} к силе` : '', levelMoney > 0 ? `+${levelMoney.toLocaleString('ru-RU')} ₽` : ''].filter(Boolean)
+      await tx.gameNotice.create({ data: { characterId, text: `Новый экономический уровень ${reached}${parts.length ? `: ${parts.join(', ')}` : ''}.` } })
+    }
     return { economicExp, economicLevel, levelsGained: gained, levelMoney }
   },
 }

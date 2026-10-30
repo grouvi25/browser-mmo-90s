@@ -51,6 +51,7 @@ import { referralRoutes } from './modules/referral/referral.routes'
 import { housingRoutes } from './modules/housing/housing.routes'
 import { adminSupportRoutes, supportRoutes } from './modules/support/support.routes'
 import { siteRoutes, adminSiteRoutes } from './modules/site/site.routes'
+import { staffRoutes } from './modules/staff/staff.routes'
 import { stage3AcceptanceRoutes } from './modules/stage3-acceptance/stage3-acceptance.routes'
 import { balanceSandboxRoutes } from './modules/balance-sandbox/balance-sandbox.routes'
 
@@ -196,6 +197,7 @@ export async function buildApp() {
   await fastify.register(adminBalanceRoutes,  { prefix: '/api/admin' })
   await fastify.register(adminSupportRoutes,  { prefix: '/api/admin/support' })
   await fastify.register(adminSiteRoutes,     { prefix: '/api/admin/site' })
+  await fastify.register(staffRoutes,         { prefix: '/api/admin/staff' })
 
   return fastify
 }

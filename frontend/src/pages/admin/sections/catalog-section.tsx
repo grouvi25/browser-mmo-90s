@@ -19,8 +19,9 @@ import { adminApi, REASON_MIN, type Catalog, type CatalogResource } from '../adm
 import { Skeleton, Fault, Note } from '../../stage3/stage3-ui'
 import { Table, rub } from '../admin-ui'
 import { ItemsSection } from './combat-sandbox-section'
+import { DollarShops } from './dollar-shops'
 
-type Page = 'all' | 'items' | 'resources' | 'objects' | 'production' | 'farm' | 'trade' | 'professions' | 'bots' | 'premium'
+type Page = 'all' | 'items' | 'dollar' | 'resources' | 'objects' | 'production' | 'farm' | 'trade' | 'professions' | 'bots' | 'premium'
 
 const PAGES: { key: Page; title: string }[] = [
   // «Всё» первым: искать по названию проще, чем помнить, в какой из
@@ -28,6 +29,7 @@ const PAGES: { key: Page; title: string }[] = [
   // котором вкладки начинают прятать содержимое.
   { key: 'all', title: 'Всё' },
   { key: 'items', title: 'Вещи' },
+  { key: 'dollar', title: 'ЦУМ и Берёзка' },
   { key: 'resources', title: 'Ресурсы и материалы' },
   { key: 'objects', title: 'Объекты' },
   { key: 'production', title: 'Производство' },
@@ -56,10 +58,11 @@ export function CatalogSection({ role }: { role?: string | null }) {
       </div>
 
       {page === 'items' && <ItemsSection role={role} />}
+      {page === 'dollar' && <DollarShops canEdit={canEdit} />}
 
-      {page !== 'items' && catalog.isLoading && <Skeleton rows={5} />}
-      {page !== 'items' && catalog.isError && <Fault retry={() => catalog.refetch()} />}
-      {page !== 'items' && catalog.data && (
+      {page !== 'items' && page !== 'dollar' && catalog.isLoading && <Skeleton rows={5} />}
+      {page !== 'items' && page !== 'dollar' && catalog.isError && <Fault retry={() => catalog.refetch()} />}
+      {page !== 'items' && page !== 'dollar' && catalog.data && (
         <>
           {page === 'all' && <Everything data={catalog.data} onGo={setPage} />}
           {page === 'resources' && <Resources data={catalog.data} canEdit={canEdit} />}
@@ -111,7 +114,7 @@ function Resources({ data, canEdit }: { data: Catalog; canEdit: boolean }) {
         рецепт на ресурсе, который негде взять, не запустится никогда.{' '}
         {canEdit
           ? 'Базовая цена правится прямо в строке — на неё опираются госскупка, маржа рецептов и выгода огорода разом.'
-          : 'Править может только SUPER_ADMIN.'}
+          : 'Правка недоступна вашей роли.'}
       </p>
 
       {orphans.length > 0 && (
@@ -335,7 +338,7 @@ function Trade({ data, canEdit }: { data: Catalog; canEdit: boolean }) {
         боевых бонусов одновременно.{' '}
         {canEdit
           ? 'Цены правятся в строке. У госмагазина пустая цена значит «брать из шаблона предмета» — это отдельное состояние, а не «не трогать».'
-          : 'Править может только SUPER_ADMIN.'}
+          : 'Правка недоступна вашей роли.'}
       </p>
 
       <h5 className="adm-sub">Госмагазин</h5>
@@ -534,7 +537,7 @@ function Objects({ data, canEdit }: { data: Catalog; canEdit: boolean }) {
         массу, а профессия решает, кого на объект вообще пустят.{' '}
         {canEdit
           ? 'Оклад, смена и число мест правятся в строке — это самый прямой кран денег в игре, поэтому и потолок здесь ниже, чем у прочих цен.'
-          : 'Править может только SUPER_ADMIN.'}
+          : 'Правка недоступна вашей роли.'}
       </p>
 
       {idle.length > 0 && (

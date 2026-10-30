@@ -19,4 +19,18 @@ export async function seedCity(prisma: PrismaClient) {
     type: 'ACCESSORY', armorSlot: 'ACCESSORY', qualityBase: 'UNIQUE', sourceType: 'DONATE',
     priceBase: a.price, battleExpBonus: a.bonus, dodgeBonus: 0.03, durabilityMax: 100,
   } })
+  // Витрины за доллары (правка 30.10): стартовые товары — только если их ещё
+  // нет. Цену и снятие с продажи дальше меняют из админки, сид их не трогает.
+  const starters: { shop: 'TSUM' | 'BEREZKA'; code: string; sort: number }[] = [
+    ...CityConfig.namedItems.map((item, i) => ({ shop: 'TSUM' as const, code: item.code, sort: i + 1 })),
+    { shop: 'BEREZKA', code: a.code, sort: 1 },
+  ]
+  for (const entry of starters) {
+    const template = await prisma.itemTemplate.findUniqueOrThrow({ where: { code: entry.code }, select: { id: true } })
+    await prisma.dollarShopItem.upsert({
+      where: { shop_templateId: { shop: entry.shop, templateId: template.id } },
+      update: {},
+      create: { shop: entry.shop, templateId: template.id, priceDollars: CityConfig.dollarPrices[entry.code], sortOrder: entry.sort },
+    })
+  }
 }

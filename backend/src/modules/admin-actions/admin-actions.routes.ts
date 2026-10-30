@@ -9,7 +9,7 @@
 // =============================================================
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { requireAdminRole } from '../../shared/security/auth-middleware'
+import { requirePermission } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
@@ -18,9 +18,10 @@ import { AdminTraceService } from './admin-trace.service'
 import { PremiumService } from '../premium/premium.service'
 import { AntiAbuseService } from '../antiabuse/antiabuse.service'
 
-const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
-const MODERATE_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR') }
-const SUPER_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN') }
+const READ_ADMIN = { preHandler: requirePermission('view') }
+const MODERATE_ADMIN = { preHandler: requirePermission('moderate') }
+// Выдача и откаты — право «grant» (владелец и администратор).
+const SUPER_ADMIN = { preHandler: requirePermission('grant') }
 
 const Id = z.string().uuid()
 const Reason = z.string().trim().min(REASON_MIN).max(500)

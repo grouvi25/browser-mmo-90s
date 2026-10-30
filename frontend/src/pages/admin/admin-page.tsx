@@ -1,17 +1,19 @@
 // =============================================================
-// Экран администратора — Этап 5.
+// Панель управления (переделка 30.10).
 //
-// Восемь разделов на одной странице, вход отдельный от игрового. Админка не
-// витрина: та же вёрстка, что и у экранов игры, никакого своего дизайна.
+// Вход — ник и пароль игрового аккаунта сотрудника, затем код из письма
+// (устройство можно запомнить на 30 дней). Слева — разделы по группам,
+// у каждого свой адрес; сотрудник видит только то, на что у его роли есть
+// право, а сервер то же право проверяет на каждой ручке.
 //
-// Главное, что экран обязан доносить без справки: каждое действие требует
-// причину и каждое можно отменить. Поэтому журнал действий — такой же
-// раздел, как остальные, а не спрятанная страница логов.
+// Разделы — прежние компоненты: переделана оболочка, а не их содержимое.
+// На поддомене admin. панель живёт в корне, на основном сайте — в /admin.
 // =============================================================
-import { useEffect, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { ShieldAlert, LogOut } from 'lucide-react'
-import { adminApi, adminToken, AdminApiError, type AdminRole } from './admin-api'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Link, NavLink, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { LogOut, Menu, ShieldCheck, X } from 'lucide-react'
+import { adminApi, adminDevice, adminToken, AdminApiError, type AdminRole, type Permission } from './admin-api'
 import { Note } from '../stage3/stage3-ui'
 import { ClansSection } from './sections/clans-section'
 import { TerritoriesSection } from './sections/territories-section'
@@ -29,49 +31,70 @@ import { SupportSection } from './sections/support-section'
 import { ChatSection } from './sections/chat-section'
 import { AnnouncementsSection } from './sections/announcements-section'
 import { PayoutsSection } from './sections/payouts-section'
+import { StaffSection } from './sections/staff-section'
 import '../stage3/stage3.css'
 import './admin.css'
+import './admin-shell.css'
 
-type Tab = 'overview' | 'clans' | 'territories' | 'claims' | 'signals' | 'actions' | 'trace'
-  | 'balance' | 'sandbox' | 'duel' | 'items' | 'players' | 'support' | 'chat' | 'news' | 'payouts'
+interface Ctx {
+  can: (permission: Permission) => boolean
+  /** Старые разделы знают только «SUPER_ADMIN может править»: даём его, если право есть. */
+  roleFor: (permission: Permission) => AdminRole
+  go: (section: string, focus?: string) => void
+  focus?: string
+}
 
-const TABS: { key: Tab; title: string }[] = [
-  { key: 'overview', title: 'Обзор' },
-  { key: 'players', title: 'Игроки' },
-  { key: 'support', title: 'Поддержка' },
-  { key: 'chat', title: 'Чат' },
-  { key: 'news', title: 'Объявления' },
-  { key: 'payouts', title: 'Выплаты' },
-  { key: 'clans', title: 'Бригады' },
-  { key: 'territories', title: 'Районы' },
-  { key: 'claims', title: 'Заявки' },
-  { key: 'signals', title: 'Сигналы' },
-  { key: 'actions', title: 'Журнал' },
-  { key: 'trace', title: 'Цепочка' },
-  // Устройство игры — рядом с её состоянием: администратор видит и
-  // последствия, и причину, не уходя с экрана.
-  { key: 'balance', title: 'Баланс' },
-  { key: 'sandbox', title: 'Экономика' },
-  { key: 'duel', title: 'Бой' },
-  { key: 'items', title: 'Справочник' },
+interface Section {
+  key: string
+  title: string
+  group: string
+  /** Что видно в шапке раздела: одна строка о назначении. */
+  hint: string
+  need: Permission
+  render: (ctx: Ctx) => ReactNode
+}
+
+const SECTIONS: Section[] = [
+  { key: 'overview', group: 'Главное', title: 'Обзор', need: 'view', hint: 'Сводка: игроки, деньги в игре, сигналы о нарушениях.',
+    render: c => <OverviewSection onGo={c.go} /> },
+  { key: 'players', group: 'Игроки', title: 'Игроки', need: 'view', hint: 'Поиск игрока, его деньги, вещи, наказания.',
+    render: c => <PlayersSection focusId={c.focus} onTrace={id => c.go('trace', id)} /> },
+  { key: 'support', group: 'Игроки', title: 'Поддержка', need: 'support', hint: 'Обращения игроков: очередь и переписка.',
+    render: () => <SupportSection /> },
+  { key: 'chat', group: 'Игроки', title: 'Чат', need: 'view', hint: 'Сообщения игроков; модератор может скрыть.',
+    render: () => <ChatSection /> },
+  { key: 'signals', group: 'Игроки', title: 'Сигналы', need: 'view', hint: 'Подозрительные связи аккаунтов и переводы.',
+    render: () => <SignalsSection /> },
+  { key: 'news', group: 'Контент', title: 'Объявления', need: 'content', hint: 'Окно при входе, новости и обновления.',
+    render: () => <AnnouncementsSection /> },
+  { key: 'items', group: 'Экономика', title: 'Справочник', need: 'view', hint: 'Вещи, магазины, сырьё: создать и править.',
+    render: c => <CatalogSection role={c.roleFor('catalog')} /> },
+  { key: 'balance', group: 'Экономика', title: 'Баланс', need: 'view', hint: 'Формулы и их параметры.',
+    render: c => <BalanceSection role={c.roleFor('balance')} focus={c.focus} /> },
+  { key: 'sandbox', group: 'Экономика', title: 'Экономика', need: 'view', hint: 'Расчёт экономики на заданных параметрах.',
+    render: c => <BalanceSandboxPage simulate={adminApi.simulateBalance} onGoFormula={id => c.go('balance', id)} /> },
+  { key: 'duel', group: 'Экономика', title: 'Бой', need: 'view', hint: 'Песочница: два бойца и тысяча дуэлей.',
+    render: () => <CombatSandboxSection /> },
+  { key: 'payouts', group: 'Экономика', title: 'Выплаты', need: 'finance', hint: 'Заявки на вывод реферальных.',
+    render: () => <PayoutsSection /> },
+  { key: 'clans', group: 'Мир', title: 'Бригады', need: 'view', hint: 'Бригады, общак, авторитет.',
+    render: () => <ClansSection /> },
+  { key: 'territories', group: 'Мир', title: 'Районы', need: 'view', hint: 'Кому принадлежат районы.',
+    render: c => <TerritoriesSection role={c.roleFor('grant')} /> },
+  { key: 'claims', group: 'Мир', title: 'Заявки', need: 'view', hint: 'Заявки на районы и налёты.',
+    render: c => <ClaimsSection role={c.roleFor('grant')} /> },
+  { key: 'actions', group: 'Журнал', title: 'Действия', need: 'view', hint: 'Что делали в админке; откат.',
+    render: c => <ActionsSection role={c.roleFor('grant')} /> },
+  { key: 'trace', group: 'Журнал', title: 'Цепочка', need: 'view', hint: 'Откуда пришли и куда ушли деньги и вещи.',
+    render: c => <TraceSection focus={c.focus} /> },
+  { key: 'staff', group: 'Система', title: 'Сотрудники', need: 'staff', hint: 'Кто работает в админке и с какой ролью.',
+    render: () => <StaffSection /> },
 ]
 
-export function AdminPage() {
-  const [token, setTokenState] = useState(adminToken.get())
-  const [role, setRole] = useState<AdminRole | null>(adminToken.role())
-  const [tab, setTab] = useState<Tab>('overview')
-  // Куда именно вести на целевой вкладке: алерт присылает и вкладку, и
-  // что там открыть, — иначе кнопка приводила бы на список из 29 формул.
-  const [focus, setFocus] = useState<string | undefined>()
-
-  const go = (next: string, target?: string) => { setTab(next as Tab); setFocus(target) }
-  const qc = useQueryClient()
-
-  // Игровые экраны держат html и body ровно в высоту окна: сцена вписывается
-  // в неё и скроллиться не должна. Админка — обычная длинная страница (один
-  // «Баланс» это 29 формул), и под тем же правилом прокрутка уезжала внутрь
-  // body: документ оставался 1000 px при содержимом в 2500. Отпускаем высоту
-  // на время, пока открыта админка, и возвращаем при уходе.
+export function AdminPage({ base = '/admin' }: { base?: string }) {
+  const [token, setToken] = useState(adminToken.get())
+  // Админка — обычная длинная страница, а игровые экраны держат html и body
+  // в высоту окна. Отпускаем высоту, пока открыта админка.
   useEffect(() => {
     const targets = [document.documentElement, document.body]
     const previous = targets.map(element => element.style.height)
@@ -79,118 +102,182 @@ export function AdminPage() {
     return () => { targets.forEach((element, index) => { element.style.height = previous[index] }) }
   }, [])
 
-  if (!token) {
-    return <AdminLogin onDone={(next, nextRole) => { setTokenState(next); setRole(nextRole) }} />
-  }
+  if (!token) return <AdminLogin onDone={next => { adminToken.set(next); setToken(next) }} />
+  return <AdminShell base={base} onSignedOut={() => { adminToken.clear(); setToken(null) }} />
+}
 
-  const logout = () => {
-    adminToken.clear()
-    void qc.invalidateQueries({ queryKey: ['admin'] })
-    setTokenState(null)
-    setRole(null)
+function AdminShell({ base, onSignedOut }: { base: string; onSignedOut: () => void }) {
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const params = useParams()
+  const [search] = useSearchParams()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const me = useQuery({ queryKey: ['admin', 'me'], queryFn: adminApi.me, retry: false, staleTime: 60_000 })
+
+  // Токен истёк или сессию закрыли — обратно ко входу.
+  useEffect(() => {
+    if (me.error instanceof AdminApiError && me.error.status === 401) onSignedOut()
+  }, [me.error, onSignedOut])
+
+  const allowed = useMemo(() => new Set(me.data?.permissions ?? []), [me.data])
+  const visible = SECTIONS.filter(section => allowed.has(section.need))
+  const key = (params['*'] ?? '').split('/')[0]
+  const current = visible.find(section => section.key === key) ?? visible[0]
+  const path = (section: string) => `${base}/${section}`
+
+  const signOut = useMutation({
+    mutationFn: (everywhere: boolean) => everywhere ? adminApi.logoutAll() : adminApi.logout(),
+    onSettled: (_r, _e, everywhere) => {
+      if (everywhere) adminDevice.clear()
+      qc.removeQueries({ queryKey: ['admin'] })
+      onSignedOut()
+    },
+  })
+
+  if (me.isLoading) return <div className="admx-loading" role="status">Загрузка…</div>
+  if (me.isError || !me.data) {
+    return <div className="admx-loading" role="alert">
+      Панель не загрузилась. <button type="button" onClick={() => void me.refetch()}>Повторить</button>{' '}
+      <button type="button" onClick={onSignedOut}>Войти заново</button>
+    </div>
   }
+  if (!current) return <div className="admx-loading" role="alert">У вашей роли нет доступных разделов.</div>
+
+  const ctx: Ctx = {
+    can: permission => allowed.has(permission),
+    roleFor: permission => allowed.has(permission) ? 'SUPER_ADMIN' : 'SUPPORT',
+    go: (section, focus) => navigate(path(section) + (focus ? `?focus=${encodeURIComponent(focus)}` : '')),
+    focus: search.get('focus') ?? undefined,
+  }
+  const groups = [...new Set(visible.map(section => section.group))]
 
   return (
-    <main className="s3 adm">
-      <header className="adm-head">
-        <span className="adm-role">
-          <ShieldAlert size={13} /> {role ?? 'ADMIN'}
-        </span>
-        <button type="button" className="adm-logout" onClick={logout}>
-          <LogOut size={12} /> Выйти
-        </button>
-      </header>
+    <div className={'admx' + (menuOpen ? ' is-menu' : '')}>
+      <aside className="admx-side" aria-label="Разделы панели">
+        <div className="admx-brand">
+          <ShieldCheck size={18} aria-hidden="true" />
+          <span><b>КООПЕРАТИВ</b><small>панель управления</small></span>
+          <button type="button" className="admx-close" aria-label="Закрыть меню" onClick={() => setMenuOpen(false)}><X size={18} /></button>
+        </div>
+        <nav className="admx-nav">
+          {groups.map(group => (
+            <div key={group} className="admx-group">
+              <span className="admx-group__title">{group}</span>
+              {visible.filter(section => section.group === group).map(section => (
+                <NavLink key={section.key} to={path(section.key)} onClick={() => setMenuOpen(false)}
+                  className={() => 'admx-link' + (section === current ? ' is-active' : '')}
+                  aria-current={section === current ? 'page' : undefined}>
+                  {section.title}
+                </NavLink>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="admx-user">
+          <span className="admx-user__name">{me.data.label}</span>
+          <span className="admx-user__role">{me.data.roleTitle}</span>
+          <div className="admx-user__actions">
+            <button type="button" disabled={signOut.isPending} onClick={() => signOut.mutate(false)}><LogOut size={13} /> Выйти</button>
+            {me.data.staffRole && <button type="button" disabled={signOut.isPending} onClick={() => signOut.mutate(true)}
+              title="Закрыть все входы и забыть запомненные устройства">Выйти везде</button>}
+          </div>
+        </div>
+      </aside>
+      <button type="button" className="admx-scrim" aria-label="Закрыть меню" tabIndex={-1} onClick={() => setMenuOpen(false)} />
 
-      <nav className="s3-group" aria-label="Разделы админки">
-        {TABS.map(item => (
-          <button
-            key={item.key}
-            type="button"
-            className={tab === item.key ? 'active' : ''}
-            onClick={() => setTab(item.key)}
-          >
-            {item.title}
-          </button>
-        ))}
-      </nav>
-
-      {tab === 'overview' && <OverviewSection onGo={go} />}
-      {tab === 'players' && <PlayersSection focusId={focus} onTrace={id => go('trace', id)} />}
-      {tab === 'support' && <SupportSection />}
-      {tab === 'chat' && <ChatSection />}
-      {tab === 'news' && <AnnouncementsSection />}
-      {tab === 'payouts' && <PayoutsSection />}
-      {tab === 'clans' && <ClansSection />}
-      {tab === 'territories' && <TerritoriesSection role={role} />}
-      {tab === 'claims' && <ClaimsSection role={role} />}
-      {tab === 'signals' && <SignalsSection />}
-      {tab === 'actions' && <ActionsSection role={role} />}
-      {tab === 'trace' && <TraceSection focus={focus} />}
-      {tab === 'balance' && <BalanceSection role={role} focus={focus} />}
-      {/* Расчёт тот же, что на игровой ручке, но под админским токеном:
-          требовать от администратора игровой аккаунт незачем. */}
-      {tab === 'sandbox' && <BalanceSandboxPage simulate={adminApi.simulateBalance} onGoFormula={id => go('balance', id)} />}
-      {tab === 'duel' && <CombatSandboxSection />}
-      {tab === 'items' && <CatalogSection role={role} />}
-    </main>
+      <div className="admx-main">
+        <header className="admx-top">
+          <button type="button" className="admx-burger" aria-label="Открыть меню" onClick={() => setMenuOpen(true)}><Menu size={20} /></button>
+          <div>
+            <h1>{current.title}</h1>
+            <p>{current.hint}</p>
+          </div>
+        </header>
+        <main className="s3 adm admx-content" key={current.key}>
+          {current.render(ctx)}
+        </main>
+      </div>
+    </div>
   )
 }
 
-/**
- * Вход в админку.
- *
- * Отдельный от игрового намеренно: у администратора своя учётная запись и
- * свой токен. Старая страница ходила в админские ручки с игровым токеном и
- * получала 401 — то есть не работала ни разу.
- */
-function AdminLogin({ onDone }: { onDone: (token: string, role: AdminRole) => void }) {
-  const [username, setUsername] = useState('')
+/** Вход сотрудника: ник и пароль, затем код из письма. */
+function AdminLogin({ onDone }: { onDone: (token: string) => void }) {
+  const [nickname, setNickname] = useState('')
   const [password, setPassword] = useState('')
+  const [challenge, setChallenge] = useState<{ id: string; email: string } | null>(null)
+  const [code, setCode] = useState('')
+  const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const codeRef = useRef<HTMLInputElement>(null)
 
-  const submit = async (event: React.FormEvent) => {
+  useEffect(() => { if (challenge) codeRef.current?.focus() }, [challenge])
+
+  const finish = (step: { token: string; deviceToken?: string }) => {
+    if (step.deviceToken) adminDevice.set(step.deviceToken)
+    onDone(step.token)
+  }
+  const explain = (problem: unknown, fallback: string) =>
+    setError(problem instanceof AdminApiError ? problem.message : fallback)
+
+  const start = async (event: React.FormEvent) => {
     event.preventDefault()
-    setBusy(true)
-    setError('')
+    setBusy(true); setError('')
     try {
-      const result = await adminApi.login(username.trim(), password)
-      onDone(result.token, result.role)
+      const step = await adminApi.staffLogin({ nickname: nickname.trim(), password, deviceToken: adminDevice.get() })
+      if (step.step === 'done') finish(step)
+      else { setChallenge({ id: step.challengeId, email: step.email }); setCode('') }
     } catch (problem) {
-      setError(problem instanceof AdminApiError && problem.status === 429
-        ? 'Слишком много попыток входа. Подождите минуту.'
-        : 'Неверный логин или пароль.')
-    } finally {
-      setBusy(false)
-    }
+      explain(problem, 'Не удалось войти. Проверьте связь и попробуйте ещё раз.')
+    } finally { setBusy(false) }
+  }
+
+  const verify = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!challenge) return
+    setBusy(true); setError('')
+    try {
+      const step = await adminApi.staffVerify({ challengeId: challenge.id, code, remember })
+      if (step.step === 'done') finish(step)
+    } catch (problem) {
+      explain(problem, 'Код не подошёл.')
+      if (problem instanceof AdminApiError && (problem.status === 410 || problem.status === 429)) setChallenge(null)
+    } finally { setBusy(false) }
   }
 
   return (
-    <main className="s3 adm">
-      <form className="adm-login" onSubmit={submit}>
-        <h3><ShieldAlert size={14} /> Вход в админку</h3>
-        <p className="adm-hint">
-          Учётная запись администратора отдельная от игровой: игровой токен
-          сюда не пускают.
-        </p>
-        <input
-          value={username}
-          onChange={event => setUsername(event.target.value)}
-          placeholder="Логин администратора"
-          autoComplete="username"
-          aria-label="Логин администратора"
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={event => setPassword(event.target.value)}
-          placeholder="Пароль"
-          autoComplete="current-password"
-          aria-label="Пароль"
-        />
-        <button type="submit" disabled={busy || !username.trim() || !password}>Войти</button>
+    <div className="admx-login">
+      <div className="admx-login__box">
+        <div className="admx-brand admx-brand--login">
+          <ShieldCheck size={20} aria-hidden="true" />
+          <span><b>КООПЕРАТИВ</b><small>панель управления</small></span>
+        </div>
+        {!challenge ? (
+          <form onSubmit={start}>
+            <label htmlFor="adm-nick">Ник</label>
+            <input id="adm-nick" value={nickname} onChange={event => setNickname(event.target.value)} autoComplete="username" autoFocus />
+            <label htmlFor="adm-pass">Пароль от игрового аккаунта</label>
+            <input id="adm-pass" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" />
+            <button type="submit" disabled={busy || !nickname.trim() || !password}>{busy ? 'Проверяем…' : 'Дальше'}</button>
+          </form>
+        ) : (
+          <form onSubmit={verify}>
+            <p className="admx-login__hint">Код из 6 цифр отправлен на <b>{challenge.email}</b>. Он действует 10 минут.</p>
+            <label htmlFor="adm-code">Код из письма</label>
+            <input id="adm-code" ref={codeRef} className="admx-login__code" value={code} inputMode="numeric" autoComplete="one-time-code"
+              maxLength={6} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} />
+            <label className="admx-login__check">
+              <input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />
+              Запомнить это устройство на 30 дней
+            </label>
+            <button type="submit" disabled={busy || code.length !== 6}>{busy ? 'Проверяем…' : 'Войти'}</button>
+            <button type="button" className="admx-login__back" onClick={() => { setChallenge(null); setError('') }}>← Другой ник</button>
+          </form>
+        )}
         {error && <Note text={error} kind="bad" />}
-      </form>
-    </main>
+        <p className="admx-login__foot">Вход только для сотрудников. <Link to="/">В игру</Link></p>
+      </div>
+    </div>
   )
 }

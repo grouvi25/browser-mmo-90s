@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { authenticate, requireAdminRole } from '../../shared/security/auth-middleware'
+import { authenticate, requirePermission } from '../../shared/security/auth-middleware'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { CharactersRepository } from '../characters/characters.repository'
@@ -37,7 +37,7 @@ export async function referralRoutes(fastify: FastifyInstance) {
     return reply.code(201).send(await ReferralService.requestPayout(character.id, parsed.data.amount, parsed.data.details, key))
   })
 
-  const ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN') }
+  const ADMIN = { preHandler: requirePermission('finance') }
   const Status = z.enum(['PENDING', 'PAID', 'REJECTED']).optional()
   const Close = z.object({ note: z.string().max(300).optional() })
 

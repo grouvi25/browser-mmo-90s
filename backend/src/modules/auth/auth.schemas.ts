@@ -1,9 +1,13 @@
 import { z } from 'zod'
+import { Nickname } from '../characters/characters.schemas'
 
 export const POLICY_REQUIRED = 'Нужно согласие с политикой обработки персональных данных'
 
 export const RegisterSchema = z.object({
-  login: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Only letters, digits, underscores'),
+  // Регистрация по нику (правка 29.10): ник и есть имя для входа. Отдельный
+  // логин латиницей принимается от старых клиентов и автотестов.
+  nickname: Nickname.optional(),
+  login: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Only letters, digits, underscores').optional(),
   email: z.string().email(),
   password: z.string().min(6).max(100),
   // Согласие с политикой обработки персональных данных обязательно.
@@ -13,7 +17,7 @@ export const RegisterSchema = z.object({
   captchaToken: z.string().max(4000).optional(),
   // Ник пригласившего из реферальной ссылки ?ref=.
   ref: z.string().max(64).optional(),
-})
+}).refine(data => !!(data.nickname || data.login), { message: 'Укажите ник', path: ['nickname'] })
 
 export const LoginSchema = z.object({
   login: z.string().min(1),

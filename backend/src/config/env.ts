@@ -38,6 +38,10 @@ const EnvSchema = z.object({
   // IP и проверка почтового домена включены только на проде.
   REGISTRATION_IP_DAILY_LIMIT: z.coerce.number().int().min(0).optional(),
   EMAIL_MX_CHECK:     z.enum(['on', 'off']).optional(),
+  // Старый вход в админку логином и паролем учётки admin_users (до 30.10).
+  // По умолчанию выключен на проде: там входят сотрудники с кодом из письма.
+  // 'on' — аварийно вернуть, если почта с кодами легла.
+  ADMIN_LEGACY_LOGIN: z.enum(['on', 'off']).optional(),
   // Яндекс SmartCaptcha: серверный ключ — секрет, клиентский отдаётся
   // странице регистрации. Без ключей капча выключена.
   SMARTCAPTCHA_SERVER_KEY: z.string().optional(),

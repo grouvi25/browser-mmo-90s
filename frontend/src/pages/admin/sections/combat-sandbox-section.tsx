@@ -270,7 +270,7 @@ export function ItemsSection({ role }: { role?: string | null }) {
         на вкладке «Ресурсы и материалы».{' '}
         {canEdit
           ? 'Цену и характеристики можно поправить прямо в строке, а новый предмет завести кнопкой рядом.'
-          : 'Править может только SUPER_ADMIN.'}
+          : 'Правка недоступна вашей роли.'}
       </p>
 
       <div className="adm-items__head">
@@ -283,7 +283,7 @@ export function ItemsSection({ role }: { role?: string | null }) {
         </div>
         {canEdit && (
           <button type="button" className="adm-link" onClick={() => setAdding(!adding)}>
-            <Plus size={12} /> {adding ? 'скрыть форму' : 'Добавить предмет'}
+            <Plus size={12} /> {adding ? 'скрыть форму' : 'Добавить вещь'}
           </button>
         )}
       </div>

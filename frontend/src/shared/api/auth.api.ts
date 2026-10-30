@@ -1,7 +1,7 @@
 import { api, setToken, removeToken } from './client'
 
 export const authApi = {
-  register: (data: { login: string; email: string; password: string; acceptPolicy?: boolean; website?: string; captchaToken?: string; ref?: string }) =>
+  register: (data: { nickname?: string; login?: string; email: string; password: string; acceptPolicy?: boolean; website?: string; captchaToken?: string; ref?: string }) =>
     api.post<{ id: string; login: string; email: string }>('/api/auth/register', data, { noAuth: true }),
 
   login: (data: { login: string; password: string }) =>

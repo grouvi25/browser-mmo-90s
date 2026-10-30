@@ -10,10 +10,10 @@
 // =============================================================
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { requireAdminRole } from '../../shared/security/auth-middleware'
+import { requirePermission } from '../../shared/security/auth-middleware'
 import { AdminStrategyService } from './admin-strategy.service'
 
-const READ_ADMIN = { preHandler: requireAdminRole('SUPER_ADMIN', 'MODERATOR', 'SUPPORT') }
+const READ_ADMIN = { preHandler: requirePermission('view') }
 
 const Id = z.string().uuid()
 const Limit = z.coerce.number().int().positive().max(500).optional()

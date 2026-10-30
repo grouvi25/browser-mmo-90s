@@ -38,8 +38,24 @@ export async function revokeSession(jti: string): Promise<void> {
 const ADMIN_SESSION_PREFIX = 'admin_session:'
 const ADMIN_SESSION_TTL_SECONDS = 12 * 60 * 60
 
-export async function storeAdminSession(jti: string, adminId: string): Promise<void> {
-  await getRedis().setex(`${ADMIN_SESSION_PREFIX}${jti}`, ADMIN_SESSION_TTL_SECONDS, adminId)
+// Сессии одной учётки — набором: «выйти везде» и снятие роли закрывают их разом.
+const ADMIN_SESSIONS_OF = (adminId: string) => `admin_sessions_of:${adminId}`
+
+export async function storeAdminSession(jti: string, adminId: string, ttlSeconds = ADMIN_SESSION_TTL_SECONDS): Promise<void> {
+  await getRedis().multi()
+    .setex(`${ADMIN_SESSION_PREFIX}${jti}`, ttlSeconds, adminId)
+    .sadd(ADMIN_SESSIONS_OF(adminId), jti)
+    .expire(ADMIN_SESSIONS_OF(adminId), ADMIN_SESSION_TTL_SECONDS)
+    .exec()
+}
+
+/** Закрыть все сессии учётки админки; вернёт, сколько было. */
+export async function revokeAllAdminSessions(adminId: string): Promise<number> {
+  const redis = getRedis()
+  const jtis = await redis.smembers(ADMIN_SESSIONS_OF(adminId))
+  if (jtis.length) await redis.del(...jtis.map(jti => `${ADMIN_SESSION_PREFIX}${jti}`))
+  await redis.del(ADMIN_SESSIONS_OF(adminId))
+  return jtis.length
 }
 
 export async function isAdminSessionValid(jti: string, adminId?: string): Promise<boolean> {

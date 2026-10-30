@@ -63,9 +63,9 @@ export function ForgotPasswordPage() {
       <form onSubmit={submit}>
         {error && <div className="alert alert-error">{error}</div>}
         <div className="form-group">
-          <label className="form-label" htmlFor="forgot-login">Логин или почта</label>
+          <label className="form-label" htmlFor="forgot-login">Ник или почта</label>
           <input id="forgot-login" className="form-input" type="text" autoComplete="username"
-            placeholder="Логин или почта, указанная при регистрации" value={login}
+            placeholder="Ник или почта, указанная при регистрации" value={login}
             onChange={e => setLogin(e.target.value)} autoFocus />
         </div>
         {captchaKey && <SmartCaptcha sitekey={captchaKey} onToken={setCaptchaToken} resetSignal={captchaReset} />}
@@ -113,7 +113,7 @@ export function ResetPasswordPage() {
   if (doneLogin) {
     return (
       <AuthShell footer={null}>
-        <div className="alert alert-success">Пароль сменён. Ваш логин: <b>{doneLogin}</b>.</div>
+        <div className="alert alert-success">Пароль сменён. Имя для входа: <b>{doneLogin}</b> — подойдёт и ник персонажа.</div>
         <button type="button" className="btn btn-primary btn-block" onClick={() => navigate('/login', { replace: true })}>
           Войти в игру
         </button>

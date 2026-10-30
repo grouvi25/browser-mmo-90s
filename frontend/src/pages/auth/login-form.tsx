@@ -42,8 +42,8 @@ export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
     <form onSubmit={handleSubmit}>
       {error && <div className="alert alert-error">{error}</div>}
       <div className="form-group">
-        <label className="form-label" htmlFor="login-login">Логин</label>
-        <input id="login-login" className="form-input" type="text" placeholder="Ваш логин" autoComplete="username"
+        <label className="form-label" htmlFor="login-login">Ник</label>
+        <input id="login-login" className="form-input" type="text" placeholder="Ваш ник" title="Старые аккаунты входят и по прежнему логину или почте" autoComplete="username"
           value={form.login} onChange={e => setForm(f => ({ ...f, login: e.target.value }))} autoFocus={autoFocus} />
       </div>
       <div className="form-group">

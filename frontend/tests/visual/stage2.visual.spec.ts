@@ -119,6 +119,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     const login = `browser_${suffix}`.slice(0, 30)
     const password = 'browser_pass_123'
     await page.goto('/register')
+    // Регистрация по нику: первое поле — ник, он же имя для входа.
     const inputs = page.locator('input')
     await inputs.nth(0).fill(login)
     await inputs.nth(1).fill(`${login}@visual.local`)
@@ -133,6 +134,8 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.locator('.arch-card')).toHaveCount(8)
     await page.locator('.arch-card').nth(1).click()
     await expect(page.locator('.arch-card').nth(1)).toHaveAttribute('aria-pressed', 'true')
+    // Ник выбран при регистрации (правка 29.10) — страница персонажа его подставляет.
+    await expect(page.locator('input[type="text"]')).toHaveValue(login)
     await page.locator('input[type="text"]').fill(`Hero_${suffix}`.slice(0, 30))
     await page.locator('button[type="submit"]').click()
     await expect(page).toHaveURL(/\/profile$/)
