@@ -403,11 +403,11 @@ function Bots({ data }: { data: Catalog }) {
     <>
       <p className="s4-lead">
         Боты — вход в боевую часть игры: с них начинают и по ним меряют, стоит ли
-        драться вообще. Награда деньгами здесь — денежный кран, и она напрямую
-        участвует в инфляции.
+        драться вообще. Денег за бой с 30.10 нет: деньги дают только премии
+        за новый уровень.
       </p>
       <div className="adm-scroll">
-        <Table head={['Бот', 'Уровень', 'Сила', 'HP', 'Опыт', 'Деньги', 'Активен']}>
+        <Table head={['Бот', 'Уровень', 'Сила', 'HP', 'Опыт', 'Активен']}>
           {data.bots.map(bot => (
             <tr key={bot.code}>
               <td>{bot.name}<em className="adm-row__hint">{bot.code}</em></td>
@@ -415,7 +415,6 @@ function Bots({ data }: { data: Catalog }) {
               <td className="num">{bot.power}</td>
               <td className="num">{bot.hpMax}</td>
               <td className="num">{bot.expReward}</td>
-              <td className="num">{rub(bot.moneyRewardMin)}–{rub(bot.moneyRewardMax)} ₽</td>
               <td>{bot.isActive ? 'да' : 'нет'}</td>
             </tr>
           ))}
@@ -477,7 +476,7 @@ function Everything({ data, onGo }: { data: Catalog; onGo: (page: Page) => void 
     })),
     ...data.bots.map(row => ({
       kind: 'Бот', page: 'bots' as Page, name: row.name, code: row.code,
-      note: `уровень ${row.battleLevel}, награда ${row.moneyRewardMin}–${row.moneyRewardMax} ₽`,
+      note: `уровень ${row.battleLevel}`,
     })),
     ...data.premium.map(row => ({
       kind: 'Премиум', page: 'premium' as Page, name: row.name, code: row.code,

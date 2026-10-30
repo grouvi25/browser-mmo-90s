@@ -30,9 +30,9 @@ describe('экономический уровень', () => {
   it('за два уровня разом — сила +2 и обе премии, повтор не начисляет', async () => {
     const char = await character()
     const result = await prisma.$transaction(tx => EconomyService.grantEconomicExp(tx, char.id, 4000))
-    expect(result).toMatchObject({ economicLevel: 2, levelsGained: 2, levelMoney: 145 + 365 })
+    expect(result).toMatchObject({ economicLevel: 2, levelsGained: 2, levelMoney: 2 * 10_000 })
     const after = await testPrisma.character.findUniqueOrThrow({ where: { id: char.id }, include: { stats: true } })
-    expect(after.money).toBe(1000 + 145 + 365)
+    expect(after.money).toBe(1000 + 2 * 10_000)
     expect(after.stats?.str).toBe(6)
     // Ещё опыта, но без нового уровня — ни силы, ни денег.
     await prisma.$transaction(tx => EconomyService.grantEconomicExp(tx, char.id, 100))

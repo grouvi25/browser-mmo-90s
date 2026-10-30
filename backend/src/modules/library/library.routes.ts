@@ -22,14 +22,14 @@ export async function libraryRoutes(fastify: FastifyInstance) {
     const battle = B.battleExp.levelThresholds.map((exp, i) => ({
       level: i + 1,
       exp,
-      // Премия выдаётся при переходе на уровень; 1-й — старт с 1 250 ₽.
+      // Премия выдаётся при переходе на уровень; у 1-го — стартовые деньги.
       money: i === 0 ? B.character.startMoney : B.battleExp.levelMoneyBonus[i] ?? 0,
       statPoints: i === 0 ? null : B.battleExp.statPointsPerLevel,
     }))
     const economic = B.economicExp.levelThresholds.map((exp, level) => ({
       level,
       exp,
-      money: level === 0 ? 0 : Math.floor(B.economicExp.levelMoneyShare * exp),
+      money: level === 0 ? 0 : B.economicExp.levelMoney,
       str: level === 0 ? 0 : B.economicExp.strPerLevel,
     }))
     const objects = await prisma.productionObject.findMany({

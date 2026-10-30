@@ -22,7 +22,7 @@ export function LocationTabs() {
     onSuccess: r => { void qc.invalidateQueries({ queryKey: ['housing'] }); navigate(r.to) },
   })
   const homeTab: LocationTab | null = exit.data?.via && exit.data.area.some(prefix => within(pathname, prefix))
-    ? { key: 'home', label: 'В дом', to: '/housing' }
+    ? { key: 'home', label: 'В дом', to: '/housing/home' }
     : null
   const tabs = homeTab ? [...menu.tabs, homeTab] : menu.tabs
   const active = activeTabKey(menu.tabs, pathname, search)

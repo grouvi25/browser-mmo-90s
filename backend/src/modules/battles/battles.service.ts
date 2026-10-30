@@ -66,7 +66,6 @@ import { EMPTY_GEAR, charmBalance, gearOf, withGearStats, type GearBonuses } fro
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
 import { applyBattleProgression } from '../experience/progression'
-import { EconomyService } from '../economy/economy.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
 import {
   applyTeamMoves,
@@ -2062,16 +2061,9 @@ export const BattleService = {
       })
       const newLevel = progression.newLevel
 
-      // Money reward
-      let moneyReward = 0
-      if (playerWon) {
-        moneyReward = Math.floor(Math.random() * (bot.moneyRewardMax - bot.moneyRewardMin + 1)) + bot.moneyRewardMin
-        if (moneyReward > 0) {
-          await EconomyService.credit(tx, {
-            characterId: char.id, amount: moneyReward, reasonCode: 'BATTLE_REWARD', refType: 'battle', refId: battleId,
-          })
-        }
-      }
+      // Денег за бой нет (документ Дмитрия 30.10): деньги — только премией
+      // за новый уровень. Поле в ответе остаётся нулём для старых клиентов.
+      const moneyReward = 0
 
       // Award each weapon family only for damage actually dealt with that hand.
       for (const entry of weaponExpEntries) {

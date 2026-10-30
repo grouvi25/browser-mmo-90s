@@ -144,15 +144,17 @@ describe('Жилой сектор', () => {
   it('туннель: вышел из дома — можно вернуться; ушёл другой дорогой — нельзя', async () => {
     const a = await player('tun')
     await HousingService.buy(a.character.id, HOUSE)
+    // На плане сектора — улица: туннель только изнутри дома.
     await CityService.move(a.user.id, '/housing')
-    await expect(HousingService.goThroughTunnel(a.character.id, 'farm')).rejects.toMatchObject({ statusCode: 409 })
     await HousingService.buyTunnel(a.character.id, 'farm')
+    await expect(HousingService.goThroughTunnel(a.character.id, 'farm')).rejects.toMatchObject({ statusCode: 409 })
+    await CityService.move(a.user.id, '/housing/home')
     expect(await HousingService.goThroughTunnel(a.character.id, 'farm')).toEqual({ to: '/farm' })
     expect((await testPrisma.character.findUniqueOrThrow({ where: { id: a.character.id } })).location).toBe('/farm')
     await CityService.move(a.user.id, '/plants')
     expect((await HousingService.exit(a.character.id)).via).toBe('farm')
-    expect(await HousingService.returnHome(a.character.id)).toEqual({ to: '/housing' })
-    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: a.character.id } })).location).toBe('/housing')
+    expect(await HousingService.returnHome(a.character.id)).toEqual({ to: '/housing/home' })
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: a.character.id } })).location).toBe('/housing/home')
 
     // Вышел туннелем, потом ушёл на рынок — обратного хода нет.
     await HousingService.goThroughTunnel(a.character.id, 'farm')

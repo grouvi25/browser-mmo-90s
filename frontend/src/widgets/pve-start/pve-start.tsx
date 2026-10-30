@@ -90,7 +90,7 @@ export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
                 title={tooStrong ? 'Заметно сильнее вас — бой рискованный' : undefined}
               >
                 <span className="arena-bot__name">{b.name}</span>
-                <span className="arena-bot__meta">ур. {b.battleLevel} · {b.moneyRewardMin}–{b.moneyRewardMax} ₽</span>
+                <span className="arena-bot__meta">ур. {b.battleLevel}</span>
                 {tooStrong && <span className="arena-bot__warn">рискованно</span>}
               </button>
             )
