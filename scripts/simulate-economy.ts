@@ -1,5 +1,6 @@
 import { writeFileSync } from 'fs'
 import { BalanceConfig } from '../backend/src/config/balance.config'
+import { calcBattleExp, getEconomicLevelFromExp, getLevelFromExp, typicalTargetPower } from '../backend/src/modules/stats/stats.formulas'
 
 const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`)
@@ -47,6 +48,10 @@ type Player = {
   upgradeLevel: number
   marketSales: number
   toolUsesLeft: number
+  battleExp: number
+  battleLevel: number
+  economicExp: number
+  economicLevel: number
 }
 const players: Player[] = Array.from({ length: playersCount }, (_, i) => ({
   profile: profiles[i % profiles.length],
@@ -57,8 +62,15 @@ const players: Player[] = Array.from({ length: playersCount }, (_, i) => ({
   upgradeLevel: 0,
   marketSales: 0,
   toolUsesLeft: 0,
+  battleExp: 0,
+  battleLevel: 1,
+  economicExp: 0,
+  economicLevel: 0,
 }))
-const minted = { battles: 0, salaries: 0, govSell: 0 }
+// Rules from 30.10 (customer): no starting money and no cash per fight; money
+// for fights comes only as the premium for a new battle level, and trade turns
+// into economic levels with a flat premium each.
+const minted = { levelPremiums: 0, economicPremiums: 0, salaries: 0, govSell: 0 }
 const burned = { repair: 0, governmentShop: 0, tools: 0, privateShop: 0, listingFee: 0, saleTax: 0, upgrades: 0 }
 const grossByProfile = new Map<string, number[]>()
 const netByProfile = new Map<string, number[]>()
@@ -68,6 +80,26 @@ function credit(player: Player, amount: number, faucet: keyof typeof minted) {
   player.money += amount
   player.grossToday += amount
   minted[faucet] += amount
+}
+/** Battle win: XP against a typical bot of the same level, premium per new level. */
+function winBattle(player: Player, killsToday: number) {
+  const exp = BalanceConfig.battleExp
+  player.battleExp += calcBattleExp({
+    damageDealt: 100, targetPower: typicalTargetPower(player.battleLevel), targetMaxHp: 100,
+    playerLevel: player.battleLevel, targetLevel: player.battleLevel, result: 'PVE_WIN',
+    antiFarmCoeff: Math.max(exp.pveDailyMin, 1 - killsToday * exp.pveDailyPenaltyPerKill),
+  })
+  const level = Math.max(player.battleLevel, getLevelFromExp(player.battleExp))
+  for (let next = player.battleLevel + 1; next <= level; next++) credit(player, exp.levelMoneyBonus[next - 1] ?? 0, 'levelPremiums')
+  player.battleLevel = level
+}
+/** Trade turnover feeds economic XP; each new economic level pays its premium. */
+function trade(player: Player, turnover: number) {
+  const econ = BalanceConfig.economicExp
+  player.economicExp += Math.floor(turnover * econ.turnoverRate)
+  const level = Math.max(player.economicLevel, getEconomicLevelFromExp(player.economicExp))
+  if (level > player.economicLevel) credit(player, (level - player.economicLevel) * econ.levelMoney, 'economicPremiums')
+  player.economicLevel = level
 }
 function burn(player: Player, amount: number, sink: keyof typeof burned): boolean {
   if (amount <= 0 || player.money < amount) return false
@@ -82,7 +114,7 @@ for (let day = 1; day <= days; day++) {
     player.grossToday = 0
 
     for (let battle = 0; battle < player.profile.battles; battle++) {
-      if (rnd() < simulation.battleWinRate) credit(player, int(simulation.battleRewardMin, simulation.battleRewardMax), 'battles')
+      if (rnd() < simulation.battleWinRate) winBattle(player, battle)
       player.durability -= simulation.weaponDurabilityLossPerFight
     }
 
@@ -95,7 +127,9 @@ for (let day = 1; day <= days; day++) {
       const work = BalanceConfig.economy.work
       const salary = Math.round(100 * (work.salaryRandomMin + rnd() * (work.salaryRandomMax - work.salaryRandomMin)) * shiftFatigue(shift))
       credit(player, salary, 'salaries')
-      credit(player, int(2, 4) * 2, 'govSell')
+      const sold = int(2, 4) * 2
+      credit(player, sold, 'govSell')
+      trade(player, sold)
       player.toolUsesLeft--
     }
 
@@ -123,6 +157,7 @@ for (let day = 1; day <= days; day++) {
         burned.listingFee -= tax
         burned.saleTax += tax
         player.marketSales++
+        trade(player, price)
       }
     }
 
@@ -153,14 +188,20 @@ const profileReport = Object.fromEntries(profiles.map(profile => {
     netIncomePerDay: { median: median(net), p25: percentile(net, 0.25), p75: percentile(net, 0.75) },
   }]
 }))
-const grossMedians = Object.values(profileReport).map(value => value.grossIncomePerDay.median)
-const netMedians = Object.values(profileReport).map(value => value.netIncomePerDay.median)
+// A pure fighter has no daily income by design since 30.10 (premiums per level
+// only), so the corridor and parity apply to profiles that work shifts; the
+// fighter is reported, not judged.
+const judged = profiles.filter(profile => profile.shifts > 0).map(profile => profileReport[profile.key])
+const grossMedians = judged.map(value => value.grossIncomePerDay.median)
+const netMedians = judged.map(value => value.netIncomePerDay.median)
 const grossParityRatio = Math.max(...grossMedians) / Math.max(1, Math.min(...grossMedians))
 const netParitySpread = Math.max(...netMedians) - Math.min(...netMedians)
 
 const verdicts = {
-  incomeCorridor: grossMedians.every(value => value >= 400 && value <= 700),
-  profileParity: grossParityRatio <= 1.35 && netParitySpread <= 180,
+  // Norms since 30.10 (owner accepted): money comes from work and trade, fights
+  // pay only level premiums — the corridor floor is 300, the worker/mixed spread 250.
+  incomeCorridor: grossMedians.every(value => value >= 300 && value <= 700),
+  profileParity: grossParityRatio <= 1.35 && netParitySpread <= 250,
   sinkHealth: sinkShare >= 0.45 && sinkShare <= 0.80,
   netEmission: netEmissionShare >= 0.20 && netEmissionShare <= 0.55,
   // M2 grows mostly linearly in this closed model; this compounded rate naturally peaks mid-horizon.
