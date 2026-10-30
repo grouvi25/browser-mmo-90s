@@ -140,6 +140,7 @@ jobs:
             set -euo pipefail
             cd ${{ secrets.VPS_PROJECT_DIR }}
             ln -sfn "${{ secrets.VPS_PROJECT_DIR }}/infra/nginx/vhost-vps.conf" /etc/nginx/sites-enabled/mmo90s-game
+            ln -sfn "${{ secrets.VPS_PROJECT_DIR }}/infra/nginx/vhost-admin.conf" /etc/nginx/sites-enabled/mmo90s-admin
             rm -f /etc/nginx/sites-enabled/mmo90s
             nginx -t
             systemctl reload nginx
