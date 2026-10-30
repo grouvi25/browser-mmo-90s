@@ -8,6 +8,7 @@
 import { resolveAttack, resolveZonalAttack, calcInitiative } from '../backend/src/modules/battles/battle.formulas'
 import { calcHpMax, calcRepairCost } from '../backend/src/modules/stats/stats.formulas'
 import type { AttackerSnapshot, DefenderSnapshot } from '../backend/src/modules/battles/battle.formulas'
+import { BalanceConfig } from '../backend/src/config/balance.config'
 
 // ─── Стартовый персонаж (уровень 1, базовые статы) ───────────────────────────
 if (process.argv.includes('--zonal')) {
@@ -33,7 +34,9 @@ if (process.argv.includes('--zonal')) {
     if (result.blockPierced) blockPierced++
   }
   const hitRate = hits / 1000
-  const ok = hitRate >= 0.05 && hitRate <= 0.95 && damage >= 0
+  // Удар по книге (30.10): уворот 1–35%, значит до защитника доходит 65–99% ударов.
+  const strike = BalanceConfig.strike
+  const ok = hitRate >= 1 - strike.dodgeMax && hitRate <= 1 - strike.dodgeMin && damage >= 0
   console.log(JSON.stringify({ mode: 'zonal', runs: 1000, hitRate, damage, blockPierced, ok }, null, 2))
   process.exit(ok ? 0 : 1)
 }
