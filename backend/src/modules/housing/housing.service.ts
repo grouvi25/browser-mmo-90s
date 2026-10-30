@@ -40,6 +40,8 @@ import { ResourcesService } from '../resources/resources.service'
 import { when } from '../clans/house-siege.formulas'
 import { HOUSING, LOT_COUNT, TUNNELS, type TunnelCode, homeBonusActive, homeExpBonus, insideTunnelArea, isLot, lotKind, lotLabel, NEWBIE_PROTECTION_LEVEL } from './housing.config'
 
+// Внутри своего жилья (правка 30.10): туннели только отсюда, сюда же «В дом».
+const HOME_PATH = '/housing/home'
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
 const OPEN: Array<'PENDING' | 'IN_BATTLE'> = ['PENDING', 'IN_BATTLE']
@@ -359,7 +361,7 @@ export const HousingService = {
       if (!home) throw new AppError(ErrorCode.NOT_FOUND, 'Сначала купите жильё', 404)
       if (!HOUSING.tunnelKinds.includes(home.kind)) throw new AppError(ErrorCode.CONFLICT, 'Туннели есть только у дома', 409)
       if (!home.tunnels.includes(code)) throw new AppError(ErrorCode.CONFLICT, 'Этот туннель ещё не прорыт', 409)
-      if (!character || character.status !== 'ACTIVE' || character.location !== '/housing') {
+      if (!character || character.status !== 'ACTIVE' || character.location !== HOME_PATH) {
         throw new AppError(ErrorCode.CONFLICT, 'В туннель можно войти только из своего дома', 409)
       }
       await tx.playerHome.update({ where: { id: home.id }, data: { outVia: code } })
@@ -396,8 +398,8 @@ export const HousingService = {
       }
       if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.CONFLICT, 'Сейчас нельзя вернуться домой', 409)
       await tx.playerHome.update({ where: { id: home.id }, data: { outVia: null } })
-      await tx.character.update({ where: { id: characterId }, data: { location: '/housing', lastLocation: '/housing' } })
-      return { to: '/housing' }
+      await tx.character.update({ where: { id: characterId }, data: { location: HOME_PATH, lastLocation: HOME_PATH } })
+      return { to: HOME_PATH }
     })
   },
 

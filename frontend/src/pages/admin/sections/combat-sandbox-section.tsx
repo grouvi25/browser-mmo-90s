@@ -16,9 +16,10 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Swords } from 'lucide-react'
-import { adminApi, REASON_MIN, type CombatResult, type CombatSide, type Fighter, type ItemTemplateRow } from '../admin-api'
-import { Skeleton, Fault, Note } from '../../stage3/stage3-ui'
+import { adminApi, type CombatResult, type CombatSide, type Fighter, type ItemTemplateRow } from '../admin-api'
+import { Skeleton, Fault } from '../../stage3/stage3-ui'
 import { ItemCreateForm } from './item-create-form'
+import { CHARMS, GEAR_STATS, KINDS, shopTitle } from './item-catalog'
 
 const pct = (value: number) => `${(value * 100).toFixed(1)}%`
 
@@ -241,7 +242,8 @@ function FighterForm({
 }
 
 /**
- * Предметы игры: справочник и правка.
+ * Предметы игры: справочник и правка (переделка 30.10 — одна форма на
+ * создание, правку и копию, в списке видно, где вещь продаётся и что даёт).
  *
  * Цены и характеристики правятся прямо здесь — с причиной и через журнал,
  * как всякое админское действие. Смотреть на таблицу и не мочь поменять
@@ -252,24 +254,26 @@ export function ItemsSection({ role }: { role?: string | null }) {
   const qc = useQueryClient()
   const items = useQuery({ queryKey: ['admin', 'items'], queryFn: adminApi.sandboxItems })
   const [type, setType] = useState<string>('WEAPON')
-  const [adding, setAdding] = useState(false)
+  // Открытая форма: новая вещь, правка или копия конкретной вещи.
+  const [form, setForm] = useState<{ mode: 'create' } | { mode: 'edit' | 'copy'; code: string } | null>(null)
+  const [search, setSearch] = useState('')
   const canEdit = role === 'SUPER_ADMIN'
 
   if (items.isLoading) return <Skeleton rows={4} />
   if (items.isError) return <Fault retry={() => items.refetch()} />
 
   const all = items.data?.items ?? []
-  const types = [...new Set(all.map(item => item.type))]
-  const shown = all.filter(item => item.type === type)
+  const types = KINDS.map(([kind]) => kind).filter(kind => all.some(item => item.type === kind))
+  const needle = search.trim().toLowerCase()
+  const shown = all.filter(item => item.type === type && (!needle || item.name.toLowerCase().includes(needle)))
+  const done = () => { setForm(null); void qc.invalidateQueries({ queryKey: ['admin', 'items'] }) }
 
   return (
     <>
       <p className="s4-lead">
-        {all.length} вещей — оружие, броня, расходники и инструменты, то, что
-        реально лежит в базе, а не в сиде. Материалы и сырьё сюда не входят: они
-        на вкладке «Ресурсы и материалы».{' '}
+        {all.length} вещей — то, что реально лежит в базе. Материалы и сырьё — на вкладке «Ресурсы и материалы».{' '}
         {canEdit
-          ? 'Цену и характеристики можно поправить прямо в строке, а новый предмет завести кнопкой рядом.'
+          ? 'Новая вещь — кнопкой «Добавить вещь»; похожую на готовую быстрее завести через «копия» у образца. «Править» открывает ту же форму с заполненными полями.'
           : 'Правка недоступна вашей роли.'}
       </p>
 
@@ -277,37 +281,39 @@ export function ItemsSection({ role }: { role?: string | null }) {
         <div className="s3-tabs">
           {types.map(kind => (
             <button key={kind} type="button" className={kind === type ? 'active' : ''} onClick={() => setType(kind)}>
-              {kind} ({all.filter(item => item.type === kind).length})
+              {KIND_TITLE[kind] ?? kind} ({all.filter(item => item.type === kind).length})
             </button>
           ))}
         </div>
+        <input className="adm-items__search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Найти по названию" aria-label="Найти вещь по названию" />
         {canEdit && (
-          <button type="button" className="adm-link" onClick={() => setAdding(!adding)}>
-            <Plus size={12} /> {adding ? 'скрыть форму' : 'Добавить вещь'}
+          <button type="button" className="adm-link" onClick={() => setForm(form?.mode === 'create' ? null : { mode: 'create' })}>
+            <Plus size={12} /> {form?.mode === 'create' ? 'скрыть форму' : 'Добавить вещь'}
           </button>
         )}
       </div>
 
-      {adding && (
-        <ItemCreateForm onDone={() => {
-          setAdding(false)
-          void qc.invalidateQueries({ queryKey: ['admin', 'items'] })
-        }} />
-      )}
+      {form?.mode === 'create' && <ItemCreateForm onDone={done} onCancel={() => setForm(null)} />}
 
       <div className="adm-scroll">
         <table className="adm-table">
           <thead>
             <tr>
-              <th>Название</th><th>Код</th><th>Ур.</th><th>Цена</th>
-              <th>Урон</th><th>Точность</th><th>Броня</th><th>Прочность</th><th>Вес</th>
+              <th>Название</th><th>Ур.</th><th>Где продаётся</th><th>Основа</th><th>Даёт</th>
               {canEdit && <th></th>}
             </tr>
           </thead>
           <tbody>
-            {shown.map(item => (
-              <ItemRow key={item.code} item={item} canEdit={canEdit} />
-            ))}
+            {shown.map(item => form && form.mode !== 'create' && form.code === item.code
+              ? (
+                <tr key={item.code} className="adm-item is-editing">
+                  <td colSpan={6}>
+                    <ItemCreateForm key={`${form.mode}-${item.code}`} mode={form.mode} initial={item} onDone={done} onCancel={() => setForm(null)} />
+                  </td>
+                </tr>
+              )
+              : <ItemRow key={item.code} item={item} canEdit={canEdit} onEdit={() => setForm({ mode: 'edit', code: item.code })} onCopy={() => setForm({ mode: 'copy', code: item.code })} />)}
+            {shown.length === 0 && <tr><td colSpan={6} className="adm-hint">Ничего не нашлось.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -315,96 +321,43 @@ export function ItemsSection({ role }: { role?: string | null }) {
   )
 }
 
-/** Числовые поля, которые имеет смысл править из панели. */
-const EDITABLE: { key: keyof ItemTemplateRow; label: string; step?: number }[] = [
-  { key: 'priceBase', label: 'Цена' },
-  { key: 'levelReq', label: 'Уровень' },
-  { key: 'minDamage', label: 'Урон от' },
-  { key: 'maxDamage', label: 'Урон до' },
-  { key: 'weaponAccuracy', label: 'Точность', step: 0.01 },
-  { key: 'armor', label: 'Броня' },
-  { key: 'durabilityMax', label: 'Прочность' },
-  { key: 'weight', label: 'Вес', step: 0.1 },
-]
+const KIND_TITLE: Record<string, string> = Object.fromEntries(KINDS.map(([kind, title]) => [kind, title.replace(/ \(.*\)$/, '')]))
 
-function ItemRow({ item, canEdit }: { item: ItemTemplateRow; canEdit: boolean }) {
-  const qc = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState<Record<string, string>>({})
-  const [reason, setReason] = useState('')
-  const [error, setError] = useState('')
+/** Что вещь даёт надевшему — одной строкой, как в карточке игрока. */
+function gives(item: ItemTemplateRow): string {
+  const parts = [
+    ...GEAR_STATS.filter(([key]) => item.statBonuses?.[key]).map(([key, label]) => `${label} ${item.statBonuses![key] > 0 ? '+' : ''}${item.statBonuses![key]}`),
+    item.hpBonus && item.type !== 'CONSUMABLE' ? `HP +${item.hpBonus}` : '',
+    item.critBonus ? `крит +${Math.round(item.critBonus * 1000) / 10}%` : '',
+    item.dodgeBonus ? `уворот +${Math.round(item.dodgeBonus * 1000) / 10}%` : '',
+    ...CHARMS.filter(([key]) => (item as unknown as Record<string, number | null>)[key]).map(([key, label]) => {
+      const value = (item as unknown as Record<string, number>)[key]
+      return `${label.toLowerCase()} ${value > 0 ? '+' : ''}${Math.round(value * 1000) / 10}%`
+    }),
+    item.statBudget ? `${item.statBudget} очк.` : '',
+  ].filter(Boolean)
+  return parts.length ? parts.join(', ') : '—'
+}
 
-  const save = useMutation({
-    mutationFn: () => {
-      // Отправляем только изменённое: обратная операция пишется по этим же
-      // полям, и лишние затёрли бы чужую правку соседнего поля.
-      const fields: Record<string, number> = {}
-      for (const field of EDITABLE) {
-        const raw = draft[field.key as string]
-        if (raw === undefined || raw === '') continue
-        const next = Number(raw)
-        if (next !== item[field.key]) fields[field.key as string] = next
-      }
-      return adminApi.updateItem(item.code, fields, reason.trim())
-    },
-    onSuccess: () => {
-      setEditing(false); setReason(''); setError(''); setDraft({})
-      void qc.invalidateQueries({ queryKey: ['admin', 'items'] })
-    },
-    onError: (err: Error) => setError(err.message),
-  })
-
-  if (editing) {
-    return (
-      <tr className="adm-item is-editing">
-        <td colSpan={10}>
-          <div className="adm-item__edit">
-            <b>{item.name}</b> <code>{item.code}</code>
-            <div className="adm-item__fields">
-              {EDITABLE.map(field => (
-                <label key={field.key as string}>
-                  <span>{field.label}</span>
-                  <input
-                    type="number" step={field.step ?? 1}
-                    defaultValue={item[field.key] === null ? '' : String(item[field.key])}
-                    onChange={event => setDraft({ ...draft, [field.key as string]: event.target.value })}
-                  />
-                </label>
-              ))}
-            </div>
-            <div className="adm-item__save">
-              <input
-                value={reason}
-                onChange={event => setReason(event.target.value)}
-                placeholder={`Причина, от ${REASON_MIN} символов`}
-                aria-label="Причина правки предмета"
-              />
-              <button type="button" disabled={save.isPending || reason.trim().length < REASON_MIN}
-                onClick={() => save.mutate()}>Сохранить</button>
-              <button type="button" className="adm-link"
-                onClick={() => { setEditing(false); setError('') }}>отмена</button>
-            </div>
-            {error && <Note text={error} kind="bad" />}
-          </div>
-        </td>
-      </tr>
-    )
-  }
-
+function ItemRow({ item, canEdit, onEdit, onCopy }: { item: ItemTemplateRow; canEdit: boolean; onEdit: () => void; onCopy: () => void }) {
+  const base = item.minDamage != null
+    ? `урон ${item.minDamage}–${item.maxDamage}${item.weaponAccuracy != null ? `, точн. ${Math.round(item.weaponAccuracy * 100)}%` : ''}`
+    : item.armor != null ? `броня ${item.armor}`
+      : item.type === 'CONSUMABLE' && item.hpBonus ? `лечит ${item.hpBonus} HP` : '—'
+  const sales = item.sales?.length
+    ? item.sales.map(s => `${shopTitle(s.shop)} ${s.price.toLocaleString('ru-RU')} ${s.currency === 'USD' ? '$' : '₽'}${s.isAvailable ? '' : ' (снята)'}`).join('; ')
+    : 'не продаётся'
   return (
-    <tr>
-      <td>{item.name}</td>
-      <td><code>{item.code}</code></td>
+    <tr className={item.isActive === false ? 'is-muted' : undefined}>
+      <td>{item.name}<em className="adm-row__hint">{item.code}</em></td>
       <td className="num">{item.levelReq ?? '—'}</td>
-      <td className="num">{item.priceBase?.toLocaleString('ru-RU') ?? '—'}</td>
-      <td className="num">{item.minDamage != null ? `${item.minDamage}–${item.maxDamage}` : '—'}</td>
-      <td className="num">{item.weaponAccuracy ?? '—'}</td>
-      <td className="num">{item.armor ?? '—'}</td>
-      <td className="num">{item.durabilityMax ?? '—'}</td>
-      <td className="num">{item.weight ?? '—'}</td>
+      <td>{sales}</td>
+      <td>{base}</td>
+      <td>{gives(item)}</td>
       {canEdit && (
-        <td>
-          <button type="button" className="adm-link" onClick={() => setEditing(true)}>править</button>
+        <td className="adm-items__acts">
+          <button type="button" className="adm-link" onClick={onEdit}>править</button>
+          <button type="button" className="adm-link" onClick={onCopy}>копия</button>
         </td>
       )}
     </tr>

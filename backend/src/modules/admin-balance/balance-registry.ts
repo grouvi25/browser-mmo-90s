@@ -270,7 +270,7 @@ export function balanceRegistry(): BalanceGroup[] {
           inputs: ['сумма сделки'],
           params: [
             p('economicExp.turnoverRate', B.economicExp.turnoverRate, 'доля оборота в опыт'),
-            p('economicExp.levelMoneyShare', B.economicExp.levelMoneyShare, 'премия за уровень — доля порога'),
+            p('economicExp.levelMoney', B.economicExp.levelMoney, 'премия деньгами за каждый уровень'),
             p('economicExp.strPerLevel', B.economicExp.strPerLevel, 'сила за уровень'),
           ],
           source: 'modules/market/market.formulas.ts',

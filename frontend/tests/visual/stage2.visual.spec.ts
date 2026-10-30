@@ -1,5 +1,5 @@
 import { expect, request as playwrightRequest, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
-import { unlockLocations } from './admin-session'
+import { grantMoney, unlockLocations } from './admin-session'
 import AxeBuilder from '@axe-core/playwright'
 import { DESIGNER_BATTLE_COLUMNS, DESIGNER_BATTLE_ROWS } from '../../src/shared/lib/designer-battle-grid'
 import { MENU } from '../../src/shared/lib/layout-map'
@@ -30,6 +30,7 @@ async function createAccount(request: APIRequestContext, prefix: string): Promis
   })
   expect(created.status()).toBe(201)
   const character = await created.json() as { id: string }
+  await grantMoney(request, character.id)
   return { token: auth.token, userId: auth.userId, login, nickname, characterId: character.id }
 }
 

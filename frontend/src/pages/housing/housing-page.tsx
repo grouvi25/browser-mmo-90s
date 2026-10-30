@@ -11,11 +11,15 @@
 // вернуться в дом тем же туннелем (вкладка «В дом» внизу); у жилья свой
 // склад — ящики, которых не видно из центра; квартира даёт только опыт и
 // склад, туннели — только у дома.
+//
+// Правка 30.10: своё жильё — отдельный экран «в доме» (/housing/home). На
+// плане сектора мы на улице, там только покупка и налёты; в дом проходят
+// кнопкой «Моё жильё», и туннели ведут только оттуда.
 // =============================================================
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Home, Building2, Hammer, Package, Shovel, Swords } from 'lucide-react'
+import { Home, Building2, Hammer, Package, Shovel, Swords, DoorOpen } from 'lucide-react'
 import { housingApi, type HomeKind, type HomeRaid, type HousingLot, type HousingView } from '../../shared/api/housing.api'
 import { resourcesApi } from '../../shared/api/resources.api'
 import { SCENES } from '../../shared/ui/sprite'
@@ -36,22 +40,20 @@ export function HousingPage() {
   const fail = (e: Error) => setMsg({ text: e.message, bad: true })
 
   const buy = useMutation({ mutationFn: housingApi.buy, onSuccess: r => { setPicked(null); done(`Жильё ваше. Списано ${r.cost} $.`) }, onError: fail })
-  const tunnel = useMutation({ mutationFn: housingApi.tunnel, onSuccess: () => done('Туннель прорыт.'), onError: fail })
-  const repair = useMutation({ mutationFn: housingApi.repair, onSuccess: r => done(`Отремонтировано за ${r.cost.toLocaleString('ru')} ₽.`), onError: fail })
   const fileRaid = useMutation({ mutationFn: housingApi.fileRaid, onSuccess: r => done(`Налёт объявлен: бой ${when(r.startsAt)} по Москве. Записывайтесь в нападение.`), onError: fail })
   const raidAction = useMutation({
     mutationFn: ({ raidId, side }: { raidId: string; side: 1 | 2 | null }) => side ? housingApi.signupRaid(raidId, side) : housingApi.unsignRaid(raidId),
     onSuccess: (_r, v) => done(v.side === 1 ? 'Вы в нападении.' : v.side === 2 ? 'Вы в обороне.' : 'Вы выписались.'),
     onError: fail,
   })
-  const go = useMutation({ mutationFn: housingApi.go, onSuccess: r => { void qc.invalidateQueries({ queryKey: ['housing', 'exit'] }); navigate(r.to) }, onError: fail })
-  const busy = buy.isPending || tunnel.isPending || repair.isPending || fileRaid.isPending || raidAction.isPending || go.isPending
+  const busy = buy.isPending || fileRaid.isPending || raidAction.isPending
 
   const data = query.data
   const lot = data && picked ? data.lots[picked - 1] : null
-  // Правка заказчика 28.10: при входе — картинка и список жилья, управление
-  // своим открывается только по нажатию на него, а не висит сверху сразу.
+  // Правка заказчика 28.10: при входе — картинка и список жилья; 30.10:
+  // своё жильё открывается отдельным экраном — заходим в дом.
   const myLot = data?.lots.find(l => l.home?.mine) ?? null
+  const pick = (n: number) => { if (myLot && n === myLot.lot) navigate('/housing/home'); else setPicked(n) }
 
   return (
     <div className="housing">
@@ -64,19 +66,47 @@ export function HousingPage() {
           <h3>Недвижимость</h3>
           {myLot && (
             <div className="housing__actions">
-              <button type="button" className="btn" aria-pressed={picked === myLot.lot} onClick={() => setPicked(myLot.lot)}>
-                <Home size={13} /> Моё жильё · {myLot.label}
+              <button type="button" className="btn" onClick={() => navigate('/housing/home')}>
+                <DoorOpen size={13} /> Войти: моё жильё · {myLot.label}
               </button>
             </div>
           )}
-          <SectorPlan lots={data.lots} picked={picked} onPick={setPicked} />
-          {lot && lot.home?.mine && data.home
-            ? <MyHome data={data} busy={busy} onTunnel={code => tunnel.mutate(code)} onRepair={() => repair.mutate()} onGo={to => navigate(to)} onWalk={code => go.mutate(code)} />
-            : lot
-              ? <LotCard lot={lot} data={data} busy={busy} onBuy={() => buy.mutate(lot.lot)} onRaid={id => fileRaid.mutate(id)}
-                  onSide={(raidId, side) => raidAction.mutate({ raidId, side })} />
-              : <p className="housing__muted">{data.home ? 'Нажмите на своё жильё, чтобы им управлять, или на чужое — для налёта.' : `Выберите свободное жильё. Покупка только за доллары, у вас ${data.wallet.dollars} $.`}</p>}
+          <SectorPlan lots={data.lots} picked={picked} onPick={pick} />
+          {lot
+            ? <LotCard lot={lot} data={data} busy={busy} onBuy={() => buy.mutate(lot.lot)} onRaid={id => fileRaid.mutate(id)}
+                onSide={(raidId, side) => raidAction.mutate({ raidId, side })} />
+            : <p className="housing__muted">{data.home ? 'Войдите в своё жильё, чтобы им управлять, или нажмите на чужое — для налёта.' : `Выберите свободное жильё. Покупка только за доллары, у вас ${data.wallet.dollars} $.`}</p>}
         </section>
+      </>}
+    </div>
+  )
+}
+
+/** Внутри своего жилья: склад, ремонт, ящики, туннели. Тут на игрока не
+    нападают; без жилья — обратно на план сектора. */
+export function HousingHomePage() {
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const [msg, setMsg] = useState<{ text: string; bad: boolean } | null>(null)
+  const query = useQuery({ queryKey: ['housing'], queryFn: housingApi.view })
+  const done = (text: string) => { setMsg({ text, bad: false }); void qc.invalidateQueries({ queryKey: ['housing'] }); void qc.invalidateQueries({ queryKey: ['character'] }) }
+  const fail = (e: Error) => setMsg({ text: e.message, bad: true })
+  const tunnel = useMutation({ mutationFn: housingApi.tunnel, onSuccess: () => done('Туннель прорыт.'), onError: fail })
+  const repair = useMutation({ mutationFn: housingApi.repair, onSuccess: r => done(`Отремонтировано за ${r.cost.toLocaleString('ru')} ₽.`), onError: fail })
+  const go = useMutation({ mutationFn: housingApi.go, onSuccess: r => { void qc.invalidateQueries({ queryKey: ['housing', 'exit'] }); navigate(r.to) }, onError: fail })
+  const busy = tunnel.isPending || repair.isPending || go.isPending
+  const data = query.data
+  if (data && !data.home) return <Navigate to="/housing" replace />
+  return (
+    <div className="housing">
+      {msg && <p className={'housing__msg' + (msg.bad ? ' is-bad' : '')} role={msg.bad ? 'alert' : 'status'}>{msg.text}</p>}
+      {query.isLoading && <p role="status">Загрузка…</p>}
+      {query.isError && <p role="alert">Жильё не загрузилось. <button type="button" className="btn btn-sm" onClick={() => void query.refetch()}>Повторить</button></p>}
+      {data?.home && <>
+        <div className="housing__actions">
+          <button type="button" className="btn btn-ghost" onClick={() => navigate('/housing')}><DoorOpen size={13} /> Выйти на улицу</button>
+        </div>
+        <MyHome data={data} busy={busy} onTunnel={code => tunnel.mutate(code)} onRepair={() => repair.mutate()} onGo={to => navigate(to)} onWalk={code => go.mutate(code)} />
       </>}
     </div>
   )
@@ -216,7 +246,7 @@ function MyHome({ data, busy, onTunnel, onRepair, onGo, onWalk }: {
         {home.durability < 100 && <button type="button" className="btn" disabled={busy || data.wallet.money < repairCost} onClick={onRepair}>
           <Hammer size={13} /> Ремонт за {repairCost.toLocaleString('ru')} ₽</button>}
       </div>
-      {home.kind === 'APARTMENT' && <p className="housing__muted">Переехать в дом можно доплатой: выберите свободный дом на плане.</p>}
+      {home.kind === 'APARTMENT' && <p className="housing__muted">Переехать в дом можно доплатой: выйдите на улицу и выберите свободный дом на плане.</p>}
       <HomeStorage />
       {data.tunnelKinds.includes(home.kind) ? <>
         <h4 className="housing__sub">Туннели из дома</h4>

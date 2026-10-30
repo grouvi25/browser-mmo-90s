@@ -38,7 +38,7 @@ import { LocationHubPage, type DistrictKey } from '../pages/locations/location-h
 import { Stage3Page }           from '../pages/stage3/stage3-page'
 import { Stage4Page }           from '../pages/stage4/stage4-page'
 import { PolitikaPage }         from '../pages/legal/politika-page'
-import { HousingPage }          from '../pages/housing/housing-page'
+import { HousingPage, HousingHomePage } from '../pages/housing/housing-page'
 import { SupportPage }          from '../pages/support/support-page'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -309,6 +309,10 @@ export function AppRouter() {
         <Route path="/housing" element={
           <ViewportPanel title="Жилой сектор" subtitle="Квартиры и дома">
             <HousingPage />
+          </ViewportPanel>} />
+        <Route path="/housing/home" element={
+          <ViewportPanel title="Моё жильё" subtitle="Дома на вас не нападут">
+            <HousingHomePage />
           </ViewportPanel>} />
         <Route path="/work" element={
           <ViewportPanel title="Работа" subtitle="Смены, зарплата и профессии">

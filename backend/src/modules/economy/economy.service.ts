@@ -53,12 +53,11 @@ export const EconomyService = {
     const character = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { economicExp: true, economicLevel: true } })
     const economicExp = character.economicExp + amount
     const economicLevel = getEconomicLevelFromExp(economicExp)
-    // За каждый новый уровень — по разу: сила и премия десятой долей порога
-    // (книга «Ревизия 2»). Уровень вниз не идёт: опыт только копится.
+    // За каждый новый уровень — по разу: сила и премия (10 000 ₽, правка
+    // 30.10). Уровень вниз не идёт: опыт только копится.
     const gained = Math.max(0, economicLevel - character.economicLevel)
     const E = BalanceConfig.economicExp
-    const levelMoney = Array.from({ length: gained }, (_, i) => character.economicLevel + 1 + i)
-      .reduce((sum, level) => sum + Math.floor(E.levelMoneyShare * (E.levelThresholds[level] ?? 0)), 0)
+    const levelMoney = gained * E.levelMoney
     await tx.character.update({
       where: { id: characterId },
       data: { economicExp, economicLevel: Math.max(economicLevel, character.economicLevel), ...(levelMoney > 0 ? { money: { increment: levelMoney } } : {}) },

@@ -618,6 +618,15 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     armor: z.number().int().min(0).max(500).nullable().optional(),
     durabilityMax: z.number().int().min(1).max(10_000).optional(),
     weight: z.number().min(0).max(100).optional(),
+    // Правка вещи той же формой, что и создание (30.10): всё, кроме типа и слота.
+    description: z.string().max(300).nullable().optional(),
+    maxRange: z.number().int().min(1).max(20).nullable().optional(),
+    critBonus: z.number().min(0).max(1).optional(),
+    dodgeBonus: z.number().min(0).max(1).optional(),
+    hpBonus: z.number().int().min(0).max(1000).optional(),
+    statBudget: z.number().int().min(0).max(200).optional(),
+    allocationMode: z.enum(['FIXED', 'PLAYER']).optional(),
+    statAllocation: z.partialRecord(z.enum(ITEM_STAT_KEYS), z.number().int().min(0).max(200)).nullable().optional(),
     ...GEAR_FIELDS,
   })
 

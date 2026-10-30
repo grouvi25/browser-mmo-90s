@@ -19,13 +19,12 @@ describe('Вход по нику', () => {
   beforeEach(async () => { await cleanDatabase(); await getRedis().flushdb() })
   afterAll(async () => { await testPrisma.$disconnect(); await disconnectRedis() })
 
-  it('регистрация по нику: ник — имя для входа, персонаж получает его и 5 000 ₽', async () => {
+  it('регистрация по нику: ник — имя для входа, персонаж получает его и стартовые деньги', async () => {
     const reg = await AuthService.register({ nickname: '  Вася   Пупкин ', email: `${uid('n')}@test.local`, password: 'secret12', ...policy })
     expect(reg.login).toBe('Вася Пупкин')
 
     const char = await CharactersService.create(reg.id, { archetype: 'STREET' })
-    expect(char).toMatchObject({ nickname: 'Вася Пупкин', money: 5000 })
-    expect(BalanceConfig.character.startMoney).toBe(5000)
+    expect(char).toMatchObject({ nickname: 'Вася Пупкин', money: BalanceConfig.character.startMoney })
 
     const byNick = await AuthService.login({ login: 'вася пупкин', password: 'secret12' })
     expect(byNick.userId).toBe(reg.id)

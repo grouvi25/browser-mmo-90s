@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { uid } from '../integration/helpers'
+import { testPrisma, uid } from '../integration/helpers'
 
 const BASE = process.env.E2E_API_URL ?? 'http://127.0.0.1:4400'
 
@@ -16,7 +16,9 @@ describe('E2E: уведомления в чате по действиям', () =
     const login = uid('notice')
     await api('POST', '/api/auth/register', { acceptPolicy: true, login, email: `${login}@e2e.local`, password: 'pass1234' })
     const token = (await api('POST', '/api/auth/login', { login, password: 'pass1234' })).data.token as string
-    await api('POST', '/api/characters', { nickname: uid('Hero'), archetype: 'WORKER' }, token)
+    const created = await api('POST', '/api/characters', { nickname: uid('Hero'), archetype: 'WORKER' }, token)
+    // Семена стоят денег, а стартовых с 30.10 нет.
+    await testPrisma.character.update({ where: { id: created.data.id as string }, data: { money: 5_000 } })
 
     const farm = await api('GET', '/api/farm', undefined, token)
     const plotId = farm.data.plots[0].id as string

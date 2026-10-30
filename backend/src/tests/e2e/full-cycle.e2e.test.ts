@@ -74,7 +74,9 @@ describe('E2E: Full player cycle (Stage 1 TZ razdel 11)', () => {
     expect(char.stats.end).toBe(4)
     // hpMax = 60 + END×6 + BL×2 = 60 + 4×6 + 1×2 = 86
     expect(char.hpMax).toBe(86)
-    expect(char.money).toBe(5000)
+    expect(char.money).toBe(0)   // стартовых денег нет (30.10)
+    // На покупки дальше по сценарию — выдаём, как выдал бы админ.
+    await testPrisma.character.update({ where: { id: (r.data as { id: string }).id }, data: { money: 5_000 } })
   })
 
   it('11.2 Open government shop (has items)', async () => {
@@ -332,7 +334,9 @@ describe('E2E: Mathematical correctness', () => {
       body: JSON.stringify({ login: l, password: 'pass123' }),
     })).json()) as { token: string }
     token = r.token
-    await api('POST', '/api/characters', { nickname: uid('Math'), archetype: 'ATHLETE' }, token)
+    const created = await api('POST', '/api/characters', { nickname: uid('Math'), archetype: 'ATHLETE' }, token)
+    // Стартовых денег нет (30.10) — на оружие выдаём сами.
+    await testPrisma.character.update({ where: { id: (created.data as { id: string }).id }, data: { money: 5_000 } })
   })
 
   afterAll(async () => { await testPrisma.$disconnect() })
