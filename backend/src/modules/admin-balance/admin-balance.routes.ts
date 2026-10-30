@@ -672,7 +672,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     description: z.string().max(300).optional(),
     type: z.enum(['WEAPON', 'ARMOR', 'SHIELD', 'ACCESSORY', 'CONSUMABLE', 'TOOL']),
     weaponType: z.enum(['MELEE', 'KNIFE', 'CLUB', 'PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 'THROWN']).nullable().optional(),
-    armorSlot: z.enum(['HEAD', 'CHEST', 'LEGS', 'FEET', 'GLOVES', 'BELT', 'BACK', 'ACCESSORY']).nullable().optional(),
+    armorSlot: z.enum(['HEAD', 'CHEST', 'LEGS', 'FEET', 'GLOVES', 'BELT', 'BACK', 'ACCESSORY', 'RING']).nullable().optional(),
     priceBase: z.number().int().min(0).max(10_000_000),
     levelReq: z.number().int().min(0).max(30),
     durabilityMax: z.number().int().min(1).max(10_000),

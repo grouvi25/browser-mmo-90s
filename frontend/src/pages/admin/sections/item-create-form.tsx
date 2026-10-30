@@ -32,6 +32,7 @@ const WEAPON_TYPES: [string, string][] = [
   ['MELEE', 'Рукопашка'], ['KNIFE', 'Нож'], ['CLUB', 'Дубинка'], ['PISTOL', 'Пистолет'], ['SHOTGUN', 'Дробовик'],
   ['SMG', 'Пистолет-пулемёт'], ['RIFLE', 'Автомат'], ['SNIPER', 'Винтовка'], ['HEAVY', 'Тяжёлое'], ['THROWN', 'Метательное'],
 ]
+const JEWELS: [string, string][] = [['ACCESSORY', 'Амулет (на шею)'], ['RING', 'Кольцо (можно носить два)']]
 const SLOTS: [string, string][] = [
   ['HEAD', 'Голова (шапка)'], ['CHEST', 'Тело (куртка, броня)'], ['LEGS', 'Штаны'], ['FEET', 'Обувь'],
   ['GLOVES', 'Руки (перчатки, наручи)'], ['BELT', 'Пояс'], ['BACK', 'Плащ'],
@@ -87,6 +88,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
   const [description, setDescription] = useState(initial?.description ?? '')
   const [weaponType, setWeaponType] = useState(initial?.weaponType ?? 'KNIFE')
   const [slot, setSlot] = useState(initial?.armorSlot && initial.armorSlot !== 'ACCESSORY' ? initial.armorSlot : 'HEAD')
+  const [jewel, setJewel] = useState(initial?.armorSlot === 'RING' ? 'RING' : 'ACCESSORY')
   const [level, setLevel] = useState(initial?.levelReq ?? 1)
   const [shop, setShop] = useState<Shop>(startShop)
   const [price, setPrice] = useState(firstSale?.price ?? initial?.priceBase ?? 500)
@@ -200,7 +202,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
         ...(code.trim() ? { code: code.trim() } : {}),
         type: kind,
         weaponType: kind === 'WEAPON' ? weaponType : null,
-        armorSlot: kind === 'ARMOR' ? slot : kind === 'ACCESSORY' ? 'ACCESSORY' : null,
+        armorSlot: kind === 'ARMOR' ? slot : kind === 'ACCESSORY' ? jewel : null,
         description: description.trim() || undefined,
       }, shop ? { shop, price: int(price, 0, 10_000_000) } : null, reasonText)
     },
@@ -217,7 +219,8 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
             : editing && Object.keys(changed()).length === 0 ? 'Ничего не изменено'
               : null
   const typeTitle = kind === 'WEAPON' ? WEAPON_TYPES.find(([v]) => v === weaponType)?.[1]
-    : kind === 'ARMOR' ? SLOTS.find(([v]) => v === slot)?.[1] : KINDS.find(([v]) => v === kind)?.[1]
+    : kind === 'ARMOR' ? SLOTS.find(([v]) => v === slot)?.[1]
+      : kind === 'ACCESSORY' ? JEWELS.find(([v]) => v === jewel)?.[1] : KINDS.find(([v]) => v === kind)?.[1]
 
   // Карточка «как увидит игрок» — те же числа, что уйдут на сервер.
   const preview: string[] = [
@@ -260,6 +263,10 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
         {kind === 'ARMOR' && <label><span>Куда надевается</span>
           <select value={slot} disabled={editing} onChange={e => setSlot(e.target.value)}>
             {SLOTS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select></label>}
+        {kind === 'ACCESSORY' && <label><span>Что именно</span>
+          <select value={jewel} disabled={editing} onChange={e => setJewel(e.target.value)}>
+            {JEWELS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select></label>}
         <label><span>С какого уровня</span>
           <input type="number" min={0} max={30} value={level} onChange={num(changeLevel)} /></label>

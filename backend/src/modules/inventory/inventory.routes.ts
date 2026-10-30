@@ -157,11 +157,23 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         const taken = new Set(busy.map(entry => entry.armorSlot))
         if (taken.has('LEFT_HAND') && !taken.has('RIGHT_HAND')) freeHand = 'RIGHT_HAND'
       }
+      // Кольца две, как руки: второе идёт на свободное место, третье меняет первое.
+      let ringSlot: 'RING' | 'RING_2' = 'RING'
+      if (item.template.armorSlot === 'RING') {
+        const busy = await tx.itemInstance.findMany({
+          where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' }, armorSlot: { in: ['RING', 'RING_2'] } },
+          select: { armorSlot: true },
+        })
+        const taken = new Set(busy.map(entry => entry.armorSlot))
+        if (taken.has('RING') && !taken.has('RING_2')) ringSlot = 'RING_2'
+      }
       const slot = item.template.type === 'WEAPON'
         ? (parsed.data.hand ?? freeHand)
-        : item.template.type === 'ARMOR' || item.template.type === 'SHIELD' || item.template.type === 'ACCESSORY'
-          ? item.template.armorSlot
-          : null
+        : item.template.armorSlot === 'RING'
+          ? ringSlot
+          : item.template.type === 'ARMOR' || item.template.type === 'SHIELD' || item.template.type === 'ACCESSORY'
+            ? item.template.armorSlot
+            : null
       const existing = await tx.itemInstance.findMany({
         where: {
           ownerId: char.id,
