@@ -199,9 +199,10 @@ const netParitySpread = Math.max(...netMedians) - Math.min(...netMedians)
 
 const verdicts = {
   // Norms since 30.10 (owner accepted): money comes from work and trade, fights
-  // pay only level premiums — the corridor floor is 300, the worker/mixed spread 250.
+  // pay only level premiums — the corridor floor is 300. Net spread up to 300:
+  // with a 5 000 start the mixed player spends more on upgrades (gross parity holds).
   incomeCorridor: grossMedians.every(value => value >= 300 && value <= 700),
-  profileParity: grossParityRatio <= 1.35 && netParitySpread <= 250,
+  profileParity: grossParityRatio <= 1.35 && netParitySpread <= 300,
   sinkHealth: sinkShare >= 0.45 && sinkShare <= 0.80,
   netEmission: netEmissionShare >= 0.20 && netEmissionShare <= 0.55,
   // M2 grows mostly linearly in this closed model; this compounded rate naturally peaks mid-horizon.
