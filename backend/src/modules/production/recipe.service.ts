@@ -18,7 +18,7 @@ export const RecipeService = {
       ...recipe.inputs.map(input => input.resourceCode),
       ...(recipe.outputResourceCode ? [recipe.outputResourceCode] : []),
     ]))]
-    const itemCodes = [...new Set(recipes.flatMap(recipe => recipe.outputItemTemplateCode ? [recipe.outputItemTemplateCode] : []))]
+    const itemCodes = [...new Set(recipes.flatMap(recipe => [recipe.outputItemTemplateCode, recipe.requiredToolCode].filter((code): code is string => !!code)))]
     const [resources, items] = await Promise.all([
       prisma.resourceTemplate.findMany({ where: { code: { in: resourceCodes } }, select: { code: true, name: true } }),
       prisma.itemTemplate.findMany({ where: { code: { in: itemCodes } }, select: { code: true, name: true } }),
@@ -33,6 +33,7 @@ export const RecipeService = {
         inputs: recipe.inputs.map(input => ({ ...input, resourceName: nameOf.get(input.resourceCode) ?? input.resourceCode })),
         outputName: outputCode ? nameOf.get(outputCode) ?? outputCode : null,
         requiredProfessionName: PROFESSION_NAMES[recipe.requiredProfessionCode as ProfessionCode] ?? recipe.requiredProfessionCode,
+        requiredToolName: recipe.requiredToolCode ? nameOf.get(recipe.requiredToolCode) ?? recipe.requiredToolCode : null,
         available: ownLevel >= recipe.requiredProfessionLevel,
         missingLevel: Math.max(0, recipe.requiredProfessionLevel - ownLevel),
       }

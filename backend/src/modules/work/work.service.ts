@@ -59,6 +59,11 @@ export const WorkService = {
     const dailyCap = await PremiumService.dailyShiftCap(characterId)
     const professionByCode = new Map(professions.map(item => [item.professionCode, item]))
     const resourceNames = new Map(templates.map(item => [item.code, item.name]))
+    const premiumRecipes = await prisma.productionRecipe.findMany({ where: { requiredToolCode: { not: null } }, select: { id: true, requiredToolCode: true } })
+    const toolOf = (recipeId: string | null) => premiumRecipes.find(recipe => recipe.id === recipeId)?.requiredToolCode ?? null
+    const toolNames = new Map((await prisma.itemTemplate.findMany({
+      where: { code: { in: premiumRecipes.map(recipe => recipe.requiredToolCode as string) } }, select: { code: true, name: true },
+    })).map(item => [item.code, item.name]))
     return {
       items: objects.map(object => {
         const profession = professionByCode.get(object.requiredProfessionCode)
@@ -96,7 +101,10 @@ export const WorkService = {
           } : null,
           locked: admission ? gateLevel < admission.level : false,
           equipment: object.equipment,
-          toolAvailable: !object.equipment || tools.some(tool => (tool.template.toolTier ?? 0) >= object.equipment!.requiredToolTier),
+          toolAvailable: toolOf(object.activeRecipeId)
+            ? tools.some(tool => tool.template.code === toolOf(object.activeRecipeId))
+            : !object.equipment || tools.some(tool => (tool.template.toolTier ?? 0) >= object.equipment!.requiredToolTier),
+          requiredToolName: toolOf(object.activeRecipeId) ? toolNames.get(toolOf(object.activeRecipeId)!) ?? null : null,
         }
       }),
       professions: professions.map(item => ({
@@ -225,9 +233,14 @@ export const WorkService = {
       if (claimed.count !== 1) throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 409)
       const profession = existingProfession
       let toolInstanceId: string | null = null
-      if (object.equipment?.isActive) {
+      // Рецепт под премиальный инструмент (заказчик 30.10): подходит только свой.
+      const recipe = object.activeRecipeId
+        ? await tx.productionRecipe.findUnique({ where: { id: object.activeRecipeId }, select: { requiredToolCode: true } })
+        : null
+      const toolCode = recipe?.requiredToolCode ?? null
+      if (object.equipment?.isActive || toolCode) {
         const candidates = await tx.itemInstance.findMany({
-          where: { ownerId: characterId, status: 'NORMAL', usesLeft: { gt: 0 }, template: { type: 'TOOL', toolTier: { gte: object.equipment.requiredToolTier } } },
+          where: { ownerId: characterId, status: 'NORMAL', usesLeft: { gt: 0 }, template: toolCode ? { type: 'TOOL', code: toolCode } : { type: 'TOOL', toolTier: { gte: object.equipment?.requiredToolTier ?? 1 } } },
           include: { template: true }, orderBy: { createdAt: 'asc' },
         })
         candidates.sort((a, b) => (a.template.toolTier ?? 0) - (b.template.toolTier ?? 0))
@@ -237,7 +250,11 @@ export const WorkService = {
         }
         if (!toolInstanceId) {
           await recordMissingToolBlock(now)
-          throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, `Tool tier ${object.equipment.requiredToolTier} with remaining uses is required`, 400)
+          if (toolCode) {
+            const tool = await tx.itemTemplate.findUnique({ where: { code: toolCode }, select: { name: true } })
+            throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, `Для этого рецепта нужен инструмент: ${tool?.name ?? toolCode}`, 400)
+          }
+          throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, `Tool tier ${object.equipment?.requiredToolTier ?? 1} with remaining uses is required`, 400)
         }
       }
       const endsAt = new Date(now.getTime() + object.shiftDurationMinutes * 60_000)

@@ -20,8 +20,13 @@ async function player(prefix: string) {
   })
 }
 
-const ask = (characterId: string, text = 'Не открывается склад', image?: string) =>
-  SupportService.create(characterId, { subject: 'Склад', category: 'BUG', text, image })
+// Часы базы и Node расходятся на миллисекунды: мгновенный ответ из теста мог встать
+// раньше вопроса. Живые ответы приходят позже, поэтому пауза нужна только здесь.
+const ask = async (characterId: string, text = 'Не открывается склад', image?: string) => {
+  const ticket = await SupportService.create(characterId, { subject: 'Склад', category: 'BUG', text, image })
+  await new Promise(resolve => setTimeout(resolve, 25))
+  return ticket
+}
 
 describe('Поддержка', () => {
   beforeAll(async () => { await testPrisma.$connect(); await getRedis().ping() })

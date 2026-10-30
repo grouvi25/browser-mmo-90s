@@ -19,6 +19,11 @@ export const RESOURCES = [
   ['comp_weapon_part', 'Оружейная деталь', 'UPGRADE_PART', 2, 241, 0.5, true, true],
   ['comp_armor_plate', 'Бронепластина', 'UPGRADE_PART', 2, 303, 0.9, true, true],
   ['comp_repair_kit', 'Ремкомплект', 'REPAIR_PART', 2, 222, 0.5, true, false],
+  // Заказчик 30.10: ресурсы, которые создаются ТОЛЬКО премиальными инструментами.
+  ['res_prem_steel', 'Кованая сталь', 'COMPONENT', 3, 150, 0.6, false, false],
+  ['res_prem_cloth', 'Плотная ткань', 'COMPONENT', 3, 150, 0.3, false, false],
+  ['res_prem_concentrate', 'Травяной концентрат', 'COMPONENT', 3, 420, 0.2, false, false],
+  ['res_prem_parts', 'Точные детали', 'COMPONENT', 3, 270, 0.2, false, false],
   ['res_greens', 'Зелень', 'PRIMARY', 1, 20, 0.1, false, false],
   ['res_vegetables', 'Овощи', 'PRIMARY', 1, 25, 0.4, false, false],
   ['res_hops', 'Хмель', 'PRIMARY', 1, 55, 0.1, false, false],
@@ -51,6 +56,16 @@ export const PRODUCTION_OBJECTS = [
   { code: 'obj_herb_point', name: 'Приёмка трав', type: 'SCRAPYARD', requiredProductionLevel: 0, shiftDurationMinutes: 30, baseSalary: 85, baseProductionExp: 9, producesResourceCode: 'res_greens', outputAmountMin: 2, outputAmountMax: 4, economicExpReward: 0 },
   { code: 'obj_pharmacy', name: 'Аптека', type: 'WORKSHOP', requiredProductionLevel: 1, shiftDurationMinutes: 60, baseSalary: 200, baseProductionExp: 17, producesResourceCode: null, outputAmountMin: 0, outputAmountMax: 0, economicExpReward: 0 },
   { code: 'obj_chem_lab', name: 'Химлаборатория', type: 'FACTORY', requiredProductionLevel: 3, shiftDurationMinutes: 90, baseSalary: 310, baseProductionExp: 26, producesResourceCode: null, outputAmountMin: 0, outputAmountMax: 0, economicExpReward: 0 },
+] as const
+
+/** Премиальные инструменты Берёзки (заказчик 30.10): «создание уникальных изделий,
+ *  увеличенная прочность». Ступень 5 работает и на обычных объектах, а рецепты
+ *  ниже требуют именно свой инструмент. */
+export const PREMIUM_TOOLS = [
+  { code: 'tool_prem_anvil', name: 'Наковальня' },
+  { code: 'tool_prem_sewing', name: 'Швейная машинка' },
+  { code: 'tool_prem_herbs', name: 'Переработчик трав' },
+  { code: 'tool_prem_keys', name: 'Набор ключей' },
 ] as const
 
 export const PRODUCTION_RECIPES = [
@@ -121,6 +136,18 @@ export const PRODUCTION_RECIPES = [
   // чтобы это была цель производства, а не дорогая покупка. Государство
   // её не продаёт; готовую оснастку игрок несёт на рынок и в частные лавки.
   { code: 'rcp_import_tool', name: 'Сборка импортной оснастки', productionObjectCode: 'obj_parts_factory', outputResourceCode: null, outputItemTemplateCode: 'tool_work_import', outputAmount: 1, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'gunsmith', requiredProfessionLevel: 2, requiredToolTier: 3, inputs: [{ resourceCode: 'comp_weapon_part', amount: 5, minQuality: 'NORMAL' }, { resourceCode: 'comp_fastener', amount: 4, minQuality: 'POOR' }] },
+
+  // --- Премиальные инструменты (заказчик 30.10): ресурс только своим инструментом,
+  // из него вещи и расходники лучше обычных. Пока активен такой рецепт, на смену
+  // выходят с нужным инструментом; помощники такие смены не берут. ---
+  { code: 'rcp_prem_steel', name: 'Ковка стали', productionObjectCode: 'obj_small_factory', outputResourceCode: 'res_prem_steel', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'carpenter', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_anvil', inputs: [{ resourceCode: 'comp_metal_plate', amount: 4, minQuality: 'NORMAL' }, { resourceCode: 'res_scrap_metal', amount: 10, minQuality: 'POOR' }] },
+  { code: 'rcp_prem_vest', name: 'Ковка бронежилета', productionObjectCode: 'obj_cooperative_site', outputResourceCode: null, outputItemTemplateCode: 'armor_prem_vest', outputAmount: 1, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'cooperative_builder', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_anvil', inputs: [{ resourceCode: 'res_prem_steel', amount: 3, minQuality: 'POOR' }, { resourceCode: 'comp_armor_plate', amount: 2, minQuality: 'POOR' }] },
+  { code: 'rcp_prem_cloth', name: 'Плотное плетение', productionObjectCode: 'obj_textile', outputResourceCode: 'res_prem_cloth', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'carpenter', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_sewing', inputs: [{ resourceCode: 'res_fabric', amount: 10, minQuality: 'POOR' }, { resourceCode: 'res_leather', amount: 2, minQuality: 'POOR' }] },
+  { code: 'rcp_prem_coat', name: 'Пошив прошитой куртки', productionObjectCode: 'obj_textile', outputResourceCode: null, outputItemTemplateCode: 'armor_prem_coat', outputAmount: 1, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'carpenter', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_sewing', inputs: [{ resourceCode: 'res_prem_cloth', amount: 3, minQuality: 'POOR' }, { resourceCode: 'res_leather', amount: 2, minQuality: 'POOR' }] },
+  { code: 'rcp_prem_concentrate', name: 'Концентрация трав', productionObjectCode: 'obj_pharmacy', outputResourceCode: 'res_prem_concentrate', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'pharmacist', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_herbs', inputs: [{ resourceCode: 'res_alcohol', amount: 2, minQuality: 'POOR' }, { resourceCode: 'res_extract', amount: 2, minQuality: 'POOR' }] },
+  { code: 'rcp_prem_kit', name: 'Сборка полевой аптечки', productionObjectCode: 'obj_pharmacy', outputResourceCode: null, outputItemTemplateCode: 'consumable_prem_kit', outputAmount: 2, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'pharmacist', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_herbs', inputs: [{ resourceCode: 'res_prem_concentrate', amount: 1, minQuality: 'POOR' }, { resourceCode: 'comp_bandage_cloth', amount: 3, minQuality: 'POOR' }] },
+  { code: 'rcp_prem_parts', name: 'Точная обработка', productionObjectCode: 'obj_garage_workshop', outputResourceCode: 'res_prem_parts', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'foundry_worker', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_keys', inputs: [{ resourceCode: 'res_spare_parts', amount: 2, minQuality: 'POOR' }, { resourceCode: 'comp_fastener', amount: 6, minQuality: 'POOR' }] },
+  { code: 'rcp_prem_tt', name: 'Сборка ТТ мастера', productionObjectCode: 'obj_parts_factory', outputResourceCode: null, outputItemTemplateCode: 'weapon_prem_tt', outputAmount: 1, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'gunsmith', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_keys', inputs: [{ resourceCode: 'res_prem_parts', amount: 3, minQuality: 'POOR' }, { resourceCode: 'comp_weapon_part', amount: 2, minQuality: 'POOR' }] },
 ] as const
 
 export const OBJECT_PROFESSIONS: Record<string, string> = {

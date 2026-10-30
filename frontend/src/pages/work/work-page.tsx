@@ -19,7 +19,7 @@ function Progress({level,exp}:{level:number;exp:number}){
 function lockReason(object:ProductionObjectView,busy:boolean,limit:boolean){
   if(!object.profession.learned)return `Профессия «${object.profession.name}» не изучена — её покупают в Училище`
   if(object.locked)return `Нужен ${object.requiredProfessionLevel} уровень профессии`
-  if(!object.toolAvailable)return `Нужен инструмент T${object.equipment?.requiredToolTier??1}`
+  if(!object.toolAvailable)return object.requiredToolName?`Нужен инструмент: ${object.requiredToolName}`:`Нужен инструмент T${object.equipment?.requiredToolTier??1}`
   if(limit)return 'Лимит смен на сегодня исчерпан'
   if(busy)return 'Сначала завершите текущую смену'
   if(object.employer&&!object.employer.canPay)return 'У владельца нет денег на зарплату'

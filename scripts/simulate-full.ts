@@ -77,6 +77,7 @@ const BAR_PRICE = 100_000
 const RECIPES = PRODUCTION_RECIPES as unknown as Array<{
   code: string; productionObjectCode: string; outputResourceCode: string | null
   outputAmount: number; laborRequired: number; outputItemTemplateCode?: string | null
+  requiredToolCode?: string
   inputs?: Array<{ resourceCode: string; amount: number }>
 }>
 /**
@@ -93,6 +94,11 @@ const ITEM_PRICES: Record<string, number> = {
   // STAGE2_TOOL_TIERS[4].price. Без неё rcp_import_tool считался выходом
   // в 0 ₽ и ложно попадал в список убыточных.
   tool_work_import: 2_500,
+  // Вещи из премиальных ресурсов (заказчик 30.10) — цены из seed.ts.
+  armor_prem_vest: 1_500,
+  armor_prem_coat: 700,
+  weapon_prem_tt: 1_800,
+  consumable_prem_kit: 250,
   // Лёгкая одежда Швейного цеха (27.10) — цены госмагазина из seed.ts.
   armor_cap_basic: 100,
   armor_jeans_basic: 200,
@@ -177,7 +183,10 @@ let money = 60 * BalanceConfig.character.startMoney
  */
 function ownerDay(objectCode: string) {
   const object = objectByCode.get(objectCode)!
-  const recipe = RECIPES.filter(row => row.productionObjectCode === objectCode)
+  // Рецепты под премиальный инструмент — не обычный завод: инструмент за доллары,
+  // смены только сам хозяин. Коридоры считают обычного владельца, а маржу таких
+  // рецептов проверяет «Передел наращивает стоимость» ниже.
+  const recipe = RECIPES.filter(row => row.productionObjectCode === objectCode && !row.requiredToolCode)
     // Берём самый выгодный рецепт объекта: владелец не станет варить убыточный.
     .map(row => ({ row, margin: recipeMargin(row) }))
     .sort((a, b) => b.margin - a.margin)[0]

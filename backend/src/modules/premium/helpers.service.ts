@@ -215,6 +215,11 @@ export const HelpersService = {
         include: { equipment: true },
       })
       if (!object) throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object not found', 404)
+      // Премиальный инструмент держит сам игрок (заказчик 30.10).
+      const recipe = object.activeRecipeId
+        ? await tx.productionRecipe.findUnique({ where: { id: object.activeRecipeId }, select: { requiredToolCode: true } })
+        : null
+      if (recipe?.requiredToolCode) throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, 'Этот рецепт выполняет только сам игрок со своим инструментом', 400)
 
       // Только свой объект или объект своей бригады.
       //

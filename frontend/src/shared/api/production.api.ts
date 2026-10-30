@@ -58,6 +58,7 @@ export interface ObjectRecipe {
   requiredProfessionCode: string
   requiredProfessionLevel: number
   requiredToolTier: number
+  requiredToolName?: string | null
   available: boolean
   missingLevel: number
   inputs: Array<{ resourceCode: string; resourceName?: string; amount: number; minQuality: string }>

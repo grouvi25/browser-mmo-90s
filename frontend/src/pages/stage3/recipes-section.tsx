@@ -69,7 +69,7 @@ export function RecipesSection() {
                   <td>{recipe.outputAmount} × {recipe.outputName ?? recipe.outputResourceCode ?? recipe.outputItemTemplateCode}</td>
                   <td>{recipe.cycleMinutes} мин</td>
                   <td>{recipe.laborRequired}</td>
-                  <td>{recipe.requiredProfessionName ?? recipe.requiredProfessionCode}, ур. {recipe.requiredProfessionLevel}</td>
+                  <td>{recipe.requiredProfessionName ?? recipe.requiredProfessionCode}, ур. {recipe.requiredProfessionLevel}{recipe.requiredToolName && <div className="muted">инструмент: {recipe.requiredToolName}</div>}</td>
                   <td>{recipe.available ? <span className="ok">открыт</span> : <span className="muted">+{recipe.missingLevel} ур.</span>}</td>
                 </tr>
               ))}
