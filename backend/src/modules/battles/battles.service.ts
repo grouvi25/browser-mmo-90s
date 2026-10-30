@@ -419,7 +419,7 @@ function buildDefenderSnapshot(
   const wMin = equippedWeapon?.template.minDamage ?? 2
   const wMax = equippedWeapon?.template.maxDamage ?? 5
   return {
-    agi: s.agi, rea: s.rea, end: s.end, luck: s.luck,
+    agi: s.agi, rea: s.rea, end: s.end, luck: s.luck, agr: s.agr, level: char.battleLevel,
     armor: totalArmor, dodgeBonus, antiCrit, blockBonus, armorWeight,
     antiSkillLevel,
     antiCounterDefense: 0, antiLuck,
@@ -521,9 +521,9 @@ function buildBotAttackerSnapshot(botStats: Record<string, number>, botEquip: Re
   }
 }
 
-function buildBotDefenderSnapshot(botStats: Record<string, number>): DefenderSnapshot {
+function buildBotDefenderSnapshot(botStats: Record<string, number>, level = 1): DefenderSnapshot {
   return {
-    agi: botStats.agi ?? 2, rea: botStats.rea ?? 2, end: botStats.end ?? 2,
+    agi: botStats.agi ?? 2, rea: botStats.rea ?? 2, end: botStats.end ?? 2, agr: botStats.agr ?? 1, level,
     luck: botStats.luck ?? 1,
     armor: botStats.armor ?? 2,
     dodgeBonus: 0, antiCrit: 0, blockBonus: 0, armorWeight: 0,
@@ -1758,7 +1758,7 @@ export const BattleService = {
     leftAttackerSnap.equipmentWeight = totalEquipmentWeight
     rightAttackerSnap.equipmentWeight = totalEquipmentWeight
     const attackerSnap = leftAttackerSnap
-    const defenderSnap = buildBotDefenderSnapshot(botStats)   // бот как защитник
+    const defenderSnap = buildBotDefenderSnapshot(botStats, bot.battleLevel)   // бот как защитник
     const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
     const playerDefSnap = buildDefenderSnapshot(char, equippedArmor, playerGear)
 

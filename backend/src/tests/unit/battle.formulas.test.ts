@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { BalanceConfig } from '../../config/balance.config'
 import {
   calcHitChance, calcDodgeChance, calcBlockChance, calcCritChance,
-  calcWeaponSkillMultiplier, applyArmor, applyEndurance,
+  calcWeaponSkillMultiplier, calcArmorShare, calcSpread,
   calcInitiative, resolveAttack, calcEffectiveWeaponSkill,
   type AttackerSnapshot, type DefenderSnapshot,
 } from '../../modules/battles/battle.formulas'
@@ -60,60 +61,45 @@ describe('calcInitiative', () => {
 })
 
 // ---------------------------------------------------------------
-// Hit chance
+// Уворот по книге: 0,05 + 0,25 × (ЛВКз − МТКа)/(ЛВКз + МТКа + 20), 1…35%
 // ---------------------------------------------------------------
-describe('calcHitChance', () => {
-  it('is always between 0.05 and 0.95', () => {
+describe('calcDodgeChance', () => {
+  it('is always between 0.01 and 0.35', () => {
     for (let acc = 0; acc <= 20; acc++) {
       for (let agi = 0; agi <= 20; agi++) {
-        const chance = calcHitChance(
-          { acc, weaponAccuracy: 0.75, weaponSkillLevel: 5 },
-          { agi, dodgeBonus: 0 }
-        )
-        expect(chance).toBeGreaterThanOrEqual(0.05)
-        expect(chance).toBeLessThanOrEqual(0.95)
+        const chance = calcDodgeChance({ agi, dodgeBonus: 0 }, { acc, weaponAccuracy: 0.7 })
+        expect(chance).toBeGreaterThanOrEqual(0.01)
+        expect(chance).toBeLessThanOrEqual(0.35)
       }
     }
   })
 
-  it('higher ACC increases hit chance', () => {
-    const low  = calcHitChance({ acc: 2, weaponAccuracy: 0.7, weaponSkillLevel: 1 }, { agi: 3, dodgeBonus: 0 })
-    const high = calcHitChance({ acc: 10, weaponAccuracy: 0.7, weaponSkillLevel: 1 }, { agi: 3, dodgeBonus: 0 })
-    expect(high).toBeGreaterThan(low)
+  it('equal stats give the book base 5%', () => {
+    expect(calcDodgeChance({ agi: 10, dodgeBonus: 0 }, { acc: 10, weaponAccuracy: 0.7 })).toBeCloseTo(0.05, 6)
   })
 
-  it('higher AGI of defender reduces hit chance', () => {
-    const easy = calcHitChance({ acc: 5, weaponAccuracy: 0.7, weaponSkillLevel: 5 }, { agi: 1, dodgeBonus: 0 })
-    const hard = calcHitChance({ acc: 5, weaponAccuracy: 0.7, weaponSkillLevel: 5 }, { agi: 10, dodgeBonus: 0 })
-    expect(easy).toBeGreaterThan(hard)
+  it('matches the book example: agility 20 against accuracy 0', () => {
+    // 0,05 + 0,25 × 20/40 = 0,175
+    expect(calcDodgeChance({ agi: 20, dodgeBonus: 0 }, { acc: 0, weaponAccuracy: 0.7 })).toBeCloseTo(0.175, 6)
   })
 
-  it('higher weapon skill increases hit chance', () => {
-    const noSkill  = calcHitChance({ acc: 5, weaponAccuracy: 0.7, weaponSkillLevel: 0 }, { agi: 3, dodgeBonus: 0 })
-    const maxSkill = calcHitChance({ acc: 5, weaponAccuracy: 0.7, weaponSkillLevel: 20 }, { agi: 3, dodgeBonus: 0 })
-    expect(maxSkill).toBeGreaterThan(noSkill)
-  })
-})
-
-// ---------------------------------------------------------------
-// Dodge chance
-// ---------------------------------------------------------------
-describe('calcDodgeChance', () => {
-  it('is always between 0 and 0.75', () => {
-    for (let agi = 0; agi <= 20; agi++) {
-      const chance = calcDodgeChance(
-        { agi, armorWeight: 0, dodgeBonus: 0 },
-        { acc: 5, agi: 3 }
-      )
-      expect(chance).toBeGreaterThanOrEqual(0)
-      expect(chance).toBeLessThanOrEqual(0.75)
-    }
+  it('higher defender AGI and lower attacker ACC mean more dodges', () => {
+    const base = calcDodgeChance({ agi: 5, dodgeBonus: 0 }, { acc: 5, weaponAccuracy: 0.7 })
+    expect(calcDodgeChance({ agi: 12, dodgeBonus: 0 }, { acc: 5, weaponAccuracy: 0.7 })).toBeGreaterThan(base)
+    expect(calcDodgeChance({ agi: 5, dodgeBonus: 0 }, { acc: 12, weaponAccuracy: 0.7 })).toBeLessThan(base)
   })
 
-  it('heavy armor reduces dodge chance', () => {
-    const light = calcDodgeChance({ agi: 6, armorWeight: 0, dodgeBonus: 0 }, { acc: 3, agi: 3 })
-    const heavy = calcDodgeChance({ agi: 6, armorWeight: 20, dodgeBonus: 0 }, { acc: 3, agi: 3 })
-    expect(light).toBeGreaterThan(heavy)
+  it('dodge charms and weapon accuracy shift the chance', () => {
+    const base = calcDodgeChance({ agi: 15, dodgeBonus: 0 }, { acc: 2, weaponAccuracy: 0.7 })
+    expect(calcDodgeChance({ agi: 15, dodgeBonus: 0.05 }, { acc: 2, weaponAccuracy: 0.7 })).toBeCloseTo(base + 0.05, 6)
+    expect(calcDodgeChance({ agi: 15, dodgeBonus: 0 }, { acc: 2, weaponAccuracy: 0.7, antiDodgeBonus: 0.03 })).toBeCloseTo(base - 0.03, 6)
+    expect(calcDodgeChance({ agi: 15, dodgeBonus: 0 }, { acc: 2, weaponAccuracy: 0.8 })).toBeCloseTo(base - 0.1, 6)
+  })
+
+  it('hit chance is everything except a dodge', () => {
+    const atk = { acc: 4, weaponAccuracy: 0.7 }
+    const def = { agi: 9, dodgeBonus: 0 }
+    expect(calcHitChance(atk, def)).toBeCloseTo(1 - calcDodgeChance(def, atk), 9)
   })
 })
 
@@ -149,26 +135,31 @@ describe('calcBlockChance', () => {
 // Crit chance
 // ---------------------------------------------------------------
 describe('calcCritChance', () => {
-  it('is always between 0.01 and 0.5', () => {
+  it('is always between 0.02 and 0.4', () => {
     for (let agr = 0; agr <= 20; agr++) {
-      const chance = calcCritChance(
-        { agr, weaponSkillLevel: 5, critBonus: 0 },
-        { antiCrit: 0, end: 3 }
-      )
-      expect(chance).toBeGreaterThanOrEqual(0.01)
-      expect(chance).toBeLessThanOrEqual(0.5)
+      for (let defAgr = 0; defAgr <= 20; defAgr += 5) {
+        const chance = calcCritChance({ agr, critBonus: 0 }, { antiCrit: 0, agr: defAgr })
+        expect(chance).toBeGreaterThanOrEqual(0.02)
+        expect(chance).toBeLessThanOrEqual(0.4)
+      }
     }
   })
 
-  it('higher AGR increases crit chance', () => {
-    const low  = calcCritChance({ agr: 1, weaponSkillLevel: 1, critBonus: 0 }, { antiCrit: 0, end: 3 })
-    const high = calcCritChance({ agr: 15, weaponSkillLevel: 1, critBonus: 0 }, { antiCrit: 0, end: 3 })
+  it('equal aggression gives the book base 10%', () => {
+    expect(calcCritChance({ agr: 7, critBonus: 0 }, { antiCrit: 0, agr: 7 })).toBeCloseTo(0.1, 6)
+  })
+
+  it('higher AGR increases crit chance, defender AGR resists it', () => {
+    const low  = calcCritChance({ agr: 1, critBonus: 0 }, { antiCrit: 0, agr: 3 })
+    const high = calcCritChance({ agr: 15, critBonus: 0 }, { antiCrit: 0, agr: 3 })
     expect(high).toBeGreaterThan(low)
+    expect(calcCritChance({ agr: 8, critBonus: 0 }, { antiCrit: 0, agr: 15 }))
+      .toBeLessThan(calcCritChance({ agr: 8, critBonus: 0 }, { antiCrit: 0, agr: 1 }))
   })
 
   it('anti-crit reduces crit chance', () => {
-    const noDefense = calcCritChance({ agr: 5, weaponSkillLevel: 5, critBonus: 0 }, { antiCrit: 0, end: 1 })
-    const defended  = calcCritChance({ agr: 5, weaponSkillLevel: 5, critBonus: 0 }, { antiCrit: 0.15, end: 1 })
+    const noDefense = calcCritChance({ agr: 5, critBonus: 0 }, { antiCrit: 0, agr: 1 })
+    const defended  = calcCritChance({ agr: 5, critBonus: 0 }, { antiCrit: 0.05, agr: 1 })
     expect(noDefense).toBeGreaterThan(defended)
   })
 })
@@ -201,46 +192,51 @@ describe('calcWeaponSkillMultiplier', () => {
 })
 
 // ---------------------------------------------------------------
-// Armor application
+// Броня по книге: K = 40 × 1,3^(L − 1), проходит K / (K + броня + 0,5 × ВЫН)
 // ---------------------------------------------------------------
-describe('applyArmor', () => {
-  it('always deals at least 1 damage', () => {
-    expect(applyArmor(1, 9999, false)).toBeGreaterThanOrEqual(1)
-    expect(applyArmor(0, 0, false)).toBeGreaterThanOrEqual(1)
+describe('calcArmorShare', () => {
+  it('matches the book example: armor 5, endurance 10, level 1 → 0.8', () => {
+    expect(calcArmorShare(5, 10, 1)).toBeCloseTo(0.8, 9)
   })
 
-  it('more armor means less final damage', () => {
-    const low  = applyArmor(50, 5, false)
-    const high = applyArmor(50, 30, false)
-    expect(low).toBeGreaterThan(high)
+  it('more armor and more endurance mean less damage', () => {
+    expect(calcArmorShare(5, 3, 1)).toBeGreaterThan(calcArmorShare(30, 3, 1))
+    expect(calcArmorShare(5, 2, 1)).toBeGreaterThan(calcArmorShare(5, 15, 1))
   })
 
-  it('crit ignores 50% of armor', () => {
-    const normal = applyArmor(50, 20, false)
-    const crit   = applyArmor(50, 20, true)
-    expect(crit).toBeGreaterThan(normal)
+  it('the same armor protects less on a higher defender level', () => {
+    expect(calcArmorShare(20, 5, 10)).toBeGreaterThan(calcArmorShare(20, 5, 1))
+  })
+
+  it('no armor and no endurance let everything through', () => {
+    expect(calcArmorShare(0, 0, 1)).toBe(1)
   })
 })
 
-// ---------------------------------------------------------------
-// Endurance application
-// ---------------------------------------------------------------
-describe('applyEndurance', () => {
-  it('always deals at least 1 damage', () => {
-    expect(applyEndurance(1, 999)).toBeGreaterThanOrEqual(1)
+describe('calcSpread', () => {
+  it('stays within ±10%', () => {
+    expect(calcSpread(() => 0)).toBeCloseTo(0.9, 9)
+    expect(calcSpread(() => 0.5)).toBeCloseTo(1, 9)
+    expect(calcSpread(() => 0.999999)).toBeLessThanOrEqual(1.1)
   })
+})
 
-  it('higher END reduces damage', () => {
-    const low  = applyEndurance(50, 2)
-    const high = applyEndurance(50, 15)
-    expect(low).toBeGreaterThan(high)
-  })
+describe('book strike example', () => {
+  // Книга считает без масштаба под наши вещи — сверяем её же числа.
+  const strike = BalanceConfig.strike as { damageScale: number }
+  const scale = strike.damageScale
+  beforeEach(() => { strike.damageScale = 1 })
+  afterEach(() => { strike.damageScale = scale })
 
-  it('END effect has diminishing returns (logarithmic)', () => {
-    const d1 = applyEndurance(100, 1)  - applyEndurance(100, 2)   // gain from END 1→2
-    const d2 = applyEndurance(100, 10) - applyEndurance(100, 11)  // gain from END 10→11
-    // Each extra point should give less and less
-    expect(d1).toBeGreaterThan(d2)
+  it('strength 10, weapon 10, armor 5, endurance 10, level 1: ordinary 20, crit 30', () => {
+    const attacker = makeAttacker({ str: 10, minDamage: 10, maxDamage: 10, weaponSkillLevel: 0, acc: 10, agr: 0 })
+    const defender = makeDefender({ agi: 10, end: 10, armor: 5, level: 1, agr: 0 })
+    // уворот нет (0), удачи нет (0.99), оружие (0.5), крит нет (0.99), средний разброс (0.5)
+    const plain = (() => { const q = [0, 0.99, 0.5, 0.99, 0.5]; return resolveAttack(attacker, defender, false, () => q.shift() ?? 0.5) })()
+    expect(plain.finalDamage).toBe(20)
+    const crit = (() => { const q = [0, 0.99, 0.5, 0, 0.5]; return resolveAttack(attacker, defender, false, () => q.shift() ?? 0.5) })()
+    expect(crit.crit).toBe(true)
+    expect(crit.finalDamage).toBe(30)
   })
 })
 
@@ -274,7 +270,8 @@ describe('resolveAttack', () => {
         missCount++
       }
     }
-    expect(missCount).toBeGreaterThan(50)
+    // уворот упирается в потолок книги — 35%
+    expect(missCount).toBeGreaterThan(20)
   })
 
   it('if hit → finalDamage >= 1', () => {
@@ -334,9 +331,9 @@ describe('resolveAttack', () => {
 
     // Каждая попытка укладывается ровно в один исход — сумма обязана сойтись
     expect(hits + misses + dodges).toBe(N)
-    // Hit rate should be within clamp bounds (5%-95%) with allowance for randomness
-    expect(hitRate).toBeGreaterThan(0.05)
-    expect(hitRate).toBeLessThan(0.95)
+    // Уворот по книге не меньше 1% и не больше 35%
+    expect(hitRate).toBeGreaterThan(0.6)
+    expect(hitRate).toBeLessThan(1)
     // When a hit lands, damage must be >= 1
     expect(avgDmg).toBeGreaterThanOrEqual(1)
     // Max damage must be reasonable (not astronomical)

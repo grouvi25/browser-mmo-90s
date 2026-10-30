@@ -11,8 +11,8 @@
 // =============================================================
 import { BalanceConfig as B } from '../../config/balance.config'
 import {
-  calcCritChance, calcDodgeChance, calcEffectiveWeaponSkill, calcHitChance,
-  calcBlockChance, calcWeaponSkillMultiplier, applyArmor, applyEndurance,
+  calcCritChance, calcDodgeChance, calcEffectiveWeaponSkill,
+  calcBlockChance, calcWeaponSkillMultiplier, calcArmorShare,
 } from '../battles/battle.formulas'
 import { calcFinalSalary, dailyShiftSalaryCoeff, objectLevelCoeff, workerEfficiency } from '../work/work.formulas'
 import { calcUpgradeCost, calcUpgradeSuccessChance } from '../upgrades/upgrades.formulas'
@@ -50,7 +50,7 @@ const ATTACKER = {
 }
 
 const DEFENDER = {
-  agi: 6, rea: 5, end: 7, luck: 2,
+  agi: 6, rea: 5, end: 7, luck: 2, agr: 3, level: 5,
   armor: 15,
   dodgeBonus: 0, antiCrit: 0, blockBonus: 0,
   armorWeight: 14,
@@ -89,42 +89,22 @@ export const BALANCE_EXAMPLES: Record<string, () => BalanceExample> = {
     }
   },
 
-  'battle.hit': () => {
-    const value = calcHitChance(ATTACKER, DEFENDER)
-    const accuracyFactor = Math.log(ATTACKER.acc + 1) / Math.log(16)
-    const fromWeapon = ATTACKER.weaponAccuracy * accuracyFactor
-    const fromSkill = ATTACKER.weaponSkillLevel * B.hitChance.wskBonus
-    const fromLuck = ATTACKER.luck * B.hitChance.luckEvasionPressure
-    const pressure = DEFENDER.agi * B.hitChance.agiDodgePressure
-    return {
-      given: [`ACC ${ATTACKER.acc}`, `точность оружия ${ATTACKER.weaponAccuracy}`,
-        `владение ${ATTACKER.weaponSkillLevel}`, `LUCK ${ATTACKER.luck}`, `AGI защитника ${DEFENDER.agi}`],
-      steps: [
-        { text: `точность: ${ATTACKER.weaponAccuracy} × ln(${ATTACKER.acc}+1)/ln(16)`, value: round2(fromWeapon).toString() },
-        { text: `владение: ${ATTACKER.weaponSkillLevel} × ${B.hitChance.wskBonus}`, value: `+${round2(fromSkill)}` },
-        { text: `удача: ${ATTACKER.luck} × ${B.hitChance.luckEvasionPressure}`, value: `+${round2(fromLuck)}` },
-        { text: `давление ловкости защитника: ${DEFENDER.agi} × ${B.hitChance.agiDodgePressure}`, value: `−${round2(pressure)}` },
-        { text: `ограничение диапазоном ${B.hitChance.min}…${B.hitChance.max}`, value: pct(value) },
-      ],
-      result: pct(value),
-      meaning: 'С такой вероятностью удар вообще дойдёт до защитника. Дальше его ещё можно увернуть или заблокировать.',
-    }
-  },
-
   'battle.dodge': () => {
+    const C = B.strike
     const value = calcDodgeChance(DEFENDER, ATTACKER)
-    const ratio = DEFENDER.agi / Math.max(ATTACKER.acc + ATTACKER.agi, 1)
-    const armorPenalty = DEFENDER.armorWeight * B.dodgeChance.armorWeightPenalty
+    const edge = (DEFENDER.agi - ATTACKER.acc) / (DEFENDER.agi + ATTACKER.acc + C.statSoftener)
+    const accuracy = ATTACKER.weaponAccuracy - C.baseWeaponAccuracy
     return {
-      given: [`AGI защитника ${DEFENDER.agi}`, `ACC ${ATTACKER.acc} и AGI ${ATTACKER.agi} атакующего`,
-        `вес брони ${DEFENDER.armorWeight} кг`],
+      given: [`ловкость защитника ${DEFENDER.agi}`, `меткость атакующего ${ATTACKER.acc}`,
+        `точность оружия ${ATTACKER.weaponAccuracy}`],
       steps: [
-        { text: 'база', value: String(B.dodgeChance.base) },
-        { text: `отношение ловкостей: ${DEFENDER.agi}/(${ATTACKER.acc}+${ATTACKER.agi}) × ${B.dodgeChance.agilityRatioMult}`, value: `+${round2(ratio * B.dodgeChance.agilityRatioMult)}` },
-        { text: `штраф брони: ${DEFENDER.armorWeight} × ${B.dodgeChance.armorWeightPenalty}`, value: `−${round2(armorPenalty)}` },
+        { text: 'база', value: String(C.dodgeBase) },
+        { text: `${C.dodgeSpread} × (${DEFENDER.agi} − ${ATTACKER.acc})/(${DEFENDER.agi} + ${ATTACKER.acc} + ${C.statSoftener})`, value: `${edge >= 0 ? '+' : '−'}${round2(Math.abs(C.dodgeSpread * edge))}` },
+        { text: `точность оружия сверх ${C.baseWeaponAccuracy}`, value: `−${round2(accuracy)}` },
+        { text: `ограничение ${C.dodgeMin}…${C.dodgeMax}`, value: pct(value) },
       ],
       result: pct(value),
-      meaning: 'Уворот считается против конкретного противника: тот же защитник против точного бойца увернётся реже.',
+      meaning: 'С такой вероятностью защитник увернётся, и урона не будет вовсе. Ловкость защитника против меткости атакующего.',
     }
   },
 
@@ -144,17 +124,18 @@ export const BALANCE_EXAMPLES: Record<string, () => BalanceExample> = {
   },
 
   'battle.crit': () => {
+    const C = B.strike
     const value = calcCritChance(ATTACKER, DEFENDER)
+    const edge = (ATTACKER.agr - DEFENDER.agr) / (ATTACKER.agr + DEFENDER.agr + C.statSoftener)
     return {
-      given: [`AGR ${ATTACKER.agr}`, `владение ${ATTACKER.weaponSkillLevel}`, `END защитника ${DEFENDER.end}`],
+      given: [`агрессия атакующего ${ATTACKER.agr}`, `агрессия защитника ${DEFENDER.agr}`],
       steps: [
-        { text: 'база', value: String(B.crit.base) },
-        { text: `агрессия: ${ATTACKER.agr} × ${B.crit.agressMult}`, value: `+${round2(ATTACKER.agr * B.crit.agressMult)}` },
-        { text: `владение: ${ATTACKER.weaponSkillLevel} × ${B.crit.wskMult}`, value: `+${round2(ATTACKER.weaponSkillLevel * B.crit.wskMult)}` },
-        { text: `сопротивление END: ${DEFENDER.end} × ${B.crit.endResist}`, value: `−${round2(DEFENDER.end * B.crit.endResist)}` },
+        { text: 'база', value: String(C.critBase) },
+        { text: `${C.critSpread} × (${ATTACKER.agr} − ${DEFENDER.agr})/(${ATTACKER.agr} + ${DEFENDER.agr} + ${C.statSoftener})`, value: `${edge >= 0 ? '+' : '−'}${round2(Math.abs(C.critSpread * edge))}` },
+        { text: `ограничение ${C.critMin}…${C.critMax}`, value: pct(value) },
       ],
       result: pct(value),
-      meaning: `При крите урон ×${B.crit.multiplierBase}, и он игнорирует ${pct(B.crit.armorIgnore)} брони.`,
+      meaning: `При крите урон ×${B.crit.multiplierBase}.`,
     }
   },
 
@@ -162,36 +143,38 @@ export const BALANCE_EXAMPLES: Record<string, () => BalanceExample> = {
     const roll = Math.round((ATTACKER.minDamage + ATTACKER.maxDamage) / 2)
     const effective = calcEffectiveWeaponSkill(ATTACKER.weaponSkillLevel, DEFENDER.antiSkillLevel)
     const mult = calcWeaponSkillMultiplier(effective)
-    const raw = roll * mult + ATTACKER.str * B.damage.strCoeff
+    const raw = roll * mult + ATTACKER.str * B.strike.strCoeff
     return {
       given: [`оружие ${ATTACKER.minDamage}–${ATTACKER.maxDamage} (берём среднее ${roll})`,
-        `владение ${ATTACKER.weaponSkillLevel}`, `STR ${ATTACKER.str}`],
+        `владение ${ATTACKER.weaponSkillLevel}`, `сила ${ATTACKER.str}`],
       steps: [
         { text: `множитель владения при навыке ${effective}`, value: `×${round2(mult)}` },
-        { text: `бросок × множитель: ${roll} × ${round2(mult)}`, value: round2(roll * mult).toString() },
-        { text: `сила: ${ATTACKER.str} × ${B.damage.strCoeff}`, value: `+${ATTACKER.str * B.damage.strCoeff}` },
+        { text: `оружие × множитель: ${roll} × ${round2(mult)}`, value: round2(roll * mult).toString() },
+        { text: `сила: ${ATTACKER.str} × ${B.strike.strCoeff}`, value: `+${ATTACKER.str * B.strike.strCoeff}` },
       ],
-      result: `${Math.round(raw)} урона до защиты`,
-      meaning: 'Это ещё не то, что увидит защитник: дальше урон срежут броня и выносливость.',
+      result: `${Math.round(raw)} урона до брони`,
+      meaning: 'Это ещё не то, что увидит защитник: дальше урон срежет броня.',
     }
   },
 
   'battle.armor': () => {
+    const C = B.strike
     const roll = Math.round((ATTACKER.minDamage + ATTACKER.maxDamage) / 2)
     const mult = calcWeaponSkillMultiplier(ATTACKER.weaponSkillLevel)
-    const raw = roll * mult + ATTACKER.str * B.damage.strCoeff
-    const afterArmor = applyArmor(raw, DEFENDER.armor, false)
-    const afterEnd = applyEndurance(afterArmor, DEFENDER.end)
+    const raw = roll * mult + ATTACKER.str * C.strCoeff
+    const share = calcArmorShare(DEFENDER.armor, DEFENDER.end, DEFENDER.level)
+    const k = C.armorK * Math.pow(C.armorKGrowth, DEFENDER.level - 1)
+    const total = DEFENDER.armor + C.endArmor * DEFENDER.end
     return {
-      given: [`сырой урон ${Math.round(raw)}`, `броня ${DEFENDER.armor}`, `END защитника ${DEFENDER.end}`],
+      given: [`урон до брони ${Math.round(raw)}`, `броня зоны ${DEFENDER.armor}`, `выносливость защитника ${DEFENDER.end}`, `уровень защитника ${DEFENDER.level}`],
       steps: [
-        { text: `плоское снижение: ${DEFENDER.armor} × ${B.damage.armorFlatCoeff}`, value: `−${round2(DEFENDER.armor * B.damage.armorFlatCoeff)}` },
-        { text: `процентное: 1 − ${DEFENDER.armor}/(${DEFENDER.armor}+${B.damage.armorK})`, value: `×${round2(1 - DEFENDER.armor / (DEFENDER.armor + B.damage.armorK))}` },
-        { text: 'после брони', value: String(Math.round(afterArmor)) },
-        { text: `выносливость: 1/(1 + ln(${DEFENDER.end}+1) × ${B.damage.enduranceK})`, value: `×${round2(1 / (1 + Math.log(DEFENDER.end + 1) * B.damage.enduranceK))}` },
+        { text: `броня: ${DEFENDER.armor} + ${C.endArmor} × ${DEFENDER.end}`, value: String(round2(total)) },
+        { text: `вес брони: ${C.armorK} × ${C.armorKGrowth}^(${DEFENDER.level} − 1)`, value: String(round2(k)) },
+        { text: `проходит: ${round2(k)}/(${round2(k)} + ${round2(total)})`, value: `×${round2(share)}` },
+        { text: `разброс ±${pct(C.spread)}`, value: 'взят средний' },
       ],
-      result: `${Math.round(afterEnd)} урона по здоровью`,
-      meaning: `Броня ${DEFENDER.armor} и выносливость ${DEFENDER.end} срезали ${pct(1 - afterEnd / raw)} урона.`,
+      result: `${Math.floor(raw * share)} урона по здоровью`,
+      meaning: `Броня ${DEFENDER.armor} и выносливость ${DEFENDER.end} срезали ${pct(1 - share)} урона. На уровень выше та же броня держит слабее.`,
     }
   },
 

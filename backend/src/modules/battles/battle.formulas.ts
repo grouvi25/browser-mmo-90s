@@ -23,6 +23,8 @@ export interface AttackerSnapshot {
 
 export interface DefenderSnapshot {
   agi: number; rea: number; end: number; luck: number
+  agr?: number                   // агрессия защитника гасит крит (книга: интуиция защитника)
+  level?: number                 // боевой уровень защитника: от него зависит вес брони
   armor: number
   dodgeBonus: number; antiCrit: number; blockBonus: number
   armorWeight: number
@@ -90,35 +92,43 @@ export function calcInitiative(
 }
 
 // ---------------------------------------------------------------
-// Hit chance (ТЗ раздел 17.4)
+// Удар по книге заказчика («Ревизия 2», раздел «Урон одного удара»).
+// В книге четыре характеристики, в игре семь. Соответствие:
+//   ловкость атакующего (Aа) — меткость: она и отвечает за попадание;
+//   интуиция (I) — агрессия: она и раньше отвечала за крит;
+//   сила, ловкость защитника и выносливость — как в книге.
+// Обереги, точность оружия, хмель и бар остаются поправками к шансам,
+// блоки, удачный удар и ответка — механики игры поверх книги.
 // ---------------------------------------------------------------
-export function calcHitChance(
-  attacker: Pick<AttackerSnapshot, 'acc' | 'weaponAccuracy' | 'weaponSkillLevel' | 'luck' | 'antiDodgeBonus'>,
-  defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'>
-): number {
-  const C = B.hitChance
-  const accuracyFactor = Math.log(attacker.acc + 1) / Math.log(16)
-  const dodgePressure = defender.agi * C.agiDodgePressure + defender.dodgeBonus
-  const raw = attacker.weaponAccuracy * accuracyFactor +
-    attacker.weaponSkillLevel * C.wskBonus + (attacker.luck ?? 0) * C.luckEvasionPressure + (attacker.antiDodgeBonus ?? 0) - dodgePressure
-  return clamp(raw, C.min, C.max)
+
+// Перекос характеристик двух сторон: (a − b) / (a + b + 20).
+function statEdge(a: number, b: number): number {
+  return (a - b) / (Math.max(0, a) + Math.max(0, b) + B.strike.statSoftener)
 }
 
 // ---------------------------------------------------------------
-// Dodge chance (ТЗ раздел 17.5 + Apeha: оберег уворота)
-// rawDodgeChance = base + agilityRatioГ—0.35 + dodgeBonus - antiDodgeBonus - armorPenalty
+// Уворот: CLAMP(0,05 + 0,25 × (Aз − Aа)/(Aз + Aа + 20); 0,01; 0,35).
+// Обереги уворота у защитника прибавляют, у атакующего — отнимают;
+// точность оружия сверх обычной (0,7) тоже отнимает, хмель — прибавляет.
 // ---------------------------------------------------------------
 export function calcDodgeChance(
-  defender: Pick<DefenderSnapshot, 'agi' | 'armorWeight' | 'dodgeBonus'>,
-  attacker: Pick<AttackerSnapshot, 'acc' | 'agi' | 'antiDodgeBonus'>
+  defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'>,
+  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'>
 ): number {
-  const C = B.dodgeChance
-  const agilityRatio = defender.agi / Math.max(attacker.acc + attacker.agi, 1)
-  const armorPenalty = defender.armorWeight * C.armorWeightPenalty
-  const raw = C.base + agilityRatio * C.agilityRatioMult + defender.dodgeBonus
-    - (attacker.antiDodgeBonus ?? 0)  // Apeha: оберег уворота атакующего
-    - armorPenalty
-  return clamp(raw, 0, C.max)
+  const C = B.strike
+  const raw = C.dodgeBase + C.dodgeSpread * statEdge(defender.agi, attacker.acc)
+    + (defender.dodgeBonus ?? 0)
+    - (attacker.antiDodgeBonus ?? 0)
+    - ((attacker.weaponAccuracy ?? C.baseWeaponAccuracy) - C.baseWeaponAccuracy)
+  return clamp(raw, C.dodgeMin, C.dodgeMax)
+}
+
+// Шанс, что удар дойдёт до защитника, — всё, кроме уворота.
+export function calcHitChance(
+  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'>,
+  defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'>
+): number {
+  return 1 - calcDodgeChance(defender, attacker)
 }
 
 // ---------------------------------------------------------------
@@ -169,20 +179,19 @@ export function calcBlockChance(
 }
 
 // ---------------------------------------------------------------
-// Crit chance (ТЗ раздел 17.7)
+// Крит: CLAMP(0,1 + 0,2 × (Iа − Iз)/(Iа + Iз + 20); 0,02; 0,4),
+// интуиция — агрессия. Оберег крита на оружии прибавляет, у защитника —
+// отнимает.
 // ---------------------------------------------------------------
 export function calcCritChance(
-  attacker: Pick<AttackerSnapshot, 'agr' | 'weaponSkillLevel' | 'critBonus'>,
-  defender: Pick<DefenderSnapshot, 'antiCrit' | 'end'>
+  attacker: Pick<AttackerSnapshot, 'agr' | 'critBonus'>,
+  defender: Pick<DefenderSnapshot, 'antiCrit' | 'agr'>
 ): number {
-  const C = B.crit
-  const raw = C.base +
-    attacker.agr * C.agressMult +
-    attacker.weaponSkillLevel * C.wskMult +
-    attacker.critBonus -
-    defender.antiCrit -
-    defender.end * C.endResist
-  return clamp(raw, C.min, C.max)
+  const C = B.strike
+  const raw = C.critBase + C.critSpread * statEdge(attacker.agr, defender.agr ?? 0)
+    + (attacker.critBonus ?? 0)
+    - (defender.antiCrit ?? 0)
+  return clamp(raw, C.critMin, C.critMax)
 }
 
 // ---------------------------------------------------------------
@@ -216,40 +225,37 @@ export function calcRawDamage(
   defenderAntiSkillLevel = 0,
   rng: () => number = Math.random,
 ): number {
-  const C = B.damage
   const weaponRoll = Math.floor(rng() * (attacker.maxDamage - attacker.minDamage + 1)) + attacker.minDamage
 
-  // Apply anti-mastery to effective weapon skill for damage multiplier
+  // Владение оружием (с поправкой на антимастерство) усиливает вклад оружия.
   const effectiveSkill = calcEffectiveWeaponSkill(attacker.weaponSkillLevel, defenderAntiSkillLevel)
   const wskMult = calcWeaponSkillMultiplier(effectiveSkill)
 
-  return (weaponRoll * wskMult + attacker.str * C.strCoeff + attacker.flatDamageBonus) * (attacker.outgoingDamageMultiplier ?? 1)
+  // Книга: База = 1,5 × сила + сила оружия.
+  return (weaponRoll * wskMult + attacker.str * B.strike.strCoeff + attacker.flatDamageBonus) * (attacker.outgoingDamageMultiplier ?? 1)
 }
 
 // ---------------------------------------------------------------
-// Apply armor (ТЗ раздел 11.3 — гибридная модель)
+// Броня по книге: Броня = броня вещей + 0,5 × выносливость защитника;
+// Kброни = 40 × 1,3^(уровень защитника − 1); проходит Kброни / (Kброни + Броня).
+// Чем выше уровень защитника, тем больше брони нужно на ту же защиту:
+// вещи растут с уровнем, и броня не должна обнулять удары.
 // ---------------------------------------------------------------
-export function applyArmor(rawDamage: number, armor: number, isCrit: boolean): number {
-  const C = B.damage
-  const effectiveArmor = isCrit ? armor * (1 - B.crit.armorIgnore) : armor
-  const flatReduced = Math.max(1, rawDamage - effectiveArmor * C.armorFlatCoeff)
-  const percentReduced = flatReduced * (1 - effectiveArmor / (effectiveArmor + C.armorK))
-  return Math.max(C.minFinalDamage, percentReduced)
+export function calcArmorShare(armor: number, defenderEnd: number, defenderLevel = 1): number {
+  const C = B.strike
+  const total = Math.max(0, armor) + C.endArmor * Math.max(0, defenderEnd)
+  const k = C.armorK * Math.pow(C.armorKGrowth, Math.max(1, defenderLevel) - 1)
+  return k / (k + total)
 }
 
-// ---------------------------------------------------------------
-// Apply endurance (ТЗ раздел 12.1)
-// ---------------------------------------------------------------
-export function applyEndurance(damage: number, end: number): number {
-  const C = B.damage
-  const mult = 1 / (1 + Math.log(end + 1) * C.enduranceK)
-  return Math.max(C.minFinalDamage, damage * mult)
+// Разброс удара: 1 ± 10%.
+export function calcSpread(rng: () => number = Math.random): number {
+  return 1 + B.strike.spread * (2 * rng() - 1)
 }
 
 // ---------------------------------------------------------------
 // Full attack resolution (ТЗ раздел 17.11 + мат. модель раздел 14)
-// Порядок: проверка → попадание → уворот → блок → крит → урон →
-//          броня → блок-редукция → выносливость → итог
+// Один удар в корпус через resolveZonalAttack.
 // ---------------------------------------------------------------
 export function resolveAttack(
   attacker: AttackerSnapshot,
@@ -269,12 +275,12 @@ export function resolveAttack(
 // ---------------------------------------------------------------
 // Zonal attack resolution (модель Апехи: зоны + блок-по-зонам)
 // Порядок: уворот → (блок зоны: 0 урона, кроме LUCK-пробития) →
-//          крит → сырой урон → броня ЗОНЫ → выносливость → итог
+//          крит → сырой урон → броня ЗОНЫ (с выносливостью) → разброс → итог
 // Отличия от resolveAttack:
 //  - удар направлен в конкретную зону (zone)
 //  - защитник блокирует набор зон (blockedZones); блок гасит урон в 0
 //  - пробить блок можно ТОЛЬКО «удачным ударом» (LUCK атакующего)
-//  - броня считается по зоне удара (zoneArmor), lucky пробивает броню
+//  - броня считается по зоне удара (zoneArmor)
 // ---------------------------------------------------------------
 export interface ZonalAttackResult extends AttackResult {
   zone: BodyZone
@@ -324,7 +330,7 @@ export function resolveZonalAttack(
     return base()
   }
 
-  // 2. «Удачный удар» — определяем заранее: он пробивает и блок, и броню.
+  // 2. «Удачный удар» — определяем заранее: он пробивает одиночный блок.
   lucky = rng() < calcLuckyPierceChance(attacker.luck, defender.antiLuck)
 
   // Incoming force is rolled once and also defines bounded counterattack damage.
@@ -362,13 +368,12 @@ export function resolveZonalAttack(
   rawDamage = incomingForce * critMult
   if (crit) log.push('КРИТ!')
 
-  // 6. Броня зоны (lucky пробивает броню)
-  let dmg = applyArmor(rawDamage, zoneArmor, crit)
+  // 6. Броня зоны с половиной выносливости, вес брони — от уровня защитника,
+  //    затем разброс ±10%. Книга: INT(База × ДоляПослеБрони × Разброс × крит),
+  //    и масштаб под наши вещи и здоровье.
+  const dmg = rawDamage * calcArmorShare(zoneArmor, defender.end, defender.level) * calcSpread(rng) * B.strike.damageScale
 
-  // 7. Выносливость
-  dmg = applyEndurance(dmg, defender.end)
-
-  finalDamage = Math.max(1, Math.round(dmg * (defender.incomingDamageMultiplier ?? 1)))
+  finalDamage = Math.max(B.damage.minFinalDamage, Math.floor(dmg * (defender.incomingDamageMultiplier ?? 1)))
   log.push(`Удар в ${zoneName}: ${finalDamage}`)
   return base()
 }

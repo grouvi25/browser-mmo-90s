@@ -197,23 +197,6 @@ export const BalanceConfig = {
     min:              1,
   },
 
-  // --- Hit chance ---
-  hitChance: {
-    min:              0.05,
-    max:              0.95,
-    agiDodgePressure: 0.003,
-    wskBonus:         0.005,
-    luckEvasionPressure: 0.005,
-  },
-
-  // --- Dodge chance ---
-  dodgeChance: {
-    base:             0.05,
-    agilityRatioMult: 0.35,
-    armorWeightPenalty: 0.003,
-    max:              0.75,
-  },
-
   // --- Block chance ---
   blockChance: {
     base:             0.10,
@@ -225,18 +208,40 @@ export const BalanceConfig = {
 
   counter: { baseChance: 0.05, reactionRatioMult: 0.30, maxChance: 0.40, minReaction: 5, incomingBase: 0.25, reactionDamageBonus: 0.01, incomingDamageCap: 0.60 },
 
-  // --- Crit ---
+  // --- Удар по книге заказчика («Ревизия 2», «Урон одного удара», перенесено 30.10) ---
+  //   База = 1,5 × сила + оружие × владение;
+  //   Броня = броня зоны + 0,5 × выносливость; Kброни = 40 × 1,3^(уровень − 1);
+  //   урон = INT(База × K/(K + Броня) × (1 ± 0,1) × крит);
+  //   крит = CLAMP(0,1 + 0,2 × (Aгра − Aгрз)/(Aгра + Aгрз + 20); 0,02; 0,4);
+  //   уворот = CLAMP(0,05 + 0,25 × (Лвкз − Мткa)/(Лвкз + Мткa + 20); 0,01; 0,35).
+  strike: {
+    strCoeff:       1.5,
+    endArmor:       0.5,
+    armorK:         40,
+    armorKGrowth:   1.3,
+    statSoftener:   20,
+    critBase:       0.10,
+    critSpread:     0.20,
+    critMin:        0.02,
+    critMax:        0.40,
+    dodgeBase:      0.05,
+    dodgeSpread:    0.25,
+    dodgeMin:       0.01,
+    dodgeMax:       0.35,
+    spread:         0.10,
+    // Точность оружия сверх этой — антиуворот, ниже (хмель) — помощь защитнику.
+    baseWeaponAccuracy: 0.7,
+    // Масштаб итога. Книга считает в своих единицах: оружие 10 на 1-м уровне.
+    // У нас оружие 1-го уровня 20–45 при здоровье 80, и без масштаба бой
+    // кончался за один ход. С ним ходов столько же, сколько до переноса.
+    damageScale: 0.35,
+  },
+
+  // --- Crit: сила крита (шанс — в strike) ---
   crit: {
-    base:             0.03,
-    agressMult:       0.004,
-    wskMult:          0.003,
-    endResist:        0.002,
-    min:              0.01,
-    max:              0.50,
     multiplierBase:   1.5,
     multiplierMin:    1.2,
     multiplierMax:    3.0,
-    armorIgnore:      0.5,   // крит игнорирует 50% брони
   },
 
   // --- Damage ---
@@ -249,10 +254,6 @@ export const BalanceConfig = {
     wskPerLevelOver20: 0.01,  // за каждый уровень после 20
     wskCap:           1.5,
     wskMin:           0.5,    // минимум 50% даже без навыка
-    strCoeff:         0.5,    // STR × 0.5 к урону
-    armorFlatCoeff:   0.4,    // ARM × 0.4 плоское снижение
-    armorK:           50,     // ARM/(ARM+50) — броня ощутима уже при ARM=10-20
-    enduranceK:       0.12,   // чуть меньше штраф выносливости (было 0.18)
     minFinalDamage:   1,
   },
 
