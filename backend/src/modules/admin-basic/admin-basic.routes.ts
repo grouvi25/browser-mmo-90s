@@ -141,9 +141,25 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
   // Берётся из базы, а не из сида — на проде важно видеть то, что стоит
   // там, включая правки, сделанные после последнего посева.
   fastify.get('/sandbox/items', READ_ADMIN, async (_req, reply) => {
-    const items = await prisma.itemTemplate.findMany({
-      orderBy: [{ type: 'asc' }, { levelReq: 'asc' }, { priceBase: 'asc' }],
-    })
+    const [templates, privateRows] = await Promise.all([
+      prisma.itemTemplate.findMany({
+        orderBy: [{ type: 'asc' }, { levelReq: 'asc' }, { priceBase: 'asc' }],
+        include: {
+          shopEntries: { select: { overridePrice: true, isAvailable: true } },
+          dollarShopItems: { select: { shop: true, priceDollars: true, isAvailable: true } },
+        },
+      }),
+      prisma.privateShopItem.findMany({ select: { itemTemplateId: true, shopCode: true, price: true } }),
+    ])
+    // Где вещь продаётся — одной строкой для списка в админке (правка 30.10).
+    const items = templates.map(({ shopEntries, dollarShopItems, ...item }) => ({
+      ...item,
+      sales: [
+        ...shopEntries.map(row => ({ shop: 'GOVERNMENT', price: row.overridePrice ?? item.priceBase, currency: 'RUB', isAvailable: row.isAvailable })),
+        ...dollarShopItems.map(row => ({ shop: row.shop, price: row.priceDollars, currency: 'USD', isAvailable: row.isAvailable })),
+        ...privateRows.filter(row => row.itemTemplateId === item.id).map(row => ({ shop: row.shopCode, price: row.price, currency: 'RUB', isAvailable: true })),
+      ],
+    }))
     return reply.send({ items })
   })
 

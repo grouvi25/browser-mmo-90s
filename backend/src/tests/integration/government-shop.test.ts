@@ -18,9 +18,11 @@ async function createCharacterWithTemplate() {
   const { id: userId } = await AuthService.register({
     login, email: `${login}@t.com`, password: 'pass',
   })
-  const char = await CharactersService.create(userId, {
+  const created = await CharactersService.create(userId, {
     nickname: uid('ShopChar'), archetype: 'WORKER',
   })
+  // Стартовых денег нет (30.10) — на покупки выдаём сами.
+  const char = await testPrisma.character.update({ where: { id: created.id }, data: { money: 5_000 } })
 
   // Create an item template and shop entry for testing
   const template = await testPrisma.itemTemplate.create({

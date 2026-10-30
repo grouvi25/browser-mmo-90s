@@ -393,6 +393,14 @@ export interface ItemTemplateRow {
   levelReq: number | null; priceBase: number | null
   minDamage: number | null; maxDamage: number | null; weaponAccuracy: number | null
   armor: number | null; durabilityMax: number | null; weight: number | null
+  // Полная строка шаблона — форма вещи открывается ею для правки и копии (30.10).
+  description?: string | null; weaponType?: string | null; armorSlot?: string | null; maxRange?: number | null
+  critBonus?: number | null; dodgeBonus?: number | null; hpBonus?: number | null
+  statBonuses?: Record<string, number> | null
+  antiDodge?: number | null; antiLuck?: number | null; antiCrit?: number | null; antiCounter?: number | null
+  statBudget?: number; allocationMode?: 'FIXED' | 'PLAYER'; statAllocation?: Record<string, number> | null
+  isActive?: boolean
+  sales?: { shop: string; price: number; currency: 'RUB' | 'USD'; isAvailable: boolean }[]
 }
 
 // ── Ручки ────────────────────────────────────────────────────

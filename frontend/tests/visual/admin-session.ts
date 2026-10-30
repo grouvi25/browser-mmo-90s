@@ -19,6 +19,17 @@ export default async function globalSetup() {
   await ctx.dispose()
 }
 
+/** Деньги персонажу: с 30.10 стартовых денег нет, а тесты покупают вещи. */
+export async function grantMoney(req: APIRequestContext, characterId: string, amount = 50_000) {
+  const token = process.env.E2E_ADMIN_TOKEN
+  expect(token, 'globalSetup не выдал админский токен').toBeTruthy()
+  const grant = await req.post(`${API}/api/admin/characters/money`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { characterId, amount, reason: 'e2e: деньги на покупки' },
+  })
+  expect(grant.status()).toBe(200)
+}
+
 /** Досыпать персонажу боевого опыта, чтобы открылись все локации. */
 export async function unlockLocations(req: APIRequestContext, characterId: string) {
   const token = process.env.E2E_ADMIN_TOKEN
