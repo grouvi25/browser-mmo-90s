@@ -29,7 +29,7 @@ type Category = 'MELEE' | 'RANGED' | 'HEAD' | 'NECK' | 'BODY' | 'FEET' | 'HANDS'
  * Вкладки по правке заказчика 28.10: вместо «Оружие» и «Броня» — по месту
  * на теле, в его порядке; «Бафф-еду» убрали, напитки оставили. «Бумаги» —
  * будущие свитки нападения и иммунитета (заказчик просил назвать ближе к
- * жизни). Кольца и браслеты пока пусты: таких вещей в игре ещё нет.
+ * жизни). Браслеты пока пусты: таких вещей в игре ещё нет.
  */
 const CATEGORIES: Array<{ key: Category; label: string; match?: (item: ShopItem) => boolean }> = [
   { key: 'MELEE', label: 'Ближний бой', match: i => i.template.type === 'WEAPON' && !RANGED.has(i.template.weaponType ?? '') },
@@ -39,7 +39,7 @@ const CATEGORIES: Array<{ key: Category; label: string; match?: (item: ShopItem)
   { key: 'BODY', label: 'Тело', match: i => i.template.armorSlot === 'CHEST' },
   { key: 'FEET', label: 'Ноги', match: i => i.template.armorSlot === 'FEET' },
   { key: 'HANDS', label: 'Руки', match: i => i.template.type === 'SHIELD' || i.template.armorSlot === 'RIGHT_HAND' },
-  { key: 'RINGS', label: 'Кольца' },
+  { key: 'RINGS', label: 'Кольца', match: i => i.template.armorSlot === 'RING' },
   { key: 'BRACERS', label: 'Наручи', match: i => i.template.armorSlot === 'GLOVES' || i.template.armorSlot === 'HANDS' },
   { key: 'PANTS', label: 'Штаны', match: i => i.template.armorSlot === 'LEGS' },
   { key: 'BRACELETS', label: 'Браслеты' },

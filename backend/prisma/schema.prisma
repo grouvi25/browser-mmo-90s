@@ -86,6 +86,8 @@ enum ArmorSlot {
   BACK
   POCKET
   ACCESSORY
+  RING // кольцо (заказчик 31.10): на шаблоне всегда RING, надетое — в RING или RING_2
+  RING_2
 }
 
 enum ItemQuality {

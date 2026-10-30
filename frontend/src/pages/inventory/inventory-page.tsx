@@ -59,7 +59,7 @@ const TABS: Tab[] = [
   { key: 'armor',   label: 'Броня',    match: i => i.template.armorSlot === 'CHEST' },
   { key: 'melee',   label: 'Оружие',   match: i => i.template.type === 'WEAPON' && !RANGED.has(i.template.weaponType ?? '') },
   { key: 'ranged',  label: 'Стрелковое оружие', match: i => i.template.type === 'WEAPON' && RANGED.has(i.template.weaponType ?? '') },
-  { key: 'rings',   label: 'Кольца',   match: () => false },
+  { key: 'rings',   label: 'Кольца',   match: i => i.template.armorSlot === 'RING' },
   { key: 'bracers', label: 'Наручи',   match: i => i.template.armorSlot === 'GLOVES' || i.template.armorSlot === 'HANDS' },
   { key: 'chains',  label: 'Цепочки',  match: () => false },
   { key: 'stones',  label: 'Камни',    match: i => i.template.type === 'UPGRADE_MODULE' },
@@ -111,11 +111,11 @@ const CELLS: Cell[] = [
     sockets: [{ x: 40.76, y: 50.12, w: 6.35, h: 3.6 }, { x: 52.89, y: 49.64, w: 6.35, h: 3.6 }] },
   { slot: 'GLOVES', box: { x: 3.1, y: 61.71, w: 14.25, h: 7.51 },
     sockets: [{ x: 3.95, y: 65.23, w: 6.35, h: 3.52 }, { x: 10.16, y: 65.23, w: 6.35, h: 3.52 }] },
-  { slot: null, box: { x: 17.91, y: 61.71, w: 14.25, h: 7.51 },
+  { slot: 'RING', box: { x: 17.91, y: 61.71, w: 14.25, h: 7.51 },
     sockets: [{ x: 18.9, y: 65.23, w: 6.35, h: 3.52 }, { x: 25.11, y: 65.23, w: 6.35, h: 3.52 }] },
   { slot: 'HANDS', box: { x: 67.56, y: 61.71, w: 14.25, h: 7.51 },
     sockets: [{ x: 68.41, y: 65.23, w: 6.35, h: 3.52 }, { x: 74.61, y: 65.23, w: 6.35, h: 3.52 }] },
-  { slot: null, box: { x: 82.37, y: 61.71, w: 14.25, h: 7.51 },
+  { slot: 'RING_2', box: { x: 82.37, y: 61.71, w: 14.25, h: 7.51 },
     sockets: [{ x: 83.22, y: 65.23, w: 6.35, h: 3.52 }, { x: 89.42, y: 65.23, w: 6.35, h: 3.52 }] },
   { slot: 'LEGS', box: { x: 3.1, y: 70.5, w: 14.25, h: 7.51 },
     sockets: [{ x: 3.95, y: 74.02, w: 6.35, h: 3.52 }, { x: 10.16, y: 74.02, w: 6.35, h: 3.52 }] },
@@ -199,7 +199,8 @@ export function InventoryPage() {
   )
   const tab = TABS.find(t => t.key === tabKey) ?? TABS[0]
   const visible = items.filter(i => i.status !== 'DELETED' && (tab.match?.(i) ?? false))
-  const bySlot = (slot: string) => equipped.find(i => i.armorSlot === slot || i.template.armorSlot === slot)
+  // Кольца две, а на шаблоне слот один: у них смотрим только, куда надето.
+  const bySlot = (slot: string) => equipped.find(i => i.armorSlot === slot || (!slot.startsWith('RING') && i.template.armorSlot === slot))
 
   if (isLoading) return <div className="loading"><span className="spinner" />Загрузка инвентаря…</div>
 

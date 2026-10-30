@@ -4,7 +4,7 @@ export type Kind = 'WEAPON' | 'ARMOR' | 'SHIELD' | 'ACCESSORY' | 'CONSUMABLE' | 
 export type Shop = '' | 'GOVERNMENT' | 'TSUM' | 'BEREZKA' | 'kommersant' | 'armory_garage'
 
 export const KINDS: [Kind, string][] = [
-  ['WEAPON', 'Оружие'], ['ARMOR', 'Одежда и броня'], ['SHIELD', 'Щит'], ['ACCESSORY', 'Амулет'],
+  ['WEAPON', 'Оружие'], ['ARMOR', 'Одежда и броня'], ['SHIELD', 'Щит'], ['ACCESSORY', 'Амулет или кольцо'],
   ['CONSUMABLE', 'Расходник (аптечка и т. п.)'], ['TOOL', 'Инструмент'],
 ]
 /** Где продаётся: валюта у каждого своя — её и подписываем у цены. */
