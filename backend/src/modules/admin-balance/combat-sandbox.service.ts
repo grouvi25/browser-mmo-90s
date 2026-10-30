@@ -67,6 +67,7 @@ function snapshots(fighter: FighterInput): { atk: AttackerSnapshot; def: Defende
     },
     def: {
       agi: fighter.agi, rea: fighter.rea, end: fighter.end, luck: fighter.luck,
+      agr: fighter.agr, level: fighter.battleLevel,
       armor: fighter.armor, dodgeBonus: 0, antiCrit: 0, blockBonus: 0,
       armorWeight: fighter.equipmentWeight,
       antiSkillLevel: fighter.antiSkill, antiCounterDefense: 0, antiLuck: 0,
