@@ -3,7 +3,7 @@ import { seedCity } from './seed-city'
 // NOTE: DATABASE_URL must be set via environment variable (no dotenv needed in CI/Docker)
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
-import { RESOURCES, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PREMIUM_PRODUCTS_DEFERRED, PRIVATE_SHOP_RESOURCES } from './economy-data'
+import { RESOURCES, PREMIUM_TOOLS, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PREMIUM_PRODUCTS_DEFERRED, PRIVATE_SHOP_RESOURCES } from './economy-data'
 import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
 
 const prisma = new PrismaClient()
@@ -333,6 +333,24 @@ async function main() {
     {code:'armor_boots_army_private',name:'Армейские берцы',type:'ARMOR' as const,armorSlot:'FEET' as const,armor:9,dodgeBonus:.03,weight:1.2,durabilityMax:100,priceBase:700,levelReq:0,itemTier:2,sourceType:'PRIVATE' as const,privateShopAllowed:true,upgradeAllowed:true,allocationMode:'PLAYER' as const,statBudget:5,repairResourceCode:'comp_armor_plate'},
   ]
   for(const tpl of privateTemplates){await prisma.itemTemplate.upsert({where:{code:tpl.code},update:tpl,create:tpl})}
+  // Вещи из премиальных ресурсов (заказчик 30.10): только крафт и перепродажа,
+  // прочность выше обычной — так заказчик описал эти инструменты.
+  const premiumCrafted = [
+    { code: 'armor_prem_vest', name: 'Кованый бронежилет', description: 'Сделан кузнецом на наковальне: крепче армейского.', type: 'ARMOR' as const, armorSlot: 'CHEST' as const, armor: 42, antiCrit: .05, weight: 6, durabilityMax: 150, priceBase: 1500, levelReq: 5, itemTier: 3, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 10, repairResourceCode: 'comp_armor_plate' },
+    { code: 'armor_prem_coat', name: 'Прошитая куртка', description: 'Лёгкая и плотная, шита на машинке мастера.', type: 'ARMOR' as const, armorSlot: 'CHEST' as const, armor: 30, dodgeBonus: .03, weight: 2, durabilityMax: 150, priceBase: 700, levelReq: 5, itemTier: 3, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 10, repairResourceCode: 'comp_armor_plate' },
+    { code: 'weapon_prem_tt', name: 'ТТ мастера', description: 'Пистолет ТТ, собранный из точных деталей.', type: 'WEAPON' as const, weaponType: 'PISTOL' as const, minDamage: 55, maxDamage: 105, weaponAccuracy: .84, optimalRange: 4, maxRange: 5, weight: 1.1, durabilityMax: 150, priceBase: 1800, levelReq: 5, itemTier: 3, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 10, repairResourceCode: 'comp_weapon_part' },
+    { code: 'consumable_prem_kit', name: 'Полевая аптечка', description: 'Лечит вдвое лучше обычной аптечки.', type: 'CONSUMABLE' as const, hpBonus: 100, weight: 0.3, durabilityMax: 1, priceBase: 250, levelReq: 0, isSellable: true, isEquippable: false, sourceType: 'CRAFTED' as const },
+  ]
+  for (const tpl of premiumCrafted) await prisma.itemTemplate.upsert({ where: { code: tpl.code }, update: tpl, create: tpl })
+  // Сами инструменты завёл заказчик; здесь только то, что делает их рабочими.
+  for (const tool of PREMIUM_TOOLS) {
+    const saved = await prisma.itemTemplate.upsert({
+      where: { code: tool.code },
+      update: { toolTier: 5, usesMax: 100 },
+      create: { ...tool, description: 'Создание уникальных изделий, увеличенная прочность', type: 'TOOL', toolTier: 5, usesMax: 100, levelReq: 5, priceBase: 500, sourceType: 'DONATE', isEquippable: false },
+    })
+    await prisma.dollarShopItem.upsert({ where: { shop_templateId: { shop: 'BEREZKA', templateId: saved.id } }, update: {}, create: { shop: 'BEREZKA', templateId: saved.id, priceDollars: 100 } })
+  }
   await prisma.itemTemplate.updateMany({where:{type:'WEAPON'},data:{craftProfessionCode:'gunsmith'}})
   await prisma.itemTemplate.updateMany({where:{type:'ARMOR'},data:{craftProfessionCode:'cooperative_builder'}})
   await prisma.itemTemplate.updateMany({where:{type:'CONSUMABLE'},data:{craftProfessionCode:'pharmacist'}})
@@ -388,7 +406,8 @@ async function main() {
     // Профиль ставим только объекту без профиля. Раньше каждый выкат
     // переписывал его на последний рецепт объекта в этом списке — и у
     // владельцев частных заводов сбрасывался выбранный ими рецепт.
-    await prisma.productionObject.updateMany({
+    // Рецепт под премиальный инструмент профилем по умолчанию не ставится.
+    if (!saved.requiredToolCode) await prisma.productionObject.updateMany({
       where: { code: recipe.productionObjectCode, activeRecipeId: null },
       data: { activeRecipeId: saved.id },
     })

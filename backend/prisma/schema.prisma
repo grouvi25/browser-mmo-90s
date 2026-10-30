@@ -1346,6 +1346,8 @@ model ProductionRecipe {
   requiredProfessionCode  String                  @map("required_profession_code")
   requiredProfessionLevel Int                     @default(0) @map("required_profession_level")
   requiredToolTier        Int                     @default(1) @map("required_tool_tier")
+  /// Рецепт только для премиального инструмента (заказчик 30.10): без него на смену не выйти.
+  requiredToolCode        String?                 @map("required_tool_code")
   isActive                Boolean                 @default(true) @map("is_active")
   createdAt               DateTime                @default(now()) @map("created_at")
   inputs                  ProductionRecipeInput[]

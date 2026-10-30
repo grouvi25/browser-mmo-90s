@@ -272,7 +272,7 @@ function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, on
           <option value="">— выберите рецепт —</option>
           {recipes.data?.items?.map(recipe => (
             <option key={recipe.id} value={recipe.id} disabled={!recipe.available}>
-              {recipe.name}{recipe.available ? '' : ' · нужен уровень +' + recipe.missingLevel}
+              {recipe.name}{recipe.available ? '' : ' · нужен уровень +' + recipe.missingLevel}{recipe.requiredToolName ? ` · нужен инструмент: ${recipe.requiredToolName}` : ''}
             </option>
           ))}
         </select>

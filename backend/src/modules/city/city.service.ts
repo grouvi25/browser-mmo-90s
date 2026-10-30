@@ -91,7 +91,7 @@ export const CityService = {
       const dollars = await DollarsService.debit(tx, { characterId, amount: priceDollars, reason: 'PURCHASE', refId: template.id, note: template.name })
       const item = await tx.itemInstance.create({ data: { templateId, ownerId: characterId, sourceType: 'DONATE', quality: template.qualityBase,
         durabilityCurrent: template.durabilityMax, durabilityMax: template.durabilityMax, weight: template.weight,
-        freePoints: template.allocationMode === 'PLAYER' ? template.statBudget : 0 } })
+        freePoints: template.allocationMode === 'PLAYER' ? template.statBudget : 0, usesLeft: template.type === 'TOOL' ? template.usesMax : null } })
       await tx.itemLog.create({ data: { itemId: item.id, characterId, actionCode: 'CREATED_FROM_SHOP', details: { shop: kind, priceDollars } } })
       return { item, dollars, priceDollars, itemName: template.name }
     } })
