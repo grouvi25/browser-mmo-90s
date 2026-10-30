@@ -268,6 +268,7 @@ describe('админка: разделы стратегического слоя
       })
     }
     await PremiumService.grant({ characterId: character.id, productCode: 'prem_sub_30' })
+    await testPrisma.character.update({ where: { id: character.id }, data: { dollars: 100 } })
     await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
 
     const res = await app.inject({

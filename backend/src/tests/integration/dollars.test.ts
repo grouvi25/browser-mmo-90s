@@ -78,20 +78,20 @@ describe('игровые доллары', () => {
   })
 
   it('игрок сам покупает подписку за доллары: списание и выдача вместе', async () => {
-    const buyer = await player('prem', 60)
+    const buyer = await player('prem', 135)
     const result = await PremiumService.buy(buyer.id, 'prem_sub_30', randomUUID())
     expect(result).toMatchObject({ isPremium: true, dollars: 10 })
     const after = await testPrisma.character.findUniqueOrThrow({ where: { id: buyer.id } })
     expect(after.isPremium).toBe(true)
     const purchase = await testPrisma.premiumPurchase.findFirstOrThrow({ where: { characterId: buyer.id } })
-    expect(purchase.priceDollars).toBe(50)
+    expect(purchase.priceDollars).toBe(125)
   })
 
   it('не хватает долларов — ни списания, ни подписки', async () => {
-    const buyer = await player('broke', 49)
+    const buyer = await player('broke', 124)
     await expect(PremiumService.buy(buyer.id, 'prem_sub_30', randomUUID())).rejects.toMatchObject({ statusCode: 409 })
     const after = await testPrisma.character.findUniqueOrThrow({ where: { id: buyer.id } })
-    expect(after.dollars).toBe(49)
+    expect(after.dollars).toBe(124)
     expect(after.isPremium).toBe(false)
     expect(await testPrisma.premiumPurchase.count({ where: { characterId: buyer.id } })).toBe(0)
   })

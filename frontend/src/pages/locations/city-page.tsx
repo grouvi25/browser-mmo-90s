@@ -7,6 +7,8 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { ViewportPanel } from '../../shared/ui/viewport-panel'
 import { SPRITES } from '../../shared/ui/sprite'
 import { itemImage } from '../../shared/assets/shop/shop-images'
+import { itemBonusLines } from '../../shared/lib/item-bonuses'
+import { ItemIconPicker } from '../inventory/item-setup'
 import '../shop/shop.css'
 import { dogBonusText } from '../../shared/lib/dog'
 import { BrigadeHouses } from './brigade-houses'
@@ -86,7 +88,12 @@ function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
   const [tab, setTab] = useState<'items' | 'dogs'>('items')
   const q = useQuery({ queryKey: ['city', 'catalog', kind], queryFn: () => cityApi.catalog(kind) })
   const me = useQuery({ queryKey: ['character', 'me'], queryFn: charactersApi.getMe })
-  const action = useCityAction((id: string) => cityApi.buy(kind, id))
+  const [bought, setBought] = useState<{ id: string; name: string } | null>(null)
+  const action = useCityAction(async (id: string) => {
+    const result = await cityApi.buy(kind, id)
+    if (kind === 'tsum' && result.item?.id) setBought({ id: result.item.id, name: result.itemName })
+    return result
+  })
   const dollars = me.data?.dollars ?? 0
   return <div className="gshop">
     <header className="gshop-head">
@@ -108,6 +115,10 @@ function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
       ? 'Именные вещи: все очки характеристик вы распределяете сами на Складе.'
       : 'Артефакты: характеристики и дополнительный боевой опыт, пока вещь надета и цела.'}</p>
     <QueryState loading={q.isLoading} error={q.isError} retry={q.refetch} /><Message error={action.error} success={action.isSuccess} />
+    {bought && <p className="gshop-note" role="status">
+      «{bought.name}» на Складе. Поставьте вещи свою картинку: <ItemIconPicker itemId={bought.id} onDone={() => setBought(null)} />{' '}
+      <button type="button" className="btn btn-sm" onClick={() => setBought(null)}>Потом</button>
+    </p>}
     {q.data && q.data.items.length === 0 && <p className="gshop-empty">Витрина пуста.</p>}
     <section className="gshop-grid">{q.data?.items.map(item => {
       const price = item.priceDollars ?? 0
@@ -125,6 +136,7 @@ function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
               {item.statBudget ? <li>{item.statBudget} свободных очков</li> : null}
               {item.battleExpBonus ? <li>Боевой опыт: +{Math.round(item.battleExpBonus * 100)}%</li> : null}
               {item.dodgeBonus ? <li>Уворот: +{Math.round(item.dodgeBonus * 100)}%</li> : null}
+              {itemBonusLines(item).map(line => <li key={line.key}>{line.label}: {line.value}</li>)}
               {item.description && <li>{item.description}</li>}
             </ul>
             <div className="gshop-card-actions">

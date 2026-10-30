@@ -66,8 +66,11 @@ export interface Character {
   weaponSkills?: WeaponSkill[]
   /** Прибавки и обереги от надетого — тем же расчётом, что в бою (26.10). */
   gear?: {
-    stats: Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr', number>
+    stats: Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr' | 'rea', number>
     antiDodge: number; antiLuck: number; antiCrit: number; antiCounter: number; hp: number
+    /** Мастерства и минус-мастерства, доли (правка 31.10). */
+    mastery?: Record<'fist' | 'defense' | 'weapon' | 'accuracy', number>
+    minusMastery?: Record<'fist' | 'defense' | 'weapon' | 'accuracy', number>
     /** Минус-обереги: на сколько срезают тот же оберег противника. */
     minus?: { antiDodge: number; antiLuck: number; antiCrit: number; antiCounter: number }
   }
@@ -112,7 +115,9 @@ export interface ItemTemplate {
   antiLuck?: number | null
   antiCounter?: number | null
   /** Прибавки к характеристикам персонажа, пока вещь надета. */
-  statBonuses?: Partial<Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr', number>> | null
+  statBonuses?: Partial<Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr' | 'rea', number>> | null
+  /** Минус-обереги и мастерства вещи, проценты (правка 31.10). */
+  extraBonuses?: Partial<Pick<ItemBonuses, 'mastery' | 'minusMastery' | 'minusCharms'>> | null
   blockBonus: number | null
   // Consumable
   hpBonus: number | null
@@ -132,6 +137,15 @@ export interface ItemTemplate {
   allocationMode: 'FIXED' | 'MASTER' | 'PLAYER'
 }
 
+/** Что записано на вещи сверх базовых полей. Проценты: 5 = 5%. */
+export interface ItemBonuses {
+  stats: Partial<Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr' | 'rea', number>>
+  mastery: Partial<Record<'fist' | 'defense' | 'weapon' | 'accuracy', number>>
+  minusMastery: Partial<Record<'fist' | 'defense' | 'weapon' | 'accuracy', number>>
+  charms: Partial<Record<'antiDodge' | 'antiLuck' | 'antiCrit' | 'antiCounter', number>>
+  minusCharms: Partial<Record<'antiDodge' | 'antiLuck' | 'antiCrit' | 'antiCounter', number>>
+}
+
 export interface ItemInstance {
   id: string
   templateId: string
@@ -147,6 +161,15 @@ export interface ItemInstance {
   template: ItemTemplate
   statAllocation: Partial<Record<ItemStatKey, number>> | null
   freePoints: number
+  /** Что игрок вписал в именную вещь. */
+  bonuses?: Partial<ItemBonuses> | null
+  /** Всего очков на вещи: её бюджет плюс очки за уровни. */
+  budget?: number
+  namedLevel?: number
+  iconVersion?: number
+  canSetIcon?: boolean
+  /** Условия следующего уровня, если вещь его поддерживает. */
+  levelUp?: { priceUsd: number; points: number; maxLevel: number } | null
   /** Итог с сервера: база + очки + улучшения + камни (как считает бой). */
   effective?: { minDamage: number; maxDamage: number; weaponAccuracy: number; critBonus: number; armor: number; durabilityMax: number; antiCrit: number }
 }

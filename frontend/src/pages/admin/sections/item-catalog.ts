@@ -18,7 +18,7 @@ export const SHOPS: { value: Shop; title: string; hint: string; currency: '₽' 
 ]
 /** Прибавки надевшему: характеристики персонажа. */
 export const GEAR_STATS: [string, string][] = [
-  ['str', 'Сила'], ['end', 'Выносливость'], ['luck', 'Фарт'], ['agi', 'Ловкость'], ['acc', 'Меткость'], ['agr', 'Агрессия'],
+  ['str', 'Сила'], ['end', 'Выносливость'], ['luck', 'Фарт'], ['agi', 'Ловкость'], ['acc', 'Меткость'], ['agr', 'Агрессия'], ['rea', 'Реакция'],
 ]
 /** Обереги: что каждый делает в бою — подписано прямо у поля. */
 export const CHARMS: [string, string, string][] = [
@@ -26,6 +26,13 @@ export const CHARMS: [string, string, string][] = [
   ['antiCrit', 'Оберег крита', 'по вам реже проходит крит'],
   ['antiLuck', 'Оберег удачи', 'ваш блок реже пробивают удачным ударом'],
   ['antiCounter', 'Оберег ответа', 'вам реже прилетает ответный удар'],
+]
+/** Мастерства (правка 31.10): что каждое делает в бою. */
+export const MASTERIES: [string, string, string][] = [
+  ['fist', 'Маст. кулачного боя', 'прибавка к урону рукопашной и голыми руками'],
+  ['defense', 'Маст. защиты', 'по вам проходит меньше урона'],
+  ['weapon', 'Маст. исп. оружия', 'прибавка к урону любым другим оружием'],
+  ['accuracy', 'Маст. меткости', 'прибавка к точности'],
 ]
 export function shopTitle(shop: string): string {
   return SHOPS.find(item => item.value === shop)?.title ?? shop

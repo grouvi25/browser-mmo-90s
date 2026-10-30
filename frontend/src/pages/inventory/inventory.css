@@ -247,3 +247,58 @@
 .inv-outfits { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 6px; }
 .inv-outfits__title { font-weight: 700; }
 .inv-outfit { display: inline-flex; gap: 4px; }
+
+/* Настройка именной вещи и итог комплекта (заказчик 30.10): столбики как в
+   «Примерочной» клана «Инквизиция»: поле, подпись, группы через пунктир. */
+.inv-summary-btn { margin: 0 0 8px; }
+.inv-setup__back {
+  position: fixed; inset: 0; z-index: 900;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: rgba(20, 14, 16, .55);
+}
+.inv-setup {
+  display: flex; flex-direction: column;
+  width: min(760px, 100%); max-height: calc(100dvh - 32px);
+  padding: 12px 14px;
+  border: 2px solid #1c1318;
+  background: #ece6e7;
+  color: #1c1318;
+  font-size: 13.5px;
+}
+.inv-setup__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.inv-setup__head h3 { margin: 0; font-size: 16px; }
+.inv-setup__close { display: inline-flex; padding: 4px; border: 1px solid #8b8288; background: #fffffe; color: inherit; cursor: pointer; }
+.inv-setup__close:hover { background: #ddd4d6; }
+.inv-setup__close:active { background: #c8c8c8; }
+.inv-setup__close:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+.inv-setup__top { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.inv-setup__top img { flex: none; object-fit: contain; }
+.inv-setup__top small { display: block; color: #4a4345; }
+.inv-setup__count { margin-bottom: 2px; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+.inv-setup__count.is-over { color: var(--red, #b81e2c); }
+.inv-setup__groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; overflow-y: auto; }
+.inv-setup__group { padding: 6px 0; border-top: 1px dashed #1c1318; }
+.inv-setup__group h4 { margin: 0 0 5px; font-size: 14px; }
+.inv-setup__row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; cursor: pointer; }
+.inv-setup__row input {
+  flex: none; width: 58px; min-height: 28px; padding: 2px 4px;
+  border: 1px solid #1c1318; background: #fffffe; color: inherit;
+  font: inherit; text-align: right; font-variant-numeric: tabular-nums;
+}
+.inv-setup__row input:hover:not(:disabled) { background: #fff7ec; }
+.inv-setup__row input:focus-visible { outline: 2px solid var(--red, #b81e2c); outline-offset: 1px; }
+.inv-setup__row input:disabled { opacity: .5; cursor: not-allowed; }
+.inv-setup__row small { color: #4a4345; }
+.inv-setup__foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-top: 8px; border-top: 1px dashed #1c1318; }
+.inv-setup__totals { margin: 0; }
+.inv-setup__totals > div { display: flex; justify-content: space-between; gap: 10px; padding: 1px 0; }
+.inv-setup__totals dd { margin: 0; font-variant-numeric: tabular-nums; }
+.inv-setup__bad { color: var(--red, #b81e2c); }
+.inv-icon-picker { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.inv-icon-picker .is-busy { opacity: .6; cursor: progress; }
+@media (max-width: 640px) {
+  .inv-setup__back { padding: 0; }
+  .inv-setup { width: 100%; max-height: 100dvh; height: 100dvh; }
+  .inv-setup__groups { grid-template-columns: minmax(0, 1fr); }
+}

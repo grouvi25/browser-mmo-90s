@@ -15,6 +15,7 @@ import { ApiError } from '../../shared/api/client'
 import { SHOP_IMAGES } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
 import { rangeLabel } from '../../shared/lib/weapon-range'
+import { itemBonusLines } from '../../shared/lib/item-bonuses'
 import { DogGoods } from '../locations/dog-goods'
 import './shop.css'
 
@@ -66,9 +67,9 @@ function bonusLines(item: ShopItem): string[] {
   if (t.critBonus) out.push(`Крит: +${Math.round(t.critBonus * 100)}%`)
   if (t.armor) out.push(`Броня тела: +${t.armor}`)
   if (t.dodgeBonus) out.push(`Уворот: +${Math.round(t.dodgeBonus * 100)}%`)
-  if (t.antiCrit) out.push(`Антикрит: +${Math.round(t.antiCrit * 100)}%`)
   if (t.blockBonus) out.push(`Блок: +${Math.round(t.blockBonus * 100)}%`)
   if (t.hpBonus) out.push(`Восстановит: +${t.hpBonus} HP`)
+  for (const line of itemBonusLines(t)) out.push(`${line.label}: ${line.value}`)
   if (t.strReq > 0) out.push(`Требует силы: ${t.strReq}`)
   if (t.skillReq > 0) out.push(`Требует навык: ${t.skillReq}`)
   return out

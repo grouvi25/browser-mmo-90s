@@ -22,6 +22,7 @@ import { Sprite, SpriteButton, SPRITES } from '../../shared/ui/sprite'
 import type { ItemInstance } from '../../shared/types/api.types'
 import { WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
 import { itemImage } from '../../shared/assets/shop/shop-images'
+import { MASTERY_LABELS, instanceImage } from '../../shared/lib/item-bonuses'
 import { IntoxicationBadge } from '../intoxication-badge/intoxication-badge'
 import { dogTitle } from '../../shared/lib/dog'
 
@@ -210,7 +211,7 @@ export function CharacterCard({ profile, wounds, liveHp }: {
           <SpriteButton
             name={own ? weaponSprite(weapon) : 'item-ak'}
             src={own
-              ? (weapon ? itemImage(weapon.template.code, weapon.template.weaponType) : undefined)
+              ? (weapon ? instanceImage(weapon) : undefined)
               : (profile?.weaponCode
                 ? itemImage(profile.weaponCode, profile.weaponType ?? undefined, 'WEAPON') ?? undefined
                 : undefined)}
@@ -227,7 +228,7 @@ export function CharacterCard({ profile, wounds, liveHp }: {
           <SpriteButton
             name="item-bat"
             src={own
-              ? (offhand ? itemImage(offhand.template.code, offhand.template.weaponType) : undefined)
+              ? (offhand ? instanceImage(offhand) : undefined)
               : (profile?.offhandCode ? itemImage(profile.offhandCode, undefined, 'WEAPON') ?? undefined : undefined)}
             box={C.slots[1].box}
             empty={rightKnocked || (own ? !offhand : !profile?.offhandCode)}
@@ -254,7 +255,7 @@ export function CharacterCard({ profile, wounds, liveHp }: {
               style={{ left: C.zones[0].box.x + C.zones[0].box.w / 2 - 9, top: C.zones[1].box.y - 4 }}
               title={`${amulet.template.name} · ${amulet.durabilityCurrent}/${amulet.durabilityMax}`}
               onClick={() => navigate('/inventory')}>
-              <img src={itemImage(amulet.template.code) ?? ''} alt={amulet.template.name} />
+              <img src={instanceImage(amulet) ?? ''} alt={amulet.template.name} />
             </button>
           )}
 
@@ -307,12 +308,18 @@ export function CharacterCard({ profile, wounds, liveHp }: {
           <div className="card-list__title">Характеристики</div>
           {CARD_STATS.map(([key, label]) => {
             const base = char?.stats?.[key] ?? 0
-            const plus = key === 'rea' ? 0 : char?.gear?.stats[key] ?? 0
+            const plus = char?.gear?.stats[key] ?? 0
             return <div key={key} className="card-list__kv"><span>{label}</span>
               <b>{base + plus}{plus !== 0 && <small className="card-list__gain"> ({plus > 0 ? '+' : '−'}{Math.abs(plus)})</small>}</b></div>
           })}
           {(char?.weaponSkills ?? []).filter(s => s.skillLevel > 0).map(s => (
             <div key={s.id} className="card-list__kv"><span>{WEAPON_TYPE_LABELS[s.weaponType] ?? s.weaponType}</span><b>ур. {s.skillLevel}</b></div>
+          ))}
+          {MASTERY_LABELS.filter(([key]) => (char?.gear?.mastery?.[key] ?? 0) > 0).map(([key, label]) => (
+            <div key={`mastery-${key}`} className="card-list__kv"><span>{label}</span><b>{pctText(char!.gear!.mastery![key])}</b></div>
+          ))}
+          {MASTERY_LABELS.filter(([key]) => (char?.gear?.minusMastery?.[key] ?? 0) > 0).map(([key, label]) => (
+            <div key={`minus-mastery-${key}`} className="card-list__kv"><span>{label} противника</span><b>−{pctText(char!.gear!.minusMastery![key])}</b></div>
           ))}
           {CARD_CHARMS.map(([key, label]) => (
             <div key={key} className="card-list__kv"><span>{label}</span><b>{pctText(char?.gear?.[key] ?? 0)}</b></div>

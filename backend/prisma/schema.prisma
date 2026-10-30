@@ -725,6 +725,9 @@ model ItemTemplate {
   statAllocation      Json?              @map("stat_allocation")
   /// Прибавки к характеристикам персонажа, пока вещь надета: { str, end, luck, agi, acc, agr } (правка 26.10).
   statBonuses         Json?              @map("stat_bonuses")
+  /// Минус-обереги, мастерства и минус-мастерства в процентах (правка 31.10):
+  /// { minusCharms, mastery, minusMastery }. Свои обереги — в колонках anti*.
+  extraBonuses        Json?              @map("extra_bonuses")
   allocationMode      ItemAllocationMode @default(FIXED) @map("allocation_mode")
   weaponType          WeaponType?        @map("weapon_type")
   armorSlot           ArmorSlot?         @map("armor_slot")
@@ -787,6 +790,18 @@ model ItemTemplate {
   @@map("item_templates")
 }
 
+/// Своя картинка именной вещи (правка 31.10). Отдельной таблицей: иначе base64
+/// ездил бы с каждым запросом склада.
+model ItemIcon {
+  itemId    String       @id @map("item_id")
+  mime      String
+  data      String
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  item      ItemInstance @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("item_icons")
+}
+
 model ItemInstance {
   id         String @id @default(uuid())
   templateId String @map("template_id")
@@ -801,6 +816,13 @@ model ItemInstance {
   freePoints           Int         @default(0) @map("free_points")
   // Гнёзда под камни: [{ stone, cut }], не длиннее SOCKETS_PER_ITEM.
   socketsJson          Json?       @map("sockets_json")
+  /// Что игрок сам вписал в именную вещь (правка 31.10):
+  /// { stats, mastery, minusMastery, charms, minusCharms }. Одно очко — единица или 1%.
+  bonuses              Json?
+  /// Уровень именной вещи: каждый добавляет очки в бюджет (правка 31.10).
+  namedLevel           Int         @default(0) @map("named_level")
+  /// Растёт при замене своей картинки — адрес меняется, кэш браузера не мешает.
+  iconVersion          Int         @default(0) @map("icon_version")
   usesLeft             Int?        @map("uses_left")
 
   status     ItemStatus @default(NORMAL)
@@ -819,6 +841,7 @@ model ItemInstance {
   itemLogs         ItemLog[]
   repairLogs       RepairLog[]
   workShiftsAsTool WorkShift[]  @relation("WorkShiftTool")
+  icon             ItemIcon?
 
   // Battle: участник может использовать/менять оружие
   battleTurnsWeapon BattleTurn[] @relation("TurnWeapon")

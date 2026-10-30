@@ -95,7 +95,7 @@ describe('админка: новая вещь', () => {
     expect(res.statusCode).toBe(201)
     const { code, actionId } = res.json<{ code: string; actionId: string }>()
     const template = await testPrisma.itemTemplate.findUniqueOrThrow({ where: { code } })
-    expect(template).toMatchObject({ weaponType: 'KNIFE', armorSlot: null, sourceType: 'GOVERNMENT', statAllocation: { DAMAGE: 2, CRIT: 2 } })
+    expect(template).toMatchObject({ weaponType: 'KNIFE', armorSlot: null, sourceType: 'GOVERNMENT', statBudget: 0, allocationMode: 'FIXED', upgradeAllowed: false, statAllocation: {} })
     expect(await testPrisma.governmentShopItem.count({ where: { templateId: template.id } })).toBe(1)
 
     const undone = await app.inject({ method: 'POST', url: `/api/admin/actions/${actionId}/rollback`, headers: { authorization: `Bearer ${token}` }, payload: { reason: 'ошиблись с ценой финки' } })

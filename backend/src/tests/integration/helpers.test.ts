@@ -13,7 +13,7 @@ async function player(prefix = 'hp') {
   const login = uid(prefix)
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
   return testPrisma.character.create({
-    data: { userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 80, hpMax: 80, money: 1000 },
+    data: { userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 80, hpMax: 80, money: 1000, dollars: 1000 },
   })
 }
 
@@ -91,6 +91,8 @@ describe('помощники', () => {
     const character = await subscribed()
     await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
     await HelpersService.hire(character.id, 'Толян', 'supplier')
+    // Заказчик 30.10: крафтовый 100 $, боевой 200 $; из 1 000 $ осталось 800.
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).dollars).toBe(800)
     await expect(HelpersService.hire(character.id, 'Третий', 'procurer'))
       .rejects.toMatchObject({ code: 'HELP_002' })
     const list = await HelpersService.list(character.id)

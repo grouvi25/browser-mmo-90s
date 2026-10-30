@@ -29,7 +29,7 @@ async function fighter(prefix: string, premium = true) {
   const login = uid(prefix)
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
   const character = await testPrisma.character.create({
-    data: { userId: user.id, nickname: login.slice(0, 20), archetype: 'STREET', hpCurrent: 400, hpMax: 400, money: 1_000, battleLevel: 3, status: 'ACTIVE' },
+    data: { userId: user.id, nickname: login.slice(0, 20), archetype: 'STREET', hpCurrent: 400, hpMax: 400, money: 1_000, dollars: 1_000, battleLevel: 3, status: 'ACTIVE' },
   })
   await testPrisma.characterStats.create({ data: { characterId: character.id } })
   if (premium) await PremiumService.grant({ characterId: character.id, productCode: 'prem_sub_30' })

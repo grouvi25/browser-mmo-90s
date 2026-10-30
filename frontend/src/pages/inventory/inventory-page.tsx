@@ -24,14 +24,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { OutfitBar } from './outfit-bar'
+import { GearSummaryDialog, ItemSetupDialog } from './item-setup'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { shopApi } from '../../shared/api/shop.api'
-import {
-  ARMOR_SLOT_LABELS, QUALITY_LABELS, type ItemInstance, type ItemStatKey,
-} from '../../shared/types/api.types'
+import { ARMOR_SLOT_LABELS, QUALITY_LABELS, type ItemInstance } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
-import { itemImage } from '../../shared/assets/shop/shop-images'
+import { instanceImage, itemBonusLines } from '../../shared/lib/item-bonuses'
 import { SPRITES } from '../../shared/ui/sprite'
 import { rangeLabel } from '../../shared/lib/weapon-range'
 import { useBattleLoadout } from '../../shared/lib/battle-loadout'
@@ -83,24 +82,10 @@ interface Cell { slot: string | null; box: Rect; sockets: Rect[] }
  *  ровно те пять категорий, что закрыты во вкладках. Гнёзда под камни
  *  не работают — вставки камней в игре нет.
  */
-// Очки вещи по-русски: кнопки показывали «+ DAMAGE» (правка заказчика 20.10).
-const ITEM_STAT_LABELS: Record<ItemStatKey, string> = {
-  DAMAGE: 'Урон', ACCURACY: 'Точность', CRIT: 'Крит', ARMOR: 'Броня', DURABILITY: 'Прочность', ANTI_CRIT: 'Защита от крита',
-}
 /** Прибавка от очков, улучшений и камней к базовой характеристике. */
 function Gain({ value }: { value: number }) {
   return value > 0 ? <span className="inv-card__gain"> (+{value})</span> : null
 }
-/** Прибавки вещи к характеристикам персонажа (правка 26.10). */
-const GEAR_STAT_LABELS: Record<string, string> = {
-  str: 'Сила', end: 'Выносливость', luck: 'Фарт', agi: 'Ловкость', acc: 'Меткость', agr: 'Агрессия',
-}
-const CHARM_LABELS: [keyof ItemTemplateCharms, string][] = [
-  ['antiDodge', 'Оберег уворота'], ['antiLuck', 'Оберег удачи'], ['antiCounter', 'Оберег ответа'],
-]
-type ItemTemplateCharms = { antiDodge?: number | null; antiLuck?: number | null; antiCounter?: number | null }
-const signed = (value: number) => (value > 0 ? '+' : '−') + Math.abs(value)
-
 /** Доли (0.05) в проценты с одним знаком после запятой, без хвостовых нулей. */
 const pct = (share: number) => Math.round(share * 1000) / 10
 /** Процентная характеристика: базовая — итогом с прибавкой, новая — «+N%». */
@@ -192,14 +177,10 @@ export function InventoryPage() {
     onSuccess: data => { refresh(); showMsg('success', `${data.itemName}: +${data.hpRestored} HP (теперь ${data.newHp} HP)`) },
     onError: err => fail(err, 'Ошибка'),
   })
-  // Вещи, которым в этом заходе распределяли очки: их блок «+» остаётся на месте.
-  const [allocatedIds, setAllocatedIds] = useState<ReadonlySet<string>>(() => new Set())
-  const allocateMut = useMutation({
-    mutationFn: ({ id, stat }: { id: string; stat: ItemStatKey }) => inventoryApi.allocatePoints(id, stat),
-    onMutate: ({ id }) => setAllocatedIds(prev => prev.has(id) ? prev : new Set(prev).add(id)),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['inventory'] }); showMsg('success', 'Очко распределено') },
-    onError: err => fail(err, 'Не удалось распределить очко'),
-  })
+  // Столбики именной вещи и итог комплекта (заказчик 30.10) — отдельными окнами.
+  const [setupId, setSetupId] = useState<string | null>(null)
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  const setupItem = items.find(item => item.id === setupId)
   const sellMut = useMutation({
     mutationFn: (id: string) => shopApi.sell(id),
     onSuccess: data => { refresh(); showMsg('success', `Продано за ${data.sellPrice.toLocaleString('ru')} ₽`) },
@@ -240,7 +221,7 @@ export function InventoryPage() {
         title={item ? `${item.template.name} — снять` : `${label}: пусто`}
         aria-label={item ? `Снять: ${item.template.name}` : `${label}: пусто`}
         onClick={() => item && unequipMut.mutate(item.id)}>
-        {item && <img src={itemImage(item.template.code, item.template.weaponType, item.template.type)} alt="" />}
+        {item && <img src={instanceImage(item)} alt="" />}
       </button>
       {sockets}
     </>
@@ -250,6 +231,12 @@ export function InventoryPage() {
     <div className="inv">
       {message && <div className={`alert alert-${message.type} mb8`}>{message.text}</div>}
       <OutfitBar disabled={inBattle} onMessage={showMsg} />
+      {char && <button type="button" className="inv-btn inv-summary-btn" onClick={() => setSummaryOpen(true)}>
+        <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+        <span>Итог комплекта</span>
+      </button>}
+      {summaryOpen && char && <GearSummaryDialog char={char} onClose={() => setSummaryOpen(false)} />}
+      {setupItem && <ItemSetupDialog key={setupItem.id} item={setupItem} disabled={inBattle} onClose={() => setSetupId(null)} onMessage={showMsg} />}
 
       <nav className="inv-tabs" aria-label="Категории вещей">
         {TABS.map(t => (
@@ -275,15 +262,12 @@ export function InventoryPage() {
                 const broken = item.status === 'BROKEN' || item.durabilityCurrent <= 0
                 const tooLow = (char?.battleLevel ?? 0) < t.levelReq
                 const eff = item.effective
-                const stats = t.type === 'WEAPON'
-                  ? (['DAMAGE', 'ACCURACY', 'CRIT'] as ItemStatKey[])
-                  : (['ARMOR', 'ANTI_CRIT'] as ItemStatKey[])
                 return (
                   <article key={item.id} className="inv-card">
-                    <img src={itemImage(t.code, t.weaponType, t.type)} alt="" />
+                    <img src={instanceImage(item)} alt="" />
                     <div>
                       <div className="inv-card__head">
-                        <h3 className={`q-${item.quality}`}>{t.name}</h3>
+                        <h3 className={`q-${item.quality}`}>{t.name}{!!item.namedLevel && <small> · ур. {item.namedLevel}</small>}</h3>
                         {/* Каждая запись инвентаря — одна вещь, поэтому
                             «Колличество» макета здесь всегда единица. */}
                         <span className="inv-card__count">Количество: 1</span>
@@ -297,38 +281,24 @@ export function InventoryPage() {
                           {t.type === 'WEAPON' && !!t.maxRange && <div><dt>Дальность</dt><dd>{rangeLabel(t.maxRange)}</dd></div>}
                           {!!t.armor && <div><dt>Броня тела</dt><dd>+{eff?.armor ?? t.armor}<Gain value={(eff?.armor ?? 0) - (t.armor ?? 0)} /></dd></div>}
                           {!!t.hpBonus && <div><dt>{t.type === 'CONSUMABLE' ? 'Восстановит' : 'Здоровье'}</dt><dd>+{t.hpBonus} HP</dd></div>}
-                          {Object.entries(t.statBonuses ?? {}).filter(([, v]) => !!v).map(([key, v]) => (
-                            <div key={key}><dt>{GEAR_STAT_LABELS[key] ?? key}</dt><dd>{signed(v as number)}</dd></div>
-                          ))}
-                          {/* Минус-оберег срезает тот же оберег у противника (правило «Апехи»). */}
-                          {CHARM_LABELS.filter(([key]) => !!t[key]).map(([key, label]) => (
-                            <div key={key}><dt>{(t[key] as number) < 0 ? `${label} противника` : label}</dt><dd>{signed(pct(t[key] as number))}%</dd></div>
-                          ))}
+                          {/* Заказчик 30.10: «обереги не все в карточке шмота». Теперь здесь всё:
+                              статы, мастерства и обереги, и базовые, и вписанные игроком. */}
+                          {itemBonusLines(t, item).map(line => <div key={line.key}><dt>{line.label}</dt><dd>{line.value}</dd></div>)}
                           {t.strReq > 0 && <div><dt>Требует силы</dt><dd>{t.strReq}</dd></div>}
                           {/* Характеристики, которых у вещи в базе нет, — новой строкой внизу. */}
                           {/* Есть в базе — итог и прибавка (точность ножа 70% → «71% (+1)»);
                               нет в базе — «+N%» новой строкой. */}
                           {!!eff?.weaponAccuracy && <PercentRow label="Точность" total={eff.weaponAccuracy} base={t.weaponAccuracy ?? 0} />}
                           {!!eff?.critBonus && <PercentRow label="Крит" total={eff.critBonus} base={t.critBonus ?? 0} />}
-                          {!!eff?.antiCrit && (eff.antiCrit > 0
-                            ? <PercentRow label="Оберег крита" total={eff.antiCrit} base={t.antiCrit ?? 0} />
-                            : <div><dt>Оберег крита противника</dt><dd>{signed(pct(eff.antiCrit))}%</dd></div>)}
                         </dl>
                         <div className="inv-card__side">
-                          {/* Блок очков не пропадает, пока игрок распределяет: иначе на
-                              последнем очке кнопки ниже подпрыгивали под палец, и следующее
-                              нажатие попадало в «Выбросить» (жалоба игрока 29.10). */}
-                          {t.allocationMode === 'PLAYER' && (item.freePoints > 0 || allocatedIds.has(item.id)) && (
+                          {t.allocationMode === 'PLAYER' && (item.budget ?? 0) > 0 && (
                             <div className="inv-card__actions">
-                              <span className="inv-card__count">Очки: {item.freePoints}</span>
-                              {stats.map(stat => (
-                                <button key={stat} type="button" className="inv-btn"
-                                  disabled={allocateMut.isPending || inBattle || item.freePoints <= 0}
-                                  onClick={() => allocateMut.mutate({ id: item.id, stat })}>
-                                  <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
-                                  <span>+ {ITEM_STAT_LABELS[stat]}</span>
-                                </button>
-                              ))}
+                              <span className="inv-card__count">Очки: {item.freePoints} из {item.budget}</span>
+                              <button type="button" className="inv-btn" disabled={inBattle} onClick={() => setSetupId(item.id)}>
+                                <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+                                <span>Настроить</span>
+                              </button>
                             </div>
                           )}
 

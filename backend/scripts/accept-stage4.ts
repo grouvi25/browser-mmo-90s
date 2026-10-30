@@ -142,7 +142,7 @@ async function player(prefix: string, battleLevel = 5) {
   return prisma.character.create({
     data: {
       userId: user.id, nickname: login, archetype: 'WORKER',
-      hpCurrent: 80, hpMax: 80, money: 100_000, battleLevel,
+      hpCurrent: 80, hpMax: 80, money: 100_000, dollars: 1_000, battleLevel,
     },
   })
 }
