@@ -8,15 +8,29 @@ import { withTransaction } from '../../shared/db/transaction'
 import { prisma } from '../../shared/db/prisma'
 import { audit } from '../../shared/logger/audit-logger'
 import { z } from 'zod'
+import { BalanceConfig } from '../../config/balance.config'
 import type { Prisma } from '@prisma/client'
-import { ITEM_STAT_KEYS } from '../items/item-stats.formulas'
+import { ITEM_STAT_KEYS, itemBudget } from '../items/item-stats.formulas'
 import { ItemStatsService } from '../items/item-stats.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
-import { syncHpWithGear } from '../items/gear-bonuses'
+import { CHARM_KEYS, GEAR_STAT_KEYS, GEAR_STAT_LIMIT, MASTERY_KEYS, syncHpWithGear } from '../items/gear-bonuses'
 
 const EquipSchema = z.object({ itemInstanceId: z.string().uuid(), hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional() })
 const UnequipSchema = z.object({ armorSlot: z.string().optional(), itemInstanceId: z.string().uuid().optional() })
 const AllocateSchema = z.object({ itemInstanceId: z.string().uuid(), stat: z.enum(ITEM_STAT_KEYS), points: z.number().int().min(1).max(100) })
+/** Одно поле настройки вещи: не больше предела, иначе весь бюджет уходит в один стат. */
+const POINTS = z.number().int().min(0).max(GEAR_STAT_LIMIT)
+const ConfigureSchema = z.object({
+  itemInstanceId: z.string().uuid(),
+  own: z.partialRecord(z.enum(ITEM_STAT_KEYS), z.number().int().min(0).max(1000)),
+  bonuses: z.object({
+    stats: z.partialRecord(z.enum(GEAR_STAT_KEYS), z.number().int().min(-GEAR_STAT_LIMIT).max(GEAR_STAT_LIMIT)),
+    mastery: z.partialRecord(z.enum(MASTERY_KEYS), POINTS),
+    minusMastery: z.partialRecord(z.enum(MASTERY_KEYS), POINTS),
+    charms: z.partialRecord(z.enum(CHARM_KEYS), POINTS),
+    minusCharms: z.partialRecord(z.enum(CHARM_KEYS), POINTS),
+  }),
+})
 
 type Tx = Prisma.TransactionClient
 type CharWithStats = Prisma.CharacterGetPayload<{ include: { stats: true } }>
@@ -55,8 +69,14 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
     // улучшения и камни прибавляются к базовым (правка заказчика 21.10:
     // «добавлялось к уже готовым статам, а если нет — новый стат внизу»).
     const items = await ItemsRepository.findByOwner(char.id)
+    const tsum = new Set((await prisma.dollarShopItem.findMany({ where: { shop: 'TSUM' }, select: { templateId: true } })).map(row => row.templateId))
+    const named = BalanceConfig.economy.namedItems
     return reply.send(items.map(item => ({
       ...item,
+      budget: itemBudget(item.template, item.namedLevel),
+      canSetIcon: tsum.has(item.templateId),
+      levelUp: tsum.has(item.templateId) && item.template.allocationMode === 'PLAYER'
+        ? { priceUsd: named.levelPriceUsd, points: named.pointsPerLevel, maxLevel: named.maxLevel } : null,
       effective: applyUpgradeModifiers(
         item.template,
         (item.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {},
@@ -71,6 +91,38 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
     const char = await CharactersRepository.findByUserId(req.authUser.userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return reply.send(await ItemStatsService.allocate(char.id, parsed.data.itemInstanceId, parsed.data.stat, parsed.data.points))
+  })
+
+  // Столбики именной вещи (правка 31.10): весь расклад одним сохранением.
+  fastify.post('/configure', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
+    const parsed = ConfigureSchema.safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: `В одном поле — не больше ${GEAR_STAT_LIMIT}` })
+    const char = await CharactersRepository.findByUserId(req.authUser.userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
+    return reply.send(await ItemStatsService.configure(char.id, parsed.data.itemInstanceId, parsed.data.own, parsed.data.bonuses))
+  })
+
+  fastify.post<{ Params: { id: string } }>('/items/:id/level-up', { preHandler: authenticate }, async (req, reply) => {
+    const key = req.headers['idempotency-key']
+    if (typeof key !== 'string' || key.length < 8 || key.length > 128) throw AppError.validation('Требуется Idempotency-Key')
+    const char = await CharactersRepository.findByUserId(req.authUser.userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
+    return reply.send(await ItemStatsService.levelUp(char.id, req.params.id, key))
+  })
+
+  // Без авторизации, как иконка бригады: картинку грузит тег <img>.
+  fastify.get<{ Params: { id: string } }>('/items/:id/icon', async (req, reply) => {
+    const icon = await ItemStatsService.icon(req.params.id)
+    if (!icon) return reply.code(404).send()
+    return reply.header('Content-Type', icon.mime).header('Cache-Control', 'public, max-age=31536000, immutable').send(icon.bytes)
+  })
+
+  fastify.put<{ Params: { id: string }; Body: { dataUrl: string } }>('/items/:id/icon', { preHandler: authenticate, bodyLimit: 200_000 }, async (req, reply) => {
+    const parsed = z.object({ dataUrl: z.string().min(20).max(190_000) }).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Картинка: PNG, JPEG или WebP' })
+    const char = await CharactersRepository.findByUserId(req.authUser.userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
+    return reply.send(await ItemStatsService.setIcon(char.id, req.params.id, parsed.data.dataUrl))
   })
 
   fastify.post('/equip', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {

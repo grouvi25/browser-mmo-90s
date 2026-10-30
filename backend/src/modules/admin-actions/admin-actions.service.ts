@@ -12,7 +12,8 @@
 // ТЗ: docs/specs/stage-5/STAGE5_ADMIN_API.md разделы 2 и 3.
 // =============================================================
 import { randomUUID } from 'crypto'
-import type { AdminActionKind, AdminRole, Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
+import type { AdminActionKind, AdminRole } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
@@ -66,6 +67,12 @@ function must<T>(value: T | null | undefined, message: string): T {
 }
 
 const str = (payload: Record<string, unknown>, key: string) => String(payload[key])
+/** Поля вещи для записи: пустая JSON-колонка задаётся DbNull, просто null Prisma не примет. */
+function itemFields(fields: unknown): Prisma.ItemTemplateUpdateInput {
+  const out: Record<string, unknown> = { ...(fields as Record<string, unknown>) }
+  for (const key of ['statAllocation', 'statBonuses', 'extraBonuses']) if (out[key] === null) out[key] = Prisma.DbNull
+  return out as Prisma.ItemTemplateUpdateInput
+}
 const num = (payload: Record<string, unknown>, key: string) => Number(payload[key])
 const date = (payload: Record<string, unknown>, key: string) =>
   payload[key] === null || payload[key] === undefined ? null : new Date(String(payload[key]))
@@ -512,7 +519,7 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
     must(await tx.itemTemplate.findUnique({ where: { code } }), `Предмета «${code}» больше нет`)
     await tx.itemTemplate.update({
       where: { code },
-      data: payload.fields as Prisma.ItemTemplateUpdateInput,
+      data: itemFields(payload.fields),
     })
   },
 
@@ -522,7 +529,7 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
     must(await tx.itemTemplate.findUnique({ where: { code } }), `Предмета «${code}» больше нет`)
     await tx.itemTemplate.update({
       where: { code },
-      data: payload.fields as Prisma.ItemTemplateUpdateInput,
+      data: itemFields(payload.fields),
     })
   },
 

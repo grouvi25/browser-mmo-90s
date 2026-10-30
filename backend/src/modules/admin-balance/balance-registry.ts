@@ -325,6 +325,8 @@ export function balanceRegistry(): BalanceGroup[] {
             p('economy.work.dailyShiftMinutes', B.economy.work.dailyShiftMinutes, 'минут в сутки'),
             p('strategy.premium.dailyShiftCap', B.strategy.premium.dailyShiftCap, 'потолок для подписчика'),
             p('strategy.helper.dailyShiftCap', B.strategy.helper.dailyShiftCap, 'сколько смен закрывает помощник'),
+            p('strategy.helper.priceCombatUsd', B.strategy.helper.priceCombatUsd, 'боевой помощник, долларов'),
+            p('strategy.helper.priceWorkUsd', B.strategy.helper.priceWorkUsd, 'крафтовый помощник, долларов'),
           ],
           source: 'modules/work/work.formulas.ts:77',
         },
@@ -418,6 +420,9 @@ export function balanceRegistry(): BalanceGroup[] {
           affects: 'Главный добровольный сток: цена растёт степенью, а шанс падает линейно. Профессия немного страхует. Пятый уровень — это уже 42% успеха при цене в семь раз выше первой.',
           inputs: ['базовая цена вещи', 'текущий уровень улучшений', 'уровень профессии'],
           params: [
+            p('economy.namedItems.pointsPerLevel', B.economy.namedItems.pointsPerLevel, 'очков за уровень именной вещи'),
+            p('economy.namedItems.levelPriceUsd', B.economy.namedItems.levelPriceUsd, 'цена уровня именной вещи, долларов'),
+            p('economy.namedItems.maxLevel', B.economy.namedItems.maxLevel, 'потолок уровня именной вещи'),
             p('economy.upgrades.costRate', B.economy.upgrades.costRate, 'доля цены за первый уровень'),
             p('economy.upgrades.costPower', B.economy.upgrades.costPower, 'степень роста цены'),
             p('economy.upgrades.baseChance', B.economy.upgrades.baseChance, 'шанс на первом уровне'),

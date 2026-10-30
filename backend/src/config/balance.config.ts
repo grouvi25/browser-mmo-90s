@@ -59,7 +59,7 @@ export const BalanceConfig = {
     },
     clanObjects: { base: 2, perTerritory: 2 },
     premium: { skillMultiplier: 1.5, dailyShiftCap: 16, helperSlots: 2, loadoutSlots: 4 },
-    helper: { efficiency: 0.6, maxCount: 2, skillCap: 3, skillRate: 0.5, dailyShiftCap: 6 },
+    helper: { efficiency: 0.6, maxCount: 2, skillCap: 3, skillRate: 0.5, dailyShiftCap: 6, priceCombatUsd: 200, priceWorkUsd: 100 },
     battleSwap: { weaponCostPoints: 1, armorCostTurn: true },
   },
 
@@ -107,6 +107,8 @@ export const BalanceConfig = {
       repairDurabilityPerKit: 20,
       repairResourceCode: 'comp_repair_kit',
     },
+    /** Именные вещи ЦУМа (заказчик 30.10): «улучшения на 1лвл каждую вещь, +50 статов за каждый лвл». */
+    namedItems: { pointsPerLevel: 50, levelPriceUsd: 1000, maxLevel: 10 },
     upgrades: { costRate: 0.15, costPower: 1.4, baseChance: 0.9, chanceLossPerLevel: 0.12, professionBonusPerLevel: 0.01, minChance: 0.15, maxChance: 0.95 },
     simulation: {
       profiles: {

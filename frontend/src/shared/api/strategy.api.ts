@@ -187,7 +187,7 @@ export interface HelperObject {
 }
 
 export const helpersApi = {
-  list: () => api.get<{ items: Helper[]; slots: { used: number; total: number } }>('/api/helpers'),
+  list: () => api.get<{ items: Helper[]; slots: { used: number; total: number }; prices?: { COMBAT: number; WORK: number } }>('/api/helpers'),
   objects: () => api.get<{ items: HelperObject[] }>('/api/helpers/objects'),
   hire: (name: string, professionCode: string, kind: 'WORK' | 'COMBAT' = 'WORK') =>
     api.post<Helper>('/api/helpers', { name, kind, ...(kind === 'WORK' ? { professionCode } : {}) }, idem()),

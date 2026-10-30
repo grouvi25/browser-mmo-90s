@@ -213,13 +213,17 @@ export const TERRITORIES = [
 export const PREMIUM_PRODUCTS = [
   // ── Подписка ────────────────────────────────────────────────
   // Цена в игровых долларах (правка заказчика, октябрь 2026): доллары игрок
-  // покупает у дилера и тратит сам. Подписка — около 50 $ по примеру заказчика.
-  { code: 'prem_sub_30', name: 'Подписка на 30 дней', kind: 'TIME', priceRub: 299, priceDollars: 50,
+  // покупает у дилера и тратит сам. Заказчик 30.10: «Прем 125$ в месяц,
+  // 320$ на 3 месяца, 600$ пол года».
+  { code: 'prem_sub_30', name: 'Подписка на 30 дней', kind: 'TIME', priceRub: 299, priceDollars: 125,
     grantCode: 'SUBSCRIPTION_DAYS', grantValue: 30, sortOrder: 10,
     description: 'Опыт оружия в боях с ботами быстрее в 1.5 раза, два помощника, 16 смен в сутки.' },
-  { code: 'prem_sub_90', name: 'Подписка на 90 дней', kind: 'TIME', priceRub: 749, priceDollars: 125,
+  { code: 'prem_sub_90', name: 'Подписка на 90 дней', kind: 'TIME', priceRub: 749, priceDollars: 320,
     grantCode: 'SUBSCRIPTION_DAYS', grantValue: 90, sortOrder: 11,
     description: 'То же на три месяца.' },
+  { code: 'prem_sub_180', name: 'Подписка на полгода', kind: 'TIME', priceRub: 1399, priceDollars: 600,
+    grantCode: 'SUBSCRIPTION_DAYS', grantValue: 180, sortOrder: 12,
+    description: 'То же на шесть месяцев.' },
 ] as const
 
 /**

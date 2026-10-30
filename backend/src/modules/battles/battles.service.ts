@@ -62,7 +62,7 @@ import {
   calcRatingPower,
 } from '../stats/stats.formulas'
 import { withPetBonus } from '../city/city.config'
-import { EMPTY_GEAR, charmBalance, gearOf, withGearStats, type GearBonuses } from '../items/gear-bonuses'
+import { EMPTY_GEAR, charmBalance, gearOf, withGearStats, type GearBonuses, MASTERY_DAMAGE_CAP, MASTERY_DEFENSE_CAP, masteryBalance } from '../items/gear-bonuses'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
 import { applyBattleProgression } from '../experience/progression'
@@ -380,7 +380,7 @@ async function buildAttackerSnapshotAsync(
     weaponSkillLevel,
     minDamage: effectiveWeapon?.minDamage ?? 2,
     maxDamage: effectiveWeapon?.maxDamage ?? 6,
-    weaponAccuracy: (effectiveWeapon?.weaponAccuracy ?? 0.7) + intox.accuracy + (buffActive ? char.barBuffAccuracy : 0),
+    weaponAccuracy: (effectiveWeapon?.weaponAccuracy ?? 0.7) + intox.accuracy + (buffActive ? char.barBuffAccuracy : 0) + masteryBalance(gear, opponentGear, 'accuracy'),
     critBonus: effectiveWeapon?.critBonus ?? 0,
     critDamageBonus: t?.critDamageBonus ?? 0,
     blockPierce: t?.blockPierce ?? 0,
@@ -390,7 +390,10 @@ async function buildAttackerSnapshotAsync(
     // оружия, и за вычетом минус-оберегов противника (правило «Апехи»).
     antiDodgeBonus: charmBalance(gear.antiDodge, opponentGear.minus.antiDodge),
     antiCounterBonus: charmBalance(gear.antiCounter, opponentGear.minus.antiCounter),
-    outgoingDamageMultiplier: 1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0),
+    // Мастерство (правка 31.10): голыми руками и рукопашкой — кулачный бой,
+    // любым другим оружием — исп. оружия.
+    outgoingDamageMultiplier: 1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0)
+      + Math.min(MASTERY_DAMAGE_CAP, masteryBalance(gear, opponentGear, !t || t.weaponType === 'MELEE' ? 'fist' : 'weapon')),
   }
 }
 
@@ -422,6 +425,7 @@ function buildDefenderSnapshot(
     armor: totalArmor, dodgeBonus, antiCrit, blockBonus, armorWeight,
     antiSkillLevel,
     antiCounterDefense: 0, antiLuck,
+    incomingDamageMultiplier: 1 - Math.min(MASTERY_DEFENSE_CAP, masteryBalance(gear, opponentGear, 'defense')),
     minDamage: wMin, maxDamage: wMax,
   }
 }

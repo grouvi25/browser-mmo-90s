@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { ItemInstance, ItemStatKey } from '../types/api.types'
+import type { ItemBonuses, ItemInstance, ItemStatKey } from '../types/api.types'
 
 export const inventoryApi = {
   outfits: () => api.get<{ slots: number; items: { slot: number; name: string; count: number }[] }>('/api/inventory/outfits'),
@@ -19,6 +19,13 @@ export const inventoryApi = {
   useItem: (itemInstanceId: string) =>
     api.post<{ hpRestored: number; newHp: number; itemName: string }>('/api/inventory/use-item', { itemInstanceId }),
 
-  allocatePoints: (itemInstanceId: string, stat: ItemStatKey, points = 1) =>
-    api.post<{ itemId: string; statAllocation: Partial<Record<ItemStatKey, number>>; freePoints: number }>('/api/inventory/allocate-points', { itemInstanceId, stat, points }),
+  /** Столбики именной вещи: весь расклад одним сохранением (правка 31.10). */
+  configure: (itemInstanceId: string, own: Partial<Record<ItemStatKey, number>>, bonuses: ItemBonuses) =>
+    api.post<{ itemId: string; freePoints: number; budget: number }>('/api/inventory/configure', { itemInstanceId, own, bonuses }),
+
+  levelUp: (id: string) =>
+    api.post<{ namedLevel: number; freePoints: number; dollars: number }>(`/api/inventory/items/${id}/level-up`, {}, { headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+
+  setIcon: (id: string, dataUrl: string) => api.put<{ iconVersion: number }>(`/api/inventory/items/${id}/icon`, { dataUrl }),
+  iconUrl: (id: string, version: number) => `${(import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_API_BASE_URL || ''}/api/inventory/items/${id}/icon?v=${version}`,
 }

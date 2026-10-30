@@ -8,8 +8,11 @@
 //   1. что это и какого уровня;
 //   2. где продаётся и почём — госмагазин, ЦУМ, Берёзка, лавки или нигде;
 //   3. основа вещи: урон и точность у оружия, броня у одежды;
-//   4. что вещь даёт надевшему: характеристики, здоровье, шансы, обереги;
+//   4. что вещь даёт надевшему: характеристики, здоровье, шансы, обереги с
+//      минус-оберегами и мастерства с минус-мастерствами (заказчик 30.10: «на
+//      одной вещи могут быть обереги и с плюсом, и с минусом»);
 //   5. очки улучшения — по умолчанию их расставляет игрок, число по уровню.
+//      У вещей госмагазина блока нет: их статы заданы, улучшать нечего.
 // Внизу — карточка «как увидит игрок»: видно итог до сохранения.
 //
 // Та же форма открывается у готовой вещи кнопками «править» (меняются только
@@ -20,7 +23,7 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { adminApi, REASON_MIN, type ItemTemplateRow } from '../admin-api'
 import { Note } from '../../stage3/stage3-ui'
-import { CHARMS, GEAR_STATS, KINDS, SHOPS, shopTitle, type Kind, type Shop } from './item-catalog'
+import { CHARMS, GEAR_STATS, KINDS, MASTERIES, SHOPS, shopTitle, type Kind, type Shop } from './item-catalog'
 
 type StatKey = 'DAMAGE' | 'ACCURACY' | 'CRIT' | 'ARMOR' | 'DURABILITY' | 'ANTI_CRIT'
 export type ItemFormMode = 'create' | 'edit' | 'copy'
@@ -58,6 +61,9 @@ const share = (percent: number, min: number, max: number) => Math.min(max, Math.
 const percent = (value: number | null | undefined) => Math.round((value ?? 0) * 1000) / 10
 const signed = (n: number) => (n > 0 ? `+${n}` : `−${Math.abs(n)}`)
 const money = (n: number) => n.toLocaleString('ru-RU')
+/** Проценты для extraBonuses: без нулей и в порядке полей формы — так их можно сравнивать. */
+const percents = (keys: [string, ...unknown[]][], values: Record<string, number> | undefined) =>
+  Object.fromEntries(keys.flatMap(([key]) => (values?.[key] ?? 0) > 0 ? [[key, Math.min(100, values![key])]] : []))
 
 /**
  * Очки по уровню — правило заказчика: 1-й уровень — 3, 2-й — 4, 3-й — 7,
@@ -96,8 +102,13 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
   const [dodge, setDodge] = useState(percent(initial?.dodgeBonus))
   const [hp, setHp] = useState(initial?.hpBonus ?? 0)
   const [gearStats, setGearStats] = useState<Record<string, number>>({ ...(initial?.statBonuses ?? {}) })
-  const [charms, setCharms] = useState<Record<string, number>>(
-    Object.fromEntries(CHARMS.map(([key]) => [key, percent((initial as Record<string, unknown> | undefined)?.[key] as number | null)])))
+  // Отрицательный оберег в базе — минус-оберег старых вещей: показываем его в своей строке.
+  const charmOf = (key: string) => percent((initial as Record<string, unknown> | undefined)?.[key] as number | null)
+  const [charms, setCharms] = useState<Record<string, number>>(Object.fromEntries(CHARMS.map(([key]) => [key, Math.max(0, charmOf(key))])))
+  const [minusCharms, setMinusCharms] = useState<Record<string, number>>(
+    Object.fromEntries(CHARMS.map(([key]) => [key, Math.max(0, -charmOf(key)) + (initial?.extraBonuses?.minusCharms?.[key] ?? 0)])))
+  const [mastery, setMastery] = useState<Record<string, number>>({ ...(initial?.extraBonuses?.mastery ?? {}) })
+  const [minusMastery, setMinusMastery] = useState<Record<string, number>>({ ...(initial?.extraBonuses?.minusMastery ?? {}) })
   const [budget, setBudget] = useState(initial?.statBudget ?? statBudgetForLevel(initial?.levelReq ?? 1))
   const [budgetTouched, setBudgetTouched] = useState(!!initial && initial.statBudget !== statBudgetForLevel(initial.levelReq ?? 1))
   const [fixed, setFixed] = useState(initial?.allocationMode === 'FIXED' && !!initial.statAllocation && Object.keys(initial.statAllocation).length > 0)
@@ -107,7 +118,9 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
   const [error, setError] = useState('')
 
   const stats = STATS_FOR[kind] ?? []
-  const wearable = stats.length > 0
+  // Госвещь готовая: очков нет (заказчик 30.10). Старая с очками правится как есть.
+  const government = shop === 'GOVERNMENT' && (!editing || !initial.statBudget)
+  const wearable = stats.length > 0 && !government
   const worn = kind !== 'CONSUMABLE' && kind !== 'TOOL'
   const spent = stats.reduce((sum, key) => sum + (alloc[key] ?? 0), 0)
   const shopInfo = SHOPS.find(item => item.value === shop)!
@@ -145,11 +158,12 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
     armor: ['ARMOR', 'SHIELD', 'ACCESSORY'].includes(kind) ? int(armor, 0, 500) : null,
     critBonus: share(crit, 0, 100), dodgeBonus: share(dodge, 0, 100), hpBonus: int(hp, 0, 1000),
     statBonuses: Object.fromEntries(Object.entries(gearStats).map(([k, v]) => [k, int(v, -50, 50)]).filter(([, v]) => v)),
-    ...Object.fromEntries(CHARMS.map(([key]) => [key, share(charms[key] ?? 0, -200, 200)])),
-    ...(wearable ? {
-      statBudget: int(budget, 0, 200),
-      allocationMode: fixed ? 'FIXED' : 'PLAYER',
-      statAllocation: fixed ? Object.fromEntries(stats.map(key => [key, int(alloc[key] ?? 0, 0, 200)])) : null,
+    ...Object.fromEntries(CHARMS.map(([key]) => [key, share(charms[key] ?? 0, 0, 200)])),
+    extraBonuses: { minusCharms: percents(CHARMS, minusCharms), mastery: percents(MASTERIES, mastery), minusMastery: percents(MASTERIES, minusMastery) },
+    ...(stats.length > 0 ? {
+      statBudget: wearable ? int(budget, 0, 200) : 0,
+      allocationMode: wearable && !fixed ? 'PLAYER' : 'FIXED',
+      statAllocation: wearable && fixed ? Object.fromEntries(stats.map(key => [key, int(alloc[key] ?? 0, 0, 200)])) : null,
     } : {}),
   })
 
@@ -165,6 +179,10 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
     return Object.fromEntries(Object.entries(next).filter(([key, value]) => {
       if (key === 'statBonuses') return !same(value, Object.fromEntries(Object.entries(initial.statBonuses ?? {}).filter(([, v]) => v)))
       if (key === 'description') return !same(value, before.description || null)
+      if (key === 'extraBonuses') {
+        const old = initial.extraBonuses
+        return JSON.stringify(value) !== JSON.stringify({ minusCharms: percents(CHARMS, old?.minusCharms), mastery: percents(MASTERIES, old?.mastery), minusMastery: percents(MASTERIES, old?.minusMastery) })
+      }
       return !same(value, before[key])
     }))
   }
@@ -210,7 +228,10 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
     worn && hp ? `Здоровье +${hp}` : '',
     worn && crit ? `Шанс крита +${crit}%` : '',
     worn && dodge ? `Шанс уворота +${dodge}%` : '',
+    worn ? MASTERIES.filter(([key]) => mastery[key]).map(([key, label]) => `${label} +${mastery[key]}%`).join(', ') : '',
+    worn ? MASTERIES.filter(([key]) => minusMastery[key]).map(([key, label]) => `${label} [противнику] −${minusMastery[key]}%`).join(', ') : '',
     worn ? CHARMS.filter(([key]) => charms[key]).map(([key, label]) => `${label} ${signed(charms[key])}%`).join(', ') : '',
+    worn ? CHARMS.filter(([key]) => minusCharms[key]).map(([key, label]) => `${label} [противнику] −${minusCharms[key]}%`).join(', ') : '',
     wearable && budget > 0 ? (fixed
       ? `Очки: ${stats.filter(key => alloc[key]).map(key => `${STAT_INFO[key].title} +${alloc[key]}`).join(', ') || 'не расставлены'}`
       : `${budget} очков улучшения — игрок расставит сам`) : '',
@@ -306,12 +327,31 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
           <label><span>Свой шанс крита, %</span><input type="number" min={0} max={100} step="0.5" value={crit} onChange={num(setCrit)} /></label>
           <label><span>Свой шанс уворота, %</span><input type="number" min={0} max={100} step="0.5" value={dodge} onChange={num(setDodge)} /></label>
         </div>
-        <p className="adm-hint">Обереги, %. Плюс — оберег у вас; минус — срезает такой же оберег у противника, как в «Апехе».</p>
+        <p className="adm-hint">Обереги, %: что вещь даёт вам.</p>
         <div className="adm-item__fields">
           {CHARMS.map(([key, label, what]) => <label key={key}><span>{label}</span>
-            <input type="number" min={-200} max={200} step="0.5" value={charms[key] ?? 0}
-              onChange={e => setCharms({ ...charms, [key]: toNumber(e.target.value) })} />
+            <input type="number" min={0} max={200} step="0.5" value={charms[key] ?? 0}
+              onChange={e => setCharms({ ...charms, [key]: Math.max(0, toNumber(e.target.value)) })} />
             <small className="adm-item__what">{what}</small></label>)}
+        </div>
+        <p className="adm-hint">Минус обереги, %: срезают такой же оберег у противника. На одной вещи можно заполнить и плюс, и минус.</p>
+        <div className="adm-item__fields">
+          {CHARMS.map(([key, label]) => <label key={key}><span>{label} [противнику]</span>
+            <input type="number" min={0} max={100} step="0.5" value={minusCharms[key] ?? 0}
+              onChange={e => setMinusCharms({ ...minusCharms, [key]: Math.max(0, toNumber(e.target.value)) })} /></label>)}
+        </div>
+        <p className="adm-hint">Мастерства, %.</p>
+        <div className="adm-item__fields">
+          {MASTERIES.map(([key, label, what]) => <label key={key}><span>{label}</span>
+            <input type="number" min={0} max={100} step="0.5" value={mastery[key] ?? 0}
+              onChange={e => setMastery({ ...mastery, [key]: Math.max(0, toNumber(e.target.value)) })} />
+            <small className="adm-item__what">{what}</small></label>)}
+        </div>
+        <p className="adm-hint">Минус мастерства, %: срезают такое же мастерство у противника.</p>
+        <div className="adm-item__fields">
+          {MASTERIES.map(([key, label]) => <label key={key}><span>{label} [противнику]</span>
+            <input type="number" min={0} max={100} step="0.5" value={minusMastery[key] ?? 0}
+              onChange={e => setMinusMastery({ ...minusMastery, [key]: Math.max(0, toNumber(e.target.value)) })} /></label>)}
         </div>
       </>}
 
@@ -326,7 +366,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
           По правилу {level}-му уровню положено {statBudgetForLevel(level)}.
           {budgetTouched && budget !== statBudgetForLevel(level) && <> {' '}
             <button type="button" className="adm-link" onClick={() => { setBudget(statBudgetForLevel(level)); setBudgetTouched(false) }}>вернуть {statBudgetForLevel(level)}</button></>}
-          {' '}Обычно ничего трогать не надо: игрок сам расставит очки на Складе.
+          {' '}Обычно ничего трогать не надо: игрок сам заполнит их на Складе, кнопкой «Настроить».
         </p>
         <label className="adm-item__check">
           <input type="checkbox" checked={fixed} onChange={e => setFixed(e.target.checked)} /> Расставлю очки сам, игроку менять нельзя

@@ -132,7 +132,7 @@ export function HelpersSection() {
             </select>
           )}
           <button type="submit" disabled={busy || name.trim().length < 2}>
-            <UserPlus size={13} /> Нанять
+            <UserPlus size={13} /> Нанять{data?.prices ? ` · ${fmt(data.prices[kind])} $` : ''}
           </button>
         </form>
       )}

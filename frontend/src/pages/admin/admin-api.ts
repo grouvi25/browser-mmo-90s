@@ -397,6 +397,7 @@ export interface ItemTemplateRow {
   description?: string | null; weaponType?: string | null; armorSlot?: string | null; maxRange?: number | null
   critBonus?: number | null; dodgeBonus?: number | null; hpBonus?: number | null
   statBonuses?: Record<string, number> | null
+  extraBonuses?: { minusCharms?: Record<string, number>; mastery?: Record<string, number>; minusMastery?: Record<string, number> } | null
   antiDodge?: number | null; antiLuck?: number | null; antiCrit?: number | null; antiCounter?: number | null
   statBudget?: number; allocationMode?: 'FIXED' | 'PLAYER'; statAllocation?: Record<string, number> | null
   isActive?: boolean

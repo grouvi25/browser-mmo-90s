@@ -19,7 +19,7 @@ import {
 } from './balance-overrides.service'
 import { buildCatalog } from './catalog.service'
 import { ITEM_STAT_KEYS, allowedItemStats } from '../items/item-stats.formulas'
-import { GEAR_STAT_KEYS, GEAR_STAT_LIMIT } from '../items/gear-bonuses'
+import { GEAR_STAT_KEYS, GEAR_STAT_LIMIT, CHARM_KEYS, MASTERY_KEYS } from '../items/gear-bonuses'
 
 // Прибавки вещи к характеристикам персонажа и обереги — в плюс и в минус
 // (правка заказчика 26.10). Оберег — доля: 0,1 = 10%, предел ±200%.
@@ -29,6 +29,12 @@ const GEAR_FIELDS = {
   antiLuck: z.number().min(-2).max(2).optional(),
   antiCrit: z.number().min(-2).max(2).optional(),
   antiCounter: z.number().min(-2).max(2).optional(),
+  // Минус-обереги и мастерства, проценты (правка 31.10).
+  extraBonuses: z.object({
+    minusCharms: z.partialRecord(z.enum(CHARM_KEYS), z.number().min(0).max(100)).optional(),
+    mastery: z.partialRecord(z.enum(MASTERY_KEYS), z.number().min(0).max(100)).optional(),
+    minusMastery: z.partialRecord(z.enum(MASTERY_KEYS), z.number().min(0).max(100)).optional(),
+  }).optional(),
 }
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { reasonFlowLabel, reasonTitle } from './reason-codes'
@@ -53,7 +59,8 @@ const FIELD_LABELS: Record<string, string> = {
   statAllocation: 'Распределение очков', statBonuses: 'Характеристики персонажа',
   antiDodge: 'Оберег уворота', antiLuck: 'Оберег удачи', antiCrit: 'Оберег крита', antiCounter: 'Оберег ответа',
   sale: 'Магазин', price: 'Цена в магазине', shop: 'Магазин',
-  str: 'Сила', end: 'Выносливость', luck: 'Фарт', agi: 'Ловкость', acc: 'Меткость', agr: 'Агрессия',
+  str: 'Сила', end: 'Выносливость', luck: 'Фарт', agi: 'Ловкость', acc: 'Меткость', agr: 'Агрессия', rea: 'Реакция',
+  extraBonuses: 'Минус-обереги и мастерства',
 }
 
 /**
@@ -710,9 +717,11 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
       // Вещь, которую продаёт лавка, — частная; госмагазин — государственная.
       sourceType: sale?.shop === 'GOVERNMENT' ? 'GOVERNMENT' : sale?.shop === 'TSUM' || sale?.shop === 'BEREZKA' ? 'DONATE' : sale ? 'PRIVATE' : 'ADMIN',
       privateShopAllowed: !!sale && !['GOVERNMENT', 'TSUM', 'BEREZKA'].includes(sale.shop),
-      upgradeAllowed: ['WEAPON', 'ARMOR', 'SHIELD'].includes(item.type),
+      // Госвещи готовые: статы заданы, улучшать нечего (заказчик 30.10).
+      upgradeAllowed: ['WEAPON', 'ARMOR', 'SHIELD'].includes(item.type) && sale?.shop !== 'GOVERNMENT',
+      ...(sale?.shop === 'GOVERNMENT' ? { statBudget: 0, allocationMode: 'FIXED' as const } : {}),
       isEquippable: ['WEAPON', 'ARMOR', 'SHIELD', 'ACCESSORY'].includes(item.type),
-      statAllocation: item.allocationMode === 'FIXED' ? item.statAllocation ?? {} : undefined,
+      statAllocation: sale?.shop === 'GOVERNMENT' ? {} : item.allocationMode === 'FIXED' ? item.statAllocation ?? {} : undefined,
     }
 
     const action = await AdminActionsService.perform(admin(req), reason, {

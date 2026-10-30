@@ -23,6 +23,7 @@ import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
+import { DollarsService } from '../dollars/dollars.service'
 import { EconomyService } from '../economy/economy.service'
 import { CycleService } from '../production/cycle.service'
 import { ResourcesService } from '../resources/resources.service'
@@ -110,6 +111,7 @@ export const HelpersService = {
         combatExpToNext: expToNextLevel(helper.combatLevel),
       })),
       slots: { used: helpers.length, total: state.benefits.helperSlots },
+      prices: { COMBAT: H.priceCombatUsd, WORK: H.priceWorkUsd },
     }
   },
 
@@ -167,6 +169,8 @@ export const HelpersService = {
           409,
         )
       }
+      // Заказчик 30.10: «Помощник боевой 200$, крафтовый 100$».
+      await DollarsService.debit(tx, { characterId, amount: kind === 'COMBAT' ? H.priceCombatUsd : H.priceWorkUsd, reason: 'PURCHASE', note: `Помощник «${name.trim()}»` })
       const helper = await tx.helper.create({
         data: { characterId, name: name.trim(), kind, professionCode: kind === 'COMBAT' ? 'combat' : professionCode },
       })
