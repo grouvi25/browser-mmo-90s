@@ -10,10 +10,10 @@ import type { FastifyInstance } from 'fastify'
 import { authenticate } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
 import { BalanceConfig } from '../../config/balance.config'
-import { PROFESSION_CHAINS, PROFESSION_CUMULATIVE_XP, PROFESSION_NAMES, professionEfficiency, previousProfession, type ProfessionCode } from '../professions/professions'
+import { PROFESSION_CUMULATIVE_XP, PROFESSION_GROUPS, PROFESSION_NAMES, professionEfficiency, previousProfession, type ProfessionCode } from '../professions/professions'
 
-const CHAIN_TITLES: Record<keyof typeof PROFESSION_CHAINS, string> = {
-  metal: 'Металл', construction: 'Стройка', chemistry: 'Химия и еда',
+const CHAIN_TITLES: Record<keyof typeof PROFESSION_GROUPS, string> = {
+  metal: 'Металл', construction: 'Стройка', chemistry: 'Химия и еда', crafts: 'Ремёсла',
 }
 
 export async function libraryRoutes(fastify: FastifyInstance) {
@@ -39,8 +39,8 @@ export async function libraryRoutes(fastify: FastifyInstance) {
     })
     // Один объект может быть и государственным, и частным — показываем по разу.
     const seen = new Set<string>()
-    const professions = Object.entries(PROFESSION_CHAINS).map(([chain, codes]) => ({
-      chain: CHAIN_TITLES[chain as keyof typeof PROFESSION_CHAINS],
+    const professions = Object.entries(PROFESSION_GROUPS).map(([chain, codes]) => ({
+      chain: CHAIN_TITLES[chain as keyof typeof PROFESSION_GROUPS],
       steps: codes.map((code: ProfessionCode) => {
         const previous = previousProfession(code)
         return {

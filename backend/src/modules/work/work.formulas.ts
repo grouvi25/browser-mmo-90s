@@ -38,6 +38,8 @@ export function calcFinalSalary(
   const randomCoeff = WORK_BALANCE.salaryRandomMin + Math.min(1, Math.max(0, roll)) * (WORK_BALANCE.salaryRandomMax - WORK_BALANCE.salaryRandomMin)
   const fatigueCoeff = dailyShiftSalaryCoeff(dailyShiftNumber)
   const raw = Math.round(baseSalary * objectLevelCoeff(objectLevel) * workerEfficiency(productionLevel) * randomCoeff * fatigueCoeff)
+  // Объект без оклада (сбор из книги экономики) платит продукцией, а не рублём.
+  if (baseSalary <= 0) return 0
   return Math.max(1, Math.min(raw, baseSalary * WORK_BALANCE.salaryCapMultiplier))
 }
 export function calcProductionExp(baseExp: number, objectLevel: number): number { return Math.max(0, Math.round(baseExp * objectLevelCoeff(objectLevel))) }

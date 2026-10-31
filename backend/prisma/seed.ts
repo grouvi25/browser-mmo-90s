@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
 import { RESOURCES, PREMIUM_TOOLS, PRODUCTION_OBJECTS, PRODUCTION_RECIPES, OBJECT_PROFESSIONS, OBJECT_DISTRICTS, TERRITORIES, PREMIUM_PRODUCTS, PREMIUM_PRODUCTS_DEFERRED, PRIVATE_SHOP_RESOURCES } from './economy-data'
 import { BAR_OFFERS, BAR_RECIPES, BAR_RESOURCES } from './bar-data'
+import { seedEconomyTable } from './seed-economy-table'
 
 const prisma = new PrismaClient()
 
@@ -440,6 +441,7 @@ async function main() {
     })
   }
   console.log(`  Production objects: ${productionObjects.length}; equipment: ${Object.keys(equipmentByObject).length}`)
+  await seedEconomyTable(prisma)
 
   // ── Территории Этапа 4 ───────────────────────────────────────
   // Сеются ПОСЛЕ объектов: связь идёт от объекта к району через

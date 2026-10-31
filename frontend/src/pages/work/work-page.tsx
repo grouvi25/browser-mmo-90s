@@ -30,6 +30,7 @@ export function WorkPage(){
   const qc=useQueryClient();const[,setTick]=useState(0)
   const[message,setMessage]=useState<{type:'success'|'error';text:string}|null>(null)
   const[receipt,setReceipt]=useState<Receipt|null>(null);const[cancelConfirm,setCancelConfirm]=useState(false)
+  const[filter,setFilter]=useState('mine')
   useEffect(()=>{const id=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(id)},[])
   const objects=useQuery({queryKey:['work','objects'],queryFn:workApi.objects})
   const current=useQuery({queryKey:['work','current'],queryFn:workApi.current,refetchInterval:10_000})
@@ -77,7 +78,14 @@ export function WorkPage(){
     </div></div>
 
     <div className="panel" id="vacancies"><div className="panel-header"><span className="panel-title">Вакансии</span><span>Оплата и выработка за смену</span></div><div className="panel-body">
-      {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items?.map(object=>{const reason=lockReason(object,!!shift,used>=limit);return <tr key={object.id} className={reason?'is-muted':''}><td><b>{object.name}</b>{object.employer&&<small className="work-employer">{object.employer.isMe?'ваш завод':`частный · ${object.employer.nickname??'владелец'}`}</small>}{reason&&<small className="work-reason">{reason}{!object.profession.learned&&<> · <Link to="/school">в Училище</Link></>}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{object.shiftDurationMinutes} мин</td><td>{(object.offeredSalary??object.baseSalary).toLocaleString('ru')} ₽</td><td>+{object.baseProductionExp} XP</td><td>{object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}${object.employer&&!object.employer.isMe?' — владельцу':''}`:'—'}</td><td><button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate(object)}>Выйти</button></td></tr>})}</tbody></table>}
+      <label className="work-filter">Профессия{' '}
+        <select value={filter} onChange={event=>setFilter(event.target.value)}>
+          <option value="mine">Мои</option>
+          <option value="all">Все</option>
+          {[...new Map(objects.data?.items?.map(object=>[object.profession.code,object.profession.name])).entries()].map(([code,name])=><option key={code} value={code}>{name}</option>)}
+        </select>
+      </label>
+      {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items?.filter(object=>filter==='all'||(filter==='mine'?object.profession.learned||!objects.data?.professions?.length:object.profession.code===filter)).map(object=>{const reason=lockReason(object,!!shift,used>=limit);return <tr key={object.id} className={reason?'is-muted':''}><td><b>{object.name}</b>{object.employer&&<small className="work-employer">{object.employer.isMe?'ваш завод':`частный · ${object.employer.nickname??'владелец'}`}</small>}{reason&&<small className="work-reason">{reason}{!object.profession.learned&&<> · <Link to="/school">в Училище</Link></>}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{object.shiftDurationMinutes} мин</td><td>{(object.offeredSalary??object.baseSalary).toLocaleString('ru')} ₽</td><td>+{object.baseProductionExp} XP</td><td>{object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}${object.employer&&!object.employer.isMe?' — владельцу':''}`:'—'}</td><td><button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate(object)}>Выйти</button></td></tr>})}</tbody></table>}
     </div></div>
   </div>
 }
