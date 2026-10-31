@@ -86,22 +86,24 @@ async function main(): Promise<void> {
   assert(Array.isArray(loadout.itemInstanceIds), 'Battle loadout contract is invalid')
 
   const work = await jsonRequest('/api/work/objects', { headers }) as {
-    items?: Array<{ requiredProfessionCode?: string; requiredProfessionLevel?: number; profession?: { code?: string; level?: number }; equipment?: { requiredToolTier?: number }; toolAvailable?: boolean }>
+    items?: Array<{ code?: string; requiredProfessionCode?: string; requiredProfessionLevel?: number; profession?: { code?: string; level?: number }; equipment?: { requiredToolTier?: number }; toolAvailable?: boolean }>
     professions?: unknown[]
     daily?: { shiftsLimit?: number; minutesLimit?: number }
   }
   assert(Array.isArray(work.items) && work.items.length >= 6, 'Production object seed is incomplete')
   assert(work.items.every(item => typeof item.requiredProfessionCode === 'string' && typeof item.requiredProfessionLevel === 'number' && item.profession?.code === item.requiredProfessionCode), 'Profession object contract is invalid')
-  assert(work.items.every(item => typeof item.equipment?.requiredToolTier === 'number' && typeof item.toolAvailable === 'boolean'), 'Production equipment/tool contract is invalid')
+  // У объектов книги экономики оборудования нет: инструмент требует сам рецепт.
+  const fromBook = (item: { code?: string }) => item.code?.startsWith('obj_tb_')
+  assert(work.items.every(item => (fromBook(item) || typeof item.equipment?.requiredToolTier === 'number') && typeof item.toolAvailable === 'boolean'), 'Production equipment/tool contract is invalid')
   assert(Array.isArray(work.professions), 'Character professions contract is invalid')
   // Сверяем с конфигом, а не с числом: суточный потолок — балансовая
   // величина, и зашитая восьмёрка роняла выкат при её изменении.
   assert(work.daily?.shiftsLimit === BalanceConfig.economy.work.dailyShiftLimit, 'Daily shift limit contract is invalid')
   assert(work.daily?.minutesLimit === BalanceConfig.economy.work.dailyShiftMinutes, 'Daily shift minutes contract is invalid')
 
-  const production = await jsonRequest('/api/production/objects', { headers }) as { items?: Array<{ id?: string; requiredProfessionCode?: string; equipment?: { code?: string } }> }
+  const production = await jsonRequest('/api/production/objects', { headers }) as { items?: Array<{ id?: string; code?: string; requiredProfessionCode?: string; equipment?: { code?: string } }> }
   assert(Array.isArray(production.items) && production.items.length >= 6, 'Production API list contract is invalid')
-  assert(production.items.every(item => typeof item.equipment?.code === 'string'), 'Production equipment seed is incomplete')
+  assert(production.items.every(item => fromBook(item) || typeof item.equipment?.code === 'string'), 'Production equipment seed is incomplete')
   const productionDetails = await jsonRequest(`/api/production/objects/${production.items[0].id}`, { headers }) as { id?: string; requiredProfessionCode?: string }
   assert(productionDetails.id === production.items[0].id && typeof productionDetails.requiredProfessionCode === 'string', 'Production API detail contract is invalid')
 
