@@ -57,6 +57,9 @@ describe('Жилой сектор', () => {
 
     const t = await HousingService.buyTunnel(a.character.id, 'pvp')
     expect(t.tunnels).toEqual(['pvp'])
+    expect(HOUSING.tunnelPriceDollars).toBe(1000)
+    const paid = await testPrisma.character.findUniqueOrThrow({ where: { id: a.character.id } })
+    expect(paid.dollars).toBe(5000 - HOUSING.kinds.HOUSE.priceDollars - 1000)
     await expect(HousingService.buyTunnel(a.character.id, 'pvp')).rejects.toMatchObject({ statusCode: 409 })
 
     await testPrisma.playerHome.update({ where: { characterId: a.character.id }, data: { durability: 40 } })

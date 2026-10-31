@@ -6,7 +6,7 @@ export const HOUSING = {
     APARTMENT: { name: 'Квартира', priceDollars: 2000, expBonus: 0.05 },
     HOUSE: { name: 'Дом', priceDollars: 2500, expBonus: 0.1 },
   } satisfies Record<HomeKind, { name: string; priceDollars: number; expBonus: number }>,
-  tunnelPriceDollars: 15,
+  tunnelPriceDollars: 1000,
   /** Победа нападавших снимает 10% прочности (заказчик). */
   raidDurabilityLoss: 10,
   /**
