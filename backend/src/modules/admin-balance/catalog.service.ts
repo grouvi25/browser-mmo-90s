@@ -18,7 +18,7 @@
 import { prisma } from '../../shared/db/prisma'
 import { CROPS, FARM_BUILDINGS, FARM_MAX_PLOTS, plotPrice } from '../farm/farm.formulas'
 import {
-  PROFESSION_CHAINS, PROFESSION_CUMULATIVE_XP, PROFESSION_NAMES,
+  PROFESSION_CHAINS, PROFESSION_CUMULATIVE_XP, PROFESSION_GROUPS, PROFESSION_NAMES,
   professionEfficiency, type ProfessionCode,
 } from '../professions/professions'
 
@@ -299,14 +299,14 @@ export async function buildCatalog() {
     // Профессии — лестница допуска к объектам, и без неё непонятно,
     // почему половина производства игроку недоступна. Живут в коде,
     // а не в базе, поэтому собираются здесь.
-    professions: Object.entries(PROFESSION_CHAINS).flatMap(([chain, codes]) =>
+    professions: Object.entries(PROFESSION_GROUPS).flatMap(([chain, codes]) =>
       codes.map((code, step) => ({
         code,
         name: PROFESSION_NAMES[code as ProfessionCode],
         chain,
         step: step + 1,
         /** Кто должен быть прокачан, чтобы открылась эта. */
-        requires: step === 0 ? null : PROFESSION_NAMES[codes[step - 1] as ProfessionCode],
+        requires: step === 0 || !(chain in PROFESSION_CHAINS) ? null : PROFESSION_NAMES[codes[step - 1] as ProfessionCode],
         objects: objects.filter(object => object.requiredProfessionCode === code).map(object => object.name),
       })),
     ),

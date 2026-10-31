@@ -64,8 +64,10 @@ export const WorkService = {
     const toolNames = new Map((await prisma.itemTemplate.findMany({
       where: { code: { in: premiumRecipes.map(recipe => recipe.requiredToolCode as string) } }, select: { code: true, name: true },
     })).map(item => [item.code, item.name]))
+    // Цех книги без владельца не платит и ничего не даёт: вакансии там нет.
+    const vacancies = objects.filter(object => object.ownerType !== 'SYSTEM' || object.baseSalary > 0 || object.producesResourceCode)
     return {
-      items: objects.map(object => {
+      items: vacancies.map(object => {
         const profession = professionByCode.get(object.requiredProfessionCode)
         const level = profession?.level ?? 0
         // Замок считается по предыдущему переделу — по нему же строится
@@ -315,13 +317,14 @@ export const WorkService = {
           })
         }
       }
-      const newBalance = await EconomyService.credit(tx, {
+      // Смена без оклада платит продукцией: начислять нечего.
+      const newBalance = salary > 0 ? await EconomyService.credit(tx, {
         characterId,
         amount: salary,
         reasonCode: privatelyOwned ? 'SALARY_FROM_OBJECT' : 'WORK_SALARY',
         refType: 'work_shift',
         refId: shift.id,
-      })
+      }) : (await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { money: true } })).money
       if (shift.productionObject.economicExpReward > 0) await EconomyService.grantEconomicExp(tx, characterId, shift.productionObject.economicExpReward)
       const cycleContribution = shift.productionObject.activeRecipeId
         ? await CycleService.contributeLabor(tx, {

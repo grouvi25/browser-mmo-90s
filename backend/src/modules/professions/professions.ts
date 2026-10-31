@@ -2,6 +2,9 @@ export const PROFESSION_CODES = [
   'scrap_collector', 'foundry_worker', 'gunsmith',
   'supplier', 'carpenter', 'cooperative_builder',
   'procurer', 'pharmacist', 'chemist',
+  // Восемь профессий книги экономики заказчика (30.10): без лестницы допуска.
+  'metallurgist', 'berry_farmer', 'weaver', 'material_technologist',
+  'toolmaker', 'alchemist', 'tailor', 'rune_scribe',
 ] as const
 export type ProfessionCode = typeof PROFESSION_CODES[number]
 
@@ -15,6 +18,14 @@ export const PROFESSION_NAMES: Record<ProfessionCode, string> = {
   procurer: 'Заготовитель',
   pharmacist: 'Фармацевт',
   chemist: 'Химик',
+  metallurgist: 'Металлург',
+  berry_farmer: 'Ягодник-фермер',
+  weaver: 'Ткач',
+  material_technologist: 'Технолог материалов',
+  toolmaker: 'Инструментальщик',
+  alchemist: 'Алхимик',
+  tailor: 'Портной',
+  rune_scribe: 'Рунописец',
 }
 
 /**
@@ -27,6 +38,14 @@ export const PROFESSION_CHAINS: Readonly<Record<'metal' | 'construction' | 'chem
   construction: ['supplier', 'carpenter', 'cooperative_builder'],
   chemistry: ['procurer', 'pharmacist', 'chemist'],
 }
+
+/** Профессии книги заказчика: своя цепочка у каждой, общего порядка нет. */
+export const PROFESSION_CRAFTS: readonly ProfessionCode[] = [
+  'metallurgist', 'berry_farmer', 'weaver', 'material_technologist', 'toolmaker', 'alchemist', 'tailor', 'rune_scribe',
+]
+
+/** Все группы для справочников: лестницы и ремёсла. */
+export const PROFESSION_GROUPS = { ...PROFESSION_CHAINS, crafts: PROFESSION_CRAFTS }
 
 /**
  * Профессия предыдущего передела в том же направлении.
