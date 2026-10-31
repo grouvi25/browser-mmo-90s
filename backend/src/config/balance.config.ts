@@ -109,8 +109,8 @@ export const BalanceConfig = {
     },
     /** Именные вещи ЦУМа (заказчик 30.10): «улучшения на 1лвл каждую вещь, +50 статов за каждый лвл». */
     // Заказчик 31.10: очко на именной вещи — 5% мастерства или оберега, в плюс и в минус.
-    // Предел поля 20 очков — это 100%, больше проценты не значат.
-    namedItems: { pointsPerLevel: 50, levelPriceUsd: 1000, maxLevel: 10, percentPerPoint: 5, percentFieldLimit: 20 },
+    // Предела на поле нет: хоть все очки в один стат, считается только бюджет вещи.
+    namedItems: { pointsPerLevel: 50, levelPriceUsd: 1000, maxLevel: 10, percentPerPoint: 5 },
     upgrades: { costRate: 0.15, costPower: 1.4, baseChance: 0.9, chanceLossPerLevel: 0.12, professionBonusPerLevel: 0.01, minChance: 0.15, maxChance: 0.95 },
     simulation: {
       profiles: {

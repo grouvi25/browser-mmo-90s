@@ -15,9 +15,6 @@ import { squareImage } from '../../shared/lib/image-resize'
 import { CHARM_LABELS, MASTERY_LABELS, STAT_LABELS, instanceImage } from '../../shared/lib/item-bonuses'
 import type { Character, ItemBonuses, ItemInstance, ItemStatKey } from '../../shared/types/api.types'
 
-/** Предел одного поля — тот же, что на сервере. */
-const FIELD_LIMIT = 50
-
 const OWN_STATS: Record<string, [ItemStatKey, string, string][]> = {
   WEAPON: [['DAMAGE', 'Урон', '+4% или хотя бы +1'], ['ACCURACY', 'Точность', '+1%'], ['CRIT', 'Крит', '+0,5%']],
   ARMOR: [['ARMOR', 'Броня', '+6% или хотя бы +1'], ['ANTI_CRIT', 'Защита от крита', '+0,5%']],
@@ -32,15 +29,15 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   return <section className="inv-setup__group"><h4>{title}</h4>{children}</section>
 }
 
-function Field({ label, hint, value, min, max = FIELD_LIMIT, onChange, disabled }: {
-  label: string; hint?: string; value: number; min: number; max?: number; disabled: boolean; onChange: (value: number) => void
+function Field({ label, hint, value, min, onChange, disabled }: {
+  label: string; hint?: string; value: number; min: number; disabled: boolean; onChange: (value: number) => void
 }) {
   return (
     <label className="inv-setup__row">
-      <input type="number" min={min} max={max} step={1} value={value || ''} placeholder="0" disabled={disabled}
+      <input type="number" min={min} step={1} value={value || ''} placeholder="0" disabled={disabled}
         onChange={event => {
           const next = Math.trunc(Number(event.target.value.replace(',', '.'))) || 0
-          onChange(Math.min(max, Math.max(min, next)))
+          onChange(Math.max(min, next))
         }} />
       <span>{label}{hint && <small> · {hint}</small>}</span>
     </label>
@@ -105,7 +102,6 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
   const [bonuses, setBonuses] = useState<ItemBonuses>(() => ({ ...emptyBonuses(), ...(item.bonuses ?? {}) }))
   const budget = item.budget ?? t.statBudget
   const perPoint = item.percentPerPoint ?? 5
-  const percentLimit = item.percentFieldLimit ?? 20
   // Очки прочности — старые записи: в полях их нет, но бюджет они занимают.
   const spent = sum(own) + sum(bonuses.stats as Numbers) + sum(bonuses.mastery as Numbers) + sum(bonuses.minusMastery as Numbers)
     + sum(bonuses.charms as Numbers) + sum(bonuses.minusCharms as Numbers)
@@ -130,7 +126,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
   const busy = disabled || save.isPending || levelUp.isPending
   const percentField = (group: 'mastery' | 'minusMastery' | 'charms' | 'minusCharms', key: string, label: string) => {
     const value = (bonuses[group] as Numbers)[key] ?? 0
-    return <Field key={key} label={label} hint={value ? `${value * perPoint}%` : undefined} min={0} max={percentLimit} disabled={busy} value={value} onChange={set(group, key)} />
+    return <Field key={key} label={label} hint={value ? `${value * perPoint}%` : undefined} min={0} disabled={busy} value={value} onChange={set(group, key)} />
   }
 
   return (
@@ -141,7 +137,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
           <div className={'inv-setup__count' + (left < 0 ? ' is-over' : '')} role="status">
             Заполнено <b>{spent}</b> из <b>{budget}</b> · осталось <b>{left}</b>
           </div>
-          <small>Одно очко — единица стата или {perPoint}%. В поле статов — до {FIELD_LIMIT}, в поле процентов — до {percentLimit}. Стат можно увести в минус, очки это не возвращает.</small>
+          <small>Одно очко — единица стата или {perPoint}%. Стат можно увести в минус, очки это не возвращает.</small>
           {item.canSetIcon && <ItemIconPicker itemId={item.id} label={item.iconVersion ? 'Сменить картинку' : 'Загрузить картинку'} />}
         </div>
       </div>
@@ -152,7 +148,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
             onChange={value => setOwn(prev => ({ ...prev, [key]: value }))} />)}
         </Section>}
         <Section title="Статы">
-          {STAT_LABELS.map(([key, label]) => <Field key={key} label={label} min={-FIELD_LIMIT} disabled={busy} value={bonuses.stats[key] ?? 0} onChange={set('stats', key)} />)}
+          {STAT_LABELS.map(([key, label]) => <Field key={key} label={label} min={-budget} disabled={busy} value={bonuses.stats[key] ?? 0} onChange={set('stats', key)} />)}
         </Section>
         <Section title="Мастерства, %">
           {MASTERY_LABELS.map(([key, label]) => percentField('mastery', key, label))}

@@ -107,35 +107,40 @@ export function masteryBalance(own: GearBonuses, opponent: GearBonuses, key: Mas
 }
 
 /** Проценты из базы: только известные ключи, положительные, не больше 100. */
-function readPercents<K extends string>(value: unknown, keys: readonly K[]): Partial<Record<K, number>> {
+function readPercents<K extends string>(value: unknown, keys: readonly K[], cap: number): Partial<Record<K, number>> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
   const source = value as Record<string, unknown>
   return Object.fromEntries(keys.flatMap(key => {
     const amount = Number(source[key])
-    return Number.isFinite(amount) && amount > 0 ? [[key, Math.min(100, amount)]] : []
+    return Number.isFinite(amount) && amount > 0 ? [[key, Math.min(cap, amount)]] : []
   })) as Partial<Record<K, number>>
 }
 
-/** Добавки вещи из JSON: всё лишнее и битое отбрасывается. */
-export function readItemBonuses(value: unknown): ItemBonuses {
+/**
+ * Добавки вещи из JSON: всё лишнее и битое отбрасывается. Шаблон из админки
+ * держится в пределах, а у вещи игрока их нет (заказчик 31.10): «минус 3000»
+ * против «оберега 3500» — обычный расклад, считается только бюджет вещи.
+ */
+export function readItemBonuses(value: unknown, player = false): ItemBonuses {
   const source = (value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as Record<string, unknown>
+  const cap = player ? Infinity : 100
   return {
-    stats: normalizeStatBonuses(source.stats),
-    mastery: readPercents(source.mastery, MASTERY_KEYS),
-    minusMastery: readPercents(source.minusMastery, MASTERY_KEYS),
-    charms: readPercents(source.charms, CHARM_KEYS),
-    minusCharms: readPercents(source.minusCharms, CHARM_KEYS),
+    stats: normalizeStatBonuses(source.stats, player ? Infinity : GEAR_STAT_LIMIT),
+    mastery: readPercents(source.mastery, MASTERY_KEYS, cap),
+    minusMastery: readPercents(source.minusMastery, MASTERY_KEYS, cap),
+    charms: readPercents(source.charms, CHARM_KEYS, cap),
+    minusCharms: readPercents(source.minusCharms, CHARM_KEYS, cap),
   }
 }
 
 /** Прибавки вещи к характеристикам из базы: только известные ключи, целые, в пределах. */
-export function normalizeStatBonuses(value: unknown): Partial<GearStats> {
+export function normalizeStatBonuses(value: unknown, limit = GEAR_STAT_LIMIT): Partial<GearStats> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
   const source = value as Record<string, unknown>
   return Object.fromEntries(GEAR_STAT_KEYS.flatMap(key => {
     const amount = source[key]
     if (!Number.isInteger(amount) || amount === 0) return []
-    return [[key, Math.max(-GEAR_STAT_LIMIT, Math.min(GEAR_STAT_LIMIT, Number(amount)))]]
+    return [[key, Math.max(-limit, Math.min(limit, Number(amount)))]]
   })) as Partial<GearStats>
 }
 
@@ -148,7 +153,7 @@ export function gearOf(items: ItemLike[]): GearBonuses {
   const gear: GearBonuses = { stats: zeroStats(), minus: zeroCharms(), mastery: zeroMastery(), minusMastery: zeroMastery(), antiDodge: 0, antiLuck: 0, antiCrit: 0, antiCounter: 0, hp: 0 }
   // У шаблона в процентах записано прямо, у вещи игрока — очки.
   const add = (bonuses: ItemBonuses, percentPerPoint = 1) => {
-    const share = (amount = 0) => Math.min(100, amount * percentPerPoint) / 100
+    const share = (amount = 0) => amount * percentPerPoint / 100
     for (const [key, amount] of Object.entries(bonuses.stats) as [GearStatKey, number][]) gear.stats[key] += amount
     for (const key of CHARM_KEYS) {
       gear[key] += share(bonuses.charms[key])
@@ -177,7 +182,7 @@ export function gearOf(items: ItemLike[]): GearBonuses {
     }
     gear.hp += t.hpBonus ?? 0
     add(readItemBonuses(t.extraBonuses))
-    add(readItemBonuses(item.bonuses), BalanceConfig.economy.namedItems.percentPerPoint)
+    add(readItemBonuses(item.bonuses, true), BalanceConfig.economy.namedItems.percentPerPoint)
   }
   return gear
 }

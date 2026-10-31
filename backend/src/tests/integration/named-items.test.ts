@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { randomUUID } from 'crypto'
 import { BalanceConfig } from '../../config/balance.config'
-import { CHARM_KEYS, EMPTY_GEAR, gearOf, hpWithGear, masteryBalance, type ItemBonuses } from '../../modules/items/gear-bonuses'
+import { CHARM_KEYS, EMPTY_GEAR, charmBalance, gearOf, hpWithGear, masteryBalance, type ItemBonuses } from '../../modules/items/gear-bonuses'
 import { calcHpMax } from '../../modules/stats/stats.formulas'
 import { ItemStatsService } from '../../modules/items/item-stats.service'
 import { applyUpgradeModifiers } from '../../modules/upgrades/upgrades.formulas'
@@ -63,15 +63,34 @@ describe('Именные вещи: столбики, уровни, картин�
     expect(applyUpgradeModifiers(row.template, {}, row.statAllocation).armor).toBe(13)
   })
 
-  it('у вещи ЦУМа нет блока «Сама вещь», в поле процентов до 20 очков', async () => {
+  it('у вещи ЦУМа нет блока «Сама вещь»', async () => {
     const { character, item } = await named()
     await expect(ItemStatsService.configure(character.id, item.id, { ARMOR: 1 }, none())).rejects.toMatchObject({ statusCode: 422 })
     await expect(ItemStatsService.allocate(character.id, item.id, 'ARMOR', 1)).rejects.toMatchObject({ statusCode: 409 })
-    await expect(ItemStatsService.configure(character.id, item.id, {}, { ...none(), charms: { antiCrit: 21 } })).rejects.toThrow('не больше 20')
-    const saved = await ItemStatsService.configure(character.id, item.id, {}, { ...none(), charms: { antiCrit: 20 } })
-    expect(saved.freePoints).toBe(80)
-    const row = await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: item.id }, include: { template: true } })
-    expect(gearOf([row]).antiCrit).toBeCloseTo(1)
+  })
+
+  it('предела на поле нет: все очки можно вложить в один стат, плюс или минус', async () => {
+    const { character, item } = await named()
+    const read = async () => gearOf([await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: item.id }, include: { template: true } })])
+
+    expect((await ItemStatsService.configure(character.id, item.id, {}, { ...none(), charms: { antiDodge: 100 } })).freePoints).toBe(0)
+    expect((await read()).antiDodge).toBeCloseTo(5)
+    await ItemStatsService.configure(character.id, item.id, {}, { ...none(), minusCharms: { antiDodge: 100 } })
+    expect((await read()).minus.antiDodge).toBeCloseTo(5)
+    await ItemStatsService.configure(character.id, item.id, {}, { ...none(), stats: { str: 100 } })
+    expect((await read()).stats.str).toBe(100)
+    await ItemStatsService.configure(character.id, item.id, {}, { ...none(), stats: { agi: -100 } })
+    expect((await read()).stats.agi).toBe(-100)
+    await expect(ItemStatsService.configure(character.id, item.id, {}, { ...none(), stats: { str: 101 } })).rejects.toThrow('Расставлено 101 очков из 100')
+  })
+
+  it('минус 3000 против оберега 3500: в бою остаётся разница', () => {
+    const scale = BalanceConfig.economy.namedItems.percentPerPoint
+    const wearer = (bonuses: ItemBonuses) => gearOf([{ id: uid('i'), bonuses, template: { type: 'ARMOR' } }])
+    const defender = wearer({ ...none(), charms: { antiDodge: 3500 / scale } })
+    const attacker = wearer({ ...none(), minusCharms: { antiDodge: 3000 / scale } })
+    expect(charmBalance(defender.antiDodge, attacker.minus.antiDodge)).toBeCloseTo(5)
+    expect(charmBalance(attacker.antiDodge, defender.minus.antiDodge)).toBe(0)
   })
 
   it('выносливость с вещи даёт 5 здоровья, своя — 6', async () => {
