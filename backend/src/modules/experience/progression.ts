@@ -1,9 +1,9 @@
 import type { Prisma } from '@prisma/client'
 import { BalanceConfig } from '../../config/balance.config'
-import { calcHpMax, getLevelFromExp } from '../stats/stats.formulas'
+import { getLevelFromExp } from '../stats/stats.formulas'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import { DOG_BREEDS, DOG_EXP_SHARE, dogLevelFromExp } from '../city/dogs'
-import { gearFor } from '../items/gear-bonuses'
+import { gearFor, hpWithGear } from '../items/gear-bonuses'
 
 export interface BattleProgressionResult {
   newExp: number
@@ -22,7 +22,7 @@ export async function applyBattleProgression(
   const levelsGained = Math.max(0, newLevel - char.battleLevel)
   // Здоровье — с выносливостью и здоровьем от надетого (правка 26.10).
   const gear = await gearFor(tx, char.id)
-  const newHpMax = calcHpMax(Math.max(0, char.stats!.end + gear.stats.end), newLevel, gear.hp)
+  const newHpMax = hpWithGear(char.stats!.end, newLevel, gear)
 
   // Денежная премия за каждый новый уровень («Ревизия 2»): выдаётся
   // по одному разу, премия 1-го относится к созданию персонажа.

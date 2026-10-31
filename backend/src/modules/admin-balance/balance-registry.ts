@@ -72,6 +72,7 @@ export function balanceRegistry(): BalanceGroup[] {
           params: [
             p('character.baseHp', B.character.baseHp, 'база, одинаковая у всех архетипов'),
             p('character.hpPerEnd', B.character.hpPerEnd, 'вклад одной единицы выносливости'),
+            p('character.hpPerGearEnd', B.character.hpPerGearEnd, 'вклад единицы выносливости с вещи'),
             p('character.hpPerBattleLevel', B.character.hpPerBattleLevel, 'прибавка за боевой уровень'),
           ],
           source: 'config/balance.config.ts → character',
@@ -422,6 +423,8 @@ export function balanceRegistry(): BalanceGroup[] {
           params: [
             p('economy.namedItems.pointsPerLevel', B.economy.namedItems.pointsPerLevel, 'очков за уровень именной вещи'),
             p('economy.namedItems.levelPriceUsd', B.economy.namedItems.levelPriceUsd, 'цена уровня именной вещи, долларов'),
+            p('economy.namedItems.percentPerPoint', B.economy.namedItems.percentPerPoint, 'процентов мастерства или оберега за очко'),
+            p('economy.namedItems.percentFieldLimit', B.economy.namedItems.percentFieldLimit, 'очков в одном поле процентов'),
             p('economy.namedItems.maxLevel', B.economy.namedItems.maxLevel, 'потолок уровня именной вещи'),
             p('economy.upgrades.costRate', B.economy.upgrades.costRate, 'доля цены за первый уровень'),
             p('economy.upgrades.costPower', B.economy.upgrades.costPower, 'степень роста цены'),

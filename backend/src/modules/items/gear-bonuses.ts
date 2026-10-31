@@ -29,6 +29,7 @@
 // Минус-мастерство срезает то же мастерство у противника, как минус-оберег.
 // =============================================================
 import type { Prisma } from '@prisma/client'
+import { BalanceConfig } from '../../config/balance.config'
 import { calcHpMax } from '../stats/stats.formulas'
 
 export const GEAR_STAT_KEYS = ['str', 'end', 'luck', 'agi', 'acc', 'agr', 'rea'] as const
@@ -145,15 +146,17 @@ export function normalizeStatBonuses(value: unknown): Partial<GearStats> {
  */
 export function gearOf(items: ItemLike[]): GearBonuses {
   const gear: GearBonuses = { stats: zeroStats(), minus: zeroCharms(), mastery: zeroMastery(), minusMastery: zeroMastery(), antiDodge: 0, antiLuck: 0, antiCrit: 0, antiCounter: 0, hp: 0 }
-  const add = (bonuses: ItemBonuses) => {
+  // У шаблона в процентах записано прямо, у вещи игрока — очки.
+  const add = (bonuses: ItemBonuses, percentPerPoint = 1) => {
+    const share = (amount = 0) => Math.min(100, amount * percentPerPoint) / 100
     for (const [key, amount] of Object.entries(bonuses.stats) as [GearStatKey, number][]) gear.stats[key] += amount
     for (const key of CHARM_KEYS) {
-      gear[key] += (bonuses.charms[key] ?? 0) / 100
-      gear.minus[key] += (bonuses.minusCharms[key] ?? 0) / 100
+      gear[key] += share(bonuses.charms[key])
+      gear.minus[key] += share(bonuses.minusCharms[key])
     }
     for (const key of MASTERY_KEYS) {
-      gear.mastery[key] += (bonuses.mastery[key] ?? 0) / 100
-      gear.minusMastery[key] += (bonuses.minusMastery[key] ?? 0) / 100
+      gear.mastery[key] += share(bonuses.mastery[key])
+      gear.minusMastery[key] += share(bonuses.minusMastery[key])
     }
   }
   const seen = new Set<string>()
@@ -174,7 +177,7 @@ export function gearOf(items: ItemLike[]): GearBonuses {
     }
     gear.hp += t.hpBonus ?? 0
     add(readItemBonuses(t.extraBonuses))
-    add(readItemBonuses(item.bonuses))
+    add(readItemBonuses(item.bonuses), BalanceConfig.economy.namedItems.percentPerPoint)
   }
   return gear
 }
@@ -186,6 +189,12 @@ export function withGearStats<T extends Partial<Record<GearStatKey, number>>>(st
     if (typeof out[key] === 'number') (out as Record<string, number>)[key] = Math.max(0, (out[key] as number) + gear.stats[key])
   }
   return out
+}
+
+/** Здоровье с надетым: выносливость с вещи стоит своё (заказчик 31.10), в минус ниже нуля не уводит. */
+export function hpWithGear(baseEnd: number, battleLevel: number, gear: GearBonuses): number {
+  const fromGear = Math.max(0, baseEnd + gear.stats.end) - baseEnd
+  return calcHpMax(baseEnd, battleLevel, gear.hp) + fromGear * BalanceConfig.character.hpPerGearEnd
 }
 
 /** Прибавки от всего, что сейчас надето на персонажа. */
@@ -209,7 +218,7 @@ export async function syncHpWithGear(tx: Prisma.TransactionClient, characterId: 
   })
   if (!char?.stats) return null
   const gear = await gearFor(tx, characterId)
-  const hpMax = calcHpMax(Math.max(0, char.stats.end + gear.stats.end), char.battleLevel, gear.hp)
+  const hpMax = hpWithGear(char.stats.end, char.battleLevel, gear)
   const hpCurrent = Math.min(char.hpCurrent, hpMax)
   if (hpMax !== char.hpMax || hpCurrent !== char.hpCurrent) {
     await tx.character.update({ where: { id: characterId }, data: { hpMax, hpCurrent } })

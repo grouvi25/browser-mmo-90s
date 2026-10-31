@@ -22,9 +22,9 @@ import { audit } from '../../shared/logger/audit-logger'
 import { BalanceConfig } from '../../config/balance.config'
 import { EconomyService } from '../economy/economy.service'
 import { DollarsService } from '../dollars/dollars.service'
-import { calcHpMax, getEconomicLevelFromExp, getLevelFromExp } from '../stats/stats.formulas'
+import { getEconomicLevelFromExp, getLevelFromExp } from '../stats/stats.formulas'
 import { clearOverride, setOverride } from '../admin-balance/balance-overrides.service'
-import { gearFor } from '../items/gear-bonuses'
+import { gearFor, hpWithGear } from '../items/gear-bonuses'
 
 /** Минимальная длина причины. Правило П2 в числе. */
 export const REASON_MIN = 10
@@ -106,7 +106,7 @@ async function applyExp(
     const exp = Math.max(0, character.battleExp + amount)
     const level = getLevelFromExp(exp)
     const gear = await gearFor(tx, characterId)
-    const hpMax = character.stats ? calcHpMax(Math.max(0, character.stats.end + gear.stats.end), level, gear.hp) : character.hpMax
+    const hpMax = character.stats ? hpWithGear(character.stats.end, level, gear) : character.hpMax
     await tx.character.update({
       where: { id: characterId },
       data: { battleExp: exp, battleLevel: level, hpMax, hpCurrent: Math.min(character.hpCurrent, hpMax) },

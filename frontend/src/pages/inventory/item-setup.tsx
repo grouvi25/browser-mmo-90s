@@ -32,15 +32,15 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   return <section className="inv-setup__group"><h4>{title}</h4>{children}</section>
 }
 
-function Field({ label, hint, value, min, onChange, disabled }: {
-  label: string; hint?: string; value: number; min: number; disabled: boolean; onChange: (value: number) => void
+function Field({ label, hint, value, min, max = FIELD_LIMIT, onChange, disabled }: {
+  label: string; hint?: string; value: number; min: number; max?: number; disabled: boolean; onChange: (value: number) => void
 }) {
   return (
     <label className="inv-setup__row">
-      <input type="number" min={min} max={FIELD_LIMIT} step={1} value={value || ''} placeholder="0" disabled={disabled}
+      <input type="number" min={min} max={max} step={1} value={value || ''} placeholder="0" disabled={disabled}
         onChange={event => {
           const next = Math.trunc(Number(event.target.value.replace(',', '.'))) || 0
-          onChange(Math.min(FIELD_LIMIT, Math.max(min, next)))
+          onChange(Math.min(max, Math.max(min, next)))
         }} />
       <span>{label}{hint && <small> · {hint}</small>}</span>
     </label>
@@ -99,10 +99,13 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
 }) {
   const qc = useQueryClient()
   const t = item.template
-  const ownStats = OWN_STATS[t.type] ?? []
-  const [own, setOwn] = useState<Numbers>(() => ({ ...(item.statAllocation ?? {}) }) as Numbers)
+  // У вещей ЦУМа блока «Сама вещь» нет: там только то, что распределяет игрок.
+  const ownStats = item.canSetIcon ? [] : OWN_STATS[t.type] ?? []
+  const [own, setOwn] = useState<Numbers>(() => (item.canSetIcon ? {} : { ...(item.statAllocation ?? {}) }) as Numbers)
   const [bonuses, setBonuses] = useState<ItemBonuses>(() => ({ ...emptyBonuses(), ...(item.bonuses ?? {}) }))
   const budget = item.budget ?? t.statBudget
+  const perPoint = item.percentPerPoint ?? 5
+  const percentLimit = item.percentFieldLimit ?? 20
   // Очки прочности — старые записи: в полях их нет, но бюджет они занимают.
   const spent = sum(own) + sum(bonuses.stats as Numbers) + sum(bonuses.mastery as Numbers) + sum(bonuses.minusMastery as Numbers)
     + sum(bonuses.charms as Numbers) + sum(bonuses.minusCharms as Numbers)
@@ -125,6 +128,10 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
     setBonuses(prev => ({ ...prev, [group]: { ...prev[group], [key]: value } }))
   const offer = item.levelUp
   const busy = disabled || save.isPending || levelUp.isPending
+  const percentField = (group: 'mastery' | 'minusMastery' | 'charms' | 'minusCharms', key: string, label: string) => {
+    const value = (bonuses[group] as Numbers)[key] ?? 0
+    return <Field key={key} label={label} hint={value ? `${value * perPoint}%` : undefined} min={0} max={percentLimit} disabled={busy} value={value} onChange={set(group, key)} />
+  }
 
   return (
     <Dialog title={t.name} onClose={onClose}>
@@ -134,7 +141,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
           <div className={'inv-setup__count' + (left < 0 ? ' is-over' : '')} role="status">
             Заполнено <b>{spent}</b> из <b>{budget}</b> · осталось <b>{left}</b>
           </div>
-          <small>Одно очко — единица стата или 1%. В одно поле — до {FIELD_LIMIT}. Стат можно увести в минус, очки это не возвращает.</small>
+          <small>Одно очко — единица стата или {perPoint}%. В поле статов — до {FIELD_LIMIT}, в поле процентов — до {percentLimit}. Стат можно увести в минус, очки это не возвращает.</small>
           {item.canSetIcon && <ItemIconPicker itemId={item.id} label={item.iconVersion ? 'Сменить картинку' : 'Загрузить картинку'} />}
         </div>
       </div>
@@ -148,16 +155,16 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
           {STAT_LABELS.map(([key, label]) => <Field key={key} label={label} min={-FIELD_LIMIT} disabled={busy} value={bonuses.stats[key] ?? 0} onChange={set('stats', key)} />)}
         </Section>
         <Section title="Мастерства, %">
-          {MASTERY_LABELS.map(([key, label]) => <Field key={key} label={label} min={0} disabled={busy} value={bonuses.mastery[key] ?? 0} onChange={set('mastery', key)} />)}
+          {MASTERY_LABELS.map(([key, label]) => percentField('mastery', key, label))}
         </Section>
         <Section title="Минус мастерства, %">
-          {MASTERY_LABELS.map(([key, label]) => <Field key={key} label={`${label} [противнику]`} min={0} disabled={busy} value={bonuses.minusMastery[key] ?? 0} onChange={set('minusMastery', key)} />)}
+          {MASTERY_LABELS.map(([key, label]) => percentField('minusMastery', key, `${label} [противнику]`))}
         </Section>
         <Section title="Обереги, %">
-          {CHARM_LABELS.map(([key, label]) => <Field key={key} label={label} min={0} disabled={busy} value={bonuses.charms[key] ?? 0} onChange={set('charms', key)} />)}
+          {CHARM_LABELS.map(([key, label]) => percentField('charms', key, label))}
         </Section>
         <Section title="Минус обереги, %">
-          {CHARM_LABELS.map(([key, label]) => <Field key={key} label={`${label} [противнику]`} min={0} disabled={busy} value={bonuses.minusCharms[key] ?? 0} onChange={set('minusCharms', key)} />)}
+          {CHARM_LABELS.map(([key, label]) => percentField('minusCharms', key, `${label} [противнику]`))}
         </Section>
       </div>
 
