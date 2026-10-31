@@ -35,28 +35,30 @@ export interface BonusLine { key: string; label: string; value: string }
 export function itemBonusLines(t: ItemTemplate, item?: ItemInstance): BonusLine[] {
   const extra = t.extraBonuses
   const own = item?.bonuses
+  // Игрок вписывает очки, а показываем проценты.
+  const points = (value = 0) => value * (item?.percentPerPoint ?? 5)
   const lines: BonusLine[] = []
   for (const [key, label] of STAT_LABELS) {
     const value = (t.statBonuses?.[key] ?? 0) + (own?.stats?.[key] ?? 0)
     if (value) lines.push({ key, label, value: sign(value) })
   }
   for (const [key, label] of MASTERY_LABELS) {
-    const value = (extra?.mastery?.[key] ?? 0) + (own?.mastery?.[key] ?? 0)
+    const value = (extra?.mastery?.[key] ?? 0) + points(own?.mastery?.[key])
     if (value) lines.push({ key: `mastery-${key}`, label, value: `${sign(value)}%` })
   }
   for (const [key, label] of MASTERY_LABELS) {
-    const value = (extra?.minusMastery?.[key] ?? 0) + (own?.minusMastery?.[key] ?? 0)
+    const value = (extra?.minusMastery?.[key] ?? 0) + points(own?.minusMastery?.[key])
     if (value) lines.push({ key: `minus-mastery-${key}`, label: `${label} [противнику]`, value: `−${round(value)}%` })
   }
   for (const [key, label] of CHARM_LABELS) {
     // Отрицательный оберег в базе — это минус-оберег старых вещей. Оберег крита
     // считается с очками «Защиты от крита»: их итог приходит с сервера.
     const base = key === 'antiCrit' && item?.effective ? Math.max(0, item.effective.antiCrit) : Math.max(0, t[key] ?? 0)
-    const value = base * 100 + (own?.charms?.[key] ?? 0)
+    const value = base * 100 + points(own?.charms?.[key])
     if (value) lines.push({ key: `charm-${key}`, label, value: `${sign(value)}%` })
   }
   for (const [key, label] of CHARM_LABELS) {
-    const value = Math.max(0, -(t[key] ?? 0)) * 100 + (extra?.minusCharms?.[key] ?? 0) + (own?.minusCharms?.[key] ?? 0)
+    const value = Math.max(0, -(t[key] ?? 0)) * 100 + (extra?.minusCharms?.[key] ?? 0) + points(own?.minusCharms?.[key])
     if (value) lines.push({ key: `minus-charm-${key}`, label: `${label} [противнику]`, value: `−${round(value)}%` })
   }
   return lines

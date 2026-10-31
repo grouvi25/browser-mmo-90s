@@ -131,7 +131,7 @@ describe('админка: новая вещь', () => {
 
     const wear = await app.inject({ method: 'POST', url: '/api/inventory/equip', headers: { authorization: `Bearer ${userToken}` }, payload: { itemInstanceId: bought.itemIds[0] } })
     expect(wear.statusCode).toBe(200)
-    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).hpMax).toBe(before + 5 * 6 + 10)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).hpMax).toBe(before + 5 * 5 + 10)
 
     const off = await app.inject({ method: 'POST', url: '/api/inventory/unequip', headers: { authorization: `Bearer ${userToken}` }, payload: { itemInstanceId: bought.itemIds[0] } })
     expect(off.statusCode).toBe(200)

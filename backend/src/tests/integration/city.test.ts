@@ -55,7 +55,7 @@ describe('city locations and purchases', () => {
     expect(after.money).toBe(100000)
     expect(after.dollars).toBe(100 - item.priceDollars!)
     expect(bought.item.statAllocation).toBe(null)
-    await ItemStatsService.allocate(p.character.id, bought.item.id, 'DAMAGE', 2)
+    await ItemStatsService.configure(p.character.id, bought.item.id, {}, { stats: { str: 2 }, mastery: {}, minusMastery: {}, charms: {}, minusCharms: {} })
     expect((await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: bought.item.id } })).freePoints).toBe(item.statBudget - 2)
   })
   it('очки вещи прибавляются к её характеристикам в инвентаре, новые — отдельной строкой', async () => {
@@ -66,6 +66,8 @@ describe('city locations and purchases', () => {
     const bought = await CityService.buyItem(p.character.id, 'tsum', item.id, randomUUID())
     const read = async () => (await app.inject({ method: 'GET', url: '/api/inventory', headers: p.headers })).json<Array<{ id: string; effective: { minDamage: number; maxDamage: number; weaponAccuracy: number } }>>().find(i => i.id === bought.item.id)!.effective
     const before = await read()
+    // У вещей ЦУМа блока «Сама вещь» нет: проверяем на такой же вещи вне витрины.
+    await testPrisma.dollarShopItem.deleteMany({ where: { templateId: item.id } })
     await ItemStatsService.allocate(p.character.id, bought.item.id, 'DAMAGE', 5)
     await ItemStatsService.allocate(p.character.id, bought.item.id, 'ACCURACY', 3)
     const after = await read()

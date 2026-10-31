@@ -108,7 +108,9 @@ export const BalanceConfig = {
       repairResourceCode: 'comp_repair_kit',
     },
     /** Именные вещи ЦУМа (заказчик 30.10): «улучшения на 1лвл каждую вещь, +50 статов за каждый лвл». */
-    namedItems: { pointsPerLevel: 50, levelPriceUsd: 1000, maxLevel: 10 },
+    // Заказчик 31.10: очко на именной вещи — 5% мастерства или оберега, в плюс и в минус.
+    // Предел поля 20 очков — это 100%, больше проценты не значат.
+    namedItems: { pointsPerLevel: 50, levelPriceUsd: 1000, maxLevel: 10, percentPerPoint: 5, percentFieldLimit: 20 },
     upgrades: { costRate: 0.15, costPower: 1.4, baseChance: 0.9, chanceLossPerLevel: 0.12, professionBonusPerLevel: 0.01, minChance: 0.15, maxChance: 0.95 },
     simulation: {
       profiles: {
@@ -150,6 +152,7 @@ export const BalanceConfig = {
     startMoney:         5000,  // стартовые деньги 5 000 ₽ (чат Дмитрия 29.10; решение владельца 30.10)
     baseHp:             60,
     hpPerEnd:           6,     // HP за 1 END
+    hpPerGearEnd:       5,     // HP за 1 END с вещи (заказчик 31.10)
     hpPerBattleLevel:   2,
     baseCarryWeight:    20,
     carryWeightPerStr:  6,

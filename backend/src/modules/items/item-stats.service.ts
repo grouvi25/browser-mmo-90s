@@ -12,6 +12,11 @@ import { DollarsService } from '../dollars/dollars.service'
 
 const ITEM_ICON_MAX_BYTES = 100_000
 
+/** Именная вещь — та, что продаётся в ЦУМе. */
+async function isNamed(tx: Prisma.TransactionClient, templateId: string) {
+  return !!await tx.dollarShopItem.findFirst({ where: { templateId, shop: 'TSUM' }, select: { id: true } })
+}
+
 /** Вещь игрока, которую можно настраивать: своя, не на рынке, хозяин не в бою. */
 async function ownItem(tx: Prisma.TransactionClient, characterId: string, itemInstanceId: string) {
   const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
@@ -31,6 +36,7 @@ export const ItemStatsService = {
       if (!item || item.ownerId !== characterId) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
       if (item.status === 'ON_MARKET') throw new AppError(ErrorCode.CONFLICT, 'Вещь выставлена на рынок, менять её нельзя', 409)
       if (item.template.allocationMode !== 'PLAYER') throw new AppError(ErrorCode.CONFLICT, 'Очки этой вещи уже распределены', 409)
+      if (await isNamed(tx, item.templateId)) throw new AppError(ErrorCode.CONFLICT, 'У именной вещи очки расставляются только в статы, мастерства и обереги', 409)
       if (!allowedItemStats(item.template.type).includes(stat)) throw new AppError(ErrorCode.CONFLICT, 'Эту характеристику нельзя вложить в эту вещь', 422)
       const before = normalizeAllocation(item.statAllocation)
       const available = Math.max(0, itemBudget(item.template, item.namedLevel) - allocatedPoints(before) - bonusCost(readItemBonuses(item.bonuses)))
@@ -60,15 +66,20 @@ export const ItemStatsService = {
       const item = await ownItem(tx, characterId, itemInstanceId)
       if (item.template.allocationMode !== 'PLAYER') throw new AppError(ErrorCode.CONFLICT, 'Очки этой вещи уже распределены', 409)
       const before = normalizeAllocation(item.statAllocation)
-      const allowed = allowedItemStats(item.template.type)
+      // У вещей ЦУМа блока «Сама вещь» нет (заказчик 31.10): только статы, мастерства и обереги.
+      const named = await isNamed(tx, item.templateId)
+      const allowed = named ? [] : allowedItemStats(item.template.type)
       const nextOwn = normalizeAllocation(own)
       delete nextOwn.DURABILITY
       if (Object.keys(nextOwn).some(key => !allowed.includes(key as ItemStatKey))) {
         throw new AppError(ErrorCode.CONFLICT, 'Эту характеристику нельзя вложить в эту вещь', 422)
       }
       // Старые очки прочности снять нельзя: их больше не вкладывают, но они есть.
-      if (before.DURABILITY) nextOwn.DURABILITY = before.DURABILITY
+      if (before.DURABILITY && !named) nextOwn.DURABILITY = before.DURABILITY
       const bonuses = readItemBonuses(input)
+      const limit = BalanceConfig.economy.namedItems.percentFieldLimit
+      const percents = [bonuses.mastery, bonuses.minusMastery, bonuses.charms, bonuses.minusCharms].flatMap(group => Object.values(group))
+      if (percents.some(points => (points ?? 0) > limit)) throw new AppError(ErrorCode.CONFLICT, `В одном поле процентов не больше ${limit} очков`, 422)
       const budget = itemBudget(item.template, item.namedLevel)
       const spent = allocatedPoints(nextOwn) + bonusCost(bonuses)
       if (spent > budget) throw new AppError(ErrorCode.CONFLICT, `Расставлено ${spent} очков из ${budget}`, 409)
@@ -89,8 +100,7 @@ export const ItemStatsService = {
     const config = BalanceConfig.economy.namedItems
     return withIdempotency({ characterId, scope: `items.level-up.${itemInstanceId}`, key, execute: async tx => {
       const item = await ownItem(tx, characterId, itemInstanceId)
-      const fromTsum = await tx.dollarShopItem.findFirst({ where: { templateId: item.templateId, shop: 'TSUM' }, select: { id: true } })
-      if (!fromTsum || item.template.allocationMode !== 'PLAYER') {
+      if (!await isNamed(tx, item.templateId) || item.template.allocationMode !== 'PLAYER') {
         throw new AppError(ErrorCode.CONFLICT, 'Уровень повышается только у именных вещей', 409)
       }
       if (item.namedLevel >= config.maxLevel) throw new AppError(ErrorCode.CONFLICT, 'У вещи уже последний уровень', 409)
@@ -113,8 +123,7 @@ export const ItemStatsService = {
     }
     return withTransaction(async tx => {
       const item = await ownItem(tx, characterId, itemInstanceId)
-      const fromTsum = await tx.dollarShopItem.findFirst({ where: { templateId: item.templateId, shop: 'TSUM' }, select: { id: true } })
-      if (!fromTsum) throw new AppError(ErrorCode.CONFLICT, 'Свою картинку можно поставить только вещи из ЦУМа', 409)
+      if (!await isNamed(tx, item.templateId)) throw new AppError(ErrorCode.CONFLICT, 'Свою картинку можно поставить только вещи из ЦУМа', 409)
       await tx.itemIcon.upsert({
         where: { itemId: item.id },
         create: { itemId: item.id, mime: parsed[1], data: parsed[2] },

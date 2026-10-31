@@ -168,6 +168,8 @@ export interface ItemInstance {
   namedLevel?: number
   iconVersion?: number
   canSetIcon?: boolean
+  percentPerPoint?: number
+  percentFieldLimit?: number
   /** Условия следующего уровня, если вещь его поддерживает. */
   levelUp?: { priceUsd: number; points: number; maxLevel: number } | null
   /** Итог с сервера: база + очки + улучшения + камни (как считает бой). */

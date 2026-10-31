@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { randomUUID } from 'crypto'
 import { BalanceConfig } from '../../config/balance.config'
-import { CHARM_KEYS, EMPTY_GEAR, gearOf, masteryBalance, type ItemBonuses } from '../../modules/items/gear-bonuses'
+import { CHARM_KEYS, EMPTY_GEAR, gearOf, hpWithGear, masteryBalance, type ItemBonuses } from '../../modules/items/gear-bonuses'
+import { calcHpMax } from '../../modules/stats/stats.formulas'
 import { ItemStatsService } from '../../modules/items/item-stats.service'
 import { applyUpgradeModifiers } from '../../modules/upgrades/upgrades.formulas'
 import { cleanDatabase, testPrisma, uid } from './helpers'
@@ -42,7 +43,7 @@ describe('Именные вещи: столбики, уровни, картин�
   })
 
   it('сохраняет весь расклад: минус на стате и минус-оберег не возвращают очки', async () => {
-    const { character, item } = await named()
+    const { character, item } = await named({ tsum: false })
     const bonuses = {
       ...none(), stats: { str: 20, agi: -5, rea: 3 }, mastery: { fist: 5 }, minusMastery: { defense: 2 },
       charms: { antiDodge: 5 }, minusCharms: { antiDodge: 5 },
@@ -54,11 +55,32 @@ describe('Именные вещи: столбики, уровни, картин�
     const gear = gearOf([row])
     expect(gear.stats).toMatchObject({ str: 20, agi: -5, rea: 3 })
     // На одной вещи оберег сразу и в плюс, и в минус.
-    expect(gear.antiDodge).toBeCloseTo(0.05)
-    expect(gear.minus.antiDodge).toBeCloseTo(0.05)
-    expect(gear.mastery.fist).toBeCloseTo(0.05)
-    expect(gear.minusMastery.defense).toBeCloseTo(0.02)
+    // Очко мастерства или оберега — 5%, и в плюс, и в минус.
+    expect(gear.antiDodge).toBeCloseTo(0.25)
+    expect(gear.minus.antiDodge).toBeCloseTo(0.25)
+    expect(gear.mastery.fist).toBeCloseTo(0.25)
+    expect(gear.minusMastery.defense).toBeCloseTo(0.1)
     expect(applyUpgradeModifiers(row.template, {}, row.statAllocation).armor).toBe(13)
+  })
+
+  it('у вещи ЦУМа нет блока «Сама вещь», в поле процентов до 20 очков', async () => {
+    const { character, item } = await named()
+    await expect(ItemStatsService.configure(character.id, item.id, { ARMOR: 1 }, none())).rejects.toMatchObject({ statusCode: 422 })
+    await expect(ItemStatsService.allocate(character.id, item.id, 'ARMOR', 1)).rejects.toMatchObject({ statusCode: 409 })
+    await expect(ItemStatsService.configure(character.id, item.id, {}, { ...none(), charms: { antiCrit: 21 } })).rejects.toThrow('не больше 20')
+    const saved = await ItemStatsService.configure(character.id, item.id, {}, { ...none(), charms: { antiCrit: 20 } })
+    expect(saved.freePoints).toBe(80)
+    const row = await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: item.id }, include: { template: true } })
+    expect(gearOf([row]).antiCrit).toBeCloseTo(1)
+  })
+
+  it('выносливость с вещи даёт 5 здоровья, своя — 6', async () => {
+    const { character, item } = await named()
+    await ItemStatsService.configure(character.id, item.id, {}, { ...none(), stats: { end: 10 } })
+    const row = await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: item.id }, include: { template: true } })
+    const gear = gearOf([row])
+    expect(hpWithGear(3, 1, gear)).toBe(calcHpMax(3, 1) + 50)
+    expect(hpWithGear(2, 1, { ...gear, stats: { ...gear.stats, end: -5 } })).toBe(calcHpMax(2, 1) - 10)
   })
 
   it('расклад можно переделать, но не больше бюджета', async () => {
