@@ -13,18 +13,18 @@ import type { Prisma } from '@prisma/client'
 import { ITEM_STAT_KEYS, itemBudget } from '../items/item-stats.formulas'
 import { ItemStatsService } from '../items/item-stats.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
-import { CHARM_KEYS, GEAR_STAT_KEYS, GEAR_STAT_LIMIT, MASTERY_KEYS, syncHpWithGear } from '../items/gear-bonuses'
+import { CHARM_KEYS, GEAR_STAT_KEYS, MASTERY_KEYS, syncHpWithGear } from '../items/gear-bonuses'
 
 const EquipSchema = z.object({ itemInstanceId: z.string().uuid(), hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional() })
 const UnequipSchema = z.object({ armorSlot: z.string().optional(), itemInstanceId: z.string().uuid().optional() })
 const AllocateSchema = z.object({ itemInstanceId: z.string().uuid(), stat: z.enum(ITEM_STAT_KEYS), points: z.number().int().min(1).max(100) })
-/** Одно поле настройки вещи: не больше предела, иначе весь бюджет уходит в один стат. */
-const POINTS = z.number().int().min(0).max(GEAR_STAT_LIMIT)
+/** Одно поле настройки вещи. Предела нет: хоть весь бюджет в один стат (заказчик 31.10). */
+const POINTS = z.number().int().min(0)
 const ConfigureSchema = z.object({
   itemInstanceId: z.string().uuid(),
   own: z.partialRecord(z.enum(ITEM_STAT_KEYS), z.number().int().min(0).max(1000)),
   bonuses: z.object({
-    stats: z.partialRecord(z.enum(GEAR_STAT_KEYS), z.number().int().min(-GEAR_STAT_LIMIT).max(GEAR_STAT_LIMIT)),
+    stats: z.partialRecord(z.enum(GEAR_STAT_KEYS), z.number().int()),
     mastery: z.partialRecord(z.enum(MASTERY_KEYS), POINTS),
     minusMastery: z.partialRecord(z.enum(MASTERY_KEYS), POINTS),
     charms: z.partialRecord(z.enum(CHARM_KEYS), POINTS),
@@ -76,7 +76,6 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       budget: itemBudget(item.template, item.namedLevel),
       canSetIcon: tsum.has(item.templateId),
       percentPerPoint: named.percentPerPoint,
-      percentFieldLimit: named.percentFieldLimit,
       levelUp: tsum.has(item.templateId) && item.template.allocationMode === 'PLAYER'
         ? { priceUsd: named.levelPriceUsd, points: named.pointsPerLevel, maxLevel: named.maxLevel } : null,
       effective: applyUpgradeModifiers(
@@ -98,7 +97,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
   // Столбики именной вещи (правка 31.10): весь расклад одним сохранением.
   fastify.post('/configure', { preHandler: authenticate }, async (req: FastifyRequest, reply: FastifyReply) => {
     const parsed = ConfigureSchema.safeParse(req.body)
-    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: `В одном поле — не больше ${GEAR_STAT_LIMIT}` })
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'В полях должны быть целые числа' })
     const char = await CharactersRepository.findByUserId(req.authUser.userId)
     if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
     return reply.send(await ItemStatsService.configure(char.id, parsed.data.itemInstanceId, parsed.data.own, parsed.data.bonuses))

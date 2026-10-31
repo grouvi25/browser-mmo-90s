@@ -39,7 +39,7 @@ export const ItemStatsService = {
       if (await isNamed(tx, item.templateId)) throw new AppError(ErrorCode.CONFLICT, 'У именной вещи очки расставляются только в статы, мастерства и обереги', 409)
       if (!allowedItemStats(item.template.type).includes(stat)) throw new AppError(ErrorCode.CONFLICT, 'Эту характеристику нельзя вложить в эту вещь', 422)
       const before = normalizeAllocation(item.statAllocation)
-      const available = Math.max(0, itemBudget(item.template, item.namedLevel) - allocatedPoints(before) - bonusCost(readItemBonuses(item.bonuses)))
+      const available = Math.max(0, itemBudget(item.template, item.namedLevel) - allocatedPoints(before) - bonusCost(readItemBonuses(item.bonuses, true)))
       if (points > available) throw new AppError(ErrorCode.CONFLICT, 'У вещи не осталось свободных очков', 409)
       const after = { ...before, [stat]: (before[stat] ?? 0) + points }
       const freePoints = available - points
@@ -76,10 +76,7 @@ export const ItemStatsService = {
       }
       // Старые очки прочности снять нельзя: их больше не вкладывают, но они есть.
       if (before.DURABILITY && !named) nextOwn.DURABILITY = before.DURABILITY
-      const bonuses = readItemBonuses(input)
-      const limit = BalanceConfig.economy.namedItems.percentFieldLimit
-      const percents = [bonuses.mastery, bonuses.minusMastery, bonuses.charms, bonuses.minusCharms].flatMap(group => Object.values(group))
-      if (percents.some(points => (points ?? 0) > limit)) throw new AppError(ErrorCode.CONFLICT, `В одном поле процентов не больше ${limit} очков`, 422)
+      const bonuses = readItemBonuses(input, true)
       const budget = itemBudget(item.template, item.namedLevel)
       const spent = allocatedPoints(nextOwn) + bonusCost(bonuses)
       if (spent > budget) throw new AppError(ErrorCode.CONFLICT, `Расставлено ${spent} очков из ${budget}`, 409)
