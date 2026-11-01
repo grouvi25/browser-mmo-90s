@@ -95,14 +95,15 @@ describe('Книга экономики: в игре', () => {
     expect(started.shift.toolInstanceId).toBeTruthy()
   })
 
-  it('цех продаётся за доллары, а без владельца вакансии нет', async () => {
+  it('цех виден с ценой и продукцией, а смены начинаются только после покупки', async () => {
     const character = await worker(['metallurgist'], 20_000)
     const shop = await object('obj_tb_steel_blank')
     expect(shop).toMatchObject({ isForSale: true, ownerType: 'SYSTEM' })
-    const seen = async () => (await WorkService.listObjects(character.id)).items.some(row => row.code === shop.code)
-    expect(await seen()).toBe(false)
+    const row = async () => (await WorkService.listObjects(character.id)).items.find(item => item.code === shop.code)!
+    expect(await row()).toMatchObject({ forSaleUsd: 15_000, products: ['Стальная заготовка'] })
+    await expect(WorkService.start(character.id, shop.id)).rejects.toThrow('Цех продаётся')
     await OwnershipService.buy(character.id, shop.id, randomUUID())
-    expect(await seen()).toBe(true)
+    expect(await row()).toMatchObject({ forSaleUsd: null, products: [] })
     const recipe = await testPrisma.productionRecipe.findUniqueOrThrow({ where: { code: 'rcp_tb_steel_blank' }, include: { inputs: true } })
     expect((await object(shop.code)).activeRecipeId).toBe(recipe.id)
     expect(recipe.inputs.map(row => [row.resourceCode, row.amount]).sort()).toEqual([['tb_coal', 1], ['tb_iron_ore', 1], ['tb_scrap', 2]])
