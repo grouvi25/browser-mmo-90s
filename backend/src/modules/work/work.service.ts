@@ -37,6 +37,10 @@ function utcDayRange(now = new Date()) {
   return { start, end }
 }
 
+/** Цех книги экономики ещё у государства: не платит и не выдаёт ресурс, пока его не купят. */
+const awaitsOwner = (object: { ownerType: string; baseSalary: number; producesResourceCode: string | null; isForSale: boolean }) =>
+  object.ownerType === 'SYSTEM' && object.baseSalary === 0 && !object.producesResourceCode && object.isForSale
+
 async function professionState(characterId: string, professionCode: string) {
   return prisma.characterProfession.findUnique({
     where: { characterId_professionCode: { characterId, professionCode } },
@@ -64,8 +68,14 @@ export const WorkService = {
     const toolNames = new Map((await prisma.itemTemplate.findMany({
       where: { code: { in: premiumRecipes.map(recipe => recipe.requiredToolCode as string) } }, select: { code: true, name: true },
     })).map(item => [item.code, item.name]))
-    // Цех книги без владельца не платит и ничего не даёт: вакансии там нет.
-    const vacancies = objects.filter(object => object.ownerType !== 'SYSTEM' || object.baseSalary > 0 || object.producesResourceCode)
+    // Цех без владельца показываем в конце списка: видно, что он есть и что выпускает.
+    const vacancies = objects
+      .filter(object => object.ownerType !== 'SYSTEM' || object.baseSalary > 0 || object.producesResourceCode || object.isForSale)
+      .sort((a, b) => Number(awaitsOwner(a)) - Number(awaitsOwner(b)))
+    const products = await prisma.productionRecipe.findMany({
+      where: { productionObjectCode: { in: vacancies.filter(awaitsOwner).map(object => object.code) } },
+      select: { productionObjectCode: true, name: true }, orderBy: { name: 'asc' },
+    })
     return {
       items: vacancies.map(object => {
         const profession = professionByCode.get(object.requiredProfessionCode)
@@ -78,6 +88,8 @@ export const WorkService = {
         return {
           ...object,
           offeredSalary: object.salaryOverride ?? object.baseSalary,
+          forSaleUsd: awaitsOwner(object) ? BalanceConfig.economy.production.objectPriceUsd : null,
+          products: awaitsOwner(object) ? products.filter(row => row.productionObjectCode === object.code).map(row => row.name) : [],
           // Частный завод (обещание игрокам 23.10): платит владелец из кассы
           // объекта, сырьё со смены уходит ему. Работнику видно, чей это
           // завод и хватит ли в кассе на его зарплату.
@@ -187,6 +199,7 @@ export const WorkService = {
         throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift budget reached', 400)
       }
       if (!object.isActive || object.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_OBJECT_UNAVAILABLE, 'Production object unavailable', 409)
+      if (awaitsOwner(object)) throw new AppError(ErrorCode.WORK_OBJECT_UNAVAILABLE, 'Цех продаётся: смены начнутся, когда его купят', 409)
       const existingProfession = await tx.characterProfession.findUnique({
         where: { characterId_professionCode: { characterId, professionCode: object.requiredProfessionCode } },
       })

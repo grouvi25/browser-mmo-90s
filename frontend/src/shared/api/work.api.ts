@@ -7,6 +7,9 @@ export interface ProductionObjectView {
   producesResourceName:string|null; outputAmountMin:number; outputAmountMax:number; locked:boolean; toolAvailable:boolean; requiredToolName?:string|null; equipment:{code:string;name:string;tier:number;requiredToolTier:number}|null; profession:ProfessionView&{learned:boolean}
   /** Ставка, которую платят: у частного завода её задаёт владелец. */
   offeredSalary?:number
+  /** Цех ещё у государства: цена и что он выпускает. */
+  forSaleUsd?:number|null
+  products?:string[]
   /** Частный завод: чей он и хватит ли в кассе на зарплату. */
   employer?:{nickname:string|null;isMe:boolean;canPay:boolean}|null
 }
