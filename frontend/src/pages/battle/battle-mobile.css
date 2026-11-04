@@ -173,3 +173,41 @@
 .m-battle__fighter .m-battle__name { display: flex; align-items: baseline; gap: 4px; overflow: visible; }
 .m-battle__who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m-battle__hpnum { flex: 0 0 auto; margin-left: auto; }
+
+/* ── Обращения №14, №15 (4.11, настоящий телефон, 364×657) ─────────
+   Экран был фиксированным и без прокрутки: всё, что не влезало, просто
+   обрезалось вместе с чатом. Поле при этом сжималось до 252×138 с пустым
+   куском справа. Теперь экран листается, шапка остаётся на месте, карта
+   не меньше ширины телефона, а на высоком экране крупнее и листается вбок. */
+.m-battle { overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+.m-battle > * { flex: 0 0 auto; }
+.m-battle__head { position: sticky; top: 0; z-index: 20; }
+/* Экран листается, поэтому ящики и ошибка держатся за окно, а не за начало страницы. */
+.m-battle .battle-drawer { position: fixed; }
+.m-battle .battle-error-v3 { position: fixed; }
+.m-battle__field { flex: 0 0 auto; min-height: 0; display: block; }
+.m-battle__field .battle-field-v3 { display: block; overflow: hidden; }
+.m-battle__field .grid-arena { display: block; }
+.m-battle__field .hex-board {
+  display: block;
+  flex: none;
+  container-type: normal;
+  height: max(calc((100vw - 10px) / 1.824249), 34vh);
+  height: max(calc((100vw - 10px) / 1.824249), 34dvh);
+}
+.m-battle__field .designer-battle-field { border: 0; box-shadow: none; }
+
+/* Портрет у каждой стороны: без него на телефоне не видно, с кем дерёшься. */
+.m-battle__fighter { display: flex; align-items: center; gap: 6px; padding: 4px 6px; }
+.m-battle__avatar { flex: 0 0 38px; width: 38px; height: 38px; object-fit: cover; object-position: top; border: 1px solid oklch(46% .04 55); background: #dccbca; }
+.m-battle__fighter-text { flex: 1 1 auto; min-width: 0; }
+/* Имя на всю ширину, цифры здоровья — строкой ниже: длинному имени бота есть куда лечь. */
+.m-battle__fighter .m-battle__name { flex-wrap: wrap; row-gap: 1px; }
+.m-battle__fighter .m-battle__who { flex: 1 1 100%; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; font-size: 11.5px; line-height: 1.15; }
+.m-battle__log .battle-chronicle > header button { min-height: 30px; padding: 0 6px; }
+
+/* Палец: кнопки зон и шапки не меньше 30 px. */
+.m-battle__zones .zone-list__row { min-height: 30px; }
+.m-battle__zones .zone-list__btn { height: 30px; }
+.m-battle__tools button { min-height: 32px; min-width: 36px; justify-content: center; }
+.m-battle__buttons button { min-height: 36px; }

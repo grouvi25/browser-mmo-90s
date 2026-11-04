@@ -32,6 +32,7 @@ import { BattleHelperBadge } from './components/battle-helper-badge'
 import { PersistedBattleChronicle } from './components/battle-chronicle'
 import { getActionBudget, validateTurnPlan } from './battle-view-model'
 import { useIsMobile } from '../../shared/lib/use-media-query'
+import { SPRITES } from '../../shared/ui/sprite'
 import './battle-phase-a.css'
 import './battle-mobile.css'
 
@@ -667,12 +668,20 @@ export function BattlePage() {
             карточки-вырезы нет, а здоровье в бою главное. */}
         <div className="m-battle__fighters">
           <div className="m-battle__fighter">
-            <span className="m-battle__name"><span className="m-battle__who">{playerName} · {char?.battleLevel ?? 0} ур.</span><b className="m-battle__hpnum">{pHp}/{pHpMax}</b></span>
-            <span className="m-battle__hp"><i style={{ transform: `scaleX(${pHpMax ? pHp / pHpMax : 0})` }} /></span>
+            <img className="m-battle__avatar" alt="" draggable={false}
+              src={char?.avatar ?? SPRITES[char?.gender === 'FEMALE' ? 'portrait-female' : 'portrait']} />
+            <div className="m-battle__fighter-text">
+              <span className="m-battle__name"><span className="m-battle__who">{playerName} · {char?.battleLevel ?? 0} ур.</span><b className="m-battle__hpnum">{pHp}/{pHpMax}</b></span>
+              <span className="m-battle__hp"><i style={{ transform: `scaleX(${pHpMax ? pHp / pHpMax : 0})` }} /></span>
+            </div>
           </div>
           <div className="m-battle__fighter is-enemy">
-            <span className="m-battle__name"><span className="m-battle__who">{enemyName} · {enemyProfile?.level ?? 0} ур.</span><b className="m-battle__hpnum">{eHp}/{eHpMax}</b></span>
-            <span className="m-battle__hp is-enemy"><i style={{ transform: `scaleX(${eHpMax ? eHp / eHpMax : 0})` }} /></span>
+            <img className="m-battle__avatar" alt={`Портрет: ${enemyName}`} draggable={false}
+              src={enemyProfile?.avatar ?? SPRITES[enemyProfile?.gender === 'FEMALE' ? 'portrait-female' : 'portrait']} />
+            <div className="m-battle__fighter-text">
+              <span className="m-battle__name"><span className="m-battle__who">{enemyName} · {enemyProfile?.level ?? 0} ур.</span><b className="m-battle__hpnum">{eHp}/{eHpMax}</b></span>
+              <span className="m-battle__hp is-enemy"><i style={{ transform: `scaleX(${eHpMax ? eHp / eHpMax : 0})` }} /></span>
+            </div>
           </div>
         </div>
 
