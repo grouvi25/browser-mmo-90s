@@ -343,7 +343,7 @@ function ItemRow({ item, canEdit, onEdit, onCopy }: { item: ItemTemplateRow; can
   const base = item.minDamage != null
     ? `урон ${item.minDamage}–${item.maxDamage}${item.weaponAccuracy != null ? `, точн. ${Math.round(item.weaponAccuracy * 100)}%` : ''}`
     : item.armor != null ? `броня ${item.armor}`
-      : item.type === 'CONSUMABLE' && item.hpBonus ? `лечит ${item.hpBonus} HP` : '—'
+      : item.type === 'CONSUMABLE' && item.healPercent ? `лечит ${item.healPercent}%` : item.type === 'CONSUMABLE' && item.hpBonus ? `лечит ${item.hpBonus} HP` : '—'
   const sales = item.sales?.length
     ? item.sales.map(s => `${shopTitle(s.shop)} ${s.price.toLocaleString('ru-RU')} ${s.currency === 'USD' ? '$' : '₽'}${s.isAvailable ? '' : ' (снята)'}`).join('; ')
     : 'не продаётся'

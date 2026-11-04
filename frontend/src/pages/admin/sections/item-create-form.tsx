@@ -103,6 +103,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
   const [crit, setCrit] = useState(percent(initial?.critBonus))
   const [dodge, setDodge] = useState(percent(initial?.dodgeBonus))
   const [hp, setHp] = useState(initial?.hpBonus ?? 0)
+  const [healPct, setHealPct] = useState(initial?.healPercent ?? 0)
   const [gearStats, setGearStats] = useState<Record<string, number>>({ ...(initial?.statBonuses ?? {}) })
   // Отрицательный оберег в базе — минус-оберег старых вещей: показываем его в своей строке.
   const charmOf = (key: string) => percent((initial as Record<string, unknown> | undefined)?.[key] as number | null)
@@ -158,7 +159,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
     weaponAccuracy: kind === 'WEAPON' ? share(accuracy, 0, 100) : null,
     maxRange: kind === 'WEAPON' ? int(range, 1, 20) : null,
     armor: ['ARMOR', 'SHIELD', 'ACCESSORY'].includes(kind) ? int(armor, 0, 500) : null,
-    critBonus: share(crit, 0, 100), dodgeBonus: share(dodge, 0, 100), hpBonus: int(hp, 0, 1000),
+    critBonus: share(crit, 0, 100), dodgeBonus: share(dodge, 0, 100), healPercent: int(healPct, 0, 100), hpBonus: int(hp, 0, 1000),
     statBonuses: Object.fromEntries(Object.entries(gearStats).map(([k, v]) => [k, int(v, -50, 50)]).filter(([, v]) => v)),
     ...Object.fromEntries(CHARMS.map(([key]) => [key, share(charms[key] ?? 0, 0, 200)])),
     extraBonuses: { minusCharms: percents(CHARMS, minusCharms), mastery: percents(MASTERIES, mastery), minusMastery: percents(MASTERIES, minusMastery) },
@@ -226,7 +227,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
   const preview: string[] = [
     kind === 'WEAPON' ? `Урон ${minDamage}–${maxDamage} · точность ${accuracy}% · дальность ${range}` : '',
     ['ARMOR', 'SHIELD', 'ACCESSORY'].includes(kind) ? `Броня ${armor}` : '',
-    kind === 'CONSUMABLE' && hp ? `Лечит ${hp} HP` : '',
+    kind === 'CONSUMABLE' && healPct ? `Лечит ${healPct}% здоровья` : kind === 'CONSUMABLE' && hp ? `Лечит ${hp} HP` : '',
     worn ? GEAR_STATS.filter(([key]) => gearStats[key]).map(([key, label]) => `${label} ${signed(int(gearStats[key], -50, 50))}`).join(', ') : '',
     worn && hp ? `Здоровье +${hp}` : '',
     worn && crit ? `Шанс крита +${crit}%` : '',
@@ -319,6 +320,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
           <label><span>Броня</span><input type="number" min={0} value={armor} onChange={num(setArmor)} /></label>
         </div>}
         {kind === 'CONSUMABLE' && <div className="adm-item__fields">
+          <label><span>Лечит, % здоровья</span><input type="number" min={0} max={100} value={healPct} onChange={num(setHealPct)} /></label>
           <label><span>Лечит, HP</span><input type="number" min={0} value={hp} onChange={num(setHp)} /></label>
         </div>}
       </>}

@@ -64,12 +64,12 @@ describe('Книга экономики: данные', () => {
 
   it('заводы по таблице v2: 21 завод, на каждом одна профессия и от 3 до 5 рецептов', () => {
     const workshops = TABLE_OBJECTS.filter(row => !row.gather)
-    expect(workshops).toHaveLength(21)
+    expect(workshops).toHaveLength(14)
     expect(TABLE_OBJECTS.filter(row => row.gather)).toHaveLength(33)
     for (const workshop of workshops) {
       const recipes = TABLE_RECIPES.filter(row => row.object === workshop.code)
       expect(recipes.length).toBeGreaterThanOrEqual(3)
-      expect(recipes.length).toBeLessThanOrEqual(5)
+      expect(recipes.length).toBeLessThanOrEqual(8)
       expect(new Set(recipes.map(row => row.profession))).toEqual(new Set([workshop.profession]))
     }
     expect(TABLE_ITEMS.find(row => row.code === 'tb_item_c09')).toMatchObject({ level: 6, armor: 20, durability: 180 })
@@ -113,7 +113,7 @@ describe('Книга экономики: в игре', () => {
     const shop = await object('obj_tb_smelter_iron')
     expect(shop).toMatchObject({ isForSale: true, ownerType: 'SYSTEM' })
     const row = async () => (await WorkService.listObjects(character.id)).items.find(item => item.code === shop.code)!
-    expect(await row()).toMatchObject({ forSaleUsd: 15_000, products: ['Бронзовая заготовка', 'Железная заготовка', 'Медная заготовка', 'Стальная заготовка'] })
+    expect(await row()).toMatchObject({ forSaleUsd: 15_000, products: ['Бронзовая заготовка', 'Железная заготовка', 'Медная заготовка', 'Оловянная заготовка', 'Свинцовая заготовка', 'Стальная заготовка', 'Экранирующий сплав'] })
     await expect(WorkService.start(character.id, shop.id)).rejects.toThrow('Цех продаётся')
     await OwnershipService.buy(character.id, shop.id, randomUUID())
     expect(await row()).toMatchObject({ forSaleUsd: null, products: [] })
@@ -147,6 +147,15 @@ describe('Книга экономики: в игре', () => {
     await CycleService.complete(cycle.id)
     const stock = await testPrisma.productionObjectInventory.findMany({ where: { productionObjectId: shop.id, resourceCode: 'tb_steel_blank' } })
     expect(stock.reduce((sum, row) => sum + row.amount, 0)).toBe(1)
+  })
+
+  it('заводы объединены: бывшие цехи выключены, Бронежилет у Портного, аптечки лечат процентом', async () => {
+    expect(await testPrisma.productionObject.count({ where: { code: { startsWith: 'obj_tb_' }, type: 'WORKSHOP', isActive: true } })).toBe(14)
+    const vest = await testPrisma.productionRecipe.findUniqueOrThrow({ where: { code: 'rcp_tb_c09' } })
+    expect(vest).toMatchObject({ productionObjectCode: 'obj_tb_armor_shop', requiredProfessionCode: 'tailor' })
+    const kits = await testPrisma.itemTemplate.findMany({ where: { code: { in: ['tb_item_a01', 'tb_item_a05', 'tb_item_a09', 'tb_item_a12'] } }, orderBy: { code: 'asc' } })
+    expect(kits.map(kit => kit.healPercent)).toEqual([10, 25, 50, 100])
+    expect(kits[1].name).toBe('Аптечка походная')
   })
 
   it('повторный сид не стирает правки заказчика и не отбирает завод', async () => {

@@ -2,7 +2,7 @@ import type { BattleAction, WeaponType as PrismaWeaponType } from '@prisma/clien
 import { loadCombatDog, type LiveDog } from './combat-dog'
 import { heldWeapon, registerWound, woundedArmor, woundedBotEquip, type Wounds } from './wounds'
 import { awardCombatHelper, damageHelper, helperIntercepts, loadCombatHelper, type LiveHelper } from './combat-helper'
-import { INTERCEPT_MARK, companionCells, companionDefenceStats, companionTurn, damageCompanion, parseCompanionId, summonCell, type CompanionEvent, type CompanionKind } from './companions'
+import { INTERCEPT_MARK, companionCells, companionDamage, companionDefenceStats, companionTurn, damageCompanion, parseCompanionId, summonCell, type CompanionEvent, type CompanionKind } from './companions'
 import { prisma } from '../../shared/db/prisma'
 import { BattleRedis, AntiFarmRedis } from '../../shared/db/redis'
 import { CharactersRepository } from '../characters/characters.repository'
@@ -62,7 +62,7 @@ import {
   calcRatingPower,
 } from '../stats/stats.formulas'
 import { withPetBonus } from '../city/city.config'
-import { EMPTY_GEAR, charmBalance, gearOf, withGearStats, type GearBonuses, MASTERY_DAMAGE_CAP, MASTERY_DEFENSE_CAP, masteryBalance } from '../items/gear-bonuses'
+import { healAmount, EMPTY_GEAR, charmBalance, gearOf, withGearStats, type GearBonuses, MASTERY_DAMAGE_CAP, MASTERY_DEFENSE_CAP, masteryBalance } from '../items/gear-bonuses'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
 import { applyBattleProgression } from '../experience/progression'
@@ -307,8 +307,10 @@ async function applyPendingUtility(part: LiveParticipant, char: CharacterWithSta
       if (!part.pocketItemIds?.includes(itemId)) return true
       const item = await ItemsRepository.findInstanceById(itemId)
       if (item && item.ownerId === char.id && item.template.type === 'CONSUMABLE' && !['CONSUMED', 'DELETED'].includes(item.status)) {
-        const healed = Math.min(item.template.hpBonus ?? 0, part.hpMax - part.hpCurrent)
-        part.hpCurrent = Math.min(part.hpMax, part.hpCurrent + (item.template.hpBonus ?? 0))
+        const restore = healAmount(item.template, part.hpMax)
+        if (restore <= 0) return true
+        const healed = Math.min(restore, part.hpMax - part.hpCurrent)
+        part.hpCurrent = Math.min(part.hpMax, part.hpCurrent + restore)
         part.healedTotal += healed
         part.pocketItemIds = part.pocketItemIds.filter(id => id !== itemId)
         await ItemsRepository.delete(itemId)
@@ -1590,7 +1592,8 @@ export const BattleService = {
     }
 
     // Apply effect: restore HP by hpBonus (used as hpRestore for consumables)
-    const hpRestore = item.template.hpBonus ?? 0
+    const hpRestore = healAmount(item.template, playerPart.hpMax)
+    if (hpRestore <= 0) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Этот предмет пока нельзя применить', 400)
     const newHp = Math.min(playerPart.hpMax, playerPart.hpCurrent + hpRestore)
     playerPart.hpCurrent = newHp
 
@@ -2090,7 +2093,8 @@ export const BattleService = {
     const battleExpBonus = ((await TerritoriesService.bonusesForCharacter(char.id)).BATTLE_EXP ?? 0)
       + await CityService.expBonus(char.id)
     const expGain = Math.round(calcBattleExp({
-      damageDealt: playerPart.damageDealt,
+      // Опыт идёт хозяину и за урон его помощника и собаки (Дима 4.11, обращения 13, 17).
+      damageDealt: playerPart.damageDealt + companionDamage(playerPart),
       targetPower: bot.power,
       targetMaxHp: bot.hpMax,
       targetHealed: botPart.healedTotal,

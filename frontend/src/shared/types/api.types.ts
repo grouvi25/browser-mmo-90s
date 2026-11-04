@@ -121,6 +121,8 @@ export interface ItemTemplate {
   blockBonus: number | null
   // Consumable
   hpBonus: number | null
+  /** Лечит долей максимального здоровья, %. Больше нуля: важнее hpBonus. */
+  healPercent?: number | null
   // Physical
   weight: number
   durabilityMax: number
@@ -367,6 +369,11 @@ export const ARMOR_SLOT_LABELS: Record<string, string> = {
   LEFT_HAND: 'Левая рука', RIGHT_HAND: 'Правая рука', GLOVES: 'Перчатки',
   RING: 'Кольцо 1', RING_2: 'Кольцо 2', RING_3: 'Кольцо 3', RING_4: 'Кольцо 4',
   RING_5: 'Кольцо 5', RING_6: 'Кольцо 6', RING_7: 'Кольцо 7', RING_8: 'Кольцо 8',
+}
+
+/** Подпись лечения расходника: процент от здоровья или единицы. */
+export function healLabel(t: { healPercent?: number | null; hpBonus?: number | null }): string {
+  return (t.healPercent ?? 0) > 0 ? `${t.healPercent}% здоровья` : `${t.hpBonus ?? 0} HP`
 }
 
 /** Тип предмета: показывается, когда у вещи нет ни типа оружия, ни слота брони. */

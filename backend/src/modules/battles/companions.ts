@@ -76,6 +76,11 @@ function bodyOf(owner: CompanionOwner, kind: CompanionKind): CompanionBody | und
   return kind === 'helper' ? owner.helper : owner.dog
 }
 
+/** Урон помощника и собаки хозяина: идёт ему в зачёт опыта. Сверх здоровья цели зачёт не растёт. */
+export function companionDamage(owner: { helper?: { damageDealt?: number } | null; dog?: { damageDealt?: number } | null }): number {
+  return (owner.helper?.damageDealt ?? 0) + (owner.dog?.damageDealt ?? 0)
+}
+
 /** Вызванные и живые фигуры — для доски: они занимают клетки. */
 export function companionCells(owners: readonly CompanionOwner[]): PositionedParticipant[] {
   const out: PositionedParticipant[] = []

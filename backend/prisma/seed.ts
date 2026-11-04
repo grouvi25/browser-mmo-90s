@@ -116,14 +116,14 @@ async function main() {
   const consumableTemplates = [
     {
       code: 'consumable_bandage', name: 'Бинт', type: 'CONSUMABLE' as const,
-      hpBonus: 20,  // Restores 20 HP when used in battle
+      hpBonus: 20, healPercent: 10,  // Лечит 10% здоровья (Дима 4.11)
       weight: 0.1, durabilityMax: 1, qualityBase: 'COMMON' as const,
       priceBase: 50, levelReq: 0, isSellable: true, isActive: true,
       sourceType: 'GOVERNMENT' as const, isEquippable: false,
     },
     {
       code: 'consumable_first_aid_kit', name: 'Аптечка', type: 'CONSUMABLE' as const,
-      hpBonus: 50,  // Restores 50 HP when used in battle
+      hpBonus: 50, healPercent: 25,  // Лечит 25% здоровья (Дима 4.11)
       weight: 0.3, durabilityMax: 1, qualityBase: 'COMMON' as const,
       priceBase: 170, levelReq: 0, isSellable: true, isActive: true,
       sourceType: 'GOVERNMENT' as const, isEquippable: false,
@@ -340,7 +340,7 @@ async function main() {
     { code: 'armor_prem_vest', name: 'Кованый бронежилет', description: 'Сделан кузнецом на наковальне: крепче армейского.', type: 'ARMOR' as const, armorSlot: 'CHEST' as const, armor: 42, antiCrit: .05, weight: 6, durabilityMax: 150, priceBase: 1500, levelReq: 5, itemTier: 3, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 10, repairResourceCode: 'comp_armor_plate' },
     { code: 'armor_prem_coat', name: 'Прошитая куртка', description: 'Лёгкая и плотная, шита на машинке мастера.', type: 'ARMOR' as const, armorSlot: 'CHEST' as const, armor: 30, dodgeBonus: .03, weight: 2, durabilityMax: 150, priceBase: 700, levelReq: 5, itemTier: 3, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 10, repairResourceCode: 'comp_armor_plate' },
     { code: 'weapon_prem_tt', name: 'ТТ мастера', description: 'Пистолет ТТ, собранный из точных деталей.', type: 'WEAPON' as const, weaponType: 'PISTOL' as const, minDamage: 55, maxDamage: 105, weaponAccuracy: .84, optimalRange: 4, maxRange: 5, weight: 1.1, durabilityMax: 150, priceBase: 1800, levelReq: 5, itemTier: 3, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 10, repairResourceCode: 'comp_weapon_part' },
-    { code: 'consumable_prem_kit', name: 'Полевая аптечка', description: 'Лечит вдвое лучше обычной аптечки.', type: 'CONSUMABLE' as const, hpBonus: 100, weight: 0.3, durabilityMax: 1, priceBase: 250, levelReq: 0, isSellable: true, isEquippable: false, sourceType: 'CRAFTED' as const },
+    { code: 'consumable_prem_kit', name: 'Полевая аптечка', description: 'Лечит вдвое лучше обычной аптечки.', type: 'CONSUMABLE' as const, hpBonus: 100, healPercent: 50, weight: 0.3, durabilityMax: 1, priceBase: 250, levelReq: 0, isSellable: true, isEquippable: false, sourceType: 'CRAFTED' as const },
   ]
   for (const tpl of premiumCrafted) await prisma.itemTemplate.upsert({ where: { code: tpl.code }, update: tpl, create: tpl })
   // Сами инструменты завёл заказчик; здесь только то, что делает их рабочими.

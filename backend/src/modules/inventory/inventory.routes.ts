@@ -13,7 +13,7 @@ import type { Prisma } from '@prisma/client'
 import { ITEM_STAT_KEYS, itemBudget } from '../items/item-stats.formulas'
 import { ItemStatsService } from '../items/item-stats.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
-import { CHARM_KEYS, GEAR_STAT_KEYS, MASTERY_KEYS, syncHpWithGear } from '../items/gear-bonuses'
+import { CHARM_KEYS, GEAR_STAT_KEYS, MASTERY_KEYS, healAmount, syncHpWithGear } from '../items/gear-bonuses'
 
 const RING_SLOTS = ['RING', 'RING_2', 'RING_3', 'RING_4', 'RING_5', 'RING_6', 'RING_7', 'RING_8'] as const
 const EquipSchema = z.object({ itemInstanceId: z.string().uuid(), hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional() })
@@ -354,13 +354,16 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Это не расходник', 400)
       }
 
+      // Настойка без действия не сгорает впустую, пока её эффект не сделан.
+      if (healAmount(item.template, char.hpMax) <= 0) throw new AppError(ErrorCode.CONFLICT, 'Этот предмет пока нельзя применить', 409)
+
       const consumed = await tx.itemInstance.updateMany({
         where: { id: item.id, ownerId: char.id, status: { notIn: ['CONSUMED', 'DELETED'] } },
         data: { status: 'DELETED', isEquipped: false },
       })
       if (consumed.count !== 1) throw new AppError(ErrorCode.CONFLICT, 'Предмет уже использован', 409)
 
-      const hpRestore = item.template.hpBonus ?? 0
+      const hpRestore = healAmount(item.template, char.hpMax)
       const newHp = Math.min(char.hpMax, char.hpCurrent + hpRestore)
       await tx.character.update({ where: { id: char.id }, data: { hpCurrent: newHp } })
       await tx.itemLog.create({

@@ -395,7 +395,7 @@ export interface ItemTemplateRow {
   armor: number | null; durabilityMax: number | null; weight: number | null
   // Полная строка шаблона — форма вещи открывается ею для правки и копии (30.10).
   description?: string | null; weaponType?: string | null; armorSlot?: string | null; maxRange?: number | null
-  critBonus?: number | null; dodgeBonus?: number | null; hpBonus?: number | null
+  critBonus?: number | null; dodgeBonus?: number | null; hpBonus?: number | null; healPercent?: number | null
   statBonuses?: Record<string, number> | null
   extraBonuses?: { minusCharms?: Record<string, number>; mastery?: Record<string, number>; minusMastery?: Record<string, number> } | null
   antiDodge?: number | null; antiLuck?: number | null; antiCrit?: number | null; antiCounter?: number | null

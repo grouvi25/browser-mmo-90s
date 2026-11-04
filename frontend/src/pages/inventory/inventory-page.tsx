@@ -27,7 +27,7 @@ import { OutfitBar } from './outfit-bar'
 import { GearSummaryDialog, ItemSetupDialog } from './item-setup'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { shopApi } from '../../shared/api/shop.api'
-import { ARMOR_SLOT_LABELS, QUALITY_LABELS, type ItemInstance } from '../../shared/types/api.types'
+import { ARMOR_SLOT_LABELS, QUALITY_LABELS, healLabel, type ItemInstance } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { instanceImage, itemBonusLines } from '../../shared/lib/item-bonuses'
@@ -292,7 +292,7 @@ export function InventoryPage() {
                           {t.minDamage != null && <div><dt>Урон</dt><dd>{eff?.minDamage ?? t.minDamage}–{eff?.maxDamage ?? t.maxDamage}<Gain value={(eff?.maxDamage ?? 0) - (t.maxDamage ?? 0)} /></dd></div>}
                           {t.type === 'WEAPON' && !!t.maxRange && <div><dt>Дальность</dt><dd>{rangeLabel(t.maxRange)}</dd></div>}
                           {!!t.armor && <div><dt>Броня тела</dt><dd>+{eff?.armor ?? t.armor}<Gain value={(eff?.armor ?? 0) - (t.armor ?? 0)} /></dd></div>}
-                          {!!t.hpBonus && <div><dt>{t.type === 'CONSUMABLE' ? 'Восстановит' : 'Здоровье'}</dt><dd>+{t.hpBonus} HP</dd></div>}
+                          {(!!t.hpBonus || !!t.healPercent) && <div><dt>{t.type === 'CONSUMABLE' ? 'Восстановит' : 'Здоровье'}</dt><dd>+{healLabel(t)}</dd></div>}
                           {/* Заказчик 30.10: «обереги не все в карточке шмота». Теперь здесь всё:
                               статы, мастерства и обереги, и базовые, и вписанные игроком. */}
                           {itemBonusLines(t, item).map(line => <div key={line.key}><dt>{line.label}</dt><dd>{line.value}</dd></div>)}

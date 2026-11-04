@@ -757,6 +757,8 @@ model ItemTemplate {
   antiCrit   Float? @default(0.0) @map("anti_crit")
   blockBonus Float? @default(0.0) @map("block_bonus")
   hpBonus    Int?   @default(0) @map("hp_bonus")
+  /// Лечение долей максимального здоровья, %. Больше нуля: важнее hpBonus (Дима 4.11).
+  healPercent         Int                @default(0) @map("heal_percent")
 
   // Distance (зональная боёвка): дальность оружия. Ближнее = 1 (только вплотную)
   optimalRange Int? @default(1) @map("optimal_range")

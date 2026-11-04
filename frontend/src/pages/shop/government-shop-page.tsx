@@ -10,7 +10,7 @@ import { Trash2 } from 'lucide-react'
 import { shopApi } from '../../shared/api/shop.api'
 import { barsApi } from '../../shared/api/bars.api'
 import { charactersApi } from '../../shared/api/characters.api'
-import { QUALITY_LABELS, type ShopItem } from '../../shared/types/api.types'
+import { QUALITY_LABELS, healLabel, type ShopItem } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { SHOP_IMAGES } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
@@ -62,13 +62,13 @@ function bonusLines(item: ShopItem): string[] {
   const t = item.template
   const out: string[] = []
   if (t.minDamage != null && t.maxDamage != null) out.push(`Урон: ${t.minDamage}–${t.maxDamage}`)
-  if (t.weaponAccuracy) out.push(`Точность: ${Math.round(t.weaponAccuracy * 100)}%`)
+  if (t.type === 'WEAPON' && t.weaponAccuracy) out.push(`Точность: ${Math.round(t.weaponAccuracy * 100)}%`)
   if (t.type === 'WEAPON' && t.maxRange) out.push(`Дальность: ${rangeLabel(t.maxRange)}`)
   if (t.critBonus) out.push(`Крит: +${Math.round(t.critBonus * 100)}%`)
   if (t.armor) out.push(`Броня тела: +${t.armor}`)
   if (t.dodgeBonus) out.push(`Уворот: +${Math.round(t.dodgeBonus * 100)}%`)
   if (t.blockBonus) out.push(`Блок: +${Math.round(t.blockBonus * 100)}%`)
-  if (t.hpBonus) out.push(`Восстановит: +${t.hpBonus} HP`)
+  if (t.hpBonus || t.healPercent) out.push(`Восстановит: +${healLabel(t)}`)
   for (const line of itemBonusLines(t)) out.push(`${line.label}: ${line.value}`)
   if (t.strReq > 0) out.push(`Требует силы: ${t.strReq}`)
   if (t.skillReq > 0) out.push(`Требует навык: ${t.skillReq}`)

@@ -9,6 +9,13 @@
 import type { PrismaClient } from '@prisma/client'
 import { TABLE_ITEMS, TABLE_OBJECTS, TABLE_RECIPES, TABLE_RESOURCES, TABLE_TOOLS, tablePrice } from './economy-table'
 
+const RENAMED_ITEMS: readonly (readonly [string, string, string])[] = [
+  ['tb_item_a05', 'Аптечка полевая', 'Аптечка походная'],
+  ['tb_item_a07', 'Настойка скорости', 'Настойка ловкости'],
+  ['tb_item_a08', 'Противоядие', 'Отрезвитель'],
+  ['tb_item_w06', 'Свиток скорости', 'Свиток ловкости'],
+]
+
 export async function seedEconomyTable(prisma: PrismaClient) {
   for (const [code, name, tier, units] of TABLE_RESOURCES) {
     const data = { name, tier, basePrice: tablePrice(units), category: tier === 1 ? 'PRIMARY' as const : 'COMPONENT' as const, isActive: true }
@@ -32,15 +39,24 @@ export async function seedEconomyTable(prisma: PrismaClient) {
       update: {},
       create: {
         code: item.code, name: item.name, type: worn ? 'ARMOR' : 'CONSUMABLE', armorSlot: worn ? item.slot as 'CHEST' : null,
-        isEquippable: worn, armor: item.armor ?? 0, levelReq: item.level ?? 0, durabilityMax: item.durability ?? 100, itemTier: item.tier, priceBase: tablePrice(item.units), sourceType: 'CRAFTED',
+        isEquippable: worn, healPercent: item.healPercent ?? 0, armor: item.armor ?? 0, levelReq: item.level ?? 0, durabilityMax: item.durability ?? 100, itemTier: item.tier, priceBase: tablePrice(item.units), sourceType: 'CRAFTED',
       },
     })
+    // Шаблон уже есть, поэтому лечение ставим отдельно и только там, где его ещё не правили.
+    if (item.healPercent) {
+      await prisma.itemTemplate.updateMany({ where: { code: item.code, healPercent: 0 }, data: { healPercent: item.healPercent } })
+    }
     if (worn) {
       await prisma.itemTemplate.updateMany({
         where: { code: item.code, armor: 0, levelReq: 0 },
         data: { armor: item.armor ?? 0, levelReq: item.level ?? 0, durabilityMax: item.durability ?? 100 },
       })
     }
+  }
+
+  // Названия из предложений к таблице: вещь, переименованную в админке, не трогаем.
+  for (const [code, from, to] of RENAMED_ITEMS) {
+    await prisma.itemTemplate.updateMany({ where: { code, name: from }, data: { name: to } })
   }
 
   for (const object of TABLE_OBJECTS) {

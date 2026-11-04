@@ -149,6 +149,11 @@ export function normalizeStatBonuses(value: unknown, limit = GEAR_STAT_LIMIT): P
  * здоровье); сломанная вещь ничего не даёт; одна и та же вещь, переданная
  * дважды (оружие в обеих руках списком), считается один раз.
  */
+/** Сколько здоровья вернёт расходник: процент от максимума важнее старого числа в единицах. */
+export function healAmount(template: { healPercent?: number | null; hpBonus?: number | null }, hpMax: number): number {
+  return (template.healPercent ?? 0) > 0 ? Math.ceil(hpMax * (template.healPercent ?? 0) / 100) : template.hpBonus ?? 0
+}
+
 export function gearOf(items: ItemLike[]): GearBonuses {
   const gear: GearBonuses = { stats: zeroStats(), minus: zeroCharms(), mastery: zeroMastery(), minusMastery: zeroMastery(), antiDodge: 0, antiLuck: 0, antiCrit: 0, antiCounter: 0, hp: 0 }
   // У шаблона в процентах записано прямо, у вещи игрока — очки.

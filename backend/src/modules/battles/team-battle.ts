@@ -22,7 +22,7 @@ import { calcBattleExp, calcCharacterRating, calcRatingPower, typicalTargetPower
 import { CityService } from '../city/city.service'
 import { TerritoriesService } from '../territories/territories.service'
 import { calcInitiative, weaponExpByType } from './battle.formulas'
-import { companionCells, type CompanionOwner } from './companions'
+import { companionCells, companionDamage, type CompanionOwner } from './companions'
 import { normalizeTurn, type ZonalTurnInput } from './zones'
 import {
   canAttackTarget,
@@ -238,7 +238,8 @@ export async function finishTeamBattle(
     const enemyHealed = enemies.length === 0 ? 0
       : Math.round(enemies.reduce((sum, p) => sum + (p.healedTotal ?? 0), 0) / enemies.length)
     const exp = calcBattleExp({
-      damageDealt: part.damageDealt,
+      // Опыт идёт хозяину и за урон его помощника и собаки (Дима 4.11, обращения 13, 17).
+      damageDealt: part.damageDealt + companionDamage(part as unknown as CompanionOwner),
       targetPower: enemyPower,
       targetMaxHp: averageHp(enemySide),
       targetHealed: enemyHealed,

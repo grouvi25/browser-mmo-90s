@@ -222,6 +222,9 @@ export function hasLineOfSight(
     if (!participant.isAlive || participant.participantId === attackerId || participant.participantId === targetId) return false
     // Край полосы дуэли — граница хода, а не стена: стрелять вдоль него можно.
     if (participant.participantId.startsWith(EDGE_ID)) return false
+    // Питомцы занимают клетку, но выстрел не закрывают: свой помощник перед стрелком
+    // оставлял игрока без урона и опыта (Дима 4.11, обращение 13).
+    if (/^(helper|dog):/.test(participant.participantId)) return false
     const point = DESIGNER_CELL_CENTERS[`${participant.position.x}:${participant.position.y}`]
     if (!point) return false
     const projection = ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared
