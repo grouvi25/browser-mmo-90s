@@ -236,7 +236,10 @@
 @media (max-width: 900px) {
   .inv-body { grid-template-columns: minmax(0, 1fr); }
   .inv-grid { grid-template-columns: minmax(0, 1fr); }
-  .inv-doll { height: 380px; margin: 0 auto; justify-self: center; }
+  /* Восемь колец должны попадать под палец: ячейка кольца при этой высоте около 42×39.
+     Общее правило телефона растягивало кнопки до 44 px, и соседние ячейки наезжали друг на друга. */
+  .inv-doll { height: 520px; margin: 0 auto; justify-self: center; }
+  .inv-doll .inv-cell { min-height: 0; }
 }
 /* Ячейка шеи низкая: амулет выступает из неё вниз, иначе его не разглядеть
    (правка заказчика 21.10: «амулет надел, но не видно на картинке»). */

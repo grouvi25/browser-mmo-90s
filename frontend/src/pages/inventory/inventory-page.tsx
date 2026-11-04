@@ -175,6 +175,14 @@ export function InventoryPage() {
     onSuccess: () => { refresh(); showMsg('success', 'Предмет снят') },
     onError: err => fail(err, 'Ошибка сервера'),
   })
+  // По одной вещи и по очереди: разом запросы мешали друг другу, и часть вещей
+  // оставалась надетой с ошибкой сервера (видно на восьми кольцах).
+  const unequipAllMut = useMutation({
+    mutationFn: async (ids: string[]) => { for (const id of ids) await inventoryApi.unequip(id) },
+    onSuccess: () => { refresh(); showMsg('success', 'Всё снято') },
+    onError: err => { refresh(); fail(err, 'Ошибка сервера') },
+  })
+  const undressing = unequipMut.isPending || unequipAllMut.isPending
   const useItemMut = useMutation({
     mutationFn: (id: string) => inventoryApi.useItem(id),
     onSuccess: data => { refresh(); showMsg('success', `${data.itemName}: +${data.hpRestored} HP (теперь ${data.newHp} HP)`) },
@@ -221,7 +229,7 @@ export function InventoryPage() {
     const label = ARMOR_SLOT_LABELS[cell.slot] ?? cell.slot
     return <>
       <button type="button" className={'inv-cell' + (item ? '' : ' is-empty')} style={place(cell.box)} data-slot={cell.slot}
-        disabled={!item || inBattle || unequipMut.isPending}
+        disabled={!item || inBattle || undressing}
         title={item ? `${item.template.name} — снять` : `${label}: пусто`}
         aria-label={item ? `Снять: ${item.template.name}` : `${label}: пусто`}
         onClick={() => item && unequipMut.mutate(item.id)}>
@@ -308,7 +316,7 @@ export function InventoryPage() {
 
                           <div className="inv-card__actions">
                             {item.isEquipped ? (
-                              <button type="button" className="inv-btn" disabled={inBattle || unequipMut.isPending}
+                              <button type="button" className="inv-btn" disabled={inBattle || undressing}
                                 onClick={() => unequipMut.mutate(item.id)}>
                                 <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
                                 <span>Снять</span>
@@ -388,9 +396,9 @@ export function InventoryPage() {
           <div className="inv-doll__figure" aria-hidden="true" />
           {CELLS.map((cell, n) => <DollCell key={cell.slot ?? `empty-${n}`} cell={cell} />)}
           <button type="button" className="inv-doll__all"
-            disabled={inBattle || equipped.length === 0 || unequipMut.isPending}
-            onClick={() => equipped.forEach(i => unequipMut.mutate(i.id))}>
-            Снять всё
+            disabled={inBattle || equipped.length === 0 || undressing}
+            onClick={() => unequipAllMut.mutate(equipped.map(i => i.id))}>
+            {unequipAllMut.isPending ? 'Снимаем…' : 'Снять всё'}
           </button>
         </aside>
       </div>

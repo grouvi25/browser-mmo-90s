@@ -119,7 +119,7 @@ export function BattleWatchPage() {
             <button type="button" className="btn btn-sm" onClick={() => setLogOpen(false)}>Свернуть журнал</button>
             <BattleJournal battleId={id} refreshKey={round} />
           </>
-          : <PersistedBattleChronicle battleId={id} refreshKey={round} playerSide={1} onOpenLog={() => setLogOpen(true)} />}
+          : <PersistedBattleChronicle battleId={id} refreshKey={round} playerSide={1} finished={!running} onOpenLog={() => setLogOpen(true)} />}
       </div>
     </section>
   )

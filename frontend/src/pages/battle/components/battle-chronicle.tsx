@@ -9,15 +9,17 @@ interface BattleChronicleProps {
   refreshKey: number
   playerSide?: number
   onOpenLog: () => void
+  /** Законченный бой опрашивать незачем: строк в нём больше не будет. */
+  finished?: boolean
 }
 
-export function PersistedBattleChronicle({ battleId, refreshKey, playerSide, onOpenLog }: BattleChronicleProps) {
+export function PersistedBattleChronicle({ battleId, refreshKey, playerSide, onOpenLog, finished }: BattleChronicleProps) {
   const tail = useRef<HTMLOListElement>(null)
   const query = useQuery({
     queryKey: ['battle', battleId, 'chronicle', refreshKey],
     queryFn: () => battlesApi.getJournal(battleId),
     placeholderData: keepPreviousData,
-    refetchInterval: 3000,
+    refetchInterval: finished ? false : 3000,
   })
   const lines = [...(query.data?.items ?? [])].reverse()
   const lastId = lines[lines.length - 1]?.id
