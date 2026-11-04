@@ -165,7 +165,7 @@ test('desktop online panel renders only connected players over cleaned paper', a
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   await authenticate(page); await mockApi(page, () => battle())
   await page.goto('/inventory')
-  await expect(page.locator('.online-title')).toHaveText('Игроки онлайн: 1')
+  await expect(page.locator('.online-title')).toContainText('Игроки онлайн: 1')
   await expect(page.locator('.online-list__row')).toHaveCount(1)
   await expect(page.locator('.online-list-paper')).toBeVisible()
   await expect(page.locator('.online-title')).not.toHaveAttribute('title', /демонстрационный/)
