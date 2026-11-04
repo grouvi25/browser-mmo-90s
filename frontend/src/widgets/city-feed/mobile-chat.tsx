@@ -11,7 +11,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
-import { EtherComposer, EtherLine, PrivateArrow, onWritePrivately, useComposer } from '../chat/ether'
+import { EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, onMentionPlayer, onWritePrivately, useComposer } from '../chat/ether'
 import { levelTone } from '../../shared/lib/chat-format'
 
 export function MobileChat() {
@@ -24,6 +24,7 @@ export function MobileChat() {
   const online = useOnline()
   // Стрелочка у ника во вкладке «Онлайн» открывает личку — переходим в чат.
   useEffect(() => onWritePrivately(() => setTab('chat')), [])
+  useEffect(() => onMentionPlayer(() => setTab('chat')), [])
   // Лента открывается на последних сообщениях, а не на самых старых.
   const logRef = useRef<HTMLDivElement>(null)
   const lastId = ether.messages[ether.messages.length - 1]?.id
@@ -65,9 +66,14 @@ export function MobileChat() {
         </>
       ) : (
         <div className="m-chat__online">
+          <div className="m-chat__refresh"><OnlineRefresh /></div>
           {players.map(p => (
             <div key={p.characterId} className="m-chat__player-row">
               {!p.self && <PrivateArrow nick={p.nickname} />}
+              {!p.self && (
+                <button type="button" className="m-chat__mention" aria-label={`Обратиться в чате: ${p.nickname}`}
+                  title="Обратиться к игроку в чате" onClick={() => mentionPlayer(p.nickname)}>@</button>
+              )}
               <button
                 type="button"
                 className={'m-chat__player' + (p.self ? ' is-self' : '')}

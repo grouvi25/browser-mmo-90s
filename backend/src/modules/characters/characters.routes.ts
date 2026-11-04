@@ -65,17 +65,6 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
       return reply.code(201).send(char)
     })
 
-  // PATCH /api/characters/me/gender — пол (правка заказчика: «пол женский»).
-  // Уже созданные персонажи тоже должны мочь его выбрать, поэтому не только
-  // при создании.
-  fastify.patch('/me/gender', { preHandler: authenticate }, async (req, reply) => {
-    const parsed = z.object({ gender: z.enum(['MALE', 'FEMALE']) }).safeParse(req.body)
-    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Пол: MALE или FEMALE' })
-    const char = await CharactersService.getProfile(req.authUser.userId)
-    await prisma.character.update({ where: { id: char.id }, data: { gender: parsed.data.gender } })
-    return reply.send({ gender: parsed.data.gender })
-  })
-
   // Заметки в «Личном деле»: свои о любом игроке (и о себе), видит только автор.
   fastify.get<{ Params: { targetId: string } }>('/notes/:targetId', { preHandler: authenticate }, async (req, reply) => {
     if (!z.string().uuid().safeParse(req.params.targetId).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })

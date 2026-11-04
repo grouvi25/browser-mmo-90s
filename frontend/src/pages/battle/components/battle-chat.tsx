@@ -14,7 +14,7 @@ import { levelTone } from '../../../shared/lib/chat-format'
 import { clansApi } from '../../../shared/api/clans.api'
 import { useOnline } from '../../../shared/lib/use-chat'
 import { useEther } from '../../../shared/lib/use-ether'
-import { EtherComposer, EtherLine, PrivateArrow, useComposer } from '../../../widgets/chat/ether'
+import { EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, useComposer } from '../../../widgets/chat/ether'
 
 /** Высота сцены боя. Постоянная: и со свёрнутым чатом, и с развёрнутым.
  *  Раньше открытый чат растягивал сцену до 1600, и вся вёрстка ужималась
@@ -54,11 +54,13 @@ export function BattleChat() {
           </div>
 
           <div className="bs-chat__online" tabIndex={0} role="region" aria-label="Игроки онлайн">
-            <div className="bs-chat__online-title">Игроки онлайн: {online.length}</div>
+            <div className="bs-chat__online-title">Игроки онлайн: {online.length} <OnlineRefresh /></div>
             <ul>
               {online.map(player => (
                 <li key={player.characterId}>
-                  <span>{player.characterId !== ether.me?.id && <PrivateArrow nick={player.nickname} />}{player.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(player.clan.id, player.clan.iconVersion)} alt="" width={14} height={14} /> : null} {player.nickname}</span>
+                  <span>{player.characterId !== ether.me?.id && <PrivateArrow nick={player.nickname} />}{player.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(player.clan.id, player.clan.iconVersion)} alt="" width={14} height={14} /> : null} {player.characterId === ether.me?.id
+                    ? player.nickname
+                    : <button type="button" className="online-list__nick" title="Обратиться к игроку в чате" onClick={() => mentionPlayer(player.nickname)}>{player.nickname}</button>}</span>
                   <b className={`online-lvl online-lvl--${levelTone(player.level)}`}>{player.level}</b>
                 </li>
               ))}

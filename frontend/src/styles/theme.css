@@ -147,8 +147,14 @@ html, body {
   transform-origin: top left;
   background-repeat: no-repeat;
   background-size: 100% 100%;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.stage button, .stage img, .battle-desk__field, .zone-list {
+  -webkit-user-select: none;
   user-select: none;
 }
+.stage .ether-nick, .stage .online-list__nick { -webkit-user-select: text; user-select: text; }
 .stage--menu    { background-image: var(--plate-menu); }
 .stage--profile { background-image: var(--plate-profile); }
 
@@ -449,6 +455,15 @@ html, body {
 }
 .online-list__row:hover .online-list__nick { color: var(--ink-red); }
 .online-list__nick { white-space: nowrap; }
+button.online-list__nick { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+button.online-list__nick:hover { color: var(--ink-red); text-decoration: underline; }
+button.online-list__nick:active { color: #7a1010; }
+button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
+.online-refresh { background: none; border: 0; padding: 0 2px; font: inherit; color: inherit; line-height: 1; cursor: pointer; }
+.online-refresh:hover { color: #7a1010; }
+.online-refresh:active { color: #4d0a0a; }
+.online-refresh:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
+.online-refresh:disabled { opacity: .45; cursor: progress; }
 /* Стрелочка у ника, как в «Апехе»: сразу личка этому игроку (28.10). */
 .ether-arrow {
   padding: 0 2px; border: 0; background: none; cursor: pointer;
@@ -1009,8 +1024,6 @@ html, body {
 .gender-choice .gender-card { flex: 1; text-align: center; padding: 8px 6px; cursor: pointer; font: inherit; background: var(--bg-panel2); border: 2px solid var(--border); color: inherit; }
 .gender-card:hover { border-color: var(--gold-dim); }
 .gender-card.selected { border-color: var(--gold); font-weight: 700; }
-.dossier-gender { cursor: pointer; background: none; border: 0; padding: 0; text-align: left; }
-.dossier-gender:hover { text-decoration: underline dotted; }
 .m-dossier__gender { font: inherit; font-weight: 700; background: none; border: 0; border-bottom: 1px dotted currentColor; padding: 0; cursor: pointer; }
 
 /* Дома бригад — как «Замки кланов» в «5 королях» (правка 21.10) */

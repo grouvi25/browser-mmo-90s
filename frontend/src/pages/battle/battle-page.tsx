@@ -1,3 +1,4 @@
+import { MobileChat } from '../../widgets/city-feed/mobile-chat'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cityApi } from '../../shared/api/city.api'
@@ -361,6 +362,7 @@ export function BattlePage() {
       expGain: mine?.expGained,
     })
     localStorage.removeItem('mmo_current_battle')
+    qc.removeQueries({ queryKey: ['battle', 'current'] })
     void qc.invalidateQueries({ queryKey: ['character', 'me'] })
     void qc.invalidateQueries({ queryKey: ['inventory'] })
   }, [battleData, battleOver, char, qc])
@@ -422,6 +424,7 @@ export function BattlePage() {
       if (data.battleOver) {
         setBattleOver(true); setFinishResult(data)
         localStorage.removeItem('mmo_current_battle')
+        qc.removeQueries({ queryKey: ['battle', 'current'] })
         qc.invalidateQueries({ queryKey: ['character', 'me'] })
         qc.invalidateQueries({ queryKey: ['inventory'] })
       }
@@ -710,6 +713,8 @@ export function BattlePage() {
           <PersistedBattleChronicle battleId={battleId} refreshKey={currentRound}
             playerSide={pPart?.side} onOpenLog={() => { setPocketsOpen(false); setShowLog(true) }} />
         </div>}
+
+        <div className="m-battle__chat"><MobileChat /></div>
 
         {actionError && <div className="battle-error-v3" role="alert"><AlertTriangle size={13} /> {actionError}</div>}
         {(showLog || pocketsOpen) && <aside className="battle-drawer" aria-label={showLog ? 'Лог боя' : 'Боевой карман'}>
