@@ -32,20 +32,22 @@ async function fixture() {
 const slotOf = async (id: string) => (await testPrisma.itemInstance.findUniqueOrThrow({ where: { id } })).armorSlot
 
 describe('Кольца', () => {
-  it('носятся два сразу, третье меняет первое, оба дают прибавку', async () => {
+  it('носятся восемь сразу, девятое меняет первое, все дают прибавку', async () => {
     const { character, ring, equip } = await fixture()
-    const [first, second, third] = [await ring(), await ring(), await ring()]
-    expect((await equip(first.id)).statusCode).toBe(200)
-    expect((await equip(second.id)).statusCode).toBe(200)
-    expect(await slotOf(first.id)).toBe('RING')
-    expect(await slotOf(second.id)).toBe('RING_2')
+    const eight = []
+    for (let n = 0; n < 8; n++) eight.push(await ring())
+    for (const item of eight) expect((await equip(item.id)).statusCode).toBe(200)
+    expect(await slotOf(eight[0].id)).toBe('RING')
+    expect(await slotOf(eight[1].id)).toBe('RING_2')
+    expect(await slotOf(eight[7].id)).toBe('RING_8')
 
     const worn = await testPrisma.itemInstance.findMany({ where: { ownerId: character.id, isEquipped: true }, include: { template: true } })
-    expect(gearOf(worn).stats.str).toBe(4)
+    expect(gearOf(worn).stats.str).toBe(16)
 
-    expect((await equip(third.id)).statusCode).toBe(200)
-    expect(await slotOf(third.id)).toBe('RING')
-    expect((await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: first.id } })).isEquipped).toBe(false)
-    expect(await slotOf(second.id)).toBe('RING_2')
+    const ninth = await ring()
+    expect((await equip(ninth.id)).statusCode).toBe(200)
+    expect(await slotOf(ninth.id)).toBe('RING')
+    expect((await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: eight[0].id } })).isEquipped).toBe(false)
+    expect(await slotOf(eight[7].id)).toBe('RING_8')
   })
 })

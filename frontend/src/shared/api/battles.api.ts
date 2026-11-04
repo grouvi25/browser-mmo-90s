@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { Battle, LiveBattleState, BattleAction } from '../types/api.types'
+import type { Battle, LiveBattleState, LiveParticipant, BattleAction } from '../types/api.types'
 
 interface StartPveResponse {
   battleId: string
@@ -33,6 +33,25 @@ export interface BattleParticipantProfile {
   primaryRange: number
   secondaryRange: number
   stats: { str: number; agi: number; rea: number; acc: number; end: number; luck: number; agr: number } | null
+}
+
+/** Бой глазами зрителя: только публичные поля, без выбранных ходов. */
+export interface BattleWatchView {
+  battle: {
+    id: string; type: string; status: 'ACTIVE' | 'FINISHED'; roundCount: number; maxRounds: number
+    startedAt: string | null; finishedAt: string | null; winnerSide: number | null
+  }
+  isMine: boolean
+  live: {
+    roundNumber: number; roundDeadline?: number
+    arena?: { x0: number; x1: number; y0: number; y1: number } | null
+    obstacles?: { x: number; y: number }[]
+    participants: LiveParticipant[]
+  } | null
+  fighters: {
+    participantId: string; side: number; hpCurrent: number; hpMax: number
+    name: string; level: number; primaryHand: string | null; secondaryHand: string | null
+  }[]
 }
 
 export interface SubmitActionOpts {
@@ -189,4 +208,6 @@ export const battlesApi = {
 
   getBattle: (battleId: string) =>
     api.get<{ battle: Battle; liveState: LiveBattleState | null; participantProfiles: BattleParticipantProfile[] }>(`/api/battles/${battleId}`),
+
+  watchBattle: (battleId: string) => api.get<BattleWatchView>(`/api/battles/${battleId}/watch`),
 }

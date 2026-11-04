@@ -601,6 +601,80 @@ async function applyTurnSwaps(
   return notes
 }
 
+/** Кто дерётся: имя, уровень и оружие бойца или бота — для экрана боя и для зрителя. */
+function loadParticipantProfiles(participants: { id: string; characterId: string | null; botId: string | null }[]) {
+  return Promise.all(participants.map(async participant => {
+    if (participant.characterId) {
+      const character = await prisma.character.findUnique({
+        where: { id: participant.characterId },
+        select: {
+          nickname: true,
+          avatar: true,
+          gender: true,
+          battleLevel: true,
+          stats: { select: { str: true, agi: true, rea: true, acc: true, end: true, luck: true, agr: true } },
+          items: {
+            where: { isEquipped: true, status: { not: 'DELETED' }, template: { type: 'WEAPON' } },
+            select: { armorSlot: true, template: { select: { name: true, code: true, weaponType: true, maxRange: true } } },
+          },
+        },
+      })
+      const primary = character?.items.find(item => item.armorSlot === 'LEFT_HAND') ?? character?.items.find(item => item.armorSlot == null)
+      const secondary = character?.items.find(item => item.armorSlot === 'RIGHT_HAND')
+      return {
+        participantId: participant.id,
+        name: character?.nickname ?? 'Боец',
+        level: character?.battleLevel ?? 0,
+        avatar: character?.avatar ?? null,
+        gender: character?.gender ?? null,
+        primaryHand: primary?.template.name ?? null,
+        secondaryHand: secondary?.template.name ?? null,
+        primaryWeaponCode: primary?.template.code ?? null,
+        secondaryWeaponCode: secondary?.template.code ?? null,
+        primaryWeaponType: primary?.template.weaponType ?? null,
+        secondaryWeaponType: secondary?.template.weaponType ?? null,
+        primaryRange: primary?.template.maxRange ?? 1,
+        secondaryRange: secondary?.template.maxRange ?? 1,
+        stats: character?.stats ?? null,
+      }
+    }
+    const bot = participant.botId ? await prisma.bot.findUnique({
+      where: { id: participant.botId }, select: { name: true, battleLevel: true, equipment: true, stats: true },
+    }) : null
+    const equipment = bot?.equipment && typeof bot.equipment === 'object' && !Array.isArray(bot.equipment)
+      ? bot.equipment as Record<string, unknown> : {}
+    const mainWeapon = typeof equipment.mainWeapon === 'string' ? equipment.mainWeapon
+      : typeof equipment.weaponName === 'string' ? equipment.weaponName
+      : equipment.weapon && typeof equipment.weapon === 'object' ? 'Оружие' : null
+    const botWeapon = equipment.weapon && typeof equipment.weapon === 'object'
+      ? equipment.weapon as Record<string, unknown> : {}
+    // У ботов в базе оружие задано только цифрами. Чтобы карточка показывала,
+    // чем он бьёт (игроки не видели пистолет у бандита), достраиваем вид по дальности.
+    const reach = typeof botWeapon.maxRange === 'number' ? botWeapon.maxRange : 1
+    const shown = typeof botWeapon.code === 'string'
+      ? { code: botWeapon.code, type: typeof botWeapon.weaponType === 'string' ? botWeapon.weaponType : null, name: mainWeapon }
+      : reach >= 3 ? { code: 'weapon_pistol_pm', type: 'PISTOL', name: 'Пистолет ПМ' }
+      : (bot?.battleLevel ?? 1) >= 2 ? { code: 'weapon_pipe_basic', type: 'CLUB', name: 'Труба' }
+      : { code: 'weapon_fists', type: 'MELEE', name: 'Кулаки' }
+    return {
+      participantId: participant.id,
+      name: bot?.name ?? 'Противник',
+      level: bot?.battleLevel ?? 0,
+      avatar: typeof equipment.avatar === 'string' ? equipment.avatar : null,
+      gender: null,
+      primaryHand: mainWeapon === 'Оружие' || !mainWeapon ? shown.name : mainWeapon,
+      secondaryHand: null,
+      primaryWeaponCode: shown.code,
+      secondaryWeaponCode: null,
+      primaryWeaponType: shown.type,
+      secondaryWeaponType: null,
+      primaryRange: typeof botWeapon.maxRange === 'number' ? Number(botWeapon.maxRange) : 1,
+      secondaryRange: 1,
+      stats: bot?.stats && typeof bot.stats === 'object' && !Array.isArray(bot.stats) ? bot.stats as Record<string, number> : null,
+    }
+  }))
+}
+
 export const BattleService = {
   // -------------------------------------------------------
   // Start PvE
@@ -1191,77 +1265,54 @@ export const BattleService = {
     const liveState = await BattleRedis.getState<LiveBattleState>(battleId)
     // Полоса дуэли и бочки видны с первого раунда, а не после первого хода.
     if (liveState?.participants?.length) ensureGridState(liveState)
-    const participantProfiles = await Promise.all(battle.participants.map(async participant => {
-      if (participant.characterId) {
-        const character = await prisma.character.findUnique({
-          where: { id: participant.characterId },
-          select: {
-            nickname: true,
-            avatar: true,
-            gender: true,
-            battleLevel: true,
-            stats: { select: { str: true, agi: true, rea: true, acc: true, end: true, luck: true, agr: true } },
-            items: {
-              where: { isEquipped: true, status: { not: 'DELETED' }, template: { type: 'WEAPON' } },
-              select: { armorSlot: true, template: { select: { name: true, code: true, weaponType: true, maxRange: true } } },
-            },
-          },
-        })
-        const primary = character?.items.find(item => item.armorSlot === 'LEFT_HAND') ?? character?.items.find(item => item.armorSlot == null)
-        const secondary = character?.items.find(item => item.armorSlot === 'RIGHT_HAND')
-        return {
-          participantId: participant.id,
-          name: character?.nickname ?? 'Боец',
-          level: character?.battleLevel ?? 0,
-          avatar: character?.avatar ?? null,
-          gender: character?.gender ?? null,
-          primaryHand: primary?.template.name ?? null,
-          secondaryHand: secondary?.template.name ?? null,
-          primaryWeaponCode: primary?.template.code ?? null,
-          secondaryWeaponCode: secondary?.template.code ?? null,
-          primaryWeaponType: primary?.template.weaponType ?? null,
-          secondaryWeaponType: secondary?.template.weaponType ?? null,
-          primaryRange: primary?.template.maxRange ?? 1,
-          secondaryRange: secondary?.template.maxRange ?? 1,
-          stats: character?.stats ?? null,
-        }
-      }
-      const bot = participant.botId ? await prisma.bot.findUnique({
-        where: { id: participant.botId }, select: { name: true, battleLevel: true, equipment: true, stats: true },
-      }) : null
-      const equipment = bot?.equipment && typeof bot.equipment === 'object' && !Array.isArray(bot.equipment)
-        ? bot.equipment as Record<string, unknown> : {}
-      const mainWeapon = typeof equipment.mainWeapon === 'string' ? equipment.mainWeapon
-        : typeof equipment.weaponName === 'string' ? equipment.weaponName
-        : equipment.weapon && typeof equipment.weapon === 'object' ? 'Оружие' : null
-      const botWeapon = equipment.weapon && typeof equipment.weapon === 'object'
-        ? equipment.weapon as Record<string, unknown> : {}
-      // У ботов в базе оружие задано только цифрами. Чтобы карточка показывала,
-      // чем он бьёт (игроки не видели пистолет у бандита), достраиваем вид по дальности.
-      const reach = typeof botWeapon.maxRange === 'number' ? botWeapon.maxRange : 1
-      const shown = typeof botWeapon.code === 'string'
-        ? { code: botWeapon.code, type: typeof botWeapon.weaponType === 'string' ? botWeapon.weaponType : null, name: mainWeapon }
-        : reach >= 3 ? { code: 'weapon_pistol_pm', type: 'PISTOL', name: 'Пистолет ПМ' }
-        : (bot?.battleLevel ?? 1) >= 2 ? { code: 'weapon_pipe_basic', type: 'CLUB', name: 'Труба' }
-        : { code: 'weapon_fists', type: 'MELEE', name: 'Кулаки' }
-      return {
-        participantId: participant.id,
-        name: bot?.name ?? 'Противник',
-        level: bot?.battleLevel ?? 0,
-        avatar: typeof equipment.avatar === 'string' ? equipment.avatar : null,
-        gender: null,
-        primaryHand: mainWeapon === 'Оружие' || !mainWeapon ? shown.name : mainWeapon,
-        secondaryHand: null,
-        primaryWeaponCode: shown.code,
-        secondaryWeaponCode: null,
-        primaryWeaponType: shown.type,
-        secondaryWeaponType: null,
-        primaryRange: typeof botWeapon.maxRange === 'number' ? Number(botWeapon.maxRange) : 1,
-        secondaryRange: 1,
-        stats: bot?.stats && typeof bot.stats === 'object' && !Array.isArray(bot.stats) ? bot.stats as Record<string, number> : null,
-      }
-    }))
+    const participantProfiles = await loadParticipantProfiles(battle.participants)
     return { battle, liveState, participantProfiles }
+  },
+
+  /**
+   * Бой глазами зрителя (заказчик 4.11: «кнопка Смотреть бой на чужих боях»).
+   * Отдаём только перечисленные поля: живое состояние хранит и выбранный, но
+   * ещё не сыгранный ход бойца, зритель не должен его подсказать сопернику.
+   */
+  async watchBattle(battleId: string, userId: string) {
+    const char = await CharactersRepository.findByUserId(userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
+    const battle = await prisma.battle.findUnique({ where: { id: battleId }, include: { participants: true } })
+    if (!battle) throw AppError.notFound('Battle', battleId)
+    if (battle.status !== 'ACTIVE' && battle.status !== 'FINISHED') {
+      throw new AppError(ErrorCode.BATTLE_NOT_ACTIVE, 'Этот бой сейчас не идёт', 409)
+    }
+    const live = battle.status === 'ACTIVE' ? await BattleRedis.getState<LiveBattleState>(battleId) : null
+    if (live?.participants?.length) ensureGridState(live)
+    const companion = (body?: LiveHelper | LiveDog) => body && {
+      name: body.name, hp: body.hp, hpMax: body.hpMax, alive: body.alive,
+      damageDealt: body.damageDealt, position: body.position, summoned: body.summoned,
+    }
+    const profiles = await loadParticipantProfiles(battle.participants)
+    return {
+      battle: {
+        id: battle.id, type: battle.type, status: battle.status, roundCount: battle.roundCount, maxRounds: battle.maxRounds,
+        startedAt: battle.startedAt, finishedAt: battle.finishedAt,
+        winnerSide: battle.participants.find(p => p.id === battle.winnerParticipantId)?.side ?? null,
+      },
+      isMine: battle.participants.some(p => p.characterId === char.id),
+      live: live && {
+        roundNumber: live.roundNumber, roundDeadline: live.roundDeadline, arena: live.arena, obstacles: live.obstacles,
+        participants: live.participants.map(p => ({
+          participantId: p.participantId, side: p.side, hpCurrent: p.hpCurrent, hpMax: p.hpMax,
+          isAlive: p.isAlive, isSurrendered: p.isSurrendered, hasActedThisRound: p.hasActedThisRound,
+          damageDealt: p.damageDealt, damageReceived: p.damageReceived, position: p.position,
+          helper: companion(p.helper), dog: companion(p.dog),
+        })),
+      },
+      fighters: battle.participants.map(p => {
+        const who = profiles.find(profile => profile.participantId === p.id)
+        return {
+          participantId: p.id, side: p.side, hpCurrent: p.hpCurrent, hpMax: p.hpMax,
+          name: who?.name ?? 'Боец', level: who?.level ?? 0, primaryHand: who?.primaryHand ?? null, secondaryHand: who?.secondaryHand ?? null,
+        }
+      }),
+    }
   },
 
   // -------------------------------------------------------

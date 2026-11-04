@@ -1,0 +1,7 @@
+-- Колец на манекене восемь (заказчик 4.11, по схеме шмота): ячейки 3-8.
+ALTER TYPE "ArmorSlot" ADD VALUE IF NOT EXISTS 'RING_3';
+ALTER TYPE "ArmorSlot" ADD VALUE IF NOT EXISTS 'RING_4';
+ALTER TYPE "ArmorSlot" ADD VALUE IF NOT EXISTS 'RING_5';
+ALTER TYPE "ArmorSlot" ADD VALUE IF NOT EXISTS 'RING_6';
+ALTER TYPE "ArmorSlot" ADD VALUE IF NOT EXISTS 'RING_7';
+ALTER TYPE "ArmorSlot" ADD VALUE IF NOT EXISTS 'RING_8';

@@ -46,6 +46,7 @@ export function validCityPath(path: string): boolean {
   return (CITY_PATHS as readonly string[]).includes(path)
     || /^\/territories\/[a-z0-9_-]+\/claims\/[0-9a-f-]{36}$/i.test(path)
     || /^\/market\/shops\/\d{1,9}$/.test(path)
+    || /^\/battle\/[0-9a-f-]{36}\/watch$/i.test(path)
 }
 export function inPrison(until: Date | null, now = new Date()): boolean {
   return !!until && until.getTime() > now.getTime()

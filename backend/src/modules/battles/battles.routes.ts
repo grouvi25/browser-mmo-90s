@@ -172,6 +172,13 @@ export async function battlesRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.send(await BattleJournal.page(req.params.battleId, page))
     })
 
+  // GET /api/battles/:battleId/watch — бой глазами зрителя, без выбранных ходов
+  fastify.get<{ Params: { battleId: string } }>('/:battleId/watch', { preHandler: authenticate },
+    async (req, reply) => {
+      if (!z.string().uuid().safeParse(req.params.battleId).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      return reply.send(await BattleService.watchBattle(req.params.battleId, req.authUser.userId))
+    })
+
   // GET /api/battles/:battleId
   fastify.get<{ Params: { battleId: string } }>('/:battleId', { preHandler: authenticate },
     async (req, reply) => {

@@ -64,7 +64,7 @@ interface DossierView {
   skills: Array<{ weaponType: string; skillLevel: number }>
   dog: Character['dog']
   weapon?: { name: string; code: string; weaponType: string | null; title: string }
-  offhand?: { name: string; code: string; title: string }
+  offhand?: { name: string; code: string; weaponType: string | null; title: string }
 }
 
 /** Свой аккаунт в личном деле: премиум и сколько дней ему осталось (обращение игрока 04.11). */
@@ -120,7 +120,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
         location: o.location, clan: o.clan, createdAt: o.createdAt,
         professions: o.professions ?? [], skills: o.weaponSkills ?? [], dog: o.dog ?? null,
         weapon: w && { name: w.name, code: w.code, weaponType: w.weaponType, title: w.name },
-        offhand: off && { name: off.name, code: off.code, title: off.name },
+        offhand: off && { name: off.name, code: off.code, weaponType: off.weaponType, title: off.name },
       }
     }
   } else if (char) {
@@ -135,7 +135,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
       dog: char.dog ?? null,
       weapon: myWeapon && { name: myWeapon.template.name, code: myWeapon.template.code, weaponType: myWeapon.template.weaponType ?? null,
         title: `${myWeapon.template.name} · ${myWeapon.durabilityCurrent}/${myWeapon.durabilityMax}` },
-      offhand: myOffhand && { name: myOffhand.template.name, code: myOffhand.template.code,
+      offhand: myOffhand && { name: myOffhand.template.name, code: myOffhand.template.code, weaponType: myOffhand.template.weaponType ?? null,
         title: `${myOffhand.template.name} · ${myOffhand.durabilityCurrent}/${myOffhand.durabilityMax}` },
     }
   }
@@ -261,7 +261,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
         <div className="m-dossier__slots">
           <SpriteButton name={weaponSprite(weapon?.weaponType)} src={weapon ? itemImage(weapon.code, weapon.weaponType) : undefined} box={{ x: 0, y: 0, w: 92, h: 94 }} empty={!weapon}
             title={weapon ? weapon.title : 'Оружие не надето'} disabled={!own} onClick={own ? () => navigate('/inventory') : undefined} />
-          <SpriteButton name="p-item-bat" box={{ x: 0, y: 0, w: 84, h: 88 }} empty={!offhand}
+          <SpriteButton name={weaponSprite(offhand?.weaponType)} src={offhand ? itemImage(offhand.code, offhand.weaponType) : undefined} box={{ x: 0, y: 0, w: 84, h: 88 }} empty={!offhand}
             title={offhand ? offhand.title : 'Правая рука свободна'} disabled={!own} onClick={own ? () => navigate('/inventory') : undefined} />
           <SpriteButton name="p-item-dog" box={{ x: 0, y: 0, w: 62, h: 93 }} empty={!view?.dog}
             title={dogTitle(view?.dog)} disabled={!own} onClick={own ? () => navigate('/pet-shop') : undefined} />
@@ -358,7 +358,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
         disabled={!own} onClick={own ? () => navigate('/inventory') : undefined}
       />
       <SpriteButton
-        name="p-item-bat" box={PROFILE.slots[1].box} empty={!offhand}
+        name={weaponSprite(offhand?.weaponType)} src={offhand ? itemImage(offhand.code, offhand.weaponType) : undefined} box={PROFILE.slots[1].box} empty={!offhand}
         title={offhand ? offhand.title : 'Правая рука свободна'}
         disabled={!own} onClick={own ? () => navigate('/inventory') : undefined}
       />

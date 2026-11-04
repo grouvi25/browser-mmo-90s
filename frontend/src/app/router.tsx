@@ -21,6 +21,7 @@ import { DossierPage }         from '../pages/profile/dossier-page'
 import { InventoryPage }       from '../pages/inventory/inventory-page'
 import { GovernmentShopPage }  from '../pages/shop/government-shop-page'
 import { BattlePage }          from '../pages/battle/battle-page'
+import { BattleWatchPage }     from '../pages/battle/battle-watch-page'
 import { BattleHistoryPage }   from '../pages/battles/battle-history-page'
 import { RepairPage }          from '../pages/repair/repair-page'
 import { SkillsPage }          from '../pages/skills/skills-page'
@@ -287,6 +288,11 @@ export function AppRouter() {
         <Route path="/pvp" element={
           <ViewportPanel title="Стрелки" subtitle="Заявки на бой и бой с ботом">
             <ArenaPage />
+          </ViewportPanel>} />
+
+        <Route path="/battle/:id/watch" element={
+          <ViewportPanel title="Стрелки" subtitle="Просмотр боя">
+            <BattleWatchPage />
           </ViewportPanel>} />
 
         <Route path="/battles/history" element={

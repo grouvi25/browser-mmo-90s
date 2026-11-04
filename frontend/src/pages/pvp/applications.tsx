@@ -198,7 +198,10 @@ export function BattleApplications() {
         : <ul className="bapps-list">{list.data.active.map(battle => (
           <li key={battle.battleId} className="bapps-row">
             <div className="bapps-head"><b>{KIND_LABEL[battle.kind]}</b>
-              <span className="muted">идёт{battle.startedAt ? ` с ${new Date(battle.startedAt).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })}` : ''}</span></div>
+              <span className="muted">идёт{battle.startedAt ? ` с ${new Date(battle.startedAt).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+              {!battle.sides.some(side => side.members.some(f => f.id === me.data?.id)) && (
+                <Link className="btn btn-sm bapps-watch" to={`/battle/${battle.battleId}/watch`}>Смотреть бой</Link>
+              )}</div>
             <div className="bapps-sides">{battle.sides.map(side => (
               <div key={side.side} className="bapps-side"><ul>{side.members.map(f => <Fighter key={f.id ?? f.nickname} fighter={f} />)}</ul></div>
             ))}</div>

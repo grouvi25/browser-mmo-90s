@@ -1,0 +1,38 @@
+/* Бой глазами зрителя: страница внутри вьюпорта города, листается целиком. */
+.bwatch { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; color: #2a221c; }
+.bwatch-note { padding: 12px; color: #5c5047; }
+.bwatch-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 14px; }
+.bwatch-head .btn { margin-left: auto; }
+
+/* Поле на всю ширину колонки: у бойца его высоту задаёт сцена, здесь — пропорция рисунка. */
+.bwatch-field.battle-field-v3 { grid-area: auto; display: block; width: 100%; overflow: visible; background: transparent; }
+.bwatch-field.battle-field-v3 .hex-board { display: block; padding: 0; container-type: normal; }
+.bwatch-field.battle-field-v3 .grid-arena { width: 100%; }
+.bwatch-field.battle-field-v3 .designer-battle-field { width: 100%; }
+.bwatch-field .hex-cell { cursor: default; }
+
+.bwatch-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bwatch-side { list-style: none; margin: 0; padding: 6px 8px; display: grid; gap: 8px; align-content: start; border: 1px solid var(--border); background: var(--paper-warm); }
+.bwatch-side--1 { border-left: 3px solid oklch(48% .1 240); }
+.bwatch-side--2 { border-left: 3px solid oklch(46% .15 25); }
+
+.bwatch-fighter { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; font-size: 13.5px; }
+.bwatch-fighter.is-out { opacity: .6; }
+.bwatch-fighter__who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bwatch-fighter__who a { color: #6a5000; }
+.bwatch-fighter__who i { color: #5c5047; font-style: normal; }
+.bwatch-fighter__num { font-variant-numeric: tabular-nums; }
+.bwatch-fighter__hp { grid-column: 1 / -1; display: block; height: 6px; background: oklch(80% .02 60); overflow: hidden; }
+.bwatch-fighter__hp i { display: block; height: 100%; background: oklch(50% .15 25); transform-origin: left; transition: transform .25s ease; }
+.bwatch-side--1 .bwatch-fighter__hp i { background: oklch(48% .1 240); }
+.bwatch-fighter__gear { grid-column: 1 / -1; color: #5c5047; font-size: 12px; }
+
+.bwatch-log { display: grid; gap: 6px; justify-items: start; }
+.bwatch-log > * { width: 100%; }
+.bwatch-log > .btn { width: auto; }
+.bwatch-log .battle-chronicle { display: grid; height: auto; max-height: 220px; border: 1px solid oklch(46% .04 55); grid-template-rows: 24px minmax(0, 1fr); }
+.bwatch-log .battle-chronicle li { font-size: 13.5px; line-height: 1.35; padding: 2px 0; }
+
+@media (max-width: 560px) {
+  .bwatch-sides { grid-template-columns: minmax(0, 1fr); }
+}

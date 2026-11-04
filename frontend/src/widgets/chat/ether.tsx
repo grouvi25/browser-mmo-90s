@@ -79,13 +79,21 @@ export function useComposer(ether: Ether) {
   const [target, setTarget] = useState('')
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  // Кого уже позвали в этом сообщении: в нике бывает пробел, по одному тексту
+  // начало строки на обращения не разобрать.
+  const called = useRef<string[]>([])
 
-  /** Клик по нику: обращение в общем канале, адресат — в личном. */
+  /** Клик по нику: обращение в общем канале (ники копятся в начале строки), адресат — в личном. */
   const onNick = (nick: string) => {
     setTarget(nick)
     if (mode !== 'PRIVATE') {
-      const prefix = `${nick}, `
-      setDraft(d => (d.startsWith(prefix) ? d : prefix + d.replace(/^[^,]{2,30}, /, '')))
+      const known = called.current
+      setDraft(d => {
+        let head = 0
+        for (const name of known) if (d.startsWith(`${name}, `, head)) head += name.length + 2
+        return d.slice(0, head).includes(`${nick}, `) ? d : `${d.slice(0, head)}${nick}, ${d.slice(head)}`
+      })
+      if (!known.includes(nick)) called.current = [...known, nick]
     }
     inputRef.current?.focus()
   }
@@ -103,7 +111,7 @@ export function useComposer(ether: Ether) {
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault()
-    if (await ether.send(mode, draft, target)) setDraft('')
+    if (await ether.send(mode, draft, target)) { setDraft(''); called.current = [] }
   }
 
   // Бригаду могли покинуть — тогда и писать в неё не из чего.

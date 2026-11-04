@@ -15,6 +15,7 @@ import { ItemStatsService } from '../items/item-stats.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
 import { CHARM_KEYS, GEAR_STAT_KEYS, MASTERY_KEYS, syncHpWithGear } from '../items/gear-bonuses'
 
+const RING_SLOTS = ['RING', 'RING_2', 'RING_3', 'RING_4', 'RING_5', 'RING_6', 'RING_7', 'RING_8'] as const
 const EquipSchema = z.object({ itemInstanceId: z.string().uuid(), hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional() })
 const UnequipSchema = z.object({ armorSlot: z.string().optional(), itemInstanceId: z.string().uuid().optional() })
 const AllocateSchema = z.object({ itemInstanceId: z.string().uuid(), stat: z.enum(ITEM_STAT_KEYS), points: z.number().int().min(1).max(100) })
@@ -158,15 +159,16 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         const taken = new Set(busy.map(entry => entry.armorSlot))
         if (taken.has('LEFT_HAND') && !taken.has('RIGHT_HAND')) freeHand = 'RIGHT_HAND'
       }
-      // Кольца две, как руки: второе идёт на свободное место, третье меняет первое.
-      let ringSlot: 'RING' | 'RING_2' = 'RING'
+      // Колец восемь (заказчик 4.11, по схеме шмота): новое идёт на первое
+      // свободное место, девятое меняет первое.
+      let ringSlot: typeof RING_SLOTS[number] = 'RING'
       if (item.template.armorSlot === 'RING') {
         const busy = await tx.itemInstance.findMany({
-          where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' }, armorSlot: { in: ['RING', 'RING_2'] } },
+          where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' }, armorSlot: { in: [...RING_SLOTS] } },
           select: { armorSlot: true },
         })
         const taken = new Set(busy.map(entry => entry.armorSlot))
-        if (taken.has('RING') && !taken.has('RING_2')) ringSlot = 'RING_2'
+        ringSlot = RING_SLOTS.find(place => !taken.has(place)) ?? 'RING'
       }
       const slot = item.template.type === 'WEAPON'
         ? (parsed.data.hand ?? freeHand)

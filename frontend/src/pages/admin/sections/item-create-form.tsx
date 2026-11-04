@@ -32,7 +32,7 @@ const WEAPON_TYPES: [string, string][] = [
   ['MELEE', 'Рукопашка'], ['KNIFE', 'Нож'], ['CLUB', 'Дубинка'], ['PISTOL', 'Пистолет'], ['SHOTGUN', 'Дробовик'],
   ['SMG', 'Пистолет-пулемёт'], ['RIFLE', 'Автомат'], ['SNIPER', 'Винтовка'], ['HEAVY', 'Тяжёлое'], ['THROWN', 'Метательное'],
 ]
-const JEWELS: [string, string][] = [['ACCESSORY', 'Амулет (на шею)'], ['RING', 'Кольцо (можно носить два)']]
+const JEWELS: [string, string][] = [['ACCESSORY', 'Амулет (на шею)'], ['RING', 'Кольцо (можно носить восемь)']]
 const SLOTS: [string, string][] = [
   ['HEAD', 'Голова (шапка)'], ['CHEST', 'Тело (куртка, броня)'], ['LEGS', 'Штаны'], ['FEET', 'Обувь'],
   ['GLOVES', 'Руки (перчатки, наручи)'], ['BELT', 'Пояс'], ['BACK', 'Плащ'],

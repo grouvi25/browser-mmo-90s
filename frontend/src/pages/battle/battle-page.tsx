@@ -60,7 +60,7 @@ const PLAYER_COL = 1
  * «helper:<хозяин>» / «dog:<хозяин>»: так их видно, по ним можно бить, и
  * дальность считается теми же правилами.
  */
-function companionFigures(parts: readonly LiveParticipant[]): LiveParticipant[] {
+export function companionFigures(parts: readonly LiveParticipant[]): LiveParticipant[] {
   return parts.flatMap(owner => (['helper', 'dog'] as const).flatMap(kind => {
     const body = kind === 'helper' ? owner.helper : owner.dog
     if (!body?.summoned || !body.alive || !body.position) return []
@@ -73,13 +73,15 @@ function companionFigures(parts: readonly LiveParticipant[]): LiveParticipant[] 
   }))
 }
 
-function BattleGrid({
+export function BattleGrid({
   playerName, enemyName,
   playerHit, enemyHit, playerAttack, enemyAttack, lastEvent,
   playerPosition, selectedMove, onSelectMove,
   participants, playerParticipantId, playerSide, selectedTargetId, onSelectTarget, range, arena, obstacles,
-  playerHp, enemyHp, names,
+  playerHp, enemyHp, names, readOnly,
 }: {
+  /** Зритель: клетки и фигуры не нажимаются. */
+  readOnly?: boolean
   playerName: string
   enemyName: string
   playerDefeated: boolean; enemyDefeated: boolean
@@ -134,11 +136,11 @@ function BattleGrid({
             const outside = !!arena && (col < arena.x0 || col > arena.x1 || row < arena.y0 || row > arena.y1)
             const barrel = !!obstacles?.some(o => o.x === col && o.y === row)
             // подсветка хода — по тем же правилам соседства, что у сервера
-            const canMove = isNeighbour(playerCell, cell) && !occupant && !outside && !barrel
+            const canMove = !readOnly && isNeighbour(playerCell, cell) && !occupant && !outside && !barrel
             const inRange = !!range && range > 1 && !occupant && !outside && !barrel && hexDistance(playerCell, cell) <= range
             const isSelected = selectedMove?.x === col && selectedMove?.y === row
             const isTarget = isEnemy && occupant?.participantId === selectedTargetId
-            const clickable = canMove || (isEnemy && !!occupant)
+            const clickable = !readOnly && (canMove || (isEnemy && !!occupant))
             // Полоска здоровья над фигурой: в групповом бою видно, кто
             // сколько держит, и она падает сразу после удара.
             const hpNow = !occupant ? 0
@@ -173,10 +175,10 @@ function BattleGrid({
                 role={clickable ? 'button' : undefined}
                 tabIndex={clickable ? 0 : undefined}
                 aria-label={canMove ? `Перейти в клетку ${col}:${row}`
-                  : isEnemy && occupant ? `Выбрать противника в клетке ${col}:${row}` : undefined}
+                  : clickable ? `Выбрать противника в клетке ${col}:${row}` : undefined}
                 onClick={() => canMove
                   ? onSelectMove?.(cell)
-                  : isEnemy && occupant ? onSelectTarget?.(occupant.participantId) : undefined}
+                  : clickable && occupant ? onSelectTarget?.(occupant.participantId) : undefined}
                 onKeyDown={event => {
                   if (!clickable || (event.key !== 'Enter' && event.key !== ' ')) return
                   event.preventDefault()
