@@ -38,11 +38,17 @@
 /* ── Поле: сколько влезет, с пропорцией рисунка 3280:1798 ──────── */
 .battle-desk__field { min-height: 0; display: grid; }
 .battle-desk__field .battle-field-v3 {
+  grid-area: auto;
   grid-template-rows: minmax(0, 1fr) 40px;
   border: 1px solid oklch(46% .04 55);
 }
-.battle-desk__field .battle-field-v3 .hex-board { padding: 4px; }
-.battle-desk__field .battle-field-v3__meta { font-size: 13px; }
+/* Телефон в режиме «для ПК» даёт широкое портретное окно: сюда попадали правила
+   для узких экранов (battle-phase-a.css), поле считалось от ширины, росло и
+   закрывало полосу с «Сбросить» и «Применить» (обращение №6). На сцене поле
+   всегда вписывается в свою строку, а полоса лежит выше него. */
+.battle-desk__field .battle-field-v3 .hex-board { container-type: size; padding: 4px; }
+.battle-desk__field .battle-field-v3 .designer-battle-field { width: min(100cqw, calc(100cqh * 1.824249)); height: auto; }
+.battle-desk__field .battle-field-v3__meta { position: relative; z-index: 2; font-size: 13px; }
 .battle-desk__field .fighter-token .token-label { font-size: 12px; }
 /* Клетки, до которых достаёт оружие (правка 22.10: дальность в клетках). */
 .hex-cell.is-in-range:not(.is-movable):not(.is-target) .designer-cell-hit { background: oklch(70% .09 230 / .22); }
