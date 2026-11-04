@@ -16,9 +16,10 @@ export function ApplicationWatcher() {
   const current = useQuery({ queryKey: ['battle', 'current'], queryFn: battlesApi.current, refetchInterval: 4000 })
   const battleId = current.data?.battleId
   useEffect(() => {
-    if (!battleId || pathname.startsWith('/battle/')) return
+    // Ответ из кэша мог остаться от уже законченного боя: он вернул бы игрока на окно итога.
+    if (!battleId || !current.isFetchedAfterMount || pathname.startsWith('/battle/')) return
     try { localStorage.setItem('mmo_current_battle', battleId) } catch { /* приватный режим */ }
     navigate(`/battle/${battleId}`)
-  }, [battleId, pathname, navigate])
+  }, [battleId, current.isFetchedAfterMount, pathname, navigate])
   return null
 }

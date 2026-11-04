@@ -13,7 +13,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
-import { EtherComposer, EtherLine, PrivateArrow, useComposer } from '../chat/ether'
+import { EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, useComposer } from '../chat/ether'
 import { levelTone } from '../../shared/lib/chat-format'
 import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useFitBlock } from '../../shared/lib/use-fit-block'
@@ -192,7 +192,7 @@ export function OnlineList() {
         style={{ left: MENU.onlineTitle.x, top: MENU.onlineTitle.y, fontSize: MENU.onlineTitle.size }}
         title="Игроки, подключённые к общему эфиру"
       >
-        Игроки онлайн: {players.length}
+        Игроки онлайн: {players.length} <OnlineRefresh />
       </div>
 
       <div
@@ -212,7 +212,10 @@ export function OnlineList() {
           >
             {p.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(p.clan.id, p.clan.iconVersion)} alt="" title={`Бригада «${p.clan.name}»`} width={14} height={14} /> : null}
             {!p.self && <PrivateArrow nick={p.nick} />}
-            <span className="online-list__nick">{p.nick}</span>
+            {p.self
+              ? <span className="online-list__nick">{p.nick}</span>
+              : <button type="button" className="online-list__nick" title="Обратиться к игроку в чате"
+                  onClick={event => { event.stopPropagation(); mentionPlayer(p.nick) }}>{p.nick}</button>}
             <span className={`online-lvl online-lvl--${p.tone}`}>{p.level}</span>
           </div>
         ))}

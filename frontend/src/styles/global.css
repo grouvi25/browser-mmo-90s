@@ -3334,3 +3334,6 @@ button { font-family: inherit; }
 /* Ловушка для ботов на регистрации: вне экрана, не display:none — иначе
    часть ботов пропускает скрытые поля. */
 .auth-trap { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+
+/* Быстрые тапы по зонам в бою не должны срабатывать как двойной тап и менять масштаб. */
+html { touch-action: manipulation; }

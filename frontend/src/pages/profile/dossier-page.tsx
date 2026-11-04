@@ -7,6 +7,7 @@ import { dogBonusText, dogTitle } from '../../shared/lib/dog'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { premiumApi, type PremiumState } from '../../shared/api/strategy.api'
 
 import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
@@ -66,6 +67,15 @@ interface DossierView {
   offhand?: { name: string; code: string; title: string }
 }
 
+/** Свой аккаунт в личном деле: премиум и сколько дней ему осталось (обращение игрока 04.11). */
+function ownAccount(state?: PremiumState): string {
+  if (!state) return '—'
+  if (!state.isPremium) return 'обычный'
+  if (!state.expiresAt) return 'премиум'
+  const left = Math.max(1, Math.ceil((new Date(state.expiresAt).getTime() - Date.now()) / 86_400_000))
+  return `премиум, ${left} дн.`
+}
+
 export function DossierPage({ nickname }: { nickname?: string } = {}) {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -77,6 +87,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
     queryFn: () => charactersApi.getMe(),
     retry: false,
   })
+  const premium = useQuery({ queryKey: ['premium', 'me'], queryFn: () => premiumApi.me(), enabled: !nickname, retry: false })
   const foreign = !!nickname && !!char && nickname.toLocaleLowerCase('ru') !== char.nickname.toLocaleLowerCase('ru')
   const other = useQuery({
     queryKey: ['character', 'public', nickname],
@@ -198,21 +209,9 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
     name: view?.nickname ?? nickname ?? '—',
     sex: view?.archetype ? (ARCHETYPE_LABELS[view.archetype] ?? view.archetype) : '—',
     spouse: view?.gender === 'FEMALE' ? 'не замужем' : 'не женат',
-    account: `${daysSince(view?.createdAt)} дней`,
+    account: foreign ? `${daysSince(view?.createdAt)} дней` : ownAccount(premium.data),
   }
-  // Пол меняется кликом по графе «Жена/Муж» (правка заказчика: «пол
-  // женский»): персонажи, созданные раньше, тоже должны его выбрать.
-  const gender = useMutation({
-    mutationFn: () => charactersApi.setGender(char?.gender === 'FEMALE' ? 'MALE' : 'FEMALE'),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['character'] }) },
-  })
   const own = !foreign
-  const toggleGender = () => {
-    if (!own || !char || gender.isPending) return
-    const next = char.gender === 'FEMALE' ? 'мужской' : 'женский'
-    if (window.confirm(`Сменить пол персонажа на ${next}?`)) gender.mutate()
-  }
-  const genderTitle = own ? 'Нажмите, чтобы сменить пол персонажа' : undefined
   const notesPlaceholder = own ? 'Заметки для себя…' : `Ваши заметки о ${view?.nickname ?? 'игроке'} — видите только вы…`
   const weapon = view?.weapon
   const offhand = view?.offhand
@@ -249,9 +248,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
             {PROFILE.fields.map(f => (
               <div key={f.key} className="m-dossier__kv">
                 <span>{fieldLabels[f.key]}</span>
-                {f.key === 'spouse' && own
-                  ? <button type="button" className="m-dossier__gender" title={genderTitle} onClick={toggleGender}>{fieldValues[f.key]}</button>
-                  : <b>{fieldValues[f.key]}</b>}
+                <b>{fieldValues[f.key]}</b>
               </div>
             ))}
           </div>
@@ -332,10 +329,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
       {/* поля карточки */}
       {PROFILE.fields.map(f => (
         <FitText key={f.key} x={f.x} y={f.y} w={f.w} size={PROFILE.fieldSize}
-          dy={-4} className={'t-doc' + (f.key === 'spouse' && own ? ' dossier-gender' : '')}
-          as={f.key === 'spouse' && own ? 'button' : 'div'}
-          onClick={f.key === 'spouse' && own ? toggleGender : undefined}
-          title={f.key === 'spouse' ? genderTitle : undefined}>
+          dy={-4} className="t-doc">
           {fieldLabels[f.key]}: {fieldValues[f.key]}
         </FitText>
       ))}

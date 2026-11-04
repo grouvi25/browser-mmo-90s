@@ -8,6 +8,7 @@
 // =============================================================
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 
 import type { ChatLine } from '../../shared/api/chat.api'
 import { chatTime } from '../../shared/lib/chat-format'
@@ -49,6 +50,29 @@ export function PrivateArrow({ nick }: { nick: string }) {
   )
 }
 
+/** Клик по нику в списке онлайна: обращение в чате, как клик по нику в строке ленты. */
+const MENTION_EVENT = 'ether:mention'
+export function mentionPlayer(nick: string) {
+  window.dispatchEvent(new CustomEvent<string>(MENTION_EVENT, { detail: nick }))
+}
+export function onMentionPlayer(handler: (nick: string) => void) {
+  const listener = (event: Event) => handler((event as CustomEvent<string>).detail)
+  window.addEventListener(MENTION_EVENT, listener)
+  return () => window.removeEventListener(MENTION_EVENT, listener)
+}
+
+/** Обновить список онлайна, не дожидаясь очередного опроса. */
+export function OnlineRefresh() {
+  const qc = useQueryClient()
+  const busy = useIsFetching({ queryKey: ['chat', 'online'] }) > 0
+  return (
+    <button type="button" className="online-refresh" aria-label="Обновить список игроков" title="Обновить список игроков"
+      aria-busy={busy} disabled={busy} onClick={() => { void qc.invalidateQueries({ queryKey: ['chat', 'online'] }) }}>
+      &#8635;
+    </button>
+  )
+}
+
 /** Состояние поля ввода: куда пишем, кому и что. */
 export function useComposer(ether: Ether) {
   const [mode, setMode] = useState<EtherMode>('GLOBAL')
@@ -75,6 +99,7 @@ export function useComposer(ether: Ether) {
   }
 
   useEffect(() => onWritePrivately(replyPrivately), [])
+  useEffect(() => onMentionPlayer(onNick), [mode])
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault()
@@ -165,7 +190,7 @@ export function EtherComposer({ ether, composer, className = '', style }: {
         onChange={e => { setDraft(e.target.value); if (ether.notice) ether.clearNotice() }}
         placeholder={placeholder}
         maxLength={ether.maxBody}
-        spellCheck={false}
+        spellCheck
         aria-label={placeholder}
       />
       <span className="ether-emoji">
