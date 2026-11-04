@@ -6,7 +6,7 @@
 import { dogBonusText, dogTitle } from '../../shared/lib/dog'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { premiumApi, type PremiumState } from '../../shared/api/strategy.api'
 
 import { charactersApi } from '../../shared/api/characters.api'
