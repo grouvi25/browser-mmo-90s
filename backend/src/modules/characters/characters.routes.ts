@@ -14,6 +14,7 @@ import { calcCharacterRating } from '../stats/stats.formulas'
 import { dogSummary } from '../city/city.config'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { syncHpWithGear } from '../items/gear-bonuses'
+import { isPremiumActive } from '../premium/premium.service'
 
 const BattleLoadoutSchema = z.object({
   itemInstanceIds: z.array(z.string().uuid()).max(4),
@@ -283,7 +284,9 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
         professions: professions.map(p => ({ professionCode: p.professionCode, level: p.level, name: PROFESSION_NAMES[p.professionCode as ProfessionCode] ?? p.professionCode })),
         weaponSkills: skills.map(s => ({ weaponType: s.weaponType, skillLevel: s.skillLevel })),
         dog: dogSummary(pets),
-        weapons: weapons.map(w => ({ armorSlot: w.armorSlot, name: w.template.name, code: w.template.code, weaponType: w.template.weaponType })),
+        // id и iconVersion — чтобы в чужом деле был образ вещи, а не картинка шаблона (обращение №18).
+        weapons: weapons.map(w => ({ id: w.id, iconVersion: w.iconVersion, armorSlot: w.armorSlot, name: w.template.name, code: w.template.code, weaponType: w.template.weaponType })),
+        isPremium: isPremiumActive(char),
         createdAt: char.createdAt,
       })
     })

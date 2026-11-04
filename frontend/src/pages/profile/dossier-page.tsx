@@ -20,14 +20,9 @@ import {
   ARCHETYPE_LABELS, WEAPON_TYPE_LABELS, type Character,
 } from '../../shared/types/api.types'
 import { itemImage } from '../../shared/assets/shop/shop-images'
+import { instanceImage } from '../../shared/lib/item-bonuses'
 
 const NOTES_KEY = 'mmo_notepad'
-
-function daysSince(iso?: string): number {
-  if (!iso) return 0
-  const d = (Date.now() - new Date(iso).getTime()) / 86_400_000
-  return Math.max(0, Math.floor(d))
-}
 
 /** Номер дела: стабильные 4 цифры из id — выглядит как канцелярский номер. */
 function caseNumber(id?: string): string {
@@ -35,6 +30,11 @@ function caseNumber(id?: string): string {
   let h = 0
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9000
   return String(1000 + h)
+}
+
+/** Картинка чужой вещи: свой образ, если он есть, иначе картинка шаблона (обращение №18). */
+function foreignImage(w: { id: string; iconVersion?: number | null; code: string; weaponType: string | null }) {
+  return w.iconVersion ? inventoryApi.iconUrl(w.id, w.iconVersion) : itemImage(w.code, w.weaponType)
 }
 
 function weaponSprite(t?: string | null): string {
@@ -63,8 +63,8 @@ interface DossierView {
   professions: Array<{ name: string; level: number; exp?: number }>
   skills: Array<{ weaponType: string; skillLevel: number }>
   dog: Character['dog']
-  weapon?: { name: string; code: string; weaponType: string | null; title: string }
-  offhand?: { name: string; code: string; weaponType: string | null; title: string }
+  weapon?: { weaponType: string | null; title: string; image?: string }
+  offhand?: { weaponType: string | null; title: string; image?: string }
 }
 
 /** Свой аккаунт в личном деле: премиум и сколько дней ему осталось (обращение игрока 04.11). */
@@ -119,8 +119,8 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
         battlesTotal: o.battlesTotal ?? 0, battlesWon: o.battlesWon ?? 0,
         location: o.location, clan: o.clan, createdAt: o.createdAt,
         professions: o.professions ?? [], skills: o.weaponSkills ?? [], dog: o.dog ?? null,
-        weapon: w && { name: w.name, code: w.code, weaponType: w.weaponType, title: w.name },
-        offhand: off && { name: off.name, code: off.code, weaponType: off.weaponType, title: off.name },
+        weapon: w && { weaponType: w.weaponType, title: w.name, image: foreignImage(w) },
+        offhand: off && { weaponType: off.weaponType, title: off.name, image: foreignImage(off) },
       }
     }
   } else if (char) {
@@ -133,9 +133,9 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
       professions: (char.economy?.professions ?? []).map(p => ({ name: p.name ?? p.professionCode, level: p.level, exp: p.exp })),
       skills: (char.weaponSkills ?? []).filter(s => s.skillLevel > 1).sort((a, b) => b.skillLevel - a.skillLevel).slice(0, 3),
       dog: char.dog ?? null,
-      weapon: myWeapon && { name: myWeapon.template.name, code: myWeapon.template.code, weaponType: myWeapon.template.weaponType ?? null,
+      weapon: myWeapon && { weaponType: myWeapon.template.weaponType ?? null, image: instanceImage(myWeapon),
         title: `${myWeapon.template.name} · ${myWeapon.durabilityCurrent}/${myWeapon.durabilityMax}` },
-      offhand: myOffhand && { name: myOffhand.template.name, code: myOffhand.template.code, weaponType: myOffhand.template.weaponType ?? null,
+      offhand: myOffhand && { weaponType: myOffhand.template.weaponType ?? null, image: instanceImage(myOffhand),
         title: `${myOffhand.template.name} · ${myOffhand.durabilityCurrent}/${myOffhand.durabilityMax}` },
     }
   }
@@ -209,7 +209,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
     name: view?.nickname ?? nickname ?? '—',
     sex: view?.archetype ? (ARCHETYPE_LABELS[view.archetype] ?? view.archetype) : '—',
     spouse: view?.gender === 'FEMALE' ? 'не замужем' : 'не женат',
-    account: foreign ? `${daysSince(view?.createdAt)} дней` : ownAccount(premium.data),
+    account: foreign ? (other.data?.isPremium ? 'премиум' : 'обычный') : ownAccount(premium.data),
   }
   const own = !foreign
   const notesPlaceholder = own ? 'Заметки для себя…' : `Ваши заметки о ${view?.nickname ?? 'игроке'} — видите только вы…`
@@ -259,9 +259,9 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
         </div>
 
         <div className="m-dossier__slots">
-          <SpriteButton name={weaponSprite(weapon?.weaponType)} src={weapon ? itemImage(weapon.code, weapon.weaponType) : undefined} box={{ x: 0, y: 0, w: 92, h: 94 }} empty={!weapon}
+          <SpriteButton name={weaponSprite(weapon?.weaponType)} src={weapon?.image} box={{ x: 0, y: 0, w: 92, h: 94 }} empty={!weapon}
             title={weapon ? weapon.title : 'Оружие не надето'} disabled={!own} onClick={own ? () => navigate('/inventory') : undefined} />
-          <SpriteButton name={weaponSprite(offhand?.weaponType)} src={offhand ? itemImage(offhand.code, offhand.weaponType) : undefined} box={{ x: 0, y: 0, w: 84, h: 88 }} empty={!offhand}
+          <SpriteButton name={weaponSprite(offhand?.weaponType)} src={offhand?.image} box={{ x: 0, y: 0, w: 84, h: 88 }} empty={!offhand}
             title={offhand ? offhand.title : 'Правая рука свободна'} disabled={!own} onClick={own ? () => navigate('/inventory') : undefined} />
           <SpriteButton name="p-item-dog" box={{ x: 0, y: 0, w: 62, h: 93 }} empty={!view?.dog}
             title={dogTitle(view?.dog)} disabled={!own} onClick={own ? () => navigate('/pet-shop') : undefined} />
@@ -353,12 +353,12 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
 
       {/* слоты снаряжения */}
       <SpriteButton
-        name={weaponSprite(weapon?.weaponType)} src={weapon ? itemImage(weapon.code, weapon.weaponType) : undefined} box={PROFILE.slots[0].box} empty={!weapon}
+        name={weaponSprite(weapon?.weaponType)} src={weapon?.image} box={PROFILE.slots[0].box} empty={!weapon}
         title={weapon ? weapon.title : 'Оружие не надето'}
         disabled={!own} onClick={own ? () => navigate('/inventory') : undefined}
       />
       <SpriteButton
-        name={weaponSprite(offhand?.weaponType)} src={offhand ? itemImage(offhand.code, offhand.weaponType) : undefined} box={PROFILE.slots[1].box} empty={!offhand}
+        name={weaponSprite(offhand?.weaponType)} src={offhand?.image} box={PROFILE.slots[1].box} empty={!offhand}
         title={offhand ? offhand.title : 'Правая рука свободна'}
         disabled={!own} onClick={own ? () => navigate('/inventory') : undefined}
       />

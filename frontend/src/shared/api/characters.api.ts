@@ -21,7 +21,8 @@ export interface PublicProfile {
   professions?: Array<{ professionCode: string; level: number; name: string }>
   weaponSkills?: Array<{ weaponType: string; skillLevel: number }>
   dog?: Character['dog']
-  weapons?: Array<{ armorSlot: string | null; name: string; code: string; weaponType: string | null }>
+  weapons?: Array<{ id: string; iconVersion?: number | null; armorSlot: string | null; name: string; code: string; weaponType: string | null }>
+  isPremium?: boolean
 }
 
 export const charactersApi = {
