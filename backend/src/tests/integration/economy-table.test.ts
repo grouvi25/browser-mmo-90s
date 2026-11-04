@@ -62,6 +62,19 @@ describe('Книга экономики: данные', () => {
     expect(new Set(TABLE_RESOURCES.map(row => row[1])).size).toBe(77)
   })
 
+  it('заводы по таблице v2: 21 завод, на каждом одна профессия и от 3 до 5 рецептов', () => {
+    const workshops = TABLE_OBJECTS.filter(row => !row.gather)
+    expect(workshops).toHaveLength(21)
+    expect(TABLE_OBJECTS.filter(row => row.gather)).toHaveLength(33)
+    for (const workshop of workshops) {
+      const recipes = TABLE_RECIPES.filter(row => row.object === workshop.code)
+      expect(recipes.length).toBeGreaterThanOrEqual(3)
+      expect(recipes.length).toBeLessThanOrEqual(5)
+      expect(new Set(recipes.map(row => row.profession))).toEqual(new Set([workshop.profession]))
+    }
+    expect(TABLE_ITEMS.find(row => row.code === 'tb_item_c09')).toMatchObject({ level: 6, armor: 20, durability: 180 })
+  })
+
   it('рубли считаются одним курсом, новые профессии без лестницы допуска', () => {
     expect(tablePrice(100)).toBe(100 * ECONOMY_TABLE_RATE)
     expect(PROFESSION_NAMES.tailor).toBe('Портной')
@@ -97,10 +110,10 @@ describe('Книга экономики: в игре', () => {
 
   it('цех виден с ценой и продукцией, а смены начинаются только после покупки', async () => {
     const character = await worker(['metallurgist'], 20_000)
-    const shop = await object('obj_tb_steel_blank')
+    const shop = await object('obj_tb_smelter_iron')
     expect(shop).toMatchObject({ isForSale: true, ownerType: 'SYSTEM' })
     const row = async () => (await WorkService.listObjects(character.id)).items.find(item => item.code === shop.code)!
-    expect(await row()).toMatchObject({ forSaleUsd: 15_000, products: ['Стальная заготовка'] })
+    expect(await row()).toMatchObject({ forSaleUsd: 15_000, products: ['Бронзовая заготовка', 'Железная заготовка', 'Медная заготовка', 'Стальная заготовка'] })
     await expect(WorkService.start(character.id, shop.id)).rejects.toThrow('Цех продаётся')
     await OwnershipService.buy(character.id, shop.id, randomUUID())
     expect(await row()).toMatchObject({ forSaleUsd: null, products: [] })
@@ -111,7 +124,7 @@ describe('Книга экономики: в игре', () => {
 
   it('цех от сырья до продукции: труд книги, потом минута таймера', async () => {
     const character = await worker(['metallurgist'], 20_000)
-    const shop = await object('obj_tb_steel_blank')
+    const shop = await object('obj_tb_smelter_iron')
     await OwnershipService.buy(character.id, shop.id, randomUUID())
     for (const [resourceCode, amount] of [['tb_scrap', 2], ['tb_iron_ore', 1], ['tb_coal', 1]] as const) {
       await testPrisma.productionObjectInventory.create({ data: { productionObjectId: shop.id, resourceCode, amount } })
@@ -144,6 +157,16 @@ describe('Книга экономики: в игре', () => {
     await seedEconomyTable(testPrisma)
     expect((await testPrisma.itemTemplate.findUniqueOrThrow({ where: { code: 'tb_item_c12' } })).armor).toBe(200)
     expect(await object(shop.code)).toMatchObject({ ownerType: 'PRIVATE', ownerCharacterId: character.id, isForSale: false })
+  })
+
+  it('броня из таблицы v2 попадает в вещи, цех первой версии уходит с продажи, а купленный остаётся', async () => {
+    expect(await testPrisma.itemTemplate.findUniqueOrThrow({ where: { code: 'tb_item_c09' } })).toMatchObject({ armor: 20, levelReq: 6, durabilityMax: 180 })
+    const character = await worker([], 20_000)
+    const free = await testPrisma.productionObject.create({ data: { code: 'obj_tb_old_free', name: 'Старый цех', type: 'WORKSHOP', baseSalary: 0, isForSale: true, ownerType: 'SYSTEM', requiredProfessionCode: 'tailor', shiftDurationMinutes: 60, baseProductionExp: 20, locationId: 'garages', storageCapacity: 1000 } })
+    const owned = await testPrisma.productionObject.create({ data: { code: 'obj_tb_old_owned', name: 'Купленный цех', type: 'WORKSHOP', baseSalary: 0, isForSale: false, ownerType: 'PRIVATE', ownerCharacterId: character.id, requiredProfessionCode: 'tailor', shiftDurationMinutes: 60, baseProductionExp: 20, locationId: 'garages', storageCapacity: 1000 } })
+    await seedEconomyTable(testPrisma)
+    expect(await object(free.code)).toMatchObject({ isActive: false, isForSale: false })
+    expect(await object(owned.code)).toMatchObject({ isActive: true, ownerCharacterId: character.id })
   })
 
   it('восемь новых профессий продаются в Училище', async () => {

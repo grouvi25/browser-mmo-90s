@@ -3,7 +3,8 @@
  * прогонял ровно то же, что и выкат.
  *
  * Шаблоны вещей только создаются: статы и эффекты заказчик вносит в админке,
- * и следующий выкат не должен их стирать. Владельцев объектов сид не трогает.
+ * и следующий выкат не должен их стирать. Броню из таблицы получают только вещи,
+ * которые ещё никто не правил. Владельцев объектов сид не трогает.
  */
 import type { PrismaClient } from '@prisma/client'
 import { TABLE_ITEMS, TABLE_OBJECTS, TABLE_RECIPES, TABLE_RESOURCES, TABLE_TOOLS, tablePrice } from './economy-table'
@@ -31,9 +32,15 @@ export async function seedEconomyTable(prisma: PrismaClient) {
       update: {},
       create: {
         code: item.code, name: item.name, type: worn ? 'ARMOR' : 'CONSUMABLE', armorSlot: worn ? item.slot as 'CHEST' : null,
-        isEquippable: worn, armor: 0, itemTier: item.tier, priceBase: tablePrice(item.units), sourceType: 'CRAFTED',
+        isEquippable: worn, armor: item.armor ?? 0, levelReq: item.level ?? 0, durabilityMax: item.durability ?? 100, itemTier: item.tier, priceBase: tablePrice(item.units), sourceType: 'CRAFTED',
       },
     })
+    if (worn) {
+      await prisma.itemTemplate.updateMany({
+        where: { code: item.code, armor: 0, levelReq: 0 },
+        data: { armor: item.armor ?? 0, levelReq: item.level ?? 0, durabilityMax: item.durability ?? 100 },
+      })
+    }
   }
 
   for (const object of TABLE_OBJECTS) {
@@ -61,5 +68,10 @@ export async function seedEconomyTable(prisma: PrismaClient) {
     await prisma.productionRecipeInput.createMany({ data: recipe.inputs.map(([resourceCode, amount]) => ({ recipeId: saved.id, resourceCode, amount })) })
     await prisma.productionObject.updateMany({ where: { code: recipe.object, activeRecipeId: null }, data: { activeRecipeId: saved.id } })
   }
+  // Цехи первой версии вошли в заводы таблицы v2. Купленный цех остаётся у владельца.
+  await prisma.productionObject.updateMany({
+    where: { code: { startsWith: 'obj_tb_', notIn: TABLE_OBJECTS.map(object => object.code) }, ownerType: 'SYSTEM' },
+    data: { isActive: false, isForSale: false },
+  })
   console.log(`  Экономика заказчика: ресурсов ${TABLE_RESOURCES.length}, объектов ${TABLE_OBJECTS.length}, рецептов ${TABLE_RECIPES.length}`)
 }
