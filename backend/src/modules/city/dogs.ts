@@ -29,9 +29,9 @@ export interface DogBreed {
 
 export const DOG_BREEDS: readonly DogBreed[] = [
   { code: 'mastiff', name: 'Мастифф', role: 'Танк, защитник', price: 3000, mainStat: 'end' },
-  { code: 'malinois', name: 'Малинуа', role: 'Ловкость', price: 3000, mainStat: 'agi' },
+  { code: 'pitbull', name: 'Питбуль', role: 'Ловкость', price: 3000, mainStat: 'agi' },
   { code: 'doberman', name: 'Доберман', role: 'Удача', price: 3000, mainStat: 'luck' },
-  { code: 'pitbull', name: 'Питбуль', role: 'Свои очки: +50%, распределяете сами', price: 0, priceDollars: 25, freeAllocation: true },
+  { code: 'malinois', name: 'Малинуа', role: 'Свои очки: +50%, распределяете сами', price: 0, priceDollars: 25, freeAllocation: true },
 ]
 
 export const DOG_BASE_POINTS = 2

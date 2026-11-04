@@ -92,7 +92,11 @@ unset SMOKE_PASSWORD
 trap - ERR
 stamp "уборка своих образов"
 for s in $SERVICES; do docker rmi "mmo90s-$s:incoming" >/dev/null 2>&1 || true; done
-for id in $OLD_ROLLBACK; do docker rmi "$id" >/dev/null 2>&1 || true; done
+# Образ, из которого только что сделан новый откат, остаётся.
+KEEP="$(for s in $SERVICES; do docker image inspect -f '{{.Id}}' "mmo90s-$s:rollback"; done)"
+for id in $OLD_ROLLBACK; do
+  if ! grep -qxF "$id" <<< "$KEEP"; then docker rmi "$id" >/dev/null 2>&1 || true; fi
+done
 
 stamp "соседние сайты"
 while read -r n old; do
