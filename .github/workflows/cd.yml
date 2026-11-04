@@ -29,6 +29,7 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 45
     steps:
       - name: Resolve deploy commit
         id: target
@@ -53,167 +54,20 @@ jobs:
           printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Snapshot current commit
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            git rev-parse HEAD > /tmp/mmo90s_rollback_sha
-          EOF
+      - name: Check server gate
+        run: ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} ping
 
-      - name: Fetch verified commit
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            git fetch --prune origin
-            git reset --hard "${{ steps.target.outputs.sha }}"
-            test "$(git rev-parse HEAD)" = "${{ steps.target.outputs.sha }}"
-          EOF
-
-      # Сборка образов на забитом диске падает на середине и оставляет
-      # прод в разобранном виде. Кэш сборок чистится безопасно: образы,
-      # тома и данные не затрагиваются.
-      - name: Ensure free disk space on VPS
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            used() { df --output=pcent / | tail -1 | tr -dc '0-9'; }
-            echo "Диск занят на $(used)%"
-            if [ "$(used)" -ge 80 ]; then
-              echo "Больше 80% — чистим кэш сборок Docker"
-              docker builder prune -af
-              echo "После чистки: $(used)%"
-            fi
-            if [ "$(used)" -ge 90 ]; then
-              echo "Свободного места мало даже после чистки — деплой остановлен" >&2
-              exit 1
-            fi
-          EOF
-
-      - name: Backup database with verified deploy code
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            chmod +x infra/deploy/backup.sh
-            ./infra/deploy/backup.sh
-          EOF
-
+      # Сервер чужой и маленький, поэтому образы собираются здесь, а не на нём.
+      # Сам выкат и откат описаны в infra/deploy/timeweb/cd-deploy.sh.
       - name: Build Docker images
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml build
-          EOF
+          docker build -t mmo90s-backend:incoming -f infra/docker/backend.Dockerfile ./backend
+          docker build -t mmo90s-worker:incoming -f infra/docker/worker.Dockerfile ./backend
+          docker build -t mmo90s-frontend:incoming --build-arg VITE_ADMIN_ORIGIN=https://admin.kooperativ.space -f infra/docker/frontend.Dockerfile ./frontend
 
-      - name: Run migrations
+      - name: Send images to server
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            # backend/.env already contains the direct PostgreSQL DATABASE_URL.
-            # Do not source dotenv files as shell scripts (BOM/CRLF and special values are unsafe).
-            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml run --rm backend npx prisma migrate deploy
-          EOF
+          docker save mmo90s-backend:incoming mmo90s-worker:incoming mmo90s-frontend:incoming             | gzip -1             | ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} load
 
-      - name: Run idempotent Stage 2 seed
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml run --rm backend npx tsx prisma/seed.ts
-          EOF
-
-      - name: Restart services
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml up -d --remove-orphans
-          EOF
-
-      - name: Reload public nginx routing
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            ln -sfn "${{ secrets.VPS_PROJECT_DIR }}/infra/nginx/vhost-vps.conf" /etc/nginx/sites-enabled/mmo90s-game
-            ln -sfn "${{ secrets.VPS_PROJECT_DIR }}/infra/nginx/vhost-admin.conf" /etc/nginx/sites-enabled/mmo90s-admin
-            rm -f /etc/nginx/sites-enabled/mmo90s
-            nginx -t
-            systemctl reload nginx
-          EOF
-
-      - name: Verify container and public health
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            for i in $(seq 1 18); do
-              if curl --fail --silent http://127.0.0.1:4080/ready >/dev/null; then
-                break
-              fi
-              if [ "$i" = 18 ]; then
-                docker compose -f ${{ secrets.VPS_PROJECT_DIR }}/docker-compose.prod.yml -f ${{ secrets.VPS_PROJECT_DIR }}/docker-compose.vps.yml logs --tail=100 backend
-                exit 1
-              fi
-              sleep 5
-            done
-            wait_healthy() {
-              container="$1"
-              for i in $(seq 1 18); do
-                status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$container" 2>/dev/null || echo missing)"
-                if [ "$status" = healthy ]; then return 0; fi
-                if [ "$status" = unhealthy ] || [ "$i" = 18 ]; then
-                  echo "$container health=$status" >&2
-                  docker inspect "$container" --format '{{json .State.Health}}' || true
-                  docker logs --tail=100 "$container" || true
-                  return 1
-                fi
-                sleep 5
-              done
-            }
-            wait_healthy mmo90s-frontend-1
-            wait_healthy mmo90s-worker-1
-            curl --fail --silent https://kooperativ.space/ >/dev/null
-            curl --fail --silent https://kooperativ.space/ready | grep -q '"status":"ready"'
-          EOF
-
-      - name: Run authenticated Stage 2 production smoke
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            SMOKE_PASSWORD="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"
-            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml run --rm \
-              -e SMOKE_PASSWORD="$SMOKE_PASSWORD" \
-              -e SMOKE_BASE_URL="https://kooperativ.space" \
-              backend node dist/scripts/production-auth-smoke.js
-          EOF
-
-      - name: Harden VPS and enable scheduled backups
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            chmod +x infra/deploy/backup.sh infra/deploy/harden-vps.sh
-            PROJECT_DIR="${{ secrets.VPS_PROJECT_DIR }}" ./infra/deploy/harden-vps.sh
-          EOF
-
-      - name: Rollback application on failure
-        if: failure()
-        run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd ${{ secrets.VPS_PROJECT_DIR }}
-            ROLLBACK_SHA=$(cat /tmp/mmo90s_rollback_sha 2>/dev/null || true)
-            if [ -z "$ROLLBACK_SHA" ]; then
-              echo "No application rollback point is available"
-              exit 1
-            fi
-            git reset --hard "$ROLLBACK_SHA"
-            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml build
-            docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml up -d --remove-orphans
-            echo "Application rolled back. Database restore remains a deliberate manual operation."
-          EOF
+      - name: Deploy on server
+        run: ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} deploy ${{ steps.target.outputs.sha }}
