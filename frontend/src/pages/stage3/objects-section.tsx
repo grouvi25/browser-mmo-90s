@@ -24,6 +24,14 @@ const CYCLE_STATUS: Record<string, string> = {
   FAILED: 'прерван',
 }
 
+function shiftsWord(count: number) {
+  const tens = count % 100, ones = count % 10
+  if (tens >= 11 && tens <= 14) return `${count} смен`
+  if (ones === 1) return `${count} смену`
+  if (ones >= 2 && ones <= 4) return `${count} смены`
+  return `${count} смен`
+}
+
 export function ObjectsSection() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<'mine' | 'market'>('mine')
@@ -151,7 +159,7 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
           <h2>{object.name}</h2>
           <span>
             {object.ownerType === 'CLAN' ? `бригада «${object.clanName ?? ''}» · ` : ''}
-            {object.type} · {object.equipment?.name ?? 'без оборудования'}
+            {object.equipment?.name ?? 'без оборудования'}
           </span>
         </div>
       </div>
@@ -195,6 +203,27 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
           </>
         )}
       </div>
+
+      {mode === 'market' && object.professionName && (
+        <p className="object-recipe">
+          Работает {object.professionName}
+          {object.products?.length ? <>. Выпускает: {object.products.join(', ')}</> : null}
+        </p>
+      )}
+      {mode === 'mine' && object.activeRecipe && (
+        <p className="object-recipe">
+          Выпускает: <b>{object.activeRecipe.name}</b>
+          {object.activeRecipe.inputs.length > 0 && (
+            <> · на цикл: {object.activeRecipe.inputs.map((input, index) => (
+              <span key={input.code} className={!cycle && input.stored < input.amount ? 'object-recipe__short' : undefined}>
+                {index > 0 ? ', ' : ''}{input.name} {cycle ? input.amount : `${Math.min(input.stored, input.amount)}/${input.amount}`}
+              </span>
+            ))}</>
+          )}
+          {' '}· труд {fmt(object.activeRecipe.laborRequired)}, это примерно {shiftsWord(object.activeRecipe.shifts)}
+          {object.activeRecipe.toolName ? ` · инструмент: ${object.activeRecipe.toolName}` : ''}
+        </p>
+      )}
 
       {open && mode === 'mine' && (
         <ObjectControls object={object} busy={busy} onRepair={onRepair} onTransfer={onTransfer} onSell={onSell} onDone={onDone} onFail={onFail} />

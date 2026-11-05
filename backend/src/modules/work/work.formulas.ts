@@ -56,6 +56,10 @@ export function calcProductionExp(baseExp: number, objectLevel: number): number 
  * того же ремесла. Что входная площадка существует, стережёт проверка
  * проходимости (scripts/check-economy-reachability.ts).
  */
+/** Цех книги экономики ещё у государства: не платит и не выдаёт ресурс, пока его не купят. */
+export const awaitsOwner = (object: { ownerType: string; baseSalary: number; producesResourceCode: string | null; isForSale: boolean }) =>
+  object.ownerType === 'SYSTEM' && object.baseSalary === 0 && !object.producesResourceCode && object.isForSale
+
 export function admissionRequirement(object: { requiredProfessionCode: string; requiredProfessionLevel: number }) {
   if (object.requiredProfessionLevel <= 0) return null
   const previous = isProfessionCode(object.requiredProfessionCode)

@@ -17,7 +17,7 @@
 // ТЗ: docs/specs/stage-4/MASTER_TZ_STAGE_4_STRATEGY_PREMIUM_WAR.md, раздел 19.
 // =============================================================
 import { prisma } from '../../shared/db/prisma'
-import type { HelperTactic } from '@prisma/client'
+import type { HelperTactic, Prisma } from '@prisma/client'
 import { expToNextLevel, helperHpMax } from '../battles/combat-helper'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
@@ -27,8 +27,9 @@ import { DollarsService } from '../dollars/dollars.service'
 import { EconomyService } from '../economy/economy.service'
 import { CycleService } from '../production/cycle.service'
 import { ResourcesService } from '../resources/resources.service'
-import { calcFinalSalary, calcProductionExp, workerEfficiency } from '../work/work.formulas'
-import { professionLevelFromExp, PROFESSION_CHAINS } from '../professions/professions'
+import { awaitsOwner, calcFinalSalary, calcProductionExp, workerEfficiency } from '../work/work.formulas'
+import { soldGeneralTools, toolForTier } from '../work/tool-names'
+import { professionLevelFromExp, PROFESSION_CODES, PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { PremiumService } from './premium.service'
 
 const H = BalanceConfig.strategy.helper
@@ -49,13 +50,47 @@ export function helperEfficiency(professionLevel: number): number {
   return workerEfficiency(Math.min(professionLevel, H.skillCap)) * H.efficiency
 }
 
-/**
- * Профессия из реестра переделов. PROFESSION_CHAINS — это ветки
- * (metal / construction / chemistry), а не сами профессии: ключи брать
- * нельзя, нужны значения.
- */
 function knownProfession(code: string): boolean {
-  return Object.values(PROFESSION_CHAINS).some(chain => (chain as readonly string[]).includes(code))
+  return (PROFESSION_CODES as readonly string[]).includes(code)
+}
+
+/** Премиальный инструмент держит только сам игрок (заказчик 30.10). */
+const PREMIUM_TOOL_TIER = 5
+const professionName = (code: string) => PROFESSION_NAMES[code as ProfessionCode] ?? code
+
+/**
+ * Помощник работает инструментом хозяина и тратит одно использование сразу.
+ * Вещь не запирается на смену, иначе единственный набор держал бы самого
+ * хозяина без работы, пока на смене его помощник.
+ */
+async function spendOwnerTool(
+  tx: Prisma.TransactionClient,
+  params: { characterId: string; shiftKey: string; toolCode: string | null; tier: number },
+) {
+  const candidates = await tx.itemInstance.findMany({
+    where: {
+      ownerId: params.characterId, status: 'NORMAL', usesLeft: { gt: 0 },
+      template: params.toolCode ? { type: 'TOOL', code: params.toolCode } : { type: 'TOOL', toolTier: { gte: params.tier } },
+    },
+    include: { template: { select: { toolTier: true } } },
+    orderBy: { createdAt: 'asc' },
+  })
+  candidates.sort((a, b) => (a.template.toolTier ?? 0) - (b.template.toolTier ?? 0))
+  for (const candidate of candidates) {
+    const spent = await tx.itemInstance.updateMany({
+      where: { id: candidate.id, status: 'NORMAL', usesLeft: { gt: 0 } },
+      data: { usesLeft: { decrement: 1 } },
+    })
+    if (spent.count !== 1) continue
+    const usesLeft = (candidate.usesLeft ?? 1) - 1
+    if (usesLeft <= 0) await tx.itemInstance.update({ where: { id: candidate.id }, data: { status: 'CONSUMED' } })
+    await tx.itemLog.create({ data: { itemId: candidate.id, characterId: params.characterId, actionCode: 'TOOL_USE', details: { helperShift: params.shiftKey, usesLeft } } })
+    return
+  }
+  const name = params.toolCode
+    ? (await tx.itemTemplate.findUnique({ where: { code: params.toolCode }, select: { name: true } }))?.name ?? params.toolCode
+    : toolForTier(await soldGeneralTools(tx), params.tier)
+  throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, name ? `Нужен инструмент: ${name}` : `Нужен инструмент ${params.tier} уровня`, 400)
 }
 
 async function assertSubscribed(characterId: string) {
@@ -78,7 +113,7 @@ export const HelpersService = {
   },
 
   async list(characterId: string) {
-    const [helpers, state] = await Promise.all([
+    const [helpers, state, entry] = await Promise.all([
       prisma.helper.findMany({
         where: { characterId },
         orderBy: { createdAt: 'asc' },
@@ -89,6 +124,13 @@ export const HelpersService = {
         },
       }),
       PremiumService.state(characterId),
+      // Новый помощник начинает с нуля: нанять можно того, для кого есть
+      // работа без уровня, иначе он никогда не выйдет на первую смену.
+      prisma.productionObject.findMany({
+        where: { isActive: true, status: 'ACTIVE', requiredProfessionLevel: 0 },
+        select: { requiredProfessionCode: true },
+        distinct: ['requiredProfessionCode'],
+      }),
     ])
     return {
       items: helpers.map(helper => ({
@@ -99,6 +141,7 @@ export const HelpersService = {
         // подписка могла истечь по времени, а строку никто не трогал.
         status: state.isPremium ? helper.status : 'DORMANT',
         professionCode: helper.professionCode,
+        professionName: professionName(helper.professionCode),
         professionLevel: helper.professionLevel,
         professionExp: helper.professionExp,
         skillCap: H.skillCap,
@@ -112,15 +155,20 @@ export const HelpersService = {
       })),
       slots: { used: helpers.length, total: state.benefits.helperSlots },
       prices: { COMBAT: H.priceCombatUsd, WORK: H.priceWorkUsd },
+      professions: entry
+        .map(row => row.requiredProfessionCode)
+        .filter(knownProfession)
+        .map(code => ({ code, name: professionName(code) }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
     }
   },
 
   /**
-   * Объекты, на которые помощника вообще пустят: свои и бригадные.
+   * Объекты, на которые помощника вообще пустят: свои, бригадные и
+   * государственные, которые сейчас работают.
    *
-   * Считает сервер, а не клиент. Правило В10 живёт в одном месте, иначе
-   * экран предлагал бы государственные объекты, а мутация отказывала бы —
-   * ровно та ошибка, которую этап уже ловил на налётах.
+   * Считает сервер, а не клиент: иначе экран предлагал бы объекты, а мутация
+   * отказывала бы — ровно та ошибка, которую этап уже ловил на налётах.
    */
   async eligibleObjects(characterId: string) {
     const member = await prisma.clanMember.findUnique({
@@ -128,7 +176,7 @@ export const HelpersService = {
       select: { clanId: true, status: true },
     })
     const clanId = member && member.status === 'ACTIVE' ? member.clanId : null
-    const items = await prisma.productionObject.findMany({
+    const objects = await prisma.productionObject.findMany({
       where: {
         isActive: true,
         status: 'ACTIVE',
@@ -136,14 +184,38 @@ export const HelpersService = {
         OR: [
           { ownerType: 'PRIVATE', ownerCharacterId: characterId },
           ...(clanId ? [{ ownerType: 'CLAN' as const, ownerClanId: clanId }] : []),
+          { ownerType: 'SYSTEM', baseSalary: { gt: 0 } },
+          { ownerType: 'SYSTEM', producesResourceCode: { not: null } },
         ],
       },
       select: {
         id: true, name: true, requiredProfessionCode: true, requiredProfessionLevel: true,
-        ownerType: true, workerSlots: true,
+        ownerType: true, workerSlots: true, baseSalary: true, salaryOverride: true, activeRecipeId: true,
+        equipment: { select: { isActive: true, requiredToolTier: true } },
       },
       orderBy: { name: 'asc' },
     })
+    const recipeIds = objects.map(object => object.activeRecipeId).filter((id): id is string => !!id)
+    const [recipes, soldTools] = await Promise.all([
+      prisma.productionRecipe.findMany({ where: { id: { in: recipeIds } }, select: { id: true, requiredToolCode: true, requiredToolTier: true } }),
+      soldGeneralTools(prisma),
+    ])
+    const recipeOf = new Map(recipes.map(recipe => [recipe.id, recipe]))
+    const toolNames = new Map((await prisma.itemTemplate.findMany({
+      where: { code: { in: recipes.map(recipe => recipe.requiredToolCode).filter((code): code is string => !!code) } },
+      select: { code: true, name: true },
+    })).map(row => [row.code, row.name]))
+    const items = objects
+      .filter(object => (recipeOf.get(object.activeRecipeId ?? '')?.requiredToolTier ?? 0) < PREMIUM_TOOL_TIER)
+      .map(({ activeRecipeId, equipment, baseSalary, salaryOverride, ...object }) => {
+        const toolCode = recipeOf.get(activeRecipeId ?? '')?.requiredToolCode ?? null
+        const tier = object.ownerType === 'SYSTEM' && equipment?.isActive ? equipment.requiredToolTier : null
+        return {
+          ...object,
+          salary: salaryOverride ?? baseSalary,
+          requiredToolName: toolCode ? toolNames.get(toolCode) ?? toolCode : tier ? toolForTier(soldTools, tier) : null,
+        }
+      })
     return { items }
   },
 
@@ -217,19 +289,23 @@ export const HelpersService = {
       if (!object) throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object not found', 404)
       // Премиальный инструмент держит сам игрок (заказчик 30.10).
       const recipe = object.activeRecipeId
-        ? await tx.productionRecipe.findUnique({ where: { id: object.activeRecipeId }, select: { requiredToolCode: true } })
+        ? await tx.productionRecipe.findUnique({ where: { id: object.activeRecipeId }, select: { requiredToolCode: true, requiredToolTier: true } })
         : null
-      if (recipe?.requiredToolCode) throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, 'Этот рецепт выполняет только сам игрок со своим инструментом', 400)
+      if (recipe?.requiredToolCode && recipe.requiredToolTier >= PREMIUM_TOOL_TIER) {
+        throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, 'Этот рецепт выполняет только сам игрок со своим инструментом', 400)
+      }
 
-      // Только свой объект или объект своей бригады.
+      // Свой объект, объект своей бригады или государственный.
       //
-      // Решение заказчика от 03.09.2026 по вопросу В10. Причина
-      // арифметическая: на государственном объекте зарплату помощника платит
-      // казна, то есть подписка печатает деньги, и приёмка намерила 213%
-      // дохода активного игрока при коридоре 130%. На своём объекте зарплату
-      // платит сам хозяин из баланса объекта — денег в игре не прибавляется,
-      // а помощник остаётся тем, чем задуман: он работает, пока хозяин
-      // офлайн. Премиум продаёт время, а не силу (принцип П4).
+      // Заказчик 05.11 (обращение №24) отменил своё решение В10 от 03.09:
+      // помощник устраивается и на госработу. Зарплату там платит казна, так
+      // что доход подписчика с двумя помощниками выше коридора 130%, цифра
+      // считается отдельной строкой в scripts/simulate-full.ts. Чужие частные
+      // объекты остаются закрыты: они платят из чужой кассы.
+      const state = object.ownerType === 'SYSTEM'
+      if (awaitsOwner(object)) {
+        throw new AppError(ErrorCode.WORK_OBJECT_UNAVAILABLE, 'Цех продаётся: смены начнутся, когда его купят', 409)
+      }
       const mine = object.ownerType === 'PRIVATE' && object.ownerCharacterId === characterId
       const clanMember = object.ownerType === 'CLAN' && object.ownerClanId
         ? await tx.clanMember.findFirst({
@@ -237,10 +313,10 @@ export const HelpersService = {
           select: { id: true },
         })
         : null
-      if (!mine && !clanMember) {
+      if (!state && !mine && !clanMember) {
         throw new AppError(
           ErrorCode.HELP_FOREIGN_OBJECT,
-          'Помощник работает только на ваших объектах и объектах бригады',
+          'На чужой частный объект помощника не возьмут',
           409,
         )
       }
@@ -293,6 +369,14 @@ export const HelpersService = {
       const slots = await tx.workShift.count({ where: { productionObjectId, status: 'ACTIVE' } })
       if (slots >= object.workerSlots) {
         throw new AppError(ErrorCode.WORK_NO_SLOTS, 'No free worker slots', 409)
+      }
+
+      // На госработу правила те же, что у игрока: со своим инструментом. Рецепт
+      // под именной инструмент требует его на любом объекте.
+      const toolCode = recipe?.requiredToolCode ?? null
+      const tier = state && object.equipment?.isActive ? object.equipment.requiredToolTier : null
+      if (toolCode || tier) {
+        await spendOwnerTool(tx, { characterId, shiftKey: helperId, toolCode, tier: tier ?? 1 })
       }
 
       const now = new Date()
@@ -355,7 +439,8 @@ export const HelpersService = {
       const full = calcFinalSalary(
         shift.baseSalary, shift.productionObject.level, helper.professionLevel, Math.random(), dailyNumber,
       )
-      const salary = Math.max(1, Math.round(full * H.efficiency))
+      // Смена без оклада платит сырьём: начислять нечего, как и у игрока.
+      const salary = full > 0 ? Math.max(1, Math.round(full * H.efficiency)) : 0
 
       const expGain = calcProductionExp(shift.productionObject.baseProductionExp, shift.productionObject.level)
       // Навык помощника растёт вдвое медленнее игрока и упирается в свой потолок.
@@ -383,11 +468,11 @@ export const HelpersService = {
           })
         }
       }
-      const newBalance = await EconomyService.credit(tx, {
+      const newBalance = salary > 0 ? await EconomyService.credit(tx, {
         characterId, amount: salary,
         reasonCode: privatelyOwned ? 'SALARY_FROM_OBJECT' : 'WORK_SALARY',
         refType: 'work_shift', refId: shift.id,
-      })
+      }) : (await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { money: true } })).money
 
       const cycleContribution = shift.productionObject.activeRecipeId
         ? await CycleService.contributeLabor(tx, {

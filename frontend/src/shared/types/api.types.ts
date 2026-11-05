@@ -91,6 +91,8 @@ export interface Character {
 export type ItemStatKey = 'DAMAGE' | 'ACCURACY' | 'CRIT' | 'ARMOR' | 'DURABILITY' | 'ANTI_CRIT'
 
 export interface ItemTemplate {
+  /** Инструмент: на сколько смен его хватает. */
+  usesMax?: number | null
   battleExpBonus?: number
   id: string
   code: string
@@ -185,6 +187,8 @@ export interface ShopItem {
   isAvailable: boolean
   overridePrice: number | null
   template: ItemTemplate
+  /** Инструмент: профессии, на смены которых он подходит. */
+  fits?: { code: string; name: string }[]
 }
 
 export interface BattleParticipant {

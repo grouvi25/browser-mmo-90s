@@ -5,7 +5,7 @@
 // =============================================================
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Trash2 } from 'lucide-react'
 import { shopApi } from '../../shared/api/shop.api'
 import { barsApi } from '../../shared/api/bars.api'
@@ -70,6 +70,7 @@ function bonusLines(item: ShopItem): string[] {
   if (t.blockBonus) out.push(`Блок: +${Math.round(t.blockBonus * 100)}%`)
   if (t.hpBonus || t.healPercent) out.push(`Восстановит: +${healLabel(t)}`)
   for (const line of itemBonusLines(t)) out.push(`${line.label}: ${line.value}`)
+  if (item.fits?.length) out.push(`Для профессий: ${item.fits.map(row => row.name).join(', ')}`)
   if (t.strReq > 0) out.push(`Требует силы: ${t.strReq}`)
   if (t.skillReq > 0) out.push(`Требует навык: ${t.skillReq}`)
   return out
@@ -78,7 +79,10 @@ function bonusLines(item: ShopItem): string[] {
 
 export function GovernmentShopPage() {
   const qc = useQueryClient()
-  const [category, setCategory] = useState<Category>('MELEE')
+  // С экрана работы приходят сразу к инструменту для нужной профессии.
+  const [params] = useSearchParams()
+  const [category, setCategory] = useState<Category>(params.get('tab') === 'tools' ? 'TOOL' : 'MELEE')
+  const [profession, setProfession] = useState(params.get('profession') ?? 'ALL')
   const [level, setLevel] = useState<number | 'ALL'>('ALL')
   const [cart, setCart] = useState<string[]>([])
   const [cartOpen, setCartOpen] = useState(false)
@@ -141,12 +145,21 @@ export function GovernmentShopPage() {
     [items],
   )
 
+  const toolProfessions = useMemo(() => {
+    const seen = new Map(items.flatMap(item => item.fits ?? []).map(row => [row.code, row.name]))
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ru'))
+  }, [items])
+
   const matches = CATEGORIES.find(tab => tab.key === category)?.match
+  const toolFilter = category === 'TOOL' && profession !== 'ALL'
   const visible = items.filter(item => {
     if (!matches?.(item)) return false
     if (level !== 'ALL' && item.template.levelReq !== level) return false
+    if (toolFilter && !item.fits?.some(row => row.code === profession)) return false
     return true
   })
+  // Под профессию нужен самый дешёвый подходящий: он и стоит первым.
+  if (toolFilter) visible.sort((a, b) => (a.overridePrice ?? a.template.priceBase) - (b.overridePrice ?? b.template.priceBase))
 
   const cartItems = cart
     .map(id => items.find(i => i.template.id === id))
@@ -198,6 +211,16 @@ export function GovernmentShopPage() {
           </button>
         ))}
       </nav>
+
+      {category === 'TOOL' && toolProfessions.length > 0 && (
+        <label className="gshop-filter">
+          <span>Для профессии:</span>
+          <select value={profession} onChange={e => setProfession(e.target.value)}>
+            <option value="ALL">все</option>
+            {toolProfessions.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+          </select>
+        </label>
+      )}
 
       {cartOpen && (
         <section className="gshop-cart">
@@ -258,7 +281,7 @@ export function GovernmentShopPage() {
                   </div>
                   {/* Прочность и цена — одной строкой под подписью, как в макете. */}
                   <p className="gshop-card-meta">
-                    <span>Прочность: {t.durabilityMax}</span>
+                    <span>{t.type === 'TOOL' ? `Использований: ${t.usesMax ?? 0}` : `Прочность: ${t.durabilityMax}`}</span>
                     <span>Цена в магазине: {money(price)} руб.</span>
                   </p>
                   <div className="gshop-card-lower">

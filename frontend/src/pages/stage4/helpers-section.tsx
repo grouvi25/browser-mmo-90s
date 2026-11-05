@@ -12,36 +12,20 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, Hammer, Moon, Trash2 } from 'lucide-react'
-import { helpersApi, type Helper } from '../../shared/api/strategy.api'
+import { helpersApi, type Helper, type HelperObject } from '../../shared/api/strategy.api'
 import { fmt, remaining, Skeleton, Fault, Empty, Note } from '../stage3/stage3-ui'
 import { CombatHelperFacts } from './combat-helper-facts'
-
-/** Те же профессии, что у игрока: отдельного справочника у помощника нет. */
-const PROFESSIONS: { code: string; name: string }[] = [
-  { code: 'scrap_collector', name: 'Сборщик металлолома' },
-  { code: 'supplier', name: 'Снабженец' },
-  { code: 'procurer', name: 'Заготовитель' },
-  { code: 'foundry_worker', name: 'Литейщик' },
-  { code: 'carpenter', name: 'Столяр' },
-  { code: 'pharmacist', name: 'Фармацевт' },
-  { code: 'gunsmith', name: 'Оружейник' },
-  { code: 'chemist', name: 'Химик' },
-  { code: 'cooperative_builder', name: 'Строитель кооператива' },
-]
-const professionName = (code: string) =>
-  PROFESSIONS.find(p => p.code === code)?.name ?? code
 
 export function HelpersSection() {
   const qc = useQueryClient()
   const [name, setName] = useState('')
-  const [profession, setProfession] = useState(PROFESSIONS[0].code)
+  const [pickedProfession, setProfession] = useState('')
   const [msg, setMsg] = useState('')
   const [bad, setBad] = useState(false)
 
   const [kind, setKind] = useState<'WORK' | 'COMBAT'>('WORK')
   const query = useQuery({ queryKey: ['helpers'], queryFn: helpersApi.list, refetchInterval: 30_000 })
-  // Только свои и бригадные объекты: на государственном помощник не работает
-  // (решение по В10). Список считает сервер, чтобы экран и мутация не разошлись.
+  // Список считает сервер, чтобы экран и мутация не разошлись.
   const objects = useQuery({ queryKey: ['helpers', 'objects'], queryFn: helpersApi.objects })
 
   const done = (text: string) => {
@@ -50,6 +34,10 @@ export function HelpersSection() {
     void qc.invalidateQueries({ queryKey: ['character'] })
   }
   const fail = (e: Error) => { setBad(true); setMsg(e.message) }
+
+  // Список профессий даёт сервер: новая профессия появляется здесь сама.
+  const professions = query.data?.professions ?? []
+  const profession = professions.some(row => row.code === pickedProfession) ? pickedProfession : professions[0]?.code ?? ''
 
   const hire = useMutation({
     mutationFn: () => helpersApi.hire(name, profession, kind),
@@ -90,10 +78,9 @@ export function HelpersSection() {
         выше третьего уровня профессии — специалиста он не заменит.
       </p>
       <p className="s4-lead">
-        Работает он только на ваших объектах и объектах бригады: зарплату ему
-        платит баланс объекта, то есть вы сами. На государственный пункт
-        помощника не берут — иначе подписка печатала бы деньги. Норма — шесть
-        смен в сутки.
+        Работает на ваших объектах, объектах бригады и на государственной работе.
+        На госработу ему нужен ваш инструмент, каждая смена тратит одно
+        использование. Норма — шесть смен в сутки.
       </p>
 
       <div className="s4-summary">
@@ -128,7 +115,7 @@ export function HelpersSection() {
           </select>
           {kind === 'WORK' && (
             <select value={profession} onChange={event => setProfession(event.target.value)} aria-label="Профессия">
-              {PROFESSIONS.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}
+              {professions.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}
             </select>
           )}
           <button type="submit" disabled={busy || name.trim().length < 2}>
@@ -164,16 +151,16 @@ function HelperCard({
 }: {
   helper: Helper
   busy: boolean
-  objects: { id: string; name: string; requiredProfessionCode?: string }[]
+  objects: HelperObject[]
   onWork: (objectId: string) => void
   onClaim: () => void
   onDismiss: () => void
   onTacticError: (e: Error) => void
 }) {
-  // Показываем только те объекты, куда помощник в принципе пройдёт: его
-  // профессия должна совпадать с требованием объекта.
+  // Показываем только те объекты, куда помощник в принципе пройдёт: профессия
+  // совпадает с требованием объекта, и уровня хватает.
   const suitable = objects.filter(object =>
-    !object.requiredProfessionCode || object.requiredProfessionCode === helper.professionCode)
+    object.requiredProfessionCode === helper.professionCode && object.requiredProfessionLevel <= helper.professionLevel)
   // Выбор не запоминаем с первой отрисовки: список объектов приходит позже,
   // и пустой выбор держал «На смену» серой до перезагрузки (правка 28.10).
   const [picked, setObjectId] = useState('')
@@ -200,7 +187,7 @@ function HelperCard({
         <CombatHelperFacts helper={helper} disabled={dormant} onError={onTacticError} />
       ) : <>
       <dl className="s4-helper__facts">
-        <div><dt>Профессия</dt><dd>{professionName(helper.professionCode)}</dd></div>
+        <div><dt>Профессия</dt><dd>{helper.professionName ?? helper.professionCode}</dd></div>
         <div>
           <dt>Уровень</dt>
           <dd>{helper.professionLevel} из {helper.skillCap}</dd>
@@ -221,8 +208,12 @@ function HelperCard({
             aria-label={`Объект для ${helper.name}`}
           >
             {suitable.length === 0
-              ? <option value="">нет своих объектов под эту профессию</option>
-              : suitable.map(object => <option key={object.id} value={object.id}>{object.name}</option>)}
+              ? <option value="">нет работы под эту профессию и уровень</option>
+              : suitable.map(object => (
+                <option key={object.id} value={object.id}>
+                  {object.name}{object.salary ? ` · ${fmt(object.salary)} ₽` : ''}{object.requiredToolName ? ` · ${object.requiredToolName}` : ''}
+                </option>
+              ))}
           </select>
           <button type="button" disabled={busy || dormant || !objectId} onClick={() => onWork(objectId)}>
             На смену

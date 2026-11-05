@@ -161,6 +161,7 @@ export const premiumApi = {
 export interface Helper {
   id: string
   name: string
+  professionName?: string
   kind?: 'WORK' | 'COMBAT'
   status: 'ACTIVE' | 'DORMANT'
   professionCode: string
@@ -182,12 +183,14 @@ export interface HelperObject {
   name: string
   requiredProfessionCode: string
   requiredProfessionLevel: number
-  ownerType: 'PRIVATE' | 'CLAN'
+  ownerType: 'PRIVATE' | 'CLAN' | 'SYSTEM'
   workerSlots: number
+  salary?: number
+  requiredToolName?: string | null
 }
 
 export const helpersApi = {
-  list: () => api.get<{ items: Helper[]; slots: { used: number; total: number }; prices?: { COMBAT: number; WORK: number } }>('/api/helpers'),
+  list: () => api.get<{ items: Helper[]; slots: { used: number; total: number }; prices?: { COMBAT: number; WORK: number }; professions?: { code: string; name: string }[] }>('/api/helpers'),
   objects: () => api.get<{ items: HelperObject[] }>('/api/helpers/objects'),
   hire: (name: string, professionCode: string, kind: 'WORK' | 'COMBAT' = 'WORK') =>
     api.post<Helper>('/api/helpers', { name, kind, ...(kind === 'WORK' ? { professionCode } : {}) }, idem()),

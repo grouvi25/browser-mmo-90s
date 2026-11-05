@@ -5,6 +5,8 @@ export interface ProductionObjectView {
   id:string; code:string; name:string; requiredProfessionCode:string; requiredProfessionLevel:number
   shiftDurationMinutes:number; baseSalary:number; baseProductionExp:number; producesResourceCode:string|null
   producesResourceName:string|null; outputAmountMin:number; outputAmountMax:number; locked:boolean; toolAvailable:boolean; requiredToolName?:string|null; equipment:{code:string;name:string;tier:number;requiredToolTier:number}|null; profession:ProfessionView&{learned:boolean}
+  /** Какой уровень какой профессии открывает объект. */
+  admission?:{professionCode:string;professionName:string;requiredLevel:number;currentLevel:number}|null
   /** Ставка, которую платят: у частного завода её задаёт владелец. */
   offeredSalary?:number
   /** Цех ещё у государства: цена и что он выпускает. */

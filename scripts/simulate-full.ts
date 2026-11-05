@@ -335,8 +335,9 @@ for (let day = 0; day < days; day++) {
   const owner = ownerDay(MID_OBJECT).profit * (0.9 + rnd() * 0.2)
   const farmer = farmerHour() * 6 * (0.9 + rnd() * 0.2)
   const barman = barmanDay() * (0.9 + rnd() * 0.2)
-  // Подписчик: свои 16 смен. Помощники дохода не приносят — они работают
-  // только на своих объектах, где зарплату платит сам хозяин (решение В10).
+  // Подписчик: свои 16 смен. Доход двух помощников на госработе (заказчик
+  // 05.11, обращение №24) считается отдельно: коридор 130% написан под решение
+  // В10, которое заказчик отменил, поэтому эта цифра идёт наблюдением.
   // Подписчик работает на ТОМ ЖЕ объекте: сравнивать 16 смен по получасу с
   // шестью часовыми — сравнивать разные работы, а не подписку с её
   // отсутствием. Бюджет минут у подписчика растёт пропорционально потолку.
@@ -406,6 +407,15 @@ const territoryBonusPerMember = (workerDay * 0.05 * 2) / 10
 const territoryShare = territoryBonusPerMember / workerDay
 
 const premiumRatio = premiumDayAvg / workerDay
+// Два помощника на том же объекте с верхним своим уровнем: это потолок, а не
+// среднее. На нижних переделах и у нового помощника выйдет меньше.
+const helperMidObject = objectByCode.get(MID_OBJECT)!
+let helperDay = 0
+for (let n = 1; n <= BalanceConfig.strategy.helper.dailyShiftCap; n++) {
+  helperDay += calcFinalSalary(helperMidObject.baseSalary, 1, BalanceConfig.strategy.helper.skillCap, 0.5, n) * BalanceConfig.strategy.helper.efficiency
+}
+const premiumWithHelpersDay = premiumDayAvg + helperDay * BalanceConfig.strategy.helper.maxCount
+const premiumWithHelpersRatio = premiumWithHelpersDay / workerDay
 // Прирост считается по положительной массе: если модель увела деньги в
 // минус, это ошибка модели, и она должна быть видна отдельно, а не
 // превратиться в NaN посреди отчёта.
@@ -487,6 +497,8 @@ const report = {
     barmanPerDay: barmanDayAvg,
     premiumPerDay: premiumDayAvg,
     premiumRatio,
+    premiumWithHelpersPerDay: premiumWithHelpersDay,
+    premiumWithHelpersRatio,
   },
   payback: { objects: payback, bar: barPayback },
   shares: { clan: clanShare, territory: territoryShare },
@@ -522,6 +534,7 @@ if (!quiet) {
   line('Доля дохода от бригады', `${Math.round(clanShare * 100)}% (≤25)`, verdicts.clanShareCorridor)
   line('Доля дохода от территории', `${Math.round(territoryShare * 100)}% (≤15)`, verdicts.territoryShareCorridor)
   line('Подписчик против игрока', `${Math.round(premiumRatio * 100)}% (≤130)`, verdicts.premiumCorridor)
+  console.log(`  --   Подписчик с двумя помощниками          ${Math.round(premiumWithHelpersRatio * 100)}% — наблюдение, потолок при госработе (№24)`)
   line('Нижний передел беднее среднего', `${Math.round(lowRate.perHour)} < ${Math.round(workerRate.perHour)} ₽/ч`, verdicts.progressionMakesSense)
   console.log(`  --   Прирост денежной массы                ${(m2Growth * 100).toFixed(2)}%/сут — наблюдение, стоки учтены не все`)
   line('Передел наращивает стоимость',

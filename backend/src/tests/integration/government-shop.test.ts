@@ -13,6 +13,23 @@ beforeAll(async () => { await testPrisma.$connect() })
 afterAll(async () => { await testPrisma.$disconnect() })
 beforeEach(async () => { await cleanDatabase() })
 
+describe('инструменты на витрине', () => {
+  it('подписаны профессиями по объектам и рецептам, без хардкода', async () => {
+    const tool = await testPrisma.itemTemplate.create({ data: { code: uid('tool'), name: 'Оснастка', type: 'TOOL', toolTier: 2, usesMax: 5, durabilityMax: 1, priceBase: 100 } })
+    const basic = await testPrisma.itemTemplate.create({ data: { code: uid('tool'), name: 'Набор', type: 'TOOL', toolTier: 1, usesMax: 5, durabilityMax: 1, priceBase: 50 } })
+    await testPrisma.governmentShopItem.createMany({ data: [{ templateId: tool.id, sortOrder: 1 }, { templateId: basic.id, sortOrder: 2 }] })
+    const object = await testPrisma.productionObject.create({ data: {
+      code: uid('obj'), name: 'Цех', type: 'WORKSHOP', locationId: 'industrial', requiredProfessionCode: 'carpenter',
+      shiftDurationMinutes: 30, baseSalary: 100, baseProductionExp: 10, workerSlots: 5,
+    } })
+    await testPrisma.productionEquipment.create({ data: { productionObjectId: object.id, code: uid('eq'), name: 'Линия', tier: 2, requiredToolTier: 2 } })
+
+    const items = await GovernmentShopService.listItems()
+    expect(items.find(row => row.templateId === tool.id)?.fits).toEqual([{ code: 'carpenter', name: 'Столяр' }])
+    expect(items.find(row => row.templateId === basic.id)?.fits).toEqual([])
+  })
+})
+
 async function createCharacterWithTemplate() {
   const login = uid('shop_user')
   const { id: userId } = await AuthService.register({

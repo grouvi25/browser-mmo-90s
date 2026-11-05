@@ -8,15 +8,47 @@ import { audit } from '../../shared/logger/audit-logger'
 import { BalanceConfig } from '../../config/balance.config'
 import { getEconomicLevelFromExp } from '../stats/stats.formulas'
 import { EconomyService } from '../economy/economy.service'
+import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 
-export type ShopItemWithTemplate = GovernmentShopItem & { template: ItemTemplate }
+export type ShopItemWithTemplate = GovernmentShopItem & {
+  template: ItemTemplate
+  /** Инструмент: профессии, на смены которых он подходит. */
+  fits?: { code: string; name: string }[]
+}
 
 export const GovernmentShopService = {
   async listItems(): Promise<ShopItemWithTemplate[]> {
-    return prisma.governmentShopItem.findMany({
+    const items = await prisma.governmentShopItem.findMany({
       where: { isAvailable: true, template: { isActive: true } },
       include: { template: true },
       orderBy: { sortOrder: 'asc' },
+    })
+    const tools = items.filter(item => item.template.type === 'TOOL')
+    if (tools.length === 0) return items
+    // Считается по объектам и рецептам, а не списком в коде: новый объект или
+    // инструмент сам попадает на витрину (заказчик 04.11: инструмент подписан
+    // и разделён по профессиям).
+    const [objects, recipes] = await Promise.all([
+      prisma.productionObject.findMany({
+        where: { isActive: true, status: 'ACTIVE', equipment: { is: { isActive: true } } },
+        select: { requiredProfessionCode: true, equipment: { select: { requiredToolTier: true } } },
+      }),
+      prisma.productionRecipe.findMany({
+        where: { requiredToolCode: { in: tools.map(item => item.template.code) } },
+        select: { requiredToolCode: true, requiredProfessionCode: true },
+      }),
+    ])
+    return items.map(item => {
+      if (item.template.type !== 'TOOL') return item
+      const tier = item.template.toolTier ?? 0
+      const codes = new Set<string>([
+        ...objects.filter(object => (object.equipment?.requiredToolTier ?? 1) <= tier).map(object => object.requiredProfessionCode),
+        ...recipes.filter(recipe => recipe.requiredToolCode === item.template.code).map(recipe => recipe.requiredProfessionCode),
+      ])
+      const fits = [...codes]
+        .map(code => ({ code, name: PROFESSION_NAMES[code as ProfessionCode] ?? code }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+      return { ...item, fits }
     })
   },
 

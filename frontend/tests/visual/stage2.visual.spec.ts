@@ -399,7 +399,9 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(learned.status()).toBe(200)
 
     await page.reload()
-    await expect(row.getByText(/Нужен инструмент T1/)).toBeVisible()
+    // Инструмент назван словами и ведёт в магазин: «T1» игрокам ни о чём не говорил.
+    await expect(row.getByText(/Нужен инструмент: Рабочий набор/)).toBeVisible()
+    await expect(row.getByRole('link', { name: 'в магазин' })).toHaveAttribute('href', `/shop?tab=tools&profession=${vacancy!.requiredProfessionCode}`)
 
     const shop = await apiContext.get('/api/shops/government/items', { headers: { Authorization: `Bearer ${worker.token}` } })
     expect(shop.status()).toBe(200)

@@ -8,11 +8,12 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
-import { admissionRequirement, calcFinalSalary, calcProductionExp, fitsDailyBudget, shiftMinutes, workerEfficiency } from './work.formulas'
+import { admissionRequirement, awaitsOwner, calcFinalSalary, calcProductionExp, fitsDailyBudget, shiftMinutes, workerEfficiency } from './work.formulas'
 import { CycleService } from '../production/cycle.service'
 import { BalanceConfig } from '../../config/balance.config'
 import { PremiumService } from '../premium/premium.service'
 import { PROFESSION_NAMES, professionLevelFromExp, type ProfessionCode } from '../professions/professions'
+import { soldGeneralTools, toolForTier } from './tool-names'
 
 const MAX_DAILY_SHIFTS = BalanceConfig.economy.work.dailyShiftLimit
 const WORK_LIMITS = BalanceConfig.economy.work
@@ -36,10 +37,6 @@ function utcDayRange(now = new Date()) {
   end.setUTCDate(end.getUTCDate() + 1)
   return { start, end }
 }
-
-/** Цех книги экономики ещё у государства: не платит и не выдаёт ресурс, пока его не купят. */
-const awaitsOwner = (object: { ownerType: string; baseSalary: number; producesResourceCode: string | null; isForSale: boolean }) =>
-  object.ownerType === 'SYSTEM' && object.baseSalary === 0 && !object.producesResourceCode && object.isForSale
 
 async function professionState(characterId: string, professionCode: string) {
   return prisma.characterProfession.findUnique({
@@ -68,6 +65,7 @@ export const WorkService = {
     const toolNames = new Map((await prisma.itemTemplate.findMany({
       where: { code: { in: premiumRecipes.map(recipe => recipe.requiredToolCode as string) } }, select: { code: true, name: true },
     })).map(item => [item.code, item.name]))
+    const soldTools = await soldGeneralTools(prisma)
     // Цех без владельца показываем в конце списка: видно, что он есть и что выпускает.
     const vacancies = objects
       .filter(object => object.ownerType !== 'SYSTEM' || object.baseSalary > 0 || object.producesResourceCode || object.isForSale)
@@ -118,7 +116,9 @@ export const WorkService = {
           toolAvailable: toolOf(object.activeRecipeId)
             ? tools.some(tool => tool.template.code === toolOf(object.activeRecipeId))
             : !object.equipment || tools.some(tool => (tool.template.toolTier ?? 0) >= object.equipment!.requiredToolTier),
-          requiredToolName: toolOf(object.activeRecipeId) ? toolNames.get(toolOf(object.activeRecipeId)!) ?? null : null,
+          requiredToolName: toolOf(object.activeRecipeId)
+            ? toolNames.get(toolOf(object.activeRecipeId)!) ?? null
+            : object.equipment ? toolForTier(soldTools, object.equipment.requiredToolTier) : null,
         }
       }),
       professions: professions.map(item => ({
@@ -216,7 +216,10 @@ export const WorkService = {
         const gate = await tx.characterProfession.findUnique({
           where: { characterId_professionCode: { characterId, professionCode: admission.professionCode } },
         })
-        if ((gate?.level ?? 0) < admission.level) throw new AppError(ErrorCode.WORK_LEVEL_REQUIRED, 'Profession level too low', 400)
+        if ((gate?.level ?? 0) < admission.level) {
+          const name = PROFESSION_NAMES[admission.professionCode as ProfessionCode] ?? admission.professionCode
+          throw new AppError(ErrorCode.WORK_LEVEL_REQUIRED, `Нужен ${admission.level} уровень профессии «${name}»`, 400)
+        }
       }
       if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 400)
       // Тоже только свои: занятый помощник не должен запирать хозяина.
@@ -269,7 +272,9 @@ export const WorkService = {
             const tool = await tx.itemTemplate.findUnique({ where: { code: toolCode }, select: { name: true } })
             throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, `Для этого рецепта нужен инструмент: ${tool?.name ?? toolCode}`, 400)
           }
-          throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, `Tool tier ${object.equipment?.requiredToolTier ?? 1} with remaining uses is required`, 400)
+          const tier = object.equipment?.requiredToolTier ?? 1
+          const name = toolForTier(await soldGeneralTools(tx), tier)
+          throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, name ? `Нужен инструмент: ${name}` : `Нужен инструмент ${tier} уровня`, 400)
         }
       }
       const endsAt = new Date(now.getTime() + object.shiftDurationMinutes * 60_000)

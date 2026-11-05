@@ -40,6 +40,14 @@ export interface ProductionObject {
   inventory: Array<{ resourceCode: string; resourceName?: string; quality: string; amount: number; reservedAmount: number }>
   cycles: ObjectCycle[]
   equipment?: { name: string; tier: number } | null
+  /** Только на «Рынке объектов»: кто работает и что можно выпускать. */
+  professionName?: string
+  products?: string[]
+  /** Только в «Моих объектах»: что цех выпускает сейчас и чего ему не хватает. */
+  activeRecipe?: {
+    name: string; laborRequired: number; shifts: number; toolName: string | null
+    inputs: { code: string; name: string; amount: number; stored: number }[]
+  } | null
   /** Только в «Моих объектах»: что объект добывает, кто сейчас на смене, выплаты за сутки. */
   producesResourceName?: string | null
   workers?: Array<{ nickname: string; endsAt: string }>

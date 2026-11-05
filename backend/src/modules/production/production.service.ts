@@ -6,6 +6,7 @@ import { CycleService } from './cycle.service'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
+import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 export const ProductionService = {
   list: async () => ({ items: await ProductionRepository.listActive() }),
   get: async (id: string) => { const item = await ProductionRepository.findActiveById(id); if (!item) throw ProductionErrors.notFound(); return item },
@@ -16,7 +17,18 @@ export const ProductionService = {
       include: { equipment: true },
       orderBy: { name: 'asc' },
     })
-    return objects.map(object => ({ ...object, priceUsd: BalanceConfig.economy.production.objectPriceUsd }))
+    // Покупают за большие деньги: видно, что цех выпускает и кто в нём работает.
+    const recipes = await prisma.productionRecipe.findMany({
+      where: { productionObjectCode: { in: objects.map(object => object.code) } },
+      select: { productionObjectCode: true, name: true },
+      orderBy: { name: 'asc' },
+    })
+    return objects.map(object => ({
+      ...object,
+      priceUsd: BalanceConfig.economy.production.objectPriceUsd,
+      professionName: PROFESSION_NAMES[object.requiredProfessionCode as ProfessionCode] ?? object.requiredProfessionCode,
+      products: recipes.filter(row => row.productionObjectCode === object.code).map(row => row.name),
+    }))
   },
   /** Свои объекты: склад с названиями ресурсов, кто сейчас на смене и
    *  сколько выплачено за сутки — владелец видит, что завод работает. */
@@ -51,10 +63,35 @@ export const ProductionService = {
       }),
     ])
     const names = new Map(templates.map(item => [item.code, item.name]))
+    const recipes = await prisma.productionRecipe.findMany({
+      where: { id: { in: objects.map(object => object.activeRecipeId).filter((id): id is string => !!id) } },
+      include: { inputs: true },
+    })
+    const toolNames = new Map((await prisma.itemTemplate.findMany({
+      where: { code: { in: recipes.map(recipe => recipe.requiredToolCode).filter((code): code is string => !!code) } },
+      select: { code: true, name: true },
+    })).map(row => [row.code, row.name]))
     return objects.map(object => {
       const day = paid.find(row => row.productionObjectId === object.id)
+      const recipe = recipes.find(row => row.id === object.activeRecipeId)
       return {
         ...object,
+        // Что цех делает сейчас и чего ему не хватает: без этого «Запустить»
+        // отвечало только «не хватает сырья», а какого, игрок не знал.
+        activeRecipe: recipe ? {
+          name: recipe.name,
+          laborRequired: recipe.laborRequired,
+          shifts: Math.ceil(recipe.laborRequired / Math.max(1, object.shiftDurationMinutes)),
+          toolName: recipe.requiredToolCode ? toolNames.get(recipe.requiredToolCode) ?? recipe.requiredToolCode : null,
+          inputs: recipe.inputs.map(input => ({
+            code: input.resourceCode,
+            name: names.get(input.resourceCode) ?? input.resourceCode,
+            amount: input.amount,
+            stored: object.inventory
+              .filter(row => row.resourceCode === input.resourceCode)
+              .reduce((sum, row) => sum + row.amount - row.reservedAmount, 0),
+          })),
+        } : null,
         inventory: object.inventory.map(row => ({ ...row, resourceName: names.get(row.resourceCode) ?? row.resourceCode })),
         producesResourceName: object.producesResourceCode ? names.get(object.producesResourceCode) ?? object.producesResourceCode : null,
         workers: active.filter(shift => shift.productionObjectId === object.id).map(shift => ({ nickname: shift.character.nickname, endsAt: shift.endsAt })),

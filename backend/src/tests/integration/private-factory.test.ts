@@ -3,6 +3,7 @@
  * получают зарплату, а владелец завода получает ресурсы, которые остаются
  * у него. И он может перерабатывать или продавать их».
  */
+import { ObjectInventoryService } from '../../modules/production/inventory.service'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanDatabase, testPrisma, uid } from './helpers'
 import { getRedis, disconnectRedis } from '../../shared/db/redis'
@@ -85,5 +86,31 @@ describe('частный завод', () => {
     expect(taken).toMatchObject({ amount: 2, ownAmount: got, objectLeft: 0 })
     const [mine] = await ProductionService.mine(owner.id)
     expect(mine.inventory.every(row => row.amount === 0)).toBe(true)
+  })
+
+  it('свой цех показывает, что выпускает и чего не хватает; на рынке видно выпуск и профессию', async () => {
+    const { resource, object, owner } = await fixture()
+    const recipe = await testPrisma.productionRecipe.create({ data: {
+      code: uid('rcp'), name: 'Заготовка', productionObjectCode: object.code, outputAmount: 1, cycleMinutes: 1, laborRequired: 70,
+      requiredProfessionCode: 'scrap_collector', requiredProfessionLevel: 0, requiredToolTier: 1,
+      inputs: { createMany: { data: [{ resourceCode: resource.code, amount: 3, minQuality: 'POOR' }] } },
+    } })
+    await testPrisma.productionObject.update({ where: { id: object.id }, data: { activeRecipeId: recipe.id } })
+    await testPrisma.$transaction(tx => ObjectInventoryService.put(tx, { objectId: object.id, resourceCode: resource.code, quality: 'NORMAL', amount: 2, capacity: 1000 }))
+
+    const [mine] = await ProductionService.mine(owner.id)
+    expect(mine.activeRecipe).toMatchObject({ name: 'Заготовка', laborRequired: 70, shifts: 3, toolName: null })
+    expect(mine.activeRecipe?.inputs).toEqual([{ code: resource.code, name: resource.name, amount: 3, stored: 2 }])
+
+    const shop = await testPrisma.productionObject.create({ data: {
+      code: uid('obj'), name: 'Цех на продаже', type: 'WORKSHOP', requiredProfessionCode: 'carpenter', locationId: 'industrial',
+      shiftDurationMinutes: 60, baseSalary: 0, baseProductionExp: 10, isForSale: true, storageCapacity: 1000,
+    } })
+    await testPrisma.productionRecipe.create({ data: {
+      code: uid('rcp'), name: 'Табурет', productionObjectCode: shop.code, outputAmount: 1, cycleMinutes: 1, laborRequired: 60,
+      requiredProfessionCode: 'carpenter', requiredProfessionLevel: 0, requiredToolTier: 1,
+    } })
+    const onSale = (await ProductionService.market()).find(row => row.id === shop.id)
+    expect(onSale).toMatchObject({ professionName: 'Столяр', products: ['Табурет'] })
   })
 })

@@ -173,3 +173,7 @@
 .s3-howto a{color:#6a5000}
 .s3-howto a:hover{color:var(--s3-red)}
 .s3-howto a:focus-visible{outline:2px solid var(--s3-red);outline-offset:1px}
+
+/* Что цех выпускает и чего ему не хватает. */
+.object-recipe { grid-column: 1 / -1; margin: 2px 0 0; font-size: 13px; line-height: 1.4; }
+.object-recipe__short { color: #a31212; font-weight: 700; }

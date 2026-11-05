@@ -5,6 +5,7 @@ import { WorkService } from '../../modules/work/work.service'
 import { workerEfficiency } from '../../modules/work/work.formulas'
 import { BalanceConfig } from '../../config/balance.config'
 import { PREMIUM_PRODUCTS } from '../../../prisma/economy-data'
+import { ErrorCode } from '../../shared/errors/error-codes'
 import { cleanDatabase, testPrisma, uid } from './helpers'
 
 const H = BalanceConfig.strategy.helper
@@ -24,9 +25,7 @@ async function subscribed(prefix = 'sub') {
 }
 
 /**
- * Объект хозяина. С решения заказчика по В10 помощник работает только на
- * своих объектах и объектах бригады: на государственном зарплату платила бы
- * казна, и подписка печатала бы деньги.
+ * Объект хозяина: зарплату платит его касса.
  */
 async function myObject(ownerId: string, profession = 'scrap_collector', level = 0, slots = 10) {
   return testPrisma.productionObject.create({
@@ -40,7 +39,7 @@ async function myObject(ownerId: string, profession = 'scrap_collector', level =
   })
 }
 
-/** Государственный объект — для проверки отказа. */
+/** Государственный объект: зарплату платит казна (заказчик 05.11, №24). */
 async function stateObject(profession = 'scrap_collector', level = 0) {
   return testPrisma.productionObject.create({
     data: {
@@ -274,18 +273,102 @@ describe('помощники', () => {
     expect(after.balance).toBe(10_000 - claimed.salary)
   })
 
-  it('на чужом и государственном объекте помощник не работает', async () => {
+  it('на чужом частном объекте помощник не работает', async () => {
     const character = await subscribed()
     const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
     const stranger = await player('stranger')
 
-    const state = await stateObject()
-    await expect(HelpersService.startShift(character.id, helper.id, state.id))
-      .rejects.toMatchObject({ code: 'HELP_007' })
-
     const foreign = await myObject(stranger.id)
     await expect(HelpersService.startShift(character.id, helper.id, foreign.id))
       .rejects.toMatchObject({ code: 'HELP_007' })
+  })
+
+  it('на госработе помощнику платит казна, а объект виден в списке', async () => {
+    const character = await subscribed()
+    const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
+    const state = await stateObject()
+
+    const { items } = await HelpersService.eligibleObjects(character.id)
+    expect(items.find(row => row.id === state.id)).toMatchObject({ ownerType: 'SYSTEM', salary: 100, requiredToolName: null })
+
+    const before = (await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).money
+    const started = await HelpersService.startShift(character.id, helper.id, state.id)
+    await finishShift(started.shiftId)
+    const claimed = await HelpersService.claimShift(character.id, helper.id)
+
+    expect(claimed.salary).toBeGreaterThan(0)
+    expect(claimed.newBalance).toBe(before + claimed.salary)
+    expect(await testPrisma.currencyLog.findFirst({ where: { characterId: character.id, reasonCode: 'WORK_SALARY' } })).not.toBeNull()
+  })
+
+  it('на госработу с оборудованием нужен инструмент хозяина: тратит использование и не запирает его', async () => {
+    const character = await subscribed()
+    const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
+    const state = await stateObject()
+    await testPrisma.productionEquipment.create({ data: { productionObjectId: state.id, code: uid('eq'), name: 'Линия', tier: 2, requiredToolTier: 2 } })
+
+    await expect(HelpersService.startShift(character.id, helper.id, state.id))
+      .rejects.toMatchObject({ code: ErrorCode.WORK_TOOL_REQUIRED })
+
+    const template = await testPrisma.itemTemplate.create({ data: { code: uid('tool'), name: 'Оснастка', type: 'TOOL', toolTier: 2, usesMax: 2, durabilityMax: 1, priceBase: 100 } })
+    const tool = await testPrisma.itemInstance.create({ data: { templateId: template.id, ownerId: character.id, usesLeft: 1, durabilityCurrent: 1, durabilityMax: 1, weight: 1, sourceType: 'GOVERNMENT' } })
+
+    await HelpersService.startShift(character.id, helper.id, state.id)
+    expect(await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: tool.id } })).toMatchObject({ usesLeft: 0, status: 'CONSUMED' })
+    expect(await testPrisma.helper.findUniqueOrThrow({ where: { id: helper.id } })).toMatchObject({ activeShiftId: expect.any(String) })
+  })
+
+  it('инструмент не тратится, если на смену не вышел', async () => {
+    const character = await subscribed()
+    const helper = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
+    const state = await stateObject()
+    await testPrisma.productionEquipment.create({ data: { productionObjectId: state.id, code: uid('eq'), name: 'Линия', tier: 1, requiredToolTier: 1 } })
+    await testPrisma.productionObject.update({ where: { id: state.id }, data: { workerSlots: 0 } })
+    const template = await testPrisma.itemTemplate.create({ data: { code: uid('tool'), name: 'Набор', type: 'TOOL', toolTier: 1, usesMax: 5, durabilityMax: 1, priceBase: 100 } })
+    const tool = await testPrisma.itemInstance.create({ data: { templateId: template.id, ownerId: character.id, usesLeft: 5, durabilityCurrent: 1, durabilityMax: 1, weight: 1, sourceType: 'GOVERNMENT' } })
+
+    await expect(HelpersService.startShift(character.id, helper.id, state.id)).rejects.toMatchObject({ code: ErrorCode.WORK_NO_SLOTS })
+    expect((await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: tool.id } })).usesLeft).toBe(5)
+  })
+
+  it('смена без оклада платит сырьём, а не рублём из воздуха', async () => {
+    const character = await subscribed()
+    const helper = await HelpersService.hire(character.id, 'Витёк', 'metallurgist')
+    const resource = await testPrisma.resourceTemplate.create({ data: { code: uid('res'), name: 'Руда', category: 'PRIMARY', basePrice: 1 } })
+    const mine = await testPrisma.productionObject.update({
+      where: { id: (await stateObject('metallurgist')).id },
+      data: { baseSalary: 0, producesResourceCode: resource.code, outputAmountMin: 5, outputAmountMax: 5 },
+    })
+    const before = (await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).money
+
+    const started = await HelpersService.startShift(character.id, helper.id, mine.id)
+    await finishShift(started.shiftId)
+    const claimed = await HelpersService.claimShift(character.id, helper.id)
+
+    expect(claimed.salary).toBe(0)
+    expect(claimed.newBalance).toBe(before)
+    expect(claimed.resourceReward).toMatchObject({ code: resource.code, amount: 3 })
+  })
+
+  it('цех на продаже помощнику закрыт и в список не попадает', async () => {
+    const character = await subscribed()
+    const helper = await HelpersService.hire(character.id, 'Витёк', 'tailor')
+    const shop = await testPrisma.productionObject.update({
+      where: { id: (await stateObject('tailor')).id },
+      data: { baseSalary: 0, isForSale: true },
+    })
+    expect((await HelpersService.eligibleObjects(character.id)).items.map(row => row.id)).not.toContain(shop.id)
+    await expect(HelpersService.startShift(character.id, helper.id, shop.id))
+      .rejects.toMatchObject({ code: ErrorCode.WORK_OBJECT_UNAVAILABLE })
+  })
+
+  it('нанять можно только туда, где есть работа без уровня', async () => {
+    const character = await subscribed()
+    await stateObject('metallurgist')
+    await stateObject('carpenter', 1)
+    const codes = (await HelpersService.list(character.id)).professions.map(row => row.code)
+    expect(codes).toContain('metallurgist')
+    expect(codes).not.toContain('carpenter')
   })
 
   it('суточная норма помощника — потолок из баланса', async () => {
