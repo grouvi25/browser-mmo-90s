@@ -736,7 +736,7 @@ export function BattlePage() {
               {battleId && <BattleJournal battleId={battleId} refreshKey={currentRound} />}
             </div> : <>
               <BattlePockets slots={pocketSlots} canAct={canAct} open
-                onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />
+                onOpenChange={setPocketsOpen} onUse={(id) => { setPocketsOpen(false); act('use_item', { itemInstanceId: id }) }} />
               <BattleSwap inventory={items} plan={swapPlan} canAct={canAct} open onChange={setSwapPlan} />
             </>}
           </section>
@@ -825,7 +825,7 @@ export function BattlePage() {
                 {battleId && <BattleJournal battleId={battleId} refreshKey={currentRound} />}
               </div> : <>
                 <BattlePockets slots={pocketSlots} canAct={canAct} open
-                  onOpenChange={setPocketsOpen} onUse={(id) => act('use_item', { itemInstanceId: id })} />
+                  onOpenChange={setPocketsOpen} onUse={(id) => { setPocketsOpen(false); act('use_item', { itemInstanceId: id }) }} />
                 <BattleSwap inventory={items} plan={swapPlan} canAct={canAct} open onChange={setSwapPlan} />
               </>}
             </section>

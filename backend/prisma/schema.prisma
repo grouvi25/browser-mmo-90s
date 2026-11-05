@@ -648,6 +648,8 @@ model Character {
   barBuffAccuracy      Float          @default(0) @map("bar_buff_accuracy")
   barBuffDamage        Float          @default(0) @map("bar_buff_damage")
   barBuffExpiresAt     DateTime?      @map("bar_buff_expires_at")
+  /// Действующие настойки и свитки: см. modules/items/item-effects.ts.
+  activeEffects        Json           @default("[]") @map("active_effects")
   lastBarBuffAt        DateTime?      @map("last_bar_buff_at") // для HP recovery
   farmPlots            FarmPlot[]
 
@@ -761,6 +763,8 @@ model ItemTemplate {
   healPercent         Int                @default(0) @map("heal_percent")
   /// Снимает опьянение на столько единиц; 100 снимает полностью (Дима 4.11).
   soberAmount         Int                @default(0) @map("sober_amount")
+  /// Что вещь делает при применении: см. modules/items/item-effects.ts.
+  useEffect           Json?              @map("use_effect")
 
   // Distance (зональная боёвка): дальность оружия. Ближнее = 1 (только вплотную)
   optimalRange Int? @default(1) @map("optimal_range")

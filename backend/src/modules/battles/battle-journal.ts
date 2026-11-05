@@ -51,7 +51,11 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
     // «Походил, ударил» (правка заказчика 22.10): шаг — отдельной строкой.
     case 'MOVE': return { kind: 'move', text: 'делает шаг' }
     case 'BLOCK': return { kind: 'block', text: 'уходит в защиту' }
-    case 'USE_ITEM': return { kind: 'item', text: 'использует предмет из кармана' }
+    // Строка хода называет вещь и что она сделала: иначе свиток выглядит пустым ходом.
+    case 'USE_ITEM': {
+      const used = turn.logLine?.match(/^Использовал (.+)$/)?.[1]
+      return { kind: 'item', text: used ? `использует ${used}` : 'использует предмет из кармана' }
+    }
     case 'CHANGE_WEAPON': return { kind: 'weapon', text: 'меняет оружие' }
     case 'SURRENDER': return { kind: 'surrender', text: 'сдаётся' }
     default: break

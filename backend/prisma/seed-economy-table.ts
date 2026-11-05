@@ -6,8 +6,8 @@
  * и следующий выкат не должен их стирать. Броню из таблицы получают только вещи,
  * которые ещё никто не правил. Владельцев объектов сид не трогает.
  */
-import type { PrismaClient } from '@prisma/client'
-import { TABLE_ITEMS, TABLE_OBJECTS, TABLE_RECIPES, TABLE_RESOURCES, TABLE_TOOLS, tablePrice } from './economy-table'
+import { Prisma, type PrismaClient } from '@prisma/client'
+import { TABLE_ITEM_EFFECTS, TABLE_ITEMS, TABLE_OBJECTS, TABLE_RECIPES, TABLE_RESOURCES, TABLE_TOOLS, tablePrice } from './economy-table'
 
 const RENAMED_ITEMS: readonly (readonly [string, string, string])[] = [
   ['tb_item_a05', 'Аптечка полевая', 'Аптечка походная'],
@@ -48,6 +48,10 @@ export async function seedEconomyTable(prisma: PrismaClient) {
     }
     if (item.healPercent) {
       await prisma.itemTemplate.updateMany({ where: { code: item.code, healPercent: 0 }, data: { healPercent: item.healPercent } })
+    }
+    const useEffect = TABLE_ITEM_EFFECTS[item.code]
+    if (useEffect) {
+      await prisma.itemTemplate.updateMany({ where: { code: item.code, useEffect: { equals: Prisma.DbNull } }, data: { useEffect } })
     }
     if (worn) {
       await prisma.itemTemplate.updateMany({

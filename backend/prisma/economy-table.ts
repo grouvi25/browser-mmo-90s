@@ -144,7 +144,7 @@ export const TABLE_ITEMS: readonly { code: string; name: string; group: 'kit' | 
   { code: "tb_item_c12", name: "Бронежилет мастера (топ)", group: 'clothes', tier: 3, units: 109254.8, slot: "CHEST", level: 10, armor: 30, durability: 250 },
   { code: "tb_item_w01", name: "Свиток удара", group: 'scroll', tier: 3, units: 3732.42, slot: null },
   { code: "tb_item_w02", name: "Свиток защиты", group: 'scroll', tier: 3, units: 3732.42, slot: null },
-  { code: "tb_item_w03", name: "Свиток здоровья", group: 'scroll', tier: 3, units: 4303.21, slot: null },
+  { code: "tb_item_w03", name: "Свиток здоровья", group: 'scroll', tier: 3, units: 4303.21, slot: null, healPercent: 25 },
   { code: "tb_item_w04", name: "Свиток точности", group: 'scroll', tier: 3, units: 3624.21, slot: null },
   { code: "tb_item_w05", name: "Свиток стойкости", group: 'scroll', tier: 3, units: 3732.42, slot: null },
   { code: "tb_item_w06", name: "Свиток ловкости", group: 'scroll', tier: 3, units: 3732.42, slot: null },
@@ -331,3 +331,28 @@ export const TABLE_RECIPES: readonly { code: string; name: string; object: strin
   { code: "rcp_tb_w11", name: "Свиток концентрации", object: "obj_tb_rune_2", resource: null, item: "tb_item_w11", minutes: 4500, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_cotton_paper", 2], ["tb_ext_sage", 1], ["tb_ext_lavender", 1], ["tb_ink", 1], ["tb_rune_base", 1]] },
   { code: "rcp_tb_w12", name: "Свиток высшего усиления", object: "obj_tb_rune_2", resource: null, item: "tb_item_w12", minutes: 9000, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_paper", 4], ["tb_cotton_paper", 4], ["tb_ext_sage", 2], ["tb_ink", 3], ["tb_rune_base", 2]] },
 ]
+
+/**
+ * Эффекты настоек и свитков: таблица заказчика v2 с его решениями #4229 (скорость
+ * заменена ловкостью, время боя в раундах). Точность, урон и броня долями, ловкость
+ * и выносливость единицами. Сид заполняет только пустые: правки в базе не стираются.
+ */
+export const TABLE_ITEM_EFFECTS: Record<string, { buffs?: { stat: 'armor' | 'damage' | 'accuracy' | 'resist' | 'crit' | 'agi' | 'end' | 'nextHit' | 'reflect'; value: number }[]; minutes?: number; rounds?: number; regenPercent?: number; directDamage?: number }> = {
+  tb_item_a02: { buffs: [{ stat: 'end', value: 2 }], minutes: 10 },
+  tb_item_a04: { buffs: [{ stat: 'armor', value: 0.1 }], minutes: 10 },
+  tb_item_a06: { buffs: [{ stat: 'damage', value: 0.1 }], minutes: 10 },
+  tb_item_a07: { buffs: [{ stat: 'agi', value: 2 }], minutes: 10 },
+  tb_item_a10: { buffs: [{ stat: 'accuracy', value: 0.1 }], minutes: 10 },
+  tb_item_a11: { regenPercent: 6, rounds: 4 },
+  tb_item_w01: { directDamage: 60 },
+  tb_item_w02: { buffs: [{ stat: 'armor', value: 0.15 }], rounds: 3 },
+  tb_item_w04: { buffs: [{ stat: 'accuracy', value: 0.15 }], rounds: 3 },
+  tb_item_w05: { buffs: [{ stat: 'resist', value: 0.1 }], rounds: 3 },
+  tb_item_w06: { buffs: [{ stat: 'agi', value: 3 }], rounds: 3 },
+  tb_item_w07: { buffs: [{ stat: 'damage', value: 0.15 }], rounds: 3 },
+  tb_item_w08: { buffs: [{ stat: 'crit', value: 0.05 }], rounds: 3 },
+  tb_item_w09: { buffs: [{ stat: 'nextHit', value: 0.25 }], rounds: 3 },
+  tb_item_w10: { buffs: [{ stat: 'reflect', value: 0.1 }], rounds: 2 },
+  tb_item_w11: { buffs: [{ stat: 'accuracy', value: 0.25 }], rounds: 3 },
+  tb_item_w12: { buffs: [{ stat: 'armor', value: 0.2 }, { stat: 'damage', value: 0.2 }], rounds: 3 },
+}

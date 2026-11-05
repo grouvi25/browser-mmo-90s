@@ -27,7 +27,7 @@ import { OutfitBar } from './outfit-bar'
 import { GearSummaryDialog, ItemSetupDialog } from './item-setup'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { shopApi } from '../../shared/api/shop.api'
-import { ARMOR_SLOT_LABELS, QUALITY_LABELS, healLabel, type ItemInstance } from '../../shared/types/api.types'
+import { ARMOR_SLOT_LABELS, QUALITY_LABELS, effectLabel, healLabel, type ItemInstance } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { instanceImage, itemBonusLines } from '../../shared/lib/item-bonuses'
@@ -185,7 +185,7 @@ export function InventoryPage() {
   const undressing = unequipMut.isPending || unequipAllMut.isPending
   const useItemMut = useMutation({
     mutationFn: (id: string) => inventoryApi.useItem(id),
-    onSuccess: data => { refresh(); showMsg('success', data.alcoholLeft !== null
+    onSuccess: data => { refresh(); showMsg('success', data.effectText ? `${data.itemName}: ${data.effectText}` : data.alcoholLeft !== null
       ? `${data.itemName}: ${data.alcoholLeft > 0 ? `опьянение ${Math.round(data.alcoholLeft)}` : 'вы трезвы'}`
       : `${data.itemName}: +${data.hpRestored} HP (теперь ${data.newHp} HP)`) },
     onError: err => fail(err, 'Ошибка'),
@@ -295,6 +295,7 @@ export function InventoryPage() {
                           {t.type === 'WEAPON' && !!t.maxRange && <div><dt>Дальность</dt><dd>{rangeLabel(t.maxRange)}</dd></div>}
                           {!!t.armor && <div><dt>Броня тела</dt><dd>+{eff?.armor ?? t.armor}<Gain value={(eff?.armor ?? 0) - (t.armor ?? 0)} /></dd></div>}
                           {(!!t.hpBonus || !!t.healPercent) && <div><dt>{t.type === 'CONSUMABLE' ? 'Восстановит' : 'Здоровье'}</dt><dd>+{healLabel(t)}</dd></div>}
+                          {!!t.useEffect && <div><dt>Эффект</dt><dd>{effectLabel(t.useEffect)}</dd></div>}
                           {!!t.soberAmount && <div><dt>Опьянение</dt><dd>{t.soberAmount >= 100 ? 'снимает полностью' : `−${t.soberAmount}`}</dd></div>}
                           {/* Заказчик 30.10: «обереги не все в карточке шмота». Теперь здесь всё:
                               статы, мастерства и обереги, и базовые, и вписанные игроком. */}
@@ -326,7 +327,7 @@ export function InventoryPage() {
                               </button>
                             ) : t.type === 'CONSUMABLE' ? (
                               <>
-                                {(!!t.hpBonus || !!t.healPercent || !!t.soberAmount) && <button type="button" className="inv-btn" disabled={useItemMut.isPending}
+                                {(!!t.hpBonus || !!t.healPercent || !!t.soberAmount || !!t.useEffect?.minutes) && <button type="button" className="inv-btn" disabled={useItemMut.isPending}
                                   onClick={() => useItemMut.mutate(item.id)}>
                                   <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
                                   <span>Использовать</span>

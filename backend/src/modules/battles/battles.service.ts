@@ -1,4 +1,5 @@
-import type { BattleAction, WeaponType as PrismaWeaponType } from '@prisma/client'
+import type { BattleAction, Prisma, WeaponType as PrismaWeaponType } from '@prisma/client'
+import { buffTotals, effectText, liveEffects, parseActiveEffects, parseUseEffect, regenPercentAt, withAppliedEffect, withEffectStats } from '../items/item-effects'
 import { loadCombatDog, type LiveDog } from './combat-dog'
 import { heldWeapon, registerWound, woundedArmor, woundedBotEquip, type Wounds } from './wounds'
 import { awardCombatHelper, damageHelper, helperIntercepts, loadCombatHelper, type LiveHelper } from './combat-helper'
@@ -280,7 +281,56 @@ function applySimultaneousDuelMoves(
 
 /** Служебное действие раунда: смена оружия или расходник.
  *  Общее для дуэли и командного боя. */
-async function applyPendingUtility(part: LiveParticipant, char: CharacterWithStats): Promise<boolean> {
+/**
+ * Что вещь делает кроме лечения: записывает эффект, лечит первым раундом, бьёт
+ * врага. Прямой урон не добивает: конец боя решает расчёт раунда.
+ * Возвращает текст для журнала или null, если эффекта у вещи нет.
+ */
+async function applyBattleEffect(
+  state: LiveBattleState,
+  part: LiveParticipant,
+  char: CharacterWithStats,
+  item: { code: string; name: string; useEffect: unknown },
+): Promise<string | null> {
+  const effect = parseUseEffect(item.useEffect)
+  if (!effect) return null
+  const now = new Date()
+  const moment = { battleId: state.battleId, round: state.roundNumber, hitsLanded: part.hitsLanded }
+  const effects = withAppliedEffect(parseActiveEffects(char.activeEffects), item, effect, now, moment)
+  await prisma.character.update({ where: { id: char.id }, data: { activeEffects: effects as unknown as Prisma.InputJsonValue } })
+  char.activeEffects = effects as unknown as Prisma.JsonValue
+  if (effect.regenPercent) {
+    const healed = Math.min(Math.ceil(part.hpMax * effect.regenPercent / 100), part.hpMax - part.hpCurrent)
+    part.hpCurrent += healed
+    part.healedTotal += healed
+  }
+  if (effect.directDamage) {
+    const target = state.participants.find(p => p.side !== part.side && p.isAlive && !p.isSurrendered)
+    if (target) {
+      const dealt = Math.min(effect.directDamage, target.hpCurrent - 1)
+      if (dealt > 0) {
+        target.hpCurrent -= dealt
+        target.damageReceived += dealt
+        part.damageDealt += dealt
+      }
+    }
+  }
+  return effectText(effect)
+}
+
+/** Начало раунда: отсечь кончившиеся эффекты, полечить, если настойка на это есть. */
+export function tickBattleEffects(state: LiveBattleState, part: LiveParticipant, char: CharacterWithStats): void {
+  const effects = liveEffects(parseActiveEffects(char.activeEffects), new Date(), { battleId: state.battleId, round: state.roundNumber, hitsLanded: part.hitsLanded })
+  char.activeEffects = effects as unknown as Prisma.JsonValue
+  const percent = regenPercentAt(effects, state.roundNumber)
+  if (percent > 0 && part.isAlive) {
+    const healed = Math.min(Math.ceil(part.hpMax * percent / 100), part.hpMax - part.hpCurrent)
+    part.hpCurrent += healed
+    part.healedTotal += healed
+  }
+}
+
+async function applyPendingUtility(state: LiveBattleState, part: LiveParticipant, char: CharacterWithStats): Promise<boolean> {
     const pending = part.pendingAction ?? ''
     if (pending.startsWith('change_weapon:')) {
       const changeParts = pending.split(':')
@@ -313,7 +363,8 @@ async function applyPendingUtility(part: LiveParticipant, char: CharacterWithSta
       const item = await ItemsRepository.findInstanceById(itemId)
       if (item && item.ownerId === char.id && item.template.type === 'CONSUMABLE' && !['CONSUMED', 'DELETED'].includes(item.status)) {
         const restore = healAmount(item.template, part.hpMax)
-        if (restore <= 0) return true
+        const applied = await applyBattleEffect(state, part, char, item.template)
+        if (restore <= 0 && !applied) return true
         const healed = Math.min(restore, part.hpMax - part.hpCurrent)
         part.hpCurrent = Math.min(part.hpMax, part.hpCurrent + restore)
         part.healedTotal += healed
@@ -358,7 +409,7 @@ async function loadBotData(botId: string) {
 // ---------------------------------------------------------------
 // Build attacker snapshot from character + equipped armor weight
 // ---------------------------------------------------------------
-async function buildAttackerSnapshotAsync(
+export async function buildAttackerSnapshotAsync(
   char: CharacterWithStats,
   weapon: ItemWithTemplate | null,
   weaponSkillLevel: number,
@@ -369,7 +420,8 @@ async function buildAttackerSnapshotAsync(
 ): Promise<AttackerSnapshot> {
   // Сытая собака из Зоомагазина добавляет к характеристикам (правка заказчика),
   // надетые вещи — тоже (правка 26.10).
-  const s = withGearStats(withPetBonus(char.stats!, char.pets), gear)
+  const buffs = buffTotals(parseActiveEffects(char.activeEffects))
+  const s = withEffectStats(withGearStats(withPetBonus(char.stats!, char.pets), gear), buffs)
   const t = weapon?.template
   const effectiveWeapon = t
     ? applyUpgradeModifiers(t, ((weapon?.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), weapon?.statAllocation, weapon?.socketsJson)
@@ -387,11 +439,12 @@ async function buildAttackerSnapshotAsync(
     weaponSkillLevel,
     minDamage: effectiveWeapon?.minDamage ?? 2,
     maxDamage: effectiveWeapon?.maxDamage ?? 6,
-    weaponAccuracy: (effectiveWeapon?.weaponAccuracy ?? 0.7) + intox.accuracy + (buffActive ? char.barBuffAccuracy : 0) + masteryBalance(gear, opponentGear, 'accuracy'),
-    critBonus: effectiveWeapon?.critBonus ?? 0,
+    weaponAccuracy: (effectiveWeapon?.weaponAccuracy ?? 0.7) + intox.accuracy + (buffActive ? char.barBuffAccuracy : 0) + masteryBalance(gear, opponentGear, 'accuracy') + buffs.accuracy,
+    critBonus: (effectiveWeapon?.critBonus ?? 0) + buffs.crit,
     critDamageBonus: t?.critDamageBonus ?? 0,
     blockPierce: t?.blockPierce ?? 0,
     flatDamageBonus: 0,
+    nextHitBonus: buffs.nextHit,
     equipmentWeight,   // Real equipment weight for initiative calc
     // Обереги уворота и ответа — со всего надетого, не только с этого
     // оружия, и за вычетом минус-оберегов противника (правило «Апехи»).
@@ -399,12 +452,12 @@ async function buildAttackerSnapshotAsync(
     antiCounterBonus: charmBalance(gear.antiCounter, opponentGear.minus.antiCounter),
     // Мастерство (правка 31.10): голыми руками и рукопашкой — кулачный бой,
     // любым другим оружием — исп. оружия.
-    outgoingDamageMultiplier: 1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0)
+    outgoingDamageMultiplier: 1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0) + buffs.damage
       + Math.min(MASTERY_DAMAGE_CAP, masteryBalance(gear, opponentGear, !t || t.weaponType === 'MELEE' ? 'fist' : 'weapon')),
   }
 }
 
-function buildDefenderSnapshot(
+export function buildDefenderSnapshot(
   char: CharacterWithStats,
   equippedArmor: ItemWithTemplate[],
   gear: GearBonuses,
@@ -413,9 +466,10 @@ function buildDefenderSnapshot(
   /** Надетое у того, кто бьёт: его минус-обереги срезают наши. */
   opponentGear: GearBonuses = EMPTY_GEAR,
 ): DefenderSnapshot {
-  const s = withGearStats(withPetBonus(char.stats!, char.pets), gear)
+  const buffs = buffTotals(parseActiveEffects(char.activeEffects))
+  const s = withEffectStats(withGearStats(withPetBonus(char.stats!, char.pets), gear), buffs)
   const effectiveArmor = equippedArmor.map(a => applyUpgradeModifiers(a.template, ((a.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), a.statAllocation, a.socketsJson))
-  const totalArmor   = effectiveArmor.reduce((sum, a) => sum + a.armor, 0)
+  const totalArmor   = effectiveArmor.reduce((sum, a) => sum + a.armor, 0) * (1 + buffs.armor)
   // Оберег крита: броня с очками вещи (как раньше) плюс обереги остальных
   // вещей — оружия, щита (правка 26.10).
   const armorAntiCritBase = equippedArmor.reduce((sum, a) => sum + Math.max(0, a.template.antiCrit ?? 0), 0)
@@ -430,9 +484,10 @@ function buildDefenderSnapshot(
   return {
     agi: s.agi, rea: s.rea, end: s.end, luck: s.luck, agr: s.agr, level: char.battleLevel,
     armor: totalArmor, dodgeBonus, antiCrit, blockBonus, armorWeight,
+    reflectShare: buffs.reflect,
     antiSkillLevel,
     antiCounterDefense: 0, antiLuck,
-    incomingDamageMultiplier: 1 - Math.min(MASTERY_DEFENSE_CAP, masteryBalance(gear, opponentGear, 'defense')),
+    incomingDamageMultiplier: (1 - Math.min(MASTERY_DEFENSE_CAP, masteryBalance(gear, opponentGear, 'defense'))) * (1 - buffs.resist),
     minDamage: wMin, maxDamage: wMax,
   }
 }
@@ -441,9 +496,10 @@ function buildDefenderSnapshot(
 // Zonal helpers
 // ---------------------------------------------------------------
 // Преобразуем экипированную броню в форму для расчёта брони по зоне.
-function armorListFromEquipped(equippedArmor: ItemWithTemplate[]): EquipArmorLike[] {
+export function armorListFromEquipped(equippedArmor: ItemWithTemplate[], char?: { activeEffects?: unknown }): EquipArmorLike[] {
+  const armorBuff = 1 + buffTotals(parseActiveEffects(char?.activeEffects)).armor
   return equippedArmor.map(it => ({
-    armor: applyUpgradeModifiers(it.template, ((it.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), it.statAllocation, it.socketsJson).armor,
+    armor: armorBuff * applyUpgradeModifiers(it.template, ((it.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), it.statAllocation, it.socketsJson).armor,
     slot: it.armorSlot ?? it.template.armorSlot ?? null,
   }))
 }
@@ -470,11 +526,16 @@ export function executeStrikes(params: {
   let damageToDefender = 0
   let counterToAttacker = 0
   let hpLeft = params.defenderHp
+  // Свиток прорыва действует один раз: вторая рука того же хода его уже не получает.
+  let nextHitLeft = true
   for (let index = 0; index < params.attackZones.length; index++) {
     if (hpLeft <= 0) break
     const zone = params.attackZones[index]
     const sourceHand = params.attackHands?.[index] ?? (index === 1 ? 'RIGHT_HAND' : 'LEFT_HAND')
-    const attackerSnap = params.attackerSnaps?.[sourceHand] ?? params.attackerSnap
+    const handSnap = params.attackerSnaps?.[sourceHand] ?? params.attackerSnap
+    const attackerSnap = nextHitLeft && handSnap.nextHitBonus
+      ? { ...handSnap, outgoingDamageMultiplier: (handSnap.outgoingDamageMultiplier ?? 1) + handSnap.nextHitBonus }
+      : handSnap
     const defenderSnap = params.defenderSnaps?.[sourceHand] ?? params.defenderSnap
     const r = resolveZonalAttack(attackerSnap, defenderSnap, {
       zone, blockedZones: params.blockedZones, zoneArmor: params.zoneArmorFor(zone),
@@ -486,6 +547,9 @@ export function executeStrikes(params: {
     if (r.hit && !r.dodge && !r.block) {
       damageToDefender += r.finalDamage
       hpLeft = Math.max(0, hpLeft - r.finalDamage)
+      nextHitLeft = false
+      // Отражение не ответка: не зависит от дальности и само не отражается.
+      counterToAttacker += Math.floor(r.finalDamage * (defenderSnap.reflectShare ?? 0))
     }
     if (r.counterDamage > 0) counterToAttacker += r.counterDamage
     results.push({ ...r, sourceHand, weaponId: params.weaponIds?.[sourceHand] ?? null })
@@ -1604,7 +1668,8 @@ export const BattleService = {
 
     // Apply effect: restore HP by hpBonus (used as hpRestore for consumables)
     const hpRestore = healAmount(item.template, playerPart.hpMax)
-    if (hpRestore <= 0) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Этот предмет пока нельзя применить', 400)
+    const applied = await applyBattleEffect(state, playerPart, char, item.template)
+    if (hpRestore <= 0 && !applied) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Этот предмет пока нельзя применить', 400)
     const newHp = Math.min(playerPart.hpMax, playerPart.hpCurrent + hpRestore)
     playerPart.hpCurrent = newHp
 
@@ -1620,7 +1685,9 @@ export const BattleService = {
         actorCharId: char.id, action: 'USE_ITEM' as BattleAction,
         hit: false, dodge: false, block: false, crit: false,
         rawDamage: 0, finalDamage: 0,
-        logLine: `Использовал ${item.template.name}: +${hpRestore} HP (теперь ${newHp}/${playerPart.hpMax})`,
+        logLine: hpRestore > 0
+          ? `Использовал ${item.template.name}: +${hpRestore} HP (теперь ${newHp}/${playerPart.hpMax})`
+          : `Использовал ${item.template.name}: ${applied}`,
       },
     })
 
@@ -1636,7 +1703,7 @@ export const BattleService = {
       const botEquip = woundedBotEquip(botPart, bot.equipment as Record<string, unknown>)
       const equippedItems = await ItemsRepository.findEquipped(char.id)
       const equippedArmor = equippedItems.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
-      const playerArmorList = armorListFromEquipped(equippedArmor)
+      const playerArmorList = armorListFromEquipped(equippedArmor, char)
       const playerDefSnap = buildDefenderSnapshot(char, equippedArmor, gearOf(equippedItems))
       const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
 
@@ -1786,6 +1853,7 @@ export const BattleService = {
     playerTurn: ZonalTurnInput
   ) {
     const playerPart = state.participants.find(p => p.characterId === char.id)!
+    tickBattleEffects(state, playerPart, char)
     let botPart: LiveParticipant
     try {
       botPart = selectEnemyTarget(playerPart, state.participants, playerTurn.targetParticipantId)
@@ -1815,7 +1883,7 @@ export const BattleService = {
 
     const equippedItems = await ItemsRepository.findEquipped(char.id)
     const equippedArmor = equippedItems.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
-    const playerArmorList = armorListFromEquipped(equippedArmor)
+    const playerArmorList = armorListFromEquipped(equippedArmor, char)
     const playerGear = gearOf(equippedItems)
 
     const [leftAttackerSnap, rightAttackerSnap] = await Promise.all([
@@ -2227,7 +2295,8 @@ export const BattleService = {
     for (const part of fighters) {
       const char = await CharactersRepository.findById(part.characterId!)
       if (!char?.stats) continue
-      const utilityUsed = await applyPendingUtility(part, char)
+      tickBattleEffects(state, part, char)
+      const utilityUsed = await applyPendingUtility(state, part, char)
       const [leftHeld, rightHeld] = await Promise.all([
         part.leftWeaponInstanceId || part.weaponInstanceId
           ? ItemsRepository.findInstanceById(part.leftWeaponInstanceId ?? part.weaponInstanceId!)
@@ -2354,7 +2423,7 @@ export const BattleService = {
         buildAttackerSnapshotAsync(ctx.char, ctx.weaponRight, skillRight.skillLevel, ctx.armor, actorGear, targetGear),
       ])
       const defSnap = buildDefenderSnapshot(targetCtx.char, targetCtx.armor, targetGear, antiLeft.antiSkillLevel, targetCtx.weaponLeft, actorGear)
-      const defArmorList = armorListFromEquipped(targetCtx.armor)
+      const defArmorList = armorListFromEquipped(targetCtx.armor, targetCtx.char)
 
       const res = executeStrikes({
         attackerSnap: atkLeft,
@@ -2551,9 +2620,10 @@ export const BattleService = {
       return { roundNumber: state.roundNumber, waiting: false }
     }
 
-    const applyUtility = applyPendingUtility
-    const utility1 = await applyUtility(part1, char1)
-    const utility2 = await applyUtility(part2, char2)
+    tickBattleEffects(state, part1, char1)
+    tickBattleEffects(state, part2, char2)
+    const utility1 = await applyPendingUtility(state, part1, char1)
+    const utility2 = await applyPendingUtility(state, part2, char2)
 
     const [held1Left, held1Right, held2Left, held2Right] = await Promise.all([
       part1.leftWeaponInstanceId || part1.weaponInstanceId ? ItemsRepository.findInstanceById(part1.leftWeaponInstanceId ?? part1.weaponInstanceId!) : Promise.resolve(null),
@@ -2574,8 +2644,8 @@ export const BattleService = {
     ])
     const armor1 = equippedItems1.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
     const armor2 = equippedItems2.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
-    const armorList1 = armorListFromEquipped(armor1)
-    const armorList2 = armorListFromEquipped(armor2)
+    const armorList1 = armorListFromEquipped(armor1, char1)
+    const armorList2 = armorListFromEquipped(armor2, char2)
 
     const wtype1 = (weapon1Left?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
     const wtype2 = (weapon2Left?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]

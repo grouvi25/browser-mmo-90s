@@ -52,6 +52,8 @@ interface DossierView {
   battleLevel: number
   battleExp?: number
   nextLevelExp?: number | null
+  /** Только в своём деле: действующие настойки. */
+  effects?: { name: string; minutesLeft: number }[]
   economicLevel: number
   /** Рейтинг (книга заказчика 23.10): статы с весами + надетые вещи. */
   rating?: number
@@ -131,6 +133,9 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
       battleLevel: char.battleLevel, economicLevel: char.economicLevel, rating: char.rating,
       // Только в своём деле: на телефоне опыт больше негде посмотреть (Дмитрий 05.11).
       battleExp: char.battleExp, nextLevelExp: char.nextLevelExp ?? null,
+      effects: (char.activeEffects ?? [])
+        .filter(e => e.expiresAt && new Date(e.expiresAt).getTime() > Date.now())
+        .map(e => ({ name: e.name, minutesLeft: Math.ceil((new Date(e.expiresAt!).getTime() - Date.now()) / 60_000) })),
       hpCurrent: char.hpCurrent, hpMax: char.hpMax,
       battlesTotal: char.battlesTotal, battlesWon: char.battlesWon,
       location: char.location, clan: char.clan, createdAt: char.createdAt,
@@ -189,6 +194,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
     `Бригада: ${view.clan ? `«${view.clan.name}»` : 'не состоит'}`,
     `Собака: ${view.dog ? `${view.dog.name}${view.dog.fed ? ` (${dogBonusText(view.dog.bonus)})` : ' — голодная'}` : 'нет'}`,
     '',
+    ...(view.effects?.length ? [`Действует: ${view.effects.map(e => `${e.name}, ещё ${e.minutesLeft} мин`).join('; ')}`, ''] : []),
     'Уровни:',
     `1. Боевой — ${view.battleLevel}${view.battleExp != null
       ? `, опыт ${view.battleExp.toLocaleString('ru')}${view.nextLevelExp != null ? ` из ${view.nextLevelExp.toLocaleString('ru')}` : ''}`

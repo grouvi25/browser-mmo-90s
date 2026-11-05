@@ -15,6 +15,7 @@ import { ItemStatsService } from '../items/item-stats.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
 import { CHARM_KEYS, GEAR_STAT_KEYS, MASTERY_KEYS, healAmount, syncHpWithGear } from '../items/gear-bonuses'
 import { decayedAlcohol } from '../bars/bars.formulas'
+import { effectText, parseActiveEffects, parseUseEffect, withAppliedEffect } from '../items/item-effects'
 
 const RING_SLOTS = ['RING', 'RING_2', 'RING_3', 'RING_4', 'RING_5', 'RING_6', 'RING_7', 'RING_8'] as const
 const EquipSchema = z.object({ itemInstanceId: z.string().uuid(), hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional() })
@@ -358,8 +359,11 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       // Настойка без действия не сгорает впустую, пока её эффект не сделан.
       const restore = healAmount(item.template, char.hpMax)
       const sober = item.template.soberAmount
-      if (restore <= 0 && sober <= 0) throw new AppError(ErrorCode.CONFLICT, 'Этот предмет пока нельзя применить', 409)
-      if (restore > 0 && sober <= 0 && hpFull) throw new AppError(ErrorCode.CONFLICT, 'HP уже полное — расходник не нужен', 400)
+      const effect = parseUseEffect(item.template.useEffect)
+      if (restore <= 0 && sober <= 0 && !effect) throw new AppError(ErrorCode.CONFLICT, 'Этот предмет пока нельзя применить', 409)
+      // Раундовый эффект и прямой урон имеют смысл только в бою.
+      if (effect && !effect.minutes) throw new AppError(ErrorCode.CONFLICT, 'Это применяют в бою: положите в карман', 409)
+      if (restore > 0 && sober <= 0 && !effect && hpFull) throw new AppError(ErrorCode.CONFLICT, 'HP уже полное — расходник не нужен', 400)
       const alcohol = decayedAlcohol(char.alcoholLevel, char.alcoholUpdatedAt)
       if (sober > 0 && restore <= 0 && alcohol <= 0) throw new AppError(ErrorCode.CONFLICT, 'Вы и так трезвы', 409)
 
@@ -373,7 +377,11 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       const alcoholLeft = sober > 0 ? Math.max(0, alcohol - sober) : null
       await tx.character.update({
         where: { id: char.id },
-        data: { hpCurrent: newHp, ...(alcoholLeft !== null ? { alcoholLevel: alcoholLeft, alcoholUpdatedAt: new Date() } : {}) },
+        data: {
+          hpCurrent: newHp,
+          ...(alcoholLeft !== null ? { alcoholLevel: alcoholLeft, alcoholUpdatedAt: new Date() } : {}),
+          ...(effect ? { activeEffects: withAppliedEffect(parseActiveEffects(char.activeEffects), item.template, effect, new Date()) as unknown as Prisma.InputJsonValue } : {}),
+        },
       })
       await tx.itemLog.create({
         data: {
@@ -384,7 +392,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         },
       })
 
-      return { hpRestored: newHp - char.hpCurrent, newHp, hpMax: char.hpMax, itemName: item.template.name, alcoholLeft }
+      return { hpRestored: newHp - char.hpCurrent, newHp, hpMax: char.hpMax, itemName: item.template.name, alcoholLeft, effectText: effect ? effectText(effect) : null }
     })
 
     return reply.send(result)

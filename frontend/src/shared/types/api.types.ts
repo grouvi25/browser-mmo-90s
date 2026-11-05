@@ -76,6 +76,8 @@ export interface Character {
   }
   /** Сколько опыта нужно для следующего боевого уровня; null — последний. */
   nextLevelExp?: number | null
+  /** Настойки и свитки, действующие сейчас. */
+  activeEffects?: { name: string; expiresAt?: string }[]
   economy?: {
     productionLevel: number
     productionExp: number
@@ -91,6 +93,8 @@ export interface Character {
 export type ItemStatKey = 'DAMAGE' | 'ACCURACY' | 'CRIT' | 'ARMOR' | 'DURABILITY' | 'ANTI_CRIT'
 
 export interface ItemTemplate {
+  /** Настойка или свиток: что делает при применении. */
+  useEffect?: UseEffect | null
   /** Инструмент: на сколько смен его хватает. */
   usesMax?: number | null
   battleExpBonus?: number
@@ -385,6 +389,38 @@ export const ARMOR_SLOT_LABELS: Record<string, string> = {
 }
 
 /** Подпись лечения расходника: процент от здоровья или единицы. */
+/** Что вещь делает при применении: тот же текст, что в журнале боя (item-effects.ts). */
+export interface UseEffect {
+  buffs?: { stat: 'armor' | 'damage' | 'accuracy' | 'resist' | 'crit' | 'agi' | 'end' | 'nextHit' | 'reflect'; value: number }[]
+  minutes?: number
+  rounds?: number
+  regenPercent?: number
+  directDamage?: number
+}
+const BUFF_LABEL: Record<NonNullable<UseEffect['buffs']>[number]['stat'], (v: number) => string> = {
+  armor: v => `Броня +${Math.round(v * 100)}%`,
+  damage: v => `Урон +${Math.round(v * 100)}%`,
+  accuracy: v => `Точность +${Math.round(v * 100)}%`,
+  resist: v => `Сопротивление урону +${Math.round(v * 100)}%`,
+  crit: v => `Шанс крита +${Math.round(v * 100)}%`,
+  agi: v => `Ловкость +${v}`,
+  end: v => `Выносливость +${v}`,
+  nextHit: v => `Следующий удар +${Math.round(v * 100)}%`,
+  reflect: v => `Отражает ${Math.round(v * 100)}% урона`,
+}
+export function effectLabel(effect: UseEffect | null | undefined): string {
+  if (!effect) return ''
+  const parts = [
+    ...(effect.buffs ?? []).map(buff => BUFF_LABEL[buff.stat]?.(buff.value) ?? ''),
+    ...(effect.regenPercent ? [`Здоровье +${effect.regenPercent}% за раунд`] : []),
+    ...(effect.directDamage ? [`${effect.directDamage} урона врагу мимо брони`] : []),
+  ].filter(Boolean)
+  const rounds = effect.rounds ?? 0
+  const word = rounds === 1 ? 'раунд' : rounds >= 2 && rounds <= 4 ? 'раунда' : 'раундов'
+  const time = effect.minutes ? `на ${effect.minutes} мин` : rounds ? `на ${rounds} ${word}` : ''
+  return [parts.join(', '), time].filter(Boolean).join(' ')
+}
+
 export function healLabel(t: { healPercent?: number | null; hpBonus?: number | null }): string {
   return (t.healPercent ?? 0) > 0 ? `${t.healPercent}% здоровья` : `${t.hpBonus ?? 0} HP`
 }

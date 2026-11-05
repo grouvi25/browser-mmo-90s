@@ -1,5 +1,5 @@
 import { Pill } from 'lucide-react'
-import { healLabel, type ItemInstance } from '../../../shared/types/api.types'
+import { effectLabel, healLabel, type ItemInstance } from '../../../shared/types/api.types'
 
 export function BattlePockets({
   slots, canAct, open, onOpenChange, onUse,
@@ -24,7 +24,7 @@ export function BattlePockets({
               <span className="battle-pocket__num">#{index + 1}</span>
               {item ? (
                 <>
-                  <div><b>{item.template.name}</b><small>{(item.template.hpBonus ?? 0) > 0 || (item.template.healPercent ?? 0) > 0 ? `+${healLabel(item.template)}` : 'Расходник'}</small></div>
+                  <div><b>{item.template.name}</b><small>{(item.template.hpBonus ?? 0) > 0 || (item.template.healPercent ?? 0) > 0 ? `+${healLabel(item.template)}` : effectLabel(item.template.useEffect) || 'Расходник'}</small></div>
                   <button type="button" className="btn btn-sm btn-success" disabled={!canAct} onClick={() => onUse(item.id)}>Использовать</button>
                 </>
               ) : <span className="text-dim">Пусто</span>}

@@ -14,6 +14,8 @@ export interface AttackerSnapshot {
   critBonus: number; critDamageBonus: number
   blockPierce: number
   flatDamageBonus: number
+  /** Свиток прорыва: прибавка к множителю урона на первое попадание. */
+  nextHitBonus?: number
   equipmentWeight: number        // Sum of all equipped items weight (for initiative penalty)
   // Oberegs (оберег уворота) — снижает шанс уворота у цели
   antiDodgeBonus: number         // From item modifiers (Apeha: оберег уворота)
@@ -27,6 +29,8 @@ export interface DefenderSnapshot {
   level?: number                 // боевой уровень защитника: от него зависит вес брони
   armor: number
   dodgeBonus: number; antiCrit: number; blockBonus: number
+  /** Свиток отражения: доля полученного урона, которая уходит бьющему. */
+  reflectShare?: number
   armorWeight: number
   antiSkillLevel: number
   antiCounterDefense: number
