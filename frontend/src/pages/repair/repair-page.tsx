@@ -14,6 +14,7 @@
 // =============================================================
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { repairApi } from '../../shared/api/repair.api'
 import { charactersApi } from '../../shared/api/characters.api'
 import { QUALITY_LABELS, type RepairItem } from '../../shared/types/api.types'
@@ -149,6 +150,8 @@ export function RepairPage() {
           {visible.map(item => {
             const t = item.template
             const tooPoor = me.data ? me.data.money < item.repairCost : false
+            const noParts = item.needsParts && item.partsEnough === false
+            const shop = item.partsSoldAt?.[0]
             return (
               <article key={item.id} className="gshop-card gshop-card--repair">
                 <img src={itemImage(item)} alt="" width={64} height={64} />
@@ -166,6 +169,12 @@ export function RepairPage() {
                     <span>Прочность: {item.durabilityCurrent}</span>
                     <span>Цена за ремонт: {money(item.repairCost)} руб.</span>
                   </p>
+                  {item.needsParts && item.partsName && (
+                    <p className={'gshop-card-parts' + (noParts ? ' is-short' : '')}>
+                      Нужно: {item.partsName} × {item.requiredPartsAmount}, у вас {item.partsAvailable ?? 0}
+                      {noParts && shop && <> · <Link to={`/shops/private?shop=${shop.shopCode}`}>купить в лавке «{shop.shopName}» по {money(shop.price)} ₽</Link></>}
+                    </p>
+                  )}
                   <div className="gshop-card-lower">
                     <div className="gshop-card-stats">
                       <dl>
@@ -179,8 +188,8 @@ export function RepairPage() {
                     <div className="gshop-card-actions">
                       <button
                         className="gshop-btn"
-                        disabled={repairMut.isPending || tooPoor}
-                        title={tooPoor ? 'Не хватает денег' : undefined}
+                        disabled={repairMut.isPending || tooPoor || noParts}
+                        title={noParts ? `Не хватает: ${item.partsName}` : tooPoor ? 'Не хватает денег' : undefined}
                         onClick={() => repairMut.mutate(item.id)}
                       >
                         <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />

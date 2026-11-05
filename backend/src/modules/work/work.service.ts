@@ -38,6 +38,19 @@ function utcDayRange(now = new Date()) {
   return { start, end }
 }
 
+/**
+ * До какого момента персонаж отдыхает после смены. Считаем от КОНЦА работы, а не
+ * от того, когда смену забрали (правка 24.10). Смены помощника хозяина не держат.
+ */
+async function restUntilOf(db: Pick<typeof prisma, 'workShift'>, characterId: string, now = new Date()): Promise<Date | null> {
+  const restMs = WORK_LIMITS.restMinutesAfterShift * 60_000
+  const last = await db.workShift.findFirst({
+    where: { characterId, helperId: null, status: 'CLAIMED', endsAt: { gt: new Date(now.getTime() - restMs) } },
+    orderBy: { endsAt: 'desc' }, select: { endsAt: true },
+  })
+  return last ? new Date(last.endsAt.getTime() + restMs) : null
+}
+
 async function professionState(characterId: string, professionCode: string) {
   return prisma.characterProfession.findUnique({
     where: { characterId_professionCode: { characterId, professionCode } },
@@ -65,7 +78,7 @@ export const WorkService = {
     const toolNames = new Map((await prisma.itemTemplate.findMany({
       where: { code: { in: premiumRecipes.map(recipe => recipe.requiredToolCode as string) } }, select: { code: true, name: true },
     })).map(item => [item.code, item.name]))
-    const soldTools = await soldGeneralTools(prisma)
+    const [soldTools, restUntil] = await Promise.all([soldGeneralTools(prisma), restUntilOf(prisma, characterId)])
     // Цех без владельца показываем в конце списка: видно, что он есть и что выпускает.
     const vacancies = objects
       .filter(object => object.ownerType !== 'SYSTEM' || object.baseSalary > 0 || object.producesResourceCode || object.isForSale)
@@ -75,6 +88,8 @@ export const WorkService = {
       select: { productionObjectCode: true, name: true }, orderBy: { name: 'asc' },
     })
     return {
+      // Обращение №29: раньше отдых узнавали, только нажав «Выйти».
+      restUntil,
       items: vacancies.map(object => {
         const profession = professionByCode.get(object.requiredProfessionCode)
         const level = profession?.level ?? 0
@@ -146,6 +161,7 @@ export const WorkService = {
     const profession = shift ? await professionState(characterId, shift.professionCode) : null
     const dailyCap = await PremiumService.dailyShiftCap(characterId)
     return {
+      restUntil: shift ? null : await restUntilOf(prisma, characterId),
       shift: shift ? {
         ...shift,
         profession: profession ? { ...profession, name: PROFESSION_NAMES[profession.professionCode as ProfessionCode] ?? profession.professionCode } : null,
@@ -226,16 +242,8 @@ export const WorkService = {
       if (await tx.workShift.findFirst({ where: { characterId, helperId: null, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } } })) throw new AppError(ErrorCode.WORK_ACTIVE_SHIFT, 'Active shift already exists', 409)
       // Отдых после смены, одинаковый для всех объектов (правка заказчика
       // 20.10: «после работы паузы должны быть… 30 минут, потом поправим»).
-      // Считаем от КОНЦА работы, а не от того, когда смену забрали (правка
-      // 24.10: «поставил работать, 30 минут работаешь, 30 минут отдыха — и
-      // через час можно снова»). Смены помощника хозяина не держат.
-      const restMs = WORK_LIMITS.restMinutesAfterShift * 60_000
-      const lastEnded = await tx.workShift.findFirst({
-        where: { characterId, helperId: null, status: 'CLAIMED', endsAt: { gt: new Date(Date.now() - restMs) } },
-        orderBy: { endsAt: 'desc' }, select: { endsAt: true },
-      })
-      if (lastEnded) {
-        const restUntil = new Date(lastEnded.endsAt.getTime() + restMs)
+      const restUntil = await restUntilOf(tx, characterId)
+      if (restUntil) {
         const left = Math.max(1, Math.ceil((restUntil.getTime() - Date.now()) / 60_000))
         throw new AppError(ErrorCode.WORK_RESTING, `Отдых после смены: следующую можно начать через ${left} мин`, 409, { restUntil: restUntil.toISOString() })
       }

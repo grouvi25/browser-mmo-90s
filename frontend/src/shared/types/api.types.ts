@@ -302,6 +302,13 @@ export interface LiveBattleState {
 
 export interface RepairItem extends ItemInstance {
   repairCost: number
+  /** Вещи второй ступени и улучшенные чинят ещё и деталями. */
+  needsParts?: boolean
+  partsName?: string | null
+  requiredPartsAmount?: number
+  partsAvailable?: number
+  partsEnough?: boolean
+  partsSoldAt?: { shopCode: string; shopName: string; price: number }[]
 }
 
 export interface WeaponSkill {

@@ -16,7 +16,7 @@ function Progress({level,exp}:{level:number;exp:number}){
   const value=ceiling?Math.max(0,Math.min(100,((exp-floor)/(ceiling-floor))*100)):100
   return <div className="work-xp"><div><i style={{transform:`scaleX(${value/100})`}}/></div><small>{ceiling?`${exp.toLocaleString('ru')} / ${ceiling.toLocaleString('ru')} XP`:`${exp.toLocaleString('ru')} XP`}</small></div>
 }
-function lockReason(object:ProductionObjectView,busy:boolean,limit:boolean){
+function lockReason(object:ProductionObjectView,busy:boolean,limit:boolean,rest:number){
   if(object.forSaleUsd)return `Продаётся за ${object.forSaleUsd.toLocaleString('ru')} $`
   if(!object.profession.learned)return `Профессия «${object.profession.name}» не изучена — её покупают в Училище`
   // Замок и инструмент называем вместе: иначе игрок покупает инструмент и только потом узнаёт про уровень.
@@ -25,6 +25,7 @@ function lockReason(object:ProductionObjectView,busy:boolean,limit:boolean){
   if(tool)return tool
   if(limit)return 'Лимит смен на сегодня исчерпан'
   if(busy)return 'Сначала завершите текущую смену'
+  if(rest>0)return `Отдых после смены: ещё ${time(rest)}`
   if(object.employer&&!object.employer.canPay)return 'У владельца нет денег на зарплату'
   return ''
 }
@@ -48,6 +49,9 @@ export function WorkPage(){
   const used=current.data?.daily?.shiftsUsedToday??objects.data?.daily?.shiftsUsedToday??0
   const limit=current.data?.daily?.shiftsLimit??objects.data?.daily?.shiftsLimit??12
   const nextShiftRate=Math.round(Math.max(0.20,1-0.20*used)*100)
+  // Отдых считается по часам в браузере, поэтому кнопки включаются сами, когда он кончился.
+  const restUntil=current.data?.restUntil??objects.data?.restUntil
+  const rest=!shift&&restUntil?Math.max(0,Math.ceil((new Date(restUntil).getTime()-Date.now())/1000)):0
 
   return <div className="work-sheet">
     {message&&<div className={`alert ${message.type==='error'?'alert-error':'alert-success'} mb8`}>{message.text}</div>}
@@ -73,7 +77,7 @@ export function WorkPage(){
         {shift.toolInstance&&<div className="text-dim mt8">Инструмент: {shift.toolInstance.template.name}, осталось {shift.toolInstance.usesLeft??0} использований</div>}
         <div className="work-actions"><button className="btn btn-primary" disabled={remaining>0||claim.isPending} onClick={()=>claim.mutate(shift.id)}>{claim.isPending?'Начисляем…':remaining?'Смена идёт':'Забрать награду'}</button>
           {!cancelConfirm?<button className="btn" disabled={!remaining} onClick={()=>setCancelConfirm(true)}>Отменить</button>:<><span className="text-danger">Награды не будет.</span><button className="btn" onClick={()=>setCancelConfirm(false)}>Назад</button><button className="btn btn-danger" onClick={()=>cancel.mutate(shift.id)}>Подтвердить</button></>}
-        </div></>:<div className="work-empty-line"><span>Смена не начата. Выберите доступную вакансию ниже.</span><a href="#vacancies">к вакансиям ↓</a></div>}
+        </div></>:<div className="work-empty-line"><span>{rest>0?<>Отдых после смены: ещё <b>{time(rest)}</b></>:'Смена не начата. Выберите доступную вакансию ниже.'}</span><a href="#vacancies">к вакансиям ↓</a></div>}
     </div></div>
 
     <div className="panel mb8"><div className="panel-header"><span className="panel-title">Профессии</span></div><div className="panel-body">
@@ -88,7 +92,7 @@ export function WorkPage(){
           {[...new Map(objects.data?.items?.map(object=>[object.profession.code,object.profession.name])).entries()].map(([code,name])=><option key={code} value={code}>{name}</option>)}
         </select>
       </label>
-      {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items?.filter(object=>filter==='all'||(filter==='mine'?object.profession.learned||!objects.data?.professions?.length:object.profession.code===filter)).map(object=>{const reason=lockReason(object,!!shift,used>=limit);return <tr key={object.id} className={reason?'is-muted':''}><td><b>{object.name}</b>{object.employer&&<small className="work-employer">{object.employer.isMe?'ваш завод':`частный · ${object.employer.nickname??'владелец'}`}</small>}{reason&&<small className="work-reason">{reason}{object.forSaleUsd?<> · <Link to="/objects">в Мои объекты</Link></>:!object.profession.learned?<> · <Link to="/school">в Училище</Link></>:<>{object.locked&&<> · <Link to="/school">в Училище</Link></>}{!object.toolAvailable&&<> · <Link to={`/shop?tab=tools&profession=${object.profession.code}`}>в магазин</Link></>}</>}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{object.shiftDurationMinutes} мин</td><td>{(object.offeredSalary??object.baseSalary).toLocaleString('ru')} ₽</td><td>+{object.baseProductionExp} XP</td><td>{object.products?.length?object.products.join(', '):object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}${object.employer&&!object.employer.isMe?' — владельцу':''}`:'—'}</td><td><button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate(object)}>Выйти</button></td></tr>})}</tbody></table>}
+      {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items?.filter(object=>filter==='all'||(filter==='mine'?object.profession.learned||!objects.data?.professions?.length:object.profession.code===filter)).map(object=>{const reason=lockReason(object,!!shift,used>=limit,rest);return <tr key={object.id} className={reason?'is-muted':''}><td><b>{object.name}</b>{object.employer&&<small className="work-employer">{object.employer.isMe?'ваш завод':`частный · ${object.employer.nickname??'владелец'}`}</small>}{reason&&<small className="work-reason">{reason}{object.forSaleUsd?<> · <Link to="/objects">в Мои объекты</Link></>:!object.profession.learned?<> · <Link to="/school">в Училище</Link></>:<>{object.locked&&<> · <Link to="/school">в Училище</Link></>}{!object.toolAvailable&&<> · <Link to={`/shop?tab=tools&profession=${object.profession.code}`}>в магазин</Link></>}</>}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{object.shiftDurationMinutes} мин</td><td>{(object.offeredSalary??object.baseSalary).toLocaleString('ru')} ₽</td><td>+{object.baseProductionExp} XP</td><td>{object.products?.length?object.products.join(', '):object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}${object.employer&&!object.employer.isMe?' — владельцу':''}`:'—'}</td><td><button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate(object)}>Выйти</button></td></tr>})}</tbody></table>}
     </div></div>
   </div>
 }

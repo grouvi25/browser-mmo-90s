@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { privateShopsApi } from '../../shared/api/private-shops.api'
 import { itemImage } from '../../shared/assets/shop/shop-images'
 const KIND:Record<string,string>={ITEM:'вещь',RESOURCE:'сырьё',PART:'деталь'}
 export function PrivateShopsPage(){
- const qc=useQueryClient();const[shop,setShop]=useState('kommersant');const[msg,setMsg]=useState('')
+ const qc=useQueryClient();const[params]=useSearchParams();const[shop,setShop]=useState(params.get('shop')??'kommersant');const[msg,setMsg]=useState('')
  const shops=useQuery({queryKey:['private-shops'],queryFn:privateShopsApi.shops})
  const items=useQuery({queryKey:['private-shops',shop],queryFn:()=>privateShopsApi.items(shop)})
  const buy=useMutation({mutationFn:(id:string)=>privateShopsApi.buy(shop,id),onSuccess:r=>{setMsg(`Куплено за ${r.total} ₽`);qc.invalidateQueries({queryKey:['private-shops']});qc.invalidateQueries({queryKey:['inventory']});qc.invalidateQueries({queryKey:['resources']});qc.invalidateQueries({queryKey:['character']})},onError:(e:Error)=>setMsg(e.message)})

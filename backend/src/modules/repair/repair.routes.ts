@@ -13,6 +13,7 @@ import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
 import { calcRequiredRepairParts, needsRepairParts, repairPartsCode } from './repair.formulas'
 import { prisma } from '../../shared/db/prisma'
+import { PrivateShopsService } from '../private-shops/private-shops.service'
 
 const PreviewSchema = z.object({ itemInstanceId: z.string().uuid() })
 const CommitSchema = z.object({ itemInstanceId: z.string().uuid() })
@@ -30,6 +31,26 @@ async function repairPartsPreview(characterId: string, item: Awaited<ReturnType<
   const available = Math.max(0, (stack?.amount ?? 0) - (stack?.reservedAmount ?? 0))
   const requiredParts = [{ resourceCode: code, resourceName: template.name, amount, available, enough: available >= amount }]
   return { needsParts, requiredParts, partsEnough: requiredParts.every(part => part.enough) }
+}
+
+/** Где купить детали для ремонта: считаем по витринам лавок, а не списком в коде. */
+async function partShops(templates: { id: string; code: string }[]) {
+  const out = new Map<string, { shopCode: string; shopName: string; price: number }[]>()
+  if (templates.length === 0) return out
+  const [rows, shops] = await Promise.all([
+    prisma.privateShopItem.findMany({
+      where: { resourceTemplateId: { in: templates.map(t => t.id) }, isActive: true },
+      select: { shopCode: true, price: true, resourceTemplateId: true },
+      orderBy: { price: 'asc' },
+    }),
+    PrivateShopsService.listShops(),
+  ])
+  for (const row of rows) {
+    const code = templates.find(t => t.id === row.resourceTemplateId)?.code
+    if (!code) continue
+    out.set(code, [...(out.get(code) ?? []), { shopCode: row.shopCode, shopName: shops.find(s => s.code === row.shopCode)?.name ?? row.shopCode, price: row.price }])
+  }
+  return out
 }
 
 export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
@@ -50,16 +71,26 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
         i.status !== 'DELETED' &&
         i.template.isSellable  // repairable check
       )
-      return reply.send(await Promise.all(repairable.map(async i => {
-        const parts = await repairPartsPreview(char.id, i)
+      const previews = await Promise.all(repairable.map(i => repairPartsPreview(char.id, i)))
+      const codes = [...new Set(previews.map(p => p.requiredParts[0]?.resourceCode).filter((c): c is string => !!c))]
+      const templates = codes.length ? await prisma.resourceTemplate.findMany({ where: { code: { in: codes } }, select: { id: true, code: true } }) : []
+      const sold = await partShops(templates)
+      return reply.send(repairable.map((i, index) => {
+        const parts = previews[index]
+        const part = parts.requiredParts[0]
         return {
           ...i,
           repairCost: calcRepairCost(i.template.priceBase, i.durabilityMax - i.durabilityCurrent, i.quality, i.upgradeLevel, repairDiscount),
           needsParts: parts.needsParts,
-          partsResourceCode: parts.requiredParts[0]?.resourceCode ?? null,
-          requiredPartsAmount: parts.requiredParts[0]?.amount ?? 0,
+          partsResourceCode: part?.resourceCode ?? null,
+          requiredPartsAmount: part?.amount ?? 0,
+          // Обращение №30: писали только цену в рублях, а отказ был из-за детали.
+          partsName: part?.resourceName ?? null,
+          partsAvailable: part?.available ?? 0,
+          partsEnough: parts.partsEnough,
+          partsSoldAt: part ? sold.get(part.resourceCode) ?? [] : [],
         }
-      })))
+      }))
     })
 
   // POST /api/repair/preview
