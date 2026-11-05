@@ -30,7 +30,9 @@ function StartMoneyLead() {
     queryFn: () => api.get<{ startMoney: number }>('/api/site/facts', { noAuth: true }),
     retry: false,
   })
-  const money = facts.data ? `${facts.data.startMoney.toLocaleString('ru-RU')} рублей` : 'небольшой суммой'
+  // Страница входа стоит на этой же главной: кривой ответ не должен её ронять.
+  const startMoney = facts.data?.startMoney
+  const money = typeof startMoney === 'number' ? `${startMoney.toLocaleString('ru-RU')} рублей` : 'небольшой суммой'
   return <p className="landing__lead">Кооператив — город девяностых, где каждый начинает с нуля: с {money} в кармане и пустыми руками. Дальше — как сам решишь.</p>
 }
 
