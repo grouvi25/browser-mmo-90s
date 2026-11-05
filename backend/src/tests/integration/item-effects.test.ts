@@ -240,3 +240,24 @@ describe('эффект доходит до расчёта удара', () => {
     expect(part.healedTotal).toBe(6)
   })
 })
+
+describe('свиток в дуэли', () => {
+  it('эффект пишется в журнал и тут, а не только в бою с ботом', async () => {
+    const a = await fixture()
+    const b = await fixture()
+    const scroll = await a.item({ buffs: [{ stat: 'damage', value: 0.15 }], rounds: 3 })
+    await CharactersService.setBattleLoadout(a.user.id, [scroll.id])
+    const open = await BattleService.createPvpDuel(a.user.id) as { battleId: string }
+    await BattleService.acceptPvpDuel(b.user.id, open.battleId)
+
+    await BattleService.submitAction(a.user.id, open.battleId, { action: 'use_item', itemInstanceId: scroll.id })
+    await BattleService.submitAction(b.user.id, open.battleId, {
+      action: 'block', stance: 'defense4', attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'RIGHT_ARM'],
+    })
+
+    const turn = await testPrisma.battleTurn.findFirstOrThrow({ where: { battleId: open.battleId, action: 'USE_ITEM' } })
+    expect(turn.logLine).toBe('Использовал Вещь: урон +15% на 3 раунда')
+    expect((await a.fresh()).activeEffects).toMatchObject([{ battleId: open.battleId, untilRound: 3 }])
+    expect(JSON.stringify(await BattleJournal.page(open.battleId, 1))).toContain('использует Вещь: урон +15% на 3 раунда')
+  })
+})

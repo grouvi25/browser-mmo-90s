@@ -321,6 +321,27 @@ describe('эфир', () => {
     expect(await ChatService.history('GLOBAL', '')).toEqual([])
   })
 
+  it('личное сразу нескольким: каждому своя строка, неизвестный ник отменяет всё (№26)', async () => {
+    const a = await player('pm-m')
+    const b = await player('pm-n')
+    const c = await player('pm-o')
+    const who = await ChatService.speaker(a.user.id)
+    const sent = await ChatService.send(who, 'PRIVATE', undefined, 'общий сбор', new Date(), `${b.login}, ${c.login.toUpperCase()}, ${b.login}`)
+    expect(sent.ok).toBe(true)
+    if (!sent.ok) return
+    expect(sent.lines.map(l => l.recipientNickname).sort()).toEqual([b.login, c.login].sort())
+    expect((await ChatService.privateHistory(b.character.id)).map(l => l.body)).toEqual(['общий сбор'])
+    expect((await ChatService.privateHistory(c.character.id)).map(l => l.body)).toEqual(['общий сбор'])
+    expect(await ChatService.privateHistory(a.character.id)).toHaveLength(2)
+
+    const before = await testPrisma.chatMessage.count()
+    await expect(ChatService.send(who, 'PRIVATE', undefined, 'ещё раз', new Date(Date.now() + 60_000), `${b.login}, нет-такого`)).rejects.toThrow('не найден')
+    expect(await testPrisma.chatMessage.count()).toBe(before)
+
+    const six = Array.from({ length: 6 }, (_, i) => `ник${i}`).join(', ')
+    await expect(ChatService.send(who, 'PRIVATE', undefined, 'всем', new Date(Date.now() + 120_000), six)).rejects.toThrow('не больше чем 5')
+  })
+
   it('личное без получателя, неизвестному или себе не уходит', async () => {
     const a = await player('pm-x')
     const who = await ChatService.speaker(a.user.id)

@@ -17,7 +17,8 @@ import { FLOOD, MAX_BODY, chatRoom, privateRoom, type Rejection } from './chat.f
 
 const Channel = z.enum(['DISTRICT', 'CLAN', 'GLOBAL', 'PRIVATE'])
 const Query = z.object({ scope: z.string().max(64).optional(), limit: z.coerce.number().int().min(1).max(50).optional() })
-const Body = z.object({ scope: z.string().max(64).optional(), to: z.string().max(40).optional(), body: z.string().max(MAX_BODY * 2) })
+// to — ник, или несколько через запятую (обращение №26).
+const Body = z.object({ scope: z.string().max(64).optional(), to: z.string().max(200).optional(), body: z.string().max(MAX_BODY * 2) })
 
 /** Текст отказа. Держим здесь, а не в сервисе: это разговор с игроком. */
 function explain(reason: Rejection): string {
@@ -98,13 +99,15 @@ export async function chatRoutes(fastify: FastifyInstance) {
       // В комнату — всем, кто её слушает, включая самого автора: так
       // у него и у остальных лента складывается в одном порядке.
       if (channel.data === 'PRIVATE') {
-        // Личное — только автору (на всех его вкладках) и получателю.
-        publish(privateRoom(who.characterId), 'chat:message', result.line)
-        if (result.line.recipientId) publish(privateRoom(result.line.recipientId), 'chat:message', result.line)
+        // Личное — только автору (на всех его вкладках) и получателям.
+        for (const line of result.lines) {
+          publish(privateRoom(who.characterId), 'chat:message', line)
+          if (line.recipientId) publish(privateRoom(line.recipientId), 'chat:message', line)
+        }
       } else {
         publish(chatRoom(channel.data, result.line.scope), 'chat:message', result.line)
       }
-      return reply.code(201).send(result.line)
+      return reply.code(201).send({ ...result.line, lines: result.lines })
     },
   )
 }

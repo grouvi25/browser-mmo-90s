@@ -69,7 +69,9 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
   }
   if (!turn.hit) return { kind: 'dodge', text: `${attack}${hand}${zone} — уворот` }
   const strip = turn.logLine?.match(STRIP_NOTE)?.[1]
-  const tail = strip ? ` — ${strip}` : ''
+  // Свиток отражения у защитника вернул бьющему часть урона.
+  const reflected = turn.logLine?.match(/отражение (\d+)/)?.[1]
+  const tail = (strip ? ` — ${strip}` : '') + (reflected ? `, отражено −${reflected} HP` : '')
   if (turn.blockPierced) return { kind: 'pierce', text: `пробил блок${zone}${damage}${tail}` }
   if (turn.crit) return { kind: 'crit', text: `крит${zone}${damage}${tail}` }
   return { kind: 'hit', text: `${attack}${hand}${zone}${damage}${tail}` }

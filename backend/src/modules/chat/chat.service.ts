@@ -62,6 +62,9 @@ function toLine(row: {
   }
 }
 
+/** Сколько адресатов сразу у одной лички: больше уже рассылка. */
+export const PRIVATE_MAX_RECIPIENTS = 5
+
 export const ChatService = {
   /**
    * Кто говорит и что ему можно. Один запрос на всё: членство в клане
@@ -163,21 +166,30 @@ export const ChatService = {
     rawBody: string,
     now = new Date(),
     recipientNick?: string,
-  ): Promise<{ ok: true; line: ChatLine } | { ok: false; reason: Rejection }> {
+  ): Promise<{ ok: true; line: ChatLine; lines: ChatLine[] } | { ok: false; reason: Rejection }> {
     if (who.mutedUntil && who.mutedUntil > now) {
       throw new AppError(ErrorCode.FORBIDDEN, 'Вам запрещено писать в чат до ' + who.mutedUntil.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }), 403)
     }
 
     const scope = this.roomFor(channel, rawScope, who)
-    // Личное сообщение: получатель по нику, без учёта регистра.
-    let recipient: { id: string; nickname: string } | null = null
+    // Личное сообщение: получатели по нику, без учёта регистра. Несколько —
+    // через запятую (обращение №26): запятой в нике не бывает. Сначала
+    // проверяем всех, чтобы не разослать половине и споткнуться на остальных.
+    const recipients: { id: string; nickname: string }[] = []
     if (channel === 'PRIVATE') {
-      const to = (recipientNick ?? '').trim()
-      recipient = to ? await prisma.character.findFirst({
-        where: { nickname: { equals: to, mode: 'insensitive' } }, select: { id: true, nickname: true },
-      }) : null
-      if (!recipient) throw new AppError(ErrorCode.NOT_FOUND, to ? `Игрок «${to}» не найден` : 'Кому написать? Нажмите на ник в чате', 404)
-      if (recipient.id === who.characterId) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Себе писать не нужно', 422)
+      const names = [...new Set((recipientNick ?? '').split(',').map(name => name.trim()).filter(Boolean).map(name => name.toLowerCase()))]
+      if (names.length === 0) throw new AppError(ErrorCode.NOT_FOUND, 'Кому написать? Нажмите на ник в чате', 404)
+      if (names.length > PRIVATE_MAX_RECIPIENTS) {
+        throw new AppError(ErrorCode.VALIDATION_ERROR, `В личку можно написать сразу не больше чем ${PRIVATE_MAX_RECIPIENTS} игрокам`, 422)
+      }
+      for (const name of names) {
+        const found = await prisma.character.findFirst({
+          where: { nickname: { equals: name, mode: 'insensitive' } }, select: { id: true, nickname: true },
+        })
+        if (!found) throw new AppError(ErrorCode.NOT_FOUND, `Игрок «${(recipientNick ?? '').split(',').map(n => n.trim()).find(n => n.toLowerCase() === name) ?? name}» не найден`, 404)
+        if (found.id === who.characterId) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Себе писать не нужно', 422)
+        recipients.push(found)
+      }
     }
 
     const body = normalizeBody(rawBody)
@@ -187,11 +199,17 @@ export const ChatService = {
     const flood = await this.floodCheck(who.characterId, body, now.getTime())
     if (flood) return { ok: false, reason: flood }
 
-    const row = await prisma.chatMessage.create({
-      data: { channel, scope, authorId: who.characterId, recipientId: recipient?.id ?? null, body },
-      select: LINE_SELECT,
-    })
-    return { ok: true, line: toLine(row, recipient?.nickname ?? null) }
+    // Каждому адресату своя строка: у него она обычная личка, ответ уходит только автору.
+    const targets: ({ id: string; nickname: string } | null)[] = recipients.length ? recipients : [null]
+    const lines: ChatLine[] = []
+    for (const recipient of targets) {
+      const row = await prisma.chatMessage.create({
+        data: { channel, scope, authorId: who.characterId, recipientId: recipient?.id ?? null, body },
+        select: LINE_SELECT,
+      })
+      lines.push(toLine(row, recipient?.nickname ?? null))
+    }
+    return { ok: true, line: lines[0], lines }
   },
 
   /** Кто сейчас в эфире. Имена подтягиваем одним запросом по списку. */

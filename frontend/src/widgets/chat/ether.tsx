@@ -84,7 +84,8 @@ export function useComposer(ether: Ether) {
 
   /** Клик по нику: обращение в общем канале (ники копятся в начале строки), адресат — в личном. */
   const onNick = (nick: string) => {
-    setTarget(nick)
+    // В личке ник добавляется к адресатам: можно написать сразу нескольким (№26).
+    setTarget(prev => mode === 'PRIVATE' ? addRecipient(prev, nick) : nick)
     if (mode !== 'PRIVATE') {
       const known = called.current
       setDraft(d => {
@@ -120,6 +121,16 @@ export function useComposer(ether: Ether) {
 }
 
 export type Composer = ReturnType<typeof useComposer>
+
+/** Адресаты лички хранятся строкой через запятую, как их ждёт сервер. */
+export const PRIVATE_MAX_RECIPIENTS = 5
+export const recipientsOf = (target: string) => target.split(',').map(nick => nick.trim()).filter(Boolean)
+export function addRecipient(target: string, nick: string): string {
+  const list = recipientsOf(target)
+  if (list.some(name => name.toLowerCase() === nick.toLowerCase()) || list.length >= PRIVATE_MAX_RECIPIENTS) return list.join(', ')
+  return [...list, nick].join(', ')
+}
+const removeRecipient = (target: string, nick: string) => recipientsOf(target).filter(name => name !== nick).join(', ')
 
 /** Одна строка ленты: время, метка канала, ник (клик — обращение) и текст. */
 export function EtherLine({ line, ether, composer, className = '' }: {
@@ -168,7 +179,7 @@ export function EtherComposer({ ether, composer, className = '', style }: {
   const { mode, setMode, target, setTarget, draft, setDraft, inputRef, submit } = composer
   const modes: EtherMode[] = ether.hasClan ? ['GLOBAL', 'CLAN', 'PRIVATE'] : ['GLOBAL', 'PRIVATE']
   const placeholder = ether.notice
-    || (mode === 'PRIVATE' ? (target ? `Лично ${target}…` : 'Нажмите на ник в чате, кому написать')
+    || (mode === 'PRIVATE' ? (target ? `Лично ${target}…` : 'Нажмите на ник в чате, кому написать, можно на несколько')
       : mode === 'CLAN' ? 'Написать бригаде…' : 'Написать всем…')
 
   const insertEmoji = (emoji: string) => {
@@ -186,8 +197,12 @@ export function EtherComposer({ ether, composer, className = '', style }: {
       </select>
       {mode === 'PRIVATE' && target && (
         <span className="ether-target">
-          → <Link to={`/u/${encodeURIComponent(target)}`} title="Профиль">{target}</Link>
-          <button type="button" aria-label="Убрать адресата" onClick={() => setTarget('')}>×</button>
+          →{recipientsOf(target).map(nick => (
+            <span key={nick} className="ether-target__nick">
+              <Link to={`/u/${encodeURIComponent(nick)}`} title="Профиль">{nick}</Link>
+              <button type="button" aria-label={`Убрать адресата ${nick}`} onClick={() => setTarget(t => removeRecipient(t, nick))}>×</button>
+            </span>
+          ))}
         </span>
       )}
       <input

@@ -1008,6 +1008,11 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 .ether-composer--private .ether-input { color: #7a1fa2; }
 .ether-target { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 2px; color: #7a1fa2; font-weight: 700; white-space: nowrap; }
 .ether-target a { color: inherit; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ether-target { flex-wrap: wrap; row-gap: 2px; }
+.ether-target__nick { display: inline-flex; align-items: center; min-width: 0; }
+.ether-target__nick button:hover { color: #a31212; }
+.ether-target__nick button:active { color: #6f0101; }
+.ether-target__nick button:focus-visible { outline: 2px solid #a31212; outline-offset: 1px; }
 .ether-target button, .ether-emoji > button, .ether-send { flex: none; border: 0; background: none; cursor: pointer; padding: 0 4px; }
 .ether-emoji { position: relative; flex: none; }
 .ether-emoji__grid { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 30; display: grid;

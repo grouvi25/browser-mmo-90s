@@ -50,7 +50,7 @@ export const chatApi = {
   },
 
   send: (channel: ChatChannel, body: string, scope?: string, to?: string) =>
-    api.post<ChatLine>(`/api/chat/${channel.toLowerCase()}`, { body, scope, to }),
+    api.post<ChatLine & { lines?: ChatLine[] }>(`/api/chat/${channel.toLowerCase()}`, { body, scope, to }),
 
   /** Модератор игры удаляет реплику из эфира. */
   remove: (id: string) => api.delete<{ removed: boolean }>(`/api/chat/messages/${id}`),

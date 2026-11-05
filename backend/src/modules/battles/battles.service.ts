@@ -370,6 +370,15 @@ async function applyPendingUtility(state: LiveBattleState, part: LiveParticipant
         part.healedTotal += healed
         part.pocketItemIds = part.pocketItemIds.filter(id => id !== itemId)
         await ItemsRepository.delete(itemId)
+        // В дуэли и групповом бою ход с предметом в журнал раньше не попадал вовсе.
+        await prisma.battleTurn.create({
+          data: {
+            battleId: state.battleId, roundNumber: state.roundNumber,
+            actorCharId: char.id, action: 'USE_ITEM' as BattleAction,
+            hit: false, dodge: false, block: false, crit: false, rawDamage: 0, finalDamage: 0,
+            logLine: `Использовал ${item.template.name}: ${[restore > 0 ? `+${healed} HP` : '', applied ?? ''].filter(Boolean).join(', ')}`,
+          },
+        })
       }
       return true
     }
@@ -549,7 +558,11 @@ export function executeStrikes(params: {
       hpLeft = Math.max(0, hpLeft - r.finalDamage)
       nextHitLeft = false
       // Отражение не ответка: не зависит от дальности и само не отражается.
-      counterToAttacker += Math.floor(r.finalDamage * (defenderSnap.reflectShare ?? 0))
+      const reflected = Math.floor(r.finalDamage * (defenderSnap.reflectShare ?? 0))
+      if (reflected > 0) {
+        counterToAttacker += reflected
+        r.logParts.push(`отражение ${reflected}`)
+      }
     }
     if (r.counterDamage > 0) counterToAttacker += r.counterDamage
     results.push({ ...r, sourceHand, weaponId: params.weaponIds?.[sourceHand] ?? null })

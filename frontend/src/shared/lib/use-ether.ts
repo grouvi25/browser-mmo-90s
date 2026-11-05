@@ -97,8 +97,9 @@ export function useEther(): Ether {
     const text = body.trim()
     if (!text) return false
     try {
-      const line = await chatApi.send(mode, text, undefined, mode === 'PRIVATE' ? to : undefined)
-      qc.setQueryData<ChatFeed>(feedKey(mode), prev => prev && { ...prev, messages: merge(prev.messages, line) })
+      const sent = await chatApi.send(mode, text, undefined, mode === 'PRIVATE' ? to : undefined)
+      const lines = sent.lines?.length ? sent.lines : [sent]
+      qc.setQueryData<ChatFeed>(feedKey(mode), prev => prev && { ...prev, messages: lines.reduce((list, line) => merge(list, line), prev.messages) })
       setNotice('')
       return true
     } catch (error) {
