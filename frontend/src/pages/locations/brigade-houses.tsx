@@ -51,6 +51,8 @@ export function BrigadeHouses() {
   }
 
   return <>
+    {/* Первым на странице: под дверями приглашение не находили. */}
+    {!mine && <IncomingInvites />}
     <img className="brigade-scene" src={SCENES['brigade-houses']} alt="Дома бригад" draggable={false} />
     {list.isLoading && <p role="status">Загрузка…</p>}
     {list.isError && <p role="alert">Список не загрузился. <button className="btn" onClick={() => list.refetch()}>Повторить</button></p>}
@@ -67,7 +69,6 @@ export function BrigadeHouses() {
         {note && <small>{note}</small>}
       </button>
     })}</nav>
-    {!mine && <IncomingInvites />}
     {!mine && list.data && <p><Link to="/city-hall">Зарегистрировать свою бригаду в Мэрии →</Link></p>}
   </>
 }

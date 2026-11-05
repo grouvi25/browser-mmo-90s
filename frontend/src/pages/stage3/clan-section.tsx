@@ -56,7 +56,7 @@ export function ClanSection({ embedded = false }: { embedded?: boolean } = {}) {
         <div><span>Объекты</span><b>{clan.objects?.length ?? 0}/{clan.objectLimit ?? 0}</b></div>
       </div>
 
-      {can('INVITE') && !clan.isFrozen && <InviteBox onDone={done} onFail={fail} />}
+      {can('INVITE') && !clan.isFrozen && <InviteBox />}
 
       <h3>Состав</h3>
       <div className="s3-scroll">
@@ -209,14 +209,18 @@ function ClanDirectory({ onDone, onFail, msg, bad }: {
   )
 }
 
-function InviteBox({ onDone, onFail }: { onDone: (t: string) => void; onFail: (e: Error) => void }) {
+function InviteBox() {
   const [target, setTarget] = useState('')
+  // Ответ под самой формой: отказ по уровню наверху раздела не замечали, и
+  // пригласивший писал в чат «выслал», хотя приглашения не было.
+  const [note, setNote] = useState<{ text: string; bad: boolean }>({ text: '', bad: false })
   const invite = useMutation({
     mutationFn: () => clansApi.invite(target.trim()),
-    onSuccess: r => { setTarget(''); onDone(`Приглашение отправлено: ${r.nickname}. Оно ждёт бойца 48 часов в Домах бригад`) },
-    onError: onFail,
+    onSuccess: r => { setTarget(''); setNote({ text: `Приглашение отправлено: ${r.nickname}. Оно ждёт бойца 48 часов в Домах бригад`, bad: false }) },
+    onError: (e: Error) => setNote({ text: e.message, bad: true }),
   })
   return (
+    <>
     <form className="s3-toolbar" onSubmit={e => { e.preventDefault(); invite.mutate() }}>
       <label>
         Пригласить бойца по нику
@@ -226,6 +230,8 @@ function InviteBox({ onDone, onFail }: { onDone: (t: string) => void; onFail: (e
         <UserPlus size={15} /> Пригласить
       </button>
     </form>
+    <Note text={note.text} kind={note.bad ? 'bad' : 'ok'} />
+    </>
   )
 }
 

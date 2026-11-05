@@ -1,0 +1,12 @@
+/* Выше сцены и шапки, ниже окон: приветствие и шторки телефона её закрывают. */
+.invite-strip {
+  position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 30;
+  box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px;
+  width: max-content; max-width: calc(100vw - 32px); padding: 8px 14px;
+  background: #fffffe; color: #2b2527; border: 2px solid #a31212; box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+  font-family: var(--font-ui); font-size: 15px; line-height: 1.3; text-align: center;
+}
+.invite-strip a { color: #a31212; font-weight: 700; text-decoration: underline; }
+.invite-strip a:hover { color: #6f0101; }
+.invite-strip a:active { color: #4d0000; }
+.invite-strip a:focus-visible { outline: 2px solid #a31212; outline-offset: 2px; }

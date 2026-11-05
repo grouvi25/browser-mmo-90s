@@ -8,6 +8,7 @@
 // ============================================================
 import { LocationPersistence } from '../location-persistence'
 import { ApplicationWatcher } from '../application-watcher'
+import { InviteStrip } from '../invite-strip'
 import { WelcomeModal } from '../../widgets/welcome/welcome-modal'
 import { Outlet } from 'react-router-dom'
 
@@ -28,7 +29,7 @@ export function GameShell() {
   // Узкий экран получает свою композицию: сцена по макету на нём
   // ужимается до нечитаемого. Данные и графика — те же.
   const isMobile = useIsMobile()
-  if (isMobile) return <><LocationPersistence /><ApplicationWatcher /><WelcomeModal /><MobileShell /></>
+  if (isMobile) return <><LocationPersistence /><ApplicationWatcher /><InviteStrip /><WelcomeModal /><MobileShell /></>
 
   const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
   // За сценой — тот самый слой фона из макета («Слой 22» в «Фон
@@ -49,6 +50,7 @@ export function GameShell() {
     >
       <LocationPersistence />
       <ApplicationWatcher />
+      <InviteStrip />
       <WelcomeModal />
       {/* Подложка держит полный холст 1550x900 и обрезается сценой снизу:
           растягивать её по укороченной сцене нельзя — рисунок сплющится. */}

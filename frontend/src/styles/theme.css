@@ -1000,12 +1000,14 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 .ether-composer--city .ether-input { padding: 0 6px; }
 .ether-composer select, .ether-composer button, .ether-composer input { font: inherit; }
 .ether-mode { flex: none; height: 100%; padding: 0 2px; border: 1px solid #8a7a6a; background: #f6ecdf; color: #000; }
-.ether-input { flex: 1; min-width: 0; height: 100%; background: transparent; border: 0; outline: 0; color: #000; }
+/* Поле не сжимается в ноль: при ширине в пару символов телефон переворачивал
+   набранный текст, «Привет» уходило как «тевирП» (личка Дмитрия 05.11). */
+.ether-input { flex: 1; min-width: 96px; height: 100%; background: transparent; border: 0; outline: 0; color: #000; }
 .ether-input::placeholder { color: #6b5c4e; }
 .ether-composer--clan .ether-input { color: #1d4f91; }
 .ether-composer--private .ether-input { color: #7a1fa2; }
-.ether-target { flex: none; display: inline-flex; align-items: center; gap: 2px; color: #7a1fa2; font-weight: 700; white-space: nowrap; }
-.ether-target a { color: inherit; }
+.ether-target { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 2px; color: #7a1fa2; font-weight: 700; white-space: nowrap; }
+.ether-target a { color: inherit; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ether-target button, .ether-emoji > button, .ether-send { flex: none; border: 0; background: none; cursor: pointer; padding: 0 4px; }
 .ether-emoji { position: relative; flex: none; }
 .ether-emoji__grid { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 30; display: grid;
