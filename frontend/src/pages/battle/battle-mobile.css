@@ -211,3 +211,12 @@
 .m-battle__zones .zone-list__btn { height: 30px; }
 .m-battle__tools button { min-height: 32px; min-width: 36px; justify-content: center; }
 .m-battle__buttons button { min-height: 36px; }
+
+/* Фигуры бойцов (обращение №15): та же карточка, что в городе, две в ряд. */
+.m-battle__figures-bar { display: flex; justify-content: flex-end; padding: 2px 6px; background: oklch(96% .017 75 / .92); }
+.m-battle__figures-bar button { min-height: 30px; padding: 0 10px; border: 1px solid oklch(46% .04 55); background: transparent; color: #3a3436; font: 700 12px/1 var(--font-sign); text-transform: uppercase; cursor: pointer; }
+.m-battle__figures-bar button:hover { color: #a31212; border-color: #a31212; }
+.m-battle__figures-bar button:active { color: #6f0101; }
+.m-battle__figures-bar button:focus-visible { outline: 2px solid #a31212; outline-offset: 1px; }
+.m-battle__figures { display: flex; justify-content: center; gap: 6px; padding: 4px 6px 6px; background: oklch(96% .017 75 / .92); }
+.m-battle__figures .card-cutout { flex: 0 0 auto; }

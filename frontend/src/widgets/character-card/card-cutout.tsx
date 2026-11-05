@@ -17,10 +17,12 @@ import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
 import { PLATES } from '../../shared/ui/sprite'
 import { CharacterCard, type CardProfile, type CardWounds } from './character-card'
 
-export function CardCutout({ width, profile, wounds, className = '' }: {
+export function CardCutout({ width, profile, wounds, liveHp, className = '' }: {
   width: number
   profile?: CardProfile
   wounds?: CardWounds
+  /** Своё здоровье в идущем бою: профиль в бою не обновляется. */
+  liveHp?: { hp: number; hpMax: number }
   className?: string
 }) {
   const cut = MENU.card.cutout
@@ -41,7 +43,7 @@ export function CardCutout({ width, profile, wounds, className = '' }: {
         }}
       >
         <div className="stage__plate" style={{ backgroundImage: plate }} />
-        <CharacterCard profile={profile} wounds={wounds} />
+        <CharacterCard profile={profile} wounds={wounds} liveHp={liveHp} />
       </div>
     </div>
   )

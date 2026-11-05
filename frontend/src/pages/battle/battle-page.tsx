@@ -27,6 +27,8 @@ import { BattleJournal } from '../../widgets/battle-journal/battle-journal'
 import { BattleSwap, type SwapPlan } from './components/battle-swap'
 import { battleDisplayState, canSelectBattleMove, type BattleActionSnapshot, selectAutomaticAttack, toggleAutomaticBlockSlot } from './battle-view-model'
 import { BattleDesk } from './battle-desk'
+import { CardCutout } from '../../widgets/character-card/card-cutout'
+import type { CardProfile } from '../../widgets/character-card/character-card'
 import { BattleZoneList } from './components/battle-zone-list'
 import { BattleHelperBadge } from './components/battle-helper-badge'
 import { PersistedBattleChronicle } from './components/battle-chronicle'
@@ -262,6 +264,14 @@ export function BattlePage() {
   const [actionError, setActionError]   = useState('')
   const [showLog, setShowLog]           = useState(false)
   const [pocketsOpen, setPocketsOpen]   = useState(false)
+  // Фигуры бойцов на телефоне (обращение №15): по умолчанию видны, выбор помнит браузер.
+  const [figuresOpen, setFiguresOpen] = useState(() => {
+    try { return localStorage.getItem('mmo_battle_figures') !== 'off' } catch { return true }
+  })
+  const toggleFigures = () => setFiguresOpen(open => {
+    try { localStorage.setItem('mmo_battle_figures', open ? 'off' : 'on') } catch { /* приватный режим */ }
+    return !open
+  })
   // План переодевания на текущий ход; после отправки сбрасывается.
   const [swapPlan, setSwapPlan]         = useState<SwapPlan>({})
   // Чат закрыт по умолчанию: так сцена короче и всё на экране крупнее.
@@ -643,7 +653,22 @@ export function BattlePage() {
   //    «на моб версии бой старый»). Блоки те же, что на сцене у
   //    компьютера, — поле, списки зон, кнопки-плашки и хроника, — но
   //    колонкой, в бумажной палитре городской оболочки. ──
+  // Противник той же карточкой, что и в городе: фигура, раны по зонам, оружие в руках.
+  const enemyCard: CardProfile = {
+    nickname: enemyName, level: enemyProfile?.level ?? 0,
+    hp: eHp, hpMax: eHpMax,
+    avatar: enemyProfile?.avatar,
+    gender: enemyProfile?.gender,
+    weaponName: enemyProfile?.primaryHand,
+    weaponCode: enemyProfile?.primaryWeaponCode,
+    weaponType: enemyProfile?.primaryWeaponType,
+    offhandName: enemyProfile?.secondaryHand,
+    offhandCode: enemyProfile?.secondaryWeaponCode,
+  }
+
   if (isMobile) {
+    // Две карточки в ряд: половина экрана без полей и зазора.
+    const figureWidth = Math.max(120, Math.floor((window.innerWidth - 18) / 2))
     return (
       <div className="m-battle">
         <header className="m-battle__head">
@@ -684,6 +709,18 @@ export function BattlePage() {
             </div>
           </div>
         </div>
+
+        <div className="m-battle__figures-bar">
+          <button type="button" aria-expanded={figuresOpen} onClick={toggleFigures}>
+            {figuresOpen ? 'Скрыть фигуры' : 'Показать фигуры'}
+          </button>
+        </div>
+        {figuresOpen && (
+          <div className="m-battle__figures" aria-label="Фигуры бойцов">
+            <CardCutout width={figureWidth} wounds={pPart?.wounds ?? {}} liveHp={pPart ? { hp: pHp, hpMax: pHpMax } : undefined} />
+            <CardCutout width={figureWidth} profile={enemyCard} wounds={ePart?.wounds ?? {}} className="is-enemy" />
+          </div>
+        )}
 
         <div className="m-battle__field" ref={mobileFieldRef}>
           <div className="battle-field-v3">
@@ -752,17 +789,7 @@ export function BattlePage() {
         playerHp={pPart ? { hp: pHp, hpMax: pHpMax } : undefined}
         enemyWounds={ePart?.wounds ?? {}}
         enemyTag={enemyParts.length > 1 ? 'Цель' : undefined}
-        enemy={{
-          nickname: enemyName, level: enemyProfile?.level ?? 0,
-          hp: eHp, hpMax: eHpMax,
-          avatar: enemyProfile?.avatar,
-          gender: enemyProfile?.gender,
-          weaponName: enemyProfile?.primaryHand,
-          weaponCode: enemyProfile?.primaryWeaponCode,
-          weaponType: enemyProfile?.primaryWeaponType,
-          offhandName: enemyProfile?.secondaryHand,
-          offhandCode: enemyProfile?.secondaryWeaponCode,
-        }}
+        enemy={enemyCard}
         header={<header className="battle-desk__head">
           <Sword size={15} /><b>Бой</b>
           <span className="battle-desk__timer" title="Время на ход">{timerText}</span>
