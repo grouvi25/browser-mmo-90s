@@ -103,10 +103,6 @@
 }
 
 /* Demo nick colours must remain readable on the light chat sheet. */
-.m-chat .city-chat__nick--1 { color: #8a3100; }
-.m-chat .city-chat__nick--2 { color: #243d91; }
-.m-chat .city-chat__nick--3 { color: #8b1830; }
-.m-chat .city-chat__nick--4 { color: #74401f; }
 
 /* ── шторка ─────────────────────────────────────────────────── */
 .m-sheet { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; }

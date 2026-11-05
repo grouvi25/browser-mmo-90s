@@ -17,7 +17,7 @@ export const inventoryApi = {
 
   // Использовать расходник вне боя
   useItem: (itemInstanceId: string) =>
-    api.post<{ hpRestored: number; newHp: number; itemName: string }>('/api/inventory/use-item', { itemInstanceId }),
+    api.post<{ hpRestored: number; newHp: number; itemName: string; alcoholLeft: number | null }>('/api/inventory/use-item', { itemInstanceId }),
 
   /** Столбики именной вещи: весь расклад одним сохранением (правка 31.10). */
   configure: (itemInstanceId: string, own: Partial<Record<ItemStatKey, number>>, bonuses: ItemBonuses) =>

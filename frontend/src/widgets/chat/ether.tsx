@@ -12,7 +12,6 @@ import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 
 import type { ChatLine } from '../../shared/api/chat.api'
 import { chatTime } from '../../shared/lib/chat-format'
-import { nickTone } from '../../shared/lib/use-chat'
 import { mentionsMe, type Ether, type EtherMode } from '../../shared/lib/use-ether'
 import { SMILES, SmileImage, smileToken, withSmiles } from '../../shared/ui/smiles'
 
@@ -146,7 +145,7 @@ export function EtherLine({ line, ether, composer, className = '' }: {
           {mine ? `[ЛС → ${line.recipientNickname ?? '?'}]` : '[ЛС]'}
         </button>
       )}{' '}
-      <button type="button" className={`ether-nick city-chat__nick--${nickTone(line.nickname)}`}
+      <button type="button" className="ether-nick"
         title="Обратиться к игроку" onClick={() => composer.onNick(line.nickname)}>
         {line.nickname}:
       </button>{' '}

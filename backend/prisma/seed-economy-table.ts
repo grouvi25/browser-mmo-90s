@@ -39,10 +39,13 @@ export async function seedEconomyTable(prisma: PrismaClient) {
       update: {},
       create: {
         code: item.code, name: item.name, type: worn ? 'ARMOR' : 'CONSUMABLE', armorSlot: worn ? item.slot as 'CHEST' : null,
-        isEquippable: worn, healPercent: item.healPercent ?? 0, armor: item.armor ?? 0, levelReq: item.level ?? 0, durabilityMax: item.durability ?? 100, itemTier: item.tier, priceBase: tablePrice(item.units), sourceType: 'CRAFTED',
+        isEquippable: worn, healPercent: item.healPercent ?? 0, soberAmount: item.soberAmount ?? 0, armor: item.armor ?? 0, levelReq: item.level ?? 0, durabilityMax: item.durability ?? 100, itemTier: item.tier, priceBase: tablePrice(item.units), sourceType: 'CRAFTED',
       },
     })
     // Шаблон уже есть, поэтому лечение ставим отдельно и только там, где его ещё не правили.
+    if (item.soberAmount) {
+      await prisma.itemTemplate.updateMany({ where: { code: item.code, soberAmount: 0 }, data: { soberAmount: item.soberAmount } })
+    }
     if (item.healPercent) {
       await prisma.itemTemplate.updateMany({ where: { code: item.code, healPercent: 0 }, data: { healPercent: item.healPercent } })
     }
@@ -84,6 +87,17 @@ export async function seedEconomyTable(prisma: PrismaClient) {
     await prisma.productionRecipeInput.createMany({ data: recipe.inputs.map(([resourceCode, amount]) => ({ recipeId: saved.id, resourceCode, amount })) })
     await prisma.productionObject.updateMany({ where: { code: recipe.object, activeRecipeId: null }, data: { activeRecipeId: saved.id } })
   }
+  // Рецепт уехал в другой завод, а у государственного объекта остался активным: ставим его первый свой.
+  for (const object of TABLE_OBJECTS) {
+    const first = TABLE_RECIPES.find(recipe => recipe.object === object.code)
+    if (!first) continue
+    const own = await prisma.productionRecipe.findUnique({ where: { code: first.code }, select: { id: true } })
+    const current = await prisma.productionObject.findUnique({ where: { code: object.code }, select: { ownerType: true, activeRecipeId: true } })
+    if (!own || current?.ownerType !== 'SYSTEM' || !current.activeRecipeId) continue
+    const active = await prisma.productionRecipe.findUnique({ where: { id: current.activeRecipeId }, select: { productionObjectCode: true } })
+    if (active?.productionObjectCode !== object.code) await prisma.productionObject.update({ where: { code: object.code }, data: { activeRecipeId: own.id } })
+  }
+
   // Цехи первой версии вошли в заводы таблицы v2. Купленный цех остаётся у владельца.
   await prisma.productionObject.updateMany({
     where: { code: { startsWith: 'obj_tb_', notIn: TABLE_OBJECTS.map(object => object.code) }, ownerType: 'SYSTEM' },

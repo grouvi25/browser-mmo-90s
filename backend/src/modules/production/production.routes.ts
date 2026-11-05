@@ -41,6 +41,12 @@ export async function productionRoutes(fastify: FastifyInstance) {
     return reply.send({ items: await ProductionService.recipes(parsed.data.objectCode, actor.id) })
   })
 
+  // GET /api/production/catalog — справочник: где что получается и что для этого нужно
+  fastify.get('/catalog', { preHandler: authenticate }, async (req, reply) => {
+    const actor = await character(req.authUser.userId)
+    return reply.send({ items: await ProductionService.catalog(actor.id) })
+  })
+
   fastify.get<{ Params: { id: string }; Querystring: { limit?: string } }>('/objects/:id/cycles', { preHandler: authenticate }, async (req, reply) => {
     if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const limit = Number(req.query.limit ?? 20)

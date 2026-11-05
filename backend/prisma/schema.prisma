@@ -759,6 +759,8 @@ model ItemTemplate {
   hpBonus    Int?   @default(0) @map("hp_bonus")
   /// Лечение долей максимального здоровья, %. Больше нуля: важнее hpBonus (Дима 4.11).
   healPercent         Int                @default(0) @map("heal_percent")
+  /// Снимает опьянение на столько единиц; 100 снимает полностью (Дима 4.11).
+  soberAmount         Int                @default(0) @map("sober_amount")
 
   // Distance (зональная боёвка): дальность оружия. Ближнее = 1 (только вплотную)
   optimalRange Int? @default(1) @map("optimal_range")

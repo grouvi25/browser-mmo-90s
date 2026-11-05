@@ -150,3 +150,26 @@
 .farm-yard{margin-top:14px}.farm-yard h3{margin:0 0 6px}
 .s3 .farm-yard__item{display:grid;gap:4px;max-width:300px;cursor:default}
 .farm-yard__done{font-size:0.8rem;font-weight:700;color:var(--s3-green)}
+
+/* «Как сделать»: кнопки меняют только цвет, ничего не сдвигается. */
+.s3-howto-wrap{display:grid;gap:10px;margin:0 0 18px;padding:0 0 14px;border-bottom:1px solid oklch(70% .03 60)}
+.s3-howto__title{margin:0;font-size:1rem}
+.s3-howto__search{display:grid;gap:4px;max-width:420px}
+.s3-howto__search input{min-height:34px;padding:0 8px;border:1px solid oklch(46% .04 55);background:oklch(98% .01 75);font:inherit}
+.s3-howto__search input:focus-visible{outline:2px solid var(--s3-red);outline-offset:1px}
+.s3-howto__found{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.s3-howto{display:grid;gap:10px;padding:10px 12px;border:1px solid oklch(62% .04 55);background:oklch(97% .014 75)}
+.s3-howto h3{margin:0;font-size:1rem}
+.s3-howto__note{margin:0}
+.s3-howto__way{display:grid;gap:6px;padding-top:8px;border-top:1px dashed oklch(70% .03 60)}
+.s3-howto__place{margin:0}
+.s3-howto__price{color:oklch(46% .028 55)}
+.s3-howto dl{margin:0;display:grid;gap:3px}
+.s3-howto dl>div{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 8px}
+.s3-howto dt{color:oklch(46% .028 55)}
+.s3-howto dd{margin:0}
+.s3-howto__inputs ul{list-style:none;margin:3px 0 0;padding:0;display:grid;gap:2px}
+.s3-howto__used{margin:0;padding-top:8px;border-top:1px dashed oklch(70% .03 60)}
+.s3-howto a{color:#6a5000}
+.s3-howto a:hover{color:var(--s3-red)}
+.s3-howto a:focus-visible{outline:2px solid var(--s3-red);outline-offset:1px}

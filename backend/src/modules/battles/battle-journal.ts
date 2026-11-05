@@ -59,7 +59,10 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
   // Удар в выставленный блок: движок помечает его hit=true и block=true
   // (удар был, его погасили), поэтому проверяем блок первым — иначе в логе
   // выходил «удар в корпус» без урона, а не «блок» (заказчик 26.10).
-  if (turn.block) return { kind: 'block', text: `${attack}${hand}${zone} — блок` }
+  if (turn.block) {
+    const counter = turn.logLine?.match(/ответка (\d+)/)?.[1]
+    return { kind: 'block', text: `${attack}${hand}${zone} — блок${counter ? `, ответка −${counter} HP` : ''}` }
+  }
   if (!turn.hit) return { kind: 'dodge', text: `${attack}${hand}${zone} — уворот` }
   const strip = turn.logLine?.match(STRIP_NOTE)?.[1]
   const tail = strip ? ` — ${strip}` : ''

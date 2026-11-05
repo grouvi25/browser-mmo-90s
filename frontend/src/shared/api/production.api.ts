@@ -46,6 +46,16 @@ export interface ProductionObject {
   day?: { shifts: number; salaryPaid: number }
 }
 
+export interface CatalogWay {
+  objectCode: string; objectName: string; gather: boolean; forSaleUsd: number | null; shiftMinutes: number; labor: number
+  professionCode: string | null; professionName: string | null; professionKnown: boolean
+  toolCode: string | null; toolName: string | null; inputs: { code: string; name: string; amount: number }[]
+}
+export interface CatalogProduct {
+  code: string; name: string; kind: 'item' | 'resource'; inShop: boolean
+  ways: CatalogWay[]; usedIn: { code: string; name: string }[]
+}
+
 export interface ObjectRecipe {
   id: string
   code: string
@@ -77,6 +87,7 @@ export const productionApi = {
   market: () => api.get<{ items: ProductionObject[] }>('/api/production/objects/market'),
   mine: () => api.get<{ items: ProductionObject[] }>('/api/production/objects/mine'),
   get: (id: string) => api.get<ProductionObject>(`/api/production/objects/${id}`),
+  catalog: () => api.get<{ items: CatalogProduct[] }>('/api/production/catalog'),
   recipes: (objectCode: string) =>
     api.get<{ items: ObjectRecipe[] }>(`/api/production/recipes?objectCode=${encodeURIComponent(objectCode)}`),
   cycles: (id: string, limit = 20) =>

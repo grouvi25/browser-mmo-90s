@@ -185,7 +185,9 @@ export function InventoryPage() {
   const undressing = unequipMut.isPending || unequipAllMut.isPending
   const useItemMut = useMutation({
     mutationFn: (id: string) => inventoryApi.useItem(id),
-    onSuccess: data => { refresh(); showMsg('success', `${data.itemName}: +${data.hpRestored} HP (теперь ${data.newHp} HP)`) },
+    onSuccess: data => { refresh(); showMsg('success', data.alcoholLeft !== null
+      ? `${data.itemName}: ${data.alcoholLeft > 0 ? `опьянение ${Math.round(data.alcoholLeft)}` : 'вы трезвы'}`
+      : `${data.itemName}: +${data.hpRestored} HP (теперь ${data.newHp} HP)`) },
     onError: err => fail(err, 'Ошибка'),
   })
   // Столбики именной вещи и итог комплекта (заказчик 30.10) — отдельными окнами.
@@ -293,6 +295,7 @@ export function InventoryPage() {
                           {t.type === 'WEAPON' && !!t.maxRange && <div><dt>Дальность</dt><dd>{rangeLabel(t.maxRange)}</dd></div>}
                           {!!t.armor && <div><dt>Броня тела</dt><dd>+{eff?.armor ?? t.armor}<Gain value={(eff?.armor ?? 0) - (t.armor ?? 0)} /></dd></div>}
                           {(!!t.hpBonus || !!t.healPercent) && <div><dt>{t.type === 'CONSUMABLE' ? 'Восстановит' : 'Здоровье'}</dt><dd>+{healLabel(t)}</dd></div>}
+                          {!!t.soberAmount && <div><dt>Опьянение</dt><dd>{t.soberAmount >= 100 ? 'снимает полностью' : `−${t.soberAmount}`}</dd></div>}
                           {/* Заказчик 30.10: «обереги не все в карточке шмота». Теперь здесь всё:
                               статы, мастерства и обереги, и базовые, и вписанные игроком. */}
                           {itemBonusLines(t, item).map(line => <div key={line.key}><dt>{line.label}</dt><dd>{line.value}</dd></div>)}
@@ -300,7 +303,7 @@ export function InventoryPage() {
                           {/* Характеристики, которых у вещи в базе нет, — новой строкой внизу. */}
                           {/* Есть в базе — итог и прибавка (точность ножа 70% → «71% (+1)»);
                               нет в базе — «+N%» новой строкой. */}
-                          {!!eff?.weaponAccuracy && <PercentRow label="Точность" total={eff.weaponAccuracy} base={t.weaponAccuracy ?? 0} />}
+                          {t.type === 'WEAPON' && !!eff?.weaponAccuracy && <PercentRow label="Точность" total={eff.weaponAccuracy} base={t.weaponAccuracy ?? 0} />}
                           {!!eff?.critBonus && <PercentRow label="Крит" total={eff.critBonus} base={t.critBonus ?? 0} />}
                         </dl>
                         <div className="inv-card__side">
@@ -323,11 +326,11 @@ export function InventoryPage() {
                               </button>
                             ) : t.type === 'CONSUMABLE' ? (
                               <>
-                                <button type="button" className="inv-btn" disabled={useItemMut.isPending}
+                                {(!!t.hpBonus || !!t.healPercent || !!t.soberAmount) && <button type="button" className="inv-btn" disabled={useItemMut.isPending}
                                   onClick={() => useItemMut.mutate(item.id)}>
                                   <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
                                   <span>Использовать</span>
-                                </button>
+                                </button>}
                                 <button type="button" className="inv-btn"
                                   onClick={() => toggleLoadout(item.id)}>
                                   <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />

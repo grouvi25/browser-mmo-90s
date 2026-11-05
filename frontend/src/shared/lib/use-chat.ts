@@ -34,17 +34,6 @@ function mergeNotices(
   return [...messages, ...lines].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 }
 
-/**
- * Цвет ника. В макете реплики разноцветные, но цвет там ничего не
- * значит — это оформление. Берём его от самого ника, чтобы за игроком
- * держался один и тот же оттенок во всех окнах и между заходами.
- */
-export function nickTone(nick: string): 1 | 2 | 3 | 4 {
-  let hash = 0
-  for (let i = 0; i < nick.length; i++) hash = (hash * 31 + nick.charCodeAt(i)) % 997
-  return ((hash % 4) + 1) as 1 | 2 | 3 | 4
-}
-
 export interface ChatState {
   messages: ChatLine[]
   /** Комната, которую выбрал сервер: для клана она приходит только так. */

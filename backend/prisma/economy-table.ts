@@ -117,15 +117,15 @@ export const TABLE_TOOLS: readonly [string, string, number, number][] = [
 ]
 
 /** Изделия книги. Статов и эффектов в ней нет: их заполняет заказчик в админке. */
-export const TABLE_ITEMS: readonly { code: string; name: string; group: 'kit' | 'clothes' | 'scroll'; tier: number; units: number; slot: string | null; level?: number; armor?: number; durability?: number; healPercent?: number }[] = [
+export const TABLE_ITEMS: readonly { code: string; name: string; group: 'kit' | 'clothes' | 'scroll'; tier: number; units: number; slot: string | null; level?: number; armor?: number; durability?: number; healPercent?: number; soberAmount?: number }[] = [
   { code: "tb_item_a01", name: "Аптечка простая", group: 'kit', tier: 2, units: 3601.6, slot: null, healPercent: 10 },
   { code: "tb_item_a02", name: "Настойка бодрости", group: 'kit', tier: 2, units: 2048.16, slot: null },
-  { code: "tb_item_a03", name: "Очищающий раствор", group: 'kit', tier: 2, units: 1626.87, slot: null },
+  { code: "tb_item_a03", name: "Очищающий раствор", group: 'kit', tier: 2, units: 1626.87, slot: null, soberAmount: 30 },
   { code: "tb_item_a04", name: "Настойка стойкости", group: 'kit', tier: 2, units: 2227.0, slot: null },
   { code: "tb_item_a05", name: "Аптечка походная", group: 'kit', tier: 2, units: 6195.52, slot: null, healPercent: 25 },
   { code: "tb_item_a06", name: "Настойка силы", group: 'kit', tier: 3, units: 3843.25, slot: null },
   { code: "tb_item_a07", name: "Настойка ловкости", group: 'kit', tier: 2, units: 2227.0, slot: null },
-  { code: "tb_item_a08", name: "Отрезвитель", group: 'kit', tier: 2, units: 2357.47, slot: null },
+  { code: "tb_item_a08", name: "Отрезвитель", group: 'kit', tier: 2, units: 2357.47, slot: null, soberAmount: 100 },
   { code: "tb_item_a09", name: "Аптечка усиленная", group: 'kit', tier: 3, units: 10691.01, slot: null, healPercent: 50 },
   { code: "tb_item_a10", name: "Настойка концентрации", group: 'kit', tier: 2, units: 2308.65, slot: null },
   { code: "tb_item_a11", name: "Настойка восстановления", group: 'kit', tier: 3, units: 4679.19, slot: null },

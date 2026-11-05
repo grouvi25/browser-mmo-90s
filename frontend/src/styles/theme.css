@@ -824,10 +824,6 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
    ЧАТ: ЦВЕТА НИКОВ ИЗ МАКЕТА
    ============================================================= */
 
-.city-chat__nick--1 { color: #ff6000; }
-.city-chat__nick--2 { color: #000cff; }
-.city-chat__nick--3 { color: #ff0024; }
-.city-chat__nick--4 { color: #e2783f; }
 .online-list__row.is-self .online-list__nick { color: var(--ink-red); font-weight: 700; }
 
 /* =============================================================
@@ -987,7 +983,7 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 .ether-line.is-mention .ether-body { font-weight: 700; }
 .ether-tag { font-weight: 700; }
 .ether-tag--btn, .ether-nick { font: inherit; padding: 0; border: 0; background: none; cursor: pointer; }
-.ether-nick { font-weight: 700; }
+.ether-nick { font-weight: 700; color: #7a2c12; }
 .ether-nick:hover, .ether-tag--btn:hover { text-decoration: underline; }
 .ether-nick:focus-visible, .ether-tag--btn:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
 

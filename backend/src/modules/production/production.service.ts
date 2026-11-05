@@ -64,6 +64,7 @@ export const ProductionService = {
     })
   },
   recipes: (objectCode: string, characterId: string) => RecipeService.listForObject(objectCode, characterId),
+  catalog: (characterId: string) => RecipeService.catalog(characterId),
   /** Запустить цикл может только хозяин: владелец частного объекта или
    *  член бригады-владельца. Раньше ручка запускала цикл на любом объекте
    *  любому вошедшему — и тратила чужое сырьё со склада (28.10). Объекты

@@ -89,6 +89,11 @@ export const BATTLE_LOCK_TTL_MS = 15_000
 
 // ── Поле боя (движение/дистанция) ──────────────────────────────
 // Радиус оружия: у ближнего = 1, у дальнего — из шаблона (maxRange)
+/** У бота один ствол: на расстоянии он стреляет раз за ход, вплотную добавляется удар рукой (обращение 20). */
+function botShots(zones: BodyZone[], distance: number): BodyZone[] {
+  return distance > 1 ? zones.slice(0, 1) : zones
+}
+
 function weaponRangeOf(weapon: ItemWithTemplate | null | undefined): number {
   return Math.max(1, weapon?.template.maxRange ?? 1)
 }
@@ -458,6 +463,8 @@ export function executeStrikes(params: {
   attackHands?: AttackHand[]
   blockedZones: BodyZone[]
   defenderHp: number
+  /** Ответка только в пределах оружия защитника: без пистолета через всё поле не ответить (обращение 20). */
+  counterReach?: { distance: number; range: number }
 }): { results: HandStrikeResult[]; damageToDefender: number; counterToAttacker: number } {
   const results: HandStrikeResult[] = []
   let damageToDefender = 0
@@ -472,6 +479,10 @@ export function executeStrikes(params: {
     const r = resolveZonalAttack(attackerSnap, defenderSnap, {
       zone, blockedZones: params.blockedZones, zoneArmor: params.zoneArmorFor(zone),
     })
+    if (r.counterDamage > 0 && params.counterReach && params.counterReach.distance > params.counterReach.range) {
+      r.counterDamage = 0
+      r.logParts = r.logParts.map(part => part.replace(/ \+ ответка \d+/, ''))
+    }
     if (r.hit && !r.dodge && !r.block) {
       damageToDefender += r.finalDamage
       hpLeft = Math.max(0, hpLeft - r.finalDamage)
@@ -1668,7 +1679,7 @@ export const BattleService = {
         const res = executeStrikes({
           attackerSnap: botAttackSnap, defenderSnap: playerDefSnap,
           zoneArmorFor: woundedArmor(playerPart, (z) => armorOfZone(playerArmorList, z)),
-          attackZones: botTurn.attackZones, blockedZones: [], defenderHp: playerPart.hpCurrent,
+          attackZones: botShots(botTurn.attackZones, gridDistance(gridBot.position, gridPlayer.position)), blockedZones: [], defenderHp: playerPart.hpCurrent,
         })
         for (const r of res.results) {
           if (r.hit && !r.dodge && !r.block) {
@@ -1876,6 +1887,7 @@ export const BattleService = {
         attackZones: playerTurn.attackZones,
         attackHands: playerTurn.attackHands,
         blockedZones: botTurn.blockZones,
+        counterReach: { distance: gridDistance(gridPlayer.position, gridBot.position), range: botRange },
         defenderHp: botHp,
       })
       for (const r of res.results) {
@@ -1900,8 +1912,9 @@ export const BattleService = {
       const res = executeStrikes({
         attackerSnap: botAttackSnap, defenderSnap: playerDefSnap,
         zoneArmorFor: woundedArmor(playerPart, (z) => armorOfZone(playerArmorList, z)),
-        attackZones: botTurn.attackZones,
+        attackZones: botShots(botTurn.attackZones, gridDistance(gridBot.position, gridPlayer.position)),
         blockedZones: playerTurn.blockZones,
+        counterReach: { distance: gridDistance(gridBot.position, gridPlayer.position), range: playerRange },
         defenderHp: playerHp,
       })
       let intercepted = 0
@@ -2354,6 +2367,10 @@ export const BattleService = {
         attackHands: ctx.turn.attackHands,
         blockedZones: targetCtx.turn.blockZones,
         defenderHp: target.hpCurrent,
+        counterReach: {
+          distance: gridDistance(actor.position, target.position),
+          range: Math.max(weaponRangeOf(heldWeapon(target, 'LEFT_HAND', targetCtx.weaponLeft)), weaponRangeOf(heldWeapon(target, 'RIGHT_HAND', targetCtx.weaponRight))),
+        },
       })
       let intercepted = 0
       for (const r of res.results) {
@@ -2626,6 +2643,12 @@ export const BattleService = {
         attackHands: atkTurn.attackHands,
         blockedZones: defTurn.blockZones,
         defenderHp: defHp,
+        counterReach: {
+          distance: gridDistance(part1.position, part2.position),
+          range: defPart === part1
+            ? Math.max(weaponRangeOf(heldWeapon(part1, 'LEFT_HAND', weapon1Left)), weaponRangeOf(heldWeapon(part1, 'RIGHT_HAND', weapon1Right)))
+            : Math.max(weaponRangeOf(heldWeapon(part2, 'LEFT_HAND', weapon2Left)), weaponRangeOf(heldWeapon(part2, 'RIGHT_HAND', weapon2Right))),
+        },
       })
       for (const r of res.results) {
         if (r.hit && !r.dodge && !r.block) {

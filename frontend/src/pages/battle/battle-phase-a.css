@@ -1505,10 +1505,6 @@
 
 /* Ники в боевом чате: яркие цвета макета на сером фоне шторки не читались
    (контраст 2 из 4.5). Та же гамма, что в мобильном чате, только темнее. */
-.bs-chat .city-chat__nick--1 { color: #8a3100; }
-.bs-chat .city-chat__nick--2 { color: #243d91; }
-.bs-chat .city-chat__nick--3 { color: #8b1830; }
-.bs-chat .city-chat__nick--4 { color: #6b3a1c; }
 .bs-chat__form .ether-mode { padding: 4px; border: 1px solid #a8918f; background: #f3ece7; }
 
 /* Боевой помощник над хроникой: имя, полоса здоровья, тактика. Смена тактики

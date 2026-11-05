@@ -123,6 +123,8 @@ export interface ItemTemplate {
   hpBonus: number | null
   /** Лечит долей максимального здоровья, %. Больше нуля: важнее hpBonus. */
   healPercent?: number | null
+  /** Снимает опьянение на столько единиц; 100 снимает полностью. */
+  soberAmount?: number | null
   // Physical
   weight: number
   durabilityMax: number

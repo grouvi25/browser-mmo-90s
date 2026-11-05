@@ -1,9 +1,92 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { productionApi } from '../../shared/api/production.api'
+import { productionApi, type CatalogProduct } from '../../shared/api/production.api'
 import { Skeleton, Fault, Empty } from './stage3-ui'
 
 const QUALITY: Record<string, string> = { POOR: 'плохое', NORMAL: 'обычное', FINE: 'отличное' }
+
+const SHOWN = 12
+
+/** Минуты труда по-человечески: 90 мин, 3 ч 20 мин. */
+function labor(minutes: number) {
+  const whole = Math.round(minutes)
+  if (whole < 60) return `${whole} мин`
+  const rest = whole % 60
+  return `${Math.floor(whole / 60)} ч${rest ? ` ${rest} мин` : ''}`
+}
+
+/** Карточка товара: где получается, что нужно и куда идёт дальше. */
+function ProductCard({ product, linkOf }: { product: CatalogProduct; linkOf: (code: string) => string }) {
+  return (
+    <article className="s3-howto" aria-label={`Как получить: ${product.name}`}>
+      <h3>{product.name}</h3>
+      {product.inShop && <p className="s3-howto__note">Продаётся в <Link to="/shop">Госмагазине</Link>.</p>}
+      {product.ways.map(way => (
+        <div key={way.objectCode} className="s3-howto__way">
+          <p className="s3-howto__place">
+            <b>{way.gather ? 'Добывается' : 'Делается'}:</b> {way.objectName}
+            {way.forSaleUsd != null && <span className="s3-howto__price"> · работает после покупки за {way.forSaleUsd.toLocaleString('ru-RU')} $</span>}
+          </p>
+          <dl>
+            {way.professionName && <div><dt>Профессия</dt><dd>{way.professionName}{way.professionKnown
+              ? <span className="ok"> · есть</span>
+              : <> · <Link to="/school">в Училище</Link></>}</dd></div>}
+            {way.toolName && <div><dt>Инструмент</dt><dd>{way.toolCode ? <Link to={linkOf(way.toolCode)}>{way.toolName}</Link> : way.toolName}</dd></div>}
+            <div><dt>Труд на 1 шт.</dt><dd>{labor(way.labor)}{!way.gather && way.shiftMinutes > 0 && <span className="muted"> · {Math.ceil(way.labor / way.shiftMinutes)} см. по {way.shiftMinutes} мин</span>}</dd></div>
+          </dl>
+          {way.inputs.length > 0 && (
+            <div className="s3-howto__inputs">
+              <b>Нужно:</b>
+              <ul>{way.inputs.map(input => <li key={input.code}>{input.amount} × <Link to={linkOf(input.code)}>{input.name}</Link></li>)}</ul>
+            </div>
+          )}
+        </div>
+      ))}
+      {product.usedIn.length > 0 && (
+        <p className="s3-howto__used"><b>Идёт на:</b> {product.usedIn.map((next, index) => <span key={next.code}>{index > 0 && ', '}<Link to={linkOf(next.code)}>{next.name}</Link></span>)}</p>
+      )}
+    </article>
+  )
+}
+
+/** «Как сделать»: выбираем товар и идём по цепочке вглубь. */
+function HowTo() {
+  const [params, setParams] = useSearchParams()
+  const [search, setSearch] = useState('')
+  const chosen = params.get('product')
+  const catalog = useQuery({ queryKey: ['production', 'catalog'], queryFn: productionApi.catalog, staleTime: 60_000 })
+  const items = useMemo(() => catalog.data?.items ?? [], [catalog.data])
+  const needle = search.trim().toLocaleLowerCase('ru')
+  const found = useMemo(() => (needle ? items.filter(item => item.name.toLocaleLowerCase('ru').includes(needle)) : []), [items, needle])
+  const product = items.find(item => item.code === chosen)
+  const linkOf = (code: string) => `/recipes?product=${encodeURIComponent(code)}`
+
+  if (catalog.isLoading) return <Skeleton rows={2} />
+  if (catalog.isError) return <Fault retry={() => catalog.refetch()} />
+
+  return (
+    <section className="s3-howto-wrap" aria-label="Как сделать">
+      <h2 className="s3-howto__title">Как сделать</h2>
+      <label className="s3-howto__search">
+        Что нужно получить?
+        <input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Например, куртка, аптечка, заготовка" />
+      </label>
+      {needle && (found.length === 0
+        ? <p className="s3-hint">Такого в игре нет, попробуйте другое слово.</p>
+        : <ul className="s3-howto__found">
+          {found.slice(0, SHOWN).map(item => (
+            <li key={item.code}>
+              <button type="button" className="btn btn-sm" onClick={() => { setSearch(''); setParams({ product: item.code }) }}>{item.name}</button>
+            </li>
+          ))}
+          {found.length > SHOWN && <li className="muted">и ещё {found.length - SHOWN}, уточните запрос</li>}
+        </ul>)}
+      {product && <ProductCard product={product} linkOf={linkOf} />}
+      {chosen && !product && <p className="s3-hint">Этот товар сейчас не производится.</p>}
+    </section>
+  )
+}
 
 /** Справочник переделов: что из чего делается и на каком объекте. */
 export function RecipesSection() {
@@ -23,9 +106,10 @@ export function RecipesSection() {
 
   return (
     <>
+      <HowTo />
       <section className="s3-toolbar">
         <label>
-          Объект
+          Рецепты объекта
           <select value={objectCode} onChange={e => setObjectCode(e.target.value)}>
             <option value="">— выберите объект —</option>
             {items.map(object => (
