@@ -366,6 +366,8 @@ export function balanceRegistry(): BalanceGroup[] {
             p('economy.production.objectWithdrawTaxRate', B.economy.production.objectWithdrawTaxRate, 'налог на вывод прибыли'),
             p('economy.production.objectResaleRate', B.economy.production.objectResaleRate, 'сколько вернут при продаже'),
             p('economy.production.objectPriceUsd', B.economy.production.objectPriceUsd, 'цена объекта у государства, долларов'),
+            p('economy.production.objectLevel2PriceUsd', B.economy.production.objectLevel2PriceUsd, 'улучшение цеха до 2 уровня, долларов'),
+            p('economy.production.cyclesAtLevel2', B.economy.production.cyclesAtLevel2, 'сколько рецептов сразу у цеха 2 уровня'),
             p('economy.production.profileSwitchCost', B.economy.production.profileSwitchCost, 'смена профиля объекта'),
             p('economy.production.profileSwitchMinutes', B.economy.production.profileSwitchMinutes, 'простой при смене профиля'),
             p('strategy.clanObjects.base', B.strategy.clanObjects.base, 'объектов у бригады без районов'),

@@ -101,6 +101,13 @@ export const BalanceConfig = {
       objectResaleRate: 0.5,
       /** Заказчик 28.10: «Заводы продаются ТОЛЬКО за доллары»; 30.10: «Стоимость заводов 15000$». */
       objectPriceUsd: 15000,
+      /**
+       * Заказчик 04.11 (#4226–4228): «завод 1 лвл делает 1 рецепт, 2 лвл делает
+       * 3 рецепта». Цену второго уровня он не называл: 7 500 $ — половина цены
+       * завода, меняется в админке.
+       */
+      objectLevel2PriceUsd: 7500,
+      cyclesAtLevel2: 3,
       profileSwitchCost: 1500,
       profileSwitchMinutes: 180,
       repairCostPerDurability: 20,

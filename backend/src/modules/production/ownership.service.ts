@@ -137,6 +137,8 @@ export const OwnershipService = {
           salaryOverride: null,
           maintenanceDebt: 0,
           paidUsd: null,
+          // Улучшение остаётся у прежнего владельца деньгами в выкупе, не у цеха.
+          level: 1,
         },
       })
       if (claimed.count !== 1) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Владелец объекта изменился', 409)
@@ -279,6 +281,31 @@ export const OwnershipService = {
       where: { id: objectId }, data: { salaryOverride: salary },
     })
     return { salary: updated.salaryOverride }
+  },
+
+  /** Второй уровень цеха: несколько рецептов сразу, без смены профиля. Только свой цех. */
+  async upgrade(characterId: string, objectId: string, key: string) {
+    return withIdempotency({ characterId, scope: 'objects.upgrade', key, execute: async tx => {
+      const object = await tx.productionObject.findUniqueOrThrow({ where: { id: objectId } })
+      if (object.ownerType !== 'PRIVATE' || object.ownerCharacterId !== characterId) {
+        throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Улучшить можно только свой цех', 403)
+      }
+      if (object.level >= 2) throw new AppError(ErrorCode.PROD_CYCLE_BLOCKED, 'Цех уже второго уровня', 409)
+      const priceUsd = config.objectLevel2PriceUsd
+      const newDollars = await DollarsService.debit(tx, {
+        characterId, amount: priceUsd, reason: 'PURCHASE', refId: objectId, note: `${object.name}: 2 уровень`,
+      })
+      // Цена улучшения входит в выкуп: при продаже государству вернётся та же доля.
+      const upgraded = await tx.productionObject.updateMany({
+        where: { id: objectId, level: { lt: 2 }, ownerCharacterId: characterId },
+        data: { level: 2, paidUsd: (object.paidUsd ?? 0) + priceUsd },
+      })
+      if (upgraded.count !== 1) throw new AppError(ErrorCode.PROD_CYCLE_BLOCKED, 'Цех уже второго уровня', 409)
+      await tx.productionLog.create({
+        data: { characterId, productionObjectId: objectId, eventType: 'OBJECT_OWNERSHIP_CHANGED', metadataJson: { upgradedTo: 2, priceUsd } },
+      })
+      return { level: 2, priceUsd, newDollars }
+    } })
   },
 
   async switchProfile(characterId: string, objectId: string, recipeId: string, key: string) {

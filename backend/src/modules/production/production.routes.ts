@@ -61,6 +61,14 @@ export async function productionRoutes(fastify: FastifyInstance) {
     return reply.code(201).send(await OwnershipService.buy(actor.id, req.params.id, key))
   })
 
+  fastify.post<{ Params: { id: string } }>('/objects/:id/upgrade', { preHandler: authenticate }, async (req, reply) => {
+    if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const key = req.headers['idempotency-key']
+    if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+    const actor = await character(req.authUser.userId)
+    return reply.code(201).send(await OwnershipService.upgrade(actor.id, req.params.id, key))
+  })
+
   fastify.post<{ Params: { id: string } }>('/objects/:id/sell', { preHandler: authenticate }, async (req, reply) => {
     if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const key = req.headers['idempotency-key']
@@ -124,10 +132,12 @@ export async function productionRoutes(fastify: FastifyInstance) {
     return reply.send(await OwnershipService.repair(actor.id, req.params.id, key))
   })
 
-  fastify.post<{ Params: { id: string } }>('/objects/:id/cycles/start', { preHandler: authenticate }, async (req, reply) => {
+  fastify.post<{ Params: { id: string }; Body: { recipeId?: string } | undefined }>('/objects/:id/cycles/start', { preHandler: authenticate }, async (req, reply) => {
     if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const recipeId = req.body?.recipeId
+    if (recipeId !== undefined && !Id.safeParse(recipeId).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
     const actor = await character(req.authUser.userId)
-    const result = await ProductionService.startCycle(req.params.id, actor.id)
+    const result = await ProductionService.startCycle(req.params.id, actor.id, recipeId)
     return reply.code('cycle' in result ? 201 : 409).send(result)
   })
 }

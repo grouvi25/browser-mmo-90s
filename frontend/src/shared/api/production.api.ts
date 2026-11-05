@@ -43,6 +43,11 @@ export interface ProductionObject {
   /** Только на «Рынке объектов»: кто работает и что можно выпускать. */
   professionName?: string
   products?: string[]
+  /** Только в «Моих объектах»: уровень цеха, сколько рецептов сразу, цена улучшения. */
+  level?: number
+  cycleSlots?: number
+  upgradeUsd?: number | null
+  recipeChoices?: { id: string; name: string }[]
   /** Только в «Моих объектах»: что цех выпускает сейчас и чего ему не хватает. */
   activeRecipe?: {
     name: string; laborRequired: number; shifts: number; toolName: string | null
@@ -109,7 +114,8 @@ export const productionApi = {
   setSalary: (id: string, salary: number) => api.patch(`/api/production/objects/${id}/salary`, { salary }),
   switchProfile: (id: string, recipeId: string) =>
     api.post(`/api/production/objects/${id}/profile`, { recipeId }, idem()),
-  startCycle: (id: string) => api.post<StartCycleResult>(`/api/production/objects/${id}/cycles/start`),
+  startCycle: (id: string, recipeId?: string) => api.post<StartCycleResult>(`/api/production/objects/${id}/cycles/start`, recipeId ? { recipeId } : undefined),
+  upgrade: (id: string) => api.post<{ level: number; priceUsd: number; newDollars: number }>(`/api/production/objects/${id}/upgrade`, undefined, idem()),
   stockTake: (id: string, resourceCode: string, amount: number) =>
     api.post(`/api/production/objects/${id}/stock/take`, { resourceCode, amount }, idem()),
   stockPut: (id: string, resourceCode: string, amount: number) =>

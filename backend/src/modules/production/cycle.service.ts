@@ -5,6 +5,7 @@ import { TerritoriesService } from '../territories/territories.service'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { ObjectInventoryService } from './inventory.service'
 import { cycleDurationMinutes, cycleReady, equipmentWear, laborFromShift, outputQuality, resourceToItemQuality } from './cycle.formulas'
+import { cycleSlots } from './ownership.formulas'
 
 const ACTIVE_STATUSES = ['PENDING', 'RUNNING'] as const
 
@@ -16,7 +17,11 @@ function minimumQuality(qualities: ResourceQuality[]): ResourceQuality | null {
 }
 
 export const CycleService = {
-  async tryStart(objectId: string) {
+  /**
+   * Запустить цикл. Без recipeId — активный рецепт цеха, как раньше. Цех 2 уровня
+   * ведёт несколько разных рецептов сразу и берёт любой свой без смены профиля.
+   */
+  async tryStart(objectId: string, recipeId?: string) {
     try {
       return await withTransaction(async tx => {
         const object = await tx.productionObject.findUniqueOrThrow({
@@ -27,17 +32,23 @@ export const CycleService = {
         if (object.profileSwitchEndsAt) return { failure: 'PROFILE_SWITCHING' as const }
         if (object.durabilityCurrent <= 0) return { failure: 'EQUIPMENT_BROKEN' as const }
         if (object.ownerType !== 'SYSTEM' && object.balance < 0) return { failure: 'NEGATIVE_BALANCE' as const }
-        if (!object.activeRecipeId) return { failure: 'INPUT_MISSING' as const }
+        const slots = cycleSlots(object.level)
+        const chosen = recipeId && slots > 1 ? recipeId : object.activeRecipeId
+        if (!chosen) return { failure: 'INPUT_MISSING' as const }
 
-        const active = await tx.productionCycle.count({
+        const running = await tx.productionCycle.findMany({
           where: { productionObjectId: objectId, status: { in: [...ACTIVE_STATUSES] } },
+          select: { recipeId: true },
         })
-        if (active > 0) return { alreadyRunning: true as const }
+        if (running.length >= slots || running.some(row => row.recipeId === chosen)) return { alreadyRunning: true as const }
 
         const recipe = await tx.productionRecipe.findUniqueOrThrow({
-          where: { id: object.activeRecipeId },
+          where: { id: chosen },
           include: { inputs: true },
         })
+        if (recipe.productionObjectCode !== object.code || !recipe.isActive) {
+          throw new AppError(ErrorCode.PROD_RECIPE_INVALID, 'Этот рецепт не для этого цеха', 422)
+        }
         const reservations = [] as Array<{
           inventoryId: string
           resourceCode: string

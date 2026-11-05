@@ -73,8 +73,9 @@ export function ObjectsSection() {
     ),
     onError: fail,
   })
+  const upgrade = useMutation({ mutationFn: productionApi.upgrade, onSuccess: () => { done('Цех второго уровня: теперь до трёх рецептов сразу'); void qc.invalidateQueries({ queryKey: ['dollars'] }) }, onError: fail })
   const start = useMutation({
-    mutationFn: productionApi.startCycle,
+    mutationFn: ({ id, recipeId }: { id: string; recipeId?: string }) => productionApi.startCycle(id, recipeId),
     onSuccess: (result: StartCycleResult) => {
       if ('cycle' in result) return done('Цикл запущен')
       if ('alreadyRunning' in result) { setBad(true); setMsg('Цикл уже идёт'); return }
@@ -88,7 +89,7 @@ export function ObjectsSection() {
   if (query.isError) return <Fault retry={() => query.refetch()} />
 
   const items = query.data?.items ?? []
-  const busy = buy.isPending || sell.isPending || repair.isPending || start.isPending || transfer.isPending
+  const busy = buy.isPending || sell.isPending || repair.isPending || start.isPending || transfer.isPending || upgrade.isPending
 
   return (
     <>
@@ -122,7 +123,8 @@ export function ObjectsSection() {
               onSell={() => sell.mutate(object.id)}
               onRepair={() => repair.mutate(object.id)}
               onTransfer={() => transfer.mutate(object.id)}
-              onStart={() => start.mutate(object.id)}
+              onStart={recipeId => start.mutate({ id: object.id, recipeId })}
+              onUpgrade={() => upgrade.mutate(object.id)}
               onDone={done}
               onFail={fail}
             />
@@ -133,7 +135,7 @@ export function ObjectsSection() {
   )
 }
 
-function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepair, onTransfer, onStart, onDone, onFail }: {
+function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepair, onTransfer, onStart, onUpgrade, onDone, onFail }: {
   object: ProductionObject
   mode: 'mine' | 'market'
   open: boolean
@@ -143,11 +145,17 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
   onSell: () => void
   onRepair: () => void
   onTransfer: () => void
-  onStart: () => void
+  onStart: (recipeId?: string) => void
+  onUpgrade: () => void
   onDone: (text: string) => void
   onFail: (e: Error) => void
 }) {
   const cycle = object.cycles?.[0]
+  const slots = object.cycleSlots ?? 1
+  const running = new Set((object.cycles ?? []).map(row => row.recipe.name))
+  const choices = (object.recipeChoices ?? []).filter(row => !running.has(row.name))
+  const [pick, setPick] = useState('')
+  const picked = choices.some(row => row.id === pick) ? pick : choices[0]?.id ?? ''
   const stored = object.inventory?.reduce((sum, row) => sum + row.amount, 0) ?? 0
   const switching = object.profileSwitchEndsAt && new Date(object.profileSwitchEndsAt) > new Date()
 
@@ -168,6 +176,7 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
         <div><dt>Баланс</dt><dd>{fmt(object.balance)} ₽</dd></div>
         <div><dt>Износ</dt><dd>{object.durabilityCurrent}/{object.durabilityMax}</dd></div>
         <div><dt>Склад</dt><dd>{stored}/{object.storageCapacity}</dd></div>
+        {mode === 'mine' && <div><dt>Уровень</dt><dd>{object.level ?? 1}{(object.cycleSlots ?? 1) > 1 ? ` · ${object.cycleSlots} рецепта` : ''}</dd></div>}
         {mode === 'mine' && object.workers && (
           <div><dt>На смене</dt><dd>{object.workers.length}</dd></div>
         )}
@@ -177,15 +186,18 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
         {switching ? (
           <div className="empty-line"><Repeat size={16} /> смена профиля · до {timer(object.profileSwitchEndsAt)}</div>
         ) : cycle ? (
-          <>
-            <span>{cycle.recipe.name}</span>
-            <progress value={cycle.laborAccumulated} max={cycle.laborRequired} />
-            <small>
-              {CYCLE_STATUS[cycle.status] ?? cycle.status} · труд {cycle.laborAccumulated}/{cycle.laborRequired}
-              {cycle.endsAt ? ' · осталось ' + remaining(cycle.endsAt) : ''}
-              {cycle.failureReason ? ' · ' + (FAILURE_TEXT[cycle.failureReason] ?? cycle.failureReason) : ''}
-            </small>
-          </>
+          // Цех 2 уровня ведёт несколько циклов: показываем каждый, труд идёт в первый по очереди.
+          (object.cycles ?? []).map(row => (
+            <div key={row.id} className="cycle__row">
+              <span>{row.recipe.name}</span>
+              <progress value={row.laborAccumulated} max={row.laborRequired} />
+              <small>
+                {CYCLE_STATUS[row.status] ?? row.status} · труд {row.laborAccumulated}/{row.laborRequired}
+                {row.endsAt ? ' · осталось ' + remaining(row.endsAt) : ''}
+                {row.failureReason ? ' · ' + (FAILURE_TEXT[row.failureReason] ?? row.failureReason) : ''}
+              </small>
+            </div>
+          ))
         ) : (
           <div className="empty-line"><PackageOpen size={16} /> цикл не запущен</div>
         )}
@@ -196,7 +208,14 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
           <button onClick={onBuy} disabled={busy}>Купить за {fmt(object.priceUsd ?? 0)} $</button>
         ) : (
           <>
-            <button onClick={onStart} disabled={busy}><Play size={15} /> Запустить</button>
+            {slots > 1 && choices.length > 0 && (object.cycles?.length ?? 0) < slots && (
+              <select value={picked} onChange={e => setPick(e.target.value)} aria-label="Что запустить">
+                {choices.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}
+              </select>
+            )}
+            <button onClick={() => onStart(slots > 1 ? picked || undefined : undefined)} disabled={busy || (slots > 1 && (object.cycles?.length ?? 0) >= slots)}>
+              <Play size={15} /> Запустить{slots > 1 ? ` · ${object.cycles?.length ?? 0}/${slots}` : ''}
+            </button>
             <button className="quiet" onClick={onToggle} aria-expanded={open}>
               {open ? 'Свернуть' : 'Управление'}
             </button>
@@ -226,17 +245,18 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
       )}
 
       {open && mode === 'mine' && (
-        <ObjectControls object={object} busy={busy} onRepair={onRepair} onTransfer={onTransfer} onSell={onSell} onDone={onDone} onFail={onFail} />
+        <ObjectControls object={object} busy={busy} onRepair={onRepair} onTransfer={onTransfer} onSell={onSell} onUpgrade={onUpgrade} onDone={onDone} onFail={onFail} />
       )}
     </article>
   )
 }
 
 /** Управление объектом: деньги, ставка, ремонт, смена профиля, продажа. */
-function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, onFail }: {
+function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onUpgrade, onDone, onFail }: {
   object: ProductionObject
   busy: boolean
   onRepair: () => void
+  onUpgrade: () => void
   onSell: () => void
   onTransfer: () => void
   onDone: (text: string) => void
@@ -311,6 +331,11 @@ function ObjectControls({ object, busy, onRepair, onTransfer, onSell, onDone, on
       <fieldset>
         <legend>Объект</legend>
         <button onClick={onRepair} disabled={busy}><Wrench size={15} /> Ремонт</button>
+        {object.upgradeUsd != null && (
+          <button onClick={() => { if (window.confirm(`Улучшить «${object.name}» до 2 уровня за ${fmt(object.upgradeUsd ?? 0)} $? Цех будет вести до трёх рецептов сразу, без смены профиля.`)) onUpgrade() }} disabled={busy}>
+            2 уровень · {fmt(object.upgradeUsd)} $
+          </button>
+        )}
         {!clan && (
           <>
             <button

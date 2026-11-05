@@ -7,6 +7,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
+import { cycleSlots } from './ownership.formulas'
 export const ProductionService = {
   list: async () => ({ items: await ProductionRepository.listActive() }),
   get: async (id: string) => { const item = await ProductionRepository.findActiveById(id); if (!item) throw ProductionErrors.notFound(); return item },
@@ -67,6 +68,11 @@ export const ProductionService = {
       where: { id: { in: objects.map(object => object.activeRecipeId).filter((id): id is string => !!id) } },
       include: { inputs: true },
     })
+    const allRecipes = await prisma.productionRecipe.findMany({
+      where: { isActive: true, productionObjectCode: { in: objects.map(object => object.code) } },
+      select: { id: true, name: true, productionObjectCode: true },
+      orderBy: { name: 'asc' },
+    })
     const toolNames = new Map((await prisma.itemTemplate.findMany({
       where: { code: { in: recipes.map(recipe => recipe.requiredToolCode).filter((code): code is string => !!code) } },
       select: { code: true, name: true },
@@ -76,6 +82,10 @@ export const ProductionService = {
       const recipe = recipes.find(row => row.id === object.activeRecipeId)
       return {
         ...object,
+        // Второй уровень (#4226): сколько рецептов сразу, цена улучшения, из чего выбирать.
+        cycleSlots: cycleSlots(object.level),
+        upgradeUsd: object.ownerType === 'PRIVATE' && object.level < 2 ? BalanceConfig.economy.production.objectLevel2PriceUsd : null,
+        recipeChoices: cycleSlots(object.level) > 1 ? allRecipes.filter(row => row.productionObjectCode === object.code).map(row => ({ id: row.id, name: row.name })) : [],
         // Что цех делает сейчас и чего ему не хватает: без этого «Запустить»
         // отвечало только «не хватает сырья», а какого, игрок не знал.
         activeRecipe: recipe ? {
@@ -106,14 +116,14 @@ export const ProductionService = {
    *  член бригады-владельца. Раньше ручка запускала цикл на любом объекте
    *  любому вошедшему — и тратила чужое сырьё со склада (28.10). Объекты
    *  государства запускает сам сервер (production-cycle.worker). */
-  startCycle: async (objectId: string, characterId: string) => {
+  startCycle: async (objectId: string, characterId: string, recipeId?: string) => {
     const object = await prisma.productionObject.findUnique({ where: { id: objectId }, select: { ownerType: true, ownerCharacterId: true, ownerClanId: true } })
     if (!object) throw ProductionErrors.notFound()
     const allowed = object.ownerType === 'PRIVATE' ? object.ownerCharacterId === characterId
       : object.ownerType === 'CLAN' ? !!(await prisma.clanMember.findFirst({ where: { characterId, clanId: object.ownerClanId ?? '', status: 'ACTIVE' }, select: { id: true } }))
         : false
     if (!allowed) throw new AppError(ErrorCode.PROD_NOT_OWNER, 'Запускать цикл может только хозяин объекта', 403)
-    return CycleService.tryStart(objectId)
+    return CycleService.tryStart(objectId, recipeId)
   },
   cycles: (objectId: string, limit = 20) => prisma.productionCycle.findMany({
     where: { productionObjectId: objectId },
