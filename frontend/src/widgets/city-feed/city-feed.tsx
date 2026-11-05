@@ -154,6 +154,9 @@ export function CityChat() {
 }
 
 // ── Онлайн ───────────────────────────────────────────────────
+/** Окно списка на нарисованной панели: от левого края строк до её рамки. */
+const ONLINE_LIST_BOX = { w: 320, rows: 9 }
+
 export function OnlineList() {
   const navigate = useNavigate()
   const { data: char } = useQuery({
@@ -177,11 +180,9 @@ export function OnlineList() {
   }))
   players.sort((a, b) => Number(b.self ?? false) - Number(a.self ?? false))
 
-  const shown = players.slice(0, 9)
-
   // Ник и уровень идут одной строкой: при подмене шрифта они больше
   // не расходятся и не налезают друг на друга, как при абсолютных позициях.
-  useFitBlock(listRef, MENU.onlineList.w + 60, [shown.length, char?.nickname])
+  useFitBlock(listRef, MENU.onlineList.w + 60, [players.length, char?.nickname])
   useFitBlock(titleRef, MENU.onlineTitle.w, [players.length])
 
   return (
@@ -195,15 +196,25 @@ export function OnlineList() {
         Игроки онлайн: {players.length} <OnlineRefresh />
       </div>
 
+      {/* Видно девять строк, остальные листаются (обращение №25: из 13 игроков
+          было видно 9). Ширину ужимает внутренний блок, прокрутка стоит снаружи
+          и потому не ездит вслед за самым длинным ником. */}
+      <div
+        className="online-list-scroll"
+        tabIndex={0}
+        role="group"
+        aria-label="Игроки онлайн"
+        style={{
+          left: MENU.onlineList.x, top: MENU.onlineList.y,
+          width: ONLINE_LIST_BOX.w, height: ONLINE_LIST_BOX.rows * MENU.onlineList.lineHeight,
+        }}
+      >
       <div
         ref={listRef}
         className="online-list"
-        style={{
-          left: MENU.onlineList.x, top: MENU.onlineList.y,
-          fontSize: MENU.onlineList.size, lineHeight: `${MENU.onlineList.lineHeight}px`,
-        }}
+        style={{ fontSize: MENU.onlineList.size, lineHeight: `${MENU.onlineList.lineHeight}px` }}
       >
-        {shown.map(p => (
+        {players.map(p => (
           <div
             key={p.nick}
             className={'online-list__row' + (p.self ? ' is-self' : '')}
@@ -219,6 +230,7 @@ export function OnlineList() {
             <span className={`online-lvl online-lvl--${p.tone}`}>{p.level}</span>
           </div>
         ))}
+      </div>
       </div>
     </>
   )

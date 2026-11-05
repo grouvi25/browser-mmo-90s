@@ -2,6 +2,7 @@
 // процент с покупок приглашённых копится на отдельном счёте, отсюда его
 // зачисляют на персонажа или выводят на карту по заявке.
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { referralApi, type PayoutStatus } from '../../shared/api/referral.api'
 import { ApiError } from '../../shared/api/client'
@@ -65,6 +66,20 @@ export function ReferralSection() {
         <div className="s4-stat"><span className="s4-stat__label">Пришло по ссылке</span><b>{fmt(me.invited)}</b></div>
         <div className="s4-stat"><span className="s4-stat__label">Начислено всего</span><b>{fmt(me.earned)} $</b></div>
       </div>
+
+      {me.referrals.length > 0 && (
+        <div className="referral__box">
+          <h4>Кого привёл</h4>
+          <ul className="referral__people">
+            {me.referrals.map(row => (
+              <li key={row.nickname}>
+                <Link to={`/u/${encodeURIComponent(row.nickname)}`}>{row.nickname}</Link>
+                <span className="s4-muted">{row.level} ур.</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <form className="referral__box" onSubmit={submitClaim}>
         <h4>Зачислить на персонажа</h4>

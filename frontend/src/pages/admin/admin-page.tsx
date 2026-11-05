@@ -35,6 +35,7 @@ import { StaffSection } from './sections/staff-section'
 import '../stage3/stage3.css'
 import './admin.css'
 import './admin-shell.css'
+import { PasswordInput } from '../../shared/ui/password-input'
 
 interface Ctx {
   can: (permission: Permission) => boolean
@@ -265,7 +266,7 @@ function AdminLogin({ onDone }: { onDone: (token: string) => void }) {
             <label htmlFor="adm-nick">Ник</label>
             <input id="adm-nick" value={nickname} onChange={event => setNickname(event.target.value)} autoComplete="username" autoFocus />
             <label htmlFor="adm-pass">Пароль от игрового аккаунта</label>
-            <input id="adm-pass" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" />
+            <PasswordInput id="adm-pass" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" />
             <button type="submit" disabled={busy || !nickname.trim() || !password}>{busy ? 'Проверяем…' : 'Дальше'}</button>
           </form>
         ) : (

@@ -262,6 +262,12 @@
 .referral__link input { flex: 1 1 auto; min-width: 0; font: inherit; padding: 3px 6px; }
 .referral__box { padding: 10px; border: 1px solid var(--border); background: var(--paper-warm); display: grid; gap: 8px; }
 .referral__box p { margin: 0; }
+.referral__people { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.referral__people li { display: flex; justify-content: space-between; gap: 12px; }
+.referral__people a { color: var(--ink-red, #a31212); }
+.referral__people a:hover { color: #6f0101; }
+.referral__people a:active { color: #3d0000; }
+.referral__people a:focus-visible { outline: 2px solid var(--ink-red, #a31212); outline-offset: 2px; }
 #ref-details { width: min(320px, 100%); }
 .s4-goods__confirm { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .exchange { display: grid; gap: 10px; }

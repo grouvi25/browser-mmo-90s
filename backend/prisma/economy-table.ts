@@ -20,7 +20,7 @@ export const TABLE_PROFESSIONS = [
   ["toolmaker", "Инструментальщик"],
   ["alchemist", "Алхимик"],
   ["tailor", "Портной"],
-  ["rune_scribe", "Рунописец"],
+  ["rune_scribe", "Юрист"],
 ] as const
 
 /** [код, имя, тир, цена в единицах] */
@@ -200,12 +200,12 @@ export const TABLE_OBJECTS: readonly { code: string; name: string; type: 'KOLHOZ
   { code: "obj_tb_berry", name: "Ягодный цех", type: 'WORKSHOP', profession: "berry_farmer", district: 'suburb', gather: false, shiftMinutes: 60, resource: null },
   { code: "obj_tb_armor_metal", name: "Металлургический бронецех", type: 'WORKSHOP', profession: "metallurgist", district: 'garages', gather: false, shiftMinutes: 60, resource: null },
   { code: "obj_tb_sewing", name: "Швейная мастерская", type: 'WORKSHOP', profession: "tailor", district: 'garages', gather: false, shiftMinutes: 60, resource: null },
-  { code: "obj_tb_rune_base", name: "Рунная мастерская", type: 'WORKSHOP', profession: "rune_scribe", district: 'center', gather: false, shiftMinutes: 60, resource: null },
+  { code: "obj_tb_rune_base", name: "Нотариальная контора", type: 'WORKSHOP', profession: "rune_scribe", district: 'center', gather: false, shiftMinutes: 60, resource: null },
   { code: "obj_tb_pharm_base", name: "Аптечный цех", type: 'WORKSHOP', profession: "alchemist", district: 'garages', gather: false, shiftMinutes: 60, resource: null },
   { code: "obj_tb_tools_1", name: "Инструментальная мастерская", type: 'WORKSHOP', profession: "toolmaker", district: 'garages', gather: false, shiftMinutes: 60, resource: null },
   { code: "obj_tb_tincture_1", name: "Настоечный цех", type: 'WORKSHOP', profession: "alchemist", district: 'garages', gather: false, shiftMinutes: 60, resource: null },
   { code: "obj_tb_armor_shop", name: "Швейно-броневой цех", type: 'WORKSHOP', profession: "tailor", district: 'garages', gather: false, shiftMinutes: 60, resource: null },
-  { code: "obj_tb_rune_2", name: "Мастерская высших свитков", type: 'WORKSHOP', profession: "rune_scribe", district: 'center', gather: false, shiftMinutes: 60, resource: null },
+  { code: "obj_tb_rune_2", name: "Адвокатура", type: 'WORKSHOP', profession: "rune_scribe", district: 'center', gather: false, shiftMinutes: 60, resource: null },
 ]
 
 export const TABLE_RECIPES: readonly { code: string; name: string; object: string; resource: string | null; item: string | null; minutes: number; profession: string; tool: string | null; inputs: readonly (readonly [string, number])[] }[] = [

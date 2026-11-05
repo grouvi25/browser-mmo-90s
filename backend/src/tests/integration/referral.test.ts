@@ -32,6 +32,18 @@ describe('реферальная система', () => {
   beforeEach(async () => cleanDatabase())
   afterAll(async () => testPrisma.$disconnect())
 
+  it('вкладка показывает ники приглашённых, но не логины и не чужих', async () => {
+    const host = await player('host')
+    const friend = await player('friend', { referrerId: host.id })
+    await player('stranger')
+    const login = uid('nochar')
+    await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x', referrerCharacterId: host.id } })
+
+    const summary = await ReferralService.summary(host.id)
+    expect(summary.invited).toBe(2)
+    expect(summary.referrals).toEqual([{ nickname: friend.nickname, level: friend.battleLevel }])
+  })
+
   it('ссылка с ником запоминает пригласившего, мусор и сам себя — нет', async () => {
     const host = await player('host')
     const login = uid('guest')

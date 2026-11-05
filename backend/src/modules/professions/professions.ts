@@ -25,7 +25,7 @@ export const PROFESSION_NAMES: Record<ProfessionCode, string> = {
   toolmaker: 'Инструментальщик',
   alchemist: 'Алхимик',
   tailor: 'Портной',
-  rune_scribe: 'Рунописец',
+  rune_scribe: 'Юрист',
 }
 
 /**

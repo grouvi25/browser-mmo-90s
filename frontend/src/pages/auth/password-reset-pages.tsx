@@ -6,6 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../../shared/api/auth.api'
 import { ApiError } from '../../shared/api/client'
 import { SmartCaptcha, useCaptchaKey } from '../../shared/ui/smart-captcha'
+import { PasswordInput } from '../../shared/ui/password-input'
 
 function AuthShell({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) {
   return (
@@ -127,12 +128,12 @@ export function ResetPasswordPage() {
         {error && <div className="alert alert-error">{error}</div>}
         <div className="form-group">
           <label className="form-label" htmlFor="reset-password">Новый пароль</label>
-          <input id="reset-password" className="form-input" type="password" autoComplete="new-password"
+          <PasswordInput id="reset-password" className="form-input" autoComplete="new-password"
             value={password} onChange={e => setPassword(e.target.value)} autoFocus />
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="reset-repeat">Ещё раз</label>
-          <input id="reset-repeat" className="form-input" type="password" autoComplete="new-password"
+          <PasswordInput id="reset-repeat" className="form-input" autoComplete="new-password"
             value={repeat} onChange={e => setRepeat(e.target.value)} />
         </div>
         <button type="submit" className="btn btn-primary btn-block" disabled={loading}>

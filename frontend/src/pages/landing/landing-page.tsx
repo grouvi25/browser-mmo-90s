@@ -23,6 +23,17 @@ function stamp(iso: string) {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 }
 
+/** Вводный абзац: стартовые деньги берём у сервера, их меняют в админке. */
+function StartMoneyLead() {
+  const facts = useQuery({
+    queryKey: ['landing', 'facts'],
+    queryFn: () => api.get<{ startMoney: number }>('/api/site/facts', { noAuth: true }),
+    retry: false,
+  })
+  const money = facts.data ? `${facts.data.startMoney.toLocaleString('ru-RU')} рублей` : 'небольшой суммой'
+  return <p className="landing__lead">Кооператив — город девяностых, где каждый начинает с нуля: с {money} в кармане и пустыми руками. Дальше — как сам решишь.</p>
+}
+
 function Svodka() {
   const [kind, setKind] = useState<AnnouncementKind | 'ALL'>('ALL')
   const [open, setOpen] = useState<string | null>(null)
@@ -93,7 +104,7 @@ export function LandingPage() {
 
       <section className="landing__about" id="about" aria-labelledby="about-title">
         <h2 id="about-title">Здесь всё решают люди.</h2>
-        <p className="landing__lead">Кооператив — город девяностых, где каждый начинает с нуля: с 1 250 рублей в кармане и пустыми руками. Дальше — как сам решишь.</p>
+        <StartMoneyLead />
         <div className="landing__features">
           {FEATURES.map(feature => (
             <article key={feature.title} className="landing__feature">

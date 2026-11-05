@@ -5,6 +5,7 @@ import { authApi } from '../../shared/api/auth.api'
 import { ApiError } from '../../shared/api/client'
 import { SmartCaptcha, useCaptchaKey } from '../../shared/ui/smart-captcha'
 import { storedReferral } from '../../shared/lib/referral'
+import { PasswordInput } from '../../shared/ui/password-input'
 
 export function RegisterPage() {
   const { signIn } = useAuth()
@@ -107,10 +108,11 @@ export function RegisterPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Пароль</label>
-              <input
+              <label className="form-label" htmlFor="reg-password">Пароль</label>
+              <PasswordInput
+                id="reg-password"
                 className="form-input"
-                type="password"
+                autoComplete="new-password"
                 placeholder="Минимум 6 символов"
                 value={form.password}
                 onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
@@ -118,10 +120,11 @@ export function RegisterPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Повторите пароль</label>
-              <input
+              <label className="form-label" htmlFor="reg-password2">Повторите пароль</label>
+              <PasswordInput
+                id="reg-password2"
                 className="form-input"
-                type="password"
+                autoComplete="new-password"
                 placeholder="Повторите пароль"
                 value={form.password2}
                 onChange={e => setForm(f => ({ ...f, password2: e.target.value }))}

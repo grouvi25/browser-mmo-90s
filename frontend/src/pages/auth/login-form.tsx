@@ -6,6 +6,7 @@ import { loginDestination } from '../../shared/lib/login-redirect'
 import { useAuth } from '../../app/providers/auth-provider'
 import { authApi } from '../../shared/api/auth.api'
 import { ApiError } from '../../shared/api/client'
+import { PasswordInput } from '../../shared/ui/password-input'
 
 export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
   const { signIn } = useAuth()
@@ -48,7 +49,7 @@ export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
       </div>
       <div className="form-group">
         <label className="form-label" htmlFor="login-password">Пароль</label>
-        <input id="login-password" className="form-input" type="password" placeholder="Пароль" autoComplete="current-password"
+        <PasswordInput id="login-password" className="form-input" placeholder="Пароль" autoComplete="current-password"
           value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
         <Link className="auth-forgot" to="/forgot-password">Забыли пароль?</Link>
       </div>

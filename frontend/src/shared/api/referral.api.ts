@@ -7,6 +7,8 @@ export interface ReferralSummary {
   sharePercent: number
   minPayout: number
   invited: number
+  /** Те из пришедших, у кого уже есть персонаж. */
+  referrals: { nickname: string; level: number }[]
   earned: number
   /** Реферальный счёт: отсюда на персонажа или на вывод. */
   balance: number

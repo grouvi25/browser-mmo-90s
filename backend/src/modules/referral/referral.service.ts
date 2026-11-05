@@ -44,8 +44,16 @@ export const ReferralService = {
       where: { id: characterId },
       select: { nickname: true, referralBalance: true, referralEarned: true },
     })
-    const [invited, payouts] = await Promise.all([
+    const [invited, referrals, payouts] = await Promise.all([
       prisma.user.count({ where: { referrerCharacterId: characterId } }),
+      // Логин не отдаём: у старых аккаунтов это бывает почта. Кто ещё не создал
+      // персонажа, виден только в общем числе пришедших.
+      prisma.character.findMany({
+        where: { user: { referrerCharacterId: characterId } },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+        select: { nickname: true, battleLevel: true },
+      }),
       prisma.referralPayout.findMany({ where: { characterId }, orderBy: { createdAt: 'desc' }, take: 10 }),
     ])
     return {
@@ -53,6 +61,7 @@ export const ReferralService = {
       sharePercent: Math.round(config.topUpShare * 100),
       minPayout: config.minPayoutUsd,
       invited,
+      referrals: referrals.map(row => ({ nickname: row.nickname, level: row.battleLevel })),
       earned: character.referralEarned,
       balance: character.referralBalance,
       payouts: payouts.map(row => ({

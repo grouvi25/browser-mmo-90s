@@ -499,6 +499,23 @@ button { font-family: inherit; }
 }
 .form-select { appearance: none; }
 
+/* Глазок в поле пароля (обращение №23). Кнопка не сдвигается ни при наведении,
+   ни при нажатии: меняется только цвет. */
+.pw-field { position: relative; display: block; }
+.pw-field > input { box-sizing: border-box; width: 100%; padding-right: 42px !important; }
+.pw-field > input::-ms-reveal, .pw-field > input::-ms-clear { display: none; }
+.pw-field__eye {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 40px; min-height: 0; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; color: #6b5c4e; cursor: pointer;
+}
+.pw-field__eye:hover { color: #a31212; }
+.pw-field__eye:active { color: #6f0101; }
+.pw-field__eye[aria-pressed="true"] { color: #a31212; }
+.pw-field__eye:focus-visible { outline: 2px solid #a31212; outline-offset: -3px; }
+/* На телефоне поле всего 28 px: зона нажатия шире видимой кнопки. */
+@media (pointer: coarse) { .pw-field__eye::after { content: ""; position: absolute; inset: -8px 0; } }
+
 /* ═══════════════════════════════════════════════════
    AUTH SCREENS
 ═══════════════════════════════════════════════════ */

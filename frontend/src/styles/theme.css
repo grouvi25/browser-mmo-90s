@@ -92,7 +92,7 @@
   --stat-hp:      #e34647;
   --lvl-red:      #e34647;
   --lvl-cyan:     #00e4ff;
-  --lvl-orange:   #ff9c00;
+  --lvl-orange:   #8f4700;
   --slot-bg:      #584d56;
 
   --font-ui:   Arial, Helvetica, sans-serif;
@@ -447,7 +447,10 @@ html, body {
 .online-list-paper { position: absolute; background-size: 100% 100%; pointer-events: none; }
 .online-title { position: absolute; font-family: var(--font-ui);
                 color: var(--ink-red); transform-origin: left top; width: max-content; }
-.online-list  { position: absolute; font-family: var(--font-ui);
+.online-list-scroll { position: absolute; overflow: hidden auto; overscroll-behavior: contain;
+                      scrollbar-width: thin; scrollbar-color: #8a7563 transparent; }
+.online-list-scroll:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
+.online-list  { font-family: var(--font-ui);
                 transform-origin: left top; width: max-content; }
 .online-list__row {
   display: flex; align-items: baseline; gap: 8px;
@@ -481,7 +484,7 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
               text-shadow: 0 0 2px rgba(0, 0, 0, .55); }
 .online-lvl--r { color: var(--lvl-red); }
 .online-lvl--c { color: var(--lvl-cyan); }
-.online-lvl--o { color: var(--lvl-orange); }
+.online-lvl--o { color: var(--lvl-orange); text-shadow: none; font-weight: 700; }
 
 /* =============================================================
    ЦЕНТРАЛЬНЫЙ ВЬЮПОРТ — сюда рендерятся все игровые экраны
