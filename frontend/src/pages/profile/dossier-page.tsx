@@ -50,6 +50,8 @@ interface DossierView {
   archetype?: string
   gender?: 'MALE' | 'FEMALE'
   battleLevel: number
+  battleExp?: number
+  nextLevelExp?: number | null
   economicLevel: number
   /** Рейтинг (книга заказчика 23.10): статы с весами + надетые вещи. */
   rating?: number
@@ -127,6 +129,8 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
     view = {
       id: char.id, nickname: char.nickname, archetype: char.archetype, gender: char.gender,
       battleLevel: char.battleLevel, economicLevel: char.economicLevel, rating: char.rating,
+      // Только в своём деле: на телефоне опыт больше негде посмотреть (Дмитрий 05.11).
+      battleExp: char.battleExp, nextLevelExp: char.nextLevelExp ?? null,
       hpCurrent: char.hpCurrent, hpMax: char.hpMax,
       battlesTotal: char.battlesTotal, battlesWon: char.battlesWon,
       location: char.location, clan: char.clan, createdAt: char.createdAt,
@@ -186,7 +190,9 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
     `Собака: ${view.dog ? `${view.dog.name}${view.dog.fed ? ` (${dogBonusText(view.dog.bonus)})` : ' — голодная'}` : 'нет'}`,
     '',
     'Уровни:',
-    `1. Боевой — ${view.battleLevel}`,
+    `1. Боевой — ${view.battleLevel}${view.battleExp != null
+      ? `, опыт ${view.battleExp.toLocaleString('ru')}${view.nextLevelExp != null ? ` из ${view.nextLevelExp.toLocaleString('ru')}` : ''}`
+      : ''}`,
     `2. Экономический — ${view.economicLevel}`,
     `3. Рейтинг — ${view.rating != null ? String(view.rating).replace('.', ',') : '—'}`,
     ...(view.professions.length
