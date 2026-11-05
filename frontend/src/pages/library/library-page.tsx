@@ -34,22 +34,43 @@ function LevelsTopic({ t }: { t: LibraryTables | undefined }) {
 function ProfessionsTopic({ t }: { t: LibraryTables | undefined }) {
   if (!t) return <Loading />
   return <>
-    <p>Профессия покупается в <Link to="/school">Училище</Link> и качается сменами на объектах <Link to="/work">Промзоны</Link>: за смену — опыт профессии. Каждый уровень профессии прибавляет к выработке. Для смены нужен инструмент из Гос магазина.</p>
+    <p>Профессия покупается в <Link to="/school">Училище</Link> и качается сменами на объектах <Link to="/work">Промзоны</Link>: за смену — опыт профессии. Каждый уровень профессии прибавляет к выработке. Какой инструмент нужен, написано в таблице ниже, его продают в <Link to="/shop?tab=tools">Гос магазине</Link>.</p>
+    <p>Путь вещи такой: на точке добычи вы получаете сырьё себе, в цехе из сырья делают заготовки и изделия. Цехи покупают за {n(t.objectPriceUsd ?? 15000)} $ в «<Link to="/objects">Мои объекты</Link>», что нужно для каждой вещи, показано в «<Link to="/recipes">Рецептах</Link>».</p>
     <div className="library__scroll"><table className="library__table">
       <thead><tr><th>Уровень профессии</th><th>Опыт всего</th><th>Выработка</th></tr></thead>
       <tbody>{t.professionLevels.map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>+{row.efficiencyPct}%</td></tr>)}</tbody>
     </table></div>
-    <p>Три направления, в каждом три ступени: следующая профессия открывает объекты, когда предыдущая прокачана до нужного уровня.</p>
+    <p>В направлениях Металл, Стройка и Химия по три ступени: следующая профессия открывает объекты, когда предыдущая прокачана до нужного уровня. У ремёсел свои цепочки, они открыты сразу.</p>
     {t.professions.map(chain => <section key={chain.chain} className="library__chain">
       <h3>{chain.chain}</h3>
       {chain.steps.map(step => <div key={step.code} className="library__step">
         <b>{step.name}</b>{step.after && <span className="library__muted"> — после «{step.after}»</span>}
         {step.objects.length > 0 && <div className="library__scroll"><table className="library__table">
-          <thead><tr><th>Где работать</th><th>Смена</th><th>Оплата</th><th>Опыт</th><th>Допуск</th></tr></thead>
-          <tbody>{step.objects.map(o => <tr key={o.name}><td>{o.name}</td><td>{o.minutes} мин</td><td>{n(o.salary)} ₽</td><td>+{o.exp}</td><td>{o.admission ? `${o.admission.profession}, ур. ${o.admission.level}` : 'сразу'}</td></tr>)}</tbody>
+          <thead><tr><th>Где работать</th><th>Что даёт</th><th>Смена</th><th>Оплата</th><th>Инструмент</th><th>Опыт</th><th>Допуск</th></tr></thead>
+          <tbody>{step.objects.map(o => <tr key={o.name}>
+            <td>{o.name}{o.forSaleUsd ? <span className="library__muted"> · после покупки цеха</span> : null}</td>
+            <td className="library__wrap">{o.gives ?? '—'}</td>
+            <td>{o.minutes} мин</td><td>{o.salary > 0 ? `${n(o.salary)} ₽` : 'сырьём'}</td>
+            <td>{o.tool ?? '—'}</td><td>+{o.exp}</td>
+            <td>{o.admission ? `${o.admission.profession}, ур. ${o.admission.level}` : 'сразу'}</td>
+          </tr>)}</tbody>
           </table></div>}
       </div>)}
     </section>)}
+  </>
+}
+
+/** Что делают настойки, аптечки и свитки из цехов — с сервера, из шаблонов вещей. */
+function ConsumablesTopic({ t }: { t: LibraryTables | undefined }) {
+  if (!t) return <Loading />
+  return <>
+    <p>Настойки действуют 10 минут и работают где угодно, их пьют на <Link to="/inventory">Складе</Link>. Свитки работают только в бою: положите их в карман на Складе и используйте в бою, они действуют несколько раундов. Два одинаковых усиления не складываются, работает сильнейшее.</p>
+    <div className="library__scroll"><table className="library__table">
+      <thead><tr><th>Вещь</th><th>Что делает</th><th>Где применять</th><th>Где делают</th></tr></thead>
+      <tbody>{(t.consumables ?? []).map(row => <tr key={row.name}>
+        <td>{row.name}</td><td className="library__wrap">{row.does}</td><td>{row.where}</td><td>{row.madeAt ?? '—'}</td>
+      </tr>)}</tbody>
+    </table></div>
   </>
 }
 
@@ -68,11 +89,12 @@ const TOPICS: Topic[] = [
   </> },
   { key: 'levels', title: 'Опыт и уровни', body: t => <LevelsTopic t={t} /> },
   { key: 'professions', title: 'Профессии', body: t => <ProfessionsTopic t={t} /> },
+  { key: 'consumables', title: 'Настойки и свитки', body: t => <ConsumablesTopic t={t} /> },
   { key: 'battle', title: 'Бой', body: <>
     <p>Каждый раунд выбираете, куда бить и что закрывать блоком, или делаете шаг по полю. На ход — минута; кто не успел, тот закрывается блоком сам.</p>
     <p>Зоны: голова, корпус, правая рука, левая рука, ноги. Третье попадание в одну зону выбивает оружие из руки или сбивает броню с этой зоны — цвет зоны на фигуре меняется от зелёного к красному.</p>
     <p>Дуэль идёт в полосе 3×8 клеток. На поле стоят бочки: через них не пройти и не прострелить — за ними можно укрыться от стрелка. Оружие дальнего боя бьёт на столько клеток, сколько указано в его карточке.</p>
-    <p>Карманы — до четырёх расходников, их можно использовать прямо в бою. Собака, если сыта, бьёт вашу цель после вашего удара — в боях с ботами и в групповых, но не в дуэлях.</p>
+    <p>Карманы — до четырёх расходников, их можно использовать прямо в бою: аптечки лечат, свитки усиливают на несколько раундов (подробно — в разделе «Настойки и свитки»). Собака, если сыта, бьёт вашу цель после вашего удара — в боях с ботами и в групповых, но не в дуэлях.</p>
   </> },
   { key: 'gear', title: 'Снаряжение и износ', body: <>
     <p>Вещи изнашиваются в бою — и при победе, и при поражении. Когда прочность падает до 20%, после боя в чат приходит напоминание; чинят в <Link to="/repair">Гаражах</Link>. Сломанная вещь не работает.</p>
@@ -80,7 +102,8 @@ const TOPICS: Topic[] = [
   </> },
   { key: 'money', title: 'Заработок', body: <>
     <p><b>Фермы</b> — купите участок, посадите семена, полейте (до трёх раз, каждый полив ускоряет рост) и соберите урожай. Сроки созревания — во вкладке «Растения». Можно засадить или полить все грядки одной кнопкой.</p>
-    <p><b>Промзона</b> — смены по профессии. Профессия покупается в <Link to="/school">Училище</Link>, для работы нужен инструмент из Гос магазина.</p>
+    <p><b>Промзона</b> — смены по профессии. Профессия покупается в <Link to="/school">Училище</Link>, для работы нужен инструмент из Гос магазина. На точках добычи платят сырьём, его продают на рынке или везут в цех.</p>
+    <p><b>Цехи</b> — покупают за доллары в «<Link to="/objects">Мои объекты</Link>». Владелец кладёт сырьё на склад цеха, запускает цикл и работает сам или нанимает игроков, готовое изделие приходит ему.</p>
     <p><b>Рынок</b> — объявления игроков и частные лавки.</p>
   </> },
   { key: 'dollars', title: 'Доллары и Чёрный рынок', body: <>

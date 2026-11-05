@@ -8,11 +8,20 @@ export interface LibraryTables {
     chain: string
     steps: Array<{
       code: string; name: string; after: string | null
-      objects: Array<{ name: string; minutes: number; salary: number; exp: number; admission: { profession: string; level: number } | null }>
+      objects: Array<{
+        name: string; minutes: number; salary: number; exp: number; admission: { profession: string; level: number } | null
+        /** Сырьё, которое добывают, или что выпускает цех. */
+        gives?: string | null
+        tool?: string | null
+        /** Цех ещё у государства: работает после покупки. */
+        forSaleUsd?: number | null
+      }>
     }>
   }>
   professionLevels: Array<{ level: number; exp: number; efficiencyPct: number }>
   statPointsPerLevel: number
+  consumables?: Array<{ name: string; does: string; where: string; madeAt: string | null }>
+  objectPriceUsd?: number
 }
 
 export const libraryApi = {

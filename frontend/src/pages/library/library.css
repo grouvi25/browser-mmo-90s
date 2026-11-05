@@ -2,6 +2,9 @@
 .library__toc { display: grid; align-content: start; gap: 4px; }
 .library__toc button { text-align: left; padding: 6px 8px; border: 1px solid var(--border); background: var(--paper-warm, #f3ead9); cursor: pointer; font: inherit; }
 .library__toc button.is-active, .library__toc button:hover { border-color: var(--ink-red, #7a1010); background: var(--paper-dark, #e6d8bd); }
+/* Ширину задаёт экран, а не таблица: широкая таблица листается в своей рамке,
+   иначе на телефоне она растягивала колонку и обрезала абзацы справа. */
+.library__text { min-width: 0; }
 .library__text h2 { margin: 0 0 8px; }
 .library__text p { margin: 0 0 8px; line-height: 1.45; }
 @media (max-width: 640px) { .library { grid-template-columns: 1fr; } }
@@ -15,4 +18,5 @@
 .library__table th { background: var(--paper-dark, #e6d8bd); font-weight: 700; }
 .library__table tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .35); }
 .library__chain { margin-top: 10px; }
+.library__table td.library__wrap { white-space: normal; min-width: 160px; }
 .library__step { margin: 6px 0 10px; }
