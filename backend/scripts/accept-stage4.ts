@@ -641,22 +641,34 @@ async function run() {
     return `«${message}», слотов ${listed.slots.used}/${listed.slots.total}`
   })
 
-  await check(20, 'Помощники', 'Подписчик с двумя помощниками не выше 130% активного игрока', async () => {
+  await check(20, 'Помощники', 'Свои смены подписчика не выше 130% активного игрока, чужой частный объект закрыт', async () => {
     const boss = await player('c20')
     await PremiumService.grant({ characterId: boss.id, productCode: 'prem_sub_30' })
     const helper = await HelpersService.hire(boss.id, 'Сменщик', 'scrap_collector')
 
-    // Главное ограничение коридора (решение заказчика по В10): на чужом и
-    // государственном объекте помощник не работает. Там зарплату платит
-    // казна, и подписка печатала бы деньги — приёмка намерила на этом 213%.
-    const state = await objectOf(null, { profession: 'scrap_collector' })
+    // Заказчик 05.11 (обращение №24) отменил своё решение В10: помощник ходит и
+    // на госработу, там ему платит казна. Доход подписчика с двумя помощниками
+    // выше 130%, этот потолок считает scripts/simulate-full.ts отдельной строкой.
+    // Чужой частный объект остаётся закрыт: он платит из чужой кассы.
+    const stranger = await player('c20s')
+    const strangers = await objectOf(stranger.id, { profession: 'scrap_collector', balance: 50_000 })
     const foreign = await refuses('HELP_007',
-      () => HelpersService.startShift(boss.id, helper.id, state.id))
+      () => HelpersService.startShift(boss.id, helper.id, strangers.id))
+
+    const state = await objectOf(null, { profession: 'scrap_collector' })
+    const stateShift = await HelpersService.startShift(boss.id, helper.id, state.id)
+    must(!!stateShift.shiftId, 'на госработу помощник не вышел')
+    await prisma.workShift.updateMany({
+      where: { helperId: helper.id, status: 'ACTIVE' },
+      data: { status: 'CLAIMED', endsAt: new Date(Date.now() - 1000) },
+    })
+    await prisma.helper.update({ where: { id: helper.id }, data: { activeShiftId: null } })
 
     // На своём объекте — работает, и зарплату платит баланс этого объекта.
     const own = await objectOf(boss.id, { profession: 'scrap_collector', balance: 50_000 })
     await prisma.productionObject.update({ where: { id: own.id }, data: { workerSlots: 10 } })
-    for (let i = 0; i < H.dailyShiftCap; i++) {
+    // Одну смену из нормы уже занял выход на госработу: норма общая.
+    for (let i = 1; i < H.dailyShiftCap; i++) {
       await HelpersService.startShift(boss.id, helper.id, own.id)
       await prisma.workShift.updateMany({
         where: { helperId: helper.id, status: 'ACTIVE' },
@@ -667,9 +679,7 @@ async function run() {
     const capped = await refuses('HELP_006',
       () => HelpersService.startShift(boss.id, helper.id, own.id))
 
-    // Коридор считаем теми же формулами, что и игра. Помощники в него не
-    // входят: их зарплата — это перекладывание денег хозяина из баланса
-    // объекта в карман, а не новый доход.
+    // Коридор считаем теми же формулами, что и игра: только смены самого подписчика.
     const base = 1000
     const income = (shifts: number, efficiency = 1) => {
       let sum = 0
