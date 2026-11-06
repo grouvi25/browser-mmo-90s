@@ -338,11 +338,11 @@ export const TABLE_RECIPES: readonly { code: string; name: string; object: strin
  * и выносливость единицами. Сид заполняет только пустые: правки в базе не стираются.
  */
 export const TABLE_ITEM_EFFECTS: Record<string, { buffs?: { stat: 'armor' | 'damage' | 'accuracy' | 'resist' | 'crit' | 'agi' | 'end' | 'nextHit' | 'reflect'; value: number }[]; minutes?: number; rounds?: number; regenPercent?: number; directDamage?: number }> = {
-  tb_item_a02: { buffs: [{ stat: 'end', value: 2 }], minutes: 10 },
-  tb_item_a04: { buffs: [{ stat: 'armor', value: 0.1 }], minutes: 10 },
-  tb_item_a06: { buffs: [{ stat: 'damage', value: 0.1 }], minutes: 10 },
-  tb_item_a07: { buffs: [{ stat: 'agi', value: 2 }], minutes: 10 },
-  tb_item_a10: { buffs: [{ stat: 'accuracy', value: 0.1 }], minutes: 10 },
+  tb_item_a02: { buffs: [{ stat: 'end', value: 2 }], minutes: 20 },
+  tb_item_a04: { buffs: [{ stat: 'armor', value: 0.1 }], minutes: 20 },
+  tb_item_a06: { buffs: [{ stat: 'damage', value: 0.1 }], minutes: 20 },
+  tb_item_a07: { buffs: [{ stat: 'agi', value: 2 }], minutes: 20 },
+  tb_item_a10: { buffs: [{ stat: 'accuracy', value: 0.1 }], minutes: 20 },
   tb_item_a11: { regenPercent: 6, rounds: 4 },
   tb_item_w01: { directDamage: 60 },
   tb_item_w02: { buffs: [{ stat: 'armor', value: 0.15 }], rounds: 3 },

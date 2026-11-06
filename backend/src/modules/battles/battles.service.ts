@@ -173,6 +173,8 @@ export interface LiveParticipant {
   leftWeaponInstanceId?: string
   rightWeaponInstanceId?: string
   pocketItemIds?: string[]
+  /** Раунд, в котором уже применён предмет из кармана. */
+  itemRound?: number
   damageDealt: number
   /** HP, восстановленные аптечками за бой: входят в зачёт урона (Ревизия 2). */
   healedTotal: number
@@ -1511,20 +1513,15 @@ export const BattleService = {
       }
 
       // ── Смена оружия ─────────────────────────────────────
-      if (state.type === 'PVP_DUEL' && (action === 'change_weapon' || action === 'use_item')) {
+      // Предмет из кармана в дуэли идёт общим путём ниже: он не тратит ход (№32).
+      if (state.type === 'PVP_DUEL' && action === 'change_weapon') {
         if (!targetItemId) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'No item specified', 400)
         const item = await ItemsRepository.findInstanceById(targetItemId)
         if (!item || item.ownerId !== char.id) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
-        if (action === 'change_weapon') {
-          if (item.template.type !== 'WEAPON' || item.status === 'BROKEN') {
-            throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid weapon', 400)
-          }
-        } else if (!playerPart.pocketItemIds?.includes(targetItemId) || item.template.type !== 'CONSUMABLE') {
-          throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Item is not in battle loadout', 400)
+        if (item.template.type !== 'WEAPON' || item.status === 'BROKEN') {
+          throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Invalid weapon', 400)
         }
-        playerPart.pendingAction = action === 'change_weapon'
-          ? `${action}:${weaponHand}:${targetItemId}`
-          : `${action}:${targetItemId}`
+        playerPart.pendingAction = `${action}:${weaponHand}:${targetItemId}`
         playerPart.pendingTurn = undefined
         playerPart.hasActedThisRound = true
         await BattleRedis.setState(battleId, state)
@@ -1678,6 +1675,11 @@ export const BattleService = {
     if (item.status === 'CONSUMED' || item.status === 'DELETED') {
       throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Item already used', 400)
     }
+    // Заказчик 05.11 (обращение №32): предмет не тратит ход. Применяется сразу,
+    // удар этого раунда остаётся за игроком; предел прежний, один предмет за раунд.
+    if (playerPart.itemRound === state.roundNumber) {
+      throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'В этом раунде предмет уже использован, следующий можно в новом раунде', 400)
+    }
 
     // Apply effect: restore HP by hpBonus (used as hpRestore for consumables)
     const hpRestore = healAmount(item.template, playerPart.hpMax)
@@ -1705,154 +1707,22 @@ export const BattleService = {
     })
 
     playerPart.pocketItemIds = playerPart.pocketItemIds.filter(id => id !== itemInstanceId)
-    // Mark player as having acted this round
-    playerPart.hasActedThisRound = true
+    playerPart.itemRound = roundNumber
+    await BattleRedis.setState(battleId, state)
 
-    // For PvE: бот ходит зонально в тот же раунд (игрок использовал предмет → не блокирует)
-    if (state.type === 'PVE_BOT') {
-      const botPart = state.participants.find(p => p.botId)!
-      const bot = await loadBotData(botPart.botId!)
-      const botStats = bot.stats as Record<string, number>
-      const botEquip = woundedBotEquip(botPart, bot.equipment as Record<string, unknown>)
-      const equippedItems = await ItemsRepository.findEquipped(char.id)
-      const equippedArmor = equippedItems.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
-      const playerArmorList = armorListFromEquipped(equippedArmor, char)
-      const playerDefSnap = buildDefenderSnapshot(char, equippedArmor, gearOf(equippedItems))
-      const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
-
-      const botTurn = botChooseTurn()
-      const botWeapon = botEquip.weapon as Record<string, number> | undefined
-      const botRange = Math.max(1, botWeapon?.maxRange ?? 1)
-      ensureGridState(state)
-      const botFrom = { ...botPart.position }
-      let projected = positionedParticipants(state)
-      let gridBot = projected.find(p => p.participantId === botPart.participantId)!
-      let gridPlayer = projected.find(p => p.participantId === playerPart.participantId)!
-      const botWantsAttack = botTurn.attackZones.length > 0
-      let botMoving = false
-      if (botWantsAttack && !canAttackTarget(gridBot, gridPlayer, projected, botRange)) {
-        const candidates = botRange > 1 && gridDistance(gridBot.position, gridPlayer.position) <= 1
-          ? stepAway(gridBot.position, gridPlayer.position)
-          : stepTowardOrAround(gridBot.position, gridPlayer.position)
-        const destination = candidates.find(cell => canMoveTo(gridBot, cell, projected))
-        if (destination) {
-          botPart.position = destination
-          botMoving = true
-          projected = positionedParticipants(state)
-          gridBot = projected.find(p => p.participantId === botPart.participantId)!
-          gridPlayer = projected.find(p => p.participantId === playerPart.participantId)!
-        }
-      }
-      syncGridDistance(state)
-      const botInRange = !botMoving && canAttackTarget(gridBot, gridPlayer, projected, botRange)
-      const botHitZones: BodyZone[] = []
-
-      // Клиентский лог: сначала событие аптечки
-      const clientTurns: Array<Record<string, unknown>> = [{
+    const enemy = state.participants.find(p => p.isAlive && p.side !== playerPart.side)
+    return {
+      itemUsed: item.template.name,
+      hpRestored: hpRestore,
+      playerHp: playerPart.hpCurrent,
+      ...(enemy ? { botHp: enemy.hpCurrent } : {}),
+      battleOver: false,
+      turns: [{
         actor: 'player', action: 'use_item',
         hit: false, dodge: false, block: false, crit: false, lucky: false,
         rawDamage: 0, finalDamage: 0, counterDamage: 0,
-        logParts: [`${item.template.name}: +${hpRestore} HP`],
-      }]
-
-      if (botWantsAttack && botInRange) {
-        const res = executeStrikes({
-          attackerSnap: botAttackSnap, defenderSnap: playerDefSnap,
-          zoneArmorFor: woundedArmor(playerPart, (z) => armorOfZone(playerArmorList, z)),
-          attackZones: botShots(botTurn.attackZones, gridDistance(gridBot.position, gridPlayer.position)), blockedZones: [], defenderHp: playerPart.hpCurrent,
-        })
-        for (const r of res.results) {
-          if (r.hit && !r.dodge && !r.block) {
-            const stripped = registerWound(playerPart, r.zone, r.finalDamage)
-            if (stripped) r.logParts.push(stripped)
-            playerPart.hpCurrent = Math.max(0, playerPart.hpCurrent - r.finalDamage)
-            botPart.hitsLanded++; playerPart.hitsTaken++; botHitZones.push(r.zone)
-          }
-          clientTurns.push({ actor: 'enemy', action: 'attack', ...r })
-        }
-        botPart.damageDealt += res.damageToDefender
-        playerPart.damageReceived += res.damageToDefender
-      } else if (botMoving) {
-        clientTurns.push({
-          actor: 'enemy', action: 'move', to: botPart.position,
-          hit: false, dodge: false, block: false, crit: false, lucky: false,
-          rawDamage: 0, finalDamage: 0, counterDamage: 0,
-          logParts: [`Противник переместился в (${botPart.position.x}, ${botPart.position.y})`],
-        })
-      }
-
-      playerPart.isAlive = playerPart.hpCurrent > 0
-
-      // DB-записи по зональным ударам бота
-      if (botMoving) {
-        await prisma.battleTurn.create({
-          data: {
-            battleId, roundNumber, actorBotId: botPart.botId,
-            action: 'MOVE' as BattleAction,
-            fromX: botFrom.x, fromY: botFrom.y,
-            toX: botPart.position.x, toY: botPart.position.y,
-          },
-        })
-      }
-      for (const t of clientTurns) {
-        if (t.actor !== 'enemy' || t.action !== 'attack') continue
-        await prisma.battleTurn.create({
-          data: {
-            battleId, roundNumber,
-            actorBotId: botPart.botId, targetCharId: char.id,
-            action: 'ATTACK' as BattleAction,
-            zone: (t.zone as BodyZone) ?? null,
-            blockPierced: (t.blockPierced as boolean) ?? false,
-            hit: t.hit as boolean, dodge: t.dodge as boolean, block: t.block as boolean, crit: t.crit as boolean,
-            rawDamage: t.rawDamage as number, finalDamage: t.finalDamage as number,
-            logLine: (t.logParts as string[]).join(', '),
-          },
-        })
-      }
-      // Зональный износ брони
-      await applyZonalArmorWear(equippedArmor, botHitZones)
-
-      if (!playerPart.isAlive) {
-        state.status = 'finishing'
-        const weapon = playerPart.weaponInstanceId
-          ? await ItemsRepository.findInstanceById(playerPart.weaponInstanceId)
-          : null
-        const skillRecord = await WeaponSkillsRepository.findOrCreate(
-          char.id,
-          (weapon?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
-        )
-        await BattleRedis.setState(battleId, state)
-        return this._finishPveBattle(battleId, state, char, bot, playerPart, botPart, null, weapon, skillRecord.skillLevel)
-      }
-
-      state.roundNumber++
-      state.roundDeadline = Date.now() + TURN_TIMEOUT_MS
-      playerPart.hasActedThisRound = false
-      await BattleRedis.setState(battleId, state)
-
-      return {
-        roundNumber,
-        itemUsed: item.template.name,
-        hpRestored: hpRestore,
-        distance: state.distance,
-        playerHp: playerPart.hpCurrent,
-        botHp: botPart.hpCurrent,
-        battleOver: false,
-        turns: clientTurns,
-      }
-    }
-
-    // PvP: check if both acted
-    await BattleRedis.setState(battleId, state)
-    const allActed = state.participants.every(p => !p.isAlive || p.isSurrendered || p.hasActedThisRound)
-    if (allActed) {
-      return this._resolveRoundPvp(battleId, state)
-    }
-    return {
-      waiting: true,
-      itemUsed: item.template.name,
-      hpRestored: hpRestore,
-      roundNumber: state.roundNumber,
+        logParts: [`${item.template.name}: ${[hpRestore > 0 ? `+${hpRestore} HP` : '', applied ?? ''].filter(Boolean).join(', ')}`],
+      }],
     }
   },
 

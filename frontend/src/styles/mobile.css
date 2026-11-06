@@ -254,6 +254,8 @@
     display: inline-flex;
     align-items: center;
   }
+  /* Ссылка посреди абзаца раздвигала строку до 44 px, текст шёл рваными интервалами. */
+  .viewport__content p a { min-height: 0; display: inline; }
   .panel-body input[type='number'] { max-width: 110px; }
   /* Формы рынка: поля разной ширины шли лесенкой. Ровная сетка:
      выбор и поиск — во всю строку, числа и валюта — парой. */

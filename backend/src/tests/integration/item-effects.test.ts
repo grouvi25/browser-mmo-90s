@@ -143,6 +143,31 @@ describe('свиток в бою', () => {
     const me = (await parts(battleId, user.id)).participants.find(p => p.characterId)!
     expect(me.healedTotal).toBe(6)
   })
+
+  it('предмет не тратит ход, но за раунд можно только один (обращение №32)', async () => {
+    const { user, item } = await fixture()
+    const first = await item({ buffs: [{ stat: 'armor', value: 0.15 }], rounds: 3 })
+    const second = await item({ buffs: [{ stat: 'damage', value: 0.15 }], rounds: 3 })
+    const { code } = await bot()
+    await CharactersService.setBattleLoadout(user.id, [first.id, second.id])
+    const { battleId } = await BattleService.startPve(user.id, code) as { battleId: string }
+
+    await BattleService.submitAction(user.id, battleId, { action: 'use_item', itemInstanceId: first.id })
+    const after = await parts(battleId, user.id) as unknown as { roundNumber: number; participants: Array<Part & { hasActedThisRound: boolean }> }
+    expect(after.roundNumber).toBe(1)
+    expect(after.participants.find(p => p.characterId)!.hasActedThisRound).toBe(false)
+    expect(await testPrisma.battleTurn.count({ where: { battleId, actorBotId: { not: null } } })).toBe(0)
+
+    await expect(BattleService.submitAction(user.id, battleId, { action: 'use_item', itemInstanceId: second.id }))
+      .rejects.toMatchObject({ message: expect.stringContaining('уже использован') })
+
+    await BattleService.submitAction(user.id, battleId, {
+      action: 'block', stance: 'defense4', attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'RIGHT_ARM'],
+    })
+    expect((await parts(battleId, user.id)).roundNumber).toBe(2)
+    await BattleService.submitAction(user.id, battleId, { action: 'use_item', itemInstanceId: second.id })
+    expect((await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: second.id } })).status).toBe('DELETED')
+  })
 })
 
 describe('эффект доходит до расчёта удара', () => {
@@ -251,9 +276,12 @@ describe('свиток в дуэли', () => {
     await BattleService.acceptPvpDuel(b.user.id, open.battleId)
 
     await BattleService.submitAction(a.user.id, open.battleId, { action: 'use_item', itemInstanceId: scroll.id })
-    await BattleService.submitAction(b.user.id, open.battleId, {
-      action: 'block', stance: 'defense4', attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'RIGHT_ARM'],
-    })
+    const block = { action: 'block', stance: 'defense4', attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'RIGHT_ARM'] } as const
+    await BattleService.submitAction(b.user.id, open.battleId, { ...block, blockZones: [...block.blockZones] })
+    // Предмет не забрал ход: раунд ждёт удара первого бойца.
+    expect(((await BattleService.getBattle(open.battleId, a.user.id)).liveState as { roundNumber: number }).roundNumber).toBe(1)
+    await BattleService.submitAction(a.user.id, open.battleId, { ...block, blockZones: [...block.blockZones] })
+    expect(((await BattleService.getBattle(open.battleId, a.user.id)).liveState as { roundNumber: number }).roundNumber).toBe(2)
 
     const turn = await testPrisma.battleTurn.findFirstOrThrow({ where: { battleId: open.battleId, action: 'USE_ITEM' } })
     expect(turn.logLine).toBe('Использовал Вещь: урон +15% на 3 раунда')
