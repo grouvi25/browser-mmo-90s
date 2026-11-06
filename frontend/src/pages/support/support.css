@@ -1,5 +1,9 @@
 /* Поддержка. Кнопки меняют только цвет — ничего не сдвигается. */
 .support { display: grid; gap: 12px; max-width: 760px; }
+/* Обращение №48: превью длинного ответа (nowrap) раздвигало сетку шире экрана телефона,
+   и кнопка «Новое обращение» уезжала за край. Колонка не шире экрана, превью режется многоточием. */
+.support, .support__list { grid-template-columns: minmax(0, 1fr); }
+.support__list > li, .support__row { min-width: 0; }
 .support__lead { margin: 0; line-height: 1.45; }
 .support__lead a { color: #7a1010; }
 .support__form { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, .35); }
@@ -96,4 +100,6 @@
   .support__bubble { max-width: 100%; }
   .support__shot img { max-width: 100%; }
 }
-.viewport__content .support__back, .viewport__content .support__row { min-height: 0; }
+.viewport__content .support__back { min-height: 0; }
+/* Мобильное правило для ссылок делает их строчным флексом: строка обращения тогда вытягивалась в одну линию за край экрана. */
+.viewport__content .support__row { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
