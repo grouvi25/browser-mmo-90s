@@ -46,6 +46,10 @@ const EnvSchema = z.object({
   // странице регистрации. Без ключей капча выключена.
   SMARTCAPTCHA_SERVER_KEY: z.string().optional(),
   SMARTCAPTCHA_CLIENT_KEY: z.string().optional(),
+  // Пуши в приложение (Firebase Cloud Messaging): ключ сервисного аккаунта
+  // из проекта Firebase — JSON целиком или он же в base64. Без него пуши
+  // выключены, игра работает как раньше. Секрет: только в окружении.
+  FCM_SERVICE_ACCOUNT: z.string().optional(),
 })
 
 function loadEnv() {

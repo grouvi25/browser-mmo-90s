@@ -2718,3 +2718,18 @@ model OutfitPreset {
   @@unique([characterId, slot])
   @@map("outfit_presets")
 }
+
+/// Телефон игрока для пушей (приложение-оболочка, Firebase Cloud Messaging).
+/// Токен выдаёт Firebase; один телефон — одна запись, при входе другим
+/// аккаунтом запись переходит к нему.
+model PushDevice {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  token      String   @unique
+  platform   String   @default("android")
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+
+  @@index([userId])
+  @@map("push_devices")
+}

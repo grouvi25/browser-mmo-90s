@@ -14,6 +14,7 @@ vi.mock('../../modules/admin-balance/telegram.service', () => ({
 
 import { DollarsService } from '../../modules/dollars/dollars.service'
 import { ReferralService } from '../../modules/referral/referral.service'
+import { AuthService } from '../../modules/auth/auth.service'
 import { cleanDatabase, testPrisma, uid } from './helpers'
 
 async function player(prefix: string, opts: { dollars?: number; isDealer?: boolean; referrerId?: string } = {}) {
@@ -31,6 +32,18 @@ describe('реферальная система', () => {
   beforeAll(async () => testPrisma.$connect())
   beforeEach(async () => cleanDatabase())
   afterAll(async () => testPrisma.$disconnect())
+
+  it('поле «Кто пригласил»: ник привязывает без учёта регистра, опечатка не даёт молча потерять пригласившего (№43)', async () => {
+    const host = await player('host')
+    const nick = uid('nw').slice(0, 20)
+    const made = await AuthService.register({ acceptPolicy: true, nickname: nick, email: `${nick}@test.local`, password: 'pass123', ref: ` ${host.nickname.toUpperCase()} ` })
+    expect((await testPrisma.user.findUniqueOrThrow({ where: { id: made.id } })).referrerCharacterId).toBe(host.id)
+
+    const typo = uid('ty').slice(0, 20)
+    await expect(AuthService.register({ acceptPolicy: true, nickname: typo, email: `${typo}@test.local`, password: 'pass123', ref: 'НетТакого' }))
+      .rejects.toMatchObject({ statusCode: 422, message: 'Игрок «НетТакого», который вас пригласил, не найден: проверьте ник или оставьте поле пустым' })
+    expect(await testPrisma.user.count({ where: { email: `${typo}@test.local` } })).toBe(0)
+  })
 
   it('вкладка показывает ники приглашённых, но не логины и не чужих', async () => {
     const host = await player('host')

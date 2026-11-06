@@ -23,6 +23,8 @@ export function RegisterPage() {
   const [captchaToken, setCaptchaToken] = useState('')
   const [captchaReset, setCaptchaReset] = useState(0)
   const [trap, setTrap] = useState('')
+  // Кто пригласил (обращение №43): ник из реферальной ссылки, его можно поправить или вписать руками.
+  const [referrer, setReferrer] = useState(() => storedReferral() ?? '')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,7 +51,7 @@ export function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      await authApi.register({ nickname: form.nickname.trim(), email: form.email, password: form.password, acceptPolicy: true, website: trap, captchaToken: captchaToken || undefined, ref: storedReferral() })
+      await authApi.register({ nickname: form.nickname.trim(), email: form.email, password: form.password, acceptPolicy: true, website: trap, captchaToken: captchaToken || undefined, ref: referrer.trim() || undefined })
       // Auto-login after register
       const res = await authApi.login({ login: form.nickname.trim(), password: form.password })
       signIn(res.token, res.userId, res.login)
@@ -128,6 +130,19 @@ export function RegisterPage() {
                 placeholder="Повторите пароль"
                 value={form.password2}
                 onChange={e => setForm(f => ({ ...f, password2: e.target.value }))}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="reg-referrer">Кто пригласил — ник игрока, если вас позвали (необязательно)</label>
+              <input
+                id="reg-referrer"
+                className="form-input"
+                type="text"
+                maxLength={64}
+                autoComplete="off"
+                value={referrer}
+                onChange={e => setReferrer(e.target.value)}
               />
             </div>
 

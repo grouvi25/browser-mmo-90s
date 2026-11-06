@@ -1,4 +1,5 @@
 import { api, setToken, removeToken } from './client'
+import { forgetPushToken } from '../lib/push-bridge'
 
 export const authApi = {
   register: (data: { nickname?: string; login?: string; email: string; password: string; acceptPolicy?: boolean; website?: string; captchaToken?: string; ref?: string }) =>
@@ -7,7 +8,8 @@ export const authApi = {
   login: (data: { login: string; password: string }) =>
     api.post<{ token: string; userId: string; login: string }>('/api/auth/login', data, { noAuth: true }),
 
-  logout: () => api.post<void>('/api/auth/logout'),
+  // Сначала отвязать телефон от пушей: после выхода сессия закрыта и сервер не примет запрос.
+  logout: async () => { await forgetPushToken(); return api.post<void>('/api/auth/logout') },
 
   me: () => api.get<{ userId: string }>('/api/auth/me'),
 

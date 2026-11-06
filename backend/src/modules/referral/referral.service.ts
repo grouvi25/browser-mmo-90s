@@ -27,6 +27,11 @@ export const ReferralService = {
    * Запомнить пригласившего при регистрации. Ник с ошибкой или чужой мусор
    * в ссылке регистрацию не ломают — просто без пригласившего.
    */
+  /** Есть ли игрок с таким ником (без учёта регистра). */
+  async exists(nickname: string) {
+    return !!(await prisma.character.findFirst({ where: { nickname: { equals: nickname.trim(), mode: 'insensitive' } }, select: { id: true } }))
+  },
+
   async attach(userId: string, ref: string | undefined) {
     const nickname = ref?.trim()
     if (!nickname) return

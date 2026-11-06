@@ -4,6 +4,7 @@ import { BalanceConfig } from '../config/balance.config'
 import { AppError } from '../shared/errors/app-error'
 import { ErrorCode } from '../shared/errors/error-codes'
 import { CycleService } from '../modules/production/cycle.service'
+import { pushLater } from '../modules/push/push.service'
 
 export const PRODUCTION_CYCLE_MS = BalanceConfig.economy.production.cycleTickSeconds * 1000
 
@@ -40,7 +41,14 @@ export async function runProductionCycle(): Promise<{ started: number; completed
   for (const cycle of due) {
     try {
       const result = await CycleService.complete(cycle.id)
-      if ('completed' in result) completed += 1
+      if ('completed' in result) {
+        completed += 1
+        // Пуш хозяину цеха: цикл закончен, продукция на складе цеха (заказчик 06.11).
+        const object = await prisma.productionObject.findUnique({ where: { id: cycle.productionObjectId }, select: { name: true, ownerType: true, ownerCharacterId: true } })
+        if (object?.ownerType === 'PRIVATE' && object.ownerCharacterId) {
+          pushLater(object.ownerCharacterId, { title: 'Цех закончил работу', body: `«${object.name}»: продукция на складе цеха`, url: '/objects', kind: 'production' })
+        }
+      }
     } catch (error) {
       if (error instanceof AppError && error.code === ErrorCode.PROD_STORAGE_FULL) {
         const result = await CycleService.fail(cycle.id, 'OUTPUT_FULL')

@@ -42,6 +42,13 @@ export const AuthService = {
       throw new AppError(ErrorCode.USER_ALREADY_EXISTS, 'Эта почта уже зарегистрирована', 409)
     }
 
+    // Поле «Кто пригласил» (обращение №43): ник из ссылки или вписанный руками.
+    // Опечатку видно сразу, а не молча теряем пригласившего, как раньше.
+    const referrerNick = input.ref?.trim()
+    if (referrerNick && !(await ReferralService.exists(referrerNick))) {
+      throw new AppError(ErrorCode.VALIDATION_ERROR, `Игрок «${referrerNick}», который вас пригласил, не найден: проверьте ник или оставьте поле пустым`, 422)
+    }
+
     const passwordHash = await hashPassword(input.password)
     const user = await AuthRepository.create({
       login,

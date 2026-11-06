@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { saveAuthSession, clearAuthSession, getStoredUser } from '../../shared/api/auth.api'
+import { onPushToken, syncPushToken } from '../../shared/lib/push-bridge'
 
 interface AuthState {
   isAuth: boolean
@@ -28,6 +29,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveAuthSession(token, userId, login)
     setState({ isAuth: true, userId, login })
   }, [])
+
+  // Пуши в приложении-оболочке: телефон привязывается к вошедшему игроку.
+  useEffect(() => {
+    if (!state.isAuth) return
+    void syncPushToken(state.userId)
+    return onPushToken(token => void syncPushToken(state.userId, token))
+  }, [state.isAuth, state.userId])
 
   const signOut = useCallback(() => {
     clearAuthSession()

@@ -14,6 +14,7 @@ import { ChatService } from './chat.service'
 import { publish } from '../../shared/realtime/io'
 import { prisma } from '../../shared/db/prisma'
 import { FLOOD, MAX_BODY, chatRoom, privateRoom, type Rejection } from './chat.formulas'
+import { pushLater } from '../push/push.service'
 
 const Channel = z.enum(['DISTRICT', 'CLAN', 'GLOBAL', 'PRIVATE'])
 const Query = z.object({ scope: z.string().max(64).optional(), limit: z.coerce.number().int().min(1).max(50).optional() })
@@ -103,6 +104,8 @@ export async function chatRoutes(fastify: FastifyInstance) {
         for (const line of result.lines) {
           publish(privateRoom(who.characterId), 'chat:message', line)
           if (line.recipientId) publish(privateRoom(line.recipientId), 'chat:message', line)
+          // Пуш на телефон (заказчик 06.11: «по умолчанию ЛС и системные»).
+          if (line.recipientId) pushLater(line.recipientId, { title: `Личное от ${line.nickname}`, body: line.body, url: '/', kind: 'private' })
         }
       } else {
         publish(chatRoom(channel.data, result.line.scope), 'chat:message', result.line)

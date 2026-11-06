@@ -17,6 +17,7 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { logger } from '../../shared/logger/logger'
 import { NoticesService } from '../chat/notices.service'
 import { sendTelegram } from '../admin-balance/telegram.service'
+import { pushLater } from '../push/push.service'
 
 export const SUPPORT = {
   subjectMax: 120,
@@ -329,6 +330,7 @@ export const SupportService = {
       }),
     ])
     await NoticesService.push(ticket.characterId, `Поддержка ответила на обращение №${ticket.number} «${ticket.subject}». Откройте Поддержку, чтобы прочитать.`)
+    pushLater(ticket.characterId, { title: 'Ответ поддержки', body: `Обращение №${ticket.number} «${ticket.subject}»`, url: `/support/${ticketId}`, kind: 'support' })
     return this.adminThread(ticketId)
   },
 
