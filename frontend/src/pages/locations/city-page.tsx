@@ -16,11 +16,14 @@ import { DogGoods, type DogGoodsKind } from './dog-goods'
 import { IncomingInvites } from '../stage3/clan-invites'
 import { ClanIconPicker } from '../stage3/clan-icon-upload'
 import '../stage3/stage3.css'
+import { SCENES } from '../../shared/ui/sprite'
 
 type Kind = 'hall' | 'school' | 'prison' | 'houses' | 'tsum' | 'berezka' | 'pets'
 const TITLES: Record<Kind, string> = { hall: 'Мэрия', school: 'Училище', prison: 'Тюрьма', houses: 'Дома бригад', tsum: 'ЦУМ', berezka: 'Берёзка', pets: 'Зоомагазин' }
 export function CityPage({ kind }: { kind: Kind }) {
   return <ViewportPanel title={TITLES[kind]}>
+    {/* Иллюстрация места, если она есть: scene-<страница>.webp подхватывается сама. */}
+    {SCENES[kind] && <img className="brigade-scene city-scene" src={SCENES[kind]} alt={TITLES[kind]} draggable={false} />}
     {kind === 'hall' ? <CityHall /> : kind === 'school' ? <School /> : kind === 'prison' ? <Prison />
       : kind === 'houses' ? <BrigadeHouses /> : kind === 'pets' ? <Pets /> : <Catalog kind={kind} />}
   </ViewportPanel>

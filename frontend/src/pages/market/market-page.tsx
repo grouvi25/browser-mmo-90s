@@ -85,14 +85,14 @@ export function MarketPage() {
           <option value="">Выберите ресурс</option>
           {resources.data?.items?.map(stack => <option key={stack.template.id} value={stack.template.id}>{stack.template.name} ({stack.availableAmount})</option>)}
         </select>
-        <input aria-label="Количество ресурса" type="number" min={1} value={amount} onChange={e => setAmount(Number(e.target.value))} />
-        <input aria-label="Цена объявления" type="number" min={1} max={1_000_000} value={price} onChange={e => setPrice(Number(e.target.value))} />
+        <input aria-label="Количество ресурса" type="number" min={1} value={amount || ''} onChange={e => setAmount(Number(e.target.value))} />
+        <input aria-label="Цена объявления" type="number" min={1} max={1_000_000} value={price || ''} onChange={e => setPrice(Number(e.target.value))} />
         <select aria-label="Валюта" value={currency} onChange={e => setCurrency(e.target.value as Currency)}>
           <option value="RUB">₽</option>
           <option value="USD" disabled={!usd}>${usd ? '' : ' — добытчик 2-го уровня'}</option>
         </select>
         <span>Сбор {fee(price, currency)} ₽</span>
-        <button className="btn btn-primary" disabled={create.isPending || !resourceId} onClick={() => create.mutate()}>Выставить</button>
+        <button className="btn btn-primary" disabled={create.isPending || !resourceId || !amount || !price} onClick={() => create.mutate()}>Выставить</button>
       </div>
       <p className="text-dim market-note">На общий рынок — только ресурсы. Вещи продаёт <Link to="/market/trader">Торгаш</Link> в своём магазине.</p>
     </div>
@@ -162,12 +162,12 @@ export function TraderPage() {
             <option value="">Выберите вещь</option>
             {inventory.data?.filter(item => !item.isEquipped && item.status === 'NORMAL').map(item => <option key={item.id} value={item.id}>{item.template.name}</option>)}
           </select>
-          <input aria-label="Цена" type="number" min={1} max={1_000_000} value={price} onChange={e => setPrice(Number(e.target.value))} />
+          <input aria-label="Цена" type="number" min={1} max={1_000_000} value={price || ''} onChange={e => setPrice(Number(e.target.value))} />
           <select aria-label="Валюта" value={currency} onChange={e => setCurrency(e.target.value as Currency)}>
             <option value="RUB">₽</option><option value="USD" disabled={t.traderLevel < 2}>${t.traderLevel < 2 ? ' — 2-й уровень' : ''}</option>
           </select>
           <span>Сбор {fee(price, currency)} ₽</span>
-          <button className="btn btn-primary" disabled={create.isPending || !itemId} onClick={() => create.mutate()}>Выставить</button>
+          <button className="btn btn-primary" disabled={create.isPending || !itemId || !price} onClick={() => create.mutate()}>Выставить</button>
         </div>
       </div>
       <div className="panel"><div className="panel-body">

@@ -44,10 +44,13 @@ export async function assertEquippable(tx: Tx, char: CharWithStats, item: ItemWi
   if (item.ownerId !== char.id) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
   if (item.status === 'BROKEN') throw new AppError(ErrorCode.ITEM_BROKEN, 'Item is broken, repair first', 400)
   if (item.status === 'DELETED' || item.status === 'CONSUMED') {
-    throw new AppError(ErrorCode.ITEM_NOT_AVAILABLE, 'Item is not available', 409)
+    throw new AppError(ErrorCode.ITEM_NOT_AVAILABLE, 'Этой вещи больше нет', 409)
   }
   if (item.isEquipped) throw new AppError(ErrorCode.ITEM_ALREADY_EQUIPPED, 'Already equipped', 400)
-  if (!item.template.isEquippable) throw new AppError(ErrorCode.ITEM_NOT_AVAILABLE, 'Item cannot be equipped', 400)
+  // Обращение №44: код магазина превращался на экране в «Товара нет в продаже».
+  if (!item.template.isEquippable) {
+    throw new AppError(ErrorCode.ITEM_CANNOT_EQUIP, item.template.type === 'TOOL' ? 'Инструмент не надевают: смена берёт его со склада сама' : 'Эту вещь нельзя надеть', 400)
+  }
   if (char.battleLevel < item.template.levelReq) {
     throw new AppError(ErrorCode.ITEM_LEVEL_REQ, `Нужен боевой уровень ${item.template.levelReq}`, 400)
   }

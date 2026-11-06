@@ -338,6 +338,10 @@ export function InventoryPage() {
                                   <span>{loadoutIds.includes(item.id) ? 'Из кармана' : 'В карман'}</span>
                                 </button>
                               </>
+                            ) : !t.isEquippable ? (
+                              // Обращение №44: «Надеть» у рабочего набора давало «Товара нет в продаже».
+                              // Инструмент не надевают, смена берёт его со склада сама.
+                              <span className="inv-card__note">{t.type === 'TOOL' ? 'Берётся на смену сам' : 'Не надевается'}</span>
                             ) : (
                               <button type="button" className="inv-btn"
                                 disabled={inBattle || broken || tooLow || equipMut.isPending}

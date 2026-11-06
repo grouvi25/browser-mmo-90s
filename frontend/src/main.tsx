@@ -11,6 +11,13 @@ import './styles/mobile.css'
 
 rememberReferral()
 
+// Обращение №39: в числовом поле стоял 0, курсор вставал после него, и вместо «5» выходило «05».
+// Правило для всех числовых полей игры: при входе в поле число выделено, новая цифра его заменяет.
+document.addEventListener('focusin', event => {
+  const field = event.target
+  if (field instanceof HTMLInputElement && field.type === 'number') requestAnimationFrame(() => field.select())
+})
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

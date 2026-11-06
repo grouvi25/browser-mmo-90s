@@ -1038,6 +1038,8 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 /* Дома бригад — как «Замки кланов» в «5 королях» (правка 21.10) */
 /* Иллюстрации Домов бригад и Жилого сектора: генератор в scripts/art. */
 .brigade-scene { display: block; width: 100%; max-height: 340px; object-fit: cover; object-position: center 45%; border: 1px solid var(--border); }
+/* Иллюстрация над разделом города (Мэрия, Тюрьма): отступ до содержимого. */
+.city-scene { margin-bottom: 10px; max-height: 220px; object-position: center 40%; }
 .brigade-doors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin: 6px 0 10px; }
 .brigade-door { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 3px 10px;
   font: 700 14px/1.2 Arial, sans-serif; color: #7a1010; background: #e8d3b0; border: 1px solid #7a1010; border-radius: 8px; cursor: pointer; }

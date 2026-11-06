@@ -108,6 +108,7 @@
 .inv-card dl { max-width: 100%; }
 .inv-card__gain { color: #2f6b2a; font-weight: 700; }
 .inv-card__actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.inv-card__note { align-self: center; color: #5a4b40; font-size: 13px; }
 .inv-btn {
   position: relative;
   padding: 2px 7px;
