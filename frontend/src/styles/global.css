@@ -419,7 +419,8 @@ button { font-family: inherit; }
   color: var(--text-bright);
 }
 .btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.btn:active:not(:disabled) { transform: translateY(1px); }
+/* Кнопка не двигается ни при наведении, ни при нажатии: нажатие видно по цвету. */
+.btn:active:not(:disabled) { filter: brightness(.92); }
 
 .btn-primary {
   background: #1a2a0a;
@@ -3319,6 +3320,23 @@ button { font-family: inherit; }
 .work-reason { display:block; margin-top:3px; color:var(--danger); font-size:13.49px; }
 /* Частный завод: чей он (обещание игрокам 23.10). */
 .work-employer { display:block; margin-top:2px; color:var(--text-dim, #6b5a48); font-size:13px; }
+/* Госкрафт: рецепты некупленного цеха, делаются из своего сырья. */
+.gov-craft { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+.gov-craft li { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.6fr) auto; gap:4px 12px; align-items:center; padding:6px 8px; border:1px solid rgba(43,43,43,.25); background:rgba(255,255,255,.35); }
+.gov-craft__what small { display:block; margin-top:2px; color:var(--text-dim, #6b5a48); font-size:13px; }
+.gov-craft__from { display:flex; flex-wrap:wrap; gap:2px 12px; font-size:14px; }
+.gov-craft__reason { grid-column:1 / -1; margin-top:0; }
+.gov-craft-row > td { padding-top:0; }
+@media(max-width:900px){
+  /* Подпись под названием объекта (госцех, частный завод) идёт строкой ниже на всю ширину, а не узкой колонкой. */
+  #vacancies .data-table td:first-child { flex-wrap:wrap; }
+  #vacancies .data-table td:first-child > small { flex-basis:100%; }
+  .gov-craft li { grid-template-columns:minmax(0,1fr) auto; }
+  .gov-craft__from { grid-column:1 / -1; grid-row:2; }
+  .data-table tr.gov-craft-row { margin-top:-6px; }
+  .data-table tr.gov-craft-row > td { display:block; text-align:left; }
+  .data-table tr.gov-craft-row > td::before { content:none; }
+}
 .work-award .panel-header { border-bottom-style:double; border-bottom-width:3px; }
 .work-award tbody tr:last-child td { border-top:2px solid var(--border); font-weight:700; }
 .is-muted { background: rgba(96, 76, 60, .08); }

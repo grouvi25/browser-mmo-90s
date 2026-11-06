@@ -592,6 +592,8 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
   font-family: var(--font-ui); border-radius: 2px;
 }
 .viewport__content .btn:hover { background: #fff3e0; border-color: #b81e2c; }
+/* Без этого основная кнопка под курсором брала светло-зелёный текст старой тёмной темы. */
+.viewport__content .btn:hover:not(:disabled):not(.btn-danger) { color: #1e1a17; }
 .viewport__content .btn:disabled { opacity: .45; }
 .viewport__content .btn-primary { background: #d9c19a; border-color: #8a6a10; }
 .viewport__content .btn-danger  { background: #e8c4c4; border-color: #b81e2c; color: #7d1119; }

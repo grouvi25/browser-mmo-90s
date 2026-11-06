@@ -108,13 +108,14 @@ describe('Книга экономики: в игре', () => {
     expect(started.shift.toolInstanceId).toBeTruthy()
   })
 
-  it('цех виден с ценой и продукцией, а смены начинаются только после покупки', async () => {
+  // До 07.11 некупленный цех стоял закрытым. Теперь в нём госкрафт: смена только с рецептом из своего сырья (gov-craft.test.ts).
+  it('цех виден с ценой и продукцией, без рецепта смена в нём не начинается', async () => {
     const character = await worker(['metallurgist'], 20_000)
     const shop = await object('obj_tb_smelter_iron')
     expect(shop).toMatchObject({ isForSale: true, ownerType: 'SYSTEM' })
     const row = async () => (await WorkService.listObjects(character.id)).items.find(item => item.code === shop.code)!
     expect(await row()).toMatchObject({ forSaleUsd: 15_000, products: ['Бронзовая заготовка', 'Железная заготовка', 'Медная заготовка', 'Оловянная заготовка', 'Свинцовая заготовка', 'Стальная заготовка', 'Экранирующий сплав'] })
-    await expect(WorkService.start(character.id, shop.id)).rejects.toThrow('Цех продаётся')
+    await expect(WorkService.start(character.id, shop.id)).rejects.toThrow('Выберите, что сделать в этом цехе')
     await OwnershipService.buy(character.id, shop.id, randomUUID())
     expect(await row()).toMatchObject({ forSaleUsd: null, products: [] })
     const recipe = await testPrisma.productionRecipe.findUniqueOrThrow({ where: { code: 'rcp_tb_steel_blank' }, include: { inputs: true } })

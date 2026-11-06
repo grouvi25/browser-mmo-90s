@@ -239,6 +239,7 @@ enum ItemLogAction {
   POINTS_ALLOCATED
   TOOL_USE
   SOCKET_INSERTED
+  CREATED_BY_CRAFT
 }
 
 enum AdminRole {
@@ -1510,6 +1511,8 @@ model WorkShift {
   resourceRewardCode   String?          @map("resource_reward_code")
   resourceRewardAmount Int?             @map("resource_reward_amount")
   failureReason        String?          @map("failure_reason")
+  /// Госкрафт: рецепт, который игрок делает из своего сырья в некупленном цехе.
+  craftRecipeId        String?          @map("craft_recipe_id")
   createdAt            DateTime         @default(now()) @map("created_at")
   updatedAt            DateTime         @updatedAt @map("updated_at")
   character            Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)

@@ -14,6 +14,7 @@ import { BalanceConfig } from '../../config/balance.config'
 import { PremiumService } from '../premium/premium.service'
 import { PROFESSION_NAMES, professionLevelFromExp, type ProfessionCode } from '../professions/professions'
 import { soldGeneralTools, toolForTier } from './tool-names'
+import { finishGovCraft, govCraftRecipe, govCraftView, releaseGovCraftInputs, reserveGovCraftInputs } from './gov-craft'
 
 const MAX_DAILY_SHIFTS = BalanceConfig.economy.work.dailyShiftLimit
 const WORK_LIMITS = BalanceConfig.economy.work
@@ -87,6 +88,12 @@ export const WorkService = {
       where: { productionObjectCode: { in: vacancies.filter(awaitsOwner).map(object => object.code) } },
       select: { productionObjectCode: true, name: true }, orderBy: { name: 'asc' },
     })
+    const toolCodes = tools.map(tool => tool.template.code)
+    const minutesLeft = Math.round(MAX_DAILY_MINUTES * (dailyCap / MAX_DAILY_SHIFTS)) - shiftMinutes(used)
+    const craftByCode = new Map(await Promise.all(vacancies.filter(awaitsOwner).map(async object => [object.code, await govCraftView(prisma, {
+      characterId, objectCode: object.code, toolCodes, minutesLeft,
+      professionLevel: professionByCode.get(object.requiredProfessionCode)?.level ?? 0,
+    })] as const)))
     return {
       // Обращение №29: раньше отдых узнавали, только нажав «Выйти».
       restUntil,
@@ -103,6 +110,8 @@ export const WorkService = {
           offeredSalary: object.salaryOverride ?? object.baseSalary,
           forSaleUsd: awaitsOwner(object) ? BalanceConfig.economy.production.objectPriceUsd : null,
           products: awaitsOwner(object) ? products.filter(row => row.productionObjectCode === object.code).map(row => row.name) : [],
+          // Госкрафт: цех ещё не куплен, в нём делают на себя из своего сырья.
+          craft: craftByCode.get(object.code) ?? null,
           // Частный завод (обещание игрокам 23.10): платит владелец из кассы
           // объекта, сырьё со смены уходит ему. Работнику видно, чей это
           // завод и хватит ли в кассе на его зарплату.
@@ -179,7 +188,7 @@ export const WorkService = {
     }
   },
 
-  async start(characterId: string, productionObjectId: string) {
+  async start(characterId: string, productionObjectId: string, recipeId?: string) {
     return withTransaction(async tx => {
       const now = new Date()
       const { start, end } = utcDayRange(now)
@@ -196,7 +205,7 @@ export const WorkService = {
       // подписчик может работать дольше, но не зарабатывает больше в час,
       // и усталость зарплаты Этапа 2 продолжает действовать на все смены.
       const shiftCap = await PremiumService.dailyShiftCap(characterId)
-      if (todayShifts.length >= shiftCap) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift limit reached', 400)
+      if (todayShifts.length >= shiftCap) throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Лимит смен на сегодня исчерпан', 400)
       if (!object) throw new AppError(ErrorCode.WORK_OBJECT_NOT_FOUND, 'Production object not found', 404)
       // Бюджет минут растёт вместе с потолком смен.
       //
@@ -210,12 +219,13 @@ export const WorkService = {
       // всё время целиком, а не число смен в отрыве от минут.
       const minuteBudget = Math.round(
         WORK_LIMITS.dailyShiftMinutes * (shiftCap / WORK_LIMITS.dailyShiftLimit))
-      if (!fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), object.shiftDurationMinutes,
+      if (!awaitsOwner(object ?? { ownerType: '', baseSalary: 1, producesResourceCode: null, isForSale: false })
+        && !fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), object?.shiftDurationMinutes ?? 0,
         { shifts: shiftCap, minutes: minuteBudget })) {
-        throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Daily shift budget reached', 400)
+        const left = Math.max(0, minuteBudget - shiftMinutes(todayShifts))
+        throw new AppError(ErrorCode.WORK_DAILY_LIMIT, `Не хватит времени сегодня: осталось ${left} мин, смена ${object?.shiftDurationMinutes ?? 0} мин`, 400)
       }
       if (!object.isActive || object.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_OBJECT_UNAVAILABLE, 'Production object unavailable', 409)
-      if (awaitsOwner(object)) throw new AppError(ErrorCode.WORK_OBJECT_UNAVAILABLE, 'Цех продаётся: смены начнутся, когда его купят', 409)
       const existingProfession = await tx.characterProfession.findUnique({
         where: { characterId_professionCode: { characterId, professionCode: object.requiredProfessionCode } },
       })
@@ -238,6 +248,11 @@ export const WorkService = {
         }
       }
       if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 400)
+      const craft = awaitsOwner(object) ? await govCraftRecipe(tx, object.code, recipeId, existingProfession.level) : null
+      // Смена госкрафта длится столько, сколько рецепт: по нему и проверяем остаток дня.
+      if (craft && !fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), craft.cycleMinutes, { shifts: shiftCap, minutes: minuteBudget })) {
+        throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Не хватит времени сегодня: рабочий день почти закончился', 400)
+      }
       // Тоже только свои: занятый помощник не должен запирать хозяина.
       if (await tx.workShift.findFirst({ where: { characterId, helperId: null, status: { in: ['ACTIVE', 'READY_TO_CLAIM'] } } })) throw new AppError(ErrorCode.WORK_ACTIVE_SHIFT, 'Active shift already exists', 409)
       // Отдых после смены, одинаковый для всех объектов (правка заказчика
@@ -260,9 +275,9 @@ export const WorkService = {
       const profession = existingProfession
       let toolInstanceId: string | null = null
       // Рецепт под премиальный инструмент (заказчик 30.10): подходит только свой.
-      const recipe = object.activeRecipeId
+      const recipe = craft ?? (object.activeRecipeId
         ? await tx.productionRecipe.findUnique({ where: { id: object.activeRecipeId }, select: { requiredToolCode: true } })
-        : null
+        : null)
       const toolCode = recipe?.requiredToolCode ?? null
       if (object.equipment?.isActive || toolCode) {
         const candidates = await tx.itemInstance.findMany({
@@ -285,11 +300,12 @@ export const WorkService = {
           throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, name ? `Нужен инструмент: ${name}` : `Нужен инструмент ${tier} уровня`, 400)
         }
       }
-      const endsAt = new Date(now.getTime() + object.shiftDurationMinutes * 60_000)
+      if (craft) await reserveGovCraftInputs(tx, characterId, craft)
+      const endsAt = new Date(now.getTime() + (craft?.cycleMinutes ?? object.shiftDurationMinutes) * 60_000)
       const shift = await tx.workShift.create({
-        data: { characterId, productionObjectId, professionCode: object.requiredProfessionCode, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: object.salaryOverride ?? object.baseSalary, toolInstanceId },
+        data: { characterId, productionObjectId, professionCode: object.requiredProfessionCode, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: craft ? 0 : object.salaryOverride ?? object.baseSalary, toolInstanceId, craftRecipeId: craft?.id ?? null },
       })
-      await tx.productionLog.create({ data: { characterId, productionObjectId, eventType: 'SHIFT_STARTED', metadataJson: { shiftId: shift.id, endsAt, professionCode: shift.professionCode, toolInstanceId } } })
+      await tx.productionLog.create({ data: { characterId, productionObjectId, eventType: 'SHIFT_STARTED', metadataJson: { shiftId: shift.id, endsAt, professionCode: shift.professionCode, toolInstanceId, craftRecipeId: craft?.id ?? null } } })
       return { shift, profession }
     })
   },
@@ -352,7 +368,11 @@ export const WorkService = {
         refId: shift.id,
       }) : (await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { money: true } })).money
       if (shift.productionObject.economicExpReward > 0) await EconomyService.grantEconomicExp(tx, characterId, shift.productionObject.economicExpReward)
-      const cycleContribution = shift.productionObject.activeRecipeId
+      const crafted = shift.craftRecipeId ? await finishGovCraft(tx, {
+        characterId, shiftId: shift.id, recipeId: shift.craftRecipeId,
+        professionLevel: profession.level, toolTier: shift.toolInstance?.template.toolTier ?? 0,
+      }) : null
+      const cycleContribution = shift.productionObject.activeRecipeId && !shift.craftRecipeId
         ? await CycleService.contributeLabor(tx, {
           objectId: shift.productionObjectId,
           characterId,
@@ -391,8 +411,8 @@ export const WorkService = {
       await tx.characterProfession.update({ where: { id: profession.id }, data: { exp: professionExp, level: professionLevel } })
       const aggregate = await tx.characterProfession.aggregate({ where: { characterId }, _max: { level: true, exp: true } })
       await tx.character.update({ where: { id: characterId }, data: { status: 'ACTIVE', productionLevel: aggregate._max.level ?? professionLevel, productionExp: aggregate._max.exp ?? professionExp } })
-      await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CLAIMED', metadataJson: { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionLevel, resourceReward, resourceToOwner, toolUse, cycleContribution } } })
-      return { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionExp, professionLevel, resourceReward, resourceToOwner, toolUse, cycleContribution, newBalance }
+      await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CLAIMED', metadataJson: { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionLevel, resourceReward, resourceToOwner, toolUse, cycleContribution, crafted } } })
+      return { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionExp, professionLevel, resourceReward, resourceToOwner, toolUse, cycleContribution, crafted, newBalance }
     } })
   },
 
@@ -402,6 +422,7 @@ export const WorkService = {
       if (!shift) throw new AppError(ErrorCode.WORK_SHIFT_NOT_FOUND, 'Active shift not found', 404)
       await tx.workShift.update({ where: { id: shift.id }, data: { status: 'CANCELLED' } })
       if (shift.toolInstanceId) await tx.itemInstance.updateMany({ where: { id: shift.toolInstanceId, ownerId: characterId, status: 'LOCKED' }, data: { status: 'NORMAL' } })
+      if (shift.craftRecipeId) await releaseGovCraftInputs(tx, characterId, shift.craftRecipeId)
       await tx.character.updateMany({ where: { id: characterId, status: 'WORKING' }, data: { status: 'ACTIVE' } })
       await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CANCELLED', metadataJson: { shiftId, professionCode: shift.professionCode } } })
       return { cancelled: true }

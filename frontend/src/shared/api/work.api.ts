@@ -1,10 +1,13 @@
 import { request } from './client'
 
 export interface ProfessionView { code:string; name:string; level:number; exp:number }
+/** Госкрафт: рецепт некупленного цеха, делается из своего сырья. */
+export interface GovCraftRecipe { id:string; name:string; minutes:number; output:{name:string;amount:number}; inputs:{code:string;name:string;need:number;have:number}[]; tool:{code:string;name:string}|null; requiredLevel:number; reason:string|null }
 export interface ProductionObjectView {
   id:string; code:string; name:string; requiredProfessionCode:string; requiredProfessionLevel:number
   shiftDurationMinutes:number; baseSalary:number; baseProductionExp:number; producesResourceCode:string|null
   producesResourceName:string|null; outputAmountMin:number; outputAmountMax:number; locked:boolean; toolAvailable:boolean; requiredToolName?:string|null; equipment:{code:string;name:string;tier:number;requiredToolTier:number}|null; profession:ProfessionView&{learned:boolean}
+  craft?:GovCraftRecipe[]|null
   /** Какой уровень какой профессии открывает объект. */
   admission?:{professionCode:string;professionName:string;requiredLevel:number;currentLevel:number}|null
   /** Ставка, которую платят: у частного завода её задаёт владелец. */
@@ -22,9 +25,9 @@ export interface WorkShiftView {
   profession:ProfessionView|null; isReady:boolean; remainingSeconds:number; productionObject:{name:string;code:string}; toolInstance:{id:string;usesLeft:number|null;template:{name:string;toolTier:number|null}}|null
 }
 export const workApi={
- objects:()=>request<{restUntil?:RestUntil;items:ProductionObjectView[];professions:ProfessionView[];daily:{shiftsUsedToday:number;shiftsLimit:number}}>('/api/work/objects'),
- current:()=>request<{restUntil?:RestUntil;shift:WorkShiftView|null;daily:{shiftsUsedToday:number;shiftsLimit:number}}>('/api/work/shifts/current'),
- start:(productionObjectId:string)=>request<{shift:WorkShiftView;profession:ProfessionView}>('/api/work/shifts/start',{method:'POST',body:{productionObjectId}}),
- claim:(shiftId:string)=>request<{salary:number;professionCode:string;professionExpGain:number;professionExp:number;professionLevel:number;resourceReward:{code:string;amount:number}|null;toolUse:{itemId:string;usesLeft:number}|null}>(`/api/work/shifts/${shiftId}/claim`,{method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()}}),
+ objects:()=>request<{restUntil?:RestUntil;items:ProductionObjectView[];professions:ProfessionView[];daily:{shiftsUsedToday:number;shiftsLimit:number;minutesUsedToday?:number;minutesLimit?:number}}>('/api/work/objects'),
+ current:()=>request<{restUntil?:RestUntil;shift:WorkShiftView|null;daily:{shiftsUsedToday:number;shiftsLimit:number;minutesUsedToday?:number;minutesLimit?:number}}>('/api/work/shifts/current'),
+ start:(productionObjectId:string,recipeId?:string)=>request<{shift:WorkShiftView;profession:ProfessionView}>('/api/work/shifts/start',{method:'POST',body:recipeId?{productionObjectId,recipeId}:{productionObjectId}}),
+ claim:(shiftId:string)=>request<{salary:number;professionCode:string;professionExpGain:number;professionExp:number;professionLevel:number;resourceReward:{code:string;amount:number}|null;toolUse:{itemId:string;usesLeft:number}|null;crafted?:{kind:'resource'|'item';name:string;amount:number}|null}>(`/api/work/shifts/${shiftId}/claim`,{method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()}}),
  cancel:(shiftId:string)=>request<{cancelled:boolean}>(`/api/work/shifts/${shiftId}/cancel`,{method:'POST'}),
 }
