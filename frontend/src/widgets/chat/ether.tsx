@@ -12,7 +12,7 @@ import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 
 import type { ChatLine } from '../../shared/api/chat.api'
 import { chatTime } from '../../shared/lib/chat-format'
-import { mentionsMe, type Ether, type EtherMode } from '../../shared/lib/use-ether'
+import { canEditLine, mentionsMe, type Ether, type EtherMode } from '../../shared/lib/use-ether'
 import { SMILES, SmileImage, smileToken, withSmiles } from '../../shared/ui/smiles'
 
 export const EMOJIS = [
@@ -77,6 +77,8 @@ export function useComposer(ether: Ether) {
   const [mode, setMode] = useState<EtherMode>('GLOBAL')
   const [target, setTarget] = useState('')
   const [draft, setDraft] = useState('')
+  // Правка своей реплики (№57): поле ввода переходит в режим правки.
+  const [editing, setEditing] = useState<ChatLine | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   // Кого уже позвали в этом сообщении: в нике бывает пробел, по одному тексту
   // начало строки на обращения не разобрать.
@@ -109,15 +111,26 @@ export function useComposer(ether: Ether) {
   useEffect(() => onWritePrivately(replyPrivately), [])
   useEffect(() => onMentionPlayer(onNick), [mode])
 
+  const startEdit = (line: ChatLine) => {
+    setEditing(line)
+    setDraft(line.body)
+    inputRef.current?.focus()
+  }
+  const cancelEdit = () => { setEditing(null); setDraft('') }
+
   const submit = async (event?: FormEvent) => {
     event?.preventDefault()
+    if (editing) {
+      if (draft.trim() === editing.body || await ether.edit(editing.id, draft)) cancelEdit()
+      return
+    }
     if (await ether.send(mode, draft, target)) { setDraft(''); called.current = [] }
   }
 
   // Бригаду могли покинуть — тогда и писать в неё не из чего.
   const effectiveMode: EtherMode = mode === 'CLAN' && !ether.hasClan ? 'GLOBAL' : mode
 
-  return { mode: effectiveMode, setMode, target, setTarget, draft, setDraft, inputRef, onNick, replyPrivately, submit }
+  return { mode: effectiveMode, setMode, target, setTarget, draft, setDraft, inputRef, onNick, replyPrivately, submit, editing, startEdit, cancelEdit }
 }
 
 export type Composer = ReturnType<typeof useComposer>
@@ -138,7 +151,7 @@ export function EtherLine({ line, ether, composer, className = '' }: {
 }) {
   if (line.system) {
     return <div className={`ether-line ether-line--system ${className}`}>
-      <span className="city-chat__time">[{chatTime(line.createdAt)}]</span> {line.body}
+      <span className="city-chat__time" title="Время московское">[{chatTime(line.createdAt)}]</span> {line.body}
     </div>
   }
   const mine = line.authorId === ether.me?.id
@@ -148,7 +161,7 @@ export function EtherLine({ line, ether, composer, className = '' }: {
   const partner = line.channel === 'PRIVATE' && mine ? line.recipientNickname ?? '' : line.nickname
   return (
     <div className={`ether-line ether-line--${kind}${mention ? ' is-mention' : ''} ${className}`}>
-      <span className="city-chat__time">[{chatTime(line.createdAt)}]</span>{' '}
+      <span className="city-chat__time" title="Время московское">[{chatTime(line.createdAt)}]</span>{' '}
       {kind === 'clan' && <span className="ether-tag">[Бригада]</span>}
       {kind === 'private' && (
         <button type="button" className="ether-tag ether-tag--btn" title="Ответить лично"
@@ -161,6 +174,13 @@ export function EtherLine({ line, ether, composer, className = '' }: {
         {line.nickname}:
       </button>{' '}
       <span className="ether-body">{withSmiles(line.body)}</span>
+      {line.editedAt && <span className="ether-edited" title="Автор поправил сообщение"> (изм.)</span>}
+      {canEditLine(line, ether.me?.id) && (
+        <button type="button" className="ether-edit" aria-label="Поправить сообщение" title="Поправить сообщение"
+          onClick={() => composer.startEdit(line)}>
+          ✎
+        </button>
+      )}
       {ether.canModerate && (
         <button type="button" className="ether-remove" aria-label="Удалить сообщение" title="Удалить сообщение"
           onClick={() => { if (window.confirm(`Удалить сообщение ${line.nickname}?`)) void ether.remove(line.id) }}>
@@ -176,10 +196,10 @@ export function EtherComposer({ ether, composer, className = '', style }: {
   ether: Ether; composer: Composer; className?: string; style?: CSSProperties
 }) {
   const [emojiOpen, setEmojiOpen] = useState(false)
-  const { mode, setMode, target, setTarget, draft, setDraft, inputRef, submit } = composer
+  const { mode, setMode, target, setTarget, draft, setDraft, inputRef, submit, editing, cancelEdit } = composer
   const modes: EtherMode[] = ether.hasClan ? ['GLOBAL', 'CLAN', 'PRIVATE'] : ['GLOBAL', 'PRIVATE']
   const placeholder = ether.notice
-    || (mode === 'PRIVATE' ? (target ? `Лично ${target}…` : 'Нажмите на ник в чате, кому написать, можно на несколько')
+    || (editing ? 'Новый текст сообщения…' : mode === 'PRIVATE' ? (target ? `Лично ${target}…` : 'Нажмите на ник в чате, кому написать, можно на несколько')
       : mode === 'CLAN' ? 'Написать бригаде…' : 'Написать всем…')
 
   const insertEmoji = (emoji: string) => {
@@ -190,12 +210,18 @@ export function EtherComposer({ ether, composer, className = '', style }: {
   }
 
   return (
-    <form className={`ether-composer ether-composer--${mode.toLowerCase()} ${className}`} style={style} onSubmit={submit}>
-      <select className="ether-mode" value={mode} aria-label="Куда писать"
-        onChange={e => setMode(e.target.value as EtherMode)}>
-        {modes.map(m => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
-      </select>
-      {mode === 'PRIVATE' && target && (
+    <form className={`ether-composer ether-composer--${mode.toLowerCase()}${editing ? ' is-editing' : ''} ${className}`} style={style} onSubmit={submit}
+      onKeyDown={e => { if (editing && e.key === 'Escape') cancelEdit() }}>
+      {editing
+        ? <span className="ether-editing">
+            Правка
+            <button type="button" aria-label="Отменить правку" title="Отменить правку" onClick={cancelEdit}>×</button>
+          </span>
+        : <select className="ether-mode" value={mode} aria-label="Куда писать"
+            onChange={e => setMode(e.target.value as EtherMode)}>
+            {modes.map(m => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
+          </select>}
+      {!editing && mode === 'PRIVATE' && target && (
         <span className="ether-target">
           →{recipientsOf(target).map(nick => (
             <span key={nick} className="ether-target__nick">
@@ -229,7 +255,7 @@ export function EtherComposer({ ether, composer, className = '', style }: {
           </span>
         )}
       </span>
-      <button type="submit" className="ether-send" aria-label="Отправить">→</button>
+      <button type="submit" className="ether-send" aria-label={editing ? 'Сохранить правку' : 'Отправить'}>{editing ? '✓' : '→'}</button>
     </form>
   )
 }

@@ -25,6 +25,7 @@ import { DollarsService } from '../dollars/dollars.service'
 import { getEconomicLevelFromExp, getLevelFromExp } from '../stats/stats.formulas'
 import { clearOverride, setOverride } from '../admin-balance/balance-overrides.service'
 import { gearFor, hpWithGear } from '../items/gear-bonuses'
+import { ResourcesService } from '../resources/resources.service'
 
 /** Минимальная длина причины. Правило П2 в числе. */
 export const REASON_MIN = 10
@@ -584,6 +585,37 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
       reason: 'ISSUE',
       refId: payload.actionId ? str(payload, 'actionId') : null,
       note: payload.note ? String(payload.note) : null,
+    })
+  },
+
+  /** Ресурс на склад игрока. Пишется в журнал ресурсов как правка администратора. */
+  GRANT_RESOURCE: async (tx, payload) => {
+    const characterId = str(payload, 'characterId')
+    const resourceTemplateId = str(payload, 'resourceTemplateId')
+    const amount = num(payload, 'amount')
+    must(await tx.resourceTemplate.findUnique({ where: { id: resourceTemplateId }, select: { id: true } }), 'Ресурс не найден')
+    await ResourcesService.add(tx, {
+      characterId, resourceTemplateId, amount, reasonCode: 'ADMIN_ADJUSTMENT',
+      refType: 'admin_action', refId: payload.actionId ? str(payload, 'actionId') : undefined,
+    })
+  },
+
+  /** Забрать ресурс: только свободный остаток, выставленное на рынок и в работе не трогаем. */
+  TAKE_RESOURCE: async (tx, payload) => {
+    const characterId = str(payload, 'characterId')
+    const resourceTemplateId = str(payload, 'resourceTemplateId')
+    const amount = num(payload, 'amount')
+    const stack = await tx.resourceStack.findUnique({
+      where: { characterId_resourceTemplateId: { characterId, resourceTemplateId } },
+      select: { amount: true, reservedAmount: true },
+    })
+    const free = (stack?.amount ?? 0) - (stack?.reservedAmount ?? 0)
+    if (free < amount) {
+      throw new AppError(ErrorCode.ADMIN_STATE_CHANGED, `Забрать нельзя: свободно ${free} шт., нужно ${amount}`, 409)
+    }
+    await ResourcesService.consume(tx, {
+      characterId, resourceTemplateId, amount, reasonCode: 'ADMIN_ADJUSTMENT',
+      refType: 'admin_action', refId: payload.actionId ? str(payload, 'actionId') : undefined,
     })
   },
 

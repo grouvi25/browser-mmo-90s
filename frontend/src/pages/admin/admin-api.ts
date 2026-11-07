@@ -89,6 +89,8 @@ async function requestBlobUrl(path: string): Promise<string> {
 export interface ChatLogRow {
   id: string; at: string; channel: 'GLOBAL' | 'DISTRICT'; district: string | null
   author: string; level: number; text: string; hidden: boolean
+  /** Игрок поправил реплику (№57): что было написано сначала. */
+  original?: string | null; editedAt?: string | null
 }
 
 export type SupportStatus = 'OPEN' | 'ANSWERED' | 'CLOSED'
@@ -503,6 +505,24 @@ export const adminApi = {
   grantMoney: (characterId: string, amount: number, reason: string) =>
     request<{ actionId: string }>('/api/admin/characters/money', {
       method: 'POST', body: { characterId, amount, reason },
+    }),
+
+  /** Что можно выдать игроку: вещи и ресурсы справочника. */
+  grantOptions: () => request<{
+    items: { id: string; name: string; type: string; levelReq: number }[]
+    resources: { id: string; name: string; code: string }[]
+  }>('/api/admin/grant-options'),
+
+  /** Ресурс: знак задаёт направление, обратимо из журнала. */
+  grantResource: (characterId: string, resourceTemplateId: string, amount: number, reason: string) =>
+    request<{ actionId: string }>('/api/admin/resources/grant', {
+      method: 'POST', body: { characterId, resourceTemplateId, amount, reason },
+    }),
+
+  /** Вещь в инвентарь игрока, обратимо из журнала. */
+  grantItem: (characterId: string, templateId: string, reason: string) =>
+    request<{ actionId: string }>('/api/admin/items/grant', {
+      method: 'POST', body: { characterId, templateId, reason },
     }),
 
   /** Игровые доллары: знак задаёт направление, обе операции обратимы. */

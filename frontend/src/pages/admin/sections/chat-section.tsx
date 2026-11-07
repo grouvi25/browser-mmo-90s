@@ -12,7 +12,7 @@ const PERIODS = [1, 3, 7, 30, 90]
 
 function line(row: ChatLogRow): string {
   const where = row.channel === 'GLOBAL' ? 'общий' : `район ${row.district}`
-  return `[${new Date(row.at).toLocaleString('ru-RU')}] (${where}) ${row.author} [${row.level}]: ${row.text}${row.hidden ? '  (спрятано модератором)' : ''}`
+  return `[${new Date(row.at).toLocaleString('ru-RU')}] (${where}) ${row.author} [${row.level}]: ${row.text}${row.hidden ? '  (спрятано модератором)' : ''}${row.original != null ? `  (сначала было: ${row.original})` : ''}`
 }
 
 export function ChatSection() {
@@ -65,7 +65,8 @@ export function ChatSection() {
                   <td>{when(r.at)}</td>
                   <td>{r.channel === 'GLOBAL' ? 'общий' : r.district}</td>
                   <td>{r.author} <small>[{r.level}]</small></td>
-                  <td style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{r.text}{r.hidden && <i> — спрятано</i>}</td>
+                  <td style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{r.text}{r.hidden && <i> — спрятано</i>}
+                    {r.original != null && <div className="muted"><small>Сначала было: {r.original}</small></div>}</td>
                   <td>{!r.hidden && (
                     <button type="button" className="danger" disabled={hide.isPending}
                       onClick={() => { if (window.confirm(`Удалить сообщение ${r.author} из чата?`)) hide.mutate(r.id) }}>

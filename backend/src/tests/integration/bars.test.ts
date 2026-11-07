@@ -68,6 +68,15 @@ describe('bars', () => {
     expect(after.money).toBe(500)
   })
 
+  it('государственный бар без владельца продаёт без склада, выручка уходит государству (чат 07.11: «бар не работает»)', async () => {
+    const { bar, offer } = await barWithOffer({ resourceCode: uid('beer'), price: 110, baseCost: 50, hpRestore: 10 })
+    await testPrisma.productionObject.update({ where: { id: bar.id }, data: { ownerType: 'SYSTEM', ownerCharacterId: null, isForSale: true } })
+    const buyer = await player('stateBar', 500)
+    const sold = await BarsService.buy(buyer.id, offer.id, uid('key'))
+    expect(sold).toMatchObject({ price: 110, hpCurrent: 70, newBalance: 390 })
+    expect((await testPrisma.productionObject.findUniqueOrThrow({ where: { id: bar.id } })).balance).toBe(0)
+  })
+
   it('replays the same idempotency key without a second charge', async () => {
     const { bar, offer } = await barWithOffer({ resourceCode: 'bar_shchi', price: 75, baseCost: 75, hpRestore: 25 })
     await testPrisma.$transaction(tx => ObjectInventoryService.put(tx, { objectId: bar.id, resourceCode: 'bar_shchi', quality: 'NORMAL', amount: 5, capacity: 1000 }))

@@ -1,6 +1,6 @@
 /** Начальный баланс новых локаций. Документ не задаёт цены/бонусы;
  * эти значения централизованы и явно перечислены в CITY_CHANGES.md. */
-import { DOG_BREEDS, DOG_MAX_LEVEL, breedOf, dogAllocation, dogBonus, dogExpForLevel, dogGear, freeDogPoints, type DogRow, type PetStatBonus } from './dogs'
+import { DOG_BREEDS, dogMaxLevel, breedOf, dogAllocation, dogBonus, dogExpForLevel, dogGear, freeDogPoints, type DogRow, type PetStatBonus } from './dogs'
 
 export const CityConfig = {
   professionPrice: 500,
@@ -85,7 +85,7 @@ export function dogSummary(pets: readonly DogRow[] | undefined, now = new Date()
   const gear = dogGear(dog)
   return {
     id: dog.id, code: dog.code, name: breed.name, role: breed.role, fedUntil: dog.fedUntil, fed,
-    level, exp, levelExp: dogExpForLevel(level), nextLevelExp: level < DOG_MAX_LEVEL ? dogExpForLevel(level + 1) : null,
+    level, exp, levelExp: dogExpForLevel(level), nextLevelExp: level < dogMaxLevel() ? dogExpForLevel(level + 1) : null,
     freeAllocation: !!breed.freeAllocation, freePoints: freeDogPoints(dog), allocation: dogAllocation(dog),
     gear: Object.fromEntries(Object.entries(gear).map(([slot, item]) => [slot, item ? { code: item.code, name: item.name, bonus: item.bonus } : null])),
     fullBonus: dogBonus(dog),

@@ -5,10 +5,14 @@
 // собой весь виджет ради одной функции.
 // =============================================================
 
-/** Час и минута отправки — в ленте макета время стоит перед ником. */
+/**
+ * Час и минута отправки — по Москве у всех игроков (обращение №37):
+ * раньше время бралось с устройства, и о времени события в чате
+ * игроки из разных поясов договаривались вслепую.
+ */
+const MSK = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 export function chatTime(iso: string): string {
-  const at = new Date(iso)
-  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
+  return MSK.format(new Date(iso))
 }
 
 /**

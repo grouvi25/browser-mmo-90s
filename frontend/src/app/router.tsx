@@ -7,6 +7,7 @@ import { ApiError } from '../shared/api/client'
 import { PublicLayout } from './layouts/public-layout'
 import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
+import { SCENES } from '../shared/ui/sprite'
 import { loginDestination, loginUrl } from '../shared/lib/login-redirect'
 import { ResumeLocation } from './location-persistence'
 import { CityPage } from '../pages/locations/city-page'
@@ -313,7 +314,7 @@ export function AppRouter() {
             <SupportPage />
           </ViewportPanel>} />
         <Route path="/housing" element={
-          <ViewportPanel title="Жилой сектор" subtitle="Квартиры и дома">
+          <ViewportPanel title="Жилой сектор" subtitle="Квартиры и дома" scene={SCENES.housing}>
             <HousingPage />
           </ViewportPanel>} />
         <Route path="/housing/home" element={

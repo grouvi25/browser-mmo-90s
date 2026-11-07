@@ -49,4 +49,16 @@ describe('собаки: уровни, очки, снаряжение', () => {
       .toEqual({ agi: 3, end: 1 })
     expect(dogBonus({ id: 'x', code: 'malinois', fedUntil: null, level: 1, allocation: { str: 2, luck: 1 } })).toEqual({ str: 2, luck: 1 })
   })
+  it('шкала собаки — боевая таблица игрока +20% (Дима, №56): опыт прод-собак даёт уровни ниже хозяйских', async () => {
+    const { dogLevelFromExp, dogExpForLevel, dogMaxLevel, dogExpToNext } = await import('../../modules/city/dogs')
+    const { BalanceConfig } = await import('../../config/balance.config')
+    const battle = BalanceConfig.battleExp.levelThresholds
+    expect(dogMaxLevel()).toBe(battle.length)
+    expect(dogExpForLevel(2)).toBe(Math.round(battle[1] * 1.2))
+    expect(dogExpToNext(1)).toBe(Math.round(battle[1] * 1.2))
+    expect(dogExpToNext(dogMaxLevel())).toBe(0)
+    // Опыт собак на проде 07.11 и уровни после пересчёта: хозяева на 8–10-м.
+    expect([520012, 384564, 101871, 95724, 72327, 977].map(dogLevelFromExp)).toEqual([9, 8, 7, 7, 6, 1])
+    expect(dogLevelFromExp(10 ** 9)).toBe(dogMaxLevel())
+  })
 })

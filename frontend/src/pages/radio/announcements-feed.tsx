@@ -24,9 +24,10 @@ const KIND_LABELS: Record<AnnouncementKind, string> = {
 function stamp(iso: string): string {
   const at = new Date(iso)
   const sameYear = at.getFullYear() === new Date().getFullYear()
+  // Время по Москве, как в чате (обращение №37): объявления о событиях одни на всех.
   return at.toLocaleDateString('ru', {
-    day: 'numeric', month: 'long', ...(sameYear ? {} : { year: 'numeric' }),
-  }) + ', ' + at.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
+    timeZone: 'Europe/Moscow', day: 'numeric', month: 'long', ...(sameYear ? {} : { year: 'numeric' }),
+  }) + ', ' + at.toLocaleTimeString('ru', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })
 }
 
 export function AnnouncementsFeed({ kind, empty }: { kind?: AnnouncementKind; empty?: string }) {

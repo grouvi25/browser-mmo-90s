@@ -36,10 +36,15 @@ export interface ChatLine {
   /** Только у личных сообщений: кому написано. */
   recipientId?: string | null
   recipientNickname?: string | null
+  /** Автор поправил реплику (№57). Исходный текст игрокам не отдаём. */
+  editedAt?: Date | null
 }
 
+/** Сколько минут после отправки реплику можно поправить. */
+export const CHAT_EDIT_MINUTES = 15
+
 const LINE_SELECT = {
-  id: true, channel: true, scope: true, authorId: true, recipientId: true, body: true, createdAt: true,
+  id: true, channel: true, scope: true, authorId: true, recipientId: true, body: true, createdAt: true, editedAt: true,
   author: { select: { nickname: true, battleLevel: true } },
 } as const
 
@@ -52,12 +57,14 @@ interface Speaker {
 
 function toLine(row: {
   id: string; channel: ChatChannel; scope: string; authorId: string; recipientId: string | null; body: string; createdAt: Date
+  editedAt?: Date | null
   author: { nickname: string; battleLevel: number }
 }, recipientNickname: string | null = null): ChatLine {
   return {
     id: row.id, channel: row.channel, scope: row.scope, authorId: row.authorId,
     nickname: row.author.nickname, level: row.author.battleLevel,
     body: row.body, createdAt: row.createdAt,
+    ...(row.editedAt ? { editedAt: row.editedAt } : {}),
     ...(row.channel === 'PRIVATE' ? { recipientId: row.recipientId, recipientNickname } : {}),
   }
 }
@@ -239,6 +246,45 @@ export const ChatService = {
 
   async leave(characterId: string): Promise<void> {
     await ChatRedis.presenceLeave(characterId)
+  },
+
+  /**
+   * Поправить свою реплику (обращение №57): опечатка или личное, ушедшее
+   * в общий канал. Только своё, только пока не удалено и в первые
+   * CHAT_EDIT_MINUTES минут. Первый текст сохраняется для админа — так
+   * правкой не замести сказанное. Тем, кто в эфире, строка меняется сразу.
+   */
+  async edit(who: Speaker, messageId: string, rawBody: string, now = new Date()): Promise<ChatLine> {
+    if (who.mutedUntil && who.mutedUntil > now) {
+      throw new AppError(ErrorCode.FORBIDDEN, 'Вам запрещено писать в чат до ' + who.mutedUntil.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }), 403)
+    }
+    const row = await prisma.chatMessage.findUnique({
+      where: { id: messageId },
+      select: { id: true, authorId: true, body: true, originalBody: true, createdAt: true, deletedAt: true, recipientId: true },
+    })
+    if (!row || row.deletedAt || row.authorId !== who.characterId) throw new AppError(ErrorCode.NOT_FOUND, 'Сообщение не найдено', 404)
+    if (now.getTime() - row.createdAt.getTime() > CHAT_EDIT_MINUTES * 60_000) {
+      throw new AppError(ErrorCode.CONFLICT, `Поправить можно только в первые ${CHAT_EDIT_MINUTES} минут`, 409)
+    }
+    const body = normalizeBody(rawBody)
+    if (!body) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Пустым сообщение оставить нельзя', 422)
+    if (body.length > MAX_BODY) throw new AppError(ErrorCode.VALIDATION_ERROR, `Слишком длинно — не больше ${MAX_BODY} знаков.`, 422)
+    const updated = await prisma.chatMessage.update({
+      where: { id: row.id },
+      data: { body, editedAt: now, ...(row.originalBody === null && body !== row.body ? { originalBody: row.body } : {}) },
+      select: LINE_SELECT,
+    })
+    const recipientNickname = updated.recipientId
+      ? (await prisma.character.findUnique({ where: { id: updated.recipientId }, select: { nickname: true } }))?.nickname ?? null
+      : null
+    const line = toLine(updated, recipientNickname)
+    if (line.channel === 'PRIVATE') {
+      publish(privateRoom(line.authorId), 'chat:edited', line)
+      if (line.recipientId) publish(privateRoom(line.recipientId), 'chat:edited', line)
+    } else {
+      publish(chatRoom(line.channel, line.scope), 'chat:edited', line)
+    }
+    return line
   },
 
   /** Модерация: спрятать реплику, оставив след для разбора жалобы. */

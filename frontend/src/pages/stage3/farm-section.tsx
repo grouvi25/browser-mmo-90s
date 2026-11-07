@@ -49,6 +49,19 @@ export function FarmSection() {
         for (const p of targets) await (kind === 'plantAll' ? farmApi.plant(p.id, crop) : farmApi.water(p.id))
         return targets.length
       }
+      // «Собрать всё» (обращение №52): созревшее собираем, засохшее убираем.
+      // Итог по культурам — в сообщение, чтобы было видно, что пришло.
+      if (kind === 'harvestAll') {
+        const plots = farm.data?.plots ?? []
+        const got: Record<string, number> = {}
+        for (const p of plots.filter(x => x.state === 'READY')) {
+          const r = await farmApi.harvest(p.id)
+          const name = farm.data?.crops?.find(c => c.code === r.cropCode)?.name ?? r.cropCode
+          got[name] = (got[name] ?? 0) + r.amount
+        }
+        for (const p of plots.filter(x => x.state === 'WITHERED')) await farmApi.clear(p.id)
+        return got
+      }
       if (kind === 'buy') return farmApi.buyPlot()
       if (kind === 'plant') return farmApi.plant(id!, crop)
       if (kind === 'water') return farmApi.water(id!)
@@ -58,9 +71,10 @@ export function FarmSection() {
       if (kind === 'worker') return farmApi.hireWorker()
       return farmApi.build(id!, building)
     },
-    onSuccess: (_, v) => {
+    onSuccess: (result, v) => {
       setBad(false)
-      setMsg(v.kind === 'plantAll' ? 'Засажены все свободные грядки' : v.kind === 'waterAll' ? 'Политы все грядки' : v.kind === 'buy' ? 'Участок куплен' : v.kind === 'plant' ? 'Посажено' : v.kind === 'water' ? 'Полито'
+      const got = v.kind === 'harvestAll' ? Object.entries(result as Record<string, number>).map(([name, n]) => `${name} ${n} шт.`).join(', ') : ''
+      setMsg(v.kind === 'harvestAll' ? (got ? `Собрано: ${got}` : 'Засохшее убрано, участки свободны') : v.kind === 'plantAll' ? 'Засажены все свободные грядки' : v.kind === 'waterAll' ? 'Политы все грядки' : v.kind === 'buy' ? 'Участок куплен' : v.kind === 'plant' ? 'Посажено' : v.kind === 'water' ? 'Полито'
         : v.kind === 'harvest' ? 'Урожай собран' : v.kind === 'clear' ? 'Участок убран, можно сажать заново'
         : v.kind === 'worker' ? 'Рабочий нанят — он сам соберёт созревший урожай' : 'Постройка готова')
       void qc.invalidateQueries({ queryKey: ['farm'] })
@@ -136,6 +150,13 @@ export function FarmSection() {
       </section>
 
       <div className="farm-act">
+        {plots.some(p => p.state === 'READY' || p.state === 'WITHERED') && (
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={() => action.mutate({ kind: 'harvestAll' })}>
+            <Scissors size={14} /> {plots.some(p => p.state === 'READY')
+              ? `Собрать весь урожай (${plots.filter(p => p.state === 'READY').length})`
+              : `Убрать засохшее (${plots.filter(p => p.state === 'WITHERED').length})`}
+          </button>
+        )}
         {mode === 'plant' && plots.some(p => p.state === 'EMPTY') && (
           <button type="button" className="btn" disabled={busy || !crops.find(x => x.code === crop)?.available}
             onClick={() => action.mutate({ kind: 'plantAll' })}>

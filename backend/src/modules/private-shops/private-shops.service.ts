@@ -13,7 +13,9 @@ export const PrivateShopsService={
   return Promise.all(entries.map(async entry=>{
    const itemTemplate=entry.itemTemplateId?await prisma.itemTemplate.findUnique({where:{id:entry.itemTemplateId}}):null
    const resourceTemplate=entry.resourceTemplateId?await prisma.resourceTemplate.findUnique({where:{id:entry.resourceTemplateId}}):null
-   return{...entry,kind:itemTemplate?'ITEM':'RESOURCE',name:itemTemplate?.name??resourceTemplate?.name??'Unknown',code:itemTemplate?.code??resourceTemplate?.code,itemTier:itemTemplate?.itemTier??resourceTemplate?.tier??1,levelReq:itemTemplate?.levelReq??0}
+   return{...entry,kind:itemTemplate?'ITEM':'RESOURCE',name:itemTemplate?.name??resourceTemplate?.name??'Unknown',code:itemTemplate?.code??resourceTemplate?.code,itemTier:itemTemplate?.itemTier??resourceTemplate?.tier??1,levelReq:itemTemplate?.levelReq??0,
+    // Характеристики вещи — те же, что видны в госмагазине (обращение №49: в лавке их не было).
+    template:itemTemplate}
   }))
  },
  async buy(characterId:string,shopCode:string,privateShopItemId:string,quantity:number,key:string){

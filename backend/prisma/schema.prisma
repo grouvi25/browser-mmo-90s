@@ -323,6 +323,9 @@ enum AdminActionKind {
   RESTORE_SHOP_ITEM
   SET_BAR_OFFER
   RESTORE_BAR_OFFER
+  // Выдача и списание ресурсов из карточки игрока (Дима 07.11: «как выдавать ресы?»).
+  GRANT_RESOURCE
+  TAKE_RESOURCE
   SET_PRODUCTION_OBJECT
   RESTORE_PRODUCTION_OBJECT
   // Опыт выдаётся и забирается так же, как деньги: знаком одной операции.
@@ -2274,6 +2277,10 @@ model ChatMessage {
   // разбирать жалобы по пустому месту невозможно.
   deletedAt   DateTime?   @map("deleted_at")
   deletedBy   String?     @map("deleted_by")
+  /// Правка своей реплики (обращение №57): первый текст остаётся здесь,
+  /// его видит админ, игроки видят только пометку «изменено».
+  originalBody String?    @db.VarChar(400) @map("original_body")
+  editedAt     DateTime?  @map("edited_at")
 
   author Character @relation(fields: [authorId], references: [id], onDelete: Cascade)
 

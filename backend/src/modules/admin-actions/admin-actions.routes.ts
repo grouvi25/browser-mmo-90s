@@ -298,6 +298,39 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
     return reply.send(result)
   })
 
+  // ── Выдача вещей и ресурсов из карточки игрока ────────────
+  // Что вообще можно выдать: вещи и ресурсы справочника с id. Дима 07.11:
+  // «как выдавать какие-то ресы, вещи?» — в карточке игрока этого не было.
+  fastify.get('/grant-options', READ_ADMIN, async (_req, reply) => {
+    const [items, resources] = await Promise.all([
+      prisma.itemTemplate.findMany({ select: { id: true, name: true, type: true, levelReq: true }, orderBy: [{ type: 'asc' }, { name: 'asc' }] }),
+      prisma.resourceTemplate.findMany({ where: { isActive: true }, select: { id: true, name: true, code: true }, orderBy: { name: 'asc' } }),
+    ])
+    return reply.send({ items, resources })
+  })
+
+  fastify.post('/resources/grant', SUPER_ADMIN, async (req, reply) => {
+    const reason = reasonOf(req.body)
+    const parsed = z.object({
+      characterId: Id, resourceTemplateId: Id,
+      amount: z.number().int().refine(value => value !== 0).refine(value => Math.abs(value) <= 100_000),
+    }).safeParse(req.body)
+    if (!parsed.success) return invalid(reply)
+    const { characterId, resourceTemplateId, amount } = parsed.data
+    const character = await prisma.character.findUnique({ where: { id: characterId }, select: { id: true } })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
+    const giving = amount > 0
+    const payload = { characterId, resourceTemplateId, amount: Math.abs(amount) }
+    const result = await AdminActionsService.perform(ctx(req), reason, {
+      kind: giving ? 'GRANT_RESOURCE' : 'TAKE_RESOURCE',
+      payload,
+      targetType: 'character',
+      targetId: characterId,
+      undo: { kind: giving ? 'TAKE_RESOURCE' : 'GRANT_RESOURCE', payload },
+    })
+    return reply.code(201).send(result)
+  })
+
   fastify.post('/items/grant', SUPER_ADMIN, async (req, reply) => {
     const reason = reasonOf(req.body)
     const parsed = z.object({ characterId: Id, templateId: Id }).safeParse(req.body)

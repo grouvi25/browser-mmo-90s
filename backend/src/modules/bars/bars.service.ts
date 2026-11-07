@@ -53,13 +53,20 @@ export const BarsService = {
       const hasBuff = offer.accuracyBuff !== 0 || offer.damageBuff !== 0
       if (hasBuff && !canTakeBuff(character.lastBarBuffAt, now)) throw new AppError(ErrorCode.BAR_BUFF_COOLDOWN, 'Bar buff is on cooldown', 409)
 
-      const reserved = await ObjectInventoryService.reserve(tx, {
-        objectId: offer.productionObjectId, resourceCode: offer.resourceCode, minQuality: 'POOR', amount: 1,
-      }).catch(() => { throw new AppError(ErrorCode.BAR_OUT_OF_STOCK, 'Offer is out of stock', 409) })
-      for (const row of reserved) await ObjectInventoryService.consumeReserved(tx, row.inventoryId, row.amount)
+      // Государственный бар, пока его не купили, торгует без склада: пополнять
+      // его некому, и раньше он стоял пустым («бар не работает», чат 07.11).
+      // Выручка такого бара уходит государству. Купленный бар — по-старому:
+      // владелец держит склад и получает свою долю.
+      const stateRun = offer.productionObject.ownerType === 'SYSTEM'
+      if (!stateRun) {
+        const reserved = await ObjectInventoryService.reserve(tx, {
+          objectId: offer.productionObjectId, resourceCode: offer.resourceCode, minQuality: 'POOR', amount: 1,
+        }).catch(() => { throw new AppError(ErrorCode.BAR_OUT_OF_STOCK, 'Этого сейчас нет в наличии', 409) })
+        for (const row of reserved) await ObjectInventoryService.consumeReserved(tx, row.inventoryId, row.amount)
+      }
       const newBalance = await EconomyService.debit(tx, { characterId, amount: offer.price, reasonCode: 'BAR_PURCHASE', refType: 'bar_offer', refId: offer.id })
       const split = barSaleSplit(offer.price)
-      await tx.productionObject.update({ where: { id: offer.productionObjectId }, data: { balance: { increment: split.ownerIncome } } })
+      if (!stateRun) await tx.productionObject.update({ where: { id: offer.productionObjectId }, data: { balance: { increment: split.ownerIncome } } })
 
       const alcoholLevel = character.status === 'IN_BATTLE' ? currentAlcohol : Math.min(100, currentAlcohol + offer.alcoholDegrees)
       const hpCurrent = Math.min(character.hpMax, character.hpCurrent + offer.hpRestore)

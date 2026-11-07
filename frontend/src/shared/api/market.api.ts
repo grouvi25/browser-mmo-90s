@@ -67,4 +67,5 @@ export const marketApi = {
   shop: (shopNumber: number) => request<{ owner: ShopOwner; listings: MarketListingsResponse }>(`/api/market/shops/${shopNumber}`),
   buy: (id: string) => request(`/api/market/listings/${id}/buy`, { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() } }),
   cancel: (id: string) => request(`/api/market/listings/${id}/cancel`, { method: 'POST' }),
+  updatePrice: (id: string, price: number) => request<{ feeCharged: number }>(`/api/market/listings/${id}/price`, { method: 'POST', body: { price } }),
 }

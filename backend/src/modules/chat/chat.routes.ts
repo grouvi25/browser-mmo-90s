@@ -71,6 +71,14 @@ export async function chatRoutes(fastify: FastifyInstance) {
     return reply.send({ players: await ChatService.online() })
   })
 
+  /** Автор правит свою реплику (обращение №57). */
+  fastify.patch<{ Params: { id: string }; Body: { body: string } }>('/messages/:id', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ body: z.string().max(MAX_BODY * 2) }).safeParse(req.body)
+    if (!z.string().uuid().safeParse(req.params.id).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const who = await ChatService.speaker(req.authUser.userId)
+    return reply.send(await ChatService.edit(who, req.params.id, parsed.data.body))
+  })
+
   /** Модератор игры («Красные») удаляет реплику прямо из ленты. */
   fastify.delete<{ Params: { id: string } }>('/messages/:id', { preHandler: authenticate }, async (req, reply) => {
     if (!z.string().uuid().safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })

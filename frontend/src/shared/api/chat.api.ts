@@ -23,6 +23,8 @@ export interface ChatLine {
   /** Только у личных сообщений: кому написано. */
   recipientId?: string | null
   recipientNickname?: string | null
+  /** Автор поправил реплику (№57). */
+  editedAt?: string | null
 }
 
 export interface ChatFeed {
@@ -54,6 +56,7 @@ export const chatApi = {
 
   /** Модератор игры удаляет реплику из эфира. */
   remove: (id: string) => api.delete<{ removed: boolean }>(`/api/chat/messages/${id}`),
+  edit: (id: string, body: string) => api.patch<ChatLine>(`/api/chat/messages/${id}`, { body }),
 
   online: () => api.get<{ players: OnlinePlayer[] }>('/api/chat/online/list'),
 

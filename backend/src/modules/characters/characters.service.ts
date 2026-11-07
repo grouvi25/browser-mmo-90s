@@ -11,6 +11,17 @@ import { AuthRepository } from '../auth/auth.repository'
 import { prisma } from '../../shared/db/prisma'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 
+/** Карман без исчезнувших вещей: съеденных в бою, проданных, чужих. */
+async function liveLoadout(characterId: string, ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return []
+  const items = await prisma.itemInstance.findMany({
+    where: { id: { in: ids }, ownerId: characterId, status: { notIn: ['CONSUMED', 'DELETED'] }, template: { type: 'CONSUMABLE' } },
+    select: { id: true },
+  })
+  const alive = new Set(items.map(item => item.id))
+  return ids.filter(id => alive.has(id))
+}
+
 export const CharactersService = {
   async create(userId: string, input: CreateCharacterInput) {
     // Check user doesn't already have a character
@@ -112,7 +123,7 @@ export const CharactersService = {
 
   async getBattleLoadout(userId: string) {
     const char = await this.getProfile(userId)
-    return { itemInstanceIds: ((char.battleLoadoutJson as string[] | null) ?? []).slice(0, 4) }
+    return { itemInstanceIds: await liveLoadout(char.id, ((char.battleLoadoutJson as string[] | null) ?? []).slice(0, 4)) }
   },
 
   async setBattleLoadout(userId: string, itemInstanceIds: string[]) {
@@ -120,19 +131,20 @@ export const CharactersService = {
     if (char.status === 'IN_BATTLE') {
       throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Cannot edit loadout in battle', 400)
     }
-    const unique = [...new Set(itemInstanceIds)]
-    if (unique.length > 4) throw new AppError(ErrorCode.CONFLICT, 'Не больше 4 вещей', 422)
-
+    // Обращение №51: использованный в бою расходник оставался в списке, и любая
+    // правка карманов отклонялась целиком. Исчезнувшие вещи (съедены, проданы,
+    // не свои) молча выпадают; отказ — только на попытку положить не расходник.
+    const requested = [...new Set(itemInstanceIds)]
     const items = await prisma.itemInstance.findMany({
-      where: { id: { in: unique } },
+      where: { id: { in: requested }, ownerId: char.id, status: { notIn: ['CONSUMED', 'DELETED'] } },
       include: { template: true },
     })
-    if (items.length !== unique.length || items.some(item => item.ownerId !== char.id)) {
-      throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Loadout contains an item you do not own', 403)
-    }
-    if (items.some(item => item.template.type !== 'CONSUMABLE' || ['CONSUMED', 'DELETED'].includes(item.status))) {
+    if (items.some(item => item.template.type !== 'CONSUMABLE')) {
       throw new AppError(ErrorCode.CONFLICT, 'Можно взять только расходники из своего инвентаря', 422)
     }
+    const alive = new Set(items.map(item => item.id))
+    const unique = requested.filter(id => alive.has(id))
+    if (unique.length > 4) throw new AppError(ErrorCode.CONFLICT, 'Не больше 4 вещей', 422)
 
     await prisma.character.update({
       where: { id: char.id },

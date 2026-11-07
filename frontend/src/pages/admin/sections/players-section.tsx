@@ -413,6 +413,8 @@ function PlayerCard({ player, onTrace }: {
         <GrantMoney characterId={player.id} onDone={done} onFail={fail} />
         <GrantDollars characterId={player.id} isDealer={!!character?.isDealer} isModerator={!!character?.isModerator} onDone={done} onFail={fail} />
         <GrantExp characterId={player.id} onDone={done} onFail={fail} />
+        <GrantResource characterId={player.id} onDone={done} onFail={fail} />
+        <GrantItem characterId={player.id} onDone={done} onFail={fail} />
       </div>
 
       <h5>Меры</h5>
@@ -523,6 +525,91 @@ function GrantDollars({ characterId, isDealer, isModerator, onDone, onFail }: {
       <button type="button" disabled={!hasReason || moderator.isPending} onClick={() => moderator.mutate()}>
         {isModerator ? 'Снять с модераторов' : 'Назначить модератором'}
       </button>
+    </div>
+  )
+}
+
+/** Справочник для выдачи: один запрос на оба блока. */
+function useGrantOptions() {
+  return useQuery({ queryKey: ['admin', 'grant-options'], queryFn: adminApi.grantOptions, staleTime: 5 * 60_000 })
+}
+
+/** Ресурсы на склад игрока (Дима 07.11: «как выдавать ресы?»). Минус — забрать свободный остаток. */
+function GrantResource({ characterId, onDone, onFail }: {
+  characterId: string
+  onDone: (text: string) => void
+  onFail: (error: Error) => void
+}) {
+  const options = useGrantOptions()
+  const [filter, setFilter] = useState('')
+  const [resourceId, setResourceId] = useState('')
+  const [amount, setAmount] = useState('')
+  const [reason, setReason] = useState('')
+  const list = (options.data?.resources ?? []).filter(r => r.name.toLowerCase().includes(filter.trim().toLowerCase()))
+  const name = options.data?.resources.find(r => r.id === resourceId)?.name ?? ''
+  const grant = useMutation({
+    mutationFn: () => adminApi.grantResource(characterId, resourceId, Number(amount), reason.trim()),
+    onSuccess: () => {
+      onDone(`${name}: ${Number(amount) > 0 ? 'выдано' : 'забрано'} ${Math.abs(Number(amount))} шт. Отменяется из журнала.`)
+      setAmount(''); setReason('')
+    },
+    onError: onFail,
+  })
+  const value = Number(amount)
+  const ready = !!resourceId && amount !== '' && Number.isInteger(value) && value !== 0 && reason.trim().length >= REASON_MIN
+
+  return (
+    <div className="adm-grant">
+      <h6>Ресурс</h6>
+      <input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Поиск по названию" aria-label="Поиск ресурса" />
+      <select value={resourceId} onChange={event => setResourceId(event.target.value)} aria-label="Ресурс">
+        <option value="">{options.isLoading ? 'Загрузка…' : `Выберите ресурс (${list.length})`}</option>
+        {list.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+      </select>
+      <label>
+        <span>Сколько (минус — забрать)</span>
+        <input type="number" value={amount} onChange={event => setAmount(event.target.value)}
+          placeholder="напр. 2 или -2" aria-label="Количество ресурса" />
+      </label>
+      <input value={reason} onChange={event => setReason(event.target.value)}
+        placeholder={`Причина, от ${REASON_MIN} символов`} aria-label="Причина выдачи ресурса" />
+      <button type="button" disabled={!ready || grant.isPending} onClick={() => grant.mutate()}>
+        {value < 0 ? 'Забрать' : 'Выдать'}
+      </button>
+    </div>
+  )
+}
+
+/** Вещь в инвентарь игрока: одна штука за раз, с полной прочностью. */
+function GrantItem({ characterId, onDone, onFail }: {
+  characterId: string
+  onDone: (text: string) => void
+  onFail: (error: Error) => void
+}) {
+  const options = useGrantOptions()
+  const [filter, setFilter] = useState('')
+  const [templateId, setTemplateId] = useState('')
+  const [reason, setReason] = useState('')
+  const list = (options.data?.items ?? []).filter(i => i.name.toLowerCase().includes(filter.trim().toLowerCase()))
+  const name = options.data?.items.find(i => i.id === templateId)?.name ?? ''
+  const grant = useMutation({
+    mutationFn: () => adminApi.grantItem(characterId, templateId, reason.trim()),
+    onSuccess: () => { onDone(`Выдано: ${name}. Отменяется из журнала.`); setReason('') },
+    onError: onFail,
+  })
+  const ready = !!templateId && reason.trim().length >= REASON_MIN
+
+  return (
+    <div className="adm-grant">
+      <h6>Вещь</h6>
+      <input value={filter} onChange={event => setFilter(event.target.value)} placeholder="Поиск по названию" aria-label="Поиск вещи" />
+      <select value={templateId} onChange={event => setTemplateId(event.target.value)} aria-label="Вещь">
+        <option value="">{options.isLoading ? 'Загрузка…' : `Выберите вещь (${list.length})`}</option>
+        {list.map(i => <option key={i.id} value={i.id}>{i.name}{i.levelReq ? ` · ур. ${i.levelReq}` : ''}</option>)}
+      </select>
+      <input value={reason} onChange={event => setReason(event.target.value)}
+        placeholder={`Причина, от ${REASON_MIN} символов`} aria-label="Причина выдачи вещи" />
+      <button type="button" disabled={!ready || grant.isPending} onClick={() => grant.mutate()}>Выдать</button>
     </div>
   )
 }

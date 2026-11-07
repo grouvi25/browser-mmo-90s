@@ -50,6 +50,7 @@ function connect(): Socket | null {
 export function subscribeChat(
   onMessage: (line: ChatLine) => void,
   onDeleted?: (event: { id: string; channel: ChatLine['channel'] }) => void,
+  onEdited?: (line: ChatLine) => void,
 ): () => void {
   const active = connect()
   // Соединения нет — лента живёт одним запросом истории. Это рабочий
@@ -60,10 +61,13 @@ export function subscribeChat(
   active.on('chat:message', onMessage)
   // Модератор удалил реплику — убираем у всех, кто в эфире (28.10).
   if (onDeleted) active.on('chat:deleted', onDeleted)
+  // Автор поправил реплику (№57) — меняем строку у всех, кто в эфире.
+  if (onEdited) active.on('chat:edited', onEdited)
 
   return () => {
     active.off('chat:message', onMessage)
     if (onDeleted) active.off('chat:deleted', onDeleted)
+    if (onEdited) active.off('chat:edited', onEdited)
     refCount = Math.max(0, refCount - 1)
     if (refCount === 0) {
       active.disconnect()

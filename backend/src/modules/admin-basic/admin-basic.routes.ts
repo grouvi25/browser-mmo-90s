@@ -35,7 +35,7 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
       orderBy: { createdAt: 'asc' },
       take: 10_000,
       select: {
-        id: true, channel: true, scope: true, body: true, createdAt: true, deletedAt: true,
+        id: true, channel: true, scope: true, body: true, createdAt: true, deletedAt: true, originalBody: true, editedAt: true,
         author: { select: { nickname: true, battleLevel: true } },
       },
     })
@@ -44,6 +44,8 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
       items: rows.map(r => ({
         id: r.id, at: r.createdAt, channel: r.channel, district: r.channel === 'DISTRICT' ? r.scope : null,
         author: r.author.nickname, level: r.author.battleLevel, text: r.body, hidden: !!r.deletedAt,
+        // Игрок поправил реплику (№57): админ видит, что было написано сначала.
+        original: r.originalBody, editedAt: r.editedAt,
       })),
     })
   })

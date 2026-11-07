@@ -200,14 +200,14 @@ export function BattleGrid({
                   </div>
                 )}
                 {(isPlayer || isAlly) && occupant && !occupant.companion && (
-                  <div style={fighterStyle} className={`fighter-token token-player ${isPlayer ? 'token-self' : 'token-ally'} ${isPlayer && playerHit ? 'token-hit' : ''} ${isPlayer && playerAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
+                  <div style={fighterStyle} className={`fighter-token token-player ${isPlayer ? 'token-self' : 'token-ally'} ${isPlayer && playerHit ? 'token-hit' : ''} ${isPlayer && playerAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''} ${occupant.isAlive && occupant.hasActedThisRound ? 'token-acted' : ''}`}>
                     {!occupant.isAlive ? <Skull size={16} /> : <img className="token-figure" src={fighterBlue} srcSet={`${fighterBlue2x} 2x`} alt={who} />}
                     {tip}
                     {hpBar}
                   </div>
                 )}
                 {isEnemy && occupant && !occupant.companion && (
-                  <div style={fighterStyle} className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${isTarget && enemyAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''}`}>
+                  <div style={fighterStyle} className={`fighter-token token-enemy ${isTarget && enemyHit ? 'token-hit' : ''} ${isTarget && enemyAttack ? 'token-attacking' : ''} ${!occupant.isAlive ? 'token-dead' : ''} ${occupant.isAlive && occupant.hasActedThisRound ? 'token-acted' : ''}`}>
                     {!occupant.isAlive ? <Skull size={16} /> : <img className="token-figure" src={fighterRed} srcSet={`${fighterRed2x} 2x`} alt={who} />}
                     {tip}
                     {hpBar}
@@ -408,6 +408,8 @@ export function BattlePage() {
       // Fix 1.1: аптечка пропадает сразу после использования
       if (variables.action === 'use_item') {
         qc.invalidateQueries({ queryKey: ['inventory'] })
+        // №51: съеденный предмет выпадает из кармана и на Складе.
+        void qc.invalidateQueries({ queryKey: ['battle-loadout'] })
       }
 
       const events: TurnEvent[] = data.turns?.map(t => ({
@@ -440,6 +442,7 @@ export function BattlePage() {
         qc.removeQueries({ queryKey: ['battle', 'current'] })
         qc.invalidateQueries({ queryKey: ['character', 'me'] })
         qc.invalidateQueries({ queryKey: ['inventory'] })
+        void qc.invalidateQueries({ queryKey: ['battle-loadout'] })
       }
     },
     onError: (err, variables) => {
@@ -454,7 +457,10 @@ export function BattlePage() {
     },
   })
 
-  const canAct = !battleOver && !actionMut.isPending
+  // Свой ход сделан — до конца раунда кнопки хода неактивны (Дима, №56):
+  // сервер всё равно отклонит второй ход, а нажатая впустую кнопка путает.
+  const turnDone = !!pPart?.hasActedThisRound
+  const canAct = !battleOver && !actionMut.isPending && !turnDone
   const targetInRange = playerRange == null || currentDistance <= playerRange
   const outOfRangeHands = ([['LEFT_HAND', playerProfile?.primaryRange ?? playerRange ?? 1], ['RIGHT_HAND', playerProfile?.secondaryRange ?? 1]] as const)
     .filter(([, range]) => currentDistance > range).map(([hand]) => hand)
@@ -611,7 +617,8 @@ export function BattlePage() {
   const planEmpty = attackZones.length === 0 && blockZones.length === 0 && !selectedMove
   // Помощник и собака: вызов на поле, здоровье, тактика помощника.
   // В дуэли их нет — дуэль один на один.
-  const canSummon = canAct && live?.type !== 'PVP_DUEL' && !!pPart?.isAlive
+  // Вызов помощника и собаки — отдельное действие, не ход: доступен и после хода.
+  const canSummon = !battleOver && !actionMut.isPending && live?.type !== 'PVP_DUEL' && !!pPart?.isAlive
   const companionsBlock = <>
     {pPart?.helper && <div className="battle-companion">
       <BattleHelperBadge helper={pPart.helper} pending={helperTacticMut.isPending}
@@ -664,6 +671,7 @@ export function BattlePage() {
     weaponType: enemyProfile?.primaryWeaponType,
     offhandName: enemyProfile?.secondaryHand,
     offhandCode: enemyProfile?.secondaryWeaponCode,
+    offhandType: enemyProfile?.secondaryWeaponType,
   }
 
   if (isMobile) {
@@ -700,7 +708,7 @@ export function BattlePage() {
               <span className="m-battle__hp"><i style={{ transform: `scaleX(${pHpMax ? pHp / pHpMax : 0})` }} /></span>
             </div>
           </div>
-          <div className="m-battle__fighter is-enemy">
+          <div className={'m-battle__fighter is-enemy' + (ePart?.isAlive && ePart.hasActedThisRound ? ' is-acted' : '')} title={ePart?.hasActedThisRound ? 'Противник уже сходил' : undefined}>
             <img className="m-battle__avatar" alt={`Портрет: ${enemyName}`} draggable={false}
               src={enemyProfile?.avatar ?? SPRITES[enemyProfile?.gender === 'FEMALE' ? 'portrait-female' : 'portrait']} />
             <div className="m-battle__fighter-text">

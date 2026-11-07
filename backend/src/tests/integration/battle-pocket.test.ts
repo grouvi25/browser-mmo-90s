@@ -37,6 +37,17 @@ describe('карман в бою', () => {
   beforeEach(async () => { await cleanDatabase(); await getRedis().flushdb() })
   afterAll(async () => { await testPrisma.$disconnect(); await disconnectRedis() })
 
+  it('съеденный в бою предмет выпадает из кармана, карман снова правится (обращение №51)', async () => {
+    const { user, inPocket, notInPocket } = await setup()
+    await CharactersService.setBattleLoadout(user.id, [inPocket.id])
+    // Предмет съели в бою: вещь удалена, а её номер остался в сохранённом наборе.
+    await testPrisma.itemInstance.update({ where: { id: inPocket.id }, data: { status: 'DELETED' } })
+    expect((await CharactersService.getBattleLoadout(user.id)).itemInstanceIds).toEqual([])
+    // Экран шлёт старый список плюс новую вещь — раньше весь запрос отклонялся.
+    expect(await CharactersService.setBattleLoadout(user.id, [inPocket.id, notInPocket.id])).toEqual({ itemInstanceIds: [notInPocket.id] })
+    expect(await CharactersService.setBattleLoadout(user.id, [])).toEqual({ itemInstanceIds: [] })
+  })
+
   it('набор из Склада попадает в бой, чужая вещь — отказ 400 без падения', async () => {
     const { user, inPocket, notInPocket, bot } = await setup()
     await CharactersService.setBattleLoadout(user.id, [inPocket.id])

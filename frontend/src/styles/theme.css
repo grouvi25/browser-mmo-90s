@@ -281,6 +281,19 @@ html, body {
 .zone-wound.is-2 { background: #f08a1c; }
 .zone-wound.is-3 { background: #d4231c; opacity: 1; }
 
+/* Надетая броня на фигурке (№50): стальная штриховка по контуру зоны и цифра. */
+.zone-armor {
+  position: absolute; pointer-events: none;
+  mask-size: 100% 100%; -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+  background: repeating-linear-gradient(135deg, rgba(70, 82, 96, .55) 0 2px, rgba(150, 162, 176, .35) 2px 4px);
+}
+.zone-armor-n {
+  position: absolute; z-index: 2; pointer-events: none; transform: translate(-50%, -50%);
+  font: 700 10px/1 var(--font-ui); color: #fff; background: rgba(46, 56, 68, .85);
+  padding: 1px 3px; border-radius: 2px;
+}
+
 /* Портрет при наведении не подсвечивается — см. выше. */
 
 /* =============================================================
@@ -478,6 +491,16 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 .ether-remove:hover { color: var(--ink-red); }
 .ether-remove:active { color: var(--red-dim, #6f0101); }
 .ether-remove:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
+/* Правка своей реплики (№57): карандаш у своей строки и плашка «Правка» в поле ввода. */
+.ether-edit { margin-left: 4px; padding: 0 3px; border: 0; background: none; cursor: pointer; font: inherit; line-height: 1; color: var(--text-dim, #6b5b4a); transition: color 120ms; }
+.ether-edit:hover { color: var(--ink-red); }
+.ether-edit:active { color: var(--red-dim, #6f0101); }
+.ether-edit:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
+.ether-edited { color: var(--text-dim, #6b5b4a); font-size: .85em; }
+.ether-editing { display: inline-flex; align-items: center; gap: 2px; padding: 0 6px; font-size: 12px; font-weight: 700; color: var(--ink-red); white-space: nowrap; }
+.ether-editing button { border: 0; background: none; cursor: pointer; font: inherit; font-size: 15px; line-height: 1; padding: 0 3px; color: var(--text-dim, #6b5b4a); }
+.ether-editing button:hover { color: var(--ink-red); }
+.ether-editing button:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
 .ether-arrow:active { color: var(--red-dim, #6f0101); }
 .ether-arrow:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
 .online-lvl { font-family: var(--font-ui); line-height: 1;
@@ -1072,6 +1095,9 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 .market-form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .market-note { margin: 0 12px 10px; }
 .market-pages { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
+.market-row-actions { display: inline-flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.market-edit { display: inline-flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.market-edit input { width: 90px; }
 .market-levels { display: grid; gap: 6px; padding-left: 18px; }
 .market-levels .btn { margin-left: 8px; }
 .market-form input[aria-label="Номер магазина"] { min-width: 260px; }
@@ -1083,3 +1109,22 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 .city-locations__new { font-weight:700; font-size:11px; color:#a01818; }
 .level-gate { padding:24px; text-align:center; }
 .level-gate h2 { margin:0 0 8px; }
+
+/* =============================================================
+   МЕСТО С ИЛЛЮСТРАЦИЕЙ (Дима, №55): картинка на весь вьюпорт, как у
+   Центра, раздел — бумажной карточкой поверх. Мэрия, Тюрьма, Дома
+   бригад, Жилой сектор; у кого картинки нет — прежний вид.
+   ============================================================= */
+.viewport__content.has-scene { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; }
+.scene-head {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  background: rgba(250, 234, 221, .88); border: 1px solid #2b2b2b; padding: 3px 12px;
+}
+.scene-head .viewport__title { font-size: 20px; }
+.scene-sheet {
+  width: min(100%, 760px); margin-top: auto;
+  background: rgba(250, 234, 221, .93); border: 1px solid #2b2b2b;
+  padding: 10px 14px; box-shadow: 0 2px 10px rgba(23, 19, 15, .18);
+}
+.scene-sheet > :first-child { margin-top: 0; }
+.scene-sheet > :last-child { margin-bottom: 0; }

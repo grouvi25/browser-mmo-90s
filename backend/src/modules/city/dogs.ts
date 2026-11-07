@@ -10,6 +10,8 @@
 // Все числа — стартовые, их пересчитает математик: они собраны здесь.
 // =============================================================
 
+import { BalanceConfig } from '../../config/balance.config'
+
 export type DogStat = 'str' | 'agi' | 'rea' | 'acc' | 'end' | 'luck'
 export const DOG_STATS: readonly DogStat[] = ['str', 'agi', 'rea', 'acc', 'end', 'luck']
 export type PetStatBonus = Partial<Record<DogStat, number>>
@@ -37,29 +39,35 @@ export const DOG_BREEDS: readonly DogBreed[] = [
 export const DOG_BASE_POINTS = 2
 /** Доля боевого опыта хозяина, которую получает сытая собака. */
 export const DOG_EXP_SHARE = 0.5
-export const DOG_MAX_LEVEL = 20
 
-/** Опыт до следующего уровня: своя шкала, не как у игроков. */
+/**
+ * Шкала собаки — боевая таблица игрока +20% (Дима, обращение №56, 07.11).
+ * Раньше была своя пологая шкала 60·L², и собаки уходили на 20-й уровень,
+ * пока хозяева стояли на 8–10-м. Берём таблицу из баланса на каждый вызов:
+ * поменяет админ боевую таблицу — за ней пойдёт и собачья.
+ */
+export const DOG_EXP_FACTOR = 1.2
+const dogThresholds = (): number[] => BalanceConfig.battleExp.levelThresholds.map(t => Math.round(t * DOG_EXP_FACTOR))
+/** Последний уровень собаки — как у игрока. */
+export const dogMaxLevel = (): number => BalanceConfig.battleExp.levelThresholds.length
+
+/** Опыт от уровня до следующего. */
 export function dogExpToNext(level: number): number {
-  return 60 * level * level
+  const t = dogThresholds()
+  return level >= t.length ? 0 : t[level] - t[level - 1]
 }
 
 export function dogLevelFromExp(exp: number): number {
+  const t = dogThresholds()
   let level = 1
-  let need = 0
-  while (level < DOG_MAX_LEVEL) {
-    need += dogExpToNext(level)
-    if (exp < need) break
-    level += 1
-  }
+  while (level < t.length && exp >= t[level]) level += 1
   return level
 }
 
 /** Сколько опыта всего нужно, чтобы дойти до уровня. */
 export function dogExpForLevel(level: number): number {
-  let sum = 0
-  for (let l = 1; l < level; l++) sum += dogExpToNext(l)
-  return sum
+  const t = dogThresholds()
+  return t[Math.min(Math.max(level, 1), t.length) - 1] ?? 0
 }
 
 /** Очки собаки: база и +1 каждые два уровня; донатной — в полтора раза больше. */

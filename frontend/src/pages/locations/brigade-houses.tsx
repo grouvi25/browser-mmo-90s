@@ -15,7 +15,6 @@ import { ApiError } from '../../shared/api/client'
 import { ClanSection } from '../stage3/clan-section'
 import { IncomingInvites } from '../stage3/clan-invites'
 import { plural } from '../../shared/lib/plural'
-import { SCENES } from '../../shared/ui/sprite'
 
 const msk = (iso: string | Date) => new Date(iso).toLocaleString('ru-RU', {
   timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -53,7 +52,6 @@ export function BrigadeHouses() {
   return <>
     {/* Первым на странице: под дверями приглашение не находили. */}
     {!mine && <IncomingInvites />}
-    <img className="brigade-scene" src={SCENES['brigade-houses']} alt="Дома бригад" draggable={false} />
     {list.isLoading && <p role="status">Загрузка…</p>}
     {list.isError && <p role="alert">Список не загрузился. <button className="btn" onClick={() => list.refetch()}>Повторить</button></p>}
     {list.data && clans.length === 0 && <p>В городе пока нет бригад. Зарегистрировать свою можно в <Link to="/city-hall">Мэрии</Link>.</p>}

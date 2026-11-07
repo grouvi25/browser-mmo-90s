@@ -1,5 +1,6 @@
 import { request } from './client'
-export interface PrivateShopItemView{id:string;shopCode:string;price:number;stockMode:string;stockAmount:number|null;minBattleLevel:number;minEconomicLevel:number;minProductionLevel:number;kind:'ITEM'|'RESOURCE';name:string;code:string;itemTier:number;levelReq:number}
+import type { ItemTemplate } from '../types/api.types'
+export interface PrivateShopItemView{id:string;shopCode:string;price:number;stockMode:string;stockAmount:number|null;minBattleLevel:number;minEconomicLevel:number;minProductionLevel:number;kind:'ITEM'|'RESOURCE';name:string;code:string;itemTier:number;levelReq:number;template:ItemTemplate|null}
 export const privateShopsApi={
  shops:()=>request<{code:string;name:string}[]>('/api/private-shops'),
  items:(code:string)=>request<PrivateShopItemView[]>(`/api/private-shops/${code}/items`),

@@ -1613,3 +1613,8 @@
 @media (prefers-reduced-motion: reduce) {
   .battle-field-v3 .fighter-token .token-tip { transition: none; }
 }
+
+/* Кто уже сходил в этом раунде — полупрозрачный (Дима, №56): видно, кого
+   ещё ждём. Прозрачна только фигура, полоска здоровья читается как была. */
+.fighter-token.token-acted .token-figure { opacity: .45; transition: opacity 160ms; }
+.m-battle__fighter.is-acted .m-battle__avatar { opacity: .45; transition: opacity 160ms; }

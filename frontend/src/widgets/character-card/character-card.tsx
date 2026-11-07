@@ -70,6 +70,8 @@ export interface CardProfile {
   weaponType?: string | null
   offhandName?: string | null
   offhandCode?: string | null
+  /** Тип оружия правой руки: без него у пистолета без своей картинки рисовалась бита (№58). */
+  offhandType?: string | null
 }
 
 /** Раны по зонам в бою: 0 — зелёная, 1 — жёлтая, 2 — оранжевая, 3 — красная. */
@@ -229,7 +231,7 @@ export function CharacterCard({ profile, wounds, liveHp }: {
             name="item-bat"
             src={own
               ? (offhand ? instanceImage(offhand) : undefined)
-              : (profile?.offhandCode ? itemImage(profile.offhandCode, undefined, 'WEAPON') ?? undefined : undefined)}
+              : (profile?.offhandCode ? itemImage(profile.offhandCode, profile.offhandType ?? undefined, 'WEAPON') ?? undefined : undefined)}
             box={C.slots[1].box}
             empty={rightKnocked || (own ? !offhand : !profile?.offhandCode)}
             disabled={!own}
@@ -277,6 +279,24 @@ export function CharacterCard({ profile, wounds, liveHp }: {
                 onClick={own ? () => setZone(zone === key ? null : key) : undefined}
               />
             )
+          })}
+
+          {/* Надетая броня видна на самой фигурке (обращение №50): часть тела
+              в стальной штриховке и цифра защиты. Только своя: броню чужого
+              бойца боевой профиль не отдаёт. */}
+          {own && !wounds && C.zones.map(z => {
+            const armor = zoneArmor[z.key] ?? 0
+            if (armor <= 0) return null
+            const mask = `url("${SPRITES[z.sprite]}")`
+            return <span key={`armor-${z.key}`} className="zone-armor" aria-hidden="true"
+              style={{ left: z.box.x, top: z.box.y, width: z.box.w, height: z.box.h, maskImage: mask, WebkitMaskImage: mask }} />
+          })}
+          {/* Цифра защиты — и в бою, поверх цвета ран: там она нужнее всего. */}
+          {own && C.zones.map(z => {
+            const armor = zoneArmor[z.key] ?? 0
+            if (armor <= 0) return null
+            return <span key={`armor-n-${z.key}`} className="zone-armor-n" aria-hidden="true"
+              style={{ left: z.box.x + z.box.w / 2, top: z.box.y + z.box.h / 2 }}>{armor}</span>
           })}
 
           {/* Раны в бою: человечек зелёный, после попаданий жёлтый,

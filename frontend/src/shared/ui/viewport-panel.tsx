@@ -9,12 +9,29 @@
 import type { ReactNode } from 'react'
 
 export function ViewportPanel({
-  title, subtitle, children,
+  title, subtitle, scene, children,
 }: {
   title: string
   subtitle?: string
+  /**
+   * Иллюстрация места на весь вьюпорт, как у Центра (Дима, №55): картинка
+   * видна целиком, а сам раздел лежит поверх на бумажной карточке.
+   */
+  scene?: string
   children: ReactNode
 }) {
+  if (scene) {
+    return (
+      <div className="viewport__content has-scene" tabIndex={0} role="region" aria-label={title}
+        style={{ background: `url(${scene}) center / cover no-repeat padding-box` }}>
+        <div className="scene-head">
+          <h1 className="viewport__title">{title}</h1>
+          {subtitle && <span className="viewport__subtitle">{subtitle}</span>}
+        </div>
+        <div className="scene-sheet">{children}</div>
+      </div>
+    )
+  }
   return (
     <div className="viewport__content" tabIndex={0} role="region" aria-label={title}>
       <div className="viewport__head">

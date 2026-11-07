@@ -22,7 +22,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Home, Building2, Hammer, Package, Shovel, Swords, DoorOpen } from 'lucide-react'
 import { housingApi, type HomeKind, type HomeRaid, type HousingLot, type HousingView } from '../../shared/api/housing.api'
 import { resourcesApi } from '../../shared/api/resources.api'
-import { SCENES } from '../../shared/ui/sprite'
 import './housing.css'
 
 const pct = (share: number) => Math.round(share * 100)
@@ -57,7 +56,6 @@ export function HousingPage() {
 
   return (
     <div className="housing">
-      <img className="brigade-scene" src={SCENES.housing} alt="Жилой сектор" draggable={false} />
       {msg && <p className={'housing__msg' + (msg.bad ? ' is-bad' : '')} role={msg.bad ? 'alert' : 'status'}>{msg.text}</p>}
       {query.isLoading && <p role="status">Загрузка…</p>}
       {query.isError && <p role="alert">Сектор не загрузился. <button type="button" className="btn btn-sm" onClick={() => void query.refetch()}>Повторить</button></p>}

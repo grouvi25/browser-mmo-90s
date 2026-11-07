@@ -54,7 +54,14 @@ export interface Ether {
   /** Модератор игры («Красные») может удалять реплики. */
   canModerate: boolean
   remove: (id: string) => Promise<void>
+  /** Поправить свою реплику (№57). */
+  edit: (id: string, body: string) => Promise<boolean>
 }
+
+/** Сколько минут после отправки реплику можно поправить — как на сервере. */
+export const CHAT_EDIT_MINUTES = 15
+export const canEditLine = (line: ChatLine, meId: string | undefined, now = Date.now()) =>
+  !line.system && !!meId && line.authorId === meId && now - new Date(line.createdAt).getTime() < CHAT_EDIT_MINUTES * 60_000
 
 export function useEther(): Ether {
   const dayStart = useChatDay()
@@ -79,10 +86,29 @@ export function useEther(): Ether {
     }
   }, [qc])
 
+  const replace = useCallback((line: ChatLine) => {
+    if (line.channel === 'DISTRICT') return
+    // Личная строка у автора хранит ник адресата, а пришедшая по сокету — тоже: берём как есть.
+    qc.setQueryData<ChatFeed>(feedKey(line.channel), prev => prev && { ...prev, messages: prev.messages.map(m => m.id === line.id ? { ...m, body: line.body, editedAt: line.editedAt } : m) })
+  }, [qc])
+
   useEffect(() => subscribeChat(line => {
     if (line.channel === 'DISTRICT') return
     qc.setQueryData<ChatFeed>(feedKey(line.channel), prev => prev && { ...prev, messages: merge(prev.messages, line) })
-  }, event => drop(event.id)), [qc, drop])
+  }, event => drop(event.id), replace), [qc, drop, replace])
+
+  const edit = useCallback(async (id: string, body: string) => {
+    const text = body.trim()
+    if (!text) return false
+    try {
+      replace(await chatApi.edit(id, text))
+      setNotice('')
+      return true
+    } catch (error) {
+      setNotice(error instanceof ApiError ? error.message : 'Не удалось поправить.')
+      return false
+    }
+  }, [replace])
 
   const remove = useCallback(async (id: string) => {
     try {
@@ -132,6 +158,7 @@ export function useEther(): Ether {
     send,
     canModerate: !!char?.isModerator,
     remove,
+    edit,
   }
 }
 

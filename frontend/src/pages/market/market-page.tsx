@@ -26,23 +26,52 @@ function useRefresh() {
   }
 }
 
-function ListingsTable({ items, mine, onBuy, onCancel, busy }: {
+function ListingsTable({ items, mine, onBuy, onCancel, onPrice, busy }: {
   items: MarketListingView[]; mine?: boolean; busy?: boolean
   onBuy?: (id: string) => void; onCancel?: (id: string) => void
+  onPrice?: (id: string, price: number) => void
 }) {
-  return <table className="data-table"><thead><tr><th>Тип</th><th>Название</th><th>Продавец</th><th>Кол-во</th><th>Цена</th><th>Истекает</th><th /></tr></thead>
-    <tbody>{items.map(listing => <tr key={listing.id}>
-      <td>{listing.type === 'ITEM' ? 'Вещь' : 'Ресурс'}</td>
-      <td>{listing.item?.name ?? listing.resource?.name ?? 'Неизвестно'}</td>
-      <td><Link to={listing.sellerUrl}>{listing.sellerNickname}</Link></td>
-      <td>{listing.resourceAmount ?? 1}</td>
-      <td>{money(listing.finalPrice ?? listing.price, listing.currency)}</td>
-      <td>{new Date(listing.expiresAt).toLocaleString('ru')}</td>
-      <td>{mine
-        ? <button className="btn btn-sm" disabled={busy} onClick={() => onCancel?.(listing.id)}>Снять</button>
-        : <button className="btn btn-sm btn-gold" disabled={busy} onClick={() => onBuy?.(listing.id)}>Купить</button>}</td>
-    </tr>)}</tbody>
+  return <table className="data-table"><thead><tr><th>Тип</th><th>Название</th><th>Продавец</th><th>Кол-во</th><th>За штуку</th><th>Цена</th><th>Истекает</th><th /></tr></thead>
+    <tbody>{items.map(listing => {
+      const count = listing.resourceAmount ?? 1
+      const total = listing.finalPrice ?? listing.price
+      return <tr key={listing.id}>
+        <td>{listing.type === 'ITEM' ? 'Вещь' : 'Ресурс'}</td>
+        <td>{listing.item?.name ?? listing.resource?.name ?? 'Неизвестно'}</td>
+        <td><Link to={listing.sellerUrl}>{listing.sellerNickname}</Link></td>
+        <td>{count}</td>
+        <td>{count > 1 ? money(Math.round(total / count * 100) / 100, listing.currency) : '—'}</td>
+        <td>{money(total, listing.currency)}</td>
+        <td>{new Date(listing.expiresAt).toLocaleString('ru')}</td>
+        <td>{mine
+          ? <span className="market-row-actions">
+              {onPrice && <PriceEditor listing={listing} busy={busy} onSave={price => onPrice(listing.id, price)} />}
+              <button className="btn btn-sm" disabled={busy} onClick={() => onCancel?.(listing.id)}>Снять</button>
+            </span>
+          : <button className="btn btn-sm btn-gold" disabled={busy} onClick={() => onBuy?.(listing.id)}>Купить</button>}</td>
+      </tr>
+    })}</tbody>
   </table>
+}
+
+/**
+ * Правка цены своего лота (обращение №40). Ресурс правится ценой за штуку,
+ * итог считается сам, как при выставлении. Подняли цену — доплата сбора.
+ */
+function PriceEditor({ listing, busy, onSave }: { listing: MarketListingView; busy?: boolean; onSave: (price: number) => void }) {
+  const count = listing.resourceAmount ?? 1
+  const start = Math.max(1, Math.round(listing.price / count))
+  const [open, setOpen] = useState(false)
+  const [unit, setUnit] = useState(start)
+  const total = unit * count
+  if (!open) return <button className="btn btn-sm" disabled={busy} onClick={() => { setUnit(start); setOpen(true) }}>Изменить цену</button>
+  const extra = Math.max(0, fee(total, listing.currency ?? 'RUB') - (listing.listingFee ?? 0))
+  return <form className="market-edit" onSubmit={e => { e.preventDefault(); if (total >= 1 && total <= 1_000_000) { onSave(total); setOpen(false) } }}>
+    <input aria-label={count > 1 ? 'Новая цена за штуку' : 'Новая цена'} type="number" min={1} value={unit || ''} onChange={e => setUnit(Math.floor(Number(e.target.value)))} autoFocus />
+    {(count > 1 || extra > 0) && <span>{count > 1 ? `× ${count} = ${money(total, listing.currency)}` : ''}{extra > 0 ? ` · доплата сбора ${extra} ₽` : ''}</span>}
+    <button className="btn btn-sm btn-primary" type="submit" disabled={busy || !unit || total > 1_000_000 || total === listing.price}>Сохранить</button>
+    <button className="btn btn-sm" type="button" onClick={() => setOpen(false)}>Отмена</button>
+  </form>
 }
 
 /** Объявления: на общий рынок — только ресурсы. */
@@ -68,9 +97,12 @@ export function MarketPage() {
 
   const buy = useMutation({ mutationFn: marketApi.buy, onSuccess: () => { setMessage('Покупка завершена'); refresh() }, onError: (e: Error) => setMessage(e.message) })
   const cancel = useMutation({ mutationFn: marketApi.cancel, onSuccess: () => { setMessage('Объявление снято, сбор не возвращается'); refresh() }, onError: (e: Error) => setMessage(e.message) })
+  const reprice = useMutation({ mutationFn: (v: { id: string; price: number }) => marketApi.updatePrice(v.id, v.price), onSuccess: r => { setMessage(r.feeCharged ? `Цена изменена, доплата сбора ${r.feeCharged} ₽` : 'Цена изменена'); refresh() }, onError: (e: Error) => setMessage(e.message) })
+  // Цену вводят за штуку, итог считается сам (обращение №40). На сервер уходит итог, как и раньше.
+  const total = price * amount
   const create = useMutation({
-    mutationFn: () => marketApi.createResource(resourceId, amount, price, currency),
-    onSuccess: () => { setMessage(`Выставлено. Сбор: ${fee(price, currency)} ₽`); refresh() },
+    mutationFn: () => marketApi.createResource(resourceId, amount, total, currency),
+    onSuccess: () => { setMessage(`Выставлено. Сбор: ${fee(total, currency)} ₽`); refresh() },
     onError: (e: Error) => setMessage(e.message),
   })
   const totalPages = Math.max(1, listings.data?.totalPages ?? 1)
@@ -86,13 +118,13 @@ export function MarketPage() {
           {resources.data?.items?.map(stack => <option key={stack.template.id} value={stack.template.id}>{stack.template.name} ({stack.availableAmount})</option>)}
         </select>
         <input aria-label="Количество ресурса" type="number" min={1} value={amount || ''} onChange={e => setAmount(Number(e.target.value))} />
-        <input aria-label="Цена объявления" type="number" min={1} max={1_000_000} value={price || ''} onChange={e => setPrice(Number(e.target.value))} />
+        <input aria-label="Цена за штуку" placeholder="Цена за штуку" type="number" min={1} value={price || ''} onChange={e => setPrice(Math.floor(Number(e.target.value)))} />
         <select aria-label="Валюта" value={currency} onChange={e => setCurrency(e.target.value as Currency)}>
           <option value="RUB">₽</option>
           <option value="USD" disabled={!usd}>${usd ? '' : ' — добытчик 2-го уровня'}</option>
         </select>
-        <span>Сбор {fee(price, currency)} ₽</span>
-        <button className="btn btn-primary" disabled={create.isPending || !resourceId || !amount || !price} onClick={() => create.mutate()}>Выставить</button>
+        <span>Итого {money(total, currency)} · сбор {fee(total, currency)} ₽{total > 1_000_000 ? ' · больше 1 000 000 нельзя' : ''}</span>
+        <button className="btn btn-primary" disabled={create.isPending || !resourceId || !amount || !price || total > 1_000_000} onClick={() => create.mutate()}>Выставить</button>
       </div>
       <p className="text-dim market-note">На общий рынок — только ресурсы. Вещи продаёт <Link to="/market/trader">Торгаш</Link> в своём магазине.</p>
     </div>
@@ -109,8 +141,8 @@ export function MarketPage() {
     </div>
 
     <div className="panel"><div className="panel-body">
-      <ListingsTable items={listings.data?.items ?? []} mine={mine} busy={buy.isPending || cancel.isPending}
-        onBuy={id => buy.mutate(id)} onCancel={id => cancel.mutate(id)} />
+      <ListingsTable items={listings.data?.items ?? []} mine={mine} busy={buy.isPending || cancel.isPending || reprice.isPending}
+        onBuy={id => buy.mutate(id)} onCancel={id => cancel.mutate(id)} onPrice={(id, p) => reprice.mutate({ id, price: p })} />
       {!listings.data?.items?.length && <div className="text-dim">Подходящих объявлений нет.</div>}
       <div className="market-pages">
         <button className="btn btn-sm" disabled={page <= 1} onClick={() => setPage(v => v - 1)}>Назад</button>
@@ -134,6 +166,7 @@ export function TraderPage() {
   const level = useMutation({ mutationFn: marketApi.buyTraderLevel, onSuccess: r => { setMessage(`Готово: Торгаш ${r.traderLevel}-го уровня, магазин №${r.shopNumber}`); refresh() }, onError: (e: Error) => setMessage(e.message) })
   const create = useMutation({ mutationFn: () => marketApi.createItem(itemId, price, currency), onSuccess: () => { setMessage('Вещь выставлена в вашем магазине'); setItemId(''); refresh() }, onError: (e: Error) => setMessage(e.message) })
   const cancel = useMutation({ mutationFn: marketApi.cancel, onSuccess: () => { setMessage('Снято с продажи'); refresh() }, onError: (e: Error) => setMessage(e.message) })
+  const reprice = useMutation({ mutationFn: (v: { id: string; price: number }) => marketApi.updatePrice(v.id, v.price), onSuccess: r => { setMessage(r.feeCharged ? `Цена изменена, доплата сбора ${r.feeCharged} ₽` : 'Цена изменена'); refresh() }, onError: (e: Error) => setMessage(e.message) })
   const t = trader.data
 
   return <div>
@@ -171,7 +204,7 @@ export function TraderPage() {
         </div>
       </div>
       <div className="panel"><div className="panel-body">
-        <ListingsTable items={mine.data?.items ?? []} mine busy={cancel.isPending} onCancel={id => cancel.mutate(id)} />
+        <ListingsTable items={mine.data?.items ?? []} mine busy={cancel.isPending || reprice.isPending} onCancel={id => cancel.mutate(id)} onPrice={(id, p) => reprice.mutate({ id, price: p })} />
         {!mine.data?.items?.length && <div className="text-dim">В магазине пока пусто.</div>}
       </div></div>
     </>}

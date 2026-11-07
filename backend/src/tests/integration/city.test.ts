@@ -160,9 +160,15 @@ describe('city locations and purchases', () => {
     const { applyBattleProgression } = await import('../../modules/experience/progression')
     await testPrisma.characterStats.create({ data: { characterId: p.character.id } })
     const char = await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id }, include: { stats: true } })
-    await testPrisma.$transaction(tx => applyBattleProgression(tx, char, { expGain: 200, hpCurrentAfterBattle: 50, won: true }))
+    // Собака берёт половину опыта хозяина; шкала — боевая таблица +20% (№56): 2-й уровень с 1060.
+    await testPrisma.$transaction(tx => applyBattleProgression(tx, char, { expGain: 2000, hpCurrentAfterBattle: 50, won: true }))
+    const mid = await testPrisma.characterPet.findUniqueOrThrow({ where: { id: pet.id } })
+    expect(mid.exp).toBe(1000)
+    expect(mid.level).toBe(1)
+    const again = await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id }, include: { stats: true } })
+    await testPrisma.$transaction(tx => applyBattleProgression(tx, again, { expGain: 200, hpCurrentAfterBattle: 50, won: true }))
     const after = await testPrisma.characterPet.findUniqueOrThrow({ where: { id: pet.id } })
-    expect(after.exp).toBe(100)
+    expect(after.exp).toBe(1100)
     expect(after.level).toBe(2)
   })
 
