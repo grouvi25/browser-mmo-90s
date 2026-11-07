@@ -12,7 +12,7 @@ import { prisma } from '../../shared/db/prisma'
 import { BalanceConfig } from '../../config/balance.config'
 import { PROFESSION_CUMULATIVE_XP, PROFESSION_GROUPS, PROFESSION_NAMES, professionEfficiency, previousProfession, type ProfessionCode } from '../professions/professions'
 import { soldGeneralTools, toolForTier } from '../work/tool-names'
-import { awaitsOwner } from '../work/work.formulas'
+import { awaitsOwner, realShiftMinutes } from '../work/work.formulas'
 import { effectText, parseUseEffect } from '../items/item-effects'
 
 const CHAIN_TITLES: Record<keyof typeof PROFESSION_GROUPS, string> = {
@@ -78,7 +78,7 @@ export async function libraryRoutes(fastify: FastifyInstance) {
             .filter(o => o.requiredProfessionCode === code && !seen.has(o.name) && seen.add(o.name))
             .map(o => ({
               name: o.name,
-              minutes: o.shiftDurationMinutes,
+              minutes: realShiftMinutes(o.shiftDurationMinutes),
               salary: o.baseSalary,
               exp: o.baseProductionExp,
               admission: o.requiredProfessionLevel > 0 && previous ? { profession: PROFESSION_NAMES[previous], level: o.requiredProfessionLevel } : null,

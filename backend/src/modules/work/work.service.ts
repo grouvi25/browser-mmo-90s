@@ -8,7 +8,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
-import { admissionRequirement, awaitsOwner, calcFinalSalary, calcProductionExp, fitsDailyBudget, shiftMinutes, workerEfficiency } from './work.formulas'
+import { admissionRequirement, awaitsOwner, calcFinalSalary, calcProductionExp, fitsDailyBudget, realShiftMinutes, shiftMinutes, workerEfficiency } from './work.formulas'
 import { CycleService } from '../production/cycle.service'
 import { BalanceConfig } from '../../config/balance.config'
 import { PremiumService } from '../premium/premium.service'
@@ -107,6 +107,8 @@ export const WorkService = {
         const gateLevel = admission ? professionByCode.get(admission.professionCode)?.level ?? 0 : 0
         return {
           ...object,
+          // На экране — сколько смена длится на деле (заказчик 06.11), а не номинал объекта.
+          shiftDurationMinutes: realShiftMinutes(object.shiftDurationMinutes),
           offeredSalary: object.salaryOverride ?? object.baseSalary,
           forSaleUsd: awaitsOwner(object) ? BalanceConfig.economy.production.objectPriceUsd : null,
           products: awaitsOwner(object) ? products.filter(row => row.productionObjectCode === object.code).map(row => row.name) : [],
@@ -220,10 +222,10 @@ export const WorkService = {
       const minuteBudget = Math.round(
         WORK_LIMITS.dailyShiftMinutes * (shiftCap / WORK_LIMITS.dailyShiftLimit))
       if (!awaitsOwner(object ?? { ownerType: '', baseSalary: 1, producesResourceCode: null, isForSale: false })
-        && !fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), object?.shiftDurationMinutes ?? 0,
+        && !fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), realShiftMinutes(object?.shiftDurationMinutes ?? 0),
         { shifts: shiftCap, minutes: minuteBudget })) {
         const left = Math.max(0, minuteBudget - shiftMinutes(todayShifts))
-        throw new AppError(ErrorCode.WORK_DAILY_LIMIT, `Не хватит времени сегодня: осталось ${left} мин, смена ${object?.shiftDurationMinutes ?? 0} мин`, 400)
+        throw new AppError(ErrorCode.WORK_DAILY_LIMIT, `Не хватит времени сегодня: осталось ${left} мин, смена ${realShiftMinutes(object?.shiftDurationMinutes ?? 0)} мин`, 400)
       }
       if (!object.isActive || object.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_OBJECT_UNAVAILABLE, 'Production object unavailable', 409)
       const existingProfession = await tx.characterProfession.findUnique({
@@ -250,7 +252,7 @@ export const WorkService = {
       if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 400)
       const craft = awaitsOwner(object) ? await govCraftRecipe(tx, object.code, recipeId, existingProfession.level) : null
       // Смена госкрафта длится столько, сколько рецепт: по нему и проверяем остаток дня.
-      if (craft && !fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), craft.cycleMinutes, { shifts: shiftCap, minutes: minuteBudget })) {
+      if (craft && !fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), realShiftMinutes(craft.cycleMinutes), { shifts: shiftCap, minutes: minuteBudget })) {
         throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Не хватит времени сегодня: рабочий день почти закончился', 400)
       }
       // Тоже только свои: занятый помощник не должен запирать хозяина.
@@ -301,7 +303,7 @@ export const WorkService = {
         }
       }
       if (craft) await reserveGovCraftInputs(tx, characterId, craft)
-      const endsAt = new Date(now.getTime() + (craft?.cycleMinutes ?? object.shiftDurationMinutes) * 60_000)
+      const endsAt = new Date(now.getTime() + realShiftMinutes(craft?.cycleMinutes ?? object.shiftDurationMinutes) * 60_000)
       const shift = await tx.workShift.create({
         data: { characterId, productionObjectId, professionCode: object.requiredProfessionCode, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: craft ? 0 : object.salaryOverride ?? object.baseSalary, toolInstanceId, craftRecipeId: craft?.id ?? null },
       })
@@ -377,7 +379,8 @@ export const WorkService = {
           objectId: shift.productionObjectId,
           characterId,
           workShiftId: shift.id,
-          shiftDurationMinutes: Math.round((shift.endsAt.getTime() - shift.startedAt.getTime()) / 60_000),
+          // Труд — по номиналу объекта: короткая смена (5 мин) не должна растягивать циклы цехов.
+          shiftDurationMinutes: shift.productionObject.shiftDurationMinutes,
           professionLevel: profession.level,
           workerEfficiency: workerEfficiency(profession.level),
           toolTier: shift.toolInstance?.template.toolTier ?? 0,

@@ -4,6 +4,7 @@ import { getRedis, disconnectRedis } from '../../shared/db/redis'
 import { WorkService } from '../../modules/work/work.service'
 import { runWorkShiftFinalize } from '../../workers/work-shift-finalize.worker'
 import { CityService } from '../../modules/city/city.service'
+import { BalanceConfig } from '../../config/balance.config'
 
 // Профессии покупаются в Училище, работа их больше не выдаёт: персонаж
 // фикстуры сразу изучил ту, что нужна объекту.
@@ -24,9 +25,10 @@ async function addEquipmentAndTool(characterId:string,objectId:string,usesLeft=2
 }
 
 describe('WorkService E2',()=>{
- beforeAll(async()=>{await testPrisma.$connect();await getRedis().ping()})
+ // Механика суточного бюджета — на номинальной длительности; 5-минутные смены проверяет short-shifts.test.ts.
+ beforeAll(async()=>{BalanceConfig.economy.work.realShiftMinutes=0;await testPrisma.$connect();await getRedis().ping()})
  beforeEach(async()=>{await cleanDatabase();await getRedis().flushdb()})
- afterAll(async()=>{await testPrisma.$disconnect();await disconnectRedis()})
+ afterAll(async()=>{BalanceConfig.economy.work.realShiftMinutes=5;await testPrisma.$disconnect();await disconnectRedis()})
  it('starts one shift and locks character to WORKING',async()=>{const{character,object}=await fixture();const r=await WorkService.start(character.id,object.id);expect(r.shift.status).toBe('ACTIVE');expect(r.shift.endsAt.getTime()-r.shift.startedAt.getTime()).toBe(30*60_000);expect((await testPrisma.character.findUniqueOrThrow({where:{id:character.id}})).status).toBe('WORKING');expect((await WorkService.current(character.id)).shift?.id).toBe(r.shift.id);await expect(WorkService.start(character.id,object.id)).rejects.toMatchObject({statusCode:400})})
  it('opens a second-stage object by the previous stage, not by itself',async()=>{const{character}=await fixture(0,['scrap_collector','foundry_worker']);const foundry=await testPrisma.productionObject.create({data:{code:uid('foundry'),name:'Foundry',type:'WORKSHOP',requiredProductionLevel:1,requiredProfessionCode:'foundry_worker',requiredProfessionLevel:1,shiftDurationMinutes:60,baseSalary:160,baseProductionExp:15}});await expect(WorkService.start(character.id,foundry.id)).rejects.toMatchObject({statusCode:400});await testPrisma.characterProfession.update({where:{characterId_professionCode:{characterId:character.id,professionCode:'scrap_collector'}},data:{exp:500,level:1}});const started=await WorkService.start(character.id,foundry.id);expect(started.shift.professionCode).toBe('foundry_worker');const listed=await WorkService.listObjects(character.id);const view=listed.items.find(item=>item.id===foundry.id);expect(view?.admission?.professionCode).toBe('scrap_collector');expect(view?.locked).toBe(false)})
  it('rejects PL-locked object and busy character',async()=>{const{character,object}=await fixture();await testPrisma.productionObject.update({where:{id:object.id},data:{requiredProfessionLevel:3}});await expect(WorkService.start(character.id,object.id)).rejects.toMatchObject({statusCode:400});expect(await testPrisma.characterProfession.count({where:{characterId:character.id}})).toBe(1);await testPrisma.character.update({where:{id:character.id},data:{status:'IN_BATTLE'}});await testPrisma.productionObject.update({where:{id:object.id},data:{requiredProfessionLevel:0}});await expect(WorkService.start(character.id,object.id)).rejects.toMatchObject({statusCode:400})})

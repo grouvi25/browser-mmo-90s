@@ -27,7 +27,7 @@ import { DollarsService } from '../dollars/dollars.service'
 import { EconomyService } from '../economy/economy.service'
 import { CycleService } from '../production/cycle.service'
 import { ResourcesService } from '../resources/resources.service'
-import { awaitsOwner, calcFinalSalary, calcProductionExp, workerEfficiency } from '../work/work.formulas'
+import { awaitsOwner, calcFinalSalary, calcProductionExp, realShiftMinutes, workerEfficiency } from '../work/work.formulas'
 import { soldGeneralTools, toolForTier } from '../work/tool-names'
 import { professionLevelFromExp, PROFESSION_CODES, PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { PremiumService } from './premium.service'
@@ -380,7 +380,7 @@ export const HelpersService = {
       }
 
       const now = new Date()
-      const endsAt = new Date(now.getTime() + object.shiftDurationMinutes * 60_000)
+      const endsAt = new Date(now.getTime() + realShiftMinutes(object.shiftDurationMinutes) * 60_000)
       const shift = await tx.workShift.create({
         data: {
           characterId, productionObjectId, helperId,
@@ -479,7 +479,7 @@ export const HelpersService = {
           objectId: shift.productionObjectId,
           characterId,
           workShiftId: shift.id,
-          shiftDurationMinutes: Math.round((shift.endsAt.getTime() - shift.startedAt.getTime()) / 60_000),
+          shiftDurationMinutes: shift.productionObject.shiftDurationMinutes,
           professionLevel: helper.professionLevel,
           workerEfficiency: helperEfficiency(helper.professionLevel),
           toolTier: 0,

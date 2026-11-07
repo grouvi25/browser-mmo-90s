@@ -9,6 +9,7 @@ import { cleanDatabase, testPrisma, uid } from './helpers'
 import { disconnectRedis, getRedis } from '../../shared/db/redis'
 import { WorkService } from '../../modules/work/work.service'
 import { runWorkShiftFinalize } from '../../workers/work-shift-finalize.worker'
+import { BalanceConfig } from '../../config/balance.config'
 
 async function fixture(scrap = 10) {
   const login = uid('gc')
@@ -47,9 +48,10 @@ async function fixture(scrap = 10) {
 }
 
 describe('госкрафт', () => {
-  beforeAll(async () => { await testPrisma.$connect(); await getRedis().ping() })
+  // Длительность рецептов проверяется номинальной; 5-минутные смены — в short-shifts.test.ts.
+  beforeAll(async () => { BalanceConfig.economy.work.realShiftMinutes = 0; await testPrisma.$connect(); await getRedis().ping() })
   beforeEach(async () => { await cleanDatabase(); await getRedis().flushdb() })
-  afterAll(async () => { await testPrisma.$disconnect(); await disconnectRedis() })
+  afterAll(async () => { BalanceConfig.economy.work.realShiftMinutes = 5; await testPrisma.$disconnect(); await disconnectRedis() })
 
   it('цех виден с рецептами: что выйдет, сколько сырья есть и чего не хватает', async () => {
     const { character, object } = await fixture(2)

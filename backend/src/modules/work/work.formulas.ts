@@ -1,6 +1,12 @@
 import { isProfessionCode, previousProfession } from '../professions/professions'
 import { BalanceConfig } from '../../config/balance.config'
 const WORK_BALANCE=BalanceConfig.economy.work
+
+/** Сколько смена длится на самом деле (заказчик 06.11: «время работ 5 минут»). Читается при каждом вызове: админка меняет число на лету. */
+export function realShiftMinutes(nominal: number): number {
+  const cap = WORK_BALANCE.realShiftMinutes
+  return cap > 0 ? Math.min(cap, nominal) : nominal
+}
 export const PRODUCTION_LEVEL_THRESHOLDS = [0, 500, 1500, 3500, 8000, 16000, 30000] as const
 
 /** Legacy alias. Functional progression is stored independently per profession. */

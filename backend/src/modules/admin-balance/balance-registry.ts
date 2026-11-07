@@ -324,6 +324,7 @@ export function balanceRegistry(): BalanceGroup[] {
           params: [
             p('economy.work.dailyShiftLimit', B.economy.work.dailyShiftLimit, 'смен в сутки'),
             p('economy.work.dailyShiftMinutes', B.economy.work.dailyShiftMinutes, 'минут в сутки'),
+            p('economy.work.realShiftMinutes', B.economy.work.realShiftMinutes, 'смена длится на деле, минут (0 — как у объекта)'),
             p('strategy.premium.dailyShiftCap', B.strategy.premium.dailyShiftCap, 'потолок для подписчика'),
             p('strategy.helper.dailyShiftCap', B.strategy.helper.dailyShiftCap, 'сколько смен закрывает помощник'),
             p('strategy.helper.priceCombatUsd', B.strategy.helper.priceCombatUsd, 'боевой помощник, долларов'),

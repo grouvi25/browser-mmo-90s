@@ -14,6 +14,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { ResourcesService } from '../resources/resources.service'
 import { outputQuality, resourceToItemQuality } from '../production/cycle.formulas'
+import { realShiftMinutes } from './work.formulas'
 
 type Tx = Prisma.TransactionClient
 
@@ -56,10 +57,11 @@ export async function govCraftView(db: Tx, params: {
     const reason = recipe.requiredProfessionLevel > params.professionLevel ? `Нужен ${recipe.requiredProfessionLevel} уровень профессии`
       : tool && !params.toolCodes.includes(tool.code) ? `Нужен инструмент: ${tool.name}`
       : missing.length ? `Не хватает: ${missing.map(input => `${input.name} ${input.have}/${input.need}`).join(', ')}`
-      : recipe.cycleMinutes > params.minutesLeft ? `Не хватит времени сегодня: осталось ${Math.max(0, params.minutesLeft)} мин, нужно ${recipe.cycleMinutes}`
+      : realShiftMinutes(recipe.cycleMinutes) > params.minutesLeft ? `Не хватит времени сегодня: осталось ${Math.max(0, params.minutesLeft)} мин, нужно ${realShiftMinutes(recipe.cycleMinutes)}`
       : null
+    const minutes = realShiftMinutes(recipe.cycleMinutes)
     return {
-      id: recipe.id, name: recipe.name, minutes: recipe.cycleMinutes,
+      id: recipe.id, name: recipe.name, minutes,
       output: {
         name: recipe.outputResourceCode ? nameOf.get(recipe.outputResourceCode) ?? recipe.outputResourceCode
           : recipe.outputItemTemplateCode ? itemName.get(recipe.outputItemTemplateCode) ?? recipe.outputItemTemplateCode : '',

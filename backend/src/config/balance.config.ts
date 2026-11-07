@@ -85,7 +85,11 @@ export const BalanceConfig = {
   },
 
   economy: {
-    work: { efficiencyPerProfessionLevel: 0.03, objectLevelStep: 0.25, salaryRandomMin: 0.9, salaryRandomMax: 1.1, salaryCapMultiplier: 3, dailyShiftLimit: 12, dailyShiftMinutes: 360, salaryFatigueStep: 0.20, salaryFatigueFloor: 0.20, restMinutesAfterShift: 30 },
+    work: { efficiencyPerProfessionLevel: 0.03, objectLevelStep: 0.25, salaryRandomMin: 0.9, salaryRandomMax: 1.1, salaryCapMultiplier: 3, dailyShiftLimit: 12, dailyShiftMinutes: 360,
+      // Заказчик 06.11 (обращение №42): «время работ 5 минут, отдых не увеличивать».
+      // Реальная длительность смены, не больше указанной у объекта; 0 — как у объекта.
+      // Труд в цикл цеха и зарплата считаются по длительности объекта: экономика цехов та же.
+      realShiftMinutes: 5, salaryFatigueStep: 0.20, salaryFatigueFloor: 0.20, restMinutesAfterShift: 30 },
     resources: { governmentPayoutRate: 0.25 },
     market: { listingFeeRate: 0.02, listingFeeMin: 5, saleTaxRate: 0.05, listingDurationHours: 72, maxActiveListings: 10 },
     tools: { tiers: { 1: { price: 500, uses: 50 }, 2: { price: 1250, uses: 50 }, 3: { price: 1800, uses: 50 } } },
