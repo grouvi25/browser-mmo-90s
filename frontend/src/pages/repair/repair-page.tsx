@@ -88,7 +88,8 @@ export function RepairPage() {
     },
     onError: err => {
       if (err instanceof ApiError) {
-        showMsg('error', err.status === 400 ? 'Не хватает денег на ремонт' : err.message)
+        // Сервер сам называет причину: деньги, детали, занятые в смене (№59).
+        showMsg('error', err.message)
       } else showMsg('error', 'Не удалось починить')
     },
   })

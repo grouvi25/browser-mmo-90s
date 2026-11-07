@@ -17,13 +17,13 @@ function LevelsTopic({ t }: { t: LibraryTables | undefined }) {
   if (!t) return <Loading />
   return <>
     <p>Боевой опыт даёт бой: чем сильнее соперник и чем больше урона вы нанесли, тем больше опыта. За каждый новый уровень — {t.statPointsPerLevel} очка характеристик и денежная премия.</p>
-    <div className="library__scroll"><table className="library__table">
+    <div className="library__scroll"><table className="library__table library__table--fit">
       <thead><tr><th>Уровень</th><th>Опыт</th><th>Премия</th></tr></thead>
       <tbody>{t.battle.map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>{row.level === 1 ? `старт ${n(row.money)} ₽` : `${n(row.money)} ₽`}</td></tr>)}</tbody>
     </table></div>
     <h3>Экономический уровень</h3>
     <p>Растёт от торговли: опыт — 2% от суммы любой продажи — государству, вещей и сырья, и на рынке. За каждый новый уровень — +1 к силе и денежная премия.</p>
-    <div className="library__scroll"><table className="library__table">
+    <div className="library__scroll"><table className="library__table library__table--fit">
       <thead><tr><th>Уровень</th><th>Опыт</th><th>Премия</th><th>Сила</th></tr></thead>
       <tbody>{t.economic.filter(row => row.level > 0).map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>{n(row.money)} ₽</td><td>+{row.str}</td></tr>)}</tbody>
     </table></div>
@@ -36,7 +36,7 @@ function ProfessionsTopic({ t }: { t: LibraryTables | undefined }) {
   return <>
     <p>Профессия покупается в <Link to="/school">Училище</Link> и качается сменами на объектах <Link to="/work">Промзоны</Link>: за смену — опыт профессии. Каждый уровень профессии прибавляет к выработке. Какой инструмент нужен, написано в таблице ниже, его продают в <Link to="/shop?tab=tools">Гос магазине</Link>.</p>
     <p>Путь вещи такой: на точке добычи вы получаете сырьё себе, в цехе из сырья делают заготовки и изделия. Цехи покупают за {n(t.objectPriceUsd ?? 15000)} $ в «<Link to="/objects">Мои объекты</Link>», что нужно для каждой вещи, показано в «<Link to="/recipes">Рецептах</Link>».</p>
-    <div className="library__scroll"><table className="library__table">
+    <div className="library__scroll"><table className="library__table library__table--fit">
       <thead><tr><th>Уровень профессии</th><th>Опыт всего</th><th>Выработка</th></tr></thead>
       <tbody>{t.professionLevels.map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>+{row.efficiencyPct}%</td></tr>)}</tbody>
     </table></div>
@@ -45,7 +45,7 @@ function ProfessionsTopic({ t }: { t: LibraryTables | undefined }) {
       <h3>{chain.chain}</h3>
       {chain.steps.map(step => <div key={step.code} className="library__step">
         <b>{step.name}</b>{step.after && <span className="library__muted"> — после «{step.after}»</span>}
-        {step.objects.length > 0 && <div className="library__scroll"><table className="library__table">
+        {step.objects.length > 0 && <div className="library__scroll"><table className="library__table library__table--fit">
           <thead><tr><th>Где работать</th><th>Что даёт</th><th>Смена</th><th>Оплата</th><th>Инструмент</th><th>Опыт</th><th>Допуск</th></tr></thead>
           <tbody>{step.objects.map(o => <tr key={o.name}>
             <td>{o.name}{o.forSaleUsd ? <span className="library__muted"> · после покупки цеха</span> : null}</td>
@@ -67,7 +67,7 @@ function ConsumablesTopic({ t }: { t: LibraryTables | undefined }) {
     <p>Настойки действуют по времени, сколько минут, указано в таблице. Их пьют на <Link to="/inventory">Складе</Link> или из кармана в бою. Свитки работают только в бою: положите их в карман на Складе, они действуют несколько раундов.</p>
     <p>В бою предмет не тратит ход: применили и бьёте как обычно. За раунд можно применить один предмет.</p>
     <p>Усиления разного рода действуют вместе, например броня и урон. Два усиления одного рода не складываются, работает сильнейшее. Если выпить ту же настойку ещё раз, время не прибавляется, а начинается заново.</p>
-    <div className="library__scroll"><table className="library__table">
+    <div className="library__scroll"><table className="library__table library__table--fit">
       <thead><tr><th>Вещь</th><th>Что делает</th><th>Где применять</th><th>Где делают</th></tr></thead>
       <tbody>{(t.consumables ?? []).map(row => <tr key={row.name}>
         <td>{row.name}</td><td className="library__wrap">{row.does}</td><td>{row.where}</td><td>{row.madeAt ?? '—'}</td>

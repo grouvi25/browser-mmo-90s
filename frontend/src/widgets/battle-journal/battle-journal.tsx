@@ -18,8 +18,9 @@ const ICON: Record<JournalKind, typeof Sword> = {
   move: ArrowRight, item: Package, weapon: RefreshCw, surrender: Flag,
 }
 
+// Время по Москве, как в чате (№37).
 function time(value: string) {
-  return new Date(value).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+  return new Date(value).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })
 }
 
 export function BattleJournal({ battleId, refreshKey = 0 }: { battleId: string; refreshKey?: number }) {
@@ -39,7 +40,7 @@ export function BattleJournal({ battleId, refreshKey = 0 }: { battleId: string; 
     </p>
   }
   const data = query.data
-  if (!data || data.total === 0) return <p className="bj-note">Событий пока нет.</p>
+  if (!data || (data.total === 0 && data.battle.status !== 'FINISHED')) return <p className="bj-note">Событий пока нет.</p>
 
   return (
     <div className="bj">
@@ -48,6 +49,17 @@ export function BattleJournal({ battleId, refreshKey = 0 }: { battleId: string; 
           Бой окончен{data.battle.winner ? <>: победил <b>{data.battle.winner}</b></> : ''} · раундов {data.battle.rounds}
         </p>
       )}
+      {data.battle.status === 'FINISHED' && !!data.battle.fighters?.length && (() => {
+        const fighters = data.battle.fighters
+        const fallen = fighters.filter(f => !f.alive && !f.surrendered)
+        const gave = fighters.filter(f => f.surrendered)
+        const exp = fighters.filter(f => f.exp > 0)
+        return <ul className="bj-summary">
+          {fallen.length > 0 && <li>Погибли: {fallen.map(f => f.name).join(', ')}</li>}
+          {gave.length > 0 && <li>Сдались: {gave.map(f => f.name).join(', ')}</li>}
+          <li>Опыт: {exp.length ? exp.map(f => `${f.name} +${f.exp.toLocaleString('ru-RU')}`).join(', ') : 'никто не получил'}</li>
+        </ul>
+      })()}
       <ol className="bj-lines">
         {data.items.map(line => {
           const Icon = ICON[line.kind]

@@ -296,6 +296,7 @@ export async function finishTeamBattle(
         data: {
           hpCurrent: payout.part.hpCurrent,
           isAlive: payout.part.isAlive,
+          isSurrendered: payout.part.isSurrendered,
           damageDealt: payout.part.damageDealt,
           damageReceived: payout.part.damageReceived,
           hitsLanded: payout.part.hitsLanded,

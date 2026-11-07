@@ -19,7 +19,7 @@ describe('2-й уровень профессии за доллары', () => {
   beforeEach(async () => cleanDatabase())
   afterAll(async () => testPrisma.$disconnect())
 
-  it('поднимает изученную профессию до 2-го уровня и открывает продажу ресурсов за доллары', async () => {
+  it('покупка открывает только продажу за доллары, уровень и опыт не меняются (Дима 08.11)', async () => {
     const price = CityConfig.professionLevel2Usd
     const char = await player(price + 5)
     await expect(CityService.buyLevel2(char.id, 'scrap_collector', uid('k'))).rejects.toMatchObject({ statusCode: 409 })
@@ -27,10 +27,16 @@ describe('2-й уровень профессии за доллары', () => {
     await expect(testPrisma.$transaction(tx => assertCanList(tx, char.id, 'RESOURCE', 'USD'))).rejects.toMatchObject({ statusCode: 403 })
 
     const result = await CityService.buyLevel2(char.id, 'scrap_collector', uid('k'))
-    expect(result.profession).toMatchObject({ level: 2, exp: 1500 })
+    expect(result.profession).toMatchObject({ level: 0, exp: 0, usdSales: true })
     expect(result.dollars).toBe(5)
     await expect(testPrisma.$transaction(tx => assertCanList(tx, char.id, 'RESOURCE', 'USD'))).resolves.toBeUndefined()
     await expect(CityService.buyLevel2(char.id, 'scrap_collector', uid('k'))).rejects.toMatchObject({ statusCode: 409 })
+  })
+
+  it('уровень, набранный опытом, продажу за доллары не открывает', async () => {
+    const char = await player(0)
+    await testPrisma.characterProfession.create({ data: { characterId: char.id, professionCode: 'scrap_collector', level: 3, exp: 3500 } })
+    await expect(testPrisma.$transaction(tx => assertCanList(tx, char.id, 'RESOURCE', 'USD'))).rejects.toMatchObject({ statusCode: 403 })
   })
 
   it('без долларов не поднимает', async () => {

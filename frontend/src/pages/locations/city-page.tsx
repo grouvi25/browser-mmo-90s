@@ -71,15 +71,15 @@ function School() {
   // ресурсы продаются на рынке за доллары.
   const level2 = useCityAction(cityApi.buyLevel2)
   const usd = q.data?.level2Usd ?? 0
-  return <><p>Покупка открывает профессию. Уровень растёт за работу и практику в Промзоне. Второй уровень изученной профессии можно взять сразу за доллары — с ним добытые ресурсы продаются на рынке за доллары.</p>
+  return <><p>Покупка открывает профессию. Уровни растут сами за работу и практику в Промзоне. За доллары можно открыть продажу ресурсов на рынке за доллары.</p>
     <QueryState loading={q.isLoading} error={q.isError} retry={q.refetch} /><Message error={action.error ?? level2.error} success={action.isSuccess || level2.isSuccess} />
     <div className="city-cards">{q.data?.items.map(p => <article className="city-card" key={p.code}><h2>{p.name}</h2>
-      <p>{p.owned ? `Изучена · уровень ${p.level}` : `${p.price.toLocaleString('ru')} ₽`}</p>
+      <p>{p.owned ? `Изучена · уровень ${p.level}${p.usdSales ? ' · продажа за $' : ''}` : `${p.price.toLocaleString('ru')} ₽`}</p>
       <button className="btn" disabled={p.owned || action.isPending} onClick={() => action.mutate(p.code)}>{p.owned ? 'Изучено' : 'Купить профессию'}</button>
-      {p.owned && p.level < 2 && usd > 0 && (
+      {p.owned && !p.usdSales && usd > 0 && (
         <button className="btn" disabled={level2.isPending}
-          onClick={() => { if (window.confirm(`Поднять «${p.name}» до 2-го уровня за ${usd} $?`)) level2.mutate(p.code) }}>
-          2-й уровень за {usd} $
+          onClick={() => { if (window.confirm(`Открыть продажу ресурсов за доллары по профессии «${p.name}» за ${usd} $? Уровень профессии не меняется.`)) level2.mutate(p.code) }}>
+          Продажа за $ · {usd} $
         </button>
       )}</article>)}</div>
     <Link to="/work">Работать по профессии →</Link></>

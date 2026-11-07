@@ -64,7 +64,9 @@ const TABS: Tab[] = [
   { key: 'chains',  label: 'Цепочки',  match: () => false },
   { key: 'stones',  label: 'Камни',    match: i => i.template.type === 'UPGRADE_MODULE' },
   { key: 'special', label: 'Специальные изделия', match: i => i.template.type === 'SHIELD' || i.template.type === 'COMPONENT' },
-  { key: 'tools',   label: 'Инструменты', match: i => i.template.type === 'TOOL' || i.template.type === 'CONSUMABLE' },
+  { key: 'tools',   label: 'Инструменты', match: i => i.template.type === 'TOOL' },
+  // Свитки и аптечки — не инструменты (обращение №64): своя вкладка.
+  { key: 'consumables', label: 'Расходники и свитки', match: i => i.template.type === 'CONSUMABLE' },
 ]
 
 interface Rect { x: number; y: number; w: number; h: number }

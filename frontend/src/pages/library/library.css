@@ -20,3 +20,11 @@
 .library__chain { margin-top: 10px; }
 .library__table td.library__wrap { white-space: normal; min-width: 160px; }
 .library__step { margin: 6px 0 10px; }
+
+/* Таблицы цехов в «Профессиях» (обращение №66): семь колонок не влезали,
+   правый край уходил в прокрутку, которую не замечали. Текст переносится,
+   таблица садится по ширине раздела. */
+.library__table--fit { width: 100%; table-layout: auto; }
+.library__table--fit th, .library__table--fit td { white-space: normal; overflow-wrap: break-word; hyphens: auto; }
+.library__table--fit td.library__wrap { min-width: 0; }
+.library__table--fit th { hyphens: manual; }

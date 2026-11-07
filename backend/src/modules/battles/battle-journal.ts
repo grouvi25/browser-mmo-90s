@@ -85,7 +85,7 @@ export const BattleJournal = {
       where: { id: battleId },
       select: {
         id: true, type: true, status: true, roundCount: true, startedAt: true, finishedAt: true, winnerParticipantId: true,
-        participants: { select: { id: true, characterId: true, botId: true, side: true, character: { select: { nickname: true } }, bot: { select: { name: true, equipment: true } } } },
+        participants: { select: { id: true, characterId: true, botId: true, side: true, isAlive: true, isSurrendered: true, expGained: true, damageDealt: true, character: { select: { nickname: true } }, bot: { select: { name: true, equipment: true } } } },
       },
     })
     if (!battle) throw new AppError(ErrorCode.BATTLE_NOT_FOUND, 'Бой не найден', 404)
@@ -165,6 +165,11 @@ export const BattleJournal = {
         id: battle.id, type: battle.type, status: battle.status, rounds: battle.roundCount,
         startedAt: battle.startedAt, finishedAt: battle.finishedAt,
         winner: winner ? winner.character?.nickname ?? winner.bot?.name ?? null : null,
+        // Итог боя (обращение №63): кто погиб, кто сдался и сколько опыта получил.
+        fighters: battle.status === 'FINISHED' ? battle.participants.map(p => ({
+          name: p.character?.nickname ?? p.bot?.name ?? 'Боец', side: p.side,
+          alive: p.isAlive, surrendered: p.isSurrendered, exp: p.expGained, damage: p.damageDealt,
+        })) : [],
       },
       items: turns.map(turn => {
         const actorId = turn.actorCharId ?? turn.actorBotId ?? turn.actorHelperId ?? turn.actorPetId

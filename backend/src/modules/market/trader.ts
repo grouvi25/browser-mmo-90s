@@ -33,10 +33,9 @@ export async function assertCanList(
     return
   }
   if (currency === 'USD') {
-    const best = await tx.characterProfession.findFirst({
-      where: { characterId, professionCode: { in: [...GATHERING_PROFESSIONS] }, level: { gte: 2 } }, select: { level: true },
-    })
-    if (!best && char.traderLevel < 2) throw new AppError(ErrorCode.MARKET_RESOURCE_INVALID, 'Ресурсы за доллары продаёт добытчик 2-го уровня', 403)
+    // Продажа за доллары покупается в Училище (Дима 08.11), уровень профессии её не даёт.
+    const paid = await tx.characterProfession.findFirst({ where: { characterId, usdSales: true }, select: { id: true } })
+    if (!paid && char.traderLevel < 2) throw new AppError(ErrorCode.MARKET_RESOURCE_INVALID, 'Ресурсы за доллары: купите продажу за доллары в Училище', 403)
   }
 }
 
@@ -44,7 +43,7 @@ export const TraderService = {
   async status(characterId: string) {
     const [char, gathering] = await Promise.all([
       prisma.character.findUniqueOrThrow({ where: { id: characterId }, select: { traderLevel: true, shopNumber: true } }),
-      prisma.characterProfession.findFirst({ where: { characterId, professionCode: { in: [...GATHERING_PROFESSIONS] }, level: { gte: 2 } }, select: { level: true } }),
+      prisma.characterProfession.findFirst({ where: { characterId, usdSales: true }, select: { id: true } }),
     ])
     return {
       traderLevel: char.traderLevel, shopNumber: char.shopNumber, prices: TRADER,

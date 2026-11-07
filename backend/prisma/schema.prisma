@@ -688,6 +688,9 @@ model CharacterProfession {
   professionCode String    @map("profession_code")
   level          Int       @default(0)
   exp            Int       @default(0)
+  /// Куплена за доллары продажа ресурсов за доллары (Дима 08.11: «2-й лвл
+  /// профы только за донат, больше ничего»). Уровень от покупки не меняется.
+  usdSales       Boolean   @default(false) @map("usd_sales")
   unlockedAt     DateTime  @default(now()) @map("unlocked_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   character      Character @relation(fields: [characterId], references: [id], onDelete: Cascade)

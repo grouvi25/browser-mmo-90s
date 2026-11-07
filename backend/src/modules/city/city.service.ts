@@ -5,7 +5,7 @@ import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
 import { EconomyService } from '../economy/economy.service'
 import { DollarsService } from '../dollars/dollars.service'
-import { PROFESSION_CODES, PROFESSION_CUMULATIVE_XP, PROFESSION_NAMES, isProfessionCode } from '../professions/professions'
+import { PROFESSION_CODES, PROFESSION_NAMES, isProfessionCode } from '../professions/professions'
 import { DOG_BASE_POINTS, DOG_GEAR, DOG_GEAR_SLOTS, breedOf, dogAllocation, freeDogPoints, type DogStat } from './dogs'
 import { dogSummary } from './city.config'
 import { CityConfig, artifactBonus, inPrison, validCityPath } from './city.config'
@@ -41,7 +41,8 @@ export const CityService = {
   async professions(characterId: string) {
     const owned = await prisma.characterProfession.findMany({ where: { characterId } })
     return { level2Usd: CityConfig.professionLevel2Usd, items: PROFESSION_CODES.map(code => ({ code, name: PROFESSION_NAMES[code], price: CityConfig.professionPrice,
-      owned: owned.some(p => p.professionCode === code), level: owned.find(p => p.professionCode === code)?.level ?? 0 })) }
+      owned: owned.some(p => p.professionCode === code), level: owned.find(p => p.professionCode === code)?.level ?? 0,
+      usdSales: owned.find(p => p.professionCode === code)?.usdSales ?? false })) }
   },
   async learn(characterId: string, code: string, key: string) {
     if (!isProfessionCode(code)) throw AppError.validation('Неизвестная профессия')
@@ -54,18 +55,19 @@ export const CityService = {
       return { profession }
     } })
   },
-  /** Второй уровень изученной профессии за доллары: опыт поднимается до порога 2-го уровня. */
+  /**
+   * «2-й уровень» профессии за доллары (Дима 08.11): это ТОЛЬКО продажа ресурсов
+   * на рынке за доллары. Уровни профессии растут от опыта сами, покупка их не
+   * трогает. Раньше покупка поднимала уровень до 2-го и перескакивала прокачку.
+   */
   async buyLevel2(characterId: string, code: string, key: string) {
     if (!isProfessionCode(code)) throw AppError.validation('Неизвестная профессия')
     return withIdempotency({ characterId, scope: `city.profession.level2.${code}`, key, execute: async tx => {
       const owned = await tx.characterProfession.findUnique({ where: { characterId_professionCode: { characterId, professionCode: code } } })
       if (!owned) throw AppError.conflict('Сначала изучите профессию')
-      if (owned.level >= 2) throw AppError.conflict('Профессия уже второго уровня или выше')
+      if (owned.usdSales) throw AppError.conflict('Продажа за доллары по этой профессии уже открыта')
       const dollars = await DollarsService.debit(tx, { characterId, amount: CityConfig.professionLevel2Usd, reason: 'PURCHASE', refId: owned.id, note: `2-й уровень: ${PROFESSION_NAMES[code]}` })
-      const profession = await tx.characterProfession.update({
-        where: { id: owned.id },
-        data: { level: 2, exp: Math.max(owned.exp, PROFESSION_CUMULATIVE_XP[2]) },
-      })
+      const profession = await tx.characterProfession.update({ where: { id: owned.id }, data: { usdSales: true } })
       return { profession, dollars }
     } })
   },

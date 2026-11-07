@@ -2111,6 +2111,8 @@ export const BattleService = {
         data: {
           hpCurrent: playerPart.hpCurrent,
           isAlive: playerPart.isAlive,
+          // Сдавшийся — не погибший: журнал боя показывает их по-разному (№63).
+          isSurrendered: playerPart.isSurrendered,
           damageDealt: playerPart.damageDealt,
           damageReceived: playerPart.damageReceived,
           hitsLanded: playerPart.hitsLanded,
@@ -2837,7 +2839,7 @@ export const BattleService = {
         await tx.battleParticipant.updateMany({
           where: { battleId, characterId: char.id },
           data: {
-            hpCurrent: part.hpCurrent, isAlive: part.isAlive,
+            hpCurrent: part.hpCurrent, isAlive: part.isAlive, isSurrendered: part.isSurrendered,
             damageDealt: part.damageDealt, damageReceived: part.damageReceived,
             hitsLanded: part.hitsLanded, hitsTaken: part.hitsTaken,
             expGained: char.id === char1.id ? exp1 : exp2,

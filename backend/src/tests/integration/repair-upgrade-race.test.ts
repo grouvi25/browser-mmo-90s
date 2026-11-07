@@ -194,6 +194,22 @@ describe('Stage 2 repair and upgrade races', () => {
     expect(await testPrisma.resourceLog.count({ where: { refId: item.id, reasonCode: 'REPAIR_USE' } })).toBe(1)
   })
 
+  it('детали заняты в начатой смене — отказ с причиной словами, ничего не списано (обращение №59)', async () => {
+    const account = await registerAndCreateCharacter(app)
+    const { item, repairPart } = await damagedTier2Item(account.characterId)
+    const key = { characterId_resourceTemplateId: { characterId: account.characterId, resourceTemplateId: repairPart.id } }
+    const before = await testPrisma.resourceStack.findUniqueOrThrow({ where: key })
+    await testPrisma.resourceStack.update({ where: key, data: { reservedAmount: before.amount } })
+    const response = await app.inject({
+      method: 'POST', url: '/api/repair/commit',
+      headers: { authorization: `Bearer ${account.token}` }, payload: { itemInstanceId: item.id },
+    })
+    expect(response.statusCode).toBe(409)
+    expect(response.json().message).toMatch(/Не хватает .+ свободно 0, ещё \d+ заняты в начатой смене/)
+    expect((await testPrisma.resourceStack.findUniqueOrThrow({ where: key })).amount).toBe(before.amount)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: account.characterId } })).money).toBe(10_000)
+  })
+
   it('serializes two upgrades without lost levels or duplicated accounting', async () => {
     const { character, item, part } = await upgradeFixture()
     const results = await Promise.all([

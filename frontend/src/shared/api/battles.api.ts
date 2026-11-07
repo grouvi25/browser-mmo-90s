@@ -110,7 +110,11 @@ export interface BattleJournalLine {
   side: number; kind: JournalKind; text: string
 }
 export interface BattleJournalPage {
-  battle: { id: string; type: string; status: string; rounds: number; startedAt: string | null; finishedAt: string | null; winner: string | null }
+  battle: {
+    id: string; type: string; status: string; rounds: number; startedAt: string | null; finishedAt: string | null; winner: string | null
+    /** Итог законченного боя (№63). */
+    fighters?: { name: string; side: number; alive: boolean; surrendered: boolean; exp: number; damage: number }[]
+  }
   items: BattleJournalLine[]; page: number; pages: number; total: number
 }
 

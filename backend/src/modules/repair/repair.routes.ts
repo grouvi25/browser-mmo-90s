@@ -104,9 +104,9 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
 
       const item = await ItemsRepository.findInstanceById(parsed.data.itemInstanceId)
       if (!item) throw AppError.notFound('Item', parsed.data.itemInstanceId)
-      if (item.ownerId !== char.id) throw new AppError(ErrorCode.REPAIR_ITEM_NOT_OWNED, 'Not your item', 403)
+      if (item.ownerId !== char.id) throw new AppError(ErrorCode.REPAIR_ITEM_NOT_OWNED, 'Это не ваша вещь', 403)
       if (item.durabilityCurrent >= item.durabilityMax) {
-        throw new AppError(ErrorCode.REPAIR_NOT_NEEDED, 'Item does not need repair', 400)
+        throw new AppError(ErrorCode.REPAIR_NOT_NEEDED, 'Вещь целая, ремонт не нужен', 400)
       }
 
       const lostDur = item.durabilityMax - item.durabilityCurrent
@@ -145,9 +145,9 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
           include: { template: true },
         })
         if (!item) throw AppError.notFound('Item', parsed.data.itemInstanceId)
-        if (item.ownerId !== char.id) throw new AppError(ErrorCode.REPAIR_ITEM_NOT_OWNED, 'Not your item', 403)
+        if (item.ownerId !== char.id) throw new AppError(ErrorCode.REPAIR_ITEM_NOT_OWNED, 'Это не ваша вещь', 403)
         if (item.durabilityCurrent >= item.durabilityMax) {
-          throw new AppError(ErrorCode.REPAIR_NOT_NEEDED, 'Item does not need repair', 400)
+          throw new AppError(ErrorCode.REPAIR_NOT_NEEDED, 'Вещь целая, ремонт не нужен', 400)
         }
 
         const lostDur = item.durabilityMax - item.durabilityCurrent
@@ -159,11 +159,20 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
           const resource = await tx.resourceTemplate.findUnique({ where: { code } })
           if (!resource || !resource.isActive || !resource.isRepairMaterial) throw AppError.internal(`Repair resource misconfigured: ${code}`)
           const amount = calcRequiredRepairParts(lostDur, item.durabilityMax, item.template.itemTier, item.upgradeLevel)
+          // Причина отказа словами (обращение №59): детали могли быть заняты
+          // в начатой смене госцеха, и ремонт падал непонятной ошибкой.
+          const stack = await tx.resourceStack.findUnique({ where: { characterId_resourceTemplateId: { characterId: char.id, resourceTemplateId: resource.id } } })
+          const have = stack?.amount ?? 0
+          const free = have - (stack?.reservedAmount ?? 0)
+          if (free < amount) {
+            throw new AppError(ErrorCode.RES_INSUFFICIENT,
+              `Не хватает «${resource.name}»: нужно ${amount}, свободно ${Math.max(0, free)}` + (have > free ? `, ещё ${have - free} заняты в начатой смене или на рынке` : ''), 409)
+          }
           await ResourcesService.consume(tx, { characterId: char.id, resourceTemplateId: resource.id, amount, reasonCode: 'REPAIR_USE', refType: 'repair', refId: item.id })
           partsSpent = { resourceCode: code, amount }
         }
 
-        if (char.money < cost) throw AppError.insufficientFunds(char.money, cost)
+        if (char.money < cost) throw new AppError(ErrorCode.INSUFFICIENT_FUNDS, `Не хватает денег на ремонт: нужно ${cost} ₽, у вас ${char.money} ₽`, 400)
 
         const newBalance = await EconomyService.debit(tx, {
           characterId: char.id, amount: cost, reasonCode: 'REPAIR_COST', refType: 'repair', refId: item.id,

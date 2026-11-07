@@ -16,7 +16,7 @@ const paid = <T>(path: string, body: unknown) => api.post<T>(path, body, { heade
 export const cityApi = {
   location: () => api.get<CityLocation>('/api/city/location'),
   move: (path: string) => api.put('/api/city/location', { path }),
-  professions: () => api.get<{ level2Usd: number; items: { code: string; name: string; price: number; owned: boolean; level: number }[] }>('/api/city/professions'),
+  professions: () => api.get<{ level2Usd: number; items: { code: string; name: string; price: number; owned: boolean; level: number; usdSales: boolean }[] }>('/api/city/professions'),
   /** Второй уровень изученной профессии за доллары (правка 28.10). */
   buyLevel2: (code: string) => paid('/api/city/professions/level2', { code }),
   learn: (code: string) => paid('/api/city/professions', { code }),
