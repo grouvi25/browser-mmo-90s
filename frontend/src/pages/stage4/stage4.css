@@ -245,6 +245,12 @@
 
 /* Игровые доллары */
 .dollars { display: grid; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+/* Покупка долларов картой или СБП: пакеты одной сеткой, цена под суммой. */
+.dollars--buy h4 { margin: 0; }
+.dollars__packs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+.dollars .dollars__pack { display: grid; gap: 2px; justify-items: center; padding: 8px 6px; min-height: 52px; }
+.dollars .dollars__pack b { font-size: 16px; }
+.dollars .dollars__pack span { font-size: 13px; color: var(--text-dim, #5a4b40); }
 .dollars__balance { display: flex; align-items: baseline; gap: 10px; }
 .dollars__balance b { font-size: 24px; font-variant-numeric: tabular-nums; }
 .dollars__dealers ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }

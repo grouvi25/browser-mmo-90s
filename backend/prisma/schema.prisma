@@ -2352,6 +2352,7 @@ enum DollarReason {
   OBJECT_SALE // выкуп государством объекта, купленного за доллары
   REFERRAL // процент с пополнения приглашённого игрока
   REFERRAL_PAYOUT // заявка на вывод реферальных на карту (возврат при отказе — с плюсом)
+  TOPUP // покупка долларов картой или СБП (эквайринг)
 }
 
 enum MarketCurrency {
@@ -2732,4 +2733,35 @@ model PushDevice {
 
   @@index([userId])
   @@map("push_devices")
+}
+
+enum PaymentStatus {
+  NEW       // создан у нас, в банк ещё не ушёл
+  PENDING   // банк выдал ссылку на оплату, ждём результат
+  CONFIRMED // деньги списаны, доллары начислены
+  REJECTED  // банк отказал или ссылка истекла
+  CANCELED  // отменён
+  REFUNDED  // возврат после зачисления (доллары не списываются сами — разбирает администрация)
+}
+
+/// Покупка долларов за рубли через эквайринг (Т-Банк). Доллары начисляются
+/// только по уведомлению банка со статусом CONFIRMED и ровно один раз.
+model Payment {
+  id                String        @id @default(uuid())
+  characterId       String        @map("character_id")
+  provider          String        @default("tbank")
+  dollars           Int
+  amountKopecks     Int           @map("amount_kopecks")
+  status            PaymentStatus @default(NEW)
+  providerPaymentId String?       @map("provider_payment_id")
+  providerStatus    String?       @map("provider_status")
+  paymentUrl        String?       @map("payment_url")
+  errorText         String?       @map("error_text")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  confirmedAt       DateTime?     @map("confirmed_at")
+
+  @@index([characterId, createdAt])
+  @@index([status, createdAt])
+  @@map("payments")
 }

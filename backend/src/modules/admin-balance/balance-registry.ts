@@ -332,6 +332,18 @@ export function balanceRegistry(): BalanceGroup[] {
           ],
           source: 'modules/work/work.formulas.ts:77',
         },
+        {
+          id: 'payments.price',
+          title: 'Цена доллара на сайте',
+          formula: 'к оплате = доллары × цена в копейках',
+          what: 'Сколько рублей игрок платит картой или СБП за пакет долларов.',
+          affects: 'Меняется сразу для новых покупок; оплаченные по старой цене не пересчитываются.',
+          inputs: ['пакет долларов'],
+          params: [
+            p('payments.dollarPriceKopecks', B.payments.dollarPriceKopecks, 'цена 1 $ в копейках (1200 = 12 ₽)'),
+          ],
+          source: 'modules/payments/payments.service.ts',
+        },
       ],
     },
 

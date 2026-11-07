@@ -426,6 +426,7 @@ export const adminApi = {
   pinAnnouncement: (id: string, pinned: boolean) => request(`/api/announcements/${id}/pin`, { method: 'PATCH', body: { pinned } }),
   removeAnnouncement: (id: string) => request(`/api/announcements/${id}`, { method: 'DELETE' }),
   // Заявки на вывод реферальных: выплата вручную, здесь только отметка.
+  paymentsReport: (from: string, to: string) => request<{ items: AdminPayment[]; totals: { status: AdminPaymentStatus; count: number; amountKopecks: number; dollars: number }[] }>(`/api/payments/admin/report?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
   payouts: (status?: PayoutStatus) => request<{ items: AdminPayout[] }>(`/api/referral/admin/payouts${status ? `?status=${status}` : ''}`),
   payoutPaid: (id: string, note?: string) => request<AdminPayout>(`/api/referral/admin/payouts/${id}/paid`, { method: 'POST', body: { note } }),
   payoutReject: (id: string, note?: string) => request<AdminPayout>(`/api/referral/admin/payouts/${id}/reject`, { method: 'POST', body: { note } }),
@@ -619,3 +620,7 @@ export const adminApi = {
 
 /** Минимальная длина причины — то же число, что и на сервере. */
 export const REASON_MIN = 10
+
+/** Платёж картой или СБП (эквайринг). */
+export type AdminPaymentStatus = 'NEW' | 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELED' | 'REFUNDED'
+export interface AdminPayment { id: string; nickname: string | null; dollars: number; amountKopecks: number; status: AdminPaymentStatus; providerPaymentId: string | null; errorText: string | null; createdAt: string; confirmedAt: string | null }

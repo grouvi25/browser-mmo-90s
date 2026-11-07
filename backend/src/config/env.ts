@@ -50,6 +50,17 @@ const EnvSchema = z.object({
   // из проекта Firebase — JSON целиком или он же в base64. Без него пуши
   // выключены, игра работает как раньше. Секрет: только в окружении.
   FCM_SERVICE_ACCOUNT: z.string().optional(),
+  // Эквайринг Т-Банка: терминал и пароль из личного кабинета эквайринга. Без них
+  // покупка долларов на сайте выключена. Адрес API: тестовый
+  // https://rest-api-test.tinkoff.ru/v2 или боевой (по умолчанию).
+  TBANK_TERMINAL_KEY: z.string().optional(),
+  TBANK_PASSWORD:     z.string().optional(),
+  TBANK_API_URL:      z.string().url().default('https://securepay.tinkoff.ru/v2'),
+  // Чек 54-ФЗ: система налогообложения продавца (osn, usn_income, usn_income_outcome,
+  // esn, patent) и НДС позиции (none, vat0, vat10, vat20...). 'off' — чек не передавать.
+  TBANK_RECEIPT:      z.enum(['on', 'off']).default('on'),
+  TBANK_TAXATION:     z.string().default('usn_income'),
+  TBANK_VAT:          z.string().default('none'),
 })
 
 function loadEnv() {

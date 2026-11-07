@@ -481,6 +481,10 @@
 .adm-announce-body span { font-size: 12px; color: var(--s3-dim, #6b5b4a); }
 .adm-announce-body textarea { width: 100%; min-height: 140px; padding: 6px 8px; font: inherit; resize: vertical; }
 .adm-announce-list { display: grid; gap: 10px; }
+/* Платежи: период и итог за него. */
+.adm-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.adm-filters label { display: inline-flex; align-items: center; gap: 6px; }
+.adm-total { margin: 0 0 6px; font-size: 15px; }
 .adm-announce-list article { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--s3-line, #c9b8a5); background: rgba(255, 255, 255, .45); }
 .adm-announce-list article.is-pinned { border-color: #a4762a; background: rgba(164, 118, 42, .08); }
 .adm-announce-list header { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }

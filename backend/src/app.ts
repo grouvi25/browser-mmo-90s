@@ -48,6 +48,7 @@ import { territoriesRoutes, clanTerritoriesRoutes, objectWarRoutes } from './mod
 import { premiumRoutes, helpersRoutes } from './modules/premium/premium.routes'
 import { dollarsRoutes } from './modules/dollars/dollars.routes'
 import { referralRoutes } from './modules/referral/referral.routes'
+import { paymentsRoutes } from './modules/payments/payments.routes'
 import { housingRoutes } from './modules/housing/housing.routes'
 import { adminSupportRoutes, supportRoutes } from './modules/support/support.routes'
 import { pushRoutes } from './modules/push/push.routes'
@@ -186,6 +187,7 @@ export async function buildApp() {
   await fastify.register(premiumRoutes,       { prefix: '/api/premium' })
   await fastify.register(dollarsRoutes,       { prefix: '/api/dollars' })
   await fastify.register(referralRoutes,      { prefix: '/api/referral' })
+  await fastify.register(paymentsRoutes,      { prefix: '/api/payments' })
   await fastify.register(helpersRoutes,       { prefix: '/api/helpers' })
   await fastify.register(stage3AcceptanceRoutes,{ prefix: '/api/stage3/acceptance' })
   await fastify.register(balanceSandboxRoutes, { prefix: '/api/balance-sandbox' })

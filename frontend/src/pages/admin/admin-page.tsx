@@ -31,6 +31,7 @@ import { SupportSection } from './sections/support-section'
 import { ChatSection } from './sections/chat-section'
 import { AnnouncementsSection } from './sections/announcements-section'
 import { PayoutsSection } from './sections/payouts-section'
+import { PaymentsSection } from './sections/payments-section'
 import { StaffSection } from './sections/staff-section'
 import '../stage3/stage3.css'
 import './admin.css'
@@ -78,6 +79,8 @@ const SECTIONS: Section[] = [
     render: () => <CombatSandboxSection /> },
   { key: 'payouts', group: 'Экономика', title: 'Выплаты', need: 'finance', hint: 'Заявки на вывод реферальных.',
     render: () => <PayoutsSection /> },
+  { key: 'payments', group: 'Экономика', title: 'Платежи', need: 'finance', hint: 'Покупки долларов картой и через СБП.',
+    render: () => <PaymentsSection /> },
   { key: 'clans', group: 'Мир', title: 'Бригады', need: 'view', hint: 'Бригады, общак, авторитет.',
     render: () => <ClansSection /> },
   { key: 'territories', group: 'Мир', title: 'Районы', need: 'view', hint: 'Кому принадлежат районы.',

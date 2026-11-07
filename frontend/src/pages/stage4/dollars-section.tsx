@@ -5,11 +5,12 @@
 // зачисляет их на счёт, игрок тратит как хочет. В игре нет кнопки
 // «оплатить картой» — и экран так и говорит: к дилеру.
 // =============================================================
-import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { dollarsApi, type DollarMove } from '../../shared/api/dollars.api'
 import { ApiError } from '../../shared/api/client'
+import { paymentsApi, rub } from '../../shared/api/payments.api'
 import { fmt } from '../stage3/stage3-ui'
 
 const REASON: Record<DollarMove['reason'], string> = {
@@ -24,6 +25,7 @@ const REASON: Record<DollarMove['reason'], string> = {
   OBJECT_SALE: 'Продажа объекта государству',
   REFERRAL: 'Реферальные',
   REFERRAL_PAYOUT: 'Вывод реферальных',
+  TOPUP: 'Покупка картой или СБП',
 }
 
 export function DollarsSection() {
@@ -51,6 +53,8 @@ export function DollarsSection() {
 
   const me = account.data
   return (
+    <>
+    <BuyDollars />
     <section className="dollars">
       <div className="dollars__balance">
         <span>Ваш счёт</span>
@@ -107,6 +111,55 @@ export function DollarsSection() {
           </ul>
         </>
       ) : null}
+    </section>
+    </>
+  )
+}
+
+/**
+ * Покупка долларов картой или СБП (эквайринг, заказчик 06.11). Пока терминал банка
+ * не подключён, блока нет совсем. После оплаты банк возвращает игрока сюда с
+ * номером платежа: показываем, дошли ли доллары.
+ */
+function BuyDollars() {
+  const qc = useQueryClient()
+  const [params] = useSearchParams()
+  const returned = params.get('payment')
+  const failed = params.get('failed') === '1'
+  const offer = useQuery({ queryKey: ['payments', 'offer'], queryFn: paymentsApi.offer })
+  const mine = useQuery({
+    queryKey: ['payments', 'mine'], queryFn: paymentsApi.mine, enabled: !!returned,
+    // Банк присылает подтверждение не мгновенно: пока ждём, спрашиваем каждые 3 секунды.
+    refetchInterval: query => (query.state.data?.items.find(p => p.id === returned)?.status === 'PENDING' ? 3_000 : false),
+  })
+  const start = useMutation({
+    mutationFn: (dollars: number) => paymentsApi.start(dollars),
+    onSuccess: data => { window.location.href = data.paymentUrl },
+  })
+  const back = returned ? mine.data?.items.find(p => p.id === returned) : undefined
+  // Доллары пришли — обновить счёт на экране.
+  useEffect(() => { if (back?.status === 'CONFIRMED') void qc.invalidateQueries({ queryKey: ['dollars', 'me'] }) }, [back?.status, qc])
+  if (!offer.data?.enabled) return null
+
+  return (
+    <section className="dollars dollars--buy" aria-label="Купить доллары">
+      <h4>Купить доллары</h4>
+      {returned && (failed || back?.status === 'REJECTED' || back?.status === 'CANCELED'
+        ? <p className="alert alert-error" role="alert">Оплата не прошла, деньги не списаны. Можно попробовать ещё раз.</p>
+        : back?.status === 'CONFIRMED'
+          ? <p className="alert alert-success" role="status">Оплата прошла, зачислено {fmt(back.dollars)} $.</p>
+          : <p className="alert" role="status">Ждём подтверждение банка, доллары придут в течение минуты.</p>)}
+      <p className="s4-lead">Картой или через СБП, доллары приходят на счёт сразу после оплаты. Курс {rub(offer.data.priceKopecks)} за 1 $.</p>
+      <div className="dollars__packs">
+        {offer.data.packs.map(pack => (
+          <button key={pack.dollars} type="button" className="btn dollars__pack" disabled={start.isPending} onClick={() => start.mutate(pack.dollars)}>
+            <b>{fmt(pack.dollars)} $</b>
+            <span>{rub(pack.amountKopecks)}</span>
+          </button>
+        ))}
+      </div>
+      {start.isPending && <p className="s4-muted" role="status">Переходим на страницу оплаты банка…</p>}
+      {start.isError && <p className="alert alert-error" role="alert">{start.error instanceof ApiError ? start.error.message : 'Не получилось начать оплату'}</p>}
     </section>
   )
 }
