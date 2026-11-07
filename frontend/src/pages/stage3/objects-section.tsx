@@ -174,7 +174,7 @@ function ObjectCard({ object, mode, open, onToggle, busy, onBuy, onSell, onRepai
 
       <dl>
         <div><dt>Баланс</dt><dd>{fmt(object.balance)} ₽</dd></div>
-        <div><dt>Износ</dt><dd>{object.durabilityCurrent}/{object.durabilityMax}</dd></div>
+        <div><dt>Прочность</dt><dd>{object.durabilityCurrent}/{object.durabilityMax}</dd></div>
         <div><dt>Склад</dt><dd>{stored}/{object.storageCapacity}</dd></div>
         {mode === 'mine' && <div><dt>Уровень</dt><dd>{object.level ?? 1}{(object.cycleSlots ?? 1) > 1 ? ` · ${object.cycleSlots} рецепта` : ''}</dd></div>}
         {mode === 'mine' && object.workers && (
