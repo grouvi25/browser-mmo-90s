@@ -47,8 +47,9 @@ export function fcmMessage(token: string, push: { title: string; body: string; u
     message: {
       token,
       notification: { title: push.title, body: push.body },
-      // data — только строки: оболочка читает url и открывает этот экран в WebView.
-      data: { url: push.url, kind: push.kind },
+      // data — только строки. Заголовок и текст дублируются сюда: оболочка, которая
+      // сама рисует уведомление из data, иначе показывала пустое (Дима, 07.11).
+      data: { title: push.title, body: push.body, url: push.url, kind: push.kind },
       android: { priority: 'HIGH', notification: { channel_id: push.kind, tag: push.kind } },
     },
   }

@@ -29,11 +29,11 @@ describe('пуши через FCM', () => {
     })
   })
 
-  it('сообщение несёт экран для открытия по тапу строками в data', () => {
+  it('сообщение несёт текст и экран для открытия по тапу строками в data (пустые пуши у Димы 07.11)', () => {
     expect(fcmMessage('tok', { title: 'Смена закончилась', body: 'Заберите награду', url: '/work', kind: 'work' })).toEqual({
       message: {
         token: 'tok', notification: { title: 'Смена закончилась', body: 'Заберите награду' },
-        data: { url: '/work', kind: 'work' },
+        data: { title: 'Смена закончилась', body: 'Заберите награду', url: '/work', kind: 'work' },
         android: { priority: 'HIGH', notification: { channel_id: 'work', tag: 'work' } },
       },
     })
