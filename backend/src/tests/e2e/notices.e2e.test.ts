@@ -26,22 +26,24 @@ describe('E2E: уведомления в чате по действиям', () =
     expect((await api('POST', `/api/farm/plots/${plotId}/water`, undefined, token)).status).toBe(200)
 
     // Запись идёт после ответа: даём ей мгновение.
+    // Письмо Бывалого новичку (09.11) приходит при создании персонажа — его не считаем.
+    const own = (list: Array<{ text: string }>) => list.filter(n => !n.text.startsWith('Бывалый'))
     let items: Array<{ text: string }> = []
     for (let i = 0; i < 20 && items.length < 2; i++) {
       await new Promise(r => setTimeout(r, 150))
-      items = (await api('GET', '/api/chat/notices', undefined, token)).data.items
+      items = own((await api('GET', '/api/chat/notices', undefined, token)).data.items)
     }
     expect(items.map(n => n.text)).toEqual(['Вы посадили: Укроп.', 'Вы полили грядку.'])
 
     // Отказ уведомления не оставляет: вторая посадка на занятый участок.
     expect((await api('POST', `/api/farm/plots/${plotId}/plant`, { cropCode: 'dill' }, token)).status).toBe(409)
     await new Promise(r => setTimeout(r, 400))
-    expect((await api('GET', '/api/chat/notices', undefined, token)).data.items).toHaveLength(2)
+    expect(own((await api('GET', '/api/chat/notices', undefined, token)).data.items)).toHaveLength(2)
 
     const other = uid('other')
     await api('POST', '/api/auth/register', { acceptPolicy: true, login: other, email: `${other}@e2e.local`, password: 'pass1234' })
     const otherToken = (await api('POST', '/api/auth/login', { login: other, password: 'pass1234' })).data.token as string
     await api('POST', '/api/characters', { nickname: uid('Hero'), archetype: 'WORKER' }, otherToken)
-    expect((await api('GET', '/api/chat/notices', undefined, otherToken)).data.items).toEqual([])
+    expect(own((await api('GET', '/api/chat/notices', undefined, otherToken)).data.items)).toEqual([])
   })
 })
