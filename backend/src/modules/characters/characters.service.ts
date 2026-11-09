@@ -10,6 +10,7 @@ import { Nickname, type CreateCharacterInput } from './characters.schemas'
 import { AuthRepository } from '../auth/auth.repository'
 import { prisma } from '../../shared/db/prisma'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
+import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
 
 /** Карман без исчезнувших вещей: съеденных в бою, проданных, чужих. */
 async function liveLoadout(characterId: string, ids: string[]): Promise<string[]> {
@@ -107,7 +108,15 @@ export const CharactersService = {
       rating: char.stats ? calcCharacterRating(char.stats, equipped) : 0,
       // Для карточки персонажа (правка 26.10, как в «Апехе»): прибавки и обереги
       // от надетого — тем же расчётом, что в бою, и порог следующего уровня.
-      gear: gearOf(equipped),
+      gear: gearOf(equipped.map(item => ({
+        ...item,
+        effective: applyUpgradeModifiers(
+          item.template,
+          (item.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {},
+          item.statAllocation,
+          item.socketsJson,
+        ),
+      }))),
       nextLevelExp: Number.isFinite(getExpForNextLevel(char.battleLevel)) ? getExpForNextLevel(char.battleLevel) : null,
       economy: {
         productionLevel: professions.reduce((max, item) => Math.max(max, item.level), 0),

@@ -39,7 +39,7 @@ import { BalanceSandboxPage }   from '../pages/balance-sandbox/balance-sandbox-p
 import { LocationHubPage, type DistrictKey } from '../pages/locations/location-hub-page'
 import { Stage3Page }           from '../pages/stage3/stage3-page'
 import { Stage4Page }           from '../pages/stage4/stage4-page'
-import { PolitikaPage }         from '../pages/legal/politika-page'
+import { PolitikaPage, LegalPage } from '../pages/legal/politika-page'
 import { HousingPage, HousingHomePage } from '../pages/housing/housing-page'
 import { SupportPage }          from '../pages/support/support-page'
 
@@ -166,6 +166,9 @@ export function AppRouter() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         {/* Политика открыта всем: на неё ведёт согласие при регистрации. */}
         <Route path="/politika" element={<PolitikaPage />} />
+        <Route path="/soglasie" element={<LegalPage slug="soglasie" />} />
+        <Route path="/soglashenie" element={<LegalPage slug="soglashenie" />} />
+        <Route path="/cookies" element={<LegalPage slug="cookies" />} />
       </Route>
 
       {/* ── Экраны без городской оболочки ─────────────────── */}

@@ -119,7 +119,7 @@ export function CharacterCard({ profile, wounds, liveHp }: {
       const slots = ZONE_ARMOR_SLOTS[z] ?? []
       out[z] = equipped
         .filter(i => i.armorSlot && slots.includes(i.armorSlot))
-        .reduce((s, i) => s + (i.template.armor ?? 0), 0)
+        .reduce((s, i) => s + (i.effective?.armor ?? i.template.armor ?? 0), 0)
     }
     return out
   }, [equipped])

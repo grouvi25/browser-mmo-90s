@@ -145,9 +145,16 @@ test.describe('Stage 2 visual and browser flow', () => {
 
   test('политика открывается без входа и ведёт обратно к регистрации', async ({ page }) => {
     await page.goto('/politika')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Политика в отношении обработки персональных данных')
-    await expect(page.locator('.politika h2')).toHaveCount(12)
-    await expect(page.locator('body')).toContainText('info@kooperativ.space')
+    // Редакция 08.11.2026: четыре документа заказчика для реестра Роскомнадзора.
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Политика обработки персональных данных')
+    await expect(page.locator('.politika h2')).toHaveCount(10)
+    await expect(page.locator('body')).toContainText('unlockmosk@yandex.ru')
+    for (const [path, title] of [['/soglasie', 'Согласие на обработку'], ['/soglashenie', 'Пользовательское соглашение'], ['/cookies', 'cookie']] as const) {
+      await page.getByRole('navigation', { name: 'Документы' }).getByRole('link', { name: new RegExp(title.split(' ')[0], 'i') }).first().click()
+      await expect(page).toHaveURL(new RegExp(`${path}$`))
+      await expect(page.getByRole('heading', { level: 1 })).toContainText(title)
+    }
+    await page.goto('/politika')
     await page.getByRole('link', { name: '← К регистрации' }).click()
     await expect(page).toHaveURL(/\/register$/)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width + 2)

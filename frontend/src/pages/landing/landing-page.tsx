@@ -130,6 +130,9 @@ export function LandingPage() {
         <span>Браузерная онлайн-игра про Россию девяностых · 18+</span>
         <nav aria-label="Документы">
           <Link to="/politika">Политика обработки персональных данных</Link>
+          <Link to="/soglasie">Согласие на обработку персональных данных</Link>
+          <Link to="/soglashenie">Пользовательское соглашение</Link>
+          <Link to="/cookies">Cookie и push-уведомления</Link>
         </nav>
         <span className="landing__muted">© ООО «АРТЕФАКТУМ», {new Date().getFullYear()}</span>
       </footer>

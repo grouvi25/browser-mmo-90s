@@ -155,7 +155,7 @@ export function RegisterPage() {
 
             <label className="auth-consent">
               <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} />
-              <span>Я согласен с <Link to="/politika" target="_blank" rel="noopener">политикой обработки персональных данных</Link> и даю согласие на обработку своих данных</span>
+              <span>Принимаю <Link to="/soglashenie" target="_blank" rel="noopener">пользовательское соглашение</Link>, ознакомлен с <Link to="/politika" target="_blank" rel="noopener">политикой обработки персональных данных</Link> и даю <Link to="/soglasie" target="_blank" rel="noopener">согласие на обработку персональных данных</Link></span>
             </label>
 
             <button

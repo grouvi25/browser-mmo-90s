@@ -88,7 +88,14 @@ type TemplateLike = {
   antiCounter?: number | null
   hpBonus?: number | null
 }
-type ItemLike = { id: string; durabilityCurrent?: number; bonuses?: unknown; template: TemplateLike } | null | undefined
+type ItemLike = {
+  id: string
+  durabilityCurrent?: number
+  bonuses?: unknown
+  template: TemplateLike
+  /** Effective values supplied by profile/UI calculations (e.g. armor upgrades). */
+  effective?: { antiCrit?: number | null }
+} | null | undefined
 
 const zeroStats = (): GearStats => ({ str: 0, end: 0, luck: 0, agi: 0, acc: 0, agr: 0, rea: 0 })
 const zeroCharms = (): Record<CharmKey, number> => ({ antiDodge: 0, antiLuck: 0, antiCrit: 0, antiCounter: 0 })
@@ -179,9 +186,11 @@ export function gearOf(items: ItemLike[]): GearBonuses {
     for (const [key, amount] of Object.entries(normalizeStatBonuses(t.statBonuses)) as [GearStatKey, number][]) {
       gear.stats[key] += amount
     }
-    // Плюс — в свой оберег, минус — в минус-оберег против противника.
+    // Улучшение анти-крита уже учтено в effective, если вызывающая сторона
+    // передала рассчитанные характеристики предмета.
+    const antiCrit = item.effective?.antiCrit ?? t.antiCrit ?? 0
     for (const key of CHARM_KEYS) {
-      const value = t[key] ?? 0
+      const value = key === 'antiCrit' ? antiCrit : t[key] ?? 0
       if (value > 0) gear[key] += value
       else if (value < 0) gear.minus[key] += -value
     }

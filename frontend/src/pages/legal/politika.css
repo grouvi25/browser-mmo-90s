@@ -9,3 +9,16 @@
 .politika__back a { color: #7a1010; }
 .politika__back a:hover { text-decoration: none; }
 .politika__back a:focus-visible { outline: 2px solid #7a1010; outline-offset: 2px; }
+
+/* Четыре документа (8.11): переходы между ними, дата редакции, таблица целей. */
+.politika__docs { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 18px; padding-bottom: 10px; border-bottom: 1px solid #c9b8a5; font-size: 14px; }
+.politika__docs a { color: #7a1010; }
+.politika__docs a:hover { text-decoration: none; }
+.politika__docs a:focus-visible { outline: 2px solid #7a1010; outline-offset: 2px; }
+.politika__docs b { color: #241c17; }
+.politika__edition { color: #6f5f68; margin-top: -10px !important; }
+.politika__sheet a { color: #7a1010; overflow-wrap: anywhere; }
+.politika__table { overflow-x: auto; margin: 4px 0 12px; }
+.politika__table table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.politika__table th, .politika__table td { border: 1px solid #c9b8a5; padding: 6px 8px; text-align: left; vertical-align: top; }
+.politika__table th { background: #e6d8bd; }
