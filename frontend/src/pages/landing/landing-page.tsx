@@ -91,7 +91,7 @@ export function LandingPage() {
         <div className="landing__hero-text">
           <p className="landing__kicker">Россия. Девяностые. Твоя история.</p>
           <h1>Твой район.<br />Твои правила.</h1>
-          <p className="landing__sub">Браузерная онлайн-игра · без установки · 18+</p>
+          <p className="landing__sub">Браузерная онлайн-игра · без установки · 12+</p>
           <div className="landing__actions">
             <Link className="landing__btn landing__btn--main" to="/register">Начать свой путь</Link>
             <a className="landing__btn" href="#about">Что за игра?</a>
@@ -127,7 +127,7 @@ export function LandingPage() {
 
       <footer className="landing__footer">
         <b>КООПЕРАТИВ — свои люди. Своё дело.</b>
-        <span>Браузерная онлайн-игра про Россию девяностых · 18+</span>
+        <span>Браузерная онлайн-игра про Россию девяностых · 12+</span>
         <nav aria-label="Документы">
           <Link to="/politika">Политика обработки персональных данных</Link>
           <Link to="/soglasie">Согласие на обработку персональных данных</Link>

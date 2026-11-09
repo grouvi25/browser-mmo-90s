@@ -71,6 +71,14 @@ export async function chatRoutes(fastify: FastifyInstance) {
     return reply.send({ players: await ChatService.online() })
   })
 
+  /** Жалоба на чужую реплику — уходит в поддержку (правила чата, п. 6). */
+  fastify.post<{ Params: { id: string }; Body: { reason?: string } }>('/messages/:id/report', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ reason: z.string().max(600).optional() }).safeParse(req.body ?? {})
+    if (!z.string().uuid().safeParse(req.params.id).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const who = await ChatService.speaker(req.authUser.userId)
+    return reply.code(201).send(await ChatService.report(who.characterId, req.params.id, parsed.data.reason))
+  })
+
   /** Автор правит свою реплику (обращение №57). */
   fastify.patch<{ Params: { id: string }; Body: { body: string } }>('/messages/:id', { preHandler: authenticate }, async (req, reply) => {
     const parsed = z.object({ body: z.string().max(MAX_BODY * 2) }).safeParse(req.body)

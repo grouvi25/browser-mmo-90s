@@ -56,6 +56,8 @@ export interface Ether {
   remove: (id: string) => Promise<void>
   /** Поправить свою реплику (№57). */
   edit: (id: string, body: string) => Promise<boolean>
+  /** Пожаловаться на чужую реплику: уходит в поддержку. */
+  report: (id: string, reason?: string) => Promise<void>
 }
 
 /** Сколько минут после отправки реплику можно поправить — как на сервере. */
@@ -134,6 +136,15 @@ export function useEther(): Ether {
     }
   }, [qc])
 
+  const report = useCallback(async (id: string, reason?: string) => {
+    try {
+      await chatApi.report(id, reason)
+      setNotice('Жалоба отправлена в поддержку.')
+    } catch (error) {
+      setNotice(error instanceof ApiError ? error.message : 'Жалоба не ушла.')
+    }
+  }, [])
+
   const messages = useMemo(() => {
     const system: ChatLine[] = (notices.data?.items ?? []).map(n => ({
       id: 'notice-' + n.id, channel: 'GLOBAL', scope: '', authorId: '', nickname: 'Система', level: 0,
@@ -159,6 +170,7 @@ export function useEther(): Ether {
     canModerate: !!char?.isModerator,
     remove,
     edit,
+    report,
   }
 }
 

@@ -57,6 +57,7 @@ export const chatApi = {
   /** Модератор игры удаляет реплику из эфира. */
   remove: (id: string) => api.delete<{ removed: boolean }>(`/api/chat/messages/${id}`),
   edit: (id: string, body: string) => api.patch<ChatLine>(`/api/chat/messages/${id}`, { body }),
+  report: (id: string, reason?: string) => api.post<{ reported: boolean }>(`/api/chat/messages/${id}/report`, { reason }),
 
   online: () => api.get<{ players: OnlinePlayer[] }>('/api/chat/online/list'),
 

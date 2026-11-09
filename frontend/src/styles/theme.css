@@ -497,6 +497,12 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 .ether-edit:active { color: var(--red-dim, #6f0101); }
 .ether-edit:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
 .ether-edited { color: var(--text-dim, #6b5b4a); font-size: .85em; }
+/* Жалоба на чужую реплику (правила чата, п. 6): флажок, заметный только при наведении на строку. */
+.ether-report { margin-left: 4px; padding: 0 3px; border: 0; background: none; cursor: pointer; font: inherit; line-height: 1; color: var(--text-dim, #6b5b4a); opacity: .45; transition: color 120ms, opacity 120ms; }
+.ether-line:hover .ether-report, .ether-report:focus-visible { opacity: 1; }
+.ether-report:hover { color: var(--ink-red); opacity: 1; }
+.ether-report:active { color: var(--red-dim, #6f0101); }
+.ether-report:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
 .ether-editing { display: inline-flex; align-items: center; gap: 2px; padding: 0 6px; font-size: 12px; font-weight: 700; color: var(--ink-red); white-space: nowrap; }
 .ether-editing button { border: 0; background: none; cursor: pointer; font: inherit; font-size: 15px; line-height: 1; padding: 0 3px; color: var(--text-dim, #6b5b4a); }
 .ether-editing button:hover { color: var(--ink-red); }

@@ -1,0 +1,27 @@
+/* Баннер cookie: плашка внизу поверх игры, не сдвигает вёрстку. */
+.cookie-banner {
+  position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 1200;
+  max-width: 760px; margin: 0 auto; padding: 12px 14px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  background: #f4efe6; color: #241c17; border: 1px solid #6f5f68;
+  box-shadow: 0 4px 18px rgba(23, 19, 15, .3); font: 14px/1.45 Arial, sans-serif;
+}
+.cookie-banner p { flex: 1 1 320px; margin: 0; }
+.cookie-banner a { color: #7a1010; }
+.cookie-banner__acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.cookie-banner__btn {
+  min-height: 36px; padding: 6px 14px; border: 1px solid #6f5f68; background: #fffdf8; color: #241c17;
+  font: inherit; cursor: pointer; transition: background .12s, color .12s;
+}
+.cookie-banner__btn:hover { background: #fff; color: #7a1010; }
+.cookie-banner__btn:active { background: #e6d8bd; }
+.cookie-banner__btn:focus-visible { outline: 2px solid #7a1010; outline-offset: 2px; }
+.cookie-banner__btn.is-main { background: #7a1010; border-color: #7a1010; color: #fff; }
+.cookie-banner__btn.is-main:hover { background: #8f1b1b; color: #fff; }
+.cookie-banner__btn.is-main:active { background: #5f0c0c; }
+.cookie-choice { padding: 10px 12px; background: #ece3d3; border: 1px solid #c9b8a5; }
+@media (max-width: 600px) {
+  .cookie-banner { left: 8px; right: 8px; bottom: 8px; }
+  .cookie-banner__acts { width: 100%; }
+  .cookie-banner__btn { flex: 1 1 140px; min-height: 44px; }
+}

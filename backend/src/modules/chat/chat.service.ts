@@ -14,6 +14,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { FLOOD, MAX_BODY, chatDayStart, chatRoom, floodKeys, normalizeBody, privateRoom, scopeFor, type Rejection } from './chat.formulas'
 import { publish } from '../../shared/realtime/io'
+import { SupportService } from '../support/support.service'
 
 /**
  * Сколько ник держится в списке онлайн после последнего действия игрока.
@@ -285,6 +286,34 @@ export const ChatService = {
       publish(chatRoom(line.channel, line.scope), 'chat:edited', line)
     }
     return line
+  },
+
+  /**
+   * Жалоба на реплику (правила чата, п. 6): уходит в поддержку обращением
+   * «Жалоба» с текстом реплики, ником автора и временем по Москве. На свою
+   * реплику и дважды на одну и ту же пожаловаться нельзя. Личное — только
+   * если оно адресовано жалующемуся.
+   */
+  async report(reporterId: string, messageId: string, rawReason: string | undefined) {
+    const row = await prisma.chatMessage.findUnique({
+      where: { id: messageId },
+      select: { id: true, channel: true, scope: true, authorId: true, recipientId: true, body: true, createdAt: true, deletedAt: true, author: { select: { nickname: true } } },
+    })
+    if (!row || (row.channel === 'PRIVATE' && row.recipientId !== reporterId)) throw new AppError(ErrorCode.NOT_FOUND, 'Сообщение не найдено', 404)
+    if (row.authorId === reporterId) throw new AppError(ErrorCode.VALIDATION_ERROR, 'На своё сообщение жаловаться не нужно', 422)
+    if (await prisma.chatReport.findUnique({ where: { messageId_reporterId: { messageId, reporterId } } })) {
+      throw new AppError(ErrorCode.CONFLICT, 'Вы уже пожаловались на это сообщение', 409)
+    }
+    const reason = (rawReason ?? '').replace(/\s+/g, ' ').trim().slice(0, 300)
+    const at = row.createdAt.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    const where = row.channel === 'GLOBAL' ? 'общий чат' : row.channel === 'CLAN' ? 'чат бригады' : row.channel === 'PRIVATE' ? 'личные сообщения' : `район ${row.scope}`
+    const ticket = await SupportService.create(reporterId, {
+      subject: `Жалоба на сообщение ${row.author.nickname}`.slice(0, 120),
+      category: 'COMPLAINT',
+      text: `Жалоба на сообщение игрока ${row.author.nickname} (${where}, ${at} МСК):\n«${row.body}»` + (row.deletedAt ? '\nСообщение уже удалено модератором.' : '') + (reason ? `\n\nПричина: ${reason}` : '') + `\n\nid сообщения: ${row.id}`,
+    })
+    await prisma.chatReport.create({ data: { messageId, reporterId, ticketId: (ticket as { id?: string }).id ?? null } })
+    return { reported: true }
   },
 
   /** Модерация: спрятать реплику, оставив след для разбора жалобы. */

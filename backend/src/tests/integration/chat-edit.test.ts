@@ -83,3 +83,33 @@ describe('правка своей реплики в чате', () => {
     expect((await testPrisma.chatMessage.findUniqueOrThrow({ where: { id: line.id } })).body).toBe('привет')
   })
 })
+
+describe('жалоба на реплику в чате', () => {
+  it('уходит в поддержку обращением «Жалоба» с текстом реплики; на своё и дважды — нельзя', async () => {
+    const author = await player()
+    const reporter = await player()
+    const line = await testPrisma.chatMessage.create({ data: { channel: 'GLOBAL', authorId: author.character.id, body: 'ты лох' } })
+
+    const own = await app.inject({ method: 'POST', url: `/api/chat/messages/${line.id}/report`, headers: author.headers, payload: {} })
+    expect(own.statusCode).toBe(422)
+
+    const ok = await app.inject({ method: 'POST', url: `/api/chat/messages/${line.id}/report`, headers: reporter.headers, payload: { reason: 'оскорбление' } })
+    expect(ok.statusCode).toBe(201)
+    const ticket = await testPrisma.supportTicket.findFirstOrThrow({ where: { characterId: reporter.character.id } })
+    expect(ticket.category).toBe('COMPLAINT')
+    const first = await testPrisma.supportMessage.findFirstOrThrow({ where: { ticketId: ticket.id } })
+    expect(first.text).toContain('«ты лох»')
+    expect(first.text).toContain('Причина: оскорбление')
+
+    const again = await app.inject({ method: 'POST', url: `/api/chat/messages/${line.id}/report`, headers: reporter.headers, payload: {} })
+    expect(again.statusCode).toBe(409)
+    expect(await testPrisma.supportTicket.count({ where: { characterId: reporter.character.id } })).toBe(1)
+  })
+
+  it('на чужую личку пожаловаться нельзя — только получатель', async () => {
+    const a = await player(); const b = await player(); const stranger = await player()
+    const dm = await testPrisma.chatMessage.create({ data: { channel: 'PRIVATE', authorId: a.character.id, recipientId: b.character.id, body: 'привет' } })
+    expect((await app.inject({ method: 'POST', url: `/api/chat/messages/${dm.id}/report`, headers: stranger.headers, payload: {} })).statusCode).toBe(404)
+    expect((await app.inject({ method: 'POST', url: `/api/chat/messages/${dm.id}/report`, headers: b.headers, payload: {} })).statusCode).toBe(201)
+  })
+})

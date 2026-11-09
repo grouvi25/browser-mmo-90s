@@ -2787,3 +2787,16 @@ model ItemTemplateImage {
 
   @@map("item_template_images")
 }
+
+/// Жалоба игрока на реплику в чате (правила чата, п. 6). Одна жалоба одного
+/// игрока на одну реплику; разбирается как обращение в поддержку.
+model ChatReport {
+  id          String   @id @default(uuid())
+  messageId   String   @map("message_id")
+  reporterId  String   @map("reporter_id")
+  ticketId    String?  @map("ticket_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([messageId, reporterId])
+  @@map("chat_reports")
+}

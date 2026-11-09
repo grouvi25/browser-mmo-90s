@@ -181,6 +181,15 @@ export function EtherLine({ line, ether, composer, className = '' }: {
           ✎
         </button>
       )}
+      {!mine && (
+        <button type="button" className="ether-report" aria-label={`Пожаловаться на сообщение ${line.nickname}`} title="Пожаловаться"
+          onClick={() => {
+            const reason = window.prompt(`Жалоба на сообщение ${line.nickname}. За что? (можно оставить пустым)`, '')
+            if (reason !== null) void ether.report(line.id, reason)
+          }}>
+          ⚑
+        </button>
+      )}
       {ether.canModerate && (
         <button type="button" className="ether-remove" aria-label="Удалить сообщение" title="Удалить сообщение"
           onClick={() => { if (window.confirm(`Удалить сообщение ${line.nickname}?`)) void ether.remove(line.id) }}>

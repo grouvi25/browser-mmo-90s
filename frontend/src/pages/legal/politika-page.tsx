@@ -5,6 +5,7 @@
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { LEGAL_DOCS, LEGAL_ORDER, type LegalSlug } from './legal-docs'
+import { CookieChoiceControl } from '../../widgets/cookie-banner/cookie-banner'
 import './politika.css'
 
 const SITE = 'https://kooperativ.space'
@@ -39,6 +40,7 @@ export function LegalPage({ slug }: { slug: LegalSlug }) {
         </nav>
         <h1>{doc.title}</h1>
         <p className="politika__edition">{doc.edition}</p>
+        {slug === 'cookies' && <CookieChoiceControl />}
         {doc.blocks.map((block, index) => {
           if (block.kind === 'table') {
             return <div key={index} className="politika__table"><table>
