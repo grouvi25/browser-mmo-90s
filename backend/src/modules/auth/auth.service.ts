@@ -12,6 +12,13 @@ import { ReferralService } from '../referral/referral.service'
 import { logger } from '../../shared/logger/logger'
 import { Nickname } from '../characters/characters.schemas'
 
+/** Телефон в одном виде: +цифры; 8XXXXXXXXXX и 7XXXXXXXXXX — российский номер. */
+export function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length === 11 && digits.startsWith('8')) return '+7' + digits.slice(1)
+  return '+' + digits
+}
+
 export const AuthService = {
   async register(input: RegisterInput, ip?: string, userAgent?: string) {
     // Защита от массовых регистраций (registration-guard.ts): ловушка,
@@ -58,6 +65,7 @@ export const AuthService = {
       lastIp: ip,
       lastUserAgent: userAgent,
       policyAcceptedAt: new Date(),
+      ...(input.phone ? { phone: normalizePhone(input.phone) } : {}),
     })
 
     // Пригласивший — не повод сорвать регистрацию.

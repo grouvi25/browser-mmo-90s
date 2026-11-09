@@ -117,7 +117,11 @@
 .m-battle__companions:empty { display: none; }
 
 /* ── Хроника внизу: листается на месте ─────────────────────────── */
-.m-battle__log { min-height: 118px; max-height: 150px; display: grid; padding: 4px; }
+.m-battle__log { min-height: 118px; max-height: 150px; display: grid; padding: 4px; overflow: hidden; }
+/* Строки хроники не должны вылезать из своей полосы на чат (обращение №79):
+   список листается внутри, полоса держит высоту. */
+.m-battle__log .battle-chronicle { min-height: 0; overflow: hidden; }
+.m-battle__log .battle-chronicle ol { min-height: 0; overflow-y: auto; margin: 0; }
 /* Старое правило «хроника скрыта на узком экране» (battle-phase-a.css)
    относилось к прежнему мобильному бою; в новом хроника — своя полоса. */
 .m-battle__log .battle-chronicle { display: grid; height: auto; border: 1px solid oklch(46% .04 55); grid-template-rows: 24px minmax(0, 1fr); }

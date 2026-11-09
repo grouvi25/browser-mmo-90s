@@ -15,6 +15,9 @@ export const RegisterSchema = z.object({
   // Ловушка для ботов (скрытое поле формы) и ответ капчи.
   website: z.string().max(200).optional(),
   captchaToken: z.string().max(4000).optional(),
+  // Телефон по желанию (документы 08.11): 10–15 цифр, можно с +, пробелами, скобками и дефисами.
+  phone: z.string().max(32).optional().transform(v => (v ?? '').trim())
+    .refine(v => v === '' || /^\+?[\d\s()-]{10,24}$/.test(v) && v.replace(/\D/g, '').length >= 10 && v.replace(/\D/g, '').length <= 15, 'Телефон: 10–15 цифр, например +7 900 123-45-67'),
   // Ник пригласившего из реферальной ссылки ?ref=.
   ref: z.string().max(64).optional(),
 }).refine(data => !!(data.nickname || data.login), { message: 'Укажите ник', path: ['nickname'] })

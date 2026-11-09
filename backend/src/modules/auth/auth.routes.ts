@@ -25,6 +25,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
     if (!parsed.success) {
       const fields = parsed.error.flatten().fieldErrors
       if (fields.acceptPolicy) return reply.code(422).send({ code: 'GEN_001', message: POLICY_REQUIRED, details: fields })
+      if (fields.phone) return reply.code(422).send({ code: 'GEN_001', message: fields.phone[0], details: fields })
       return reply.code(422).send({
         code: 'GEN_001',
         message: 'Validation error',

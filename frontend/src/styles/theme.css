@@ -552,6 +552,10 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
   border-image: url('../shared/assets/ui/viewport-frame.png') 32 42 / 16px 21px stretch;
   font-size: 13.75px;
 }
+/* Экраны без своей иллюстрации (Склад, Работа, Рынок…) лежат на бумаге: под
+   ними общий фон двора, и текст прямо на рисунке не читался (обращение №81).
+   Места с иллюстрацией (.has-scene) показывают её целиком, раздел — карточкой. */
+.viewport__content:not(.has-scene) { background: rgba(249, 238, 228, .92) padding-box; }
 .viewport__content::-webkit-scrollbar { width: 9px; }
 .viewport__content::-webkit-scrollbar-track { background: rgba(125,106,88,.15); }
 .viewport__content::-webkit-scrollbar-thumb { background: #8a7563; border-radius: 4px; }

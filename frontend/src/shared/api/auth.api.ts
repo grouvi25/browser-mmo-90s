@@ -2,7 +2,7 @@ import { api, setToken, removeToken } from './client'
 import { forgetPushToken } from '../lib/push-bridge'
 
 export const authApi = {
-  register: (data: { nickname?: string; login?: string; email: string; password: string; acceptPolicy?: boolean; website?: string; captchaToken?: string; ref?: string }) =>
+  register: (data: { nickname?: string; login?: string; email: string; password: string; acceptPolicy?: boolean; website?: string; captchaToken?: string; ref?: string; phone?: string }) =>
     api.post<{ id: string; login: string; email: string }>('/api/auth/register', data, { noAuth: true }),
 
   login: (data: { login: string; password: string }) =>

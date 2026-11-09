@@ -81,3 +81,13 @@ export function harvestAmount(crop: CropCode, roll = Math.random()): number {
   const item = CROPS[crop]
   return item.yieldMin + Math.floor(Math.min(0.999999, Math.max(0, roll)) * (item.yieldMax - item.yieldMin + 1))
 }
+
+/**
+ * Опыт Заготовителя за сбор урожая (обращения №72, №75): огород требует уровень
+ * Заготовителя для хмеля, подсолнуха и табака, а опыта не давал — уровень стоял
+ * на нуле. Темп как у смен: около 1 опыта за 3 минуты роста культуры.
+ */
+export const HARVEST_MINUTES_PER_EXP = 3
+export function harvestProfessionExp(crop: CropCode): number {
+  return Math.max(5, Math.round(CROPS[crop].minutes / HARVEST_MINUTES_PER_EXP))
+}

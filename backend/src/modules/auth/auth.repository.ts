@@ -66,6 +66,7 @@ export const AuthRepository = {
     lastIp?: string
     lastUserAgent?: string
     policyAcceptedAt?: Date
+    phone?: string
   }): Promise<User> {
     return prisma.user.create({ data })
   },

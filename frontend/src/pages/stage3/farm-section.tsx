@@ -54,13 +54,15 @@ export function FarmSection() {
       if (kind === 'harvestAll') {
         const plots = farm.data?.plots ?? []
         const got: Record<string, number> = {}
+        let exp = 0
         for (const p of plots.filter(x => x.state === 'READY')) {
           const r = await farmApi.harvest(p.id)
           const name = farm.data?.crops?.find(c => c.code === r.cropCode)?.name ?? r.cropCode
           got[name] = (got[name] ?? 0) + r.amount
+          exp += r.professionExpGain ?? 0
         }
         for (const p of plots.filter(x => x.state === 'WITHERED')) await farmApi.clear(p.id)
-        return got
+        return { got, exp }
       }
       if (kind === 'buy') return farmApi.buyPlot()
       if (kind === 'plant') return farmApi.plant(id!, crop)
@@ -73,8 +75,11 @@ export function FarmSection() {
     },
     onSuccess: (result, v) => {
       setBad(false)
-      const got = v.kind === 'harvestAll' ? Object.entries(result as Record<string, number>).map(([name, n]) => `${name} ${n} шт.`).join(', ') : ''
-      setMsg(v.kind === 'harvestAll' ? (got ? `Собрано: ${got}` : 'Засохшее убрано, участки свободны') : v.kind === 'plantAll' ? 'Засажены все свободные грядки' : v.kind === 'waterAll' ? 'Политы все грядки' : v.kind === 'buy' ? 'Участок куплен' : v.kind === 'plant' ? 'Посажено' : v.kind === 'water' ? 'Полито'
+      const all = v.kind === 'harvestAll' ? result as { got: Record<string, number>; exp: number } : null
+      const got = all ? Object.entries(all.got).map(([name, n]) => `${name} ${n} шт.`).join(', ') : ''
+      const one = v.kind === 'harvest' ? (result as { professionExpGain?: number }).professionExpGain ?? 0 : 0
+      setMsg(v.kind === 'harvestAll' ? (got ? `Собрано: ${got}${all!.exp ? ` · опыт Заготовителя +${all!.exp}` : ''}` : 'Засохшее убрано, участки свободны')
+        : v.kind === 'harvest' && one ? `Урожай собран · опыт Заготовителя +${one}` : v.kind === 'plantAll' ? 'Засажены все свободные грядки' : v.kind === 'waterAll' ? 'Политы все грядки' : v.kind === 'buy' ? 'Участок куплен' : v.kind === 'plant' ? 'Посажено' : v.kind === 'water' ? 'Полито'
         : v.kind === 'harvest' ? 'Урожай собран' : v.kind === 'clear' ? 'Участок убран, можно сажать заново'
         : v.kind === 'worker' ? 'Рабочий нанят — он сам соберёт созревший урожай' : 'Постройка готова')
       void qc.invalidateQueries({ queryKey: ['farm'] })

@@ -192,6 +192,10 @@ function HelperCard({
           <dt>Уровень</dt>
           <dd>{helper.professionLevel} из {helper.skillCap}</dd>
         </div>
+        {helper.dailyShiftCap != null && <div>
+          <dt>Смен сегодня</dt>
+          <dd>{helper.shiftsToday ?? 0} из {helper.dailyShiftCap} · осталось {Math.max(0, helper.dailyShiftCap - (helper.shiftsToday ?? 0))}</dd>
+        </div>}
       </dl>
 
       {shift ? (

@@ -36,4 +36,17 @@ describe('согласие с политикой при регистрации',
     expect(user.policyAcceptedAt).not.toBeNull()
     expect(user.policyAcceptedAt!.getTime()).toBeGreaterThanOrEqual(before - 1000)
   })
+
+  it('телефон по желанию: пустой — без телефона, 8XXXXXXXXXX приводится к +7, мусор — 422 с подсказкой', async () => {
+    const a = uid('nophone')
+    expect((await register({ login: a, email: `${a}@test.local`, password: 'local_pw_123', acceptPolicy: true })).statusCode).toBe(201)
+    expect((await testPrisma.user.findUniqueOrThrow({ where: { login: a } })).phone).toBeNull()
+    const b = uid('phone')
+    expect((await register({ login: b, email: `${b}@test.local`, password: 'local_pw_123', acceptPolicy: true, phone: '8 (900) 123-45-67' })).statusCode).toBe(201)
+    expect((await testPrisma.user.findUniqueOrThrow({ where: { login: b } })).phone).toBe('+79001234567')
+    const c = uid('badphone')
+    const bad = await register({ login: c, email: `${c}@test.local`, password: 'local_pw_123', acceptPolicy: true, phone: 'позвони мне' })
+    expect(bad.statusCode).toBe(422)
+    expect(bad.json<{ message: string }>().message).toContain('Телефон')
+  })
 })

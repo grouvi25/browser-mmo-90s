@@ -91,6 +91,27 @@ describe('farm', () => {
     expect(after.cropCode).toBeNull() // участок освобождается после сбора
   })
 
+  it('урожай качает Заготовителя, если профессия изучена (обращения №72, №75)', async () => {
+    await testPrisma.resourceTemplate.upsert({
+      where: { code: 'res_greens' }, update: {},
+      create: { code: 'res_greens', name: 'Зелень', category: 'PRIMARY', tier: 1, basePrice: 20, weight: 0.1 },
+    })
+    const character = await player('farmexp')
+    await FarmService.list(character.id)
+    const plotId = (await testPrisma.farmPlot.findFirstOrThrow({ where: { characterId: character.id } })).id
+    // Без изученной профессии опыт некуда писать: урожай есть, опыта нет.
+    await FarmService.plant(character.id, plotId, 'dill')
+    await testPrisma.farmPlot.update({ where: { id: plotId }, data: { readyAt: new Date(Date.now() - 1000) } })
+    expect((await FarmService.harvest(character.id, plotId)).professionExpGain).toBe(0)
+    // Изучил — укроп (15 минут роста) даёт минимальные 5 опыта.
+    await testPrisma.characterProfession.create({ data: { characterId: character.id, professionCode: 'procurer', exp: 495 } })
+    await FarmService.plant(character.id, plotId, 'dill')
+    await testPrisma.farmPlot.update({ where: { id: plotId }, data: { readyAt: new Date(Date.now() - 1000) } })
+    expect((await FarmService.harvest(character.id, plotId)).professionExpGain).toBe(5)
+    const prof = await testPrisma.characterProfession.findFirstOrThrow({ where: { characterId: character.id, professionCode: 'procurer' } })
+    expect(prof).toMatchObject({ exp: 500, level: 1 })
+  })
+
   it('rejects harvest before the crop is ready and rejects a second planting on a busy plot', async () => {
     const character = await player('farmer4')
     await FarmService.list(character.id)

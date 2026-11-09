@@ -34,8 +34,9 @@ export function PersistedBattleChronicle({ battleId, refreshKey, playerSide, onO
         : <ol ref={tail}>
           {lines.map(line => <li key={line.id} className={line.side === playerSide ? 'is-mine' : 'is-theirs'}
             title={`Раунд ${line.round}. ${line.actor}${line.target ? ` → ${line.target}` : ''}: ${line.text}`}>
-            <i className="battle-chronicle__clock">[{new Date(line.at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}]</i>
-            <b>{line.actor}</b>
+            <i className="battle-chronicle__clock">[{new Date(line.at).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })}]</i>
+            {/* Кто по кому (обращение №80): цель была только во всплывающей подсказке. */}
+            <b>{line.actor}</b>{line.target && <> → <b className="battle-chronicle__target">{line.target}</b></>}
             <span className={`battle-chronicle__label is-${line.kind}`}>{line.text}</span>
           </li>)}
         </ol>}

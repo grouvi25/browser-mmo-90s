@@ -1,4 +1,5 @@
 ﻿import { prisma } from '../../shared/db/prisma'
+import { professionLevelFromExp } from '../professions/professions'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
@@ -7,7 +8,7 @@ import { ResourcesService } from '../resources/resources.service'
 import { DollarsService } from '../dollars/dollars.service'
 import { NoticesService } from '../chat/notices.service'
 import { logger } from '../../shared/logger/logger'
-import { FARM_WORKER, isYardBuilding, withCellar, YARD_BUILDINGS, type YardBuildingCode, CROPS, FARM_BUILDINGS, FARM_MAX_PLOTS, FARM_MAX_WATERS, FARM_WATER_COOLDOWN_MINUTES, adjacentSlots, applyBuildingBonuses, type CropCode, type FarmBuildingCode, harvestAmount, initialFarmTimers, plotPrice, wateredReadyAt } from './farm.formulas'
+import { FARM_WORKER, isYardBuilding, withCellar, YARD_BUILDINGS, type YardBuildingCode, CROPS, FARM_BUILDINGS, FARM_MAX_PLOTS, FARM_MAX_WATERS, FARM_WATER_COOLDOWN_MINUTES, adjacentSlots, applyBuildingBonuses, type CropCode, type FarmBuildingCode, harvestAmount, harvestProfessionExp, initialFarmTimers, plotPrice, wateredReadyAt } from './farm.formulas'
 
 async function professionLevel(characterId: string): Promise<number> {
   const row = await prisma.characterProfession.findUnique({
@@ -127,7 +128,17 @@ export const FarmService = {
       const resource = await tx.resourceTemplate.findUniqueOrThrow({ where: { code: crop.resourceCode } })
       await ResourcesService.add(tx, { characterId, resourceTemplateId: resource.id, amount, reasonCode: 'FARM_HARVEST', refType: 'farm_plot', refId: plotId })
       await tx.farmPlot.update({ where: { id: plotId }, data: { cropCode: null, plantedAt: null, readyAt: null, withersAt: null, waterCount: 0, lastWateredAt: null } })
-      return { cropCode, resourceCode: crop.resourceCode, amount }
+      // Опыт Заготовителя за урожай — если профессия изучена в Училище.
+      const profession = await tx.characterProfession.findUnique({ where: { characterId_professionCode: { characterId, professionCode: 'procurer' } } })
+      let professionExpGain = 0
+      if (profession) {
+        professionExpGain = harvestProfessionExp(cropCode)
+        const exp = profession.exp + professionExpGain
+        await tx.characterProfession.update({ where: { id: profession.id }, data: { exp, level: professionLevelFromExp(exp) } })
+        const aggregate = await tx.characterProfession.aggregate({ where: { characterId }, _max: { level: true, exp: true } })
+        await tx.character.update({ where: { id: characterId }, data: { productionLevel: aggregate._max.level ?? 0, productionExp: aggregate._max.exp ?? 0 } })
+      }
+      return { cropCode, resourceCode: crop.resourceCode, amount, professionExpGain }
     })
   },
 

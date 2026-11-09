@@ -169,6 +169,9 @@ export interface Helper {
   professionExp: number
   skillCap: number
   activeShift: { id: string; productionObjectId: string; endsAt: string; status: string } | null
+  /** Смен за сегодня и суточная норма (обращение №75). */
+  shiftsToday?: number
+  dailyShiftCap?: number
   /** Боевой помощник: тактика, уровень, опыт, здоровье в бою. */
   tactic?: 'ATTACK' | 'STANDARD' | 'DEFENSIVE'
   combatLevel?: number

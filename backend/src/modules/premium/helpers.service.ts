@@ -132,6 +132,11 @@ export const HelpersService = {
         distinct: ['requiredProfessionCode'],
       }),
     ])
+    // Смены помощника за сегодня — чтобы игрок видел остаток нормы (обращение №75).
+    const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0)
+    const todayCounts = new Map((await prisma.workShift.groupBy({
+      by: ['helperId'], where: { helperId: { in: helpers.map(h => h.id) }, startedAt: { gte: dayStart } }, _count: { _all: true },
+    })).map(row => [row.helperId, row._count._all]))
     return {
       items: helpers.map(helper => ({
         id: helper.id,
@@ -146,6 +151,8 @@ export const HelpersService = {
         professionExp: helper.professionExp,
         skillCap: H.skillCap,
         activeShift: helper.activeShift,
+        shiftsToday: todayCounts.get(helper.id) ?? 0,
+        dailyShiftCap: H.dailyShiftCap,
         // Боевой помощник: уровень, опыт до следующего, здоровье, тактика.
         tactic: helper.tactic,
         combatLevel: helper.combatLevel,
