@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { markNewcomerLetter } from '../../shared/lib/newcomer-letter'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { User, Check } from 'lucide-react'
@@ -32,7 +33,8 @@ export function CreateCharacterPage() {
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => charactersApi.create({ nickname: nickname.trim(), archetype, gender }),
-    onSuccess: () => navigate('/profile'),
+    // Новичку — письмо Бывалого (Дмитрий 09.11): окно откроется в игре.
+    onSuccess: () => { markNewcomerLetter(); navigate('/profile') },
     onError: (err) => {
       if (err instanceof ApiError) {
         if (err.status === 409) setError('Этот никнейм уже занят')

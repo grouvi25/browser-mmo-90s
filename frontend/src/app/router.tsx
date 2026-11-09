@@ -8,6 +8,7 @@ import { PublicLayout } from './layouts/public-layout'
 import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
 import { SCENES } from '../shared/ui/sprite'
+import { NewcomerLetterPage } from '../widgets/welcome/newcomer-letter-page'
 import { loginDestination, loginUrl } from '../shared/lib/login-redirect'
 import { ResumeLocation } from './location-persistence'
 import { CityPage } from '../pages/locations/city-page'
@@ -340,6 +341,10 @@ export function AppRouter() {
         <Route path="/updates" element={
           <ViewportPanel title="Обновления" subtitle="История изменений">
             <AnnouncementsFeed kind="PATCH" empty="Об изменениях ещё не объявляли." />
+          </ViewportPanel>} />
+        <Route path="/novichok" element={
+          <ViewportPanel title="Кодекс выживания" subtitle="Письмо Бывалого приезжему">
+            <NewcomerLetterPage />
           </ViewportPanel>} />
         <Route path="/library" element={
           <ViewportPanel title="Библиотека" subtitle="Что где делать">

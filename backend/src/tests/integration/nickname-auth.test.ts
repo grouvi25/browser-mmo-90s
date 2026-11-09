@@ -78,7 +78,7 @@ describe('Вход по нику', () => {
     const char = await CharactersService.create(reg.id, { archetype: 'STREET' })
     const result = await prisma.$transaction(tx => EconomyService.grantEconomicExp(tx, char.id, BalanceConfig.economicExp.levelThresholds[1]))
     expect(result.levelsGained).toBe(1)
-    const notice = await testPrisma.gameNotice.findFirstOrThrow({ where: { characterId: char.id } })
+    const notice = await testPrisma.gameNotice.findFirstOrThrow({ where: { characterId: char.id, text: { startsWith: 'Новый экономический' } } })
     expect(notice.text).toBe(`Новый экономический уровень 1: +1 к силе, +${result.levelMoney.toLocaleString('ru-RU')} ₽.`)
   })
 })

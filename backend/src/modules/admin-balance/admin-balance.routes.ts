@@ -5,6 +5,7 @@
 // через журнал с обратной операцией: правило Этапа 5 «ничего без причины
 // и ничего без отмены» распространяется и на правку баланса.
 // =============================================================
+import { TemplateImages } from '../items/template-images'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
@@ -448,6 +449,19 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     weight: z.number().min(0).max(100).optional(),
     isTradable: z.boolean().optional(),
     isActive: z.boolean().optional(),
+  })
+
+  // Картинка вещи (Дима 09.11). Загрузка заменяет прежнюю, удаление возвращает
+  // картинку по умолчанию.
+  fastify.put<{ Params: { code: string }; Body: { dataUrl: string } }>('/catalog/item/:code/image', { ...CATALOG_ADMIN, bodyLimit: 260_000 }, async (req, reply) => {
+    const parsed = z.object({ dataUrl: z.string().max(240_000) }).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Картинка не прочиталась' })
+    const saved = await TemplateImages.set(req.params.code, parsed.data.dataUrl)
+    req.log.info({ admin: req.adminUser?.label, code: saved.code, version: saved.version }, '[Admin] item image set')
+    return reply.send(saved)
+  })
+  fastify.delete<{ Params: { code: string } }>('/catalog/item/:code/image', CATALOG_ADMIN, async (req, reply) => {
+    return reply.send(await TemplateImages.remove(req.params.code))
   })
 
   fastify.patch<{ Params: { code: string } }>('/catalog/resource/:code', CATALOG_ADMIN, async (req, reply) => {

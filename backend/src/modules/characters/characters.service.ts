@@ -8,6 +8,7 @@ import { BalanceConfig } from '../../config/balance.config'
 import { audit } from '../../shared/logger/audit-logger'
 import { Nickname, type CreateCharacterInput } from './characters.schemas'
 import { AuthRepository } from '../auth/auth.repository'
+import { NoticesService } from '../chat/notices.service'
 import { prisma } from '../../shared/db/prisma'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
@@ -70,6 +71,10 @@ export const CharactersService = {
 
     // Create stats
     await CharactersRepository.createStats(char.id, { ...base, pointsAvailable })
+
+    // Письмо Бывалого новичку (Дмитрий 09.11): строка в ленте «Системы», сам текст — на /novichok.
+    await NoticesService.push(char.id, `Бывалый оставил тебе письмо, ${char.nickname}: «Кодекс выживания приезжего». Читай в Библиотеке → «С чего начать» или по адресу kooperativ.space/novichok`)
+      .catch(() => undefined)
 
     audit('character.created', {
       userId,

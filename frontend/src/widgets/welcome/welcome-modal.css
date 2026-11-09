@@ -10,3 +10,11 @@
 .welcome__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .welcome__ok { font-weight: 700; }
 @media (max-width: 420px) { .welcome__actions .btn { flex: 1 1 100%; justify-content: center; } }
+
+/* Письмо Бывалого новичку (09.11): длиннее окна приветствия. */
+.welcome__box--letter { width: min(100%, 620px); }
+.newcomer-letter p { margin: 0 0 8px; line-height: 1.45; overflow-wrap: anywhere; }
+.newcomer-letter ol { margin: 0 0 8px; padding-left: 20px; }
+.newcomer-letter ol > li { margin-bottom: 6px; line-height: 1.45; }
+.newcomer-letter ul { margin: 4px 0 0; padding-left: 18px; }
+.newcomer-letter a { color: #7a1010; }

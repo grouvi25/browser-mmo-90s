@@ -2775,3 +2775,15 @@ model Payment {
   @@index([status, createdAt])
   @@map("payments")
 }
+
+/// Картинка шаблона вещи из админки (Дима 09.11: «хочу оружие добавлять, а фото
+/// крепить нельзя»). Отдельно от шаблона: base64 не тянется в каждый запрос вещей.
+model ItemTemplateImage {
+  code      String   @id
+  mime      String
+  data      String
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("item_template_images")
+}

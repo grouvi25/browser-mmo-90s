@@ -5,6 +5,7 @@ import { UpdateWatcher } from './app/update-watcher'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { App } from './app/App'
 import { rememberReferral } from './shared/lib/referral'
+import { loadTemplateImages } from './shared/assets/shop/shop-images'
 import './styles/global.css'
 import './styles/theme.css'
 import './styles/mobile.css'
@@ -28,7 +29,8 @@ const queryClient = new QueryClient({
   },
 })
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+// Картинки вещей из админки нужны до первой отрисовки: функция картинки вещи синхронная.
+void loadTemplateImages().finally(() => ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -37,4 +39,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,
-)
+))

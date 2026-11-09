@@ -462,6 +462,9 @@ export const adminApi = {
   overviewDetail: (kind: string) => request<OverviewDetail>(`/api/admin/overview/${kind}`),
 
   catalog: () => request<Catalog>('/api/admin/catalog'),
+  /** Картинка вещи (Дима 09.11): dataUrl PNG/JPEG/WebP до 150 КБ. */
+  setItemImage: (code: string, dataUrl: string) => request<{ code: string; version: number }>(`/api/admin/catalog/item/${encodeURIComponent(code)}/image`, { method: 'PUT', body: { dataUrl } }),
+  removeItemImage: (code: string) => request<{ removed: boolean }>(`/api/admin/catalog/item/${encodeURIComponent(code)}/image`, { method: 'DELETE' }),
 
   /**
    * Правка справочника: цены ресурсов, госмагазина, бара и оклады

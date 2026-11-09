@@ -1,3 +1,4 @@
+import { TemplateImages } from '../items/template-images'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { authenticate } from '../../shared/security/auth-middleware'
 import { CharactersRepository } from '../characters/characters.repository'
@@ -118,6 +119,19 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
   })
 
   // Без авторизации, как иконка бригады: картинку грузит тег <img>.
+  // Картинки шаблонов из админки: список «код → версия» и сама картинка.
+  fastify.get('/template-images', async (_req, reply) => {
+    return reply.header('Cache-Control', 'public, max-age=60').send(await TemplateImages.list())
+  })
+  fastify.get<{ Params: { code: string } }>('/template-images/:code', async (req, reply) => {
+    if (!/^[\w-]{1,80}$/.test(req.params.code)) return reply.code(404).send()
+    const image = await TemplateImages.get(req.params.code)
+    if (!image) return reply.code(404).send()
+    // Картинка публичная: приложение и стенд могут брать её с другого адреса.
+    return reply.header('Content-Type', image.mime).header('Cache-Control', 'public, max-age=31536000, immutable')
+      .header('Cross-Origin-Resource-Policy', 'cross-origin').send(image.bytes)
+  })
+
   fastify.get<{ Params: { id: string } }>('/items/:id/icon', async (req, reply) => {
     const icon = await ItemStatsService.icon(req.params.id)
     if (!icon) return reply.code(404).send()

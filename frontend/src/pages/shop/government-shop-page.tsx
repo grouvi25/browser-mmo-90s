@@ -12,7 +12,7 @@ import { barsApi } from '../../shared/api/bars.api'
 import { charactersApi } from '../../shared/api/characters.api'
 import { QUALITY_LABELS, type ShopItem } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
-import { SHOP_IMAGES } from '../../shared/assets/shop/shop-images'
+import { SHOP_IMAGES, templateImageUrl } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
 import { itemStatLines } from '../../shared/lib/item-stat-lines'
 import { DogGoods } from '../locations/dog-goods'
@@ -53,7 +53,7 @@ const CATEGORIES: Array<{ key: Category; label: string; match?: (item: ShopItem)
 const money = (value: number) => value.toLocaleString('ru-RU')
 
 function itemImage(item: ShopItem) {
-  return SHOP_IMAGES[item.template.code] ?? SHOP_IMAGES.weapon_fists
+  return templateImageUrl(item.template.code) ?? SHOP_IMAGES[item.template.code] ?? SHOP_IMAGES.weapon_fists
 }
 
 /** Строки бонусов под названием — как в макете: «Силы +2», «Броня тела +20». */

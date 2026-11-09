@@ -18,6 +18,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Swords } from 'lucide-react'
 import { adminApi, type CombatResult, type CombatSide, type Fighter, type ItemTemplateRow } from '../admin-api'
 import { Skeleton, Fault } from '../../stage3/stage3-ui'
+import { itemImage, setTemplateImage, templateImageUrl } from '../../../shared/assets/shop/shop-images'
+import { fitImage } from '../../../shared/lib/image-resize'
 import { ItemCreateForm } from './item-create-form'
 import { CHARMS, GEAR_STATS, KINDS, shopTitle } from './item-catalog'
 
@@ -339,6 +341,42 @@ function gives(item: ItemTemplateRow): string {
   return parts.length ? parts.join(', ') : '—'
 }
 
+/** Картинка вещи в списке: миниатюра, загрузка своей и сброс (Дима 09.11). */
+function ItemImageCell({ item, canEdit }: { item: ItemTemplateRow; canEdit: boolean }) {
+  const [, setTick] = useState(0)
+  const [error, setError] = useState('')
+  const own = !!templateImageUrl(item.code)
+  const save = useMutation({
+    mutationFn: (dataUrl: string) => adminApi.setItemImage(item.code, dataUrl),
+    onSuccess: saved => { setError(''); setTemplateImage(item.code, saved.version); setTick(t => t + 1) },
+    onError: (err: Error) => setError(err.message),
+  })
+  const reset = useMutation({
+    mutationFn: () => adminApi.removeItemImage(item.code),
+    onSuccess: () => { setTemplateImage(item.code, null); setTick(t => t + 1) },
+    onError: (err: Error) => setError(err.message),
+  })
+  const src = itemImage(item.code, item.weaponType, item.type)
+  return (
+    <span className="adm-item-image">
+      {src ? <img src={src} alt="" width={40} height={40} /> : <span className="adm-item-image__none">нет</span>}
+      {canEdit && <span className="adm-item-image__acts">
+        <label className="adm-link">
+          {save.isPending ? 'грузим…' : own ? 'сменить картинку' : 'картинка'}
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden disabled={save.isPending} onChange={async event => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (!file) return
+            try { save.mutate(await fitImage(file, 256)) } catch (err) { setError(err instanceof Error ? err.message : 'Не вышло') }
+          }} />
+        </label>
+        {own && <button type="button" className="adm-link" disabled={reset.isPending} onClick={() => reset.mutate()}>сбросить</button>}
+      </span>}
+      {error && <small role="alert" className="adm-bad">{error}</small>}
+    </span>
+  )
+}
+
 function ItemRow({ item, canEdit, onEdit, onCopy }: { item: ItemTemplateRow; canEdit: boolean; onEdit: () => void; onCopy: () => void }) {
   const base = item.minDamage != null
     ? `урон ${item.minDamage}–${item.maxDamage}${item.weaponAccuracy != null ? `, точн. ${Math.round(item.weaponAccuracy * 100)}%` : ''}`
@@ -349,7 +387,7 @@ function ItemRow({ item, canEdit, onEdit, onCopy }: { item: ItemTemplateRow; can
     : 'не продаётся'
   return (
     <tr className={item.isActive === false ? 'is-muted' : undefined}>
-      <td>{item.name}<em className="adm-row__hint">{item.code}</em></td>
+      <td><ItemImageCell item={item} canEdit={canEdit} />{item.name}<em className="adm-row__hint">{item.code}</em></td>
       <td className="num">{item.levelReq ?? '—'}</td>
       <td>{sales}</td>
       <td>{base}</td>

@@ -53,3 +53,29 @@ export async function screenshotImage(file: File, maxSide = 1600, maxBytes = 650
     URL.revokeObjectURL(url)
   }
 }
+
+/**
+ * Картинка вещи для админки (09.11): вписать без обрезки в side×side, прозрачный
+ * фон сохраняется, WebP — чтобы оружие и броня весили десятки килобайт.
+ */
+export async function fitImage(file: File, side = 256): Promise<string> {
+  if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) throw new Error('Нужна картинка PNG, JPEG, WebP или GIF')
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('Картинка не открылась'))
+      el.src = url
+    })
+    const scale = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+    const webp = canvas.toDataURL('image/webp', 0.9)
+    return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png')
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
