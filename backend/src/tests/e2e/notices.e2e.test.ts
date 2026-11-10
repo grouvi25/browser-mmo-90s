@@ -27,7 +27,8 @@ describe('E2E: уведомления в чате по действиям', () =
 
     // Запись идёт после ответа: даём ей мгновение.
     // Письмо Бывалого новичку (09.11) приходит при создании персонажа — его не считаем.
-    const own = (list: Array<{ text: string }>) => list.filter(n => !n.text.startsWith('Бывалый'))
+    // И строка о подарочной подписке новичку (11.11) — тоже.
+    const own = (list: Array<{ text: string }>) => list.filter(n => !n.text.startsWith('Бывалый') && !n.text.startsWith('Тебе подарена подписка'))
     let items: Array<{ text: string }> = []
     for (let i = 0; i < 20 && items.length < 2; i++) {
       await new Promise(r => setTimeout(r, 150))
