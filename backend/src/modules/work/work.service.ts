@@ -31,6 +31,12 @@ async function recordMissingToolBlock(now: Date): Promise<void> {
   }
 }
 
+/** Сколько здоровья нужно для смены (обращение №61). null — проверки нет. */
+export function shiftHpNeed(hpMax: number): number | null {
+  const share = WORK_LIMITS.minHpShare ?? 0
+  return share > 0 ? Math.ceil(hpMax * share) : null
+}
+
 function utcDayRange(now = new Date()) {
   const start = new Date(now)
   start.setUTCHours(0, 0, 0, 0)
@@ -98,6 +104,9 @@ export const WorkService = {
     return {
       // Обращение №29: раньше отдых узнавали, только нажав «Выйти».
       restUntil,
+      // Обращение №61: сколько здоровья нужно для смены — экран пишет причину до нажатия.
+      hpGate: await prisma.character.findUnique({ where: { id: characterId }, select: { hpCurrent: true, hpMax: true } })
+        .then(c => c && shiftHpNeed(c.hpMax) !== null ? { need: shiftHpNeed(c.hpMax)!, have: c.hpCurrent } : null),
       items: vacancies.map(object => {
         const profession = professionByCode.get(object.requiredProfessionCode)
         const level = profession?.level ?? 0
@@ -251,6 +260,10 @@ export const WorkService = {
         }
       }
       if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 400)
+      const hpNeed = shiftHpNeed(character.hpMax)
+      if (hpNeed !== null && character.hpCurrent < hpNeed) {
+        throw new AppError(ErrorCode.WORK_HP_LOW, `На смену — с ${Math.round((WORK_LIMITS.minHpShare ?? 0) * 100)}% здоровья: сейчас ${character.hpCurrent} из ${character.hpMax}, нужно ${hpNeed}`, 409, { hpNeed, hpCurrent: character.hpCurrent })
+      }
       const craft = awaitsOwner(object) ? await govCraftRecipe(tx, object.code, recipeId, existingProfession.level) : null
       // Партия бывает только у госкрафта: на обычной смене выработку задаёт объект.
       const quantity = craft ? craftQuantity : 1

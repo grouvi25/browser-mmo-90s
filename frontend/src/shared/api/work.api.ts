@@ -25,7 +25,7 @@ export interface WorkShiftView {
   profession:ProfessionView|null; isReady:boolean; remainingSeconds:number; productionObject:{name:string;code:string}; toolInstance:{id:string;usesLeft:number|null;template:{name:string;toolTier:number|null}}|null
 }
 export const workApi={
- objects:()=>request<{restUntil?:RestUntil;items:ProductionObjectView[];professions:ProfessionView[];daily:{shiftsUsedToday:number;shiftsLimit:number;minutesUsedToday?:number;minutesLimit?:number}}>('/api/work/objects'),
+ objects:()=>request<{restUntil?:RestUntil;hpGate?:{need:number;have:number}|null;items:ProductionObjectView[];professions:ProfessionView[];daily:{shiftsUsedToday:number;shiftsLimit:number;minutesUsedToday?:number;minutesLimit?:number}}>('/api/work/objects'),
  current:()=>request<{restUntil?:RestUntil;shift:WorkShiftView|null;daily:{shiftsUsedToday:number;shiftsLimit:number;minutesUsedToday?:number;minutesLimit?:number}}>('/api/work/shifts/current'),
  start:(productionObjectId:string,recipeId?:string,quantity=1)=>request<{shift:WorkShiftView;profession:ProfessionView}>('/api/work/shifts/start',{method:'POST',body:recipeId?{productionObjectId,recipeId,...(quantity>1?{quantity}:{})}:{productionObjectId}}),
  claim:(shiftId:string)=>request<{salary:number;professionCode:string;professionExpGain:number;professionExp:number;professionLevel:number;resourceReward:{code:string;amount:number}|null;toolUse:{itemId:string;usesLeft:number}|null;crafted?:{kind:'resource'|'item';name:string;amount:number}|null}>(`/api/work/shifts/${shiftId}/claim`,{method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()}}),

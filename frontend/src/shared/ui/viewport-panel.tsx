@@ -6,7 +6,7 @@
 // «в меню есть кнопка В ЦЕНТР, но так же сверху справа появляется —
 // убрать справа сверху везде»): в город ведёт ЦЕНТР нижней полосы.
 // =============================================================
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 export function ViewportPanel({
   title, subtitle, scene, children,
@@ -20,6 +20,9 @@ export function ViewportPanel({
   scene?: string
   children: ReactNode
 }) {
+  // Обращение №68: карточка раздела (форма бригады в Мэрии) закрывала здание —
+  // её можно убрать и посмотреть картинку целиком.
+  const [sheetHidden, setSheetHidden] = useState(false)
   if (scene) {
     return (
       <div className="viewport__content has-scene" tabIndex={0} role="region" aria-label={title}
@@ -27,8 +30,10 @@ export function ViewportPanel({
         <div className="scene-head">
           <h1 className="viewport__title">{title}</h1>
           {subtitle && <span className="viewport__subtitle">{subtitle}</span>}
+          <button type="button" className="scene-toggle" aria-expanded={!sheetHidden}
+            onClick={() => setSheetHidden(v => !v)}>{sheetHidden ? 'Показать' : 'Скрыть'}</button>
         </div>
-        <div className="scene-sheet">{children}</div>
+        <div className="scene-sheet" hidden={sheetHidden}>{children}</div>
       </div>
     )
   }

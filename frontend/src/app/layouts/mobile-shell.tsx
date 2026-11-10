@@ -78,8 +78,8 @@ export function MobileShell() {
         <button type="button" className="m-top__who" onClick={() => navigate('/profile')}>
           <span className="m-top__nick">{char?.nickname ?? '—'}</span>
           <span className="m-top__stats">
-            <b className="stat-num--energy">{char?.battleLevel ?? 0}</b>
-            <b className="stat-num--hp">{char?.hpCurrent ?? 0}</b>
+            <b className="stat-num--energy" title="Боевой уровень">{char?.battleLevel ?? 0}</b>
+            <b className="stat-num--hp" title="Здоровье">{char?.hpCurrent ?? 0}</b>
           </span>
         </button>
         <span className="m-top__money">{(char?.money ?? 0).toLocaleString('ru')} ₽{char?.dollars ? ` · ${char.dollars.toLocaleString('ru')} $` : ''}</span>

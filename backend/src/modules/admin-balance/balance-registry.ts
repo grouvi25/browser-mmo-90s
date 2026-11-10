@@ -310,6 +310,7 @@ export function balanceRegistry(): BalanceGroup[] {
           params: [
             p('economy.work.salaryFatigueStep', B.economy.work.salaryFatigueStep, 'на сколько дешевеет каждая следующая'),
             p('economy.work.salaryFatigueFloor', B.economy.work.salaryFatigueFloor, 'ниже этой доли не падает'),
+            p('economy.work.minHpShare', B.economy.work.minHpShare, 'доля здоровья для выхода на смену, 0 — без проверки'),
             p('economy.work.restMinutesAfterShift', B.economy.work.restMinutesAfterShift, 'минут отдыха после закрытой смены до следующей'),
           ],
           source: 'modules/work/work.formulas.ts:26',

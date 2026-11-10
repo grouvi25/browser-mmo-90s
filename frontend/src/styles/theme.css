@@ -1138,6 +1138,13 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
   background: rgba(250, 234, 221, .88); border: 1px solid #2b2b2b; padding: 3px 12px;
 }
 .scene-head .viewport__title { font-size: 20px; }
+/* Скрыть/показать карточку поверх картинки: ширина задана, смена надписи ничего не двигает. */
+.scene-toggle { min-width: 84px; min-height: 26px; padding: 2px 8px; border: 1px solid #2b2b2b; background: #fbf3e8; color: #2b2b2b; font: inherit; font-size: 13px; cursor: pointer; align-self: center; }
+.scene-toggle:hover { background: #fff; }
+.scene-toggle:active { background: #ead9c4; }
+.scene-toggle:focus-visible { outline: 2px solid #8a3b12; outline-offset: 1px; }
+.scene-sheet[hidden] { display: none; }
+@media (max-width: 600px) { .scene-toggle { min-height: 36px; } }
 .scene-sheet {
   width: min(100%, 760px); margin-top: auto;
   background: rgba(250, 234, 221, .93); border: 1px solid #2b2b2b;

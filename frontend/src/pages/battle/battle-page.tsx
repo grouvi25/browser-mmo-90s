@@ -737,7 +737,7 @@ export function BattlePage() {
               <span>Дистанция: <b>{currentDistance}</b></span>
               <span>Дальность: <b>{playerRange ?? '—'}</b></span>
               <span className={'battle-desk__plan' + (ready ? ' is-ready' : '')}>
-                {selectedMove ? 'Выбран шаг' : validation.valid ? 'Ход готов' : validation.reason}
+                {selectedMove ? 'Шаг: в этот ход без удара и блока' : validation.valid ? 'Ход готов' : validation.reason}
               </span>
               <span className="m-battle__buttons">
                 <button type="button" disabled={planEmpty} onClick={resetPlan}>Сбросить</button>
@@ -824,7 +824,7 @@ export function BattlePage() {
             <span>Дистанция: <b>{currentDistance}</b></span>
             <span title="Сколько клеток достаёт оружие; у дальнобойного они подсвечены голубым">Дальность: <b>{playerRange ?? '—'}</b></span>
             <span className={'battle-desk__plan' + (ready ? ' is-ready' : '')}>
-              {selectedMove ? 'Выбран шаг' : validation.valid ? 'Ход готов' : validation.reason} · {budget.attacks} уд. / {budget.blocks} бл.
+              {selectedMove ? 'Шаг: в этот ход без удара и блока' : validation.valid ? 'Ход готов' : validation.reason} · {budget.attacks} уд. / {budget.blocks} бл.
             </span>
             <span className="battle-desk__buttons">
               <button type="button" disabled={planEmpty} onClick={resetPlan}>Сбросить</button>

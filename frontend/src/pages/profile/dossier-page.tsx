@@ -270,13 +270,24 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
           {dossier.map((line, i) => <div key={i}>{line || ' '}</div>)}
         </div>
 
+        {/* Обращение №71: на телефоне нет наведения, подсказка title не всплывает —
+            название вещи подписано под ячейкой. */}
         <div className="m-dossier__slots">
-          <SpriteButton name={weaponSprite(weapon?.weaponType)} src={weapon?.image} box={{ x: 0, y: 0, w: 92, h: 94 }} empty={!weapon}
-            title={weapon ? weapon.title : 'Оружие не надето'} disabled={!own} onClick={own ? () => navigate('/inventory') : undefined} />
-          <SpriteButton name={weaponSprite(offhand?.weaponType)} src={offhand?.image} box={{ x: 0, y: 0, w: 84, h: 88 }} empty={!offhand}
-            title={offhand ? offhand.title : 'Правая рука свободна'} disabled={!own} onClick={own ? () => navigate('/inventory') : undefined} />
-          <SpriteButton name="p-item-dog" box={{ x: 0, y: 0, w: 62, h: 93 }} empty={!view?.dog}
-            title={dogTitle(view?.dog)} disabled={!own} onClick={own ? () => navigate('/pet-shop') : undefined} />
+          <figure className="m-dossier__slot">
+            <SpriteButton name={weaponSprite(weapon?.weaponType)} src={weapon?.image} box={{ x: 0, y: 0, w: 92, h: 94 }} empty={!weapon}
+              title={weapon ? weapon.title : 'Оружие не надето'} disabled={!own} onClick={own ? () => navigate('/inventory') : undefined} />
+            <figcaption>{weapon ? weapon.title : 'оружия нет'}</figcaption>
+          </figure>
+          <figure className="m-dossier__slot">
+            <SpriteButton name={weaponSprite(offhand?.weaponType)} src={offhand?.image} box={{ x: 0, y: 0, w: 84, h: 88 }} empty={!offhand}
+              title={offhand ? offhand.title : 'Правая рука свободна'} disabled={!own} onClick={own ? () => navigate('/inventory') : undefined} />
+            <figcaption>{offhand ? offhand.title : 'правая рука свободна'}</figcaption>
+          </figure>
+          <figure className="m-dossier__slot">
+            <SpriteButton name="p-item-dog" box={{ x: 0, y: 0, w: 62, h: 93 }} empty={!view?.dog}
+              title={dogTitle(view?.dog)} disabled={!own} onClick={own ? () => navigate('/pet-shop') : undefined} />
+            <figcaption>{view?.dog ? view.dog.name : 'собаки нет'}</figcaption>
+          </figure>
         </div>
 
         <div className="m-dossier__notes">

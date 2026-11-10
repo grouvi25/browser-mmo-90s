@@ -1619,6 +1619,7 @@ export const BattleService = {
         // Ход уже совершён — убираем его из отложенного, иначе
         // разрешение раунда сдвинет фигуру второй раз.
         turn.moveTo = undefined
+        turn.moved = true
         await prisma.battleTurn.create({
           data: {
             battleId, roundNumber: state.roundNumber,
@@ -1870,6 +1871,8 @@ export const BattleService = {
       })
       let intercepted = 0
       for (const r of res.results) {
+        // Обращение №69: ход с перемещением идёт без блоков, а в журнале выглядело как удар мимо блока.
+        if (playerTurn.moveTo && r.hit && !r.dodge && !r.block) r.logParts.push('блока не было: ход ушёл на перемещение')
         if (r.hit && !r.dodge && !r.block && helperIntercepts(helper, playerPart.position)) {
           // Помощник принял удар на себя: урон идёт в него, не в хозяина.
           damageHelper(helper!, r.finalDamage); botPart.hitsLanded++; intercepted += r.finalDamage
@@ -2328,6 +2331,7 @@ export const BattleService = {
       })
       let intercepted = 0
       for (const r of res.results) {
+        if ((targetCtx.turn.moveTo || targetCtx.turn.moved) && r.hit && !r.dodge && !r.block) r.logParts.push('блока не было: ход ушёл на перемещение')
         if (r.hit && !r.dodge && !r.block && helperIntercepts(target.helper, target.position)) {
           // Помощник цели принял удар на себя.
           damageHelper(target.helper!, r.finalDamage); actor.hitsLanded++; intercepted += r.finalDamage
@@ -2606,6 +2610,7 @@ export const BattleService = {
         },
       })
       for (const r of res.results) {
+        if ((defTurn.moveTo || defTurn.moved) && r.hit && !r.dodge && !r.block) r.logParts.push('блока не было: ход ушёл на перемещение')
         if (r.hit && !r.dodge && !r.block) {
           const stripped = registerWound(defPart, r.zone, r.finalDamage)
           if (stripped) r.logParts.push(stripped)

@@ -49,6 +49,8 @@ export interface ZonalTurnInput {
   attackHands: AttackHand[]
   blockZones: BodyZone[]
   moveTo?: { x: number; y: number }
+  /** Шаг уже применён сразу (PvP), но ход по-прежнему без блоков — для журнала (обращение №69). */
+  moved?: boolean
   targetParticipantId?: string
   /** Этап 4: переодевание в бою. Смена оружия — очко хода, брони — весь ход. */
   swapWeapon?: { hand: AttackHand; itemInstanceId: string }

@@ -141,6 +141,16 @@ describe('госкрафт', () => {
     expect(await stack(input.id)).toMatchObject({ amount: 12, reservedAmount: 0 })
   })
 
+  it('на смену — с 90% здоровья, экран заранее пишет причину (обращение №61)', async () => {
+    const { character, object, toBlank, input, stack } = await fixture(10)
+    await testPrisma.character.update({ where: { id: character.id }, data: { hpCurrent: 71 } })
+    expect((await WorkService.listObjects(character.id)).hpGate).toEqual({ need: 72, have: 71 })
+    await expect(WorkService.start(character.id, object.id, toBlank.id)).rejects.toMatchObject({ statusCode: 409, message: 'На смену — с 90% здоровья: сейчас 71 из 80, нужно 72' })
+    expect(await stack(input.id)).toMatchObject({ reservedAmount: 0 })
+    await testPrisma.character.update({ where: { id: character.id }, data: { hpCurrent: 72 } })
+    await expect(WorkService.start(character.id, object.id, toBlank.id)).resolves.toBeTruthy()
+  })
+
   it('рецепт, который не влезает в оставшееся время дня, помечен и не начинается (обращения №38, №42, №47)', async () => {
     const { character, object, toBlank } = await fixture(40)
     await testPrisma.productionObject.update({ where: { id: object.id }, data: { baseSalary: 100, isForSale: false, shiftDurationMinutes: 50 } })
