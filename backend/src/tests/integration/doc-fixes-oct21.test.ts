@@ -139,7 +139,8 @@ describe('правки по документу 20.10', () => {
     expect(rule('/api/shops/government/buy').text({}, { itemName: 'Кастет', price: 1500 })).toBe('Вы купили «Кастет» за 1 500 ₽ в Госмагазине.')
     expect(rule('/api/city/shops/:kind/buy').text({}, { itemName: 'Талисман опыта', priceDollars: 30 })).toBe('Вы купили «Талисман опыта» за 30 $.')
     expect(rule('/api/private-shops/:shopCode/buy').text({}, { itemName: null, total: 300 })).toBe('Вы купили вещь за 300 ₽ в частной лавке.')
-    expect(rule('/api/market/listings/:listingId/buy').text({}, { finalPrice: 900 })).toBe('Вы купили лот на рынке за 900 ₽.')
+    expect(rule('/api/market/listings/:listingId/buy').text({}, { finalPrice: 900 })).toBe('Вы купили на рынке лот за 900 ₽.')
+    expect(rule('/api/market/listings/:listingId/buy').text({}, { finalPrice: 5, what: 'Кастет', currency: 'USD' })).toBe('Вы купили на рынке «Кастет» за 5 $.')
   })
 
   it('рядовой боец сам встаёт в заявку на район, один раз и только пока состав открыт', async () => {

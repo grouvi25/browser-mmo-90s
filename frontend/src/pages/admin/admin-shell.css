@@ -102,3 +102,6 @@
   .admx-roles div { grid-template-columns: 1fr; gap: 2px; }
 }
 @media (prefers-reduced-motion: reduce) { .admx-side { transition: none; } }
+/* Подписанные числовые поля в строке формы (шмот для собак): подпись и поле рядом, поле не растягивается. */
+.admx-staff-add .adm-inline { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.admx-staff-add .adm-inline input { flex: 0 0 auto; }

@@ -160,6 +160,38 @@ function Catalog({ kind }: { kind: 'tsum' | 'berezka' }) {
 
 const STAT_NAMES: Record<string, string> = { str: 'Сила', agi: 'Ловкость', rea: 'Реакция', acc: 'Меткость', end: 'Выносливость', luck: 'Фарт' }
 
+/**
+ * Очки вещи на собаке (Дима 10.11: «статы так же разбивать сам игрок будет»).
+ * Раскладка сначала набирается здесь, на сервер уходит одним нажатием: вложенное
+ * не снимается, как у обычных вещей.
+ */
+function GearPoints({ petId, slot, free, onDone }: { petId: string; slot: string; free: number; onDone: () => void }) {
+  const [plan, setPlan] = useState<Record<string, number>>({})
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const used = Object.values(plan).reduce((sum, n) => sum + n, 0)
+  const left = free - used
+  const save = async () => {
+    setBusy(true); setError('')
+    try { await cityApi.allocateDogGear(petId, slot, plan); setPlan({}); onDone() }
+    catch (e) { setError(e instanceof Error ? e.message : 'Не получилось') }
+    finally { setBusy(false) }
+  }
+  return <div className="dog-gear__points">
+    <small>Свободных очков: <b>{left}</b> из {free}</small>
+    {Object.entries(STAT_NAMES).map(([stat, label]) => <span key={stat} className="dog-alloc__row">
+      <span className="dog-gear__stat">{label}</span><b className="dog-gear__num">+{plan[stat] ?? 0}</b>
+      <button type="button" className="btn btn-sm" aria-label={`Убрать очко: ${label}`} disabled={busy || !(plan[stat] > 0)}
+        onClick={() => setPlan(p => ({ ...p, [stat]: (p[stat] ?? 0) - 1 }))}>−</button>
+      <button type="button" className="btn btn-sm" aria-label={`Добавить очко: ${label}`} disabled={busy || left < 1}
+        onClick={() => setPlan(p => ({ ...p, [stat]: (p[stat] ?? 0) + 1 }))}>+</button>
+    </span>)}
+    <button type="button" className="btn btn-primary btn-sm dog-gear__save" disabled={busy || used < 1} onClick={() => void save()}>{busy ? 'Сохраняем…' : `Вложить ${used || ''}`.trim()}</button>
+    {used > 0 && <small className="dog-gear__hint">Вложенные очки потом не снять.</small>}
+    {error && <small className="text-danger" role="alert">{error}</small>}
+  </div>
+}
+
 /** Зоомагазин (правки заказчика): собаки с уровнями, своими очками и
     снаряжением (намордник, защита, ошейник, обувь); донатная собака —
     очков на 50% больше, распределяет игрок. Корм — сроком. */
@@ -205,7 +237,8 @@ function Pets() {
         const worn = dog.gear[slot]
         return <div key={slot} className="dog-gear__slot">
           <b>{label}</b>
-          <span>{worn ? `${worn.name} (${dogBonusText(worn.bonus)})` : 'пусто'}</span>
+          <span>{worn ? `${worn.name}${worn.named ? ' · именная' : ''}${dogBonusText(worn.bonus) ? ` (${dogBonusText(worn.bonus)})` : ''}` : 'пусто'}</span>
+          {worn && (worn.free ?? 0) > 0 && <GearPoints petId={dog.id} slot={slot} free={worn.free!} onDone={() => void q.refetch()} />}
         </div>
       })}</div>
       <p><b>{dog.fed ? `Сыта до ${new Date(dog.fedUntil!).toLocaleString('ru')}` : 'Голодная — корм в отделе «Корм»'}</b></p>

@@ -29,7 +29,7 @@ import { CycleService } from '../production/cycle.service'
 import { ResourcesService } from '../resources/resources.service'
 import { awaitsOwner, calcFinalSalary, calcProductionExp, realShiftMinutes, workerEfficiency } from '../work/work.formulas'
 import { soldGeneralTools, toolForTier } from '../work/tool-names'
-import { professionLevelFromExp, PROFESSION_CODES, PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
+import { professionLevelFromExp, PROFESSION_CUMULATIVE_XP, PROFESSION_CODES, PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { PremiumService } from './premium.service'
 
 const H = BalanceConfig.strategy.helper
@@ -148,7 +148,10 @@ export const HelpersService = {
         professionCode: helper.professionCode,
         professionName: professionName(helper.professionCode),
         professionLevel: helper.professionLevel,
-        professionExp: helper.professionExp,
+        professionExp: Math.floor(helper.professionExp),
+        // Обращение №72: «помощник собирает, а профа не качается» — опыт шёл, но на экране был
+        // только уровень. Порог следующего уровня; null — потолок помощника достигнут.
+        professionExpNext: helper.professionLevel < H.skillCap ? PROFESSION_CUMULATIVE_XP[helper.professionLevel + 1] ?? null : null,
         skillCap: H.skillCap,
         activeShift: helper.activeShift,
         shiftsToday: todayCounts.get(helper.id) ?? 0,

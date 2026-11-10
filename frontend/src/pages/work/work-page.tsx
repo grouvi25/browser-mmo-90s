@@ -4,12 +4,21 @@ import { Link } from 'react-router-dom'
 import { workApi, type GovCraftRecipe, type ProductionObjectView } from '../../shared/api/work.api'
 
 /** Госкрафт: что выйдет, из чего, сколько своего сырья есть. */
-function CraftRecipes({recipes,blocked,pending,onMake}:{recipes:GovCraftRecipe[];blocked:string;pending:boolean;onMake:(recipe:GovCraftRecipe)=>void}){
+/**
+ * Рецепты госцеха. Партия (Дима 10.11): за одну смену 1/3/5/10 шт., сырьё и
+ * износ инструмента умножаются, время то же. Варианты и потолок приходят с
+ * сервера; недоступные кнопки гаснут, сырьё пересчитывается под выбор.
+ */
+function CraftRecipes({recipes,blocked,pending,onMake}:{recipes:GovCraftRecipe[];blocked:string;pending:boolean;onMake:(recipe:GovCraftRecipe,quantity:number)=>void}){
+  const[picked,setPicked]=useState<Record<string,number>>({})
   if(!recipes.length)return <div className="text-dim">Рецептов в этом цехе пока нет.</div>
-  return <ul className="gov-craft">{recipes.map(recipe=>{const reason=blocked||recipe.reason;return <li key={recipe.id} className={reason?'is-muted':''}>
-    <div className="gov-craft__what"><b>{recipe.output.name}{recipe.output.amount>1?` ×${recipe.output.amount}`:''}</b><small>{recipe.minutes} мин{recipe.requiredLevel>0?` · с ${recipe.requiredLevel} уровня профессии`:''}{recipe.tool?` · инструмент: ${recipe.tool.name}`:''}</small></div>
-    <div className="gov-craft__from">{recipe.inputs.length?recipe.inputs.map(input=><span key={input.code} className={input.have<input.need?'text-danger':''}>{input.name} ×{input.need} <small>(есть {input.have})</small></span>):<span className="text-dim">без сырья</span>}</div>
-    <button type="button" className="btn btn-sm btn-primary" disabled={!!reason||pending} title={reason||undefined} onClick={()=>onMake(recipe)}>Сделать</button>
+  return <ul className="gov-craft">{recipes.map(recipe=>{const reason=blocked||recipe.reason;const options=recipe.quantities?.length?recipe.quantities:[1];const max=recipe.maxQuantity??(reason?0:1);const qty=Math.min(picked[recipe.id]??1,Math.max(1,max));return <li key={recipe.id} className={reason?'is-muted':''}>
+    <div className="gov-craft__what"><b>{recipe.output.name}{recipe.output.amount*qty>1?` ×${recipe.output.amount*qty}`:''}</b><small>{recipe.minutes} мин{recipe.requiredLevel>0?` · с ${recipe.requiredLevel} уровня профессии`:''}{recipe.tool?` · инструмент: ${recipe.tool.name}${qty>1?` (износ ×${qty})`:''}`:''}</small></div>
+    <div className="gov-craft__from">{recipe.inputs.length?recipe.inputs.map(input=><span key={input.code} className={input.have<input.need*qty?'text-danger':''}>{input.name} ×{input.need*qty} <small>(есть {input.have})</small></span>):<span className="text-dim">без сырья</span>}</div>
+    <div className="gov-craft__act">
+      {options.length>1&&<div className="gov-craft__qty" role="group" aria-label="Сколько сделать">{options.map(n=><button key={n} type="button" aria-pressed={qty===n} className={qty===n?'is-active':''} disabled={!!reason||n>max} title={n>max&&!reason?`Хватит на ${max} шт.`:undefined} onClick={()=>setPicked(prev=>({...prev,[recipe.id]:n}))}>{n}</button>)}</div>}
+      <button type="button" className="btn btn-sm btn-primary gov-craft__make" disabled={!!reason||pending||qty>max} title={reason||undefined} onClick={()=>onMake(recipe,qty)}>{pending?'Начинаем…':'Сделать'}</button>
+    </div>
     {recipe.reason&&!blocked&&<small className="work-reason gov-craft__reason">{recipe.reason}</small>}
   </li>})}</ul>
 }
@@ -56,7 +65,7 @@ export function WorkPage(){
   const objects=useQuery({queryKey:['work','objects'],queryFn:workApi.objects})
   const current=useQuery({queryKey:['work','current'],queryFn:workApi.current,refetchInterval:10_000})
   const refresh=()=>{void qc.invalidateQueries({queryKey:['work']});void qc.invalidateQueries({queryKey:['character']});void qc.invalidateQueries({queryKey:['resources']})}
-  const start=useMutation({mutationFn:({object,recipe}:{object:ProductionObjectView;recipe?:GovCraftRecipe})=>workApi.start(object.id,recipe?.id),onSuccess:(_,{object,recipe})=>{setReceipt(null);setOpenCraft(null);setMessage({type:'success',text:recipe?`Делаете «${recipe.output.name}» в цехе «${object.name}»`:`Смена «${object.name}» началась`});refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})
+  const start=useMutation({mutationFn:({object,recipe,quantity=1}:{object:ProductionObjectView;recipe?:GovCraftRecipe;quantity?:number})=>workApi.start(object.id,recipe?.id,quantity),onSuccess:(_,{object,recipe,quantity=1})=>{setReceipt(null);setOpenCraft(null);setMessage({type:'success',text:recipe?`Делаете «${recipe.output.name}»${quantity>1?` ×${quantity}`:''} в цехе «${object.name}»`:`Смена «${object.name}» началась`});refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})
   const claim=useMutation({mutationFn:workApi.claim,onSuccess:data=>{const before=current.data?.shift?.profession?.level??data.professionLevel;const object=objects.data?.items?.find(x=>x.code===current.data?.shift?.productionObject?.code);setReceipt({...data,levelBefore:before,resourceName:object?.producesResourceName??undefined});setMessage(null);refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})
   const cancel=useMutation({mutationFn:workApi.cancel,onSuccess:()=>{setCancelConfirm(false);setMessage({type:'success',text:'Смена отменена. Инструмент возвращён'});refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})
   const shift=current.data?.shift
@@ -113,7 +122,7 @@ export function WorkPage(){
         </select>
       </label>
       {objects.isLoading?<div className="loading"><span className="spinner"/>Загружаем вакансии…</div>:objects.isError?<div className="alert alert-error">Вакансии не загрузились.</div>:<table className="data-table"><thead><tr><th>Объект</th><th>Профессия</th><th>Время</th><th>Оплата</th><th>Опыт</th><th>Выработка</th><th/></tr></thead><tbody>{objects.data?.items?.filter(object=>filter==='all'||(filter==='mine'?object.profession.learned||!objects.data?.professions?.length:object.profession.code===filter)).map(object=>{const reason=lockReason(object,!!shift,used>=limit,rest,minutesLeft);const craft=object.craft;const open=openCraft===object.id;return <Fragment key={object.id}><tr className={reason?'is-muted':''}><td><b>{object.name}</b>{craft&&<small className="work-employer">госцех · делаете из своего сырья · можно купить за {object.forSaleUsd?.toLocaleString('ru')} $</small>}{object.employer&&<small className="work-employer">{object.employer.isMe?'ваш завод':`частный · ${object.employer.nickname??'владелец'}`}</small>}{reason&&<small className="work-reason">{reason}{object.forSaleUsd&&!object.craft?<> · <Link to="/objects">в Мои объекты</Link></>:!object.profession.learned?<> · <Link to="/school">в Училище</Link></>:<>{object.locked&&<> · <Link to="/school">в Училище</Link></>}{!object.toolAvailable&&<> · <Link to={`/shop?tab=tools&profession=${object.profession.code}`}>в магазин</Link></>}</>}</small>}</td><td>{object.profession.name}, ур. {object.profession.level}</td><td>{craft?.length?craftTime(craft):`${object.shiftDurationMinutes} мин`}</td><td>{craft?'изделие себе':`${(object.offeredSalary??object.baseSalary).toLocaleString('ru')} ₽`}</td><td>+{object.baseProductionExp} XP</td><td>{object.products?.length?object.products.join(', '):object.producesResourceName?`${object.outputAmountMin}–${object.outputAmountMax} ${object.producesResourceName}${object.employer&&!object.employer.isMe?' — владельцу':''}`:'—'}</td><td>{craft?<button type="button" className="btn btn-sm btn-primary" aria-expanded={open} onClick={()=>setOpenCraft(open?null:object.id)}>{open?'Скрыть':'Сделать'}</button>:<button className="btn btn-sm btn-primary" disabled={!!reason||start.isPending} onClick={()=>start.mutate({object})}>Выйти</button>}</td></tr>
-        {craft&&open&&<tr className="gov-craft-row"><td colSpan={7}><CraftRecipes recipes={craft} blocked={reason} pending={start.isPending} onMake={recipe=>start.mutate({object,recipe})}/></td></tr>}</Fragment>})}</tbody></table>}
+        {craft&&open&&<tr className="gov-craft-row"><td colSpan={7}><CraftRecipes recipes={craft} blocked={reason} pending={start.isPending} onMake={(recipe,quantity)=>start.mutate({object,recipe,quantity})}/></td></tr>}</Fragment>})}</tbody></table>}
     </div></div>
   </div>
 }

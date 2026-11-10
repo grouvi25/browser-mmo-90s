@@ -756,6 +756,26 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
     await tx.dollarShopItem.update({ where: { id: row.id }, data: previous ?? { isAvailable: false } })
   },
 
+  // Шмот для собак из админки (Дима 10.11). Нет вещи с таким кодом — создаётся.
+  // Откат созданной вещи снимает её с продажи (купленное у игроков остаётся).
+  SET_DOG_GEAR: async (tx, payload) => {
+    const code = str(payload, 'code')
+    const fields = payload.fields as { slot?: string; name?: string; price?: number; priceDollars?: number; statBudget?: number; named?: boolean; isActive?: boolean }
+    const existing = await tx.dogGearTemplate.findUnique({ where: { code } })
+    if (existing) await tx.dogGearTemplate.update({ where: { code }, data: fields })
+    else {
+      if (!fields.slot || !fields.name) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Нужны слот и название', 422)
+      await tx.dogGearTemplate.create({ data: { code, slot: fields.slot, name: fields.name, price: fields.price ?? 0, priceDollars: fields.priceDollars ?? 0, statBudget: fields.statBudget ?? 20, named: fields.named ?? false, isActive: fields.isActive ?? true } })
+    }
+  },
+
+  RESTORE_DOG_GEAR: async (tx, payload) => {
+    const code = str(payload, 'code')
+    must(await tx.dogGearTemplate.findUnique({ where: { code } }), `Вещи «${code}» больше нет`)
+    const previous = payload.fields as Record<string, unknown> | null
+    await tx.dogGearTemplate.update({ where: { code }, data: previous ?? { isActive: false } })
+  },
+
   SET_BAR_OFFER: async (tx, payload) => {
     const code = str(payload, 'code')
     must(await tx.barOffer.findUnique({ where: { code } }), `Позиции бара «${code}» больше нет`)

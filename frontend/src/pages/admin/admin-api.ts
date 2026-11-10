@@ -143,6 +143,8 @@ export interface StaffEventRow { id: string; label: string; action: string; deta
 
 /** Витрины за доллары (правка 30.10). */
 export type DollarShopCode = 'TSUM' | 'BEREZKA'
+export type DogGearSlot = 'MUZZLE' | 'ARMOR' | 'COLLAR' | 'BOOTS'
+export interface DogGearRow { id: string; code: string; slot: DogGearSlot; name: string; price: number; priceDollars: number; statBudget: number; named: boolean; isActive: boolean }
 export interface DollarShopRow {
   id: string; shop: DollarShopCode; priceDollars: number; isAvailable: boolean
   template: { code: string; name: string; type: string; levelReq: number; isActive: boolean }
@@ -564,6 +566,11 @@ export const adminApi = {
     request<{ actionId: string }>(`/api/admin/items/${code}`, { method: 'PATCH', body: { fields, reason } }),
   /** Новая вещь; sale — сразу выставить в магазин (госмагазин или частная лавка). */
   dollarShops: () => request<{ items: DollarShopRow[] }>('/api/admin/catalog/dollar-shops'),
+  dogGear: () => request<{ items: DogGearRow[] }>('/api/admin/catalog/dog-gear'),
+  createDogGear: (fields: { name: string; slot: DogGearSlot; statBudget: number; named: boolean; price?: number; priceDollars?: number }, reason: string) =>
+    request<{ actionId: string; code: string }>('/api/admin/catalog/dog-gear', { method: 'POST', body: { fields, reason } }),
+  updateDogGear: (code: string, fields: { price?: number; priceDollars?: number; statBudget?: number; isActive?: boolean }, reason: string) =>
+    request(`/api/admin/catalog/dog-gear/${encodeURIComponent(code)}`, { method: 'PATCH', body: { fields, reason } }),
   setDollarShopItem: (shop: DollarShopCode, code: string, fields: { priceDollars?: number; isAvailable?: boolean }, reason: string) =>
     request(`/api/admin/catalog/dollar-shops/${shop}/${encodeURIComponent(code)}`, { method: 'PUT', body: { fields, reason } }),
   createItem: (item: Record<string, unknown>, sale: { shop: string; price: number } | null, reason: string) =>

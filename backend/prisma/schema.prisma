@@ -335,6 +335,9 @@ enum AdminActionKind {
   // Витрины ЦУМа и Берёзки (правка 30.10): выставить, сменить цену, снять.
   SET_DOLLAR_SHOP_ITEM
   RESTORE_DOLLAR_SHOP_ITEM
+  // Шмот для собак из админки (10.11).
+  SET_DOG_GEAR
+  RESTORE_DOG_GEAR
 }
 
 enum FarmBuildingType {
@@ -1521,6 +1524,8 @@ model WorkShift {
   failureReason        String?          @map("failure_reason")
   /// Госкрафт: рецепт, который игрок делает из своего сырья в некупленном цехе.
   craftRecipeId        String?          @map("craft_recipe_id")
+  /// Госкрафт: сколько штук за смену (1/3/5/10). Сырьё и износ инструмента умножаются, время одно.
+  craftQuantity        Int              @default(1) @map("craft_quantity")
   createdAt            DateTime         @default(now()) @map("created_at")
   updatedAt            DateTime         @updatedAt @map("updated_at")
   character            Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
@@ -2801,4 +2806,25 @@ model ChatReport {
 
   @@unique([messageId, reporterId])
   @@map("chat_reports")
+}
+
+/// Шмот для собак из админки (Дима 10.11: «в админке вкладка нужна под шмот для
+/// собак… статы так же разбивать сам игрок будет. И именные для собак отдельно (ЦУМ)»).
+/// Обычный продаётся за рубли в Зоомагазине, именной — за доллары в ЦУМе.
+/// Купленная вещь копируется на собаку (character_pets.gear), поэтому правка
+/// шаблона уже купленное не меняет.
+model DogGearTemplate {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  slot         String
+  name         String
+  price        Int      @default(0)
+  priceDollars Int      @default(0) @map("price_dollars")
+  statBudget   Int      @default(20) @map("stat_budget")
+  named        Boolean  @default(false)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("dog_gear_templates")
 }

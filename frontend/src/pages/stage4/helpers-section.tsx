@@ -190,7 +190,7 @@ function HelperCard({
         <div><dt>Профессия</dt><dd>{helper.professionName ?? helper.professionCode}</dd></div>
         <div>
           <dt>Уровень</dt>
-          <dd>{helper.professionLevel} из {helper.skillCap}</dd>
+          <dd>{helper.professionLevel} из {helper.skillCap}{helper.professionExpNext != null && <> · опыт {helper.professionExp.toLocaleString('ru')} / {helper.professionExpNext.toLocaleString('ru')}</>}</dd>
         </div>
         {helper.dailyShiftCap != null && <div>
           <dt>Смен сегодня</dt>

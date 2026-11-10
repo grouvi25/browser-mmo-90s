@@ -46,7 +46,7 @@ export const NOTICE_RULES: Rule[] = [
   { method: 'POST', url: '/api/private-shops/:shopCode/buy', text: (_b, r) => bought(r.itemName, r.total ? `${num(r.total)} ₽` : '').replace(/\.$/, ' в частной лавке.') },
   { method: 'POST', url: '/api/resources/sell', text: () => 'Вы продали ресурсы.' },
   { method: 'POST', url: '/api/market/listings', text: () => 'Вы выставили лот на рынок.' },
-  { method: 'POST', url: '/api/market/listings/:listingId/buy', text: (_b, r) => `Вы купили лот на рынке${r.finalPrice ? ` за ${num(r.finalPrice)} ₽` : ''}.` },
+  { method: 'POST', url: '/api/market/listings/:listingId/buy', text: (_b, r) => `Вы купили на рынке${r.what ? ` «${r.what}»` : ' лот'}${r.finalPrice ? ` за ${num(r.finalPrice)} ${r.currency === 'USD' ? '$' : '₽'}` : ''}.` },
   { method: 'POST', url: '/api/market/listings/:listingId/cancel', text: () => 'Вы сняли лот с рынка.' },
   { method: 'POST', url: '/api/repair/commit', text: () => 'Вы отремонтировали вещь.' },
   { method: 'POST', url: '/api/upgrades/commit', text: () => 'Вы улучшили вещь.' },

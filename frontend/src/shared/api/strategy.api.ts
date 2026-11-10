@@ -167,6 +167,7 @@ export interface Helper {
   professionCode: string
   professionLevel: number
   professionExp: number
+  professionExpNext?: number | null
   skillCap: number
   activeShift: { id: string; productionObjectId: string; endsAt: string; status: string } | null
   /** Смен за сегодня и суточная норма (обращение №75). */

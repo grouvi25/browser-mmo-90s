@@ -77,7 +77,16 @@ export function dogPoints(level: number, freeAllocation: boolean): number {
 }
 
 export type DogGearSlot = 'MUZZLE' | 'ARMOR' | 'COLLAR' | 'BOOTS'
-export interface DogGear { code: string; slot: DogGearSlot; name: string; price: number; bonus: PetStatBonus }
+export interface DogGear {
+  code: string; slot: DogGearSlot; name: string; price: number; bonus: PetStatBonus
+  /** Вещь из админки: сколько очков у неё всего и сколько ещё не вложено. */
+  budget?: number; free?: number; named?: boolean
+}
+
+/** Вещь из админки на собаке: снимок шаблона и вложенные игроком очки. */
+export interface DogGearSnapshot { code: string; name: string; budget: number; named?: boolean; alloc?: PetStatBonus }
+
+export const isDogGearSlot = (value: string): value is DogGearSlot => value in DOG_GEAR_SLOTS
 
 export const DOG_GEAR_SLOTS: Record<DogGearSlot, string> = {
   MUZZLE: 'Намордник', ARMOR: 'Защита', COLLAR: 'Ошейник', BOOTS: 'Обувь',
@@ -116,12 +125,34 @@ export function dogAllocation(row: DogRow): PetStatBonus {
   return out
 }
 
+/** Очки, вложенные в вещь: только известные статы, только целые положительные. */
+export function cleanStats(value: unknown): PetStatBonus {
+  const raw = asRecord(value)
+  const out: PetStatBonus = {}
+  for (const stat of DOG_STATS) {
+    const n = Number(raw[stat] ?? 0)
+    if (Number.isInteger(n) && n > 0) out[stat] = n
+  }
+  return out
+}
+
 export function dogGear(row: DogRow): Partial<Record<DogGearSlot, DogGear>> {
   const raw = asRecord(row.gear)
   const out: Partial<Record<DogGearSlot, DogGear>> = {}
   for (const slot of Object.keys(DOG_GEAR_SLOTS) as DogGearSlot[]) {
-    const item = DOG_GEAR.find(g => g.code === raw[slot] && g.slot === slot)
-    if (item) out[slot] = item
+    const value = raw[slot]
+    // Старые четыре вещи лежат кодом, бонус у них зашит; вещи из админки — снимком с очками.
+    if (typeof value === 'string') {
+      const item = DOG_GEAR.find(g => g.code === value && g.slot === slot)
+      if (item) out[slot] = item
+      continue
+    }
+    const snap = asRecord(value)
+    if (typeof snap.code !== 'string' || typeof snap.name !== 'string') continue
+    const budget = Math.max(0, Math.floor(Number(snap.budget) || 0))
+    const bonus = cleanStats(snap.alloc)
+    const used = Object.values(bonus).reduce((sum, n) => sum + (n ?? 0), 0)
+    out[slot] = { code: snap.code, slot, name: snap.name, price: 0, bonus, budget, free: Math.max(0, budget - used), named: snap.named === true }
   }
   return out
 }

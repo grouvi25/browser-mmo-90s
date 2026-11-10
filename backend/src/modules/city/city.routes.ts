@@ -35,6 +35,14 @@ export async function cityRoutes(app: FastifyInstance) {
     const b = z.object({ petId: z.string().uuid(), code: z.string().min(1).max(60) }).strict().parse(req.body)
     return CityService.buyDogGear((await char(req)).id, b.petId, b.code, key(req))
   })
+  app.post('/pets/gear/allocate', async req => {
+    const stat = z.number().int().min(0).max(1000).optional()
+    const b = z.object({
+      petId: z.string().uuid(), slot: z.enum(['MUZZLE', 'ARMOR', 'COLLAR', 'BOOTS']),
+      add: z.object({ str: stat, agi: stat, rea: stat, acc: stat, end: stat, luck: stat }).strict(),
+    }).strict().parse(req.body)
+    return CityService.allocateDogGear((await char(req)).id, b.petId, b.slot, b.add)
+  })
   app.post('/pets/allocate', async req => {
     const b = z.object({ petId: z.string().uuid(), stat: z.enum(['str', 'agi', 'rea', 'acc', 'end', 'luck']), delta: z.union([z.literal(1), z.literal(-1)]) }).strict().parse(req.body)
     return CityService.allocateDog((await char(req)).id, b.petId, b.stat, b.delta)

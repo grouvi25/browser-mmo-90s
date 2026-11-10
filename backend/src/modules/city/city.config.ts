@@ -87,7 +87,10 @@ export function dogSummary(pets: readonly DogRow[] | undefined, now = new Date()
     id: dog.id, code: dog.code, name: breed.name, role: breed.role, fedUntil: dog.fedUntil, fed,
     level, exp, levelExp: dogExpForLevel(level), nextLevelExp: level < dogMaxLevel() ? dogExpForLevel(level + 1) : null,
     freeAllocation: !!breed.freeAllocation, freePoints: freeDogPoints(dog), allocation: dogAllocation(dog),
-    gear: Object.fromEntries(Object.entries(gear).map(([slot, item]) => [slot, item ? { code: item.code, name: item.name, bonus: item.bonus } : null])),
+    gear: Object.fromEntries(Object.entries(gear).map(([slot, item]) => [slot, item ? {
+      code: item.code, name: item.name, bonus: item.bonus,
+      ...(item.budget != null ? { budget: item.budget, free: item.free ?? 0, named: !!item.named } : {}),
+    } : null])),
     fullBonus: dogBonus(dog),
     bonus: fed ? dogBonus(dog) : {},
   }

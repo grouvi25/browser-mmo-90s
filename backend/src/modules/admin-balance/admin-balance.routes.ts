@@ -553,6 +553,59 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     return reply.send({ actionId: action.actionId, code: req.params.code, fields, previous })
   })
 
+  // ── Шмот для собак (Дима 10.11) ─────────────────────────────
+  // Обычный — за рубли в Зоомагазине и госмагазине, именной — за доллары в ЦУМе.
+  // Очки (statBudget) игрок раскладывает сам после покупки.
+
+  fastify.get('/catalog/dog-gear', READ_ADMIN, async () => ({
+    items: await prisma.dogGearTemplate.findMany({ orderBy: [{ named: 'asc' }, { createdAt: 'asc' }] }),
+  }))
+
+  const DOG_GEAR_FIELDS = z.object({
+    slot: z.enum(['MUZZLE', 'ARMOR', 'COLLAR', 'BOOTS']).optional(),
+    name: z.string().trim().min(2).max(60).optional(),
+    price: z.number().int().min(0).max(10_000_000).optional(),
+    priceDollars: z.number().int().min(0).max(100_000).optional(),
+    statBudget: z.number().int().min(0).max(1000).optional(),
+    named: z.boolean().optional(),
+    isActive: z.boolean().optional(),
+  }).strict()
+
+  /** Новая вещь для собак. Код собирается сам из слота и времени: его никто не набирает руками. */
+  fastify.post('/catalog/dog-gear', CATALOG_ADMIN, async (req, reply) => {
+    const parsed = z.object({ fields: DOG_GEAR_FIELDS.required({ slot: true, name: true, statBudget: true }), reason: REASON }).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error) })
+    const f = parsed.data.fields
+    const named = f.named ?? false
+    if (named ? !(f.priceDollars && f.priceDollars > 0) : !(f.price && f.price > 0)) {
+      return reply.code(422).send({ code: 'GEN_001', message: named ? 'Именная вещь продаётся в ЦУМе: укажите цену в долларах' : 'Укажите цену в рублях' })
+    }
+    const code = `dog_${f.slot.toLowerCase()}_${Date.now().toString(36)}`
+    const fields = { ...f, named, price: named ? 0 : f.price, priceDollars: named ? f.priceDollars : 0, isActive: true }
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'SET_DOG_GEAR', targetType: 'dog_gear', targetId: code,
+      payload: { code, fields: fields as Prisma.InputJsonValue },
+      undo: { kind: 'RESTORE_DOG_GEAR', payload: { code, fields: null as unknown as Prisma.InputJsonValue } },
+    })
+    return reply.code(201).send({ actionId: action.actionId, code })
+  })
+
+  /** Цена, очки, название, снять с продажи или вернуть. */
+  fastify.patch<{ Params: { code: string } }>('/catalog/dog-gear/:code', CATALOG_ADMIN, async (req, reply) => {
+    const parsed = z.object({ fields: DOG_GEAR_FIELDS.omit({ slot: true, named: true }), reason: REASON }).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: validationMessage(parsed.error) })
+    const before = await prisma.dogGearTemplate.findUnique({ where: { code: req.params.code } })
+    if (!before) return reply.code(404).send({ code: 'GEN_002', message: `Вещи с кодом «${req.params.code}» нет` })
+    const fields = parsed.data.fields
+    const previous = previousOf(before, fields as Record<string, unknown>)
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'SET_DOG_GEAR', targetType: 'dog_gear', targetId: before.code,
+      payload: { code: before.code, fields: fields as Prisma.InputJsonValue },
+      undo: { kind: 'RESTORE_DOG_GEAR', payload: { code: before.code, fields: previous as Prisma.InputJsonValue } },
+    })
+    return reply.send({ actionId: action.actionId, code: before.code, fields, previous })
+  })
+
   const BAR_FIELDS = z.object({
     price: z.number().int().min(1).max(1_000_000).optional(),
     hpRestore: z.number().int().min(0).max(10_000).optional(),

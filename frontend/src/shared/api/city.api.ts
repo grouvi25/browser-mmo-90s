@@ -3,12 +3,12 @@ import type { ItemTemplate } from '../types/api.types'
 export interface CityLocation { path: string; jailedUntil: string | null; jailReason: string | null }
 export interface Pet { id: string; code: string; name: string; food: number; fedUntil: string | null }
 export interface DogEntry { code: string; name: string; role: string; price: number; priceDollars?: number; mainStat?: string; freeAllocation?: boolean; points: number }
-export interface DogGearItem { code: string; slot: 'MUZZLE' | 'ARMOR' | 'COLLAR' | 'BOOTS'; name: string; price: number; bonus: Record<string, number> }
+export interface DogGearItem { code: string; slot: 'MUZZLE' | 'ARMOR' | 'COLLAR' | 'BOOTS'; name: string; price: number; bonus: Record<string, number>; currency?: 'RUB' | 'USD'; budget?: number; named?: boolean }
 export interface DogState {
   id: string; code: string; name: string; role: string; fedUntil: string | null; fed: boolean
   level: number; exp: number; levelExp: number; nextLevelExp: number | null
   freeAllocation: boolean; freePoints: number; allocation: Record<string, number>
-  gear: Record<string, { code: string; name: string; bonus: Record<string, number> } | null>
+  gear: Record<string, { code: string; name: string; bonus: Record<string, number>; budget?: number; free?: number; named?: boolean } | null>
   fullBonus: Record<string, number>; bonus: Record<string, number>
 }
 export interface FeedPack { code: string; name: string; hours: number; price: number; currency: 'RUB' | 'USD' }
@@ -25,6 +25,8 @@ export const cityApi = {
   pets: () => api.get<{ catalog: DogEntry[]; packs: FeedPack[]; feedingHours: number; owned: Pet[]; dog: DogState | null; gear: DogGearItem[]; gearSlots: Record<string, string> }>('/api/city/pets'),
   dogGear: (petId: string, code: string) => paid('/api/city/pets/gear', { petId, code }),
   allocateDog: (petId: string, stat: string, delta: 1 | -1) => api.post('/api/city/pets/allocate', { petId, stat, delta }),
+  /** Очки вещи на собаке: вложенное не снимается. */
+  allocateDogGear: (petId: string, slot: string, add: Record<string, number>) => api.post('/api/city/pets/gear/allocate', { petId, slot, add }),
   buyPet: (code: string) => paid('/api/city/pets', { code }),
   exchangePet: (code: string) => paid('/api/city/pets/exchange', { code }),
   food: (petId: string, pack: string) => paid('/api/city/pets/food', { petId, pack }),

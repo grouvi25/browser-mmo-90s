@@ -6,7 +6,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { EconomyService } from '../economy/economy.service'
 import { DollarsService } from '../dollars/dollars.service'
 import { PROFESSION_CODES, PROFESSION_NAMES, isProfessionCode } from '../professions/professions'
-import { DOG_BASE_POINTS, DOG_GEAR, DOG_GEAR_SLOTS, breedOf, dogAllocation, freeDogPoints, type DogStat } from './dogs'
+import { DOG_BASE_POINTS, DOG_GEAR, DOG_GEAR_SLOTS, DOG_STATS, breedOf, cleanStats, dogAllocation, dogGear, freeDogPoints, isDogGearSlot, type DogGearSlot, type DogGearSnapshot, type DogStat } from './dogs'
 import { dogSummary } from './city.config'
 import { CityConfig, artifactBonus, inPrison, validCityPath } from './city.config'
 
@@ -103,7 +103,14 @@ export const CityService = {
     return {
       catalog: CityConfig.pets.map(b => ({ ...b, points: b.freeAllocation ? Math.ceil(DOG_BASE_POINTS * 1.5) : DOG_BASE_POINTS })),
       packs: CityConfig.feedPacks, feedingHours: CityConfig.feedingHours,
-      gear: DOG_GEAR, gearSlots: DOG_GEAR_SLOTS,
+      gear: [
+        ...DOG_GEAR,
+        // Шмот из админки: очки игрок раскладывает сам, именной — за доллары (ЦУМ).
+        ...(await prisma.dogGearTemplate.findMany({ where: { isActive: true }, orderBy: [{ named: 'asc' }, { createdAt: 'asc' }] }))
+          .filter(row => isDogGearSlot(row.slot))
+          .map(row => ({ code: row.code, slot: row.slot as DogGearSlot, name: row.name, price: row.priceDollars > 0 ? row.priceDollars : row.price, currency: row.priceDollars > 0 ? 'USD' as const : 'RUB' as const, bonus: {}, budget: row.statBudget, named: row.named })),
+      ],
+      gearSlots: DOG_GEAR_SLOTS,
       owned, dog: dogSummary(owned),
     }
   },
@@ -126,16 +133,52 @@ export const CityService = {
   /** Снаряжение собаки: купить — значит надеть; прежняя вещь слота заменяется. */
   async buyDogGear(characterId: string, petId: string, gearCode: string, key: string) {
     const item = DOG_GEAR.find(g => g.code === gearCode)
-    if (!item) throw AppError.validation('Нет такого снаряжения')
+    const template = item ? null : await prisma.dogGearTemplate.findUnique({ where: { code: gearCode } })
+    if (!item && (!template || !template.isActive || !isDogGearSlot(template.slot))) throw AppError.validation('Нет такого снаряжения')
     return withIdempotency({ characterId, scope: `city.dog-gear.${petId}`, key, execute: async tx => {
       const pet = await tx.characterPet.findFirst({ where: { id: petId, characterId } })
       if (!pet || !breedOf(pet.code)) throw AppError.notFound('Собака')
-      const gear = { ...((pet.gear as Record<string, string> | null) ?? {}) }
-      if (gear[item.slot] === item.code) throw AppError.conflict('Это уже надето')
-      await EconomyService.debit(tx, { characterId, amount: item.price, reasonCode: 'SHOP_PURCHASE', refType: 'dog-gear', refId: item.code })
-      gear[item.slot] = item.code
-      return { pet: await tx.characterPet.update({ where: { id: pet.id }, data: { gear } }) }
+      const gear = { ...((pet.gear as Record<string, unknown> | null) ?? {}) }
+      const slot = (item?.slot ?? template!.slot) as DogGearSlot
+      const worn = dogGear(pet)[slot]
+      if (worn?.code === gearCode) throw AppError.conflict('Это уже надето')
+      if (item) {
+        await EconomyService.debit(tx, { characterId, amount: item.price, reasonCode: 'SHOP_PURCHASE', refType: 'dog-gear', refId: item.code })
+        gear[slot] = item.code
+      } else {
+        const t = template!
+        if (t.priceDollars > 0) await DollarsService.debit(tx, { characterId, amount: t.priceDollars, reason: 'PURCHASE', refId: pet.id, note: t.name })
+        else await EconomyService.debit(tx, { characterId, amount: t.price, reasonCode: 'SHOP_PURCHASE', refType: 'dog-gear', refId: t.code })
+        const snapshot: DogGearSnapshot = { code: t.code, name: t.name, budget: t.statBudget, named: t.named, alloc: {} }
+        gear[slot] = snapshot
+      }
+      return { pet: await tx.characterPet.update({ where: { id: pet.id }, data: { gear: gear as object } }) }
     } })
+  },
+
+  /**
+   * Очки вещи на собаке игрок раскладывает сам (Дима 10.11). Как у обычных
+   * вещей: вложенное не снимается, переразбивка — отдельной платной услугой.
+   */
+  async allocateDogGear(characterId: string, petId: string, slot: DogGearSlot, add: Partial<Record<DogStat, number>>) {
+    return withTransaction(async tx => {
+      // Строка собаки блокируется: два быстрых клика не вложат одни и те же свободные очки дважды.
+      await tx.$executeRaw`SELECT id FROM character_pets WHERE id = ${petId} FOR UPDATE`
+      const pet = await tx.characterPet.findFirst({ where: { id: petId, characterId } })
+      if (!pet || !breedOf(pet.code)) throw AppError.notFound('Собака')
+      const worn = dogGear(pet)[slot]
+      if (!worn || worn.budget == null) throw AppError.conflict('На этой вещи нечего распределять')
+      const extra = cleanStats(add)
+      const total = Object.values(extra).reduce((sum, n) => sum + (n ?? 0), 0)
+      if (total < 1) throw AppError.validation('Выберите, куда вложить очки')
+      if (total > (worn.free ?? 0)) throw AppError.conflict(`Свободных очков у вещи: ${worn.free ?? 0}`)
+      const alloc = { ...worn.bonus }
+      for (const stat of DOG_STATS) if (extra[stat]) alloc[stat] = (alloc[stat] ?? 0) + extra[stat]!
+      const gear = { ...((pet.gear as Record<string, unknown> | null) ?? {}) }
+      gear[slot] = { ...(gear[slot] as object), alloc }
+      await tx.characterPet.update({ where: { id: pet.id }, data: { gear: gear as object } })
+      return { slot, alloc, free: (worn.free ?? 0) - total }
+    })
   },
 
   /** Очки донатной собаки распределяет игрок: +1 или −1 к характеристике. */

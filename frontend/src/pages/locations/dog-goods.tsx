@@ -69,8 +69,9 @@ export function DogGoods({ currency, kinds = ['dogs', 'food', 'gear'] }: {
     })),
     ...data.gear.map((g): Good => ({
       key: `gear-${g.code}`, kind: 'gear', name: g.name,
-      lines: [data.gearSlots[g.slot] ?? g.slot, dogBonusText(g.bonus)],
-      price: g.price, currency: 'RUB',
+      // Вещь из админки: очки раскладывает игрок после покупки (Дима 10.11).
+      lines: [data.gearSlots[g.slot] ?? g.slot, g.budget != null ? `${g.budget} очков, распределяете сами` : dogBonusText(g.bonus), g.named ? 'Именная' : ''],
+      price: g.price, currency: g.currency ?? 'RUB',
       blocked: !dog ? noDog : dog.gear[g.slot]?.code === g.code ? 'Уже надето' : undefined,
       buy: () => cityApi.dogGear(dog!.id, g.code),
     })),

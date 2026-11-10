@@ -110,6 +110,37 @@ describe('госкрафт', () => {
     expect(await stack(input.id)).toMatchObject({ amount: 10, reservedAmount: 0 })
   })
 
+  it('партия: 5 шт. за одну смену, сырьё и износ ×5, время то же; экран знает, сколько можно (Дима 10.11)', async () => {
+    const { character, object, toBlank, input, blank, stack, finish } = await fixture(22)
+    const hammer = await testPrisma.itemTemplate.create({ data: { code: uid('hammer'), name: 'Молот', type: 'TOOL', toolTier: 1, usesMax: 7, weight: 1, durabilityMax: 100, priceBase: 50 } })
+    await testPrisma.productionRecipe.update({ where: { id: toBlank.id }, data: { requiredToolCode: hammer.code } })
+    const tool = await testPrisma.itemInstance.create({ data: { templateId: hammer.id, ownerId: character.id, sourceType: 'GOVERNMENT', usesLeft: 7, durabilityCurrent: 100, durabilityMax: 100, weight: 1 } })
+
+    const view = (await WorkService.listObjects(character.id)).items.find(item => item.id === object.id)!
+    // Сырья на 5 (22 / 4), инструмента на 7: потолок 5.
+    expect(view.craft!.find(recipe => recipe.name === 'Заготовка')).toMatchObject({ quantities: [1, 3, 5, 10], maxQuantity: 5 })
+
+    await expect(WorkService.start(character.id, object.id, toBlank.id, 10)).rejects.toMatchObject({ statusCode: 400 })
+    const started = await WorkService.start(character.id, object.id, toBlank.id, 5)
+    expect(started.shift).toMatchObject({ craftQuantity: 5 })
+    expect(started.shift.endsAt.getTime() - started.shift.startedAt.getTime()).toBe(50 * 60_000)
+    expect(await stack(input.id)).toMatchObject({ amount: 22, reservedAmount: 20 })
+    await finish(started.shift.id)
+    const claimed = await WorkService.claim(character.id, started.shift.id, uid('key'))
+    expect(claimed).toMatchObject({ crafted: { kind: 'resource', amount: 5 }, toolUse: { usesLeft: 2 } })
+    expect(await stack(input.id)).toMatchObject({ amount: 2, reservedAmount: 0 })
+    expect(await stack(blank.id)).toMatchObject({ amount: 5 })
+    expect(await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: tool.id } })).toMatchObject({ usesLeft: 2, status: 'NORMAL' })
+  })
+
+  it('отмена партии возвращает всё сырьё, а инструмент не изнашивается', async () => {
+    const { character, object, toBlank, input, stack } = await fixture(12)
+    const started = await WorkService.start(character.id, object.id, toBlank.id, 3)
+    expect(await stack(input.id)).toMatchObject({ amount: 12, reservedAmount: 12 })
+    await WorkService.cancel(character.id, started.shift.id)
+    expect(await stack(input.id)).toMatchObject({ amount: 12, reservedAmount: 0 })
+  })
+
   it('рецепт, который не влезает в оставшееся время дня, помечен и не начинается (обращения №38, №42, №47)', async () => {
     const { character, object, toBlank } = await fixture(40)
     await testPrisma.productionObject.update({ where: { id: object.id }, data: { baseSalary: 100, isForSale: false, shiftDurationMinutes: 50 } })

@@ -14,7 +14,7 @@ import { BalanceConfig } from '../../config/balance.config'
 import { PremiumService } from '../premium/premium.service'
 import { PROFESSION_NAMES, professionLevelFromExp, type ProfessionCode } from '../professions/professions'
 import { soldGeneralTools, toolForTier } from './tool-names'
-import { finishGovCraft, govCraftRecipe, govCraftView, releaseGovCraftInputs, reserveGovCraftInputs } from './gov-craft'
+import { finishGovCraft, govCraftRecipe, govCraftView, releaseGovCraftInputs, reserveGovCraftInputs, type CraftQuantity } from './gov-craft'
 
 const MAX_DAILY_SHIFTS = BalanceConfig.economy.work.dailyShiftLimit
 const WORK_LIMITS = BalanceConfig.economy.work
@@ -88,10 +88,11 @@ export const WorkService = {
       where: { productionObjectCode: { in: vacancies.filter(awaitsOwner).map(object => object.code) } },
       select: { productionObjectCode: true, name: true }, orderBy: { name: 'asc' },
     })
-    const toolCodes = tools.map(tool => tool.template.code)
+    const toolUses: Record<string, number> = {}
+    for (const tool of tools) toolUses[tool.template.code] = Math.max(toolUses[tool.template.code] ?? 0, tool.usesLeft ?? 0)
     const minutesLeft = Math.round(MAX_DAILY_MINUTES * (dailyCap / MAX_DAILY_SHIFTS)) - shiftMinutes(used)
     const craftByCode = new Map(await Promise.all(vacancies.filter(awaitsOwner).map(async object => [object.code, await govCraftView(prisma, {
-      characterId, objectCode: object.code, toolCodes, minutesLeft,
+      characterId, objectCode: object.code, toolUses, minutesLeft,
       professionLevel: professionByCode.get(object.requiredProfessionCode)?.level ?? 0,
     })] as const)))
     return {
@@ -190,7 +191,7 @@ export const WorkService = {
     }
   },
 
-  async start(characterId: string, productionObjectId: string, recipeId?: string) {
+  async start(characterId: string, productionObjectId: string, recipeId?: string, craftQuantity: CraftQuantity = 1) {
     return withTransaction(async tx => {
       const now = new Date()
       const { start, end } = utcDayRange(now)
@@ -251,6 +252,8 @@ export const WorkService = {
       }
       if (character.status !== 'ACTIVE') throw new AppError(ErrorCode.WORK_CHARACTER_BUSY, 'Character is busy', 400)
       const craft = awaitsOwner(object) ? await govCraftRecipe(tx, object.code, recipeId, existingProfession.level) : null
+      // Партия бывает только у госкрафта: на обычной смене выработку задаёт объект.
+      const quantity = craft ? craftQuantity : 1
       // Смена госкрафта длится столько, сколько рецепт: по нему и проверяем остаток дня.
       if (craft && !fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), realShiftMinutes(craft.cycleMinutes), { shifts: shiftCap, minutes: minuteBudget })) {
         throw new AppError(ErrorCode.WORK_DAILY_LIMIT, 'Не хватит времени сегодня: рабочий день почти закончился', 400)
@@ -283,31 +286,33 @@ export const WorkService = {
       const toolCode = recipe?.requiredToolCode ?? null
       if (object.equipment?.isActive || toolCode) {
         const candidates = await tx.itemInstance.findMany({
-          where: { ownerId: characterId, status: 'NORMAL', usesLeft: { gt: 0 }, template: toolCode ? { type: 'TOOL', code: toolCode } : { type: 'TOOL', toolTier: { gte: object.equipment?.requiredToolTier ?? 1 } } },
+          where: { ownerId: characterId, status: 'NORMAL', usesLeft: { gte: quantity }, template: toolCode ? { type: 'TOOL', code: toolCode } : { type: 'TOOL', toolTier: { gte: object.equipment?.requiredToolTier ?? 1 } } },
           include: { template: true }, orderBy: { createdAt: 'asc' },
         })
         candidates.sort((a, b) => (a.template.toolTier ?? 0) - (b.template.toolTier ?? 0))
         for (const candidate of candidates) {
-          const locked = await tx.itemInstance.updateMany({ where: { id: candidate.id, ownerId: characterId, status: 'NORMAL', usesLeft: { gt: 0 } }, data: { status: 'LOCKED' } })
+          const locked = await tx.itemInstance.updateMany({ where: { id: candidate.id, ownerId: characterId, status: 'NORMAL', usesLeft: { gte: quantity } }, data: { status: 'LOCKED' } })
           if (locked.count === 1) { toolInstanceId = candidate.id; break }
         }
         if (!toolInstanceId) {
           await recordMissingToolBlock(now)
           if (toolCode) {
             const tool = await tx.itemTemplate.findUnique({ where: { code: toolCode }, select: { name: true } })
-            throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, `Для этого рецепта нужен инструмент: ${tool?.name ?? toolCode}`, 400)
+            throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, quantity > 1
+              ? `Для ${quantity} шт. нужен инструмент «${tool?.name ?? toolCode}» минимум на ${quantity} применений`
+              : `Для этого рецепта нужен инструмент: ${tool?.name ?? toolCode}`, 400)
           }
           const tier = object.equipment?.requiredToolTier ?? 1
           const name = toolForTier(await soldGeneralTools(tx), tier)
           throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, name ? `Нужен инструмент: ${name}` : `Нужен инструмент ${tier} уровня`, 400)
         }
       }
-      if (craft) await reserveGovCraftInputs(tx, characterId, craft)
+      if (craft) await reserveGovCraftInputs(tx, characterId, craft, quantity)
       const endsAt = new Date(now.getTime() + realShiftMinutes(craft?.cycleMinutes ?? object.shiftDurationMinutes) * 60_000)
       const shift = await tx.workShift.create({
-        data: { characterId, productionObjectId, professionCode: object.requiredProfessionCode, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: craft ? 0 : object.salaryOverride ?? object.baseSalary, toolInstanceId, craftRecipeId: craft?.id ?? null },
+        data: { characterId, productionObjectId, professionCode: object.requiredProfessionCode, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: craft ? 0 : object.salaryOverride ?? object.baseSalary, toolInstanceId, craftRecipeId: craft?.id ?? null, craftQuantity: quantity },
       })
-      await tx.productionLog.create({ data: { characterId, productionObjectId, eventType: 'SHIFT_STARTED', metadataJson: { shiftId: shift.id, endsAt, professionCode: shift.professionCode, toolInstanceId, craftRecipeId: craft?.id ?? null } } })
+      await tx.productionLog.create({ data: { characterId, productionObjectId, eventType: 'SHIFT_STARTED', metadataJson: { shiftId: shift.id, endsAt, professionCode: shift.professionCode, toolInstanceId, craftRecipeId: craft?.id ?? null, craftQuantity: quantity } } })
       return { shift, profession }
     })
   },
@@ -340,12 +345,14 @@ export const WorkService = {
       if (changed.count !== 1) throw new AppError(ErrorCode.WORK_ALREADY_CLAIMED, 'Shift already claimed', 409)
       let toolUse: { itemId: string; usesLeft: number } | null = null
       if (shift.toolInstanceId) {
-        const consumed = await tx.itemInstance.updateMany({ where: { id: shift.toolInstanceId, ownerId: characterId, status: 'LOCKED', usesLeft: { gt: 0 } }, data: { usesLeft: { decrement: 1 } } })
+        // Партия госкрафта тратит инструмент за каждую штуку (износ × количество).
+        const wear = shift.craftRecipeId ? shift.craftQuantity : 1
+        const consumed = await tx.itemInstance.updateMany({ where: { id: shift.toolInstanceId, ownerId: characterId, status: 'LOCKED', usesLeft: { gte: wear } }, data: { usesLeft: { decrement: wear } } })
         if (consumed.count !== 1) throw new AppError(ErrorCode.WORK_TOOL_UNAVAILABLE, 'Reserved tool is unavailable', 409)
         const tool = await tx.itemInstance.findUniqueOrThrow({ where: { id: shift.toolInstanceId } })
         const usesLeft = tool.usesLeft ?? 0
         await tx.itemInstance.update({ where: { id: tool.id }, data: { status: usesLeft <= 0 ? 'CONSUMED' : 'NORMAL' } })
-        await tx.itemLog.create({ data: { itemId: tool.id, characterId, actionCode: 'TOOL_USE', details: { shiftId, usesLeft } } })
+        await tx.itemLog.create({ data: { itemId: tool.id, characterId, actionCode: 'TOOL_USE', details: { shiftId, usesLeft, wear } } })
         toolUse = { itemId: tool.id, usesLeft }
       }
       const privatelyOwned = shift.productionObject.ownerType !== 'SYSTEM'
@@ -372,7 +379,7 @@ export const WorkService = {
       if (shift.productionObject.economicExpReward > 0) await EconomyService.grantEconomicExp(tx, characterId, shift.productionObject.economicExpReward)
       const crafted = shift.craftRecipeId ? await finishGovCraft(tx, {
         characterId, shiftId: shift.id, recipeId: shift.craftRecipeId,
-        professionLevel: profession.level, toolTier: shift.toolInstance?.template.toolTier ?? 0,
+        professionLevel: profession.level, toolTier: shift.toolInstance?.template.toolTier ?? 0, quantity: shift.craftQuantity,
       }) : null
       const cycleContribution = shift.productionObject.activeRecipeId && !shift.craftRecipeId
         ? await CycleService.contributeLabor(tx, {
@@ -425,7 +432,7 @@ export const WorkService = {
       if (!shift) throw new AppError(ErrorCode.WORK_SHIFT_NOT_FOUND, 'Active shift not found', 404)
       await tx.workShift.update({ where: { id: shift.id }, data: { status: 'CANCELLED' } })
       if (shift.toolInstanceId) await tx.itemInstance.updateMany({ where: { id: shift.toolInstanceId, ownerId: characterId, status: 'LOCKED' }, data: { status: 'NORMAL' } })
-      if (shift.craftRecipeId) await releaseGovCraftInputs(tx, characterId, shift.craftRecipeId)
+      if (shift.craftRecipeId) await releaseGovCraftInputs(tx, characterId, shift.craftRecipeId, shift.craftQuantity)
       await tx.character.updateMany({ where: { id: characterId, status: 'WORKING' }, data: { status: 'ACTIVE' } })
       await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CANCELLED', metadataJson: { shiftId, professionCode: shift.professionCode } } })
       return { cancelled: true }

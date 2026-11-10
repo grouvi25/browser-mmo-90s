@@ -18,6 +18,14 @@ import { realShiftMinutes } from './work.formulas'
 
 type Tx = Prisma.TransactionClient
 
+/**
+ * Сколько штук можно заказать за одну смену (Дима 10.11: «крафтить не по 1 ед,
+ * а сразу выбирать 1-3-5-10 шт… ресурсы, износ. А время оставляем одинаковое»).
+ * Экран берёт варианты отсюда, отдельно их нигде не прописываем.
+ */
+export const CRAFT_QUANTITIES = [1, 3, 5, 10] as const
+export type CraftQuantity = typeof CRAFT_QUANTITIES[number]
+
 export type GovCraftRecipe = Prisma.ProductionRecipeGetPayload<{ include: { inputs: true } }>
 
 /** Рецепты госцеха с тем, что у игрока есть, и причиной, если сделать нельзя. */
@@ -25,7 +33,8 @@ export async function govCraftView(db: Tx, params: {
   characterId: string
   objectCode: string
   professionLevel: number
-  toolCodes: string[]
+  /** Инструменты игрока: код → больше всего применений у одного экземпляра. */
+  toolUses: Record<string, number>
   /** Сколько рабочих минут осталось сегодня. */
   minutesLeft: number
 }) {
@@ -55,11 +64,14 @@ export async function govCraftView(db: Tx, params: {
     const tool = recipe.requiredToolCode ? { code: recipe.requiredToolCode, name: toolName.get(recipe.requiredToolCode) ?? recipe.requiredToolCode } : null
     const missing = inputs.filter(input => input.have < input.need)
     const reason = recipe.requiredProfessionLevel > params.professionLevel ? `Нужен ${recipe.requiredProfessionLevel} уровень профессии`
-      : tool && !params.toolCodes.includes(tool.code) ? `Нужен инструмент: ${tool.name}`
+      : tool && !params.toolUses[tool.code] ? `Нужен инструмент: ${tool.name}`
       : missing.length ? `Не хватает: ${missing.map(input => `${input.name} ${input.have}/${input.need}`).join(', ')}`
       : realShiftMinutes(recipe.cycleMinutes) > params.minutesLeft ? `Не хватит времени сегодня: осталось ${Math.max(0, params.minutesLeft)} мин, нужно ${realShiftMinutes(recipe.cycleMinutes)}`
       : null
     const minutes = realShiftMinutes(recipe.cycleMinutes)
+    // Партия упирается в сырьё и в применения одного инструмента: смена держит один экземпляр.
+    const limits = [...inputs.map(input => Math.floor(input.have / Math.max(1, input.need))), ...(tool ? [params.toolUses[tool.code] ?? 0] : [])]
+    const maxQuantity = reason ? 0 : Math.min(CRAFT_QUANTITIES[CRAFT_QUANTITIES.length - 1], ...limits)
     return {
       id: recipe.id, name: recipe.name, minutes,
       output: {
@@ -68,6 +80,7 @@ export async function govCraftView(db: Tx, params: {
         amount: recipe.outputAmount,
       },
       inputs, tool, requiredLevel: recipe.requiredProfessionLevel, reason,
+      quantities: [...CRAFT_QUANTITIES], maxQuantity,
     }
   })
 }
@@ -86,48 +99,50 @@ export async function govCraftRecipe(db: Tx, objectCode: string, recipeId: strin
 }
 
 /** Резерв сырья игрока на старте смены. Не хватает чего-то — смена не начнётся. */
-export async function reserveGovCraftInputs(db: Tx, characterId: string, recipe: GovCraftRecipe) {
+export async function reserveGovCraftInputs(db: Tx, characterId: string, recipe: GovCraftRecipe, quantity = 1) {
   for (const input of recipe.inputs) {
+    const amount = input.amount * quantity
     const template = await db.resourceTemplate.findUnique({ where: { code: input.resourceCode }, select: { id: true, name: true } })
     if (!template) throw new AppError(ErrorCode.PROD_RECIPE_INVALID, `Нет такого ресурса: ${input.resourceCode}`, 422)
     try {
-      await ResourcesService.reserve(db, characterId, template.id, input.amount)
+      await ResourcesService.reserve(db, characterId, template.id, amount)
     } catch (error) {
-      if (error instanceof AppError) throw new AppError(ErrorCode.RES_INSUFFICIENT, `Не хватает сырья: ${template.name}, нужно ${input.amount}`, 409)
+      if (error instanceof AppError) throw new AppError(ErrorCode.RES_INSUFFICIENT, `Не хватает сырья: ${template.name}, нужно ${amount}`, 409)
       throw error
     }
   }
 }
 
 /** Отмена смены: зарезервированное сырьё возвращается. */
-export async function releaseGovCraftInputs(db: Tx, characterId: string, recipeId: string) {
+export async function releaseGovCraftInputs(db: Tx, characterId: string, recipeId: string, quantity = 1) {
   const recipe = await db.productionRecipe.findUnique({ where: { id: recipeId }, include: { inputs: true } })
   if (!recipe) return
   for (const input of recipe.inputs) {
     const template = await db.resourceTemplate.findUnique({ where: { code: input.resourceCode }, select: { id: true } })
-    if (template) await ResourcesService.release(db, characterId, template.id, input.amount)
+    if (template) await ResourcesService.release(db, characterId, template.id, input.amount * quantity)
   }
 }
 
 /** Конец смены: сырьё списывается, изделие уходит игроку. */
 export async function finishGovCraft(db: Tx, params: {
-  characterId: string; shiftId: string; recipeId: string; professionLevel: number; toolTier: number
+  characterId: string; shiftId: string; recipeId: string; professionLevel: number; toolTier: number; quantity?: number
 }) {
+  const quantity = params.quantity ?? 1
   const recipe = await db.productionRecipe.findUniqueOrThrow({ where: { id: params.recipeId }, include: { inputs: true } })
   for (const input of recipe.inputs) {
     const template = await db.resourceTemplate.findUniqueOrThrow({ where: { code: input.resourceCode }, select: { id: true } })
-    await ResourcesService.release(db, params.characterId, template.id, input.amount)
-    await ResourcesService.consume(db, { characterId: params.characterId, resourceTemplateId: template.id, amount: input.amount, reasonCode: 'CYCLE_INPUT', refType: 'work_shift', refId: params.shiftId })
+    await ResourcesService.release(db, params.characterId, template.id, input.amount * quantity)
+    await ResourcesService.consume(db, { characterId: params.characterId, resourceTemplateId: template.id, amount: input.amount * quantity, reasonCode: 'CYCLE_INPUT', refType: 'work_shift', refId: params.shiftId })
   }
   const quality = outputQuality({ professionLevel: params.professionLevel, toolTier: params.toolTier, requiredToolTier: recipe.requiredToolTier, minInputQuality: null })
   if (recipe.outputResourceCode) {
     const template = await db.resourceTemplate.findUniqueOrThrow({ where: { code: recipe.outputResourceCode }, select: { id: true, name: true } })
-    await ResourcesService.add(db, { characterId: params.characterId, resourceTemplateId: template.id, amount: recipe.outputAmount, reasonCode: 'CYCLE_OUTPUT', refType: 'work_shift', refId: params.shiftId })
-    return { kind: 'resource' as const, code: recipe.outputResourceCode, name: template.name, amount: recipe.outputAmount }
+    await ResourcesService.add(db, { characterId: params.characterId, resourceTemplateId: template.id, amount: recipe.outputAmount * quantity, reasonCode: 'CYCLE_OUTPUT', refType: 'work_shift', refId: params.shiftId })
+    return { kind: 'resource' as const, code: recipe.outputResourceCode, name: template.name, amount: recipe.outputAmount * quantity }
   }
   if (!recipe.outputItemTemplateCode) return null
   const template = await db.itemTemplate.findUniqueOrThrow({ where: { code: recipe.outputItemTemplateCode } })
-  for (let index = 0; index < recipe.outputAmount; index += 1) {
+  for (let index = 0; index < recipe.outputAmount * quantity; index += 1) {
     const item = await db.itemInstance.create({ data: {
       templateId: template.id, ownerId: params.characterId, sourceType: 'CRAFTED', quality: resourceToItemQuality(quality),
       durabilityCurrent: template.durabilityMax, durabilityMax: template.durabilityMax, weight: template.weight,
@@ -136,5 +151,5 @@ export async function finishGovCraft(db: Tx, params: {
     } })
     await db.itemLog.create({ data: { itemId: item.id, characterId: params.characterId, actionCode: 'CREATED_BY_CRAFT', details: { govCraft: true, shiftId: params.shiftId, recipe: recipe.code } } })
   }
-  return { kind: 'item' as const, code: template.code, name: template.name, amount: recipe.outputAmount }
+  return { kind: 'item' as const, code: template.code, name: template.name, amount: recipe.outputAmount * quantity }
 }

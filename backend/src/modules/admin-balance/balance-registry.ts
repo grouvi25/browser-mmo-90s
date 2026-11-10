@@ -408,7 +408,7 @@ export function balanceRegistry(): BalanceGroup[] {
             p('economy.market.listingFeeMin', B.economy.market.listingFeeMin, 'минимальная комиссия'),
             p('economy.market.saleTaxRate', B.economy.market.saleTaxRate, 'налог с продажи'),
             p('economy.market.listingDurationHours', B.economy.market.listingDurationHours, 'сколько живёт лот'),
-            p('economy.market.maxActiveListings', B.economy.market.maxActiveListings, 'активных лотов на игрока'),
+            p('economy.market.maxActiveListings', B.economy.market.maxActiveListings, 'активных лотов на игрока, 0 — без ограничения'),
           ],
           source: 'modules/market/market.formulas.ts',
         },
