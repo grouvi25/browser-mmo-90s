@@ -386,6 +386,10 @@ test.describe('Stage 2 visual and browser flow', () => {
   })
 
   test('work browser flow requires a profession and a tool, buys them and starts a shift', async ({ page }, testInfo) => {
+    // Свой персонаж, без боя перед этим: на смену пускают только с 90% здоровья (обращение №61),
+    // а общий работяга приходит сюда раненым после теста «после боя».
+    const worker = await createAccount(apiContext, `shift_${testInfo.project.name}`)
+    await unlockLocations(apiContext, worker.characterId)
     // Профессии покупаются в Училище: работа их больше не выдаёт.
     const listed = await apiContext.get('/api/work/objects', { headers: { Authorization: `Bearer ${worker.token}` } })
     expect(listed.status()).toBe(200)

@@ -110,7 +110,9 @@ async function applyExp(
     const hpMax = character.stats ? hpWithGear(character.stats.end, level, gear) : character.hpMax
     await tx.character.update({
       where: { id: characterId },
-      data: { battleExp: exp, battleLevel: level, hpMax, hpCurrent: Math.min(character.hpCurrent, hpMax) },
+      // Выданный уровень не делает персонажа раненым: запас здоровья растёт вместе с максимумом
+      // (иначе после выдачи опыта он не проходил порог 90% для смены, обращение №61).
+      data: { battleExp: exp, battleLevel: level, hpMax, hpCurrent: Math.max(1, Math.min(hpMax, character.hpCurrent + Math.max(0, hpMax - character.hpMax))) },
     })
     // Очки характеристик за уровни — в обе стороны. Не забирать их при
     // списании нельзя: выдача опыта с последующим откатом оставляла бы
