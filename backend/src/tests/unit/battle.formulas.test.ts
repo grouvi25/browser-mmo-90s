@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest'
 import { BalanceConfig } from '../../config/balance.config'
 import {
   calcHitChance, calcDodgeChance, calcBlockChance, calcCritChance,
@@ -35,6 +35,11 @@ function makeDefender(overrides: Partial<DefenderSnapshot> = {}): DefenderSnapsh
 // ---------------------------------------------------------------
 // Initiative
 // ---------------------------------------------------------------
+// Эти тесты проверяют прежние формулы книги; схема перевеса №76 — в edge-combat.test.ts.
+const edgeWas = BalanceConfig.edge.enabled
+beforeAll(() => { BalanceConfig.edge.enabled = false })
+afterAll(() => { BalanceConfig.edge.enabled = edgeWas })
+
 describe('calcInitiative', () => {
   it('returns at least 1', () => {
     // Even with huge penalties, should never go below 1

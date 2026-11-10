@@ -461,6 +461,9 @@ export async function buildAttackerSnapshotAsync(
     // оружия, и за вычетом минус-оберегов противника (правило «Апехи»).
     antiDodgeBonus: charmBalance(gear.antiDodge, opponentGear.minus.antiDodge),
     antiCounterBonus: charmBalance(gear.antiCounter, opponentGear.minus.antiCounter),
+    // №76: перевес оберегов считается со знаком — минус-оберег сверх чужого оберега тоже решает.
+    dodgeCharmEdge: gear.antiDodge - opponentGear.minus.antiDodge,
+    counterCharmEdge: gear.antiCounter - opponentGear.minus.antiCounter,
     // Мастерство (правка 31.10): голыми руками и рукопашкой — кулачный бой,
     // любым другим оружием — исп. оружия.
     outgoingDamageMultiplier: 1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0) + buffs.damage
@@ -498,6 +501,8 @@ export function buildDefenderSnapshot(
     reflectShare: buffs.reflect,
     antiSkillLevel,
     antiCounterDefense: 0, antiLuck,
+    luckCharmEdge: gear.antiLuck - opponentGear.minus.antiLuck,
+    critCharmEdge: effectiveArmor.reduce((sum, a) => sum + Math.max(0, a.antiCrit), 0) + (gear.antiCrit - armorAntiCritBase) - opponentGear.minus.antiCrit,
     incomingDamageMultiplier: (1 - Math.min(MASTERY_DEFENSE_CAP, masteryBalance(gear, opponentGear, 'defense'))) * (1 - buffs.resist),
     minDamage: wMin, maxDamage: wMax,
   }

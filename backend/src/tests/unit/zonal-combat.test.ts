@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest'
+import { BalanceConfig } from '../../config/balance.config'
 import {
   armorOfZone,
   botArmorOfZone,
@@ -47,6 +48,11 @@ function mockRandom(seq: number[]) {
 afterEach(() => vi.restoreAllMocks())
 
 // ── zones module (детерминированно) ──────────────────────
+// Эти тесты проверяют прежние формулы книги; схема перевеса №76 — в edge-combat.test.ts.
+const edgeWas = BalanceConfig.edge.enabled
+beforeAll(() => { BalanceConfig.edge.enabled = false })
+afterAll(() => { BalanceConfig.edge.enabled = edgeWas })
+
 describe('zones: armorOfZone', () => {
   const equip: EquipArmorLike[] = [
     { armor: 10, slot: 'CHEST' },
@@ -189,7 +195,7 @@ describe('resolveZonalAttack: удачный удар пробивает бло�
     // dodge нет (0.99); lucky да (0.0 < luckyChance); crit нет (0.99); weaponRoll(0.5)
     mockRandom([0.0, 0.0, 0.5, 0.99])
     const atk = attacker({ luck: 25, minDamage: 40, maxDamage: 40, str: 0, weaponSkillLevel: 0 })
-    expect(calcLuckyPierceChance(atk.luck)).toBeGreaterThan(0)
+    expect(calcLuckyPierceChance(atk)).toBeGreaterThan(0)
     const r = resolveZonalAttack(atk, defender({ armor: 1000, end: 1, rea: 0 }), {
       zone: 'HEAD', blockedZones: ['HEAD'], zoneArmor: 1000,
     })

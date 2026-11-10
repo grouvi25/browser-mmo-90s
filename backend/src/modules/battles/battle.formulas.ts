@@ -20,6 +20,10 @@ export interface AttackerSnapshot {
   // Oberegs (оберег уворота) — снижает шанс уворота у цели
   antiDodgeBonus: number         // From item modifiers (Apeha: оберег уворота)
   antiCounterBonus: number
+  /** Оберег уворота за вычетом минус-оберега цели, со знаком (№76: перевес решает). */
+  dodgeCharmEdge?: number
+  /** Оберег ответа за вычетом минус-оберега цели, со знаком. */
+  counterCharmEdge?: number
   outgoingDamageMultiplier?: number       // Снижает шанс ответки у цели
 }
 
@@ -35,6 +39,10 @@ export interface DefenderSnapshot {
   antiSkillLevel: number
   antiCounterDefense: number
   antiLuck: number
+  /** Оберег удачи за вычетом минус-оберега бьющего, со знаком (№76). */
+  luckCharmEdge?: number
+  /** Оберег крита за вычетом минус-оберега бьющего, со знаком. */
+  critCharmEdge?: number
   incomingDamageMultiplier?: number
   // Базовый урон защитника (для ответки)
   minDamage: number; maxDamage: number
@@ -111,15 +119,40 @@ function statEdge(a: number, b: number): number {
 }
 
 // ---------------------------------------------------------------
+// Перевес (обращение №76, схема Димы и Nobody 10.11). statDiff и charmDiff —
+// в пользу того, чей шанс считаем. Обереги решают раньше статов: перевес
+// charmGap оберегов — 100% (или 0%), даже если статы против.
+// ---------------------------------------------------------------
+export function edgeChance(statDiff: number, charmDiff: number, mid: number): { chance: number; decided: boolean } {
+  const E = B.edge
+  if (charmDiff >= E.charmGap) return { chance: 1, decided: true }
+  if (charmDiff <= -E.charmGap) return { chance: 0, decided: true }
+  if (statDiff >= E.statGap) return { chance: 1, decided: true }
+  if (statDiff <= -E.statGap) return { chance: 0, decided: true }
+  return { chance: clamp(mid + statDiff / (2 * E.statGap) + charmDiff / (2 * E.charmGap), 0, 1), decided: false }
+}
+
+// ---------------------------------------------------------------
 // Уворот: CLAMP(0,05 + 0,25 × (Aз − Aа)/(Aз + Aа + 20); 0,01; 0,35).
 // Обереги уворота у защитника прибавляют, у атакующего — отнимают;
 // точность оружия сверх обычной (0,7) тоже отнимает, хмель — прибавляет.
 // ---------------------------------------------------------------
 export function calcDodgeChance(
   defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'>,
-  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'>
+  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'> & Partial<Pick<AttackerSnapshot, 'agi' | 'dodgeCharmEdge'>>
 ): number {
   const C = B.strike
+  if (B.edge.enabled) {
+    // №76: ловкость против ловкости, оберег уворота против уворота брони цели.
+    // Точность оружия и хмель двигают шанс, пока перевес не решил исход.
+    const hit = edgeChance(
+      (attacker.agi ?? 0) - defender.agi,
+      (attacker.dodgeCharmEdge ?? attacker.antiDodgeBonus ?? 0) - (defender.dodgeBonus ?? 0),
+      B.edge.hitMid,
+    )
+    const shift = (attacker.weaponAccuracy ?? C.baseWeaponAccuracy) - C.baseWeaponAccuracy
+    return hit.decided ? 1 - hit.chance : clamp(1 - hit.chance - shift, 0, 1)
+  }
   const raw = C.dodgeBase + C.dodgeSpread * statEdge(defender.agi, attacker.acc)
     + (defender.dodgeBonus ?? 0)
     - (attacker.antiDodgeBonus ?? 0)
@@ -129,7 +162,7 @@ export function calcDodgeChance(
 
 // Шанс, что удар дойдёт до защитника, — всё, кроме уворота.
 export function calcHitChance(
-  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'>,
+  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'> & Partial<Pick<AttackerSnapshot, 'agi' | 'dodgeCharmEdge'>>,
   defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'>
 ): number {
   return 1 - calcDodgeChance(defender, attacker)
@@ -157,8 +190,12 @@ export function calcCounterAttack(
 
 export function calcCounterAttackChance(
   defender: Pick<DefenderSnapshot, 'rea'>,
-  attacker: Pick<AttackerSnapshot, 'rea' | 'luck' | 'antiCounterBonus'>
+  attacker: Pick<AttackerSnapshot, 'rea' | 'luck' | 'antiCounterBonus'> & Partial<Pick<AttackerSnapshot, 'counterCharmEdge'>>
 ): number {
+  if (B.edge.enabled) {
+    // №76: «чтобы не получать ответ — на 50 реакции больше либо на 250% оберега ответа».
+    return edgeChance(defender.rea - attacker.rea, -(attacker.counterCharmEdge ?? attacker.antiCounterBonus ?? 0), B.edge.counterMid).chance
+  }
   const reactionRatio = defender.rea / Math.max(attacker.rea + attacker.luck, 1)
   const raw = B.counter.baseChance + reactionRatio * B.counter.reactionRatioMult - (attacker.antiCounterBonus ?? 0)
   return clamp(raw, 0, B.counter.maxChance) // max 40% counter chance
@@ -189,9 +226,13 @@ export function calcBlockChance(
 // ---------------------------------------------------------------
 export function calcCritChance(
   attacker: Pick<AttackerSnapshot, 'agr' | 'critBonus'>,
-  defender: Pick<DefenderSnapshot, 'antiCrit' | 'agr'>
+  defender: Pick<DefenderSnapshot, 'antiCrit' | 'agr'> & Partial<Pick<DefenderSnapshot, 'critCharmEdge'>>
 ): number {
   const C = B.strike
+  if (B.edge.enabled) {
+    // №76: агрессия против агрессии, оберег крита оружия против оберега крита цели.
+    return edgeChance(attacker.agr - (defender.agr ?? 0), (attacker.critBonus ?? 0) - (defender.critCharmEdge ?? defender.antiCrit ?? 0), B.edge.critMid).chance
+  }
   const raw = C.critBase + C.critSpread * statEdge(attacker.agr, defender.agr ?? 0)
     + (attacker.critBonus ?? 0)
     - (defender.antiCrit ?? 0)
@@ -304,8 +345,20 @@ const ZONE_LABEL: Record<BodyZone, string> = {
 }
 
 // Шанс «удачного удара» (пробитие блока/брони) — зависит от УДАЧИ атакующего.
-export function calcLuckyPierceChance(attackerLuck: number, antiLuck = 0): number {
-  return clamp((attackerLuck ?? 0) * 0.02 - antiLuck, 0, 0.25) // до 25%
+// №76 (Nobody 10.11): блок пробивает тот, у кого на 50 фарта больше, а оберег
+// удачи блокера перекрывается минус-оберегом удачи с перевесом 250%.
+export function calcLuckyPierceChance(
+  attacker: Pick<AttackerSnapshot, 'luck'> & Partial<Pick<AttackerSnapshot, 'blockPierce'>>,
+  defender: Partial<Pick<DefenderSnapshot, 'luck' | 'antiLuck' | 'luckCharmEdge'>> = {},
+): number {
+  if (B.edge.enabled) {
+    return edgeChance(
+      (attacker.luck ?? 0) - (defender.luck ?? 0),
+      (attacker.blockPierce ?? 0) - (defender.luckCharmEdge ?? defender.antiLuck ?? 0),
+      B.edge.pierceMid,
+    ).chance
+  }
+  return clamp((attacker.luck ?? 0) * 0.02 - (defender.antiLuck ?? 0), 0, 0.25) // до 25%
 }
 
 export function resolveZonalAttack(
@@ -335,7 +388,7 @@ export function resolveZonalAttack(
   }
 
   // 2. «Удачный удар» — определяем заранее: он пробивает одиночный блок.
-  lucky = rng() < calcLuckyPierceChance(attacker.luck, defender.antiLuck)
+  lucky = rng() < calcLuckyPierceChance(attacker, defender)
 
   // Incoming force is rolled once and also defines bounded counterattack damage.
   const incomingForce = calcRawDamage(attacker, defender.antiSkillLevel, rng)
