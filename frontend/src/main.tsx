@@ -30,6 +30,16 @@ const queryClient = new QueryClient({
 })
 
 // Картинки вещей из админки нужны до первой отрисовки: функция картинки вещи синхронная.
+// Обращение №83 (iPad): страница масштабировалась щипком и «уезжала», её
+// приходилось подстраивать под экран. Safari и Яндекс Браузер на iPad не
+// слушают user-scalable=no — гасим жест масштаба сами.
+for (const type of ['gesturestart', 'gesturechange'] as const) {
+  document.addEventListener(type, event => event.preventDefault(), { passive: false })
+}
+document.addEventListener('touchmove', event => {
+  if ((event as TouchEvent & { scale?: number }).scale !== undefined && (event as TouchEvent & { scale?: number }).scale !== 1) event.preventDefault()
+}, { passive: false })
+
 void loadTemplateImages().finally(() => ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>

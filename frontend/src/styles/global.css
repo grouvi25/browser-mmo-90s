@@ -3389,3 +3389,5 @@ button { font-family: inherit; }
 
 /* Быстрые тапы по зонам в бою не должны срабатывать как двойной тап и менять масштаб. */
 html { touch-action: manipulation; }
+/* №83: на планшете страница не «пружинит» и не уезжает при прокрутке. */
+html, body { overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
