@@ -8,8 +8,8 @@
 // =============================================================
 import { useEffect, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ArrowRight, Flag, Package, RefreshCw, RotateCcw, Shield, Sword, Zap } from 'lucide-react'
-import { battlesApi, type JournalKind } from '../../shared/api/battles.api'
+import { ArrowRight, Copy, Flag, Package, RefreshCw, RotateCcw, Shield, Sword, Zap } from 'lucide-react'
+import { battlesApi, type BattleJournalPage, type JournalKind } from '../../shared/api/battles.api'
 import { pageNumbers } from './page-numbers'
 import './battle-journal.css'
 
@@ -21,6 +21,52 @@ const ICON: Record<JournalKind, typeof Sword> = {
 // Время по Москве, как в чате (№37).
 function time(value: string) {
   return new Date(value).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })
+}
+
+/** Строка журнала текстом — как на экране, но без значков. */
+function plainLine(line: BattleJournalPage['items'][number]) {
+  return `[${time(line.at)}] Р${line.round} ${line.actor}${line.target ? ` → ${line.target}` : ''}: ${line.text}`
+}
+
+async function writeClipboard(text: string) {
+  try { await navigator.clipboard.writeText(text); return } catch { /* старый браузер или нет разрешения */ }
+  const area = document.createElement('textarea')
+  area.value = text
+  area.style.position = 'fixed'
+  area.style.opacity = '0'
+  document.body.appendChild(area)
+  area.select()
+  const done = document.execCommand('copy')
+  area.remove()
+  if (!done) throw new Error('copy failed')
+}
+
+/**
+ * Весь журнал боя в буфер (обращение №70: «нельзя скопировать лог, а так можно
+ * изучить позже или скинуть в поддержку»). Собираются все страницы, строки
+ * идут по порядку боя, сверху номер боя — по нему поддержка найдёт бой.
+ */
+function CopyJournal({ battleId, first }: { battleId: string; first: BattleJournalPage }) {
+  const [state, setState] = useState<'idle' | 'busy' | 'done' | 'fail'>('idle')
+  const copy = async () => {
+    setState('busy')
+    try {
+      const pages = [first]
+      for (let n = 1; n <= first.pages; n++) if (n !== first.page) pages.push(await battlesApi.getJournal(battleId, n))
+      pages.sort((a, b) => a.page - b.page)
+      const lines = pages.flatMap(p => p.items).reverse().map(plainLine)
+      const head = [`Бой ${battleId}`]
+      if (first.battle.status === 'FINISHED') head.push(`Бой окончен${first.battle.winner ? `: победил ${first.battle.winner}` : ''} · раундов ${first.battle.rounds}`)
+      await writeClipboard([...head, ...lines].join('\n'))
+      setState('done')
+    } catch { setState('fail') }
+    window.setTimeout(() => setState('idle'), 2500)
+  }
+  return (
+    <button type="button" className={`bj-copy is-${state}`} disabled={state === 'busy'} onClick={() => void copy()}>
+      <Copy size={12} aria-hidden="true" /> {state === 'busy' ? 'Собираю…' : state === 'done' ? 'Скопировано' : state === 'fail' ? 'Не получилось' : 'Скопировать журнал'}
+    </button>
+  )
 }
 
 export function BattleJournal({ battleId, refreshKey = 0 }: { battleId: string; refreshKey?: number }) {
@@ -76,14 +122,17 @@ export function BattleJournal({ battleId, refreshKey = 0 }: { battleId: string; 
           )
         })}
       </ol>
-      {data.pages > 1 && (
-        <nav className="bj-pages" aria-label="Страницы журнала">
-          {pageNumbers(data.page, data.pages).map((n, i) => n === null
-            ? <span key={`gap-${i}`} className="bj-gap">…</span>
-            : <button key={n} type="button" aria-current={n === data.page ? 'page' : undefined}
-                className={n === data.page ? 'is-active' : ''} onClick={() => setPage(n)}>{n}</button>)}
-        </nav>
-      )}
+      <div className="bj-foot">
+        {data.pages > 1 && (
+          <nav className="bj-pages" aria-label="Страницы журнала">
+            {pageNumbers(data.page, data.pages).map((n, i) => n === null
+              ? <span key={`gap-${i}`} className="bj-gap">…</span>
+              : <button key={n} type="button" aria-current={n === data.page ? 'page' : undefined}
+                  className={n === data.page ? 'is-active' : ''} onClick={() => setPage(n)}>{n}</button>)}
+          </nav>
+        )}
+        {data.total > 0 && <CopyJournal battleId={battleId} first={data} />}
+      </div>
     </div>
   )
 }

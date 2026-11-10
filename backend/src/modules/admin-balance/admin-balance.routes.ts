@@ -733,11 +733,11 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
       // Вещь, которую продаёт лавка, — частная; госмагазин — государственная.
       sourceType: sale?.shop === 'GOVERNMENT' ? 'GOVERNMENT' : sale?.shop === 'TSUM' || sale?.shop === 'BEREZKA' ? 'DONATE' : sale ? 'PRIVATE' : 'ADMIN',
       privateShopAllowed: !!sale && !['GOVERNMENT', 'TSUM', 'BEREZKA'].includes(sale.shop),
-      // Госвещи готовые: статы заданы, улучшать нечего (заказчик 30.10).
+      // Госвещи не улучшаются (заказчик 30.10).
       upgradeAllowed: ['WEAPON', 'ARMOR', 'SHIELD'].includes(item.type) && sale?.shop !== 'GOVERNMENT',
-      ...(sale?.shop === 'GOVERNMENT' ? { statBudget: 0, allocationMode: 'FIXED' as const } : {}),
       isEquippable: ['WEAPON', 'ARMOR', 'SHIELD', 'ACCESSORY'].includes(item.type),
-      statAllocation: sale?.shop === 'GOVERNMENT' ? {} : item.allocationMode === 'FIXED' ? item.statAllocation ?? {} : undefined,
+      // С 10.11 очки есть и у госвещи: игрок раскладывает их сам (заказчик 09.11).
+      statAllocation: item.allocationMode === 'FIXED' ? item.statAllocation ?? {} : undefined,
     }
 
     const action = await AdminActionsService.perform(admin(req), reason, {

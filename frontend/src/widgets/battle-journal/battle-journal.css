@@ -24,6 +24,16 @@
 .bj-pages button:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 1px; }
 .bj-pages button.is-active { background: var(--text-title, #2b2b2b); color: var(--bg-panel, #fff); border-color: transparent; }
 .bj-gap { color: var(--text-dim); padding: 0 2px; }
+/* Низ журнала: страницы слева, «Скопировать» справа. Ширина кнопки задана,
+   чтобы смена надписи ничего не сдвигала. */
+.bj-foot { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
+.bj-copy { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 172px; min-height: 32px; margin-left: auto; padding: 2px 10px; border: 1px solid var(--border); background: var(--bg-panel2); color: inherit; font: inherit; cursor: pointer; }
+.bj-copy:hover { background: var(--bg-hover); }
+.bj-copy:active { background: var(--border); }
+.bj-copy:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 1px; }
+.bj-copy:disabled { cursor: progress; color: var(--text-dim); }
+.bj-copy.is-done { border-color: #6a9a3a; color: #6a9a3a; }
+.bj-copy.is-fail { border-color: var(--danger); color: var(--danger); }
 /* В Истории боёв журнал раскрывается строкой таблицы: на телефоне таблица
    становится карточками, и подпись колонки перед ячейкой здесь лишняя. */
 .data-table tr.history-journal-row td { text-align: left; }
@@ -34,6 +44,7 @@
   .bj-time { margin-right: 4px; }
   .bj-round { display: none; }
   .bj-pages button { min-width: 40px; min-height: 40px; }
+  .bj-copy { min-height: 40px; }
 }
 
 /* Итог боя (№63): погибшие, сдавшиеся и опыт. */

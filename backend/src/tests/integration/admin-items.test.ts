@@ -88,14 +88,15 @@ describe('админка: новая вещь', () => {
     const knife = {
       name: 'Финка', type: 'WEAPON', weaponType: 'KNIFE', priceBase: 900, levelReq: 2, durabilityMax: 90, weight: 0.4,
       minDamage: 6, maxDamage: 11, weaponAccuracy: 0.8, maxRange: 1, armor: null,
-      statBudget: 4, allocationMode: 'FIXED', statAllocation: { DAMAGE: 2, CRIT: 2 },
+      // С 10.11 очки госвещи раскладывает игрок: бюджет и режим сохраняются как заданы.
+      statBudget: 20, allocationMode: 'PLAYER',
     }
     expect((await create({ item: knife, sale: { shop: 'GOVERNMENT', price: 900 }, reason: REASON }, moderatorToken)).statusCode).toBe(403)
     const res = await create({ item: knife, sale: { shop: 'GOVERNMENT', price: 900 }, reason: REASON })
     expect(res.statusCode).toBe(201)
     const { code, actionId } = res.json<{ code: string; actionId: string }>()
     const template = await testPrisma.itemTemplate.findUniqueOrThrow({ where: { code } })
-    expect(template).toMatchObject({ weaponType: 'KNIFE', armorSlot: null, sourceType: 'GOVERNMENT', statBudget: 0, allocationMode: 'FIXED', upgradeAllowed: false, statAllocation: {} })
+    expect(template).toMatchObject({ weaponType: 'KNIFE', armorSlot: null, sourceType: 'GOVERNMENT', statBudget: 20, allocationMode: 'PLAYER', upgradeAllowed: false })
     expect(await testPrisma.governmentShopItem.count({ where: { templateId: template.id } })).toBe(1)
 
     const undone = await app.inject({ method: 'POST', url: `/api/admin/actions/${actionId}/rollback`, headers: { authorization: `Bearer ${token}` }, payload: { reason: 'ошиблись с ценой финки' } })

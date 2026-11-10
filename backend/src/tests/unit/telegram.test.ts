@@ -117,4 +117,53 @@ describe('telegram sender', () => {
     expect(result.ok).toBe(false)
     expect(calls).not.toHaveBeenCalled()
   })
+
+  // Скриншот из обращения (просьба 10.11): поддержка видит его в боте.
+  it('шлёт скриншот фотографией с текстом в подписи', async () => {
+    const calls = vi.fn().mockResolvedValue({ ok: true } as Response)
+    globalThis.fetch = calls as unknown as typeof fetch
+
+    const { sendTelegramPhoto } = await import('../../modules/admin-balance/telegram.service')
+    const result = await run(sendTelegramPhoto('Новое обращение', { mime: 'image/png', bytes: Buffer.from('png-bytes') }))
+
+    expect(result).toEqual({ ok: true })
+    expect(calls).toHaveBeenCalledTimes(1)
+    const [url, init] = calls.mock.calls[0] as [string, { body: FormData }]
+    expect(url).toContain('/sendPhoto')
+    expect(init.body.get('caption')).toBe('Новое обращение')
+    expect(init.body.get('chat_id')).toBe('1')
+    const file = init.body.get('photo') as File
+    expect(file.name).toBe('screenshot.png')
+    expect(Buffer.from(await file.arrayBuffer()).toString()).toBe('png-bytes')
+  })
+
+  it('если фото не принято, текст всё равно уходит сообщением', async () => {
+    const calls = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 400, text: async () => 'IMAGE_PROCESS_FAILED' } as unknown as Response)
+      .mockResolvedValue({ ok: true } as Response)
+    globalThis.fetch = calls as unknown as typeof fetch
+
+    const { sendTelegramPhoto } = await import('../../modules/admin-balance/telegram.service')
+    const result = await run(sendTelegramPhoto('Новое обращение', { mime: 'image/jpeg', bytes: Buffer.from('x') }))
+
+    expect(result).toEqual({ ok: true })
+    expect((calls.mock.calls[0] as [string])[0]).toContain('/sendPhoto')
+    expect((calls.mock.calls[1] as [string])[0]).toContain('/sendMessage')
+  })
+
+  it('длинный текст не режется под подпись: сообщение целиком, фото следом', async () => {
+    const calls = vi.fn().mockResolvedValue({ ok: true } as Response)
+    globalThis.fetch = calls as unknown as typeof fetch
+
+    const { sendTelegramPhoto } = await import('../../modules/admin-balance/telegram.service')
+    const long = 'я'.repeat(1500)
+    const result = await run(sendTelegramPhoto(long, { mime: 'image/webp', bytes: Buffer.from('x') }))
+
+    expect(result).toEqual({ ok: true })
+    const [first, second] = calls.mock.calls as [string, { body: string | FormData }][]
+    expect(first[0]).toContain('/sendMessage')
+    expect(JSON.parse(first[1].body as string).text).toBe(long)
+    expect(second[0]).toContain('/sendPhoto')
+    expect((second[1].body as FormData).get('caption')).toBeNull()
+  })
 })

@@ -16,7 +16,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { logger } from '../../shared/logger/logger'
 import { NoticesService } from '../chat/notices.service'
-import { sendTelegram } from '../admin-balance/telegram.service'
+import { sendTelegram, sendTelegramPhoto } from '../admin-balance/telegram.service'
 import { pushLater } from '../push/push.service'
 
 export const SUPPORT = {
@@ -85,8 +85,11 @@ function escapeHtml(text: string): string {
 }
 
 /** Администрации в Telegram — без ожидания: упавший бот не мешает игроку. */
-function tellStaff(text: string) {
-  void sendTelegram(text).catch(err => logger.warn({ err }, '[Support] telegram skipped'))
+function tellStaff(text: string, image?: { mime: string; data: string } | null) {
+  const sending = image
+    ? sendTelegramPhoto(text, { mime: image.mime, bytes: Buffer.from(image.data, 'base64') })
+    : sendTelegram(text)
+  void sending.catch(err => logger.warn({ err }, '[Support] telegram skipped'))
 }
 
 async function ownTicket(characterId: string, ticketId: string) {
@@ -132,7 +135,7 @@ export const SupportService = {
       },
       select: { ...TICKET_FIELDS, character: { select: { nickname: true } } },
     })
-    tellStaff(`Новое обращение №${ticket.number} от ${escapeHtml(ticket.character.nickname)} · ${CATEGORY_LABEL[category]}${image ? ' · со скриншотом' : ''}\n<b>${escapeHtml(subject)}</b>\n${escapeHtml(text.slice(0, 500))}`)
+    tellStaff(`Новое обращение №${ticket.number} от ${escapeHtml(ticket.character.nickname)} · ${CATEGORY_LABEL[category]}${image ? ' · со скриншотом' : ''}\n<b>${escapeHtml(subject)}</b>\n${escapeHtml(text)}`, image)
     const { character: _c, ...row } = ticket
     void _c
     return row
@@ -201,7 +204,7 @@ export const SupportService = {
       }),
     ])
     const who = await prisma.character.findUnique({ where: { id: characterId }, select: { nickname: true } })
-    tellStaff(`${reopened ? 'Открыто снова' : 'Игрок дописал в'} обращение №${ticket.number} (${escapeHtml(who?.nickname ?? '')})\n<b>${escapeHtml(ticket.subject)}</b>\n${escapeHtml(text.slice(0, 500))}`)
+    tellStaff(`${reopened ? 'Открыто снова' : 'Игрок дописал в'} обращение №${ticket.number} (${escapeHtml(who?.nickname ?? '')})${image ? ' · со скриншотом' : ''}\n<b>${escapeHtml(ticket.subject)}</b>\n${escapeHtml(text)}`, image)
     return this.thread(characterId, ticketId)
   },
 

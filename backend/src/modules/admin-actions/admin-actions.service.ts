@@ -195,6 +195,8 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
         weight: template.weight,
         sourceType: 'ADMIN',
         usesLeft: template.type === 'TOOL' ? template.usesMax : null,
+        // Очки к раскладке, как у купленной вещи с раскладкой игроком.
+        freePoints: template.allocationMode === 'PLAYER' ? template.statBudget : 0,
       },
     })
     await tx.itemLog.create({

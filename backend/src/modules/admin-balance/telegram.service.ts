@@ -60,6 +60,9 @@ const RETRY_PAUSE_MS = [400, 1200]
 /** Соединение либо устанавливается за полсекунды, либо не установится. */
 const REQUEST_TIMEOUT_MS = 8000
 
+/** Картинка грузится дольше текста: скриншот до пары мегабайт. */
+const PHOTO_TIMEOUT_MS = 20000
+
 const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 /**
@@ -114,6 +117,64 @@ async function sendToChat(chatId: string, text: string): Promise<{ ok: boolean; 
   }
   logger.error({ attempts: ATTEMPTS }, '[Telegram] Сеть недоступна')
   return { ok: false, error: lastError }
+}
+
+/** Подпись к фото у Telegram не длиннее 1024 знаков. */
+const CAPTION_LIMIT = 1024
+
+export interface TelegramPhoto { mime: string; bytes: Buffer }
+
+/**
+ * Сообщение с картинкой (скриншот из обращения): поддержка видит его прямо
+ * в боте и не идёт за ним на сайт. Если фото не прошло (формат, размер,
+ * сеть), текст всё равно уходит обычным сообщением — оповещение важнее
+ * картинки.
+ */
+export async function sendTelegramPhoto(text: string, photo: TelegramPhoto): Promise<{ ok: boolean; error?: string }> {
+  if (!telegramConfigured()) {
+    return { ok: false, error: 'Не настроено: нет TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID' }
+  }
+  const fits = text.length <= CAPTION_LIMIT
+  const results = await Promise.all(telegramChatIds().map(async chatId => {
+    // Длинный текст в подпись не влезает: шлём его целиком, фото следом.
+    if (!fits) {
+      const sent = await sendToChat(chatId, text)
+      if (sent.ok) await sendPhotoToChat(chatId, '', photo)
+      return sent
+    }
+    const withPhoto = await sendPhotoToChat(chatId, text, photo)
+    return withPhoto.ok ? withPhoto : sendToChat(chatId, text)
+  }))
+  if (results.every(r => r.ok)) return { ok: true }
+  const failed = results.map((r, i) => r.ok ? null : `${telegramChatIds()[i]}: ${r.error}`).filter(Boolean).join('; ')
+  return results.some(r => r.ok) ? { ok: true, error: `Не всем: ${failed}` } : { ok: false, error: failed }
+}
+
+async function sendPhotoToChat(chatId: string, caption: string, photo: TelegramPhoto): Promise<{ ok: boolean; error?: string }> {
+  const ext = photo.mime === 'image/png' ? 'png' : photo.mime === 'image/webp' ? 'webp' : 'jpg'
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    try {
+      const form = new FormData()
+      form.set('chat_id', chatId)
+      if (caption) { form.set('caption', caption); form.set('parse_mode', 'HTML') }
+      form.set('photo', new Blob([new Uint8Array(photo.bytes)], { type: photo.mime }), `screenshot.${ext}`)
+      const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(PHOTO_TIMEOUT_MS),
+      })
+      if (!response.ok) {
+        const body = await response.text().catch(() => '')
+        logger.warn({ status: response.status, body: body.slice(0, 200) }, '[Telegram] Фото не прошло')
+        return { ok: false, error: `Telegram ответил ${response.status}` }
+      }
+      return { ok: true }
+    } catch (err) {
+      logger.warn({ err, attempt, of: ATTEMPTS }, '[Telegram] Попытка с фото не прошла')
+      if (attempt < ATTEMPTS) await pause(RETRY_PAUSE_MS[attempt - 1] ?? 1200)
+    }
+  }
+  return { ok: false, error: 'Не удалось связаться с Telegram' }
 }
 
 export interface AlertNotice {

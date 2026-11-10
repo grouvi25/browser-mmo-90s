@@ -67,11 +67,11 @@ const percents = (keys: [string, ...unknown[]][], values: Record<string, number>
   Object.fromEntries(keys.flatMap(([key]) => (values?.[key] ?? 0) > 0 ? [[key, Math.min(100, values![key])]] : []))
 
 /**
- * Очки по уровню — правило заказчика: 1-й уровень — 3, 2-й — 4, 3-й — 7,
- * 4-й — 10, дальше +3 за уровень.
+ * Очки по уровню — правило заказчика от 10.11: шмот 1-го уровня — 20 очков,
+ * каждый следующий уровень открывает ещё 6 (уровни поднимает Оружейник).
  */
 function statBudgetForLevel(level: number): number {
-  return level <= 1 ? 3 : 3 * level - 2
+  return 20 + 6 * Math.max(0, level - 1)
 }
 
 export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
@@ -121,9 +121,9 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
   const [error, setError] = useState('')
 
   const stats = STATS_FOR[kind] ?? []
-  // Госвещь готовая: очков нет (заказчик 30.10). Старая с очками правится как есть.
-  const government = shop === 'GOVERNMENT' && (!editing || !initial.statBudget)
-  const wearable = stats.length > 0 && !government
+  // С 10.11 и госшмот с очками: игрок сам раскладывает статы (заказчик 09.11,
+  // «даже в гос шмоте игроки сами смогут распределять статы»).
+  const wearable = stats.length > 0
   const worn = kind !== 'CONSUMABLE' && kind !== 'TOOL'
   const spent = stats.reduce((sum, key) => sum + (alloc[key] ?? 0), 0)
   const shopInfo = SHOPS.find(item => item.value === shop)!
