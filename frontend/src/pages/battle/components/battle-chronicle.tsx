@@ -92,7 +92,9 @@ export function BattleChronicle({ rounds, playerName, enemyName, helperName, onO
                 рассчитаны на тёмную плашку и на бумаге не читаются. */}
             <span className={`battle-chronicle__label is-${view.type}`}>{view.label}</span>
             {line.event.finalDamage > 0 && <em>−{line.event.finalDamage}</em>}
-            {line.event.intercepted && <span className="battle-chronicle__label">принял {helperName ?? 'помощник'}</span>}
+            {line.event.onCompanion
+              ? <span className="battle-chronicle__label">{line.event.onCompanion === 'dog' ? 'по собаке' : 'по помощнику'}</span>
+              : line.event.intercepted && <span className="battle-chronicle__label">принял {helperName ?? 'помощник'}</span>}
           </li>
         })}
       </ol>}

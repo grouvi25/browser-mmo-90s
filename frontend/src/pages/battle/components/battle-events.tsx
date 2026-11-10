@@ -13,6 +13,8 @@ export interface TurnEvent {
   rawDamage: number; finalDamage: number; logParts: string[]
   /** Удар по хозяину принял на себя боевой помощник. */
   intercepted?: boolean
+  /** Бот ударил вызванную фигуру, а не хозяина (Дима 10.11). */
+  onCompanion?: 'helper' | 'dog'
 }
 
 export interface RoundRecord {

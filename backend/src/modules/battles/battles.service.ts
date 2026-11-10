@@ -3,7 +3,7 @@ import { buffTotals, effectText, liveEffects, parseActiveEffects, parseUseEffect
 import { loadCombatDog, type LiveDog } from './combat-dog'
 import { heldWeapon, registerWound, woundedArmor, woundedBotEquip, type Wounds } from './wounds'
 import { awardCombatHelper, damageHelper, helperIntercepts, loadCombatHelper, type LiveHelper } from './combat-helper'
-import { INTERCEPT_MARK, companionCells, companionDamage, companionDefenceStats, companionTurn, damageCompanion, parseCompanionId, summonCell, type CompanionEvent, type CompanionKind } from './companions'
+import { INTERCEPT_MARK, companionCells, companionDamage, companionDefenceStats, companionTurn, damageCompanion, parseCompanionId, summonCell, type CompanionEvent, type CompanionKind, type CompanionOwner } from './companions'
 import { prisma } from '../../shared/db/prisma'
 import { BattleRedis, AntiFarmRedis } from '../../shared/db/redis'
 import { CharactersRepository } from '../characters/characters.repository'
@@ -1798,7 +1798,29 @@ export const BattleService = {
     let gridBot = projected.find(p => p.participantId === botPart.participantId)!
     let botMoved = false
     const botWantsAttack = botTurn.attackZones.length > 0
-    if (botWantsAttack && !canAttackTarget(gridBot, gridPlayer, projected, botRange)) {
+    // Дима 10.11: «помощников, собак тоже нужно, чтобы били». Бот идёт на ближайшую
+    // вызванную фигуру, если она ближе хозяина; иначе бьёт хозяина, как раньше.
+    const nearestCompanionCell = () => {
+      const board = positionedParticipants(state)
+      const me = board.find(p => p.participantId === botPart.participantId)!
+      const toOwner = playerPart.isAlive ? gridDistance(me.position, playerPart.position) : Infinity
+      return companionCells([playerPart as unknown as CompanionOwner])
+        .filter(c => gridDistance(me.position, c.position) < toOwner)
+        .sort((a, b) => gridDistance(me.position, a.position) - gridDistance(me.position, b.position))[0] ?? null
+    }
+    const botCompanionCell = botWantsAttack ? nearestCompanionCell() : null
+    const botCompanionKind = botCompanionCell ? parseCompanionId(botCompanionCell.participantId)?.kind ?? null : null
+    if (botCompanionCell && !canAttackTarget(gridBot, botCompanionCell, projected, botRange)) {
+      const destination = stepTowardOrAround(gridBot.position, botCompanionCell.position).find(cell => canMoveTo(gridBot, cell, projected))
+      if (destination) {
+        botPart.position = destination
+        botMoved = true
+        projected = positionedParticipants(state)
+        gridPlayer = projected.find(p => p.participantId === playerPart.participantId)!
+        gridBot = projected.find(p => p.participantId === botPart.participantId)!
+      }
+    }
+    if (!botCompanionCell && botWantsAttack && !canAttackTarget(gridBot, gridPlayer, projected, botRange)) {
       const candidates = botRange > 1 && gridDistance(gridBot.position, gridPlayer.position) <= 1
         ? stepAway(gridBot.position, gridPlayer.position)
         : stepTowardOrAround(gridBot.position, gridPlayer.position)
@@ -1816,7 +1838,7 @@ export const BattleService = {
     const playerWantsAttack = !playerMoved && playerTurn.attackZones.length > 0
     const playerAttackRanges = playerTurn.attackHands.map(hand => weaponRangeOf(hand === 'RIGHT_HAND' ? rightWeapon : leftWeapon))
     const doPlayerStrike = playerWantsAttack && playerAttackRanges.every(range => canAttackTarget(gridPlayer, gridBot, projected, range))
-    const doBotStrike = !botMoved && botWantsAttack && canAttackTarget(gridBot, gridPlayer, projected, botRange)
+    const doBotStrike = !botCompanionCell && !botMoved && botWantsAttack && canAttackTarget(gridBot, gridPlayer, projected, botRange)
 
     const playerInit = calcInitiative(char.stats!.rea, char.stats!.agi, skillRecord.skillLevel, attackerSnap.equipmentWeight)
     const botInit    = calcInitiative(botStats.rea ?? 2, botStats.agi ?? 2, 1, 0)
@@ -1825,9 +1847,30 @@ export const BattleService = {
     let playerHp = playerPart.hpCurrent
     let botHp = botPart.hpCurrent
 
-    type TurnRec = { actor: 'player' | 'bot'; r: HandStrikeResult; intercepted?: boolean }
+    type TurnRec = { actor: 'player' | 'bot'; r: HandStrikeResult; intercepted?: boolean; companion?: CompanionKind }
     const turns: TurnRec[] = []
     const helper = playerPart.helper
+    /** Удар бота по вызванной фигуре хозяина: формулы те же, защита фигуры — как у бота её уровня. */
+    const botStrikeCompanion = (kind: CompanionKind) => {
+      const body = kind === 'helper' ? playerPart.helper : playerPart.dog
+      if (!body?.summoned || !body.alive || !body.position) return
+      const res = executeStrikes({
+        attackerSnap: botAttackSnap,
+        defenderSnap: buildBotDefenderSnapshot({ ...companionDefenceStats(playerPart as unknown as CompanionOwner, kind), armor: 1 }),
+        zoneArmorFor: () => 1,
+        attackZones: botShots(botTurn.attackZones, gridDistance(botPart.position, body.position)),
+        blockedZones: [],
+        defenderHp: body.hp,
+      })
+      for (const r of res.results) {
+        if (r.hit && !r.dodge && !r.block) {
+          damageCompanion(body, r.finalDamage)
+          botPart.hitsLanded++
+          botPart.damageDealt += r.finalDamage
+        }
+        turns.push({ actor: 'bot', r, companion: kind })
+      }
+    }
     const botHitZonesOnPlayer: BodyZone[] = []
 
     const playerStrike = () => {
@@ -1903,12 +1946,14 @@ export const BattleService = {
       if (doBotStrike) botStrike()
       if (doPlayerStrike && playerHp > 0 && botHp > 0) playerStrike()
     }
+    if (botCompanionKind && botCompanionCell && !botMoved && botHp > 0
+      && canAttackTarget(gridBot, botCompanionCell, positionedParticipants(state), botRange)) botStrikeCompanion(botCompanionKind)
     // Вызванные помощник и собака ходят сами, как боты (правка 28.10):
-    // бот рядом — бьют, нет — шаг к нему. Бот бьёт только хозяина.
+    // бот рядом — бьют, нет — шаг к нему.
     const dog = playerPart.dog
     const companionEvents: CompanionEvent[] = []
     for (const kind of ['helper', 'dog'] as const) {
-      if (playerHp <= 0 || botHp <= 0) break
+      if (botHp <= 0) break
       const event = companionTurn({
         owner: playerPart, kind,
         enemies: [{ id: botPart.participantId, side: botPart.side, position: botPart.position }],
@@ -1924,6 +1969,42 @@ export const BattleService = {
         },
       })
       if (event) companionEvents.push(event)
+    }
+
+    // Хозяина выбили, а фигуры на поле живы — бой не обрывается (Дима 10.11:
+    // «не заканчивался, пока всех не перебьют»): фигуры и бот доигрывают
+    // сами, без хода игрока, все удары ложатся в журнал этого раунда.
+    for (let extra = 0; playerHp <= 0 && botHp > 0 && extra < 12; extra++) {
+      if (companionCells([playerPart as unknown as CompanionOwner]).length === 0) break
+      for (const kind of ['helper', 'dog'] as const) {
+        if (botHp <= 0) break
+        const event = companionTurn({
+          owner: { ...playerPart, isAlive: true } as unknown as LiveParticipant, kind,
+          enemies: [{ id: botPart.participantId, side: botPart.side, position: botPart.position }],
+          ownerTargetId: botPart.participantId,
+          board: () => positionedParticipants(state),
+          strike: (_targetId, hit) => {
+            if (!hit.hit) return
+            botHp = Math.max(0, botHp - hit.damage)
+            const body = kind === 'helper' ? helper! : dog!
+            body.damageDealt += hit.damage
+            botPart.damageReceived += hit.damage
+            botPart.hitsTaken++
+          },
+        })
+        if (event) companionEvents.push(event)
+      }
+      if (botHp <= 0) break
+      const cell = nearestCompanionCell()
+      const kind = cell ? parseCompanionId(cell.participantId)?.kind : null
+      if (!cell || !kind) break
+      const board = positionedParticipants(state)
+      const me = board.find(p => p.participantId === botPart.participantId)!
+      if (canAttackTarget(me, cell, board, botRange)) botStrikeCompanion(kind)
+      else {
+        const destination = stepTowardOrAround(me.position, cell.position).find(c => canMoveTo(me, c, board))
+        if (destination) { botPart.position = destination; botMoved = true }
+      }
     }
 
     // Переодевание попадает в журнал первым событием раунда: игрок должен
@@ -1962,8 +2043,9 @@ export const BattleService = {
       battleId, roundNumber,
       actorCharId: t.actor === 'player' ? char.id : null,
       actorBotId:  t.actor === 'bot' ? botPart.botId : null,
-      targetCharId: t.actor === 'bot' && !t.intercepted ? char.id : null,
-      targetHelperId: t.intercepted ? helper?.id ?? null : null,
+      targetCharId: t.actor === 'bot' && !t.intercepted && !t.companion ? char.id : null,
+      targetHelperId: t.intercepted || t.companion === 'helper' ? helper?.id ?? null : null,
+      targetPetId: t.companion === 'dog' ? dog?.id ?? null : null,
       targetBotId:  t.actor === 'player' ? botPart.botId : null,
       action: 'ATTACK' as BattleAction,
       weaponId: t.actor === 'player' ? t.r.weaponId : null,
@@ -2008,7 +2090,7 @@ export const BattleService = {
       distance: state.distance,
       playerRange,
       turns: [...swapEvents,
-      ...moveEvents, ...turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r, intercepted: t.intercepted ?? false })),
+      ...moveEvents, ...turns.map(t => ({ actor: t.actor, action: 'attack', ...t.r, intercepted: t.intercepted ?? false, ...(t.companion ? { onCompanion: t.companion } : {}) })),
       ...companionEvents.map(companionTurnEvent)],
       helper: helper ? { name: helper.name, hp: helper.hp, hpMax: helper.hpMax, alive: helper.alive, tactic: helper.tactic, level: helper.level } : null,
       playerHp,

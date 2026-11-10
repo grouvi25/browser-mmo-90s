@@ -95,6 +95,46 @@ describe('боевой помощник в бою', () => {
     }
   })
 
+  it('бот бьёт вызванного помощника, если тот ближе хозяина (Дима 10.11)', async () => {
+    const a = await fighter('bothit')
+    const hired = await HelpersService.hire(a.character.id, 'Шарик', '', 'COMBAT')
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.1)
+    const { battleId } = await BattleService.startPve(a.user.id, 'training_bandit')
+    await BattleService.summonCompanion(battleId, a.user.id, 'helper')
+    const state = (await BattleRedis.getState<LiveBattleState>(battleId))!
+    const owner = state.participants.find(p => p.characterId === a.character.id)!
+    const bot = state.participants.find(p => p.botId)!
+    owner.position = { x: 2, y: 5 }
+    owner.helper!.position = { x: 5, y: 5 }
+    bot.position = { x: 6, y: 5 }
+    await BattleRedis.setState(battleId, state)
+    await BattleService.submitAction(a.user.id, battleId, { action: 'block', stance: 'defense4', attackZones: [], attackHands: [], blockZones: ['HEAD', 'CHEST', 'BELLY', 'LEGS'] })
+    random.mockRestore()
+    expect(await testPrisma.battleTurn.count({ where: { battleId, actorBotId: { not: null }, targetHelperId: hired.id } })).toBeGreaterThan(0)
+    expect(await testPrisma.battleTurn.count({ where: { battleId, actorBotId: { not: null }, targetCharId: a.character.id } })).toBe(0)
+  })
+
+  it('хозяина выбили, а помощник на поле — бой не обрывается, помощник доигрывает', async () => {
+    const a = await fighter('lastman')
+    const hired = await HelpersService.hire(a.character.id, 'Тузик', '', 'COMBAT')
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.1)
+    const { battleId } = await BattleService.startPve(a.user.id, 'training_bandit')
+    await BattleService.summonCompanion(battleId, a.user.id, 'helper')
+    const state = (await BattleRedis.getState<LiveBattleState>(battleId))!
+    const owner = state.participants.find(p => p.characterId === a.character.id)!
+    const bot = state.participants.find(p => p.botId)!
+    owner.position = { x: 4, y: 5 }
+    bot.position = { x: 5, y: 5 }
+    owner.helper!.position = { x: 6, y: 5 }
+    owner.hpCurrent = 1
+    await BattleRedis.setState(battleId, state)
+    const res = await BattleService.submitAction(a.user.id, battleId, { action: 'attack', stance: 'attack2', attackZones: ['CHEST', 'CHEST'], attackHands: ['LEFT_HAND', 'RIGHT_HAND'], blockZones: [] }) as { battleOver?: boolean }
+    random.mockRestore()
+    // За обычный раунд помощник ходит один раз; больше — значит, бой доигрывался после выбитого хозяина.
+    expect(await testPrisma.battleTurn.count({ where: { battleId, actorHelperId: hired.id } })).toBeGreaterThan(1)
+    expect(res.battleOver).toBe(true)
+  })
+
   it('смена тактики в бою действует и запоминается', async () => {
     const a = await fighter('tactic')
     const hired = await HelpersService.hire(a.character.id, 'Бим', '', 'COMBAT')

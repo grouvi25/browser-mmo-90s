@@ -86,10 +86,15 @@ export function aliveOfSide(state: LiveTeamState, side: number): LiveTeamPartici
   return state.participants.filter(p => p.side === side && p.isAlive && !p.isSurrendered)
 }
 
-/** Бой закончен, когда одна из сторон осталась без живых. */
+/**
+ * Бой закончен, когда у одной из сторон не осталось никого на поле. Вызванные
+ * помощник и собака тоже держат сторону (Дима 10.11: «бой не заканчивался, пока
+ * всех не перебьют»): хозяина выбили — его фигуры дерутся дальше сами.
+ */
 export function teamOutcome(state: LiveTeamState): { over: boolean; winnerSide: number | null } {
   const sides = [...new Set(state.participants.map(p => p.side))]
-  const standing = sides.filter(side => aliveOfSide(state, side).length > 0)
+  const standing = sides.filter(side => aliveOfSide(state, side).length > 0
+    || companionCells((state.participants as unknown as CompanionOwner[]).filter(p => p.side === side)).length > 0)
   if (standing.length <= 1) return { over: true, winnerSide: standing[0] ?? null }
   if (state.roundNumber >= TEAM_ROUND_LIMIT) return { over: true, winnerSide: null }
   return { over: false, winnerSide: null }

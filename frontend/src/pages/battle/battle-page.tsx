@@ -415,6 +415,7 @@ export function BattlePage() {
       const events: TurnEvent[] = data.turns?.map(t => ({
         actor: t.actor === 'player' ? 'player' : t.actor === 'helper' ? 'helper' : 'enemy',
         intercepted: (t as { intercepted?: boolean }).intercepted ?? false,
+        onCompanion: (t as { onCompanion?: 'helper' | 'dog' }).onCompanion,
         action: t.action, hit: t.hit, dodge: t.dodge, block: t.block,
         crit: t.crit, lucky: t.lucky, counterDamage: t.counterDamage, sourceHand: t.sourceHand, zone: t.zone,
         rawDamage: t.rawDamage, finalDamage: t.finalDamage, logParts: t.logParts,
@@ -428,7 +429,7 @@ export function BattlePage() {
           if (t.actor === 'player') { setPlayerAttack(true); setTimeout(() => setPlayerAttack(false), 460) }
           else                      { setEnemyAttack(true); setTimeout(() => setEnemyAttack(false), 460) }
         }
-        if (t.hit && !t.dodge && !t.intercepted) {
+        if (t.hit && !t.dodge && !t.intercepted && !t.onCompanion) {
           if (t.actor === 'player' || t.actor === 'helper') { setEnemyHit(true); setTimeout(() => setEnemyHit(false), 500) }
           else                      { setPlayerHit(true); setTimeout(() => setPlayerHit(false), 500) }
         }
