@@ -48,6 +48,17 @@ describe('CharactersService.create', () => {
     expect(char!.money).toBe(BalanceConfig.character.startMoney)
   })
 
+  it('новичку — подписка в подарок на 2 недели и строка об этом (Дима 11.11)', async () => {
+    const { userId } = await createTestUser()
+    const char = await CharactersService.create(userId, { nickname: uid('Prem'), archetype: 'WORKER' })
+    const row = await testPrisma.character.findUniqueOrThrow({ where: { id: char!.id } })
+    expect(row.isPremium).toBe(true)
+    const days = (row.premiumExpiresAt!.getTime() - Date.now()) / 86_400_000
+    expect(days).toBeGreaterThan(13.9)
+    expect(days).toBeLessThanOrEqual(14)
+    expect(await testPrisma.gameNotice.count({ where: { characterId: char!.id, text: { contains: 'подписка на 14 дней' } } })).toBe(1)
+  })
+
   it('creates stats matching archetype bonuses', async () => {
     const { userId } = await createTestUser()
     const char = await CharactersService.create(userId, {

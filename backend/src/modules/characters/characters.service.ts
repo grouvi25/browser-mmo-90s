@@ -67,6 +67,8 @@ export const CharactersService = {
       hpCurrent: hpMax,
       hpMax,
       money: B.startMoney,
+      // Подписка в подарок новичку (Дима 11.11): две недели, дальше — как у всех.
+      ...(B.newbiePremiumDays > 0 ? { isPremium: true, premiumExpiresAt: new Date(Date.now() + B.newbiePremiumDays * 24 * 3_600_000) } : {}),
     })
 
     // Create stats
@@ -75,6 +77,11 @@ export const CharactersService = {
     // Письмо Бывалого новичку (Дмитрий 09.11): строка в ленте «Системы», сам текст — на /novichok.
     await NoticesService.push(char.id, `Бывалый оставил тебе письмо, ${char.nickname}: «Кодекс выживания приезжего». Читай в Библиотеке → «С чего начать» или по адресу kooperativ.space/novichok`)
       .catch(() => undefined)
+
+    if (B.newbiePremiumDays > 0) {
+      await NoticesService.push(char.id, `Тебе подарена подписка на ${B.newbiePremiumDays} дней: быстрее восстанавливается здоровье, больше смен и помощники. Срок видно в профиле.`)
+        .catch(() => undefined)
+    }
 
     audit('character.created', {
       userId,

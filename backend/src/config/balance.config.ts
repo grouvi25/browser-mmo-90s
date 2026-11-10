@@ -162,6 +162,8 @@ export const BalanceConfig = {
 
   // --- Character base values ---
   character: {
+    /** Дима 11.11: «при регистрации подписка на 2 недели». 0 — без подарка. */
+    newbiePremiumDays:  14,
     startMoney:         5000,  // стартовые деньги 5 000 ₽ (чат Дмитрия 29.10; решение владельца 30.10)
     baseHp:             60,
     hpPerEnd:           6,     // HP за 1 END

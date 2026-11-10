@@ -32,6 +32,8 @@ export const CharactersRepository = {
     hpCurrent: number
     hpMax: number
     money: number
+    isPremium?: boolean
+    premiumExpiresAt?: Date | null
   }): Promise<Character> {
     return prisma.character.create({ data: data as Parameters<typeof prisma.character.create>[0]['data'] })
   },

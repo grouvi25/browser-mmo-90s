@@ -99,6 +99,7 @@ export function balanceRegistry(): BalanceGroup[] {
           inputs: ['архетип'],
           params: [
             p('character.startMoney', B.character.startMoney, 'стартовый капитал'),
+            p('character.newbiePremiumDays', B.character.newbiePremiumDays, 'дней подписки в подарок новому персонажу, 0 — без подарка'),
             p('character.baseStats', B.character.baseStats, 'одинаковая база до бонусов'),
             p('character.archetypeBonuses', B.character.archetypeBonuses, 'кому что добавляется'),
             p('character.startingPoints', B.character.startingPoints, 'свободные очки на старте'),
