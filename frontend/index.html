@@ -22,6 +22,20 @@
       try { if (localStorage.getItem('kooperativ_cookies') === 'all') window.__kooperativMetrika() } catch (e) { /* приватный режим */ }
     </script>
     <!-- /Yandex.Metrika counter -->
+    <!-- Top.Mail.Ru counter (Дима 10.11). Те же условия, что у Метрики: боевой
+         домен, не автотест и только после согласия на аналитические cookie. -->
+    <script>
+      window.__kooperativTopMail = function () {
+        if (!/(^|\.)kooperativ\.space$/.test(location.hostname) || navigator.webdriver || document.getElementById('tmr-code')) return
+        var _tmr = window._tmr || (window._tmr = []);
+        _tmr.push({id: "3813305", type: "pageView", start: (new Date()).getTime()});
+        var ts = document.createElement("script"); ts.type = "text/javascript"; ts.async = true; ts.id = "tmr-code";
+        ts.src = "https://top-fwz1.mail.ru/js/code.js";
+        var f = document.getElementsByTagName("script")[0]; f.parentNode.insertBefore(ts, f);
+      }
+      try { if (localStorage.getItem('kooperativ_cookies') === 'all') window.__kooperativTopMail() } catch (e) { /* приватный режим */ }
+    </script>
+    <!-- /Top.Mail.Ru counter -->
   </head>
   <body>
     <div id="root"></div>

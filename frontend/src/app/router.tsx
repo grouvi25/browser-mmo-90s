@@ -128,6 +128,9 @@ function MetrikaTracker() {
     if (first.current) { first.current = false; return }
     const ym = (window as typeof window & { ym?: (id:number, action:string, url:string, options:Record<string,string>) => void }).ym
     ym?.(111441325, 'hit', location.pathname + location.search, { title: document.title, referer: document.referrer })
+    // Top.Mail.Ru считает переходы внутри игры тем же способом; без согласия на cookie его нет.
+    const tmr = (window as typeof window & { _tmr?: unknown[] })._tmr
+    if (tmr && document.getElementById('tmr-code')) tmr.push({ id: '3813305', type: 'pageView', start: Date.now() })
   }, [location.pathname, location.search])
   return null
 }

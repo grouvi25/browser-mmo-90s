@@ -16,7 +16,11 @@ export function cookieChoice(): Choice | null {
 
 export function setCookieChoice(choice: Choice | null) {
   try { if (choice) localStorage.setItem(KEY, choice); else localStorage.removeItem(KEY) } catch { /* приватный режим */ }
-  if (choice === 'all') (window as unknown as { __kooperativMetrika?: () => void }).__kooperativMetrika?.()
+  if (choice === 'all') {
+    const w = window as unknown as { __kooperativMetrika?: () => void; __kooperativTopMail?: () => void }
+    w.__kooperativMetrika?.()
+    w.__kooperativTopMail?.()
+  }
   window.dispatchEvent(new Event(COOKIE_CHOICE_EVENT))
 }
 
@@ -34,7 +38,7 @@ export function CookieBanner() {
     <div className="cookie-banner" role="region" aria-label="Cookie">
       <p>
         Мы используем необходимые cookie, без них игра не работает, а с вашего согласия также аналитические cookie
-        Яндекс Метрики для статистики посещаемости. <Link to="/cookies">Подробнее</Link>
+        Яндекс Метрики и Top.Mail.Ru для статистики посещаемости. <Link to="/cookies">Подробнее</Link>
       </p>
       <div className="cookie-banner__acts">
         <button type="button" className="cookie-banner__btn" onClick={() => setCookieChoice('necessary')}>Только необходимые</button>
