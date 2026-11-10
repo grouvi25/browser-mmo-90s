@@ -1132,21 +1132,20 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
    Центра, раздел — бумажной карточкой поверх. Мэрия, Тюрьма, Дома
    бригад, Жилой сектор; у кого картинки нет — прежний вид.
    ============================================================= */
-.viewport__content.has-scene { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; }
+.viewport__content.has-scene { display: block; padding: 0; background: rgba(249, 238, 228, .92) padding-box; }
+/* Картинка места целиком, без обрезки; заголовок лежит на ней в углу. */
+.scene-picture { position: relative; line-height: 0; }
+.scene-picture img { display: block; width: 100%; height: auto; user-select: none; }
+/* На ПК окно низкое: картинка целиком, но не выше трёх четвертей окна — под ней видно начало карточки. */
+@media (min-width: 901px) { .scene-picture img { max-height: 320px; object-fit: contain; } }
 .scene-head {
+  position: absolute; top: 10px; left: 12px; line-height: normal;
   display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
   background: rgba(250, 234, 221, .88); border: 1px solid #2b2b2b; padding: 3px 12px;
 }
 .scene-head .viewport__title { font-size: 20px; }
-/* Скрыть/показать карточку поверх картинки: ширина задана, смена надписи ничего не двигает. */
-.scene-toggle { min-width: 84px; min-height: 26px; padding: 2px 8px; border: 1px solid #2b2b2b; background: #fbf3e8; color: #2b2b2b; font: inherit; font-size: 13px; cursor: pointer; align-self: center; }
-.scene-toggle:hover { background: #fff; }
-.scene-toggle:active { background: #ead9c4; }
-.scene-toggle:focus-visible { outline: 2px solid #8a3b12; outline-offset: 1px; }
-.scene-sheet[hidden] { display: none; }
-@media (max-width: 600px) { .scene-toggle { min-height: 36px; } }
 .scene-sheet {
-  width: min(100%, 760px); margin-top: auto;
+  margin: 10px 12px 12px;
   background: rgba(250, 234, 221, .93); border: 1px solid #2b2b2b;
   padding: 10px 14px; box-shadow: 0 2px 10px rgba(23, 19, 15, .18);
 }

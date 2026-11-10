@@ -6,7 +6,7 @@
 // «в меню есть кнопка В ЦЕНТР, но так же сверху справа появляется —
 // убрать справа сверху везде»): в город ведёт ЦЕНТР нижней полосы.
 // =============================================================
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 export function ViewportPanel({
   title, subtitle, scene, children,
@@ -20,20 +20,19 @@ export function ViewportPanel({
   scene?: string
   children: ReactNode
 }) {
-  // Обращение №68: карточка раздела (форма бригады в Мэрии) закрывала здание —
-  // её можно убрать и посмотреть картинку целиком.
-  const [sheetHidden, setSheetHidden] = useState(false)
   if (scene) {
+    // Обращение №68 и Дима 10.11: «текст под картинку сместить, чтобы её видно
+    // было». Картинка целиком во всю ширину, раздел — карточкой под ней.
     return (
-      <div className="viewport__content has-scene" tabIndex={0} role="region" aria-label={title}
-        style={{ background: `url(${scene}) center / cover no-repeat padding-box` }}>
-        <div className="scene-head">
-          <h1 className="viewport__title">{title}</h1>
-          {subtitle && <span className="viewport__subtitle">{subtitle}</span>}
-          <button type="button" className="scene-toggle" aria-expanded={!sheetHidden}
-            onClick={() => setSheetHidden(v => !v)}>{sheetHidden ? 'Показать' : 'Скрыть'}</button>
+      <div className="viewport__content has-scene" tabIndex={0} role="region" aria-label={title}>
+        <div className="scene-picture">
+          <img src={scene} alt="" draggable={false} />
+          <div className="scene-head">
+            <h1 className="viewport__title">{title}</h1>
+            {subtitle && <span className="viewport__subtitle">{subtitle}</span>}
+          </div>
         </div>
-        <div className="scene-sheet" hidden={sheetHidden}>{children}</div>
+        <div className="scene-sheet">{children}</div>
       </div>
     )
   }
