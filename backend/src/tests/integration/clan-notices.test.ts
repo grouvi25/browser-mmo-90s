@@ -76,6 +76,8 @@ describe('журнал склада и уведомления', () => {
     const a = await player('na')
     const b = await player('nb')
     await NoticesService.push(a.id, 'Вы посадили: Укроп.')
+    // Порядок — по времени записи: две записи в одну миллисекунду база может отдать как угодно.
+    await new Promise(resolve => setTimeout(resolve, 5))
     await NoticesService.push(a.id, 'Вы полили грядку.')
     await NoticesService.push(b.id, 'Чужое уведомление.')
     await testPrisma.gameNotice.create({ data: { characterId: a.id, text: 'Давнее', createdAt: new Date(Date.now() - 48 * 3_600_000) } })
