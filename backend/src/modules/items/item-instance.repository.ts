@@ -1,5 +1,6 @@
 import { prisma } from '../../shared/db/prisma'
 import type { ItemInstance, ItemTemplate } from '@prisma/client'
+import { isTwoHanded } from './hands'
 
 export type ItemWithTemplate = ItemInstance & { template: ItemTemplate }
 
@@ -41,10 +42,13 @@ export const ItemsRepository = {
       orderBy: { createdAt: 'asc' },
     })
     const legacy = weapons.find(item => item.armorSlot == null) ?? null
-    return {
-      LEFT_HAND: weapons.find(item => item.armorSlot === 'LEFT_HAND') ?? legacy,
-      RIGHT_HAND: weapons.find(item => item.armorSlot === 'RIGHT_HAND') ?? null,
-    }
+    const left = weapons.find(item => item.armorSlot === 'LEFT_HAND') ?? legacy
+    const right = weapons.find(item => item.armorSlot === 'RIGHT_HAND') ?? null
+    // Двуручное держат обеими руками (Дима 11.11): второе оружие в бою не бьёт,
+    // даже если надето до правила — два автомата сразу стреляли дважды.
+    if (left && isTwoHanded(left.template)) return { LEFT_HAND: left, RIGHT_HAND: null }
+    if (right && isTwoHanded(right.template)) return { LEFT_HAND: null, RIGHT_HAND: right }
+    return { LEFT_HAND: left, RIGHT_HAND: right }
   },
 
   async findEquippedWeapon(ownerId: string): Promise<ItemWithTemplate | null> {

@@ -226,7 +226,10 @@ export const BalanceConfig = {
     luckPierceMult:   0.003,
   },
 
-  counter: { baseChance: 0.05, reactionRatioMult: 0.30, maxChance: 0.40, minReaction: 5, incomingBase: 0.25, reactionDamageBonus: 0.01, incomingDamageCap: 0.60 },
+  counter: { baseChance: 0.05, reactionRatioMult: 0.30, maxChance: 0.40, minReaction: 5, incomingBase: 0.25, reactionDamageBonus: 0.01, incomingDamageCap: 0.60,
+    /** Обращение №90 и Дима 12.11: ответка только вплотную и только рукопашным оружием,
+     *  от пистолета ответа нет. 0 — по дальности оружия защитника, как раньше. */
+    maxDistance: 1 },
 
   // --- Удар по книге заказчика («Ревизия 2», «Урон одного удара», перенесено 30.10) ---
   //   База = 1,5 × сила + оружие × владение;
@@ -272,6 +275,19 @@ export const BalanceConfig = {
     critMid:    0.5,
     pierceMid:  0.5,
     counterMid: 0.5,
+  },
+
+  // --- Сила и мастерство (Дима 11.11, обращение №87) ---
+  // Сила работает целиком только при мастерстве fullAt и выше (кулачный бой
+  // голыми руками и рукопашкой, исп. оружия — любым другим оружием). Ниже —
+  // рандом: шанс, что сила сработает целиком, равен мастерство/fullAt, иначе
+  // сила считается как floorMin…floorMax. Без мастерства — всегда 5…10.
+  // Только у игроков: у ботов мастерства нет. enabled: false — сила всегда целиком.
+  strengthMastery: {
+    enabled:  true,
+    fullAt:   2.5,   // доли: 2.5 = 250%
+    floorMin: 5,
+    floorMax: 10,
   },
 
   // --- Crit: сила крита (шанс — в strike) ---

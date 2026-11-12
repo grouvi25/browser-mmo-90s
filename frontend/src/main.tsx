@@ -37,7 +37,9 @@ for (const type of ['gesturestart', 'gesturechange'] as const) {
   document.addEventListener(type, event => event.preventDefault(), { passive: false })
 }
 document.addEventListener('touchmove', event => {
-  if ((event as TouchEvent & { scale?: number }).scale !== undefined && (event as TouchEvent & { scale?: number }).scale !== 1) event.preventDefault()
+  // Только щипок двумя пальцами: одним пальцем страница листается и сдвигается всегда (№84).
+  const scale = (event as TouchEvent & { scale?: number }).scale
+  if (event.touches.length >= 2 && scale !== undefined && scale !== 1) event.preventDefault()
 }, { passive: false })
 
 void loadTemplateImages().finally(() => ReactDOM.createRoot(document.getElementById('root')!).render(

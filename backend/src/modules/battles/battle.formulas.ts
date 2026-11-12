@@ -25,6 +25,10 @@ export interface AttackerSnapshot {
   /** Оберег ответа за вычетом минус-оберега цели, со знаком. */
   counterCharmEdge?: number
   outgoingDamageMultiplier?: number       // Снижает шанс ответки у цели
+  /** Меткость стрелка за вычетом антиметкости цели, со знаком; только у стрелкового (№95). */
+  rangedAccEdge?: number
+  /** Мастерство, от которого зависит сила (доли, 2.5 = 250%). Нет — сила целиком (боты). */
+  strMastery?: number
 }
 
 export interface DefenderSnapshot {
@@ -139,7 +143,7 @@ export function edgeChance(statDiff: number, charmDiff: number, mid: number): { 
 // ---------------------------------------------------------------
 export function calcDodgeChance(
   defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'>,
-  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'> & Partial<Pick<AttackerSnapshot, 'agi' | 'dodgeCharmEdge'>>
+  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'> & Partial<Pick<AttackerSnapshot, 'agi' | 'dodgeCharmEdge' | 'rangedAccEdge'>>
 ): number {
   const C = B.strike
   if (B.edge.enabled) {
@@ -151,7 +155,12 @@ export function calcDodgeChance(
       B.edge.hitMid,
     )
     const shift = (attacker.weaponAccuracy ?? C.baseWeaponAccuracy) - C.baseWeaponAccuracy
-    return hit.decided ? 1 - hit.chance : clamp(1 - hit.chance - shift, 0, 1)
+    const dodge = hit.decided ? 1 - hit.chance : clamp(1 - hit.chance - shift, 0, 1)
+    // №95: у стрелкового антиметкость цели сверх своей меткости режет попадание
+    // долей перевеса к порогу оберегов: 250% антиметкости сверху — не попасть.
+    // Своя меткость сверху попадание не прибавляет: оно решается ловкостью.
+    const accGate = attacker.rangedAccEdge !== undefined ? clamp(1 + attacker.rangedAccEdge / B.edge.charmGap, 0, 1) : 1
+    return 1 - (1 - dodge) * accGate
   }
   const raw = C.dodgeBase + C.dodgeSpread * statEdge(defender.agi, attacker.acc)
     + (defender.dodgeBonus ?? 0)
@@ -162,7 +171,7 @@ export function calcDodgeChance(
 
 // Шанс, что удар дойдёт до защитника, — всё, кроме уворота.
 export function calcHitChance(
-  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'> & Partial<Pick<AttackerSnapshot, 'agi' | 'dodgeCharmEdge'>>,
+  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'> & Partial<Pick<AttackerSnapshot, 'agi' | 'dodgeCharmEdge' | 'rangedAccEdge'>>,
   defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'>
 ): number {
   return 1 - calcDodgeChance(defender, attacker)
@@ -265,8 +274,18 @@ export function calcWeaponSkillMultiplier(effectiveSkillLevel: number): number {
 // calcEffectiveWeaponSkill уже полностью реализует антимастерство; второй
 // слой был чистым дублированием одного и того же входа.
 // ---------------------------------------------------------------
+/** Сколько силы идёт в удар (Дима 11.11): мастерство fullAt — вся, ниже — шанс, иначе 5…10. */
+export function effectiveStrength(str: number, mastery: number | undefined, rng: () => number = Math.random): number {
+  const M = B.strengthMastery
+  if (!M.enabled || mastery === undefined || str <= M.floorMin) return str
+  const share = clamp(mastery / M.fullAt, 0, 1)
+  if (share >= 1) return str
+  if (share > 0 && rng() < share) return str
+  return Math.min(str, M.floorMin + Math.floor(rng() * (M.floorMax - M.floorMin + 1)))
+}
+
 export function calcRawDamage(
-  attacker: Pick<AttackerSnapshot, 'str' | 'minDamage' | 'maxDamage' | 'weaponSkillLevel' | 'flatDamageBonus' | 'outgoingDamageMultiplier'>,
+  attacker: Pick<AttackerSnapshot, 'str' | 'minDamage' | 'maxDamage' | 'weaponSkillLevel' | 'flatDamageBonus' | 'outgoingDamageMultiplier'> & Partial<Pick<AttackerSnapshot, 'strMastery'>>,
   defenderAntiSkillLevel = 0,
   rng: () => number = Math.random,
 ): number {
@@ -277,7 +296,8 @@ export function calcRawDamage(
   const wskMult = calcWeaponSkillMultiplier(effectiveSkill)
 
   // Книга: База = 1,5 × сила + сила оружия.
-  return (weaponRoll * wskMult + attacker.str * B.strike.strCoeff + attacker.flatDamageBonus) * (attacker.outgoingDamageMultiplier ?? 1)
+  const str = effectiveStrength(attacker.str, attacker.strMastery, rng)
+  return (weaponRoll * wskMult + str * B.strike.strCoeff + attacker.flatDamageBonus) * (attacker.outgoingDamageMultiplier ?? 1)
 }
 
 // ---------------------------------------------------------------

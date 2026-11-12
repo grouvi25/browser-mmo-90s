@@ -1136,8 +1136,9 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 /* Картинка места целиком, без обрезки; заголовок лежит на ней в углу. */
 .scene-picture { position: relative; line-height: 0; }
 .scene-picture img { display: block; width: 100%; height: auto; user-select: none; }
-/* На ПК окно низкое: картинка целиком, но не выше трёх четвертей окна — под ней видно начало карточки. */
-@media (min-width: 901px) { .scene-picture img { max-height: 320px; object-fit: contain; } }
+/* Дима 12.11: «картинка на весь размер, кнопки и текст под картинкой» — на ПК
+   высоту больше не ограничиваем (было 320px с полями по бокам, «сжата криво»):
+   картинка во всю ширину окна, раздел ниже, окно листается. */
 .scene-head {
   position: absolute; top: 10px; left: 12px; line-height: normal;
   display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;

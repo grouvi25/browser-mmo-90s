@@ -21,6 +21,7 @@ import {
 } from '../../shared/types/api.types'
 import { itemImage } from '../../shared/assets/shop/shop-images'
 import { instanceImage } from '../../shared/lib/item-bonuses'
+import { CharacterStatRows } from '../../widgets/character-card/character-card'
 
 const NOTES_KEY = 'mmo_notepad'
 
@@ -269,6 +270,13 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
         <div className="m-dossier__body">
           {dossier.map((line, i) => <div key={i}>{line || ' '}</div>)}
         </div>
+
+        {/* Обращение №86: на телефоне нет карточки слева — свои статы и обереги здесь. */}
+        {own && char && (
+          <div className="m-dossier__stats card-list">
+            <CharacterStatRows char={char} />
+          </div>
+        )}
 
         {/* Обращение №71: на телефоне нет наведения, подсказка title не всплывает —
             название вещи подписано под ячейкой. */}

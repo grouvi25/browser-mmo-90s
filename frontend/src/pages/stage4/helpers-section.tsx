@@ -121,11 +121,13 @@ export function HelpersSection() {
           <button type="submit" disabled={busy || name.trim().length < 2}>
             <UserPlus size={13} /> Нанять{data?.prices ? ` · ${fmt(data.prices[kind])} $` : ''}
           </button>
+          {/* №91: профессию потом не сменить, а наём при увольнении не возвращается. */}
+          <p className="s4-muted">Профессию потом не сменить. При увольнении деньги за наём не возвращаются, даже если помощник не вышел ни на одну смену.</p>
         </form>
       )}
 
       {items.length === 0
-        ? <Empty title="Помощников нет" hint="Двое: боевой и рабочий или два рабочих (два боевых нельзя). При увольнении прогресс рабочего теряется." />
+        ? <Empty title="Помощников нет" hint="Двое: боевой и рабочий или два рабочих (два боевых нельзя). При увольнении прогресс рабочего теряется, а деньги за наём не возвращаются, даже если он не вышел ни на одну смену: профессию выбирайте внимательно." />
         : (
           <ul className="s4-helpers">
             {items.map(helper => (
@@ -174,6 +176,7 @@ function HelperCard({
     return () => window.clearInterval(timer)
   }, [shift])
   const ready = shift && new Date(shift.endsAt).getTime() <= now
+  const shiftPlace = shift ? objects.find(object => object.id === shift.productionObjectId) : undefined
   const dormant = helper.status === 'DORMANT'
 
   return (
@@ -200,7 +203,7 @@ function HelperCard({
 
       {shift ? (
         <div className="s4-helper__shift">
-          <span><Hammer size={12} /> На смене · {ready ? 'готово' : remaining(shift.endsAt, now)}</span>
+          <span><Hammer size={12} /> На смене{shiftPlace ? ` · ${shiftPlace.name}${shiftPlace.producesName ? ` (${shiftPlace.producesName})` : ''}` : ''} · {ready ? 'готово' : remaining(shift.endsAt, now)}</span>
           <button type="button" disabled={busy || !ready} onClick={onClaim}>Забрать смену</button>
         </div>
       ) : (
@@ -215,7 +218,7 @@ function HelperCard({
               ? <option value="">нет работы под эту профессию и уровень</option>
               : suitable.map(object => (
                 <option key={object.id} value={object.id}>
-                  {object.name}{object.salary ? ` · ${fmt(object.salary)} ₽` : ''}{object.requiredToolName ? ` · ${object.requiredToolName}` : ''}
+                  {object.name}{object.producesName ? ` (${object.producesName})` : ''}{object.salary ? ` · ${fmt(object.salary)} ₽` : ''}{object.requiredToolName ? ` · ${object.requiredToolName}` : ''}
                 </option>
               ))}
           </select>

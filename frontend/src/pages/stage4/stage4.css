@@ -135,6 +135,7 @@
 .s4-hire { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
 .s4-hire input { flex: 1 1 180px; min-width: 0; }
 .s4-hire select { flex: 1 1 200px; min-width: 0; }
+.s4-hire > .s4-muted { flex-basis: 100%; margin: 0; font-size: 13px; }
 .s4-hire button { display: inline-flex; align-items: center; gap: 6px; }
 
 .s4-helpers { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: oklch(57% .025 60); border: 1px solid oklch(57% .025 60); }

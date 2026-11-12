@@ -191,6 +191,8 @@ export interface HelperObject {
   workerSlots: number
   salary?: number
   requiredToolName?: string | null
+  /** Что добывают или делают на месте (обращение №85). */
+  producesName?: string | null
 }
 
 export const helpersApi = {

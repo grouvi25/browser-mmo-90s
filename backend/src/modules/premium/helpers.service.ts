@@ -201,29 +201,40 @@ export const HelpersService = {
       select: {
         id: true, name: true, requiredProfessionCode: true, requiredProfessionLevel: true,
         ownerType: true, workerSlots: true, baseSalary: true, salaryOverride: true, activeRecipeId: true,
+        producesResourceCode: true,
         equipment: { select: { isActive: true, requiredToolTier: true } },
       },
       orderBy: { name: 'asc' },
     })
     const recipeIds = objects.map(object => object.activeRecipeId).filter((id): id is string => !!id)
     const [recipes, soldTools] = await Promise.all([
-      prisma.productionRecipe.findMany({ where: { id: { in: recipeIds } }, select: { id: true, requiredToolCode: true, requiredToolTier: true } }),
+      prisma.productionRecipe.findMany({ where: { id: { in: recipeIds } }, select: { id: true, requiredToolCode: true, requiredToolTier: true, outputResourceCode: true, outputItemTemplateCode: true } }),
       soldGeneralTools(prisma),
     ])
     const recipeOf = new Map(recipes.map(recipe => [recipe.id, recipe]))
     const toolNames = new Map((await prisma.itemTemplate.findMany({
-      where: { code: { in: recipes.map(recipe => recipe.requiredToolCode).filter((code): code is string => !!code) } },
+      where: { code: { in: recipes.flatMap(recipe => [recipe.requiredToolCode, recipe.outputItemTemplateCode]).filter((code): code is string => !!code) } },
       select: { code: true, name: true },
+    })).map(row => [row.code, row.name]))
+    // Обращение №85: что добывают на месте — в скобках у названия, чтобы не искать по рецептам.
+    const resourceCodes = [...objects.map(object => object.producesResourceCode), ...recipes.map(recipe => recipe.outputResourceCode)]
+      .filter((code): code is string => !!code)
+    const resourceNames = new Map((await prisma.resourceTemplate.findMany({
+      where: { code: { in: [...new Set(resourceCodes)] } }, select: { code: true, name: true },
     })).map(row => [row.code, row.name]))
     const items = objects
       .filter(object => (recipeOf.get(object.activeRecipeId ?? '')?.requiredToolTier ?? 0) < PREMIUM_TOOL_TIER)
-      .map(({ activeRecipeId, equipment, baseSalary, salaryOverride, ...object }) => {
-        const toolCode = recipeOf.get(activeRecipeId ?? '')?.requiredToolCode ?? null
+      .map(({ activeRecipeId, equipment, baseSalary, salaryOverride, producesResourceCode, ...object }) => {
+        const recipe = recipeOf.get(activeRecipeId ?? '')
+        const toolCode = recipe?.requiredToolCode ?? null
+        const outputCode = producesResourceCode ?? recipe?.outputResourceCode ?? null
         const tier = object.ownerType === 'SYSTEM' && equipment?.isActive ? equipment.requiredToolTier : null
         return {
           ...object,
           salary: salaryOverride ?? baseSalary,
           requiredToolName: toolCode ? toolNames.get(toolCode) ?? toolCode : tier ? toolForTier(soldTools, tier) : null,
+          producesName: outputCode ? resourceNames.get(outputCode) ?? outputCode
+            : recipe?.outputItemTemplateCode ? toolNames.get(recipe.outputItemTemplateCode) ?? recipe.outputItemTemplateCode : null,
         }
       })
     return { items }

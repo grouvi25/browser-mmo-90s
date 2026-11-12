@@ -35,6 +35,9 @@ export interface JournalTurn {
   /** Ход дальнобойным оружием: в журнале «выстрел», а не «удар»
    *  (просьба игрока 22.10: бандит с пистолетом «бьёт» с 4 клеток). */
   ranged?: boolean
+  /** Боец в этом раунде бил с обеих рук (два пистолета): у выстрела тоже пишется рука,
+   *  чтобы был виден урон с каждой (Дима 11.11). */
+  bothHands?: boolean
 }
 
 /** Снятая третьим попаданием вещь (wounds.ts) дописывается к строке удара. */
@@ -43,8 +46,9 @@ const STRIP_NOTE = /(оружие выбито из (?:левой|правой) 
 /** Текст хода без имён: «удар левой в корпус, −5 HP» / «выстрел в голову — уворот». */
 export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: string } {
   const zone = turn.zone ? ` ${ZONE_TO[turn.zone]}` : ''
-  // У выстрела руки нет: «выстрел левой» звучит странно, а пистолет бьёт с любой.
-  const hand = turn.sourceHand && !turn.ranged ? ` ${HAND[turn.sourceHand]}` : ''
+  // У выстрела с одного ствола руки нет: «выстрел левой» звучит странно. С двух
+  // стволов рука нужна — «выстрел с левой в корпус, −12 HP», «выстрел с правой …».
+  const hand = !turn.sourceHand ? '' : !turn.ranged ? ` ${HAND[turn.sourceHand]}` : turn.bothHands ? ` с ${HAND[turn.sourceHand]}` : ''
   const attack = turn.ranged ? 'выстрел' : 'удар'
   const damage = turn.finalDamage > 0 ? `, −${turn.finalDamage} HP` : ''
   switch (turn.action) {
@@ -159,6 +163,16 @@ export const BattleJournal = {
       }
       return false
     }
+    // Раунды, где боец стрелял или бил с обеих рук.
+    const handsOf = new Map<string, Set<string>>()
+    for (const t of turns) {
+      const actor = t.actorCharId ?? t.actorBotId
+      if (!actor || !t.sourceHand || !t.weaponId) continue
+      const key = `${t.roundNumber}:${actor}`
+      handsOf.set(key, (handsOf.get(key) ?? new Set()).add(t.sourceHand))
+    }
+    const bothHands = (t: { roundNumber: number; actorCharId: string | null; actorBotId: string | null }) =>
+      (handsOf.get(`${t.roundNumber}:${t.actorCharId ?? t.actorBotId}`)?.size ?? 0) > 1
 
     return {
       battle: {
@@ -173,7 +187,7 @@ export const BattleJournal = {
       },
       items: turns.map(turn => {
         const actorId = turn.actorCharId ?? turn.actorBotId ?? turn.actorHelperId ?? turn.actorPetId
-        const described = describeTurn({ ...turn, ranged: isRanged(turn) })
+        const described = describeTurn({ ...turn, ranged: isRanged(turn), bothHands: bothHands(turn) })
         // Удар по хозяину, принятый помощником на себя. Прямой удар по
         // помощнику на поле (с 28.10) так не подписывается.
         const intercepted = !!turn.targetHelperId && turn.hit && (turn.logLine ?? '').startsWith(INTERCEPT_MARK)

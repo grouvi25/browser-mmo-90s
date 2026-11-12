@@ -57,6 +57,41 @@ const CARD_CHARMS: [key: 'antiDodge' | 'antiLuck' | 'antiCrit' | 'antiCounter', 
 ]
 const pctText = (share: number) => `${Math.round(share * 1000) / 10}%`
 
+type MeCharacter = Awaited<ReturnType<typeof charactersApi.getMe>>
+
+/** Характеристики с прибавками от надетого, владение оружием, мастерства и обереги.
+ *  Одни и те же строки — во вкладке карточки на большом экране и в досье на
+ *  телефоне (обращение №86: на телефоне карточки нет, обереги было не увидеть). */
+export function CharacterStatRows({ char }: { char: MeCharacter | undefined }) {
+  return (
+    <>
+      <div className="card-list__title">Характеристики</div>
+      {CARD_STATS.map(([key, label]) => {
+        const base = char?.stats?.[key] ?? 0
+        const plus = char?.gear?.stats[key] ?? 0
+        return <div key={key} className="card-list__kv"><span>{label}</span>
+          <b>{base + plus}{plus !== 0 && <small className="card-list__gain"> ({plus > 0 ? '+' : '−'}{Math.abs(plus)})</small>}</b></div>
+      })}
+      {(char?.weaponSkills ?? []).filter(s => s.skillLevel > 0).map(s => (
+        <div key={s.id} className="card-list__kv"><span>{WEAPON_TYPE_LABELS[s.weaponType] ?? s.weaponType}</span><b>ур. {s.skillLevel}</b></div>
+      ))}
+      {MASTERY_LABELS.filter(([key]) => (char?.gear?.mastery?.[key] ?? 0) > 0).map(([key, label]) => (
+        <div key={`mastery-${key}`} className="card-list__kv"><span>{label}</span><b>{pctText(char!.gear!.mastery![key])}</b></div>
+      ))}
+      {MASTERY_LABELS.filter(([key]) => (char?.gear?.minusMastery?.[key] ?? 0) > 0).map(([key, label]) => (
+        <div key={`minus-mastery-${key}`} className="card-list__kv"><span>{label} противника</span><b>−{pctText(char!.gear!.minusMastery![key])}</b></div>
+      ))}
+      {CARD_CHARMS.map(([key, label]) => (
+        <div key={key} className="card-list__kv"><span>{label}</span><b>{pctText(char?.gear?.[key] ?? 0)}</b></div>
+      ))}
+      {/* Минус-обереги срезают тот же оберег у противника (правило «Апехи»). */}
+      {CARD_CHARMS.filter(([key]) => (char?.gear?.minus?.[key] ?? 0) > 0).map(([key, label]) => (
+        <div key={`minus-${key}`} className="card-list__kv"><span>{label} противника</span><b>−{pctText(char!.gear!.minus![key])}</b></div>
+      ))}
+    </>
+  )
+}
+
 /** Чужой профиль: ровно то, что о бойце известно боевому экрану. */
 export interface CardProfile {
   nickname: string
@@ -325,29 +360,7 @@ export function CharacterCard({ profile, wounds, liveHp }: {
           видно на портрете и на складе. */}
       {tab === 'gear' && (
         <Layer box={C.body} className="card-list">
-          <div className="card-list__title">Характеристики</div>
-          {CARD_STATS.map(([key, label]) => {
-            const base = char?.stats?.[key] ?? 0
-            const plus = char?.gear?.stats[key] ?? 0
-            return <div key={key} className="card-list__kv"><span>{label}</span>
-              <b>{base + plus}{plus !== 0 && <small className="card-list__gain"> ({plus > 0 ? '+' : '−'}{Math.abs(plus)})</small>}</b></div>
-          })}
-          {(char?.weaponSkills ?? []).filter(s => s.skillLevel > 0).map(s => (
-            <div key={s.id} className="card-list__kv"><span>{WEAPON_TYPE_LABELS[s.weaponType] ?? s.weaponType}</span><b>ур. {s.skillLevel}</b></div>
-          ))}
-          {MASTERY_LABELS.filter(([key]) => (char?.gear?.mastery?.[key] ?? 0) > 0).map(([key, label]) => (
-            <div key={`mastery-${key}`} className="card-list__kv"><span>{label}</span><b>{pctText(char!.gear!.mastery![key])}</b></div>
-          ))}
-          {MASTERY_LABELS.filter(([key]) => (char?.gear?.minusMastery?.[key] ?? 0) > 0).map(([key, label]) => (
-            <div key={`minus-mastery-${key}`} className="card-list__kv"><span>{label} противника</span><b>−{pctText(char!.gear!.minusMastery![key])}</b></div>
-          ))}
-          {CARD_CHARMS.map(([key, label]) => (
-            <div key={key} className="card-list__kv"><span>{label}</span><b>{pctText(char?.gear?.[key] ?? 0)}</b></div>
-          ))}
-          {/* Минус-обереги срезают тот же оберег у противника (правило «Апехи»). */}
-          {CARD_CHARMS.filter(([key]) => (char?.gear?.minus?.[key] ?? 0) > 0).map(([key, label]) => (
-            <div key={`minus-${key}`} className="card-list__kv"><span>{label} противника</span><b>−{pctText(char!.gear!.minus![key])}</b></div>
-          ))}
+          <CharacterStatRows char={char} />
         </Layer>
       )}
 

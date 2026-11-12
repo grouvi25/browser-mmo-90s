@@ -23,9 +23,12 @@ function series(counterReach?: { distance: number; range: number }) {
 }
 
 describe('Ответка', () => {
-  it('в пределах оружия защитника работает', () => {
+  it('вплотную работает', () => {
     expect(series({ distance: 1, range: 1 }).some(res => res.counterToAttacker > 0)).toBe(true)
-    expect(series({ distance: 5, range: 5 }).some(res => res.counterToAttacker > 0)).toBe(true)
+  })
+  it('№90: от пистолета ответа нет ни вплотную, ни на расстоянии', () => {
+    expect(series({ distance: 1, range: 5 }).every(res => res.counterToAttacker === 0)).toBe(true)
+    expect(series({ distance: 5, range: 5 }).every(res => res.counterToAttacker === 0)).toBe(true)
   })
   it('за пределами оружия её нет, ни в уроне, ни в записи', () => {
     for (const res of series({ distance: 5, range: 1 })) {

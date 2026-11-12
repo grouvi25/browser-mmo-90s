@@ -362,6 +362,8 @@
 .m-dossier__slots .hotspot { position: relative !important; left: auto !important; top: auto !important; }
 .m-dossier__slot { margin: 0; display: grid; justify-items: center; gap: 4px; max-width: 110px; }
 .m-dossier__slot figcaption { font-size: 12px; line-height: 1.25; text-align: center; color: #3b2f22; overflow-wrap: anywhere; }
+/* №86: статы и обереги в досье — те же строки, что во вкладке карточки на большом экране. */
+.m-dossier__stats { position: static; margin-top: 10px; padding: 10px; background: var(--paper); border: 1px solid #2b2b2b; font-size: 14px; }
 .m-dossier__notes { margin-top: 10px; padding: 10px; background: var(--paper); border: 1px solid #2b2b2b; }
 .m-dossier__notes textarea {
   width: 100%; min-height: 120px; padding: 8px; resize: vertical;

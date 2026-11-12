@@ -96,6 +96,9 @@ describe('журнал боя', () => {
       .toEqual({ kind: 'dodge', text: 'выстрел в голову — уворот' })
     expect(describeTurn({ ...base, zone: 'HEAD', block: true, ranged: true }))
       .toEqual({ kind: 'block', text: 'выстрел в голову — блок' })
+    // Два пистолета (Дима 11.11): у каждого выстрела видна рука и свой урон.
+    expect(describeTurn({ ...base, zone: 'CHEST', hit: true, finalDamage: 12, ranged: true, bothHands: true }))
+      .toEqual({ kind: 'hit', text: 'выстрел с правой в корпус, −12 HP' })
     // Рукопашный ход рука остаётся: «удар правой в корпус».
     expect(describeTurn({ ...base, zone: 'CHEST', hit: true, finalDamage: 5, ranged: false }))
       .toEqual({ kind: 'hit', text: 'удар правой в корпус, −5 HP' })

@@ -63,6 +63,7 @@ import {
   calcRatingPower,
 } from '../stats/stats.formulas'
 import { withPetBonus } from '../city/city.config'
+import { BalanceConfig } from '../../config/balance.config'
 import { healAmount, EMPTY_GEAR, charmBalance, gearOf, withGearStats, type GearBonuses, MASTERY_DAMAGE_CAP, MASTERY_DEFENSE_CAP, masteryBalance } from '../items/gear-bonuses'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
@@ -468,6 +469,11 @@ export async function buildAttackerSnapshotAsync(
     // любым другим оружием — исп. оружия.
     outgoingDamageMultiplier: 1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0) + buffs.damage
       + Math.min(MASTERY_DAMAGE_CAP, masteryBalance(gear, opponentGear, !t || t.weaponType === 'MELEE' ? 'fist' : 'weapon')),
+    // №95 (Nobody 12.11): из стрелкового антиметкость цели сверх своей меткости
+    // мешает попасть; перевес 250% антиметкости — не попасть вовсе.
+    rangedAccEdge: (t?.maxRange ?? 1) > 1 ? (gear.mastery.accuracy ?? 0) - (opponentGear.minusMastery.accuracy ?? 0) : undefined,
+    // Дима 11.11: сила работает целиком с 250% того же мастерства, иначе рандом.
+    strMastery: masteryBalance(gear, opponentGear, !t || t.weaponType === 'MELEE' ? 'fist' : 'weapon'),
   }
 }
 
@@ -556,7 +562,13 @@ export function executeStrikes(params: {
     const r = resolveZonalAttack(attackerSnap, defenderSnap, {
       zone, blockedZones: params.blockedZones, zoneArmor: params.zoneArmorFor(zone),
     })
-    if (r.counterDamage > 0 && params.counterReach && params.counterReach.distance > params.counterReach.range) {
+    // Дима 12.11: «от пистолета не должен быть ответ» — стрелковое не отвечает
+    // совсем, рукопашное только вплотную (counter.maxDistance; 0 — по дальности оружия).
+    const maxDistance = BalanceConfig.counter.maxDistance
+    const counterLimit = !params.counterReach ? Infinity
+      : maxDistance <= 0 ? params.counterReach.range
+      : params.counterReach.range > maxDistance ? -1 : maxDistance
+    if (r.counterDamage > 0 && params.counterReach && params.counterReach.distance > counterLimit) {
       r.counterDamage = 0
       r.logParts = r.logParts.map(part => part.replace(/ \+ ответка \d+/, ''))
     }

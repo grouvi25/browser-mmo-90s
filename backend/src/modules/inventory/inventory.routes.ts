@@ -17,6 +17,7 @@ import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.fo
 import { CHARM_KEYS, GEAR_STAT_KEYS, MASTERY_KEYS, healAmount, syncHpWithGear } from '../items/gear-bonuses'
 import { decayedAlcohol } from '../bars/bars.formulas'
 import { effectText, parseActiveEffects, parseUseEffect, withAppliedEffect } from '../items/item-effects'
+import { isTwoHanded, otherHand } from '../items/hands'
 
 const RING_SLOTS = ['RING', 'RING_2', 'RING_3', 'RING_4', 'RING_5', 'RING_6', 'RING_7', 'RING_8'] as const
 const EquipSchema = z.object({ itemInstanceId: z.string().uuid(), hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional() })
@@ -170,7 +171,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       // Без явной руки оружие идёт в свободную: раньше всегда в левую, и второй
       // нож снимал первый — «в 2 руки 2 ножа нельзя взять» (правка заказчика 20.10).
       let freeHand: 'LEFT_HAND' | 'RIGHT_HAND' = 'LEFT_HAND'
-      if (item.template.type === 'WEAPON' && !parsed.data.hand) {
+      if (item.template.type === 'WEAPON' && !parsed.data.hand && !isTwoHanded(item.template)) {
         const busy = await tx.itemInstance.findMany({
           where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' }, armorSlot: { in: ['LEFT_HAND', 'RIGHT_HAND'] } },
           select: { armorSlot: true },
@@ -189,8 +190,9 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         const taken = new Set(busy.map(entry => entry.armorSlot))
         ringSlot = RING_SLOTS.find(place => !taken.has(place)) ?? 'RING'
       }
+      // Двуручное всегда в левую руку, правая освобождается (см. items/hands.ts).
       const slot = item.template.type === 'WEAPON'
-        ? (parsed.data.hand ?? freeHand)
+        ? (isTwoHanded(item.template) ? 'LEFT_HAND' : parsed.data.hand ?? freeHand)
         : item.template.armorSlot === 'RING'
           ? ringSlot
           : item.template.type === 'ARMOR' || item.template.type === 'SHIELD' || item.template.type === 'ACCESSORY'
@@ -205,6 +207,15 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
         },
         select: { id: true },
       })
+      // Руки: двуручное снимает и вторую руку; в свободную руку при двуручном
+      // в другой — снимается само двуручное.
+      if (slot === 'LEFT_HAND' || slot === 'RIGHT_HAND') {
+        const other = await tx.itemInstance.findFirst({
+          where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' }, armorSlot: otherHand(slot), id: { not: item.id } },
+          select: { id: true, template: { select: { type: true, weaponType: true } } },
+        })
+        if (other && (isTwoHanded(item.template) || isTwoHanded(other.template))) existing.push({ id: other.id })
+      }
 
       if (existing.length > 0) {
         await tx.itemInstance.updateMany({
@@ -333,12 +344,22 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       }
       const skipped: string[] = []
       let equipped = 0
+      // Двуручное и вторая вещь в руках вместе не надеваются (Дима 11.11).
+      const inHands = new Map<string, boolean>()
       for (const entry of preset.items as Array<{ itemId: string; slot: string | null }>) {
         const item = await tx.itemInstance.findUnique({ where: { id: entry.itemId }, include: { template: true } })
         if (!item) { skipped.push('вещь, которой у вас больше нет'); continue }
         try { await assertEquippable(tx, char, item) } catch (e) {
           skipped.push(`${item.template.name} (${e instanceof AppError ? e.message : 'нельзя надеть'})`)
           continue
+        }
+        if (entry.slot === 'LEFT_HAND' || entry.slot === 'RIGHT_HAND') {
+          const otherTwoHanded = inHands.get(otherHand(entry.slot))
+          if (otherTwoHanded !== undefined && (otherTwoHanded || isTwoHanded(item.template))) {
+            skipped.push(`${item.template.name} (руки заняты двуручным оружием)`)
+            continue
+          }
+          inHands.set(entry.slot, isTwoHanded(item.template))
         }
         await tx.itemInstance.update({ where: { id: item.id }, data: { isEquipped: true, status: 'EQUIPPED', armorSlot: entry.slot as never } })
         await tx.itemLog.create({ data: { itemId: item.id, characterId: char.id, actionCode: 'EQUIPPED' } })

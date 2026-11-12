@@ -213,7 +213,10 @@ export function InventoryPage() {
     [items],
   )
   const tab = TABS.find(t => t.key === tabKey) ?? TABS[0]
-  const visible = items.filter(i => i.status !== 'DELETED' && (tab.match?.(i) ?? false))
+  // Обращение №88: надетое уходит из сумки, оно и так на фигуре слева (снять — нажать на ячейку).
+  // Остаётся только надетая вещь с нераспределёнными очками, иначе её не настроить.
+  const visible = items.filter(i => i.status !== 'DELETED' && (tab.match?.(i) ?? false)
+    && (!i.isEquipped || (i.template.allocationMode === 'PLAYER' && (i.freePoints ?? 0) > 0)))
   // Колец восемь, а на шаблоне слот один: у них смотрим только, куда надето.
   const bySlot = (slot: string) => equipped.find(i => i.armorSlot === slot || (!slot.startsWith('RING') && i.template.armorSlot === slot))
 
