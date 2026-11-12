@@ -84,10 +84,11 @@ async function rewardReferrer(tx: Prisma.TransactionClient, buyerId: string, amo
 /** Обменник Чёрного рынка (обещание игрокам 22.10: «в одну и в другую
  *  сторону»). Курсы стартовые, заказчик их не задавал. Разница курсов —
  *  комиссия обменника; потолок покупки в сутки бережёт дилеров. */
+// Курсы живут в балансе (economy.exchange), админка меняет их без выкатки.
 export const EXCHANGE = {
-  buyRate: 1500,   // столько рублей стоит 1 $
-  sellRate: 1000,  // столько рублей дают за 1 $
-  dailyBuyLimit: 20,
+  get buyRate() { return BalanceConfig.economy.exchange.buyRate },     // столько рублей стоит 1 $
+  get sellRate() { return BalanceConfig.economy.exchange.sellRate },   // столько рублей дают за 1 $
+  get dailyBuyLimit() { return BalanceConfig.economy.exchange.dailyBuyLimit },
 }
 
 export const DollarsService = {
@@ -97,7 +98,7 @@ export const DollarsService = {
 
   exchangeInfo: async (characterId: string) => {
     const bought = await boughtToday(characterId)
-    return { ...EXCHANGE, boughtToday: bought, buyLeft: Math.max(0, EXCHANGE.dailyBuyLimit - bought) }
+    return { buyRate: EXCHANGE.buyRate, sellRate: EXCHANGE.sellRate, dailyBuyLimit: EXCHANGE.dailyBuyLimit, boughtToday: bought, buyLeft: Math.max(0, EXCHANGE.dailyBuyLimit - bought) }
   },
 
   async exchange(characterId: string, direction: 'buy' | 'sell', dollars: number) {

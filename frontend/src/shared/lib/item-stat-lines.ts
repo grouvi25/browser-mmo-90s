@@ -17,6 +17,8 @@ export function itemStatLines(t: ItemTemplate, fits?: { name: string }[]): strin
   if (t.blockBonus) out.push(`Блок: +${Math.round(t.blockBonus * 100)}%`)
   if (t.hpBonus || t.healPercent) out.push(`Восстановит: +${healLabel(t)}`)
   for (const line of itemBonusLines(t)) out.push(`${line.label}: ${line.value}`)
+  // №100: у вещи со свободными очками в карточке магазина не было видно, что она даёт.
+  if (t.allocationMode === 'PLAYER' && t.statBudget > 0) out.push(`Очков статов: ${t.statBudget}, распределяете сами после покупки`)
   if (fits?.length) out.push(`Для профессий: ${fits.map(row => row.name).join(', ')}`)
   if (t.strReq > 0) out.push(`Требует силы: ${t.strReq}`)
   if (t.skillReq > 0) out.push(`Требует навык: ${t.skillReq}`)
