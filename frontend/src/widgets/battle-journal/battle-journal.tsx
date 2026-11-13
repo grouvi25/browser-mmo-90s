@@ -8,7 +8,7 @@
 // =============================================================
 import { useEffect, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ArrowRight, Copy, Flag, Package, RefreshCw, RotateCcw, Shield, Sword, Zap } from 'lucide-react'
+import { ArrowRight, Copy, Flag, Link2, Package, RefreshCw, RotateCcw, Shield, Sword, Zap } from 'lucide-react'
 import { battlesApi, type BattleJournalPage, type JournalKind } from '../../shared/api/battles.api'
 import { pageNumbers } from './page-numbers'
 import './battle-journal.css'
@@ -55,7 +55,7 @@ function CopyJournal({ battleId, first }: { battleId: string; first: BattleJourn
       for (let n = 1; n <= first.pages; n++) if (n !== first.page) pages.push(await battlesApi.getJournal(battleId, n))
       pages.sort((a, b) => a.page - b.page)
       const lines = pages.flatMap(p => p.items).reverse().map(plainLine)
-      const head = [`Бой ${battleId}`]
+      const head = [`Бой ${battleId}`, watchUrl(battleId)]
       if (first.battle.status === 'FINISHED') head.push(`Бой окончен${first.battle.winner ? `: победил ${first.battle.winner}` : ''} · раундов ${first.battle.rounds}`)
       await writeClipboard([...head, ...lines].join('\n'))
       setState('done')
@@ -65,6 +65,22 @@ function CopyJournal({ battleId, first }: { battleId: string; first: BattleJourn
   return (
     <button type="button" className={`bj-copy is-${state}`} disabled={state === 'busy'} onClick={() => void copy()}>
       <Copy size={12} aria-hidden="true" /> {state === 'busy' ? 'Собираю…' : state === 'done' ? 'Скопировано' : state === 'fail' ? 'Не получилось' : 'Скопировать журнал'}
+    </button>
+  )
+}
+
+const watchUrl = (battleId: string) => `${window.location.origin}/battle/${battleId}/watch`
+
+/** Ссылка на бой (№107): поддержка открывает бой целиком, а не выдержку из журнала. */
+function CopyLink({ battleId }: { battleId: string }) {
+  const [state, setState] = useState<'idle' | 'done' | 'fail'>('idle')
+  const copy = async () => {
+    try { await writeClipboard(watchUrl(battleId)); setState('done') } catch { setState('fail') }
+    window.setTimeout(() => setState('idle'), 2500)
+  }
+  return (
+    <button type="button" className={`bj-copy bj-copy--link is-${state}`} onClick={() => void copy()}>
+      <Link2 size={12} aria-hidden="true" /> {state === 'done' ? 'Ссылка скопирована' : state === 'fail' ? 'Не получилось' : 'Ссылка на бой'}
     </button>
   )
 }
@@ -132,6 +148,7 @@ export function BattleJournal({ battleId, refreshKey = 0 }: { battleId: string; 
           </nav>
         )}
         {data.total > 0 && <CopyJournal battleId={battleId} first={data} />}
+        {data.total > 0 && <CopyLink battleId={battleId} />}
       </div>
     </div>
   )

@@ -8,7 +8,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
-import { admissionRequirement, awaitsOwner, calcFinalSalary, calcProductionExp, fitsDailyBudget, realShiftMinutes, shiftMinutes, workerEfficiency } from './work.formulas'
+import { admissionRequirement, awaitsOwner, govCraftable, calcFinalSalary, calcProductionExp, fitsDailyBudget, realShiftMinutes, shiftMinutes, workerEfficiency } from './work.formulas'
 import { CycleService } from '../production/cycle.service'
 import { BalanceConfig } from '../../config/balance.config'
 import { PremiumService } from '../premium/premium.service'
@@ -91,13 +91,13 @@ export const WorkService = {
       .filter(object => object.ownerType !== 'SYSTEM' || object.baseSalary > 0 || object.producesResourceCode || object.isForSale)
       .sort((a, b) => Number(awaitsOwner(a)) - Number(awaitsOwner(b)))
     const products = await prisma.productionRecipe.findMany({
-      where: { productionObjectCode: { in: vacancies.filter(awaitsOwner).map(object => object.code) } },
+      where: { productionObjectCode: { in: vacancies.filter(govCraftable).map(object => object.code) } },
       select: { productionObjectCode: true, name: true }, orderBy: { name: 'asc' },
     })
     const toolUses: Record<string, number> = {}
     for (const tool of tools) toolUses[tool.template.code] = Math.max(toolUses[tool.template.code] ?? 0, tool.usesLeft ?? 0)
     const minutesLeft = Math.round(MAX_DAILY_MINUTES * (dailyCap / MAX_DAILY_SHIFTS)) - shiftMinutes(used)
-    const craftByCode = new Map(await Promise.all(vacancies.filter(awaitsOwner).map(async object => [object.code, await govCraftView(prisma, {
+    const craftByCode = new Map(await Promise.all(vacancies.filter(govCraftable).map(async object => [object.code, await govCraftView(prisma, {
       characterId, objectCode: object.code, toolUses, minutesLeft,
       professionLevel: professionByCode.get(object.requiredProfessionCode)?.level ?? 0,
     })] as const)))
@@ -120,8 +120,8 @@ export const WorkService = {
           // На экране — сколько смена длится на деле (заказчик 06.11), а не номинал объекта.
           shiftDurationMinutes: realShiftMinutes(object.shiftDurationMinutes),
           offeredSalary: object.salaryOverride ?? object.baseSalary,
-          forSaleUsd: awaitsOwner(object) ? BalanceConfig.economy.production.objectPriceUsd : null,
-          products: awaitsOwner(object) ? products.filter(row => row.productionObjectCode === object.code).map(row => row.name) : [],
+          forSaleUsd: govCraftable(object) ? BalanceConfig.economy.production.objectPriceUsd : null,
+          products: govCraftable(object) ? products.filter(row => row.productionObjectCode === object.code).map(row => row.name) : [],
           // Госкрафт: цех ещё не куплен, в нём делают на себя из своего сырья.
           craft: craftByCode.get(object.code) ?? null,
           // Частный завод (обещание игрокам 23.10): платит владелец из кассы
@@ -231,7 +231,10 @@ export const WorkService = {
       // всё время целиком, а не число смен в отрыве от минут.
       const minuteBudget = Math.round(
         WORK_LIMITS.dailyShiftMinutes * (shiftCap / WORK_LIMITS.dailyShiftLimit))
-      if (!awaitsOwner(object ?? { ownerType: '', baseSalary: 1, producesResourceCode: null, isForSale: false })
+      // Изделие себе: в цехе без зарплаты это единственный путь, в цехе с
+      // зарплатой — когда игрок выбрал рецепт (иначе обычная смена за деньги).
+      const crafting = !!object && govCraftable(object) && (awaitsOwner(object) || !!recipeId)
+      if (!crafting
         && !fitsDailyBudget(todayShifts.length, shiftMinutes(todayShifts), realShiftMinutes(object?.shiftDurationMinutes ?? 0),
         { shifts: shiftCap, minutes: minuteBudget })) {
         const left = Math.max(0, minuteBudget - shiftMinutes(todayShifts))
@@ -264,7 +267,7 @@ export const WorkService = {
       if (hpNeed !== null && character.hpCurrent < hpNeed) {
         throw new AppError(ErrorCode.WORK_HP_LOW, `На смену — с ${Math.round((WORK_LIMITS.minHpShare ?? 0) * 100)}% здоровья: сейчас ${character.hpCurrent} из ${character.hpMax}, нужно ${hpNeed}`, 409, { hpNeed, hpCurrent: character.hpCurrent })
       }
-      const craft = awaitsOwner(object) ? await govCraftRecipe(tx, object.code, recipeId, existingProfession.level) : null
+      const craft = crafting ? await govCraftRecipe(tx, object.code, recipeId, existingProfession.level) : null
       // Партия бывает только у госкрафта: на обычной смене выработку задаёт объект.
       const quantity = craft ? craftQuantity : 1
       // Смена госкрафта длится столько, сколько рецепт: по нему и проверяем остаток дня.

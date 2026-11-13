@@ -66,6 +66,15 @@ export function calcProductionExp(baseExp: number, objectLevel: number): number 
 export const awaitsOwner = (object: { ownerType: string; baseSalary: number; producesResourceCode: string | null; isForSale: boolean }) =>
   object.ownerType === 'SYSTEM' && object.baseSalary === 0 && !object.producesResourceCode && object.isForSale
 
+/**
+ * Госкрафт доступен в любом некупленном цехе без своей добычи, и с
+ * зарплатой тоже (обращения №103, №105: Аптека, Пивная «У вокзала»,
+ * Швейный цех платили за смену, но сделать в них ничего было нельзя).
+ * У таких цехов два пути: смена за зарплату или изделие себе из своего сырья.
+ */
+export const govCraftable = (object: { ownerType: string; producesResourceCode: string | null; isForSale: boolean }) =>
+  object.ownerType === 'SYSTEM' && !object.producesResourceCode && object.isForSale
+
 export function admissionRequirement(object: { requiredProfessionCode: string; requiredProfessionLevel: number }) {
   if (object.requiredProfessionLevel <= 0) return null
   const previous = isProfessionCode(object.requiredProfessionCode)

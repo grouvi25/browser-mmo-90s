@@ -61,6 +61,7 @@ import {
   calcBattleExp,
   calcCharacterRating,
   calcRatingPower,
+  rollWear,
 } from '../stats/stats.formulas'
 import { withPetBonus } from '../city/city.config'
 import { BalanceConfig } from '../../config/balance.config'
@@ -609,7 +610,9 @@ async function applyZonalArmorWear(
     })
     if (idx === -1) continue
     const item = equippedArmor[idx]
-    const newDur = Math.max(0, item.durabilityCurrent - n)
+    const lost = rollWear(n, BalanceConfig.durability.armorLossPerHit)
+    if (lost === 0) continue
+    const newDur = Math.max(0, item.durabilityCurrent - lost)
     await ItemsRepository.updateDurability(item.id, newDur)
     if (newDur <= 0) await ItemsRepository.updateStatus(item.id, 'BROKEN')
   }
@@ -2049,7 +2052,8 @@ export const BattleService = {
     // Износ оружия — если игрок нанёс хоть один реальный удар
     for (const handWeapon of [leftWeapon, rightWeapon]) {
       if (handWeapon && turns.some(t => t.actor === 'player' && t.r.weaponId === handWeapon.id && t.r.hit && !t.r.dodge && !t.r.block)) {
-        await ItemsRepository.updateDurability(handWeapon.id, Math.max(0, handWeapon.durabilityCurrent - 1))
+        const lost = rollWear(1, BalanceConfig.durability.weaponLossPerBattle)
+        if (lost > 0) await ItemsRepository.updateDurability(handWeapon.id, Math.max(0, handWeapon.durabilityCurrent - lost))
       }
     }
     // Зональный износ брони — ломается то, во что бьют
@@ -2778,7 +2782,8 @@ export const BattleService = {
     // Износ оружия
     for (const handWeapon of [weapon1Left, weapon1Right, weapon2Left, weapon2Right]) {
       if (handWeapon && roundTurns.some(t => t.r.weaponId === handWeapon.id && t.r.hit && !t.r.dodge && !t.r.block)) {
-        await ItemsRepository.updateDurability(handWeapon.id, Math.max(0, handWeapon.durabilityCurrent - 1))
+        const lost = rollWear(1, BalanceConfig.durability.weaponLossPerBattle)
+        if (lost > 0) await ItemsRepository.updateDurability(handWeapon.id, Math.max(0, handWeapon.durabilityCurrent - lost))
       }
     }
     // Зональный износ брони — ломается то, во что бьют

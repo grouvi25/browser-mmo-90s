@@ -164,4 +164,27 @@ describe('госкрафт', () => {
     expect(view.craft!.find(recipe => recipe.name === 'Заготовка')!.reason).toBe('Не хватит времени сегодня: осталось 10 мин, нужно 50')
     await expect(WorkService.start(character.id, object.id, toBlank.id)).rejects.toMatchObject({ statusCode: 400 })
   })
+
+  it('госцех с окладом (Аптека, Пивная, №103 и №105): без рецепта смена за зарплату, с рецептом изделие себе', async () => {
+    const { character, object, toBlank, input, blank, stack, finish } = await fixture(10)
+    await testPrisma.productionObject.update({ where: { id: object.id }, data: { baseSalary: 200 } })
+    const view = (await WorkService.listObjects(character.id)).items.find(item => item.id === object.id)!
+    expect(view.craft?.length).toBeGreaterThan(0)
+    expect(view.offeredSalary).toBe(200)
+    // Рецепт выбран: изделие себе, зарплаты нет.
+    const craft = await WorkService.start(character.id, object.id, toBlank.id)
+    expect(craft.shift.craftRecipeId).toBe(toBlank.id)
+    expect(craft.shift.baseSalary).toBe(0)
+    expect(await stack(input.id)).toMatchObject({ amount: 10, reservedAmount: 4 })
+    await finish(craft.shift.id)
+    expect(await WorkService.claim(character.id, craft.shift.id, uid('key'))).toMatchObject({ salary: 0, crafted: { name: 'Заготовка' } })
+    expect(await stack(blank.id)).toMatchObject({ amount: 1 })
+    // Без рецепта: обычная смена за оклад, сырьё не трогается.
+    const paid = await WorkService.start(character.id, object.id)
+    expect(paid.shift.craftRecipeId).toBeNull()
+    expect(paid.shift.baseSalary).toBe(200)
+    expect(await stack(input.id)).toMatchObject({ amount: 6, reservedAmount: 0 })
+    await finish(paid.shift.id)
+    expect((await WorkService.claim(character.id, paid.shift.id, uid('key'))).salary).toBeGreaterThan(0)
+  })
 })

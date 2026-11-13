@@ -2,6 +2,7 @@ import { BalanceConfig } from '../../config/balance.config'
 import { prisma } from '../../shared/db/prisma'
 import { assertRecipeOutputShape } from './recipe.formulas'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
+import { govCraftable, realShiftMinutes } from '../work/work.formulas'
 
 export const RecipeService = {
   /**
@@ -37,6 +38,8 @@ export const RecipeService = {
 
     type Way = {
       objectCode: string; objectName: string; gather: boolean; forSaleUsd: number | null; shiftMinutes: number; labor: number
+      /** Госцех: сколько идёт одно изделие на госработе. Там считается цикл рецепта, а не нормочасы своего завода (№104). */
+      craftMinutes: number | null
       professionCode: string | null; professionName: string | null; professionKnown: boolean
       toolCode: string | null; toolName: string | null; inputs: { code: string; name: string; amount: number }[]
     }
@@ -56,6 +59,7 @@ export const RecipeService = {
       add(output, {
         objectCode: object.code!, objectName: object.name, gather: recipe.inputs.length === 0, forSaleUsd: forSale(object),
         shiftMinutes: object.shiftDurationMinutes, labor: recipe.laborRequired,
+        craftMinutes: govCraftable(object) && recipe.inputs.length > 0 ? realShiftMinutes(recipe.cycleMinutes) : null,
         professionCode: recipe.requiredProfessionCode, professionName: professionName(recipe.requiredProfessionCode), professionKnown: known.has(recipe.requiredProfessionCode),
         toolCode: recipe.requiredToolCode, toolName: recipe.requiredToolCode ? nameOf.get(recipe.requiredToolCode) ?? recipe.requiredToolCode : null,
         inputs: recipe.inputs.map(input => ({ code: input.resourceCode, name: nameOf.get(input.resourceCode) ?? input.resourceCode, amount: input.amount })),
@@ -72,6 +76,7 @@ export const RecipeService = {
       add(object.producesResourceCode, {
         objectCode: object.code!, objectName: object.name, gather: true, forSaleUsd: forSale(object),
         shiftMinutes: object.shiftDurationMinutes, labor: object.shiftDurationMinutes,
+        craftMinutes: null,
         professionCode: object.requiredProfessionCode, professionName: professionName(object.requiredProfessionCode), professionKnown: !!object.requiredProfessionCode && known.has(object.requiredProfessionCode),
         toolCode: null, toolName: null, inputs: [],
       })

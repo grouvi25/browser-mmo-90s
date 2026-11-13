@@ -54,7 +54,9 @@ function bonusLines(item: RepairItem): string[] {
 function categoryOf(item: RepairItem): Category | null {
   const t = item.template
   if (t.type === 'WEAPON') return 'WEAPON'
-  if (t.type === 'ARMOR') return 'ARMOR'
+  // Щит и украшения своей вкладки в макете не имеют: без этого их было
+  // не починить вовсе, они не попадали ни в одну вкладку.
+  if (t.type === 'ARMOR' || t.type === 'SHIELD' || t.type === 'ACCESSORY') return 'ARMOR'
   if (t.type === 'TOOL') return 'TOOL'
   if (t.type === 'CONSUMABLE') return 'MEDICINE'
   return null

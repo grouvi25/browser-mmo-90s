@@ -397,13 +397,15 @@ export const BalanceConfig = {
 
   // --- Durability ---
   durability: {
-    weaponLossPerBattle: 1,    // MVP: -1 прочность за атаку (упрощённая модель)
-    armorLossPerHit: 0.5,      // MVP: -0.5 за каждое попадание → floor(hits/2)
+    // Дима 13.11 (обращение №102): износ вдвое меньше. Дробная часть
+    // списывается с этой вероятностью: 0.5 = единица прочности через раз.
+    weaponLossPerBattle: 0.5,  // износ оружия за ход боя
+    armorLossPerHit: 0.5,      // износ брони в зоне за каждое попадание
   },
 
   // --- Repair ---
   repair: {
-    baseCostDivider: 120,      // basePrice / 120 за единицу прочности
+    baseCostDivider: 240,      // basePrice / 240 за единицу прочности (было 120, Дима 13.11 №102: ремонт вдвое дешевле)
     qualityCoeff: {
       JUNK:   0.8,
       COMMON: 1.0,

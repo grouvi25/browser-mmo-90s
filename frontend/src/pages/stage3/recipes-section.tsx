@@ -26,14 +26,17 @@ function ProductCard({ product, linkOf }: { product: CatalogProduct; linkOf: (co
         <div key={way.objectCode} className="s3-howto__way">
           <p className="s3-howto__place">
             <b>{way.gather ? 'Добывается' : 'Делается'}:</b> {way.objectName}
-            {way.forSaleUsd != null && <span className="s3-howto__price"> · работает после покупки за {way.forSaleUsd.toLocaleString('ru-RU')} $</span>}
+            {/* №104: надпись «работает после покупки» сбивала: госцех работает и некупленным. */}
+            {way.craftMinutes != null && <span className="s3-howto__price"> · госцех, можно делать сразу</span>}
           </p>
           <dl>
             {way.professionName && <div><dt>Профессия</dt><dd>{way.professionName}{way.professionKnown
               ? <span className="ok"> · есть</span>
               : <> · <Link to="/school">в Училище</Link></>}</dd></div>}
             {way.toolName && <div><dt>Инструмент</dt><dd>{way.toolCode ? <Link to={linkOf(way.toolCode)}>{way.toolName}</Link> : way.toolName}</dd></div>}
-            <div><dt>Труд на 1 шт.</dt><dd>{labor(way.labor)}{!way.gather && way.shiftMinutes > 0 && <span className="muted"> · {Math.ceil(way.labor / way.shiftMinutes)} см. по {way.shiftMinutes} мин</span>}</dd></div>
+            {way.craftMinutes != null
+              ? <div><dt>Время на 1 шт.</dt><dd>{way.craftMinutes} мин</dd></div>
+              : <div><dt>Труд на 1 шт.</dt><dd>{labor(way.labor)}{!way.gather && way.shiftMinutes > 0 && <span className="muted"> · {Math.ceil(way.labor / way.shiftMinutes)} см. по {way.shiftMinutes} мин</span>}</dd></div>}
           </dl>
           {way.inputs.length > 0 && (
             <div className="s3-howto__inputs">

@@ -138,20 +138,20 @@
 .s4-hire > .s4-muted { flex-basis: 100%; margin: 0; font-size: 13px; }
 .s4-hire button { display: inline-flex; align-items: center; gap: 6px; }
 
-.s4-helpers { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: oklch(57% .025 60); border: 1px solid oklch(57% .025 60); }
-.s4-helper { background: oklch(96% .018 76); padding: 15px 16px; display: grid; gap: 9px; }
+.s4-helpers { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; background: oklch(57% .025 60); border: 1px solid oklch(57% .025 60); }
+.s4-helper { background: oklch(96% .018 76); padding: 15px 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; min-width: 0; }
 /* Спящий помощник не прячется и не выключается насовсем: он остаётся в
    профиле, и экран обязан объяснить, почему он не работает. */
 .s4-helper--dormant { background: oklch(93% .012 72); }
 .s4-helper__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .s4-helper__head b { font: 700 1.05rem/1.1 'Sign', 'Oswald', sans-serif; text-transform: uppercase; }
 .s4-helper__head span { display: inline-flex; align-items: center; gap: 4px; }
-.s4-helper__facts { display: flex; gap: 22px; margin: 0; }
+.s4-helper__facts { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0; }
 .s4-helper__facts dt { font-size: 0.82rem; text-transform: uppercase; letter-spacing: .07em; color: oklch(50% .025 55); }
 .s4-helper__facts dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
 .s4-helper__shift { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .s4-helper__shift > span { display: inline-flex; align-items: center; gap: 5px; font-size: 0.859rem; flex: 1 1 auto; }
-.s4-helper__shift select { flex: 1 1 180px; min-width: 0; }
+.s4-helper__shift select { flex: 1 1 180px; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
 .s4-helper__shift button { min-height: 38px; padding: 6px 12px; }
 .s4-helper__dismiss { justify-self: start; min-height: 32px; padding: 4px 10px; font-size: 0.828rem; display: inline-flex; align-items: center; gap: 5px; }
 

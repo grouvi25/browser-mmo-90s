@@ -63,11 +63,12 @@ describe('бонусы районов действуют', () => {
 
   it('Гаражи режут стоимость ремонта на пятую часть', async () => {
     const { boss, clan } = await clanWithBoss()
-    const full = calcRepairCost(1000, 20, 'NORMAL', 0, 0)
+    // 1200/240×20 = 100 ровно: проверяем скидку, а не округление
+    const full = calcRepairCost(1200, 20, 'NORMAL', 0, 0)
     await give('garages', clan.id)
     const discount = (await TerritoriesService.bonusesForCharacter(boss.id)).REPAIR_COST ?? 0
     expect(discount).toBe(0.20)
-    expect(calcRepairCost(1000, 20, 'NORMAL', 0, discount)).toBe(Math.max(1, Math.ceil(full * 0.8)))
+    expect(calcRepairCost(1200, 20, 'NORMAL', 0, discount)).toBe(Math.max(1, Math.ceil(full * 0.8)))
   })
 
   it('Промзона ускоряет цикл, складываясь с инструментом, а не умножаясь', async () => {

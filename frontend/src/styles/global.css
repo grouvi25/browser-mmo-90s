@@ -3320,6 +3320,7 @@ button { font-family: inherit; }
 .work-reason { display:block; margin-top:3px; color:var(--danger); font-size:13.49px; }
 /* Частный завод: чей он (обещание игрокам 23.10). */
 .work-employer { display:block; margin-top:2px; color:var(--text-dim, #6b5a48); font-size:13px; }
+.work-row-actions { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
 /* Госкрафт: рецепты некупленного цеха, делаются из своего сырья. */
 .gov-craft { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
 .gov-craft li { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.6fr) auto; gap:4px 12px; align-items:center; padding:6px 8px; border:1px solid rgba(43,43,43,.25); background:rgba(255,255,255,.35); }

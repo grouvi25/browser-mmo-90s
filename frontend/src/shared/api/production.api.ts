@@ -60,7 +60,7 @@ export interface ProductionObject {
 }
 
 export interface CatalogWay {
-  objectCode: string; objectName: string; gather: boolean; forSaleUsd: number | null; shiftMinutes: number; labor: number
+  objectCode: string; objectName: string; gather: boolean; forSaleUsd: number | null; shiftMinutes: number; labor: number; craftMinutes?: number | null
   professionCode: string | null; professionName: string | null; professionKnown: boolean
   toolCode: string | null; toolName: string | null; inputs: { code: string; name: string; amount: number }[]
 }

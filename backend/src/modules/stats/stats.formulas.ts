@@ -271,3 +271,16 @@ export function calcCharacterRating(stats: RatingStats, equipped: EquippedForRat
   const total = calcBaseRating(stats) + equipped.reduce((sum, item) => sum + calcEquippedItemRating(item), 0)
   return Math.round(total * 10) / 10
 }
+
+/**
+ * Сколько единиц прочности снять: целая часть всегда, дробная с её
+ * вероятностью. Прочность целая, а износ с 13.11 бывает 0.5 (№102).
+ */
+export function rollWear(events: number, perEvent: number, rnd: () => number = Math.random): number {
+  let lost = 0
+  for (let i = 0; i < events; i++) {
+    const whole = Math.floor(perEvent)
+    lost += whole + (rnd() < perEvent - whole ? 1 : 0)
+  }
+  return lost
+}

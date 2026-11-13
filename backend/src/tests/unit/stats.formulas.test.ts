@@ -255,9 +255,9 @@ describe('getWeaponSkillLevelFromExp', () => {
 // Repair cost
 // ---------------------------------------------------------------
 describe('calcRepairCost', () => {
-  it('matches ТЗ formula: basePrice/120 × lostDur × qualityCoeff', () => {
+  it('basePrice/240 × lostDur × qualityCoeff (с 13.11 ремонт вдвое дешевле, №102)', () => {
     // COMMON quality = 1.0, upgradeLevel=0 → upgradeCoeff=1.0
-    const expected = Math.ceil(1200 / 120 * 20 * 1.0 * 1.0)
+    const expected = Math.ceil(1200 / 240 * 20 * 1.0 * 1.0)
     expect(calcRepairCost(1200, 20, 'COMMON', 0)).toBe(expected)
   })
 
@@ -294,8 +294,8 @@ describe('calcRepairCost', () => {
 // Durability loss
 // ---------------------------------------------------------------
 describe('calcWeaponDurabilityLoss', () => {
-  it('returns 1 per attack in MVP simplified mode', () => {
-    expect(calcWeaponDurabilityLoss(1)).toBe(1)
+  it('износ оружия за ход из баланса: 0.5 с 13.11 (№102)', () => {
+    expect(calcWeaponDurabilityLoss(1)).toBe(0.5)
   })
 })
 

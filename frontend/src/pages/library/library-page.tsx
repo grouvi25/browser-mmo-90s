@@ -49,7 +49,7 @@ function ProfessionsTopic({ t }: { t: LibraryTables | undefined }) {
         {step.objects.length > 0 && <div className="library__scroll"><table className="library__table library__table--fit">
           <thead><tr><th>Где работать</th><th>Что даёт</th><th>Смена</th><th>Оплата</th><th>Инструмент</th><th>Опыт</th><th>Допуск</th></tr></thead>
           <tbody>{step.objects.map(o => <tr key={o.name}>
-            <td>{o.name}{o.forSaleUsd ? <span className="library__muted"> · после покупки цеха</span> : null}</td>
+            <td>{o.name}{o.forSaleUsd ? <span className="library__muted"> · госцех</span> : null}</td>
             <td className="library__wrap">{o.gives ?? '—'}</td>
             <td>{o.minutes} мин</td><td>{o.salary > 0 ? `${n(o.salary)} ₽` : 'сырьём'}</td>
             <td>{o.tool ?? '—'}</td><td>+{o.exp}</td>

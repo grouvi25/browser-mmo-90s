@@ -12,7 +12,7 @@ import { prisma } from '../../shared/db/prisma'
 import { BalanceConfig } from '../../config/balance.config'
 import { PROFESSION_CUMULATIVE_XP, PROFESSION_GROUPS, PROFESSION_NAMES, professionEfficiency, previousProfession, type ProfessionCode } from '../professions/professions'
 import { soldGeneralTools, toolForTier } from '../work/tool-names'
-import { awaitsOwner, realShiftMinutes } from '../work/work.formulas'
+import { awaitsOwner, govCraftable, realShiftMinutes } from '../work/work.formulas'
 import { effectText, parseUseEffect } from '../items/item-effects'
 
 const CHAIN_TITLES: Record<keyof typeof PROFESSION_GROUPS, string> = {
@@ -86,7 +86,7 @@ export async function libraryRoutes(fastify: FastifyInstance) {
                 ? resourceName.get(o.producesResourceCode) ?? o.producesResourceCode
                 : recipes.filter(r => r.productionObjectCode === o.code).map(r => r.name).join(', ') || null,
               tool: toolOf(o),
-              forSaleUsd: awaitsOwner(o) ? B.economy.production.objectPriceUsd : null,
+              forSaleUsd: govCraftable(o) ? B.economy.production.objectPriceUsd : null,
             })),
         }
       }),
