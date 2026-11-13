@@ -25,6 +25,7 @@ import { itemImage } from '../../shared/assets/shop/shop-images'
 import { MASTERY_LABELS, instanceImage } from '../../shared/lib/item-bonuses'
 import { IntoxicationBadge } from '../intoxication-badge/intoxication-badge'
 import { dogTitle } from '../../shared/lib/dog'
+import { dogImage } from '../../shared/assets/dogs/dog-images'
 
 const C = MENU.card
 
@@ -279,6 +280,8 @@ export function CharacterCard({ profile, wounds, liveHp }: {
           />
           <SpriteButton
             name="item-dog"
+            // Своя порода (Валерий 14.11: купил добермана, а в ячейке питбуль из макета).
+            src={own && char?.dog ? dogImage(char.dog.code) : undefined}
             box={C.slots[2].box}
             empty={own ? !char?.dog : true}
             disabled={!own}

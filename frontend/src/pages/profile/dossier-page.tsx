@@ -4,6 +4,7 @@
 // по макету это самостоятельный экран со своим фоном.
 // =============================================================
 import { dogBonusText, dogTitle } from '../../shared/lib/dog'
+import { dogImage } from '../../shared/assets/dogs/dog-images'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -292,7 +293,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
             <figcaption>{offhand ? offhand.title : 'правая рука свободна'}</figcaption>
           </figure>
           <figure className="m-dossier__slot">
-            <SpriteButton name="p-item-dog" box={{ x: 0, y: 0, w: 62, h: 93 }} empty={!view?.dog}
+            <SpriteButton name="p-item-dog" src={view?.dog ? dogImage(view.dog.code) : undefined} box={{ x: 0, y: 0, w: 62, h: 93 }} empty={!view?.dog}
               title={dogTitle(view?.dog)} disabled={!own} onClick={own ? () => navigate('/pet-shop') : undefined} />
             <figcaption>{view?.dog ? view.dog.name : 'собаки нет'}</figcaption>
           </figure>
@@ -394,7 +395,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
         disabled={!own} onClick={own ? () => navigate('/inventory') : undefined}
       />
       <SpriteButton
-        name="p-item-dog" box={PROFILE.slots[2].box} empty={!view?.dog}
+        name="p-item-dog" src={view?.dog ? dogImage(view.dog.code) : undefined} box={PROFILE.slots[2].box} empty={!view?.dog}
         title={dogTitle(view?.dog)} disabled={!own} onClick={own ? () => navigate('/pet-shop') : undefined}
       />
 
