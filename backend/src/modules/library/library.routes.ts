@@ -12,7 +12,7 @@ import { prisma } from '../../shared/db/prisma'
 import { BalanceConfig } from '../../config/balance.config'
 import { PROFESSION_CUMULATIVE_XP, PROFESSION_GROUPS, PROFESSION_NAMES, professionEfficiency, previousProfession, type ProfessionCode } from '../professions/professions'
 import { soldGeneralTools, toolForTier } from '../work/tool-names'
-import { awaitsOwner, govCraftable, realShiftMinutes } from '../work/work.formulas'
+import { govCraftable, realShiftMinutes } from '../work/work.formulas'
 import { effectText, parseUseEffect } from '../items/item-effects'
 
 const CHAIN_TITLES: Record<keyof typeof PROFESSION_GROUPS, string> = {

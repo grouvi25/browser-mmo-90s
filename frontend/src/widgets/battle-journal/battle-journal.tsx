@@ -147,8 +147,7 @@ export function BattleJournal({ battleId, refreshKey = 0 }: { battleId: string; 
                   className={n === data.page ? 'is-active' : ''} onClick={() => setPage(n)}>{n}</button>)}
           </nav>
         )}
-        {data.total > 0 && <CopyJournal battleId={battleId} first={data} />}
-        {data.total > 0 && <CopyLink battleId={battleId} />}
+        {data.total > 0 && <div className="bj-actions"><CopyLink battleId={battleId} /><CopyJournal battleId={battleId} first={data} /></div>}
       </div>
     </div>
   )
