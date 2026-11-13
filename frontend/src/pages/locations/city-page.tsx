@@ -13,6 +13,7 @@ import '../shop/shop.css'
 import { dogBonusText } from '../../shared/lib/dog'
 import { BrigadeHouses } from './brigade-houses'
 import { DogGoods, type DogGoodsKind } from './dog-goods'
+import { dogImage } from '../../shared/assets/dogs/dog-images'
 import { IncomingInvites } from '../stage3/clan-invites'
 import { ClanIconPicker } from '../stage3/clan-icon-upload'
 import '../stage3/stage3.css'
@@ -217,7 +218,10 @@ function Pets() {
         onClick={() => action.mutate({ kind: 'exchange', id: p.code })}>Взять: {p.name}</button>)}</div>
     </article>}
     {dog && <article className="city-card city-card--dog">
-      <h2>{dog.name} · {dog.level}-й уровень</h2>
+      <h2 className="dog-card__title">
+        {dogImage(dog.code) && <img className="dog-card__photo" src={dogImage(dog.code)} alt="" width={56} height={56} draggable={false} />}
+        {dog.name} · {dog.level}-й уровень
+      </h2>
       <div className="dog-exp" title={dog.nextLevelExp ? `${dog.exp} из ${dog.nextLevelExp} опыта` : 'Максимальный уровень'}>
         <i style={{ width: `${progress}%` }} /><span>{dog.nextLevelExp ? `опыт ${dog.exp} / ${dog.nextLevelExp}` : 'максимальный уровень'}</span>
       </div>

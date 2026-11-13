@@ -69,6 +69,24 @@ describe('Именные вещи: столбики, уровни, картин�
     await expect(ItemStatsService.allocate(character.id, item.id, 'ARMOR', 1)).rejects.toMatchObject({ statusCode: 409 })
   })
 
+  it('№89: в именное оружие очки вкладываются в урон, 1 очко = 4 единицы к мин. или макс.', async () => {
+    const { character, item } = await named({ type: 'WEAPON', budget: 120 })
+    const read = async () => {
+      const row = await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: item.id }, include: { template: true } })
+      return applyUpgradeModifiers(row.template, {}, row.statAllocation)
+    }
+    expect((await ItemStatsService.configure(character.id, item.id, { MAX_DAMAGE: 120 }, none())).freePoints).toBe(0)
+    expect(await read()).toMatchObject({ minDamage: 0, maxDamage: 480 })
+    await ItemStatsService.configure(character.id, item.id, { MIN_DAMAGE: 25, MAX_DAMAGE: 95 }, none())
+    expect(await read()).toMatchObject({ minDamage: 100, maxDamage: 380 })
+    // Нижняя граница выше верхней: верхняя подтягивается, урон не переворачивается.
+    await ItemStatsService.configure(character.id, item.id, { MIN_DAMAGE: 60 }, none())
+    expect(await read()).toMatchObject({ minDamage: 240, maxDamage: 240 })
+    // Точность и крит в именную вещь по-прежнему не вписываются.
+    await expect(ItemStatsService.configure(character.id, item.id, { ACCURACY: 1 }, none())).rejects.toMatchObject({ statusCode: 422 })
+    await expect(ItemStatsService.configure(character.id, item.id, { MAX_DAMAGE: 121 }, none())).rejects.toMatchObject({ statusCode: 409 })
+  })
+
   it('предела на поле нет: все очки можно вложить в один стат, плюс или минус', async () => {
     const { character, item } = await named()
     const read = async () => gearOf([await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: item.id }, include: { template: true } })])

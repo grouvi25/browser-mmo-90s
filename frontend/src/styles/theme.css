@@ -1007,6 +1007,8 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 .house-wall__form input { flex:1 1 220px; }
 .house-wall i, .house-members i { color:var(--text-dim); font-size:13px; }
 .city-card--dog { margin-bottom: 12px; }
+.dog-card__title { display: flex; align-items: center; gap: 10px; }
+.dog-card__photo { flex: none; width: 56px; height: 56px; object-fit: contain; border: 1px solid currentColor; background: #fffdf8; }
 .city-feed { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* ── Эфир: каналы цветом (правка заказчика) ────────────────────

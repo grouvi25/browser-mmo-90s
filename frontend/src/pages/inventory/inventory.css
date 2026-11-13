@@ -284,6 +284,7 @@
 .inv-setup__groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; overflow-y: auto; }
 .inv-setup__group { padding: 6px 0; border-top: 1px dashed #1c1318; }
 .inv-setup__group h4 { margin: 0 0 5px; font-size: 14px; }
+.inv-setup__damage { display: block; margin-top: 4px; font-variant-numeric: tabular-nums; opacity: .8; }
 .inv-setup__row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; cursor: pointer; }
 .inv-setup__row input {
   flex: none; width: 58px; min-height: 28px; padding: 2px 4px;

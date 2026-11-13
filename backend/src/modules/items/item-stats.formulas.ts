@@ -1,7 +1,9 @@
 import { BalanceConfig } from '../../config/balance.config'
 import type { ItemBonuses } from './gear-bonuses'
 
-export const ITEM_STAT_KEYS = ['DAMAGE', 'ACCURACY', 'CRIT', 'ARMOR', 'DURABILITY', 'ANTI_CRIT'] as const
+// MIN_DAMAGE и MAX_DAMAGE (обращение №89, 13.11): очко добавляет единицы
+// урона к нижней или верхней границе, а не проценты, как DAMAGE.
+export const ITEM_STAT_KEYS = ['DAMAGE', 'MIN_DAMAGE', 'MAX_DAMAGE', 'ACCURACY', 'CRIT', 'ARMOR', 'DURABILITY', 'ANTI_CRIT'] as const
 export type ItemStatKey = typeof ITEM_STAT_KEYS[number]
 export type ItemStatAllocation = Partial<Record<ItemStatKey, number>>
 // Прочности среди очков вещи нет (правка заказчика 28.10: «прочность из доп
@@ -18,9 +20,13 @@ export function bonusCost(bonuses: ItemBonuses): number {
   return sum(bonuses.stats) + sum(bonuses.mastery) + sum(bonuses.minusMastery) + sum(bonuses.charms) + sum(bonuses.minusCharms)
 }
 export function allowedItemStats(itemType: string): ItemStatKey[] {
-  if (itemType === 'WEAPON') return ['DAMAGE', 'ACCURACY', 'CRIT']
+  if (itemType === 'WEAPON') return ['DAMAGE', 'MIN_DAMAGE', 'MAX_DAMAGE', 'ACCURACY', 'CRIT']
   if (itemType === 'ARMOR' || itemType === 'SHIELD') return ['ARMOR', 'ANTI_CRIT']
   return []
+}
+/** Что из «Самой вещи» можно вписать в именную вещь: только урон оружия (№89). */
+export function namedItemStats(itemType: string): ItemStatKey[] {
+  return itemType === 'WEAPON' ? ['MIN_DAMAGE', 'MAX_DAMAGE'] : []
 }
 export function normalizeAllocation(value: unknown): ItemStatAllocation {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}

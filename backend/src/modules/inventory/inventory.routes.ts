@@ -84,6 +84,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       budget: itemBudget(item.template, item.namedLevel),
       canSetIcon: tsum.has(item.templateId),
       percentPerPoint: named.percentPerPoint,
+      damagePerPoint: named.damagePerPoint,
       levelUp: tsum.has(item.templateId) && item.template.allocationMode === 'PLAYER'
         ? { priceUsd: named.levelPriceUsd, points: named.pointsPerLevel, maxLevel: named.maxLevel } : null,
       effective: applyUpgradeModifiers(

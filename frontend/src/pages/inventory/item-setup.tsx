@@ -15,8 +15,10 @@ import { squareImage } from '../../shared/lib/image-resize'
 import { CHARM_LABELS, MASTERY_LABELS, STAT_LABELS, instanceImage } from '../../shared/lib/item-bonuses'
 import type { Character, ItemBonuses, ItemInstance, ItemStatKey } from '../../shared/types/api.types'
 
+// Урон оружия очками (обращение №89): единицы к нижней и верхней границе.
+const DAMAGE_STATS: [ItemStatKey, string, string][] = [['MIN_DAMAGE', 'Мин. урон', '+4'], ['MAX_DAMAGE', 'Макс. урон', '+4']]
 const OWN_STATS: Record<string, [ItemStatKey, string, string][]> = {
-  WEAPON: [['DAMAGE', 'Урон', '+4% или хотя бы +1'], ['ACCURACY', 'Точность', '+1%'], ['CRIT', 'Крит', '+0,5%']],
+  WEAPON: [...DAMAGE_STATS, ['ACCURACY', 'Точность', '+1%'], ['CRIT', 'Крит', '+0,5%']],
   ARMOR: [['ARMOR', 'Броня', '+6% или хотя бы +1'], ['ANTI_CRIT', 'Защита от крита', '+0,5%']],
   SHIELD: [['ARMOR', 'Броня', '+6% или хотя бы +1'], ['ANTI_CRIT', 'Защита от крита', '+0,5%']],
 }
@@ -96,9 +98,18 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
 }) {
   const qc = useQueryClient()
   const t = item.template
-  // У вещей ЦУМа блока «Сама вещь» нет: там только то, что распределяет игрок.
-  const ownStats = item.canSetIcon ? [] : OWN_STATS[t.type] ?? []
-  const [own, setOwn] = useState<Numbers>(() => (item.canSetIcon ? {} : { ...(item.statAllocation ?? {}) }) as Numbers)
+  // У вещей ЦУМа из «Самой вещи» только урон оружия. Старые очки в процентный
+  // урон видны, пока они есть: их можно снять и переложить.
+  const [own, setOwn] = useState<Numbers>(() => ({ ...(item.statAllocation ?? {}) }) as Numbers)
+  const ownStats: [ItemStatKey, string, string][] = [
+    ...(item.canSetIcon ? (t.type === 'WEAPON' ? DAMAGE_STATS : []) : OWN_STATS[t.type] ?? []),
+    ...(t.type === 'WEAPON' && (item.statAllocation?.DAMAGE ?? 0) > 0 ? [['DAMAGE', 'Урон', '+4%, прежний расклад'] as [ItemStatKey, string, string]] : []),
+  ]
+  const perDamage = item.damagePerPoint ?? 4
+  const damage = t.type === 'WEAPON' && t.minDamage != null && !(own.DAMAGE ?? 0) ? {
+    min: (t.minDamage ?? 0) + perDamage * (own.MIN_DAMAGE ?? 0),
+    max: (t.maxDamage ?? 0) + perDamage * (own.MAX_DAMAGE ?? 0),
+  } : null
   const [bonuses, setBonuses] = useState<ItemBonuses>(() => ({ ...emptyBonuses(), ...(item.bonuses ?? {}) }))
   const budget = item.budget ?? t.statBudget
   const perPoint = item.percentPerPoint ?? 5
@@ -146,6 +157,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
         {ownStats.length > 0 && <Section title="Сама вещь">
           {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={hint} min={0} disabled={busy} value={own[key] ?? 0}
             onChange={value => setOwn(prev => ({ ...prev, [key]: value }))} />)}
+          {damage && <small className="inv-setup__damage">Урон без улучшений: {damage.min}–{Math.max(damage.min, damage.max)}</small>}
         </Section>}
         <Section title="Статы">
           {STAT_LABELS.map(([key, label]) => <Field key={key} label={label} min={-budget} disabled={busy} value={bonuses.stats[key] ?? 0} onChange={set('stats', key)} />)}

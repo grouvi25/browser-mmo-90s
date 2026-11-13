@@ -381,6 +381,8 @@ async function main() {
     obj_herb_point: 16000,
     obj_pharmacy: 28000,
     obj_chem_lab: 6500,
+    // Госцех: пока не купят, в нём работают на себя (госкрафт).
+    obj_lathe: 15000,
   }
   const objectProfessions = OBJECT_PROFESSIONS
   for(const {code,name,type,requiredProductionLevel,shiftDurationMinutes,baseSalary,baseProductionExp,producesResourceCode,outputAmountMin,outputAmountMax,economicExpReward} of productionObjects){

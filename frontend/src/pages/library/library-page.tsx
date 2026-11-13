@@ -17,6 +17,7 @@ function LevelsTopic({ t }: { t: LibraryTables | undefined }) {
   if (!t) return <Loading />
   return <>
     <p>Боевой опыт даёт бой: чем сильнее соперник и чем больше урона вы нанесли, тем больше опыта. За каждый новый уровень — {t.statPointsPerLevel} очка характеристик и денежная премия.</p>
+    {t.botExpPenalty != null && <p>С ботами против фарма: каждый следующий бой с ботом за сутки даёт на {Math.round(t.botExpPenalty * 100)}% меньше опыта, но не меньше {Math.round((t.botExpMin ?? 0) * 100)}% от полного. Счёт обнуляется в 3:00 по Москве, после этого опыт снова полный.</p>}
     <div className="library__scroll"><table className="library__table library__table--fit">
       <thead><tr><th>Уровень</th><th>Опыт</th><th>Премия</th></tr></thead>
       <tbody>{t.battle.map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>{row.level === 1 ? `старт ${n(row.money)} ₽` : `${n(row.money)} ₽`}</td></tr>)}</tbody>

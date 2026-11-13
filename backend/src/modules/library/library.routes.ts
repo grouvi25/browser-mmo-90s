@@ -112,6 +112,6 @@ export async function libraryRoutes(fastify: FastifyInstance) {
       return { name: item.name, does: does || 'пока ничего', where, madeAt: madeAt(item.code) }
     })
     const professionLevels = PROFESSION_CUMULATIVE_XP.map((exp, level) => ({ level, exp, efficiencyPct: Math.round((professionEfficiency(level) - 1) * 100) }))
-    return reply.send({ battle, economic, professions, professionLevels, statPointsPerLevel: B.battleExp.statPointsPerLevel, consumables: items, objectPriceUsd: B.economy.production.objectPriceUsd })
+    return reply.send({ battle, economic, professions, professionLevels, statPointsPerLevel: B.battleExp.statPointsPerLevel, botExpPenalty: B.battleExp.pveDailyPenaltyPerKill, botExpMin: B.battleExp.pveDailyMin, consumables: items, objectPriceUsd: B.economy.production.objectPriceUsd })
   })
 }

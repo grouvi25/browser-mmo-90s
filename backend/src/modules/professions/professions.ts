@@ -5,6 +5,8 @@ export const PROFESSION_CODES = [
   // Восемь профессий книги экономики заказчика (30.10): без лестницы допуска.
   'metallurgist', 'berry_farmer', 'weaver', 'material_technologist',
   'toolmaker', 'alchemist', 'tailor', 'rune_scribe',
+  // Дима 13.11: Токарь делает пружины и сталь, потом гранаты и мины.
+  'turner',
 ] as const
 export type ProfessionCode = typeof PROFESSION_CODES[number]
 
@@ -26,6 +28,7 @@ export const PROFESSION_NAMES: Record<ProfessionCode, string> = {
   alchemist: 'Алхимик',
   tailor: 'Портной',
   rune_scribe: 'Юрист',
+  turner: 'Токарь',
 }
 
 /**
@@ -41,7 +44,7 @@ export const PROFESSION_CHAINS: Readonly<Record<'metal' | 'construction' | 'chem
 
 /** Профессии книги заказчика: своя цепочка у каждой, общего порядка нет. */
 export const PROFESSION_CRAFTS: readonly ProfessionCode[] = [
-  'metallurgist', 'berry_farmer', 'weaver', 'material_technologist', 'toolmaker', 'alchemist', 'tailor', 'rune_scribe',
+  'metallurgist', 'berry_farmer', 'weaver', 'material_technologist', 'toolmaker', 'alchemist', 'tailor', 'rune_scribe', 'turner',
 ]
 
 /** Все группы для справочников: лестницы и ремёсла. */

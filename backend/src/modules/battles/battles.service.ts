@@ -465,15 +465,16 @@ export async function buildAttackerSnapshotAsync(
     // №76: перевес оберегов считается со знаком — минус-оберег сверх чужого оберега тоже решает.
     dodgeCharmEdge: gear.antiDodge - opponentGear.minus.antiDodge,
     counterCharmEdge: gear.antiCounter - opponentGear.minus.antiCounter,
-    // Мастерство (правка 31.10): голыми руками и рукопашкой — кулачный бой,
-    // любым другим оружием — исп. оружия.
+    // Дима 13.11: урон с оружием в руках (и рукопашным тоже) от мастерства
+    // исп. оружия, голыми руками от кулачного боя.
     outgoingDamageMultiplier: 1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0) + buffs.damage
-      + Math.min(MASTERY_DAMAGE_CAP, masteryBalance(gear, opponentGear, !t || t.weaponType === 'MELEE' ? 'fist' : 'weapon')),
+      + Math.min(MASTERY_DAMAGE_CAP, masteryBalance(gear, opponentGear, !t ? 'fist' : 'weapon')),
     // №95 (Nobody 12.11): из стрелкового антиметкость цели сверх своей меткости
     // мешает попасть; перевес 250% антиметкости — не попасть вовсе.
     rangedAccEdge: (t?.maxRange ?? 1) > 1 ? (gear.mastery.accuracy ?? 0) - (opponentGear.minusMastery.accuracy ?? 0) : undefined,
-    // Дима 11.11: сила работает целиком с 250% того же мастерства, иначе рандом.
-    strMastery: masteryBalance(gear, opponentGear, !t || t.weaponType === 'MELEE' ? 'fist' : 'weapon'),
+    // Дима 11.11 и 13.11: сила работает целиком с 250% кулачного боя (свой минус
+    // минус кулачки у противника) с любым оружием, иначе рандом.
+    strMastery: masteryBalance(gear, opponentGear, 'fist'),
   }
 }
 

@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import Redis from 'ioredis'
 import { env } from '../../config/env'
+import { BalanceConfig } from '../../config/balance.config'
 
 let _redis: Redis | null = null
 let _redisSub: Redis | null = null
@@ -131,9 +132,11 @@ export const AntiFarmRedis = {
     return raw ? parseInt(raw, 10) : 0
   },
 
-  /** ТЗ formula: pveExpCoeff = max(0.1, 1 - botKillsToday × 0.05) */
+  /** pveExpCoeff = max(pveDailyMin, 1 - боёв с ботами сегодня × pveDailyPenaltyPerKill).
+   *  Числа из баланса: раньше были вписаны в код, и правка в админке не действовала. */
   calcPveAntiFarmCoeff(dailyKills: number): number {
-    return Math.max(0.1, 1 - dailyKills * 0.05)
+    const { pveDailyPenaltyPerKill, pveDailyMin } = BalanceConfig.battleExp
+    return Math.max(pveDailyMin, 1 - dailyKills * pveDailyPenaltyPerKill)
   },
 }
 const SESSION_PREFIX = 'session:'

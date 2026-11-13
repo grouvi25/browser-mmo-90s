@@ -20,6 +20,9 @@ export interface LibraryTables {
   }>
   professionLevels: Array<{ level: number; exp: number; efficiencyPct: number }>
   statPointsPerLevel: number
+  /** Опыт за повтор одного бота за сутки (Дима 13.11: «эту инфу в библиотеку»). */
+  botExpPenalty?: number
+  botExpMin?: number
   consumables?: Array<{ name: string; does: string; where: string; madeAt: string | null }>
   objectPriceUsd?: number
 }

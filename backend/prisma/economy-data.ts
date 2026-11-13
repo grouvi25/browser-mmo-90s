@@ -55,6 +55,9 @@ export const PRODUCTION_OBJECTS = [
   { code: 'obj_textile', name: 'Швейный цех', type: 'WORKSHOP', requiredProductionLevel: 1, shiftDurationMinutes: 60, baseSalary: 210, baseProductionExp: 18, producesResourceCode: null, outputAmountMin: 0, outputAmountMax: 0, economicExpReward: 0 },
   { code: 'obj_herb_point', name: 'Приёмка трав', type: 'SCRAPYARD', requiredProductionLevel: 0, shiftDurationMinutes: 30, baseSalary: 85, baseProductionExp: 9, producesResourceCode: 'res_greens', outputAmountMin: 2, outputAmountMax: 4, economicExpReward: 0 },
   { code: 'obj_pharmacy', name: 'Аптека', type: 'WORKSHOP', requiredProductionLevel: 1, shiftDurationMinutes: 60, baseSalary: 200, baseProductionExp: 17, producesResourceCode: null, outputAmountMin: 0, outputAmountMax: 0, economicExpReward: 0 },
+  // Обращение №98 и Дима 13.11: пружина и сталь в Малом заводе были недоступны,
+  // он точка добычи металлопластин. Теперь их делает Токарь в своём госцехе.
+  { code: 'obj_lathe', name: 'Токарный цех', type: 'WORKSHOP', requiredProductionLevel: 0, shiftDurationMinutes: 60, baseSalary: 0, baseProductionExp: 20, producesResourceCode: null, outputAmountMin: 0, outputAmountMax: 0, economicExpReward: 0 },
   { code: 'obj_chem_lab', name: 'Химлаборатория', type: 'FACTORY', requiredProductionLevel: 3, shiftDurationMinutes: 90, baseSalary: 310, baseProductionExp: 26, producesResourceCode: null, outputAmountMin: 0, outputAmountMax: 0, economicExpReward: 0 },
 ] as const
 
@@ -97,7 +100,7 @@ export const PRODUCTION_RECIPES = [
   // Вертикальный срез из handoff: металлолом → сталь → деталь → ТТ → износ → ремонт.
   { code: 'rcp_fastener', name: 'Штамповка крепежа', productionObjectCode: 'obj_garage_workshop', outputResourceCode: 'comp_fastener', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 60, laborRequired: 60, requiredProfessionCode: 'foundry_worker', requiredProfessionLevel: 0, requiredToolTier: 1, inputs: [{ resourceCode: 'res_scrap_metal', amount: 4, minQuality: 'POOR' }] },
   { code: 'rcp_steel_plate', name: 'Прокат металлопластины', productionObjectCode: 'obj_small_factory', outputResourceCode: 'comp_metal_plate', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 60, laborRequired: 90, requiredProfessionCode: 'carpenter', requiredProfessionLevel: 0, requiredToolTier: 1, inputs: [{ resourceCode: 'res_scrap_metal', amount: 6, minQuality: 'POOR' }, { resourceCode: 'comp_fastener', amount: 2, minQuality: 'POOR' }] },
-  { code: 'rcp_spring', name: 'Навивка пружины', productionObjectCode: 'obj_small_factory', outputResourceCode: 'comp_spring', outputItemTemplateCode: null, outputAmount: 4, cycleMinutes: 45, laborRequired: 60, requiredProfessionCode: 'carpenter', requiredProfessionLevel: 1, requiredToolTier: 2, inputs: [{ resourceCode: 'comp_metal_plate', amount: 3, minQuality: 'NORMAL' }] },
+  { code: 'rcp_spring', name: 'Навивка пружины', productionObjectCode: 'obj_lathe', outputResourceCode: 'comp_spring', outputItemTemplateCode: null, outputAmount: 4, cycleMinutes: 45, laborRequired: 60, requiredProfessionCode: 'turner', requiredProfessionLevel: 0, requiredToolTier: 2, inputs: [{ resourceCode: 'comp_metal_plate', amount: 3, minQuality: 'NORMAL' }] },
   { code: 'rcp_weapon_part', name: 'Оружейная деталь', productionObjectCode: 'obj_parts_factory', outputResourceCode: 'comp_weapon_part', outputItemTemplateCode: null, outputAmount: 1, cycleMinutes: 90, laborRequired: 120, requiredProfessionCode: 'gunsmith', requiredProfessionLevel: 0, requiredToolTier: 2, inputs: [{ resourceCode: 'comp_metal_plate', amount: 3, minQuality: 'NORMAL' }, { resourceCode: 'comp_spring', amount: 2, minQuality: 'NORMAL' }] },
     // Крепёж в сборке — чтобы верхний предмет ветки тянул спрос и на дешёвый
   // передел: без него гаражный цех работал только на самого себя.
@@ -140,7 +143,7 @@ export const PRODUCTION_RECIPES = [
   // --- Премиальные инструменты (заказчик 30.10): ресурс только своим инструментом,
   // из него вещи и расходники лучше обычных. Пока активен такой рецепт, на смену
   // выходят с нужным инструментом; помощники такие смены не берут. ---
-  { code: 'rcp_prem_steel', name: 'Ковка стали', productionObjectCode: 'obj_small_factory', outputResourceCode: 'res_prem_steel', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'carpenter', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_anvil', inputs: [{ resourceCode: 'comp_metal_plate', amount: 4, minQuality: 'NORMAL' }, { resourceCode: 'res_scrap_metal', amount: 10, minQuality: 'POOR' }] },
+  { code: 'rcp_prem_steel', name: 'Ковка стали', productionObjectCode: 'obj_lathe', outputResourceCode: 'res_prem_steel', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'turner', requiredProfessionLevel: 0, requiredToolTier: 5, requiredToolCode: 'tool_prem_anvil', inputs: [{ resourceCode: 'comp_metal_plate', amount: 4, minQuality: 'NORMAL' }, { resourceCode: 'res_scrap_metal', amount: 10, minQuality: 'POOR' }] },
   { code: 'rcp_prem_vest', name: 'Ковка бронежилета', productionObjectCode: 'obj_cooperative_site', outputResourceCode: null, outputItemTemplateCode: 'armor_prem_vest', outputAmount: 1, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'cooperative_builder', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_anvil', inputs: [{ resourceCode: 'res_prem_steel', amount: 3, minQuality: 'POOR' }, { resourceCode: 'comp_armor_plate', amount: 2, minQuality: 'POOR' }] },
   { code: 'rcp_prem_cloth', name: 'Плотное плетение', productionObjectCode: 'obj_textile', outputResourceCode: 'res_prem_cloth', outputItemTemplateCode: null, outputAmount: 2, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'carpenter', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_sewing', inputs: [{ resourceCode: 'res_fabric', amount: 10, minQuality: 'POOR' }, { resourceCode: 'res_leather', amount: 2, minQuality: 'POOR' }] },
   { code: 'rcp_prem_coat', name: 'Пошив прошитой куртки', productionObjectCode: 'obj_textile', outputResourceCode: null, outputItemTemplateCode: 'armor_prem_coat', outputAmount: 1, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'carpenter', requiredProfessionLevel: 2, requiredToolTier: 5, requiredToolCode: 'tool_prem_sewing', inputs: [{ resourceCode: 'res_prem_cloth', amount: 3, minQuality: 'POOR' }, { resourceCode: 'res_leather', amount: 2, minQuality: 'POOR' }] },
@@ -164,6 +167,7 @@ export const OBJECT_PROFESSIONS: Record<string, string> = {
   obj_herb_point: 'procurer',
   obj_pharmacy: 'pharmacist',
   obj_chem_lab: 'chemist',
+  obj_lathe: 'turner',
 }
 
 /**
@@ -197,6 +201,7 @@ export const OBJECT_DISTRICTS: Record<string, DistrictCode> = {
   obj_small_factory: 'industrial',
   obj_parts_factory: 'industrial',
   obj_chem_lab: 'industrial',
+  obj_lathe: 'industrial',
   obj_warehouse_station: 'station',
   // Пивная сеется отдельным блоком (BAR_RECIPES тянут за собой объект), но
   // район ей нужен так же: без него бар нельзя ни защитить, ни ограбить.

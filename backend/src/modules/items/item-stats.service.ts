@@ -2,7 +2,7 @@ import { withTransaction } from '../../shared/db/transaction'
 import { socketAllocation } from '../upgrades/upgrades.stones'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
-import { allocatedPoints, allowedItemStats, bonusCost, itemBudget, mergeAllocations, normalizeAllocation, type ItemStatAllocation, type ItemStatKey } from './item-stats.formulas'
+import { allocatedPoints, allowedItemStats, namedItemStats, bonusCost, itemBudget, mergeAllocations, normalizeAllocation, type ItemStatAllocation, type ItemStatKey } from './item-stats.formulas'
 import { readItemBonuses, syncHpWithGear, type ItemBonuses } from './gear-bonuses'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
@@ -66,9 +66,9 @@ export const ItemStatsService = {
       const item = await ownItem(tx, characterId, itemInstanceId)
       if (item.template.allocationMode !== 'PLAYER') throw new AppError(ErrorCode.CONFLICT, 'Очки этой вещи уже распределены', 409)
       const before = normalizeAllocation(item.statAllocation)
-      // У вещей ЦУМа блока «Сама вещь» нет (заказчик 31.10): только статы, мастерства и обереги.
+      // У вещей ЦУМа из «Самой вещи» только урон оружия (31.10 блока не было, №89 вернул урон).
       const named = await isNamed(tx, item.templateId)
-      const allowed = named ? [] : allowedItemStats(item.template.type)
+      const allowed = named ? namedItemStats(item.template.type) : allowedItemStats(item.template.type)
       const nextOwn = normalizeAllocation(own)
       delete nextOwn.DURABILITY
       if (Object.keys(nextOwn).some(key => !allowed.includes(key as ItemStatKey))) {

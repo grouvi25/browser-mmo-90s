@@ -90,7 +90,7 @@ export interface Character {
   lastActiveAt: string
 }
 
-export type ItemStatKey = 'DAMAGE' | 'ACCURACY' | 'CRIT' | 'ARMOR' | 'DURABILITY' | 'ANTI_CRIT'
+export type ItemStatKey = 'DAMAGE' | 'MIN_DAMAGE' | 'MAX_DAMAGE' | 'ACCURACY' | 'CRIT' | 'ARMOR' | 'DURABILITY' | 'ANTI_CRIT'
 
 export interface ItemTemplate {
   /** Настойка или свиток: что делает при применении. */
@@ -179,6 +179,7 @@ export interface ItemInstance {
   iconVersion?: number
   canSetIcon?: boolean
   percentPerPoint?: number
+  damagePerPoint?: number
   /** Условия следующего уровня, если вещь его поддерживает. */
   levelUp?: { priceUsd: number; points: number; maxLevel: number } | null
   /** Итог с сервера: база + очки + улучшения + камни (как считает бой). */

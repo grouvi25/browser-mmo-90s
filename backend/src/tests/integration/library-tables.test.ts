@@ -49,7 +49,9 @@ describe('Библиотека', () => {
       consumables: Array<Record<string, unknown>>
     }
     const steps = body.professions.flatMap(chain => chain.steps)
-    expect(steps).toHaveLength(17)
+    // 17 профессий и Токарь (Дима 13.11).
+    expect(steps).toHaveLength(18)
+    expect(steps.some(s => s.code === 'turner')).toBe(true)
     expect(steps.find(s => s.code === 'metallurgist')?.objects[0]).toMatchObject({ name: 'Рудник', gives: 'Руда', salary: 0, forSaleUsd: null })
     expect(steps.find(s => s.code === 'alchemist')?.objects[0]).toMatchObject({ name: 'Лаборатория', gives: 'Настойка силы', forSaleUsd: 15000 })
     expect(body.consumables).toContainEqual({ name: 'Настойка силы', does: 'урон +10% на 10 мин', where: 'где угодно', madeAt: 'Лаборатория' })

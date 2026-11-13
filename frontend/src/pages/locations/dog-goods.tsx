@@ -9,6 +9,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { ApiError } from '../../shared/api/client'
 import { SPRITES } from '../../shared/ui/sprite'
 import { dogBonusText } from '../../shared/lib/dog'
+import { dogImage } from '../../shared/assets/dogs/dog-images'
 
 export type DogGoodsKind = 'dogs' | 'food' | 'gear'
 
@@ -19,6 +20,7 @@ interface Good {
   lines: string[]
   price: number
   currency: 'RUB' | 'USD'
+  image?: string
   /** Почему купить нельзя — словами, а не серой кнопкой без объяснений. */
   blocked?: string
   buy: () => Promise<unknown>
@@ -54,7 +56,7 @@ export function DogGoods({ currency, kinds = ['dogs', 'food', 'gear'] }: {
 
   const goods: Good[] = [
     ...data.catalog.map((b): Good => ({
-      key: `dog-${b.code}`, kind: 'dogs', name: b.name,
+      key: `dog-${b.code}`, kind: 'dogs', name: b.name, image: dogImage(b.code),
       lines: [b.role, b.freeAllocation ? `Очков на старте: ${b.points}` : `+${b.points} ${(STAT_NAMES[b.mainStat ?? ''] ?? '').toLowerCase()}, растёт с уровнем`, 'В бою — фигура на поле: вызывается кнопкой'],
       price: b.priceDollars ?? b.price, currency: b.priceDollars ? 'USD' : 'RUB',
       blocked: dog ? (dog.code === b.code ? 'Это ваша собака' : 'Собака у вас уже есть') : legacy ? 'Старого питомца меняют бесплатно — ниже' : undefined,
@@ -86,7 +88,9 @@ export function DogGoods({ currency, kinds = ['dogs', 'food', 'gear'] }: {
         const poor = !afford(good.price, good.currency)
         const reason = good.blocked ?? (poor ? (good.currency === 'USD' ? 'Не хватает долларов' : 'Не хватает денег') : undefined)
         return <article className="gshop-card" key={good.key}>
-          <span className="dog-goods__icon" aria-hidden="true"><Icon size={34} /></span>
+          {good.image
+            ? <img className="dog-goods__icon dog-goods__photo" src={good.image} alt="" width={64} height={64} draggable={false} />
+            : <span className="dog-goods__icon" aria-hidden="true"><Icon size={34} /></span>}
           <div className="gshop-card-body">
             <div className="gshop-card-head"><h3>{good.name}</h3></div>
             <p className="gshop-card-meta">

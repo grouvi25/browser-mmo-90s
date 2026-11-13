@@ -478,6 +478,7 @@ export function balanceRegistry(): BalanceGroup[] {
             p('economy.namedItems.pointsPerLevel', B.economy.namedItems.pointsPerLevel, 'очков за уровень именной вещи'),
             p('economy.namedItems.levelPriceUsd', B.economy.namedItems.levelPriceUsd, 'цена уровня именной вещи, долларов'),
             p('economy.namedItems.percentPerPoint', B.economy.namedItems.percentPerPoint, 'процентов мастерства или оберега за очко'),
+            p('economy.namedItems.damagePerPoint', B.economy.namedItems.damagePerPoint, 'единиц урона оружия за очко (мин. или макс.)'),
             p('economy.namedItems.maxLevel', B.economy.namedItems.maxLevel, 'потолок уровня именной вещи'),
             p('economy.upgrades.costRate', B.economy.upgrades.costRate, 'доля цены за первый уровень'),
             p('economy.upgrades.costPower', B.economy.upgrades.costPower, 'степень роста цены'),
