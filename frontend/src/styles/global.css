@@ -3338,6 +3338,8 @@ button { font-family: inherit; }
 .gov-craft__qty button.is-active, .gov-craft__qty button.is-active:hover:not(:disabled) { background:#2b2b2b; color:#f4ede4; }
 .gov-craft__qty button:disabled { opacity:.4; cursor:not-allowed; }
 .gov-craft__make { min-width:104px; }
+/* «Сделать» и «Скрыть» одной ширины: соседняя «Выйти» не сдвигается при раскрытии. */
+.work-craft-toggle { min-width:96px; }
 .gov-craft-row > td { padding-top:0; }
 @media(max-width:900px){
   /* Подпись под названием объекта (госцех, частный завод) идёт строкой ниже на всю ширину, а не узкой колонкой. */
@@ -3346,7 +3348,9 @@ button { font-family: inherit; }
   .gov-craft li { grid-template-columns:minmax(0,1fr) auto; }
   .gov-craft__from { grid-column:1 / -1; grid-row:2; }
   /* На телефоне выбор партии и «Сделать» — своей строкой, кнопки под палец. */
-  .gov-craft__act { grid-column:1 / -1; grid-row:3; justify-content:space-between; }
+  /* flex-wrap: на узком телефоне четыре кнопки партии и «Сделать» не влезали в строку, «Сделать» обрезалась краем карточки. */
+  .gov-craft__act { grid-column:1 / -1; grid-row:3; justify-content:space-between; flex-wrap:wrap; min-width:0; }
+  .gov-craft__make { flex:1 1 104px; }
   .gov-craft__qty button { min-width:44px; min-height:40px; }
   .gov-craft__make { min-height:40px; }
   .data-table tr.gov-craft-row { margin-top:-6px; }

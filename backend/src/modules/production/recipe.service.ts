@@ -40,6 +40,8 @@ export const RecipeService = {
       objectCode: string; objectName: string; gather: boolean; forSaleUsd: number | null; shiftMinutes: number; labor: number
       /** Госцех: сколько идёт одно изделие на госработе. Там считается цикл рецепта, а не нормочасы своего завода (№104). */
       craftMinutes: number | null
+      /** Рецепт точки добычи у государства: делается только на своём, купленном заводе. */
+      ownedOnly: boolean
       professionCode: string | null; professionName: string | null; professionKnown: boolean
       toolCode: string | null; toolName: string | null; inputs: { code: string; name: string; amount: number }[]
     }
@@ -60,6 +62,7 @@ export const RecipeService = {
         objectCode: object.code!, objectName: object.name, gather: recipe.inputs.length === 0, forSaleUsd: forSale(object),
         shiftMinutes: object.shiftDurationMinutes, labor: recipe.laborRequired,
         craftMinutes: govCraftable(object) && recipe.inputs.length > 0 ? realShiftMinutes(recipe.cycleMinutes) : null,
+        ownedOnly: object.ownerType === 'SYSTEM' && !!object.producesResourceCode,
         professionCode: recipe.requiredProfessionCode, professionName: professionName(recipe.requiredProfessionCode), professionKnown: known.has(recipe.requiredProfessionCode),
         toolCode: recipe.requiredToolCode, toolName: recipe.requiredToolCode ? nameOf.get(recipe.requiredToolCode) ?? recipe.requiredToolCode : null,
         inputs: recipe.inputs.map(input => ({ code: input.resourceCode, name: nameOf.get(input.resourceCode) ?? input.resourceCode, amount: input.amount })),
@@ -77,13 +80,15 @@ export const RecipeService = {
         objectCode: object.code!, objectName: object.name, gather: true, forSaleUsd: forSale(object),
         shiftMinutes: object.shiftDurationMinutes, labor: object.shiftDurationMinutes,
         craftMinutes: null,
+        ownedOnly: false,
         professionCode: object.requiredProfessionCode, professionName: professionName(object.requiredProfessionCode), professionKnown: !!object.requiredProfessionCode && known.has(object.requiredProfessionCode),
         toolCode: null, toolName: null, inputs: [],
       })
     }
     const products = [...ways.entries()].map(([code, list]) => ({
       code, name: nameOf.get(code) ?? code, kind: kindOf.has(code) ? 'item' as const : 'resource' as const, inShop: inShop.has(code),
-      ways: list.sort((a, b) => Number(b.gather) - Number(a.gather) || a.objectName.localeCompare(b.objectName, 'ru')),
+      // Сначала то, что доступно сразу: добыча и госцех, в конце — только свой завод.
+      ways: list.sort((a, b) => Number(b.gather) - Number(a.gather) || Number(a.ownedOnly) - Number(b.ownedOnly) || a.objectName.localeCompare(b.objectName, 'ru')),
       usedIn: [...(usedIn.get(code) ?? [])].map(next => ({ code: next, name: nameOf.get(next) ?? next })).sort((a, b) => a.name.localeCompare(b.name, 'ru')),
     }))
     return products.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
