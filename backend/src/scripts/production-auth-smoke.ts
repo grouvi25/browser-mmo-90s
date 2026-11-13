@@ -86,14 +86,16 @@ async function main(): Promise<void> {
   assert(Array.isArray(loadout.itemInstanceIds), 'Battle loadout contract is invalid')
 
   const work = await jsonRequest('/api/work/objects', { headers }) as {
-    items?: Array<{ code?: string; requiredProfessionCode?: string; requiredProfessionLevel?: number; profession?: { code?: string; level?: number }; equipment?: { requiredToolTier?: number }; toolAvailable?: boolean }>
+    items?: Array<{ code?: string; craft?: unknown; requiredProfessionCode?: string; requiredProfessionLevel?: number; profession?: { code?: string; level?: number }; equipment?: { requiredToolTier?: number }; toolAvailable?: boolean }>
     professions?: unknown[]
     daily?: { shiftsLimit?: number; minutesLimit?: number }
   }
   assert(Array.isArray(work.items) && work.items.length >= 6, 'Production object seed is incomplete')
   assert(work.items.every(item => typeof item.requiredProfessionCode === 'string' && typeof item.requiredProfessionLevel === 'number' && item.profession?.code === item.requiredProfessionCode), 'Profession object contract is invalid')
-  // У объектов книги экономики оборудования нет: инструмент требует сам рецепт.
-  const fromBook = (item: { code?: string }) => item.code?.startsWith('obj_tb_')
+  // У объектов книги экономики и у госцехов без оборудования (Токарный цех,
+  // №98) инструмент требует сам рецепт: признак такого цеха — список госкрафта.
+  const govCraftCodes = new Set((work.items ?? []).filter(item => Array.isArray(item.craft) && !item.equipment).map(item => item.code))
+  const fromBook = (item: { code?: string }) => item.code?.startsWith('obj_tb_') || govCraftCodes.has(item.code)
   assert(work.items.every(item => (fromBook(item) || typeof item.equipment?.requiredToolTier === 'number') && typeof item.toolAvailable === 'boolean'), 'Production equipment/tool contract is invalid')
   assert(Array.isArray(work.professions), 'Character professions contract is invalid')
   // Сверяем с конфигом, а не с числом: суточный потолок — балансовая
