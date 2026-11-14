@@ -52,3 +52,8 @@ void loadTemplateImages().finally(() => ReactDOM.createRoot(document.getElementB
     </QueryClientProvider>
   </React.StrictMode>,
 ))
+
+// Картинки вещей, загруженные в админке, пока игра открыта: подтягиваем при возврате во вкладку.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void loadTemplateImages().then(() => queryClient.invalidateQueries({ queryKey: ['inventory'] }))
+})

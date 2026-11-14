@@ -79,9 +79,13 @@ describe('Именные вещи: столбики, уровни, картин�
     expect(await read()).toMatchObject({ minDamage: 0, maxDamage: 480 })
     await ItemStatsService.configure(character.id, item.id, { MIN_DAMAGE: 25, MAX_DAMAGE: 95 }, none())
     expect(await read()).toMatchObject({ minDamage: 100, maxDamage: 380 })
-    // Нижняя граница выше верхней: верхняя подтягивается, урон не переворачивается.
-    await ItemStatsService.configure(character.id, item.id, { MIN_DAMAGE: 60 }, none())
+    // Монарх 14.11: мин. выше макс. не сохраняется (раньше макс. подтягивался: 20 очков в мин. давали 100–100).
+    await expect(ItemStatsService.configure(character.id, item.id, { MIN_DAMAGE: 60 }, none())).rejects.toMatchObject({ statusCode: 422 })
+    expect(await read()).toMatchObject({ minDamage: 100, maxDamage: 380 })
+    await ItemStatsService.configure(character.id, item.id, { MIN_DAMAGE: 60, MAX_DAMAGE: 60 }, none())
     expect(await read()).toMatchObject({ minDamage: 240, maxDamage: 240 })
+    // Старый расклад «всё в мин.» в бою не даёт урона выше макс.
+    expect(applyUpgradeModifiers({ minDamage: 0, maxDamage: 0, durabilityMax: 100 }, {}, { MIN_DAMAGE: 20 })).toMatchObject({ minDamage: 0, maxDamage: 0 })
     // Точность и крит в именную вещь по-прежнему не вписываются.
     await expect(ItemStatsService.configure(character.id, item.id, { ACCURACY: 1 }, none())).rejects.toMatchObject({ statusCode: 422 })
     await expect(ItemStatsService.configure(character.id, item.id, { MAX_DAMAGE: 121 }, none())).rejects.toMatchObject({ statusCode: 409 })

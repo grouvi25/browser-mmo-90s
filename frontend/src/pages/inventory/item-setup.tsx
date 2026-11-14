@@ -110,6 +110,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
     min: (t.minDamage ?? 0) + perDamage * (own.MIN_DAMAGE ?? 0),
     max: (t.maxDamage ?? 0) + perDamage * (own.MAX_DAMAGE ?? 0),
   } : null
+  const inverted = !!damage && damage.min > damage.max
   const [bonuses, setBonuses] = useState<ItemBonuses>(() => ({ ...emptyBonuses(), ...(item.bonuses ?? {}) }))
   const budget = item.budget ?? t.statBudget
   const perPoint = item.percentPerPoint ?? 5
@@ -157,7 +158,9 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
         {ownStats.length > 0 && <Section title="Сама вещь">
           {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={hint} min={0} disabled={busy} value={own[key] ?? 0}
             onChange={value => setOwn(prev => ({ ...prev, [key]: value }))} />)}
-          {damage && <small className="inv-setup__damage">Урон без улучшений: {damage.min}–{Math.max(damage.min, damage.max)}</small>}
+          {damage && <small className={'inv-setup__damage' + (inverted ? ' is-over' : '')}>{inverted
+            ? `Мин. урон ${damage.min} выше макс. ${damage.max}: очки урона делятся между ними, например 50–50 или 0–100`
+            : `Урон без улучшений: ${damage.min}–${damage.max}`}</small>}
         </Section>}
         <Section title="Статы">
           {STAT_LABELS.map(([key, label]) => <Field key={key} label={label} min={-budget} disabled={busy} value={bonuses.stats[key] ?? 0} onChange={set('stats', key)} />)}
@@ -183,8 +186,8 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
             {levelUp.isPending ? 'Поднимаем…' : `Уровень ${(item.namedLevel ?? 0) + 1}: +${offer.points} очков за ${offer.priceUsd.toLocaleString('ru')} $`}
           </button>
         )}
-        <button type="button" className="btn btn-primary" disabled={busy || left < 0}
-          title={left < 0 ? `Лишних очков: ${-left}` : undefined} onClick={() => save.mutate()}>
+        <button type="button" className="btn btn-primary" disabled={busy || left < 0 || inverted}
+          title={left < 0 ? `Лишних очков: ${-left}` : inverted ? 'Мин. урон выше макс.' : undefined} onClick={() => save.mutate()}>
           {save.isPending ? 'Сохраняем…' : 'Сохранить'}
         </button>
       </footer>

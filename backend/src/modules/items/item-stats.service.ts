@@ -1,5 +1,6 @@
 import { withTransaction } from '../../shared/db/transaction'
 import { socketAllocation } from '../upgrades/upgrades.stones'
+import { damageInverted } from '../upgrades/upgrades.formulas'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { allocatedPoints, allowedItemStats, namedItemStats, bonusCost, itemBudget, mergeAllocations, normalizeAllocation, type ItemStatAllocation, type ItemStatKey } from './item-stats.formulas'
@@ -44,6 +45,7 @@ export const ItemStatsService = {
       const after = { ...before, [stat]: (before[stat] ?? 0) + points }
       const freePoints = available - points
       const sockets = socketAllocation(item.socketsJson)
+      if (item.template.type === 'WEAPON' && damageInverted(item.template, item.template.statAllocation, after, item.upgradeModifiersJson, sockets)) throw new AppError(ErrorCode.CONFLICT, 'Мин. урон не может быть выше макс.: очки урона делятся между ними', 422)
       const oldDurabilityPoints = mergeAllocations(item.template.statAllocation, before, item.upgradeModifiersJson, sockets).DURABILITY ?? 0
       const newDurabilityPoints = mergeAllocations(item.template.statAllocation, after, item.upgradeModifiersJson, sockets).DURABILITY ?? 0
       const oldMax = Math.round(item.template.durabilityMax * (1 + .08 * oldDurabilityPoints))
@@ -81,6 +83,7 @@ export const ItemStatsService = {
       const spent = allocatedPoints(nextOwn) + bonusCost(bonuses)
       if (spent > budget) throw new AppError(ErrorCode.CONFLICT, `Расставлено ${spent} очков из ${budget}`, 409)
       const freePoints = budget - spent
+      if (item.template.type === 'WEAPON' && damageInverted(item.template, item.template.statAllocation, nextOwn, item.upgradeModifiersJson, socketAllocation(item.socketsJson))) throw new AppError(ErrorCode.CONFLICT, 'Мин. урон не может быть выше макс.: очки урона делятся между ними', 422)
       const changed = await tx.itemInstance.updateMany({
         where: { id: item.id, ownerId: characterId, status: { not: 'ON_MARKET' } },
         data: { statAllocation: nextOwn, bonuses: bonuses as unknown as Prisma.InputJsonValue, freePoints },

@@ -22,11 +22,12 @@ const BattleLoadoutSchema = z.object({
 
 const DistributeStatSchema = z.object({
   // Меткость убрана из раскачки (Дима 14.11): в бою попадание решает ловкость.
-  stat: z.enum(['str', 'agi', 'rea', 'end', 'luck', 'agr', 'auth']),
+  // Авторитет скрыт до доработки (Дима 14.11): в бою он ничего не давал.
+  stat: z.enum(['str', 'agi', 'rea', 'end', 'luck', 'agr']),
   amount: z.number().int().min(1).max(5),
 })
 
-const STAT_KEYS = ['str', 'agi', 'rea', 'end', 'luck', 'agr', 'auth'] as const
+const STAT_KEYS = ['str', 'agi', 'rea', 'end', 'luck', 'agr'] as const
 type StatKey = typeof STAT_KEYS[number]
 
 const ApplyStatsSchema = z.object({

@@ -245,7 +245,9 @@
 /* Ячейка шеи низкая: амулет выступает из неё вниз, иначе его не разглядеть
    (правка заказчика 21.10: «амулет надел, но не видно на картинке»). */
 .inv-cell[data-slot="ACCESSORY"] { overflow: visible; z-index: 2; }
-.inv-cell[data-slot="ACCESSORY"] img { position: absolute; left: 50%; top: 0; transform: translateX(-50%); max-width: none; max-height: none; width: auto; height: 300%; pointer-events: none; }
+.inv-cell[data-slot="ACCESSORY"] img { position: absolute; left: 50%; top: 0; transform: translateX(-50%); max-width: none; max-height: none; width: auto; height: 300%; pointer-events: none;
+  /* Картинки из админки часто на белом фоне: на сером манекене белое растворяется (Nobody 14.11). */
+  mix-blend-mode: multiply; }
 
 .inv-pockets__error { color: #a3261c; font-weight: 700; }
 .inv-outfits { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 6px; }
@@ -280,7 +282,7 @@
 .inv-setup__top img { flex: none; object-fit: contain; }
 .inv-setup__top small { display: block; color: #4a4345; }
 .inv-setup__count { margin-bottom: 2px; font-size: 14.5px; font-variant-numeric: tabular-nums; }
-.inv-setup__count.is-over { color: var(--red, #b81e2c); }
+.inv-setup__count.is-over, .inv-setup__damage.is-over { color: var(--red, #b81e2c); }
 .inv-setup__groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; overflow-y: auto; }
 .inv-setup__group { padding: 6px 0; border-top: 1px dashed #1c1318; }
 .inv-setup__group h4 { margin: 0 0 5px; font-size: 14px; }
