@@ -45,6 +45,8 @@ export const RecipeService = {
       craftMinutes: number | null
       /** Рецепт точки добычи у государства: делается только на своём, купленном заводе. */
       ownedOnly: boolean
+      /** Грядка на Фермах: сколько растёт урожай (вся грядка, не одна штука). */
+      growMinutes?: number
       professionCode: string | null; professionName: string | null; professionKnown: boolean
       toolCode: string | null; toolName: string | null; inputs: { code: string; name: string; amount: number }[]
     }
@@ -92,7 +94,7 @@ export const RecipeService = {
     for (const [key, crop] of Object.entries(CROPS)) {
       add(crop.resourceCode, {
         objectCode: `farm_${key}`, objectName: `Фермы, грядка «${crop.name}»${crop.requiredLevel ? ` (с ${crop.requiredLevel}-го уровня)` : ''}`,
-        gather: true, forSaleUsd: null, shiftMinutes: crop.minutes, labor: crop.minutes, craftMinutes: null, ownedOnly: false,
+        gather: true, forSaleUsd: null, shiftMinutes: crop.minutes, labor: crop.minutes, craftMinutes: null, ownedOnly: false, growMinutes: crop.minutes,
         professionCode: crop.requiredLevel ? 'procurer' : null, professionName: crop.requiredLevel ? professionName('procurer') : null, professionKnown: known.has('procurer'), toolCode: null, toolName: null, inputs: [],
       })
     }

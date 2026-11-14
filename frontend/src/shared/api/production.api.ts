@@ -63,6 +63,8 @@ export interface CatalogWay {
   objectCode: string; objectName: string; gather: boolean; forSaleUsd: number | null; shiftMinutes: number; labor: number; craftMinutes?: number | null; ownedOnly?: boolean
   professionCode: string | null; professionName: string | null; professionKnown: boolean
   toolCode: string | null; toolName: string | null; inputs: { code: string; name: string; amount: number }[]
+  /** Грядка на Фермах: время роста всей грядки. */
+  growMinutes?: number
 }
 export interface CatalogProduct {
   code: string; name: string; kind: 'item' | 'resource'; inShop: boolean

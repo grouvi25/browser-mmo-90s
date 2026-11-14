@@ -35,7 +35,9 @@ function ProductCard({ product, linkOf }: { product: CatalogProduct; linkOf: (co
               ? <span className="ok"> · есть</span>
               : <> · <Link to="/school">в Училище</Link></>}</dd></div>}
             {way.toolName && <div><dt>Инструмент</dt><dd>{way.toolCode ? <Link to={linkOf(way.toolCode)}>{way.toolName}</Link> : way.toolName}</dd></div>}
-            {way.craftMinutes != null
+            {way.growMinutes != null
+              ? <div><dt>Растёт</dt><dd>{labor(way.growMinutes)}</dd></div>
+              : way.craftMinutes != null
               ? <div><dt>Время на 1 шт.</dt><dd>{way.craftMinutes} мин</dd></div>
               : <div><dt>Труд на 1 шт.</dt><dd>{labor(way.labor)}{!way.gather && way.shiftMinutes > 0 && <span className="muted"> · {Math.ceil(way.labor / way.shiftMinutes)} см. по {way.shiftMinutes} мин</span>}</dd></div>}
           </dl>
