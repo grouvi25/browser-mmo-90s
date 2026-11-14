@@ -46,6 +46,25 @@ function Field({ label, hint, value, min, onChange, disabled }: {
   )
 }
 
+/** №114 (Amadeus 14.11): обереги и мастерства вписываются сразу в процентах, очки считаются сами.
+ *  Свой текст поля держим, пока игрок печатает: «1» на пути к «15» не превращается в ноль. */
+function PercentField({ label, points, perPoint, onChange, disabled }: {
+  label: string; points: number; perPoint: number; disabled: boolean; onChange: (points: number) => void
+}) {
+  const shown = (p: number) => (p ? String(p * perPoint) : '')
+  const toPoints = (raw: string) => Math.max(0, Math.round((Number(raw.replace(',', '.')) || 0) / perPoint))
+  const [text, setText] = useState(() => shown(points))
+  useEffect(() => { setText(prev => (toPoints(prev) === points ? prev : shown(points))) }, [points]) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <label className="inv-setup__row">
+      <input type="number" min={0} step={perPoint} value={text} placeholder="0" disabled={disabled}
+        onChange={event => { setText(event.target.value); onChange(toPoints(event.target.value)) }}
+        onBlur={() => setText(shown(points))} />
+      <span>{label}<small> · {points ? `${points} очк.` : `шаг ${perPoint}%`}</small></span>
+    </label>
+  )
+}
+
 /** Своя картинка вещи из ЦУМа: ужимается в браузере и сразу уходит на сервер. */
 export function ItemIconPicker({ itemId, label = 'Загрузить картинку', onDone }: { itemId: string; label?: string; onDone?: () => void }) {
   const qc = useQueryClient()
@@ -138,7 +157,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
   const busy = disabled || save.isPending || levelUp.isPending
   const percentField = (group: 'mastery' | 'minusMastery' | 'charms' | 'minusCharms', key: string, label: string) => {
     const value = (bonuses[group] as Numbers)[key] ?? 0
-    return <Field key={key} label={label} hint={value ? `${value * perPoint}%` : undefined} min={0} disabled={busy} value={value} onChange={set(group, key)} />
+    return <PercentField key={key} label={label} points={value} perPoint={perPoint} disabled={busy} onChange={set(group, key)} />
   }
 
   return (
@@ -149,7 +168,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
           <div className={'inv-setup__count' + (left < 0 ? ' is-over' : '')} role="status">
             Заполнено <b>{spent}</b> из <b>{budget}</b> · осталось <b>{left}</b>
           </div>
-          <small>Одно очко — единица стата или {perPoint}%. Стат можно увести в минус, очки это не возвращает.</small>
+          <small>Статы вписываются очками, обереги и мастерства процентами: {perPoint}% = 1 очко. Стат можно увести в минус, очки это не возвращает.</small>
           {item.canSetIcon && <ItemIconPicker itemId={item.id} label={item.iconVersion ? 'Сменить картинку' : 'Загрузить картинку'} />}
         </div>
       </div>

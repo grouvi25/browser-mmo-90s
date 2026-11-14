@@ -38,6 +38,7 @@ import '../shop/shop.css'
 import './inventory.css'
 
 /** Стрелковое отделено от рукопашного: в макете это разные вкладки. */
+const GROUPED_KEY = 'mmo_inv_grouped'
 const RANGED = new Set(['PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 'THROWN'])
 
 type Match = (item: ItemInstance) => boolean
@@ -195,6 +196,8 @@ export function InventoryPage() {
   // Столбики именной вещи и итог комплекта (заказчик 30.10) — отдельными окнами.
   const [setupId, setSetupId] = useState<string | null>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const [grouped, setGrouped] = useState(() => { try { return localStorage.getItem(GROUPED_KEY) !== '0' } catch { return true } })
+  const toggleGrouped = () => setGrouped(prev => { try { localStorage.setItem(GROUPED_KEY, prev ? '0' : '1') } catch { /* приватный режим */ } return !prev })
   const setupItem = items.find(item => item.id === setupId)
   const sellMut = useMutation({
     mutationFn: (id: string) => shopApi.sell(id),
@@ -217,6 +220,23 @@ export function InventoryPage() {
   // Остаётся только надетая вещь с нераспределёнными очками, иначе её не настроить.
   const visible = items.filter(i => i.status !== 'DELETED' && (tab.match?.(i) ?? false)
     && (!i.isEquipped || (i.template.allocationMode === 'PLAYER' && (i.freePoints ?? 0) > 0)))
+  // №112 (Mayday 14.11): одинаковые вещи одной карточкой с количеством. Только показ —
+  // в базе каждая вещь своя, действия карточки идут к первой из пачки.
+  const cards = useMemo(() => {
+    if (!grouped) return visible.map(item => ({ item, count: 1 }))
+    const loose = (i: ItemInstance) => i as ItemInstance & { usesLeft?: number | null; socketsJson?: unknown }
+    const keyOf = (i: ItemInstance) => [i.template.id, i.quality, i.status, i.durabilityCurrent, i.durabilityMax, loose(i).usesLeft ?? '',
+      i.namedLevel ?? 0, i.iconVersion ?? 0, i.freePoints ?? 0, i.isEquipped, JSON.stringify(i.statAllocation ?? {}),
+      JSON.stringify(i.bonuses ?? {}), JSON.stringify(loose(i).socketsJson ?? null)].join('|')
+    const groups = new Map<string, { item: ItemInstance; count: number }>()
+    for (const item of visible) {
+      const key = keyOf(item)
+      const group = groups.get(key)
+      if (group) group.count++
+      else groups.set(key, { item, count: 1 })
+    }
+    return [...groups.values()]
+  }, [visible, grouped])
   // Колец восемь, а на шаблоне слот один: у них смотрим только, куда надето.
   const bySlot = (slot: string) => equipped.find(i => i.armorSlot === slot || (!slot.startsWith('RING') && i.template.armorSlot === slot))
 
@@ -254,6 +274,10 @@ export function InventoryPage() {
         <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
         <span>Итог комплекта</span>
       </button>}
+      <button type="button" className="inv-btn inv-summary-btn" aria-pressed={grouped} onClick={toggleGrouped}>
+        <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
+        <span>{grouped ? 'Показать по одной' : 'Собрать похожие'}</span>
+      </button>
       {summaryOpen && char && <GearSummaryDialog char={char} onClose={() => setSummaryOpen(false)} />}
       {setupItem && <ItemSetupDialog key={setupItem.id} item={setupItem} disabled={inBattle} onClose={() => setSetupId(null)} onMessage={showMsg} />}
 
@@ -276,7 +300,7 @@ export function InventoryPage() {
             <p className="inv-empty">В этой категории пусто.</p>
           ) : (
             <section className="inv-grid">
-              {visible.map(item => {
+              {cards.map(({ item, count }) => {
                 const t = item.template
                 const broken = item.status === 'BROKEN' || item.durabilityCurrent <= 0
                 const tooLow = (char?.battleLevel ?? 0) < t.levelReq
@@ -287,9 +311,7 @@ export function InventoryPage() {
                     <div>
                       <div className="inv-card__head">
                         <h3 className={`q-${item.quality}`}>{t.name}{!!item.namedLevel && <small> · ур. {item.namedLevel}</small>}</h3>
-                        {/* Каждая запись инвентаря — одна вещь, поэтому
-                            «Колличество» макета здесь всегда единица. */}
-                        <span className="inv-card__count">Количество: 1</span>
+                        <span className="inv-card__count">Количество: {count}</span>
                       </div>
                       <div className="inv-card__body">
                         <dl>

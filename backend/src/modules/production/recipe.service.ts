@@ -3,6 +3,7 @@ import { prisma } from '../../shared/db/prisma'
 import { assertRecipeOutputShape } from './recipe.formulas'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { govCraftable, realShiftMinutes } from '../work/work.formulas'
+import { CROPS } from '../farm/farm.formulas'
 
 export const RecipeService = {
   /**
@@ -11,7 +12,7 @@ export const RecipeService = {
    * Собирается из действующих рецептов и объектов сам, новый рецепт виден сразу.
    */
   async catalog(characterId: string) {
-    const [objects, recipes, professions, shop] = await Promise.all([
+    const [objects, recipes, professions, shop, barOffers] = await Promise.all([
       prisma.productionObject.findMany({
         where: { isActive: true },
         select: { code: true, name: true, isForSale: true, shiftDurationMinutes: true, producesResourceCode: true, baseSalary: true, requiredProfessionCode: true, ownerType: true },
@@ -19,6 +20,7 @@ export const RecipeService = {
       prisma.productionRecipe.findMany({ where: { isActive: true }, include: { inputs: true } }),
       prisma.characterProfession.findMany({ where: { characterId }, select: { professionCode: true } }),
       prisma.governmentShopItem.findMany({ where: { isAvailable: true, template: { isActive: true } }, select: { template: { select: { code: true } } } }),
+      prisma.barOffer.findMany({ where: { isActive: true }, select: { resourceCode: true, hpRestore: true, alcoholDegrees: true, accuracyBuff: true, damageBuff: true, buffMinutes: true } }),
     ])
     const objectOf = new Map(objects.map(object => [object.code, object]))
     const live = recipes.filter(recipe => objectOf.has(recipe.productionObjectCode))
@@ -26,6 +28,7 @@ export const RecipeService = {
       recipe.outputResourceCode, recipe.outputItemTemplateCode, recipe.requiredToolCode, ...recipe.inputs.map(input => input.resourceCode),
     ].filter((code): code is string => !!code)))
     for (const object of objects) if (object.producesResourceCode) codes.add(object.producesResourceCode)
+    for (const crop of Object.values(CROPS)) codes.add(crop.resourceCode)
     const [resources, items] = await Promise.all([
       prisma.resourceTemplate.findMany({ where: { code: { in: [...codes] } }, select: { code: true, name: true } }),
       prisma.itemTemplate.findMany({ where: { code: { in: [...codes] } }, select: { code: true, name: true } }),
@@ -85,7 +88,27 @@ export const RecipeService = {
         toolCode: null, toolName: null, inputs: [],
       })
     }
+    // Грядки на Фермах (Металлика 14.11, №77-78): с картошки не видно было, что это и есть «овощи».
+    for (const [key, crop] of Object.entries(CROPS)) {
+      add(crop.resourceCode, {
+        objectCode: `farm_${key}`, objectName: `Фермы, грядка «${crop.name}»${crop.requiredLevel ? ` (с ${crop.requiredLevel}-го уровня)` : ''}`,
+        gather: true, forSaleUsd: null, shiftMinutes: crop.minutes, labor: crop.minutes, craftMinutes: null, ownedOnly: false,
+        professionCode: crop.requiredLevel ? 'procurer' : null, professionName: crop.requiredLevel ? professionName('procurer') : null, professionKnown: known.has('procurer'), toolCode: null, toolName: null, inputs: [],
+      })
+    }
+    // Что даёт в баре: конец цепочки виден прямо в карточке (Металлика: «не понятно, для чего эти овощи»).
+    const effectOf = new Map<string, string>()
+    for (const offer of barOffers) {
+      const parts = [
+        offer.hpRestore > 0 ? `+${offer.hpRestore} HP` : '',
+        offer.damageBuff > 0 ? `+${Math.round(offer.damageBuff * 100)}% урона${offer.buffMinutes ? ` на ${offer.buffMinutes} мин` : ''}` : '',
+        offer.accuracyBuff > 0 ? `+${Math.round(offer.accuracyBuff * 100)}% точности${offer.buffMinutes ? ` на ${offer.buffMinutes} мин` : ''}` : '',
+        offer.alcoholDegrees > 0 ? `${offer.alcoholDegrees}° алкоголя` : '',
+      ].filter(Boolean)
+      if (parts.length && !effectOf.has(offer.resourceCode)) effectOf.set(offer.resourceCode, `в баре: ${parts.join(', ')}`)
+    }
     const products = [...ways.entries()].map(([code, list]) => ({
+      effect: effectOf.get(code) ?? null,
       code, name: nameOf.get(code) ?? code, kind: kindOf.has(code) ? 'item' as const : 'resource' as const, inShop: inShop.has(code),
       // Сначала то, что доступно сразу: добыча и госцех, в конце — только свой завод.
       ways: list.sort((a, b) => Number(b.gather) - Number(a.gather) || Number(a.ownedOnly) - Number(b.ownedOnly) || a.objectName.localeCompare(b.objectName, 'ru')),

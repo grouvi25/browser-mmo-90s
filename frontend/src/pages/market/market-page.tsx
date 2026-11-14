@@ -37,7 +37,10 @@ function ListingsTable({ items, mine, onBuy, onCancel, onPrice, busy }: {
       const total = listing.finalPrice ?? listing.price
       return <tr key={listing.id}>
         <td>{listing.type === 'ITEM' ? 'Вещь' : 'Ресурс'}</td>
-        <td>{listing.item?.name ?? listing.resource?.name ?? 'Неизвестно'}</td>
+        {/* Металлика 14.11: по названию ресурса сразу видно, откуда он и куда идёт. */}
+        <td>{listing.resource
+          ? <Link to={`/recipes?product=${encodeURIComponent(listing.resource.code)}`} title="Откуда берётся и куда идёт">{listing.resource.name}</Link>
+          : listing.item?.name ?? 'Неизвестно'}</td>
         <td><Link to={listing.sellerUrl}>{listing.sellerNickname}</Link></td>
         <td>{count}</td>
         <td>{count > 1 ? money(Math.round(total / count * 100) / 100, listing.currency) : '—'}</td>

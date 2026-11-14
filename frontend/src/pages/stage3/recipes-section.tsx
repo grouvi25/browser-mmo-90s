@@ -47,6 +47,7 @@ function ProductCard({ product, linkOf }: { product: CatalogProduct; linkOf: (co
           )}
         </div>
       ))}
+      {product.effect && <p className="s3-howto__used"><b>Что даёт:</b> {product.effect}</p>}
       {product.usedIn.length > 0 && (
         <p className="s3-howto__used"><b>Идёт на:</b> {product.usedIn.map((next, index) => <span key={next.code}>{index > 0 && ', '}<Link to={linkOf(next.code)}>{next.name}</Link></span>)}</p>
       )}

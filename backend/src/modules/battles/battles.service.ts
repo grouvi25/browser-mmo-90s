@@ -1,4 +1,5 @@
 import type { BattleAction, Prisma, WeaponType as PrismaWeaponType } from '@prisma/client'
+import { combatRating, typicalRatingForLevel } from './exp-rating'
 import { buffTotals, effectText, liveEffects, parseActiveEffects, parseUseEffect, regenPercentAt, withAppliedEffect, withEffectStats } from '../items/item-effects'
 import { loadCombatDog, type LiveDog } from './combat-dog'
 import { heldWeapon, registerWound, woundedArmor, woundedBotEquip, type Wounds } from './wounds'
@@ -24,11 +25,13 @@ import {
   type AttackerSnapshot,
   type DefenderSnapshot,
   type ZonalAttackResult,
+  calcArmorShare,
 } from './battle.formulas'
 import { decayedAlcohol, intoxicationModifiers } from '../bars/bars.formulas'
 import { pairBattlesToday, repeatBattleCoeff } from '../antiabuse/antiabuse.limits'
 import {
   armorOfZone,
+  BODY_ZONES,
   botArmorOfZone,
   legacyActionToTurn,
   normalizeTurn,
@@ -60,6 +63,7 @@ import {
 import {
   calcBattleExp,
   calcCharacterRating,
+  ratingExpCoeff,
   calcRatingPower,
   rollWear,
 } from '../stats/stats.formulas'
@@ -125,7 +129,7 @@ function companionRecord(
   return {
     battleId, roundNumber, ...actor, ...target(e.targetId),
     action: 'ATTACK' as BattleAction, hit: e.strike.hit, dodge: !e.strike.hit, crit: e.strike.crit,
-    rawDamage: e.strike.damage, finalDamage: e.strike.damage,
+    rawDamage: e.strike.rawDamage ?? e.strike.damage, finalDamage: e.strike.damage, zone: e.strike.zone ?? null,
   }
 }
 
@@ -2164,7 +2168,12 @@ export const BattleService = {
     // территория отменяла бы ограничение фарма.
     const battleExpBonus = ((await TerritoriesService.bonusesForCharacter(char.id)).BATTLE_EXP ?? 0)
       + await CityService.expBonus(char.id)
+    // №114: одет сильнее среднего игрока своего уровня — опыта меньше, слабее — больше.
+    const ownGear = await prisma.itemInstance.findMany({ where: { ownerId: char.id, isEquipped: true, status: { not: 'DELETED' } }, include: { template: true } })
+    const typical = await typicalRatingForLevel(char.battleLevel)
+    const ratingCoeff = typical ? ratingExpCoeff(combatRating(char.stats!, ownGear), typical) : 1
     const expGain = Math.round(calcBattleExp({
+      ratingCoeff,
       // Опыт идёт хозяину и за урон его помощника и собаки (Дима 4.11, обращения 13, 17).
       damageDealt: playerPart.damageDealt + companionDamage(playerPart),
       targetPower: bot.power,
@@ -2484,6 +2493,19 @@ export const BattleService = {
           strike: (targetId, hit) => {
             if (!hit.hit) return
             const body = kind === 'helper' ? owner.helper! : owner.dog!
+            // №114 (Amadeus 14.11): пёс и пит бьют игрока в случайную зону, броня зоны
+            // режет урон и изнашивается; ранений (выбить оружие) их удар не даёт.
+            const victimCtx = parseCompanionId(targetId) ? undefined : contexts.get(targetId)
+            if (victimCtx) {
+              const zone = BODY_ZONES[Math.floor(Math.random() * BODY_ZONES.length)]
+              const armor = armorOfZone(armorListFromEquipped(victimCtx.armor, victimCtx.char), zone)
+              hit.rawDamage = hit.damage
+              hit.damage = Math.max(1, Math.floor(hit.damage * calcArmorShare(armor, 0, victimCtx.char.battleLevel)))
+              hit.zone = zone
+              const zones = hitZones.get(targetId) ?? []
+              zones.push(zone)
+              hitZones.set(targetId, zones)
+            }
             body.damageDealt += hit.damage
             const other = parseCompanionId(targetId)
             if (other) {
@@ -2885,13 +2907,17 @@ export const BattleService = {
       battleLevel: char2.battleLevel, economicLevel: char2.economicLevel, productionLevel: char2.productionLevel,
       weaponSkillLevel: skill2Level, baseRating: calcCharacterRating(char2.stats!, gear2),
     })
+    // №114: опыт от того, насколько ты сильнее противника (со всем надетым).
+    const rating1 = combatRating(char1.stats!, gear1), rating2 = combatRating(char2.stats!, gear2)
     const exp1 = calcBattleExp({
+      ratingCoeff: ratingExpCoeff(rating1, rating2),
       damageDealt: part1.damageDealt, targetPower: power2, targetMaxHp: char2.hpMax,
       targetHealed: part2.healedTotal,
       playerLevel: char1.battleLevel, targetLevel: char2.battleLevel,
       result: result1 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW',
     }) * (1 + bonus1)
     const exp2 = calcBattleExp({
+      ratingCoeff: ratingExpCoeff(rating2, rating1),
       damageDealt: part2.damageDealt, targetPower: power1, targetMaxHp: char1.hpMax,
       targetHealed: part1.healedTotal,
       playerLevel: char2.battleLevel, targetLevel: char1.battleLevel,

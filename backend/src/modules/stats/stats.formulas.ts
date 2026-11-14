@@ -41,6 +41,8 @@ export interface BattleExpInput {
   result: 'PVP_WIN' | 'PVP_LOSS' | 'PVE_WIN' | 'PVE_LOSS' | 'DRAW'
   /** Анти-фарм множитель (PvE повторы), по умолчанию нейтрален. */
   antiFarmCoeff?: number
+  /** №114: рейтинг цели к своему, уже в пределах (ratingExpCoeff). */
+  ratingCoeff?: number
 }
 
 export function calcBattleExp(input: BattleExpInput): number {
@@ -56,7 +58,14 @@ export function calcBattleExp(input: BattleExpInput): number {
   const raw = credit * (Math.max(targetPower, 0) / hp) * k * cfg.multiplierM
   const capped = Math.min(raw, cfg.capPerBattle)
   const resultCoeff = cfg.resultCoeff[result] ?? 0
-  return Math.max(0, Math.floor(capped * resultCoeff * antiFarmCoeff))
+  return Math.max(0, Math.floor(capped * resultCoeff * antiFarmCoeff * (input.ratingCoeff ?? 1)))
+}
+
+/** №114 (Amadeus 14.11): сильнее цели — меньше опыта, слабее — больше, в пределах настройки. */
+export function ratingExpCoeff(ownRating: number, targetRating: number): number {
+  const cfg = B.battleExp as { ratingCoeffMin?: number; ratingCoeffMax?: number }
+  if (!(ownRating > 0) || !(targetRating > 0)) return 1
+  return Math.min(cfg.ratingCoeffMax ?? 1.5, Math.max(cfg.ratingCoeffMin ?? 0.5, targetRating / ownRating))
 }
 
 // ---------------------------------------------------------------

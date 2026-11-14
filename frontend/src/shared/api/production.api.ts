@@ -67,6 +67,8 @@ export interface CatalogWay {
 export interface CatalogProduct {
   code: string; name: string; kind: 'item' | 'resource'; inShop: boolean
   ways: CatalogWay[]; usedIn: { code: string; name: string }[]
+  /** Что даёт в баре: «в баре: +25 HP». */
+  effect?: string | null
 }
 
 export interface ObjectRecipe {

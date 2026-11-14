@@ -14,6 +14,7 @@
 // Числа стартовые, как и у остального баланса помощника и собаки.
 // =============================================================
 import type { HelperTactic } from '@prisma/client'
+import type { BodyZone } from '@prisma/client'
 import {
   BATTLE_GRID,
   canMoveTo,
@@ -123,7 +124,11 @@ export function dogHpMax(level: number, end: number): number {
   return COMBAT_DOG.hpBase + COMBAT_DOG.hpPerLevel * Math.max(1, level) + COMBAT_DOG.hpPerEnd * Math.max(0, end)
 }
 
-export interface CompanionStrike { hit: boolean; crit: boolean; damage: number }
+export interface CompanionStrike {
+  hit: boolean; crit: boolean; damage: number
+  /** №114 (Amadeus 14.11): по игроку удар в зону, броня зоны режет урон; rawDamage — до брони. */
+  zone?: BodyZone; rawDamage?: number
+}
 
 /** Удар фигуры: числа помощника по тактике, у собаки — по её характеристикам. */
 export function companionStrike(owner: CompanionOwner, kind: CompanionKind, rnd: () => number = Math.random): CompanionStrike {
