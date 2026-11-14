@@ -12,7 +12,7 @@ import {
   Heart, Scale, Zap, BarChart2,
 } from 'lucide-react'
 
-const STAT_KEYS = ['str', 'agi', 'rea', 'acc', 'end', 'luck', 'agr', 'auth'] as const
+const STAT_KEYS = ['str', 'agi', 'rea', 'end', 'luck', 'agr', 'auth'] as const
 type StatKey = typeof STAT_KEYS[number]
 type Draft = Partial<Record<StatKey, number>>
 

@@ -14,7 +14,7 @@ describe('прибавки от надетого', () => {
       item('knife', { type: 'WEAPON', statBonuses: { acc: 3 }, antiDodge: -0.04, antiCounter: 0.2 }),
       item('vest', { type: 'ARMOR', statBonuses: { end: 4, agi: -1 }, antiLuck: 0.15, hpBonus: 20 }),
     ])
-    expect(gear.stats).toEqual({ str: 2, end: 4, luck: 1, agi: -1, acc: 3, agr: 0, rea: 0 })
+    expect(gear.stats).toEqual({ str: 2, end: 4, luck: 1, agi: -1, agr: 0, rea: 0 })
     // Минус на ноже не уменьшает свой оберег уворота — он против противника.
     expect(gear.antiDodge).toBeCloseTo(0.1)
     expect(gear.minus.antiDodge).toBeCloseTo(0.04)

@@ -13,7 +13,8 @@
 import { BalanceConfig } from '../../config/balance.config'
 
 export type DogStat = 'str' | 'agi' | 'rea' | 'acc' | 'end' | 'luck'
-export const DOG_STATS: readonly DogStat[] = ['str', 'agi', 'rea', 'acc', 'end', 'luck']
+// Меткость убрана (Дима 14.11): в бою не участвует.
+export const DOG_STATS: readonly DogStat[] = ['str', 'agi', 'rea', 'end', 'luck']
 export type PetStatBonus = Partial<Record<DogStat, number>>
 
 export interface DogBreed {

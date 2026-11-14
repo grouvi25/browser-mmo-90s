@@ -453,8 +453,8 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
 
   // Картинка вещи (Дима 09.11). Загрузка заменяет прежнюю, удаление возвращает
   // картинку по умолчанию.
-  fastify.put<{ Params: { code: string }; Body: { dataUrl: string } }>('/catalog/item/:code/image', { ...CATALOG_ADMIN, bodyLimit: 260_000 }, async (req, reply) => {
-    const parsed = z.object({ dataUrl: z.string().max(240_000) }).safeParse(req.body)
+  fastify.put<{ Params: { code: string }; Body: { dataUrl: string } }>('/catalog/item/:code/image', { ...CATALOG_ADMIN, bodyLimit: 900_000 }, async (req, reply) => {
+    const parsed = z.object({ dataUrl: z.string().max(850_000) }).safeParse(req.body)
     if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Картинка не прочиталась' })
     const saved = await TemplateImages.set(req.params.code, parsed.data.dataUrl)
     req.log.info({ admin: req.adminUser?.label, code: saved.code, version: saved.version }, '[Admin] item image set')

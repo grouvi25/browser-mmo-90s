@@ -342,7 +342,7 @@ function gives(item: ItemTemplateRow): string {
 }
 
 /** Картинка вещи в списке: миниатюра, загрузка своей и сброс (Дима 09.11). */
-function ItemImageCell({ item, canEdit }: { item: ItemTemplateRow; canEdit: boolean }) {
+export function ItemImageCell({ item, canEdit }: { item: Pick<ItemTemplateRow, 'code'> & Partial<Pick<ItemTemplateRow, 'weaponType' | 'type'>>; canEdit: boolean }) {
   const [, setTick] = useState(0)
   const [error, setError] = useState('')
   const own = !!templateImageUrl(item.code)

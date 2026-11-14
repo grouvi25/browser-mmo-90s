@@ -5,7 +5,7 @@ import { prisma } from '../../shared/db/prisma'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 
-export const TEMPLATE_IMAGE_MAX_BYTES = 150_000
+export const TEMPLATE_IMAGE_MAX_BYTES = 600_000
 
 export const TemplateImages = {
   async list(): Promise<Record<string, number>> {
@@ -22,7 +22,7 @@ export const TemplateImages = {
     const parsed = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl)
     if (!parsed) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Картинка: PNG, JPEG или WebP', 422)
     if (Buffer.byteLength(parsed[2], 'base64') > TEMPLATE_IMAGE_MAX_BYTES) {
-      throw new AppError(ErrorCode.VALIDATION_ERROR, 'Картинка слишком большая: не больше 150 КБ', 422)
+      throw new AppError(ErrorCode.VALIDATION_ERROR, 'Картинка слишком большая: не больше 600 КБ', 422)
     }
     if (!await prisma.itemTemplate.findUnique({ where: { code }, select: { id: true } })) {
       throw new AppError(ErrorCode.NOT_FOUND, 'Вещь не найдена', 404)

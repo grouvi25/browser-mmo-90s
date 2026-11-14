@@ -6,7 +6,7 @@ import { AppError } from '../../shared/errors/app-error'
 import { EconomyService } from '../economy/economy.service'
 import { DollarsService } from '../dollars/dollars.service'
 import { PROFESSION_CODES, PROFESSION_NAMES, isProfessionCode } from '../professions/professions'
-import { DOG_BASE_POINTS, DOG_GEAR, DOG_GEAR_SLOTS, DOG_STATS, breedOf, cleanStats, dogAllocation, dogGear, freeDogPoints, isDogGearSlot, type DogGearSlot, type DogGearSnapshot, type DogStat } from './dogs'
+import { DOG_BASE_POINTS, DOG_GEAR_SLOTS, DOG_STATS, breedOf, cleanStats, dogAllocation, dogGear, freeDogPoints, isDogGearSlot, type DogGearSlot, type DogGearSnapshot, type DogStat } from './dogs'
 import { dogSummary } from './city.config'
 import { CityConfig, artifactBonus, inPrison, validCityPath } from './city.config'
 
@@ -103,8 +103,8 @@ export const CityService = {
     return {
       catalog: CityConfig.pets.map(b => ({ ...b, points: b.freeAllocation ? Math.ceil(DOG_BASE_POINTS * 1.5) : DOG_BASE_POINTS })),
       packs: CityConfig.feedPacks, feedingHours: CityConfig.feedingHours,
+      // Старые четыре вещи с зашитым бонусом сняты с продажи (Дима 14.11): только новый шмот с очками.
       gear: [
-        ...DOG_GEAR,
         // Шмот из админки: очки игрок раскладывает сам, именной — за доллары (ЦУМ).
         ...(await prisma.dogGearTemplate.findMany({ where: { isActive: true }, orderBy: [{ named: 'asc' }, { createdAt: 'asc' }] }))
           .filter(row => isDogGearSlot(row.slot))
@@ -132,20 +132,17 @@ export const CityService = {
   },
   /** Снаряжение собаки: купить — значит надеть; прежняя вещь слота заменяется. */
   async buyDogGear(characterId: string, petId: string, gearCode: string, key: string) {
-    const item = DOG_GEAR.find(g => g.code === gearCode)
-    const template = item ? null : await prisma.dogGearTemplate.findUnique({ where: { code: gearCode } })
-    if (!item && (!template || !template.isActive || !isDogGearSlot(template.slot))) throw AppError.validation('Нет такого снаряжения')
+    // Старые вещи с зашитым бонусом сняты с продажи (Дима 14.11): покупается только шмот из админки.
+    const template = await prisma.dogGearTemplate.findUnique({ where: { code: gearCode } })
+    if (!template || !template.isActive || !isDogGearSlot(template.slot)) throw AppError.validation('Нет такого снаряжения')
     return withIdempotency({ characterId, scope: `city.dog-gear.${petId}`, key, execute: async tx => {
       const pet = await tx.characterPet.findFirst({ where: { id: petId, characterId } })
       if (!pet || !breedOf(pet.code)) throw AppError.notFound('Собака')
       const gear = { ...((pet.gear as Record<string, unknown> | null) ?? {}) }
-      const slot = (item?.slot ?? template!.slot) as DogGearSlot
+      const slot = template.slot as DogGearSlot
       const worn = dogGear(pet)[slot]
       if (worn?.code === gearCode) throw AppError.conflict('Это уже надето')
-      if (item) {
-        await EconomyService.debit(tx, { characterId, amount: item.price, reasonCode: 'SHOP_PURCHASE', refType: 'dog-gear', refId: item.code })
-        gear[slot] = item.code
-      } else {
+      {
         const t = template!
         if (t.priceDollars > 0) await DollarsService.debit(tx, { characterId, amount: t.priceDollars, reason: 'PURCHASE', refId: pet.id, note: t.name })
         else await EconomyService.debit(tx, { characterId, amount: t.price, reasonCode: 'SHOP_PURCHASE', refType: 'dog-gear', refId: t.code })

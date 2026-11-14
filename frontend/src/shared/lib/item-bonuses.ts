@@ -14,7 +14,7 @@ export type CharmKey = keyof ItemBonuses['charms']
 
 export const STAT_LABELS: [StatKey, string][] = [
   ['str', 'Сила'], ['agi', 'Ловкость'], ['rea', 'Реакция'], ['agr', 'Агрессия'],
-  ['luck', 'Фарт'], ['end', 'Выносливость'], ['acc', 'Меткость'],
+  ['luck', 'Фарт'], ['end', 'Выносливость'],
 ]
 export const MASTERY_LABELS: [MasteryKey, string][] = [
   ['fist', 'Маст. кулачного боя'], ['defense', 'Маст. защиты'], ['weapon', 'Маст. исп. оружия'], ['accuracy', 'Маст. меткости'],

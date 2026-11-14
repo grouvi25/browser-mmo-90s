@@ -58,7 +58,7 @@ export async function screenshotImage(file: File, maxSide = 1600, maxBytes = 650
  * Картинка вещи для админки (09.11): вписать без обрезки в side×side, прозрачный
  * фон сохраняется, WebP — чтобы оружие и броня весили десятки килобайт.
  */
-export async function fitImage(file: File, side = 256): Promise<string> {
+export async function fitImage(file: File, side = 256, maxDataUrl = 700_000): Promise<string> {
   if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) throw new Error('Нужна картинка PNG, JPEG, WebP или GIF')
   const url = URL.createObjectURL(file)
   try {
@@ -68,13 +68,21 @@ export async function fitImage(file: File, side = 256): Promise<string> {
       el.onerror = () => reject(new Error('Картинка не открылась'))
       el.src = url
     })
-    const scale = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
-    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
-    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-    const webp = canvas.toDataURL('image/webp', 0.9)
-    return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png')
+    // Safari (iPhone, iPad) не умеет WebP и отдаёт PNG, а цветная PNG легко больше
+    // лимита сервера (Дима 14.11: «не могу фотки вставлять»). Тогда уменьшаем, пока не влезет.
+    let target = side
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const scale = Math.min(1, target / Math.max(img.naturalWidth, img.naturalHeight))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const webp = canvas.toDataURL('image/webp', 0.9)
+      const out = webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png')
+      if (out.length <= maxDataUrl || target <= 96) return out
+      target = Math.round(target * 0.8)
+    }
+    throw new Error('Картинка слишком большая')
   } finally {
     URL.revokeObjectURL(url)
   }

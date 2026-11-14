@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi, type DollarShopCode } from '../admin-api'
 import { Skeleton, Fault, Empty, Note } from '../../stage3/stage3-ui'
 import { Table } from '../admin-ui'
+import { ItemImageCell } from './combat-sandbox-section'
 
 const SHOP_TITLE: Record<DollarShopCode, string> = { TSUM: 'ЦУМ', BEREZKA: 'Берёзка' }
 
@@ -36,13 +37,15 @@ export function DollarShops({ canEdit }: { canEdit: boolean }) {
       <p className="adm-hint">Новую вещь сразу в ЦУМ или Берёзку можно выставить в «Вещи → Новая вещь», шаг «Где продаётся». Здесь — то, что уже на витринах.</p>
       {list.data.items.length === 0
         ? <Empty title="Витрины пусты" hint="Выставьте вещь ниже или из формы новой вещи." />
-        : <Table head={['Магазин', 'Вещь', 'Код', 'Цена, $', 'В продаже', '']}>
+        : <Table head={['Магазин', 'Картинка', 'Вещь', 'Код', 'Цена, $', 'В продаже', '']}>
             {list.data.items.map(row => {
               const key = `${row.shop}:${row.template.code}`
               const value = prices[key] ?? row.priceDollars
               return (
                 <tr key={row.id} className={row.isAvailable ? undefined : 'is-muted'}>
                   <td>{SHOP_TITLE[row.shop]}</td>
+                  {/* Дима 14.11: «в имянки и в Берёзку не могу фотки вставлять» — картинка прямо на витрине. */}
+                  <td><ItemImageCell item={{ code: row.template.code }} canEdit={canEdit} /></td>
                   <td>{row.template.name}{row.template.levelReq > 0 && ` · с ${row.template.levelReq} ур.`}</td>
                   <td><code>{row.template.code}</code></td>
                   <td>

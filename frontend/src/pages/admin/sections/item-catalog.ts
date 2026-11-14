@@ -18,7 +18,7 @@ export const SHOPS: { value: Shop; title: string; hint: string; currency: '₽' 
 ]
 /** Прибавки надевшему: характеристики персонажа. */
 export const GEAR_STATS: [string, string][] = [
-  ['str', 'Сила'], ['end', 'Выносливость'], ['luck', 'Фарт'], ['agi', 'Ловкость'], ['acc', 'Меткость'], ['agr', 'Агрессия'], ['rea', 'Реакция'],
+  ['str', 'Сила'], ['end', 'Выносливость'], ['luck', 'Фарт'], ['agi', 'Ловкость'], ['agr', 'Агрессия'], ['rea', 'Реакция'],
 ]
 /** Обереги: что каждый делает в бою — подписано прямо у поля. */
 export const CHARMS: [string, string, string][] = [

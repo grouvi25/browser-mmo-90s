@@ -99,9 +99,11 @@ describe('шмот для собак из админки', () => {
     expect(pet.id).toBeTruthy()
   })
 
-  it('старые вещи с зашитым бонусом покупаются и работают как раньше', async () => {
+  it('старые вещи с зашитым бонусом не продаются (Дима 14.11), но надетые ещё читаются', async () => {
     const { character, pet } = await owner()
-    await CityService.buyDogGear(character.id, pet.id, 'dog_boots', uid('k'))
+    await expect(CityService.buyDogGear(character.id, pet.id, 'dog_boots', uid('k'))).rejects.toMatchObject({ message: 'Нет такого снаряжения' })
+    expect((await CityService.pets(character.id)).gear.some(g => g.code === 'dog_boots')).toBe(false)
+    await testPrisma.characterPet.update({ where: { id: pet.id }, data: { gear: { BOOTS: 'dog_boots' } } })
     const dog = dogSummary(await testPrisma.characterPet.findMany({ where: { characterId: character.id } }))!
     expect(dog.gear.BOOTS).toMatchObject({ code: 'dog_boots', bonus: { agi: 1 } })
     await expect(CityService.allocateDogGear(character.id, pet.id, 'BOOTS', { agi: 1 })).rejects.toMatchObject({ message: 'На этой вещи нечего распределять' })

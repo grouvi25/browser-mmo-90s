@@ -147,7 +147,8 @@ describe('city locations and purchases', () => {
     await CityService.allocateDog(p.character.id, pet.id, 'str', 1)
     await CityService.allocateDog(p.character.id, pet.id, 'luck', 1)
     await expect(CityService.allocateDog(p.character.id, pet.id, 'agi', 1)).rejects.toThrow('Свободных очков нет')
-    await CityService.buyDogGear(p.character.id, pet.id, 'dog_collar_spiked', randomUUID())
+    // Старый ошейник уже надет (с 14.11 он не продаётся, но надетый читается).
+    await testPrisma.characterPet.update({ where: { id: pet.id }, data: { gear: { COLLAR: 'dog_collar_spiked' } } })
     const state = await CityService.pets(p.character.id)
     expect(state.dog?.fullBonus).toEqual({ str: 2, luck: 2 })
     expect(state.dog?.freePoints).toBe(0)

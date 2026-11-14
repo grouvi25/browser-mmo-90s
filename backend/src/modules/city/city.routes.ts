@@ -44,7 +44,7 @@ export async function cityRoutes(app: FastifyInstance) {
     return CityService.allocateDogGear((await char(req)).id, b.petId, b.slot, b.add)
   })
   app.post('/pets/allocate', async req => {
-    const b = z.object({ petId: z.string().uuid(), stat: z.enum(['str', 'agi', 'rea', 'acc', 'end', 'luck']), delta: z.union([z.literal(1), z.literal(-1)]) }).strict().parse(req.body)
+    const b = z.object({ petId: z.string().uuid(), stat: z.enum(['str', 'agi', 'rea', 'end', 'luck']), delta: z.union([z.literal(1), z.literal(-1)]) }).strict().parse(req.body)
     return CityService.allocateDog((await char(req)).id, b.petId, b.stat, b.delta)
   })
   app.post('/pets/feed', async req => CityService.feed((await char(req)).id, z.object({ petId: z.string().uuid() }).strict().parse(req.body).petId, key(req)))
