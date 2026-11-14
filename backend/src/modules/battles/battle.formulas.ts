@@ -123,17 +123,21 @@ function statEdge(a: number, b: number): number {
 }
 
 // ---------------------------------------------------------------
-// Перевес (обращение №76, схема Димы и Nobody 10.11). statDiff и charmDiff —
-// в пользу того, чей шанс считаем. Обереги решают раньше статов: перевес
-// charmGap оберегов — 100% (или 0%), даже если статы против.
+// Перевес (обращение №76, схема Димы и Nobody 10.11, уточнение Nobody 14.11).
+// statDiff и charmDiff — в пользу того, чей шанс считаем.
+// Обереги только защищают: если оберег цели больше минуса бьющего, шанс
+// режется (перевес 250% — никогда). Если минус перекрыл оберег, сам по себе он
+// ничего не гарантирует: дальше решают статы — перевес 50 даёт «всегда» или
+// «никогда», меньше — рандом пропорционально разнице. Пример Nobody: минус удачи
+// 35000% против оберега 3500%, но удачи у цели на 1000 больше — удачного нет.
 // ---------------------------------------------------------------
 export function edgeChance(statDiff: number, charmDiff: number, mid: number): { chance: number; decided: boolean } {
   const E = B.edge
-  if (charmDiff >= E.charmGap) return { chance: 1, decided: true }
-  if (charmDiff <= -E.charmGap) return { chance: 0, decided: true }
-  if (statDiff >= E.statGap) return { chance: 1, decided: true }
-  if (statDiff <= -E.statGap) return { chance: 0, decided: true }
-  return { chance: clamp(mid + statDiff / (2 * E.statGap) + charmDiff / (2 * E.charmGap), 0, 1), decided: false }
+  const statDecided = Math.abs(statDiff) >= E.statGap
+  const stat = statDiff >= E.statGap ? 1 : statDiff <= -E.statGap ? 0 : clamp(mid + statDiff / (2 * E.statGap), 0, 1)
+  const charmCap = charmDiff >= 0 ? 1 : clamp(1 + charmDiff / E.charmGap, 0, 1)
+  const chance = Math.min(stat, charmCap)
+  return { chance, decided: charmCap === 0 || (statDecided && charmCap >= stat) }
 }
 
 // ---------------------------------------------------------------
