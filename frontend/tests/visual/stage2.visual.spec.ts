@@ -271,7 +271,8 @@ test.describe('Stage 2 visual and browser flow', () => {
     await page.getByTitle('Характеристики', { exact: true }).first().click()
     const list = page.locator('.card-list').first()
     await expect(list).toContainText('Сила')
-    await expect(list).toContainText('Меткость')
+    // Стат меткости убран (Дима 14.11), оберег меткости остаётся.
+    await expect(list).not.toContainText('Меткость')
     await expect(list).toContainText('Оберег ответа')
     await page.getByTitle('Личное дело', { exact: true }).first().click()
     await expect(page.locator('.card-list').first()).toContainText('Поражений')

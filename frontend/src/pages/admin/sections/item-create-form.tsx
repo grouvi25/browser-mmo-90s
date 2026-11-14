@@ -19,7 +19,7 @@
 // изменённые поля, тип и слот — нет) и «копия» (новая вещь по образцу:
 // похожие вещи по уровням заводятся за минуту).
 // =============================================================
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { adminApi, REASON_MIN, type ItemTemplateRow } from '../admin-api'
 import { Note } from '../../stage3/stage3-ui'
@@ -72,6 +72,17 @@ const percents = (keys: [string, ...unknown[]][], values: Record<string, number>
  */
 function statBudgetForLevel(level: number): number {
   return 20 + 6 * Math.max(0, level - 1)
+}
+
+/**
+ * Числовое поле, которое можно стереть и набрать заново (Дима 14.11: «урон 80 и 80
+ * криво не делается»). Обычное поле с числом в состоянии подставляло 0 в пустое
+ * поле, и набранные цифры дописывались к нулю: «08» вместо 80.
+ */
+function NumInput({ value, onChange, ...rest }: { value: number; onChange: (v: number) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'>) {
+  const [text, setText] = useState(String(value))
+  useEffect(() => { setText(prev => (toNumber(prev) === value ? prev : String(value))) }, [value])
+  return <input type="number" {...rest} value={text} onChange={e => { setText(e.target.value); onChange(toNumber(e.target.value)) }} onBlur={() => { if (text === '') setText(String(value)) }} />
 }
 
 export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
@@ -211,7 +222,6 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
     onError: (err: Error) => setError(err.message),
   })
 
-  const num = (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => setter(toNumber(e.target.value))
   const problem = !name.trim() ? 'Нужно название'
     : kind === 'WEAPON' && minDamage > maxDamage ? 'Урон «от» больше, чем «до»'
       : !editing && shop && price <= 0 ? 'Нужна цена'
@@ -270,7 +280,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
             {JEWELS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select></label>}
         <label><span>С какого уровня</span>
-          <input type="number" min={0} max={30} value={level} onChange={num(changeLevel)} /></label>
+          <NumInput min={0} max={30} value={level} onChange={changeLevel} /></label>
         <label className="adm-item__wide"><span>Описание для игрока (можно пусто)</span>
           <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Видно в карточке вещи" /></label>
       </div>
@@ -282,7 +292,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
             <p className="adm-hint">Сейчас: {saleLine}. Цена на витрине и снятие с продажи — в «Магазины» и «ЦУМ и Берёзка».</p>
             <div className="adm-item__fields">
               <label><span>Стоимость в рублях</span>
-                <input type="number" min={0} value={rubValue} onChange={num(setRubValue)} /></label>
+                <NumInput min={0} value={rubValue} onChange={setRubValue} /></label>
             </div>
             <p className="adm-hint">От неё считаются ремонт и продажа вещи государству.</p>
           </>
@@ -297,9 +307,9 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
             </div>
             <div className="adm-item__fields">
               {shop && <label><span>Цена в магазине, {shopInfo.currency}</span>
-                <input type="number" min={1} value={price} onChange={num(setPrice)} /></label>}
+                <NumInput min={1} value={price} onChange={setPrice} /></label>}
               {(dollars || !shop) && <label><span>Стоимость в рублях</span>
-                <input type="number" min={0} value={dollars ? rubValue : price} onChange={num(dollars ? setRubValue : setPrice)} /></label>}
+                <NumInput min={0} value={dollars ? rubValue : price} onChange={dollars ? setRubValue : setPrice} /></label>}
             </div>
             <p className="adm-hint">
               {dollars ? 'Стоимость в рублях — для ремонта и продажи вещи государству; игрок платит долларами.'
@@ -311,17 +321,17 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
       {kind !== 'TOOL' && <>
         <h5>3. Основа вещи</h5>
         {kind === 'WEAPON' && <div className="adm-item__fields">
-          <label><span>Урон от</span><input type="number" min={0} value={minDamage} onChange={num(setMinDamage)} /></label>
-          <label><span>Урон до</span><input type="number" min={0} value={maxDamage} onChange={num(setMaxDamage)} /></label>
-          <label><span>Точность, %</span><input type="number" min={0} max={100} value={accuracy} onChange={num(setAccuracy)} /></label>
-          <label><span>Дальность, клеток</span><input type="number" min={1} max={20} value={range} onChange={num(setRange)} /></label>
+          <label><span>Урон от</span><NumInput min={0} value={minDamage} onChange={setMinDamage} /></label>
+          <label><span>Урон до</span><NumInput min={0} value={maxDamage} onChange={setMaxDamage} /></label>
+          <label><span>Точность, %</span><NumInput min={0} max={100} value={accuracy} onChange={setAccuracy} /></label>
+          <label><span>Дальность, клеток</span><NumInput min={1} max={20} value={range} onChange={setRange} /></label>
         </div>}
         {['ARMOR', 'SHIELD', 'ACCESSORY'].includes(kind) && <div className="adm-item__fields">
-          <label><span>Броня</span><input type="number" min={0} value={armor} onChange={num(setArmor)} /></label>
+          <label><span>Броня</span><NumInput min={0} value={armor} onChange={setArmor} /></label>
         </div>}
         {kind === 'CONSUMABLE' && <div className="adm-item__fields">
-          <label><span>Лечит, % здоровья</span><input type="number" min={0} max={100} value={healPct} onChange={num(setHealPct)} /></label>
-          <label><span>Лечит, HP</span><input type="number" min={0} value={hp} onChange={num(setHp)} /></label>
+          <label><span>Лечит, % здоровья</span><NumInput min={0} max={100} value={healPct} onChange={setHealPct} /></label>
+          <label><span>Лечит, HP</span><NumInput min={0} value={hp} onChange={setHp} /></label>
         </div>}
       </>}
 
@@ -330,37 +340,37 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
         <p className="adm-hint">Действует, пока вещь надета. Пусто или 0 — ничего не даёт. Можно и минус: тяжёлая броня отнимает ловкость.</p>
         <div className="adm-item__fields">
           {GEAR_STATS.map(([key, label]) => <label key={key}><span>{label}</span>
-            <input type="number" min={-50} max={50} value={gearStats[key] ?? 0}
-              onChange={e => setGearStats({ ...gearStats, [key]: toNumber(e.target.value) })} /></label>)}
-          <label><span>Здоровье, HP</span><input type="number" min={0} value={hp} onChange={num(setHp)} /></label>
-          <label><span>Свой шанс крита, %</span><input type="number" min={0} max={100} step="0.5" value={crit} onChange={num(setCrit)} /></label>
-          <label><span>Свой шанс уворота, %</span><input type="number" min={0} max={100} step="0.5" value={dodge} onChange={num(setDodge)} /></label>
+            <NumInput min={-50} max={50} value={gearStats[key] ?? 0}
+              onChange={(v: number) => setGearStats({ ...gearStats, [key]: v })} /></label>)}
+          <label><span>Здоровье, HP</span><NumInput min={0} value={hp} onChange={setHp} /></label>
+          <label><span>Свой шанс крита, %</span><NumInput min={0} max={100} step="0.5" value={crit} onChange={setCrit} /></label>
+          <label><span>Свой шанс уворота, %</span><NumInput min={0} max={100} step="0.5" value={dodge} onChange={setDodge} /></label>
         </div>
         <p className="adm-hint">Обереги, %: что вещь даёт вам.</p>
         <div className="adm-item__fields">
           {CHARMS.map(([key, label, what]) => <label key={key}><span>{label}</span>
-            <input type="number" min={0} max={200} step="0.5" value={charms[key] ?? 0}
-              onChange={e => setCharms({ ...charms, [key]: Math.max(0, toNumber(e.target.value)) })} />
+            <NumInput min={0} max={200} step="0.5" value={charms[key] ?? 0}
+              onChange={(v: number) => setCharms({ ...charms, [key]: Math.max(0, v) })} />
             <small className="adm-item__what">{what}</small></label>)}
         </div>
         <p className="adm-hint">Минус обереги, %: срезают такой же оберег у противника. На одной вещи можно заполнить и плюс, и минус.</p>
         <div className="adm-item__fields">
           {CHARMS.map(([key, label]) => <label key={key}><span>{label} [противнику]</span>
-            <input type="number" min={0} max={100} step="0.5" value={minusCharms[key] ?? 0}
-              onChange={e => setMinusCharms({ ...minusCharms, [key]: Math.max(0, toNumber(e.target.value)) })} /></label>)}
+            <NumInput min={0} max={100} step="0.5" value={minusCharms[key] ?? 0}
+              onChange={(v: number) => setMinusCharms({ ...minusCharms, [key]: Math.max(0, v) })} /></label>)}
         </div>
         <p className="adm-hint">Мастерства, %.</p>
         <div className="adm-item__fields">
           {MASTERIES.map(([key, label, what]) => <label key={key}><span>{label}</span>
-            <input type="number" min={0} max={100} step="0.5" value={mastery[key] ?? 0}
-              onChange={e => setMastery({ ...mastery, [key]: Math.max(0, toNumber(e.target.value)) })} />
+            <NumInput min={0} max={100} step="0.5" value={mastery[key] ?? 0}
+              onChange={(v: number) => setMastery({ ...mastery, [key]: Math.max(0, v) })} />
             <small className="adm-item__what">{what}</small></label>)}
         </div>
         <p className="adm-hint">Минус мастерства, %: срезают такое же мастерство у противника.</p>
         <div className="adm-item__fields">
           {MASTERIES.map(([key, label]) => <label key={key}><span>{label} [противнику]</span>
-            <input type="number" min={0} max={100} step="0.5" value={minusMastery[key] ?? 0}
-              onChange={e => setMinusMastery({ ...minusMastery, [key]: Math.max(0, toNumber(e.target.value)) })} /></label>)}
+            <NumInput min={0} max={100} step="0.5" value={minusMastery[key] ?? 0}
+              onChange={(v: number) => setMinusMastery({ ...minusMastery, [key]: Math.max(0, v) })} /></label>)}
         </div>
       </>}
 
@@ -368,8 +378,8 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
         <h5>5. Очки улучшения</h5>
         <div className="adm-item__fields">
           <label><span>Очков на вещи</span>
-            <input type="number" min={0} max={200} value={budget}
-              onChange={e => { setBudgetTouched(true); setBudget(toNumber(e.target.value)) }} /></label>
+            <NumInput min={0} max={200} value={budget}
+              onChange={(v: number) => { setBudgetTouched(true); setBudget(v) }} /></label>
         </div>
         <p className="adm-hint">
           По правилу {level}-му уровню положено {statBudgetForLevel(level)}.
@@ -384,8 +394,8 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
           <ul className="adm-item__points">
             {stats.map(key => <li key={key}>
               <b>{STAT_INFO[key].title}</b> — одно очко: {STAT_INFO[key].perPoint}
-              <input type="number" min={0} max={budget} value={alloc[key] ?? 0} aria-label={`Очков в «${STAT_INFO[key].title}»`}
-                onChange={e => setAlloc({ ...alloc, [key]: toNumber(e.target.value) })} />
+              <NumInput min={0} max={budget} value={alloc[key] ?? 0} aria-label={`Очков в «${STAT_INFO[key].title}»`}
+                onChange={(v: number) => setAlloc({ ...alloc, [key]: v })} />
             </li>)}
           </ul>
           <p className={spent > budget ? 'adm-bad' : 'adm-hint'}>Расставлено {spent} из {budget}</p>
@@ -395,8 +405,8 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
       <details className="adm-item__more">
         <summary>Дополнительно: прочность, вес{editing ? '' : ', код'}</summary>
         <div className="adm-item__fields">
-          <label><span>Прочность (обычно 100)</span><input type="number" min={1} value={durability} onChange={num(setDurability)} /></label>
-          <label><span>Вес</span><input type="number" min={0} step="0.1" value={weight} onChange={num(setWeight)} /></label>
+          <label><span>Прочность (обычно 100)</span><NumInput min={1} value={durability} onChange={setDurability} /></label>
+          <label><span>Вес</span><NumInput min={0} step="0.1" value={weight} onChange={setWeight} /></label>
           {!editing && <label><span>Код (латиница, можно пусто)</span>
             <input value={code} onChange={e => setCode(e.target.value)} placeholder="соберётся сам" /></label>}
         </div>
