@@ -11,6 +11,7 @@
 //
 // ТЗ: docs/specs/stage-5/STAGE5_ADMIN_API.md разделы 2 и 3.
 // =============================================================
+import { getRedis } from '../../shared/db/redis'
 import { randomUUID } from 'crypto'
 import { Prisma } from '@prisma/client'
 import type { AdminActionKind, AdminRole } from '@prisma/client'
@@ -824,6 +825,8 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
   },
 }
 
+const SHOP_KINDS = new Set<string>(['SET_ITEM_TEMPLATE', 'RESTORE_ITEM_TEMPLATE', 'CREATE_ITEM_TEMPLATE', 'DELETE_ITEM_TEMPLATE', 'SET_SHOP_ITEM', 'RESTORE_SHOP_ITEM'])
+
 export const AdminActionsService = {
   /**
    * Выполнить действие и записать его вместе с обратной операцией.
@@ -846,7 +849,7 @@ export const AdminActionsService = {
     // выданные деньги с админом, который их выдал.
     const actionId = randomUUID()
 
-    return withTransaction(async tx => {
+    const result = await withTransaction(async tx => {
       const payload: Record<string, unknown> = {
         ...(action.payload as Record<string, unknown>), note: reason, actionId,
       }
@@ -881,6 +884,9 @@ export const AdminActionsService = {
       })
       return { actionId: record.id, kind: record.kind, payload }
     })
+    // Правки шаблонов и витрин видны в госмагазине сразу, а не через 5 минут кэша (Дима 14.11: «берцы не появляются»).
+    if (SHOP_KINDS.has(action.kind)) await getRedis().del('cache:shop:government:items').catch(() => 0)
+    return result
   },
 
   /**

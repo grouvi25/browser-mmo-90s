@@ -149,6 +149,12 @@ async function main() {
     { code: 'tool_work_import', name: 'Импортная оснастка', description: 'Редкий инструмент четвёртой ступени. Государство им не торгует — только собственная сборка из деталей верхнего передела.', type: 'TOOL' as const, toolTier: 4, usesMax: STAGE2_TOOL_TIERS[4].uses, weight: 2.5, durabilityMax: 1, priceBase: STAGE2_TOOL_TIERS[4].price, levelReq: 0, isSellable: true, isActive: true, sourceType: 'PRIVATE' as const, isEquippable: false },
   ]
 
+  // Какие шаблоны уже были в базе до этого прогона: витрину ниже заводим только
+  // для новых. Иначе каждая выкатка возвращала в госмагазин то, что администрация
+  // убрала в админке (14.11: убранный госшмот вернулся после выкатки).
+  const allSeedCodes = [...weaponTemplates, ...armorTemplates, ...consumableTemplates, ...toolTemplates].map(t => t.code)
+  const preexisting = new Set((await prisma.itemTemplate.findMany({ where: { code: { in: allSeedCodes } }, select: { code: true } })).map(t => t.code))
+
   // Upsert templates. Прочность всех вещей — 100 (правка заказчика 28.10).
   for (const tpl of [...weaponTemplates, ...armorTemplates, ...consumableTemplates, ...toolTemplates]) {
     const { code, ...data } = tpl
@@ -171,16 +177,21 @@ async function main() {
   // sortOrder задаём явно: в сервисе список сортируется по нему, а без
   // значения все строки равны нулю и порядок витрины плавает от прогона
   // к прогону.
+  // Витрину сид заводит только для шаблонов, которых не было до прогона (свежая
+  // база или новая вещь в сиде). Состав и доступность витрины на живой базе — дело
+  // админки: сид их не восстанавливает и не включает обратно.
   for (const [index, tpl] of ownTemplates.entries()) {
+    if (preexisting.has(tpl.code) || !allSeedCodes.includes(tpl.code)) continue
     await prisma.governmentShopItem.upsert({
       where: { templateId: tpl.id },
-      update: { isAvailable: true, sortOrder: index },
+      update: {},
       create: { templateId: tpl.id, isAvailable: true, sortOrder: index },
     })
   }
   // Чужой товар из витрины убираем — на случай, если он туда уже попал.
+  // Только товар частных лавок (не GOVERNMENT): вещи, заведённые в админке, не трогаем.
   await prisma.governmentShopItem.deleteMany({
-    where: { templateId: { notIn: ownTemplates.map(t => t.id) } },
+    where: { template: { sourceType: { not: 'GOVERNMENT' } } },
   })
   console.log('  ✓ Government shop entries created')
 

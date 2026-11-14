@@ -140,6 +140,18 @@ export function edgeChance(statDiff: number, charmDiff: number, mid: number): { 
   return { chance, decided: charmCap === 0 || (statDecided && charmCap >= stat) }
 }
 
+/** Попадание (Nobody 14.11): попасть без рандома можно ловкостью ИЛИ оберегом
+ *  уворота — перевес оберегов 250% решает сам, раньше статов. Крит, удачный и
+ *  ответка считаются через edgeChance, там оберег только защищает. */
+export function hitEdgeChance(statDiff: number, charmDiff: number, mid: number): { chance: number; decided: boolean } {
+  const E = B.edge
+  if (charmDiff >= E.charmGap) return { chance: 1, decided: true }
+  if (charmDiff <= -E.charmGap) return { chance: 0, decided: true }
+  if (statDiff >= E.statGap) return { chance: 1, decided: true }
+  if (statDiff <= -E.statGap) return { chance: 0, decided: true }
+  return { chance: clamp(mid + statDiff / (2 * E.statGap) + charmDiff / (2 * E.charmGap), 0, 1), decided: false }
+}
+
 // ---------------------------------------------------------------
 // Уворот: CLAMP(0,05 + 0,25 × (Aз − Aа)/(Aз + Aа + 20); 0,01; 0,35).
 // Обереги уворота у защитника прибавляют, у атакующего — отнимают;
@@ -153,7 +165,7 @@ export function calcDodgeChance(
   if (B.edge.enabled) {
     // №76: ловкость против ловкости, оберег уворота против уворота брони цели.
     // Точность оружия и хмель двигают шанс, пока перевес не решил исход.
-    const hit = edgeChance(
+    const hit = hitEdgeChance(
       (attacker.agi ?? 0) - defender.agi,
       (attacker.dodgeCharmEdge ?? attacker.antiDodgeBonus ?? 0) - (defender.dodgeBonus ?? 0),
       B.edge.hitMid,

@@ -19,15 +19,16 @@ describe('перевес №76', () => {
     expect(edgeChance(-50, 0, 0.5)).toEqual({ chance: 0, decided: true })
   })
 
-  it('оберег цели защищает: перевес 250% — не попасть даже с большей ловкостью, меньше — режет шанс', () => {
+  it('попадание: без рандома — ловкостью или оберегом уворота (Nobody 14.11), оберег решает раньше статов', () => {
+    expect(calcHitChance(atk({ agi: 100, dodgeCharmEdge: 2.5 }), def())).toBe(1)
     expect(calcHitChance(atk({ agi: 400 }), def({ dodgeBonus: 2.6 }))).toBe(0)
-    expect(calcHitChance(atk({ agi: 400, dodgeCharmEdge: -1.25 }), def())).toBeCloseTo(0.5)
+    expect(calcHitChance(atk({ agi: 250 }), def())).toBe(1)
   })
 
-  it('минус бьющего, перекрывший оберег, ничего не гарантирует: дальше решает стат', () => {
-    expect(calcHitChance(atk({ agi: 100, dodgeCharmEdge: 2.5 }), def())).toBe(0)
-    expect(calcHitChance(atk({ agi: 200, dodgeCharmEdge: 100 }), def())).toBeCloseTo(0.5)
-    expect(calcHitChance(atk({ agi: 250, dodgeCharmEdge: 2.5 }), def())).toBe(1)
+  it('крит и удачный: минус бьющего, перекрывший оберег, ничего не гарантирует, дальше решает стат', () => {
+    expect(calcCritChance(atk({ agr: 50, critBonus: 100 }), def({ agr: 50 }))).toBe(0.5)
+    expect(calcCritChance(atk({ agr: 0, critBonus: 100 }), def({ agr: 50 }))).toBe(0)
+    expect(calcLuckyPierceChance(atk({ luck: 50 }), def({ luck: 50, luckCharmEdge: 1.25 }))).toBeCloseTo(0.5)
   })
 
   it('пример Nobody 14.11: минус удачи 35000% против оберега 3500%, но удачи у цели на 1000 больше — удачного нет', () => {
