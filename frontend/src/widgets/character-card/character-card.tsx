@@ -49,9 +49,9 @@ function weaponSprite(item: ItemInstance | undefined): string {
 }
 
 /** Характеристики во вкладке карточки — в порядке «Апехи» (правка 26.10). */
-const CARD_STATS: [key: 'str' | 'agi' | 'rea' | 'agr' | 'luck' | 'end' | 'acc', label: string][] = [
+const CARD_STATS: [key: 'str' | 'agi' | 'rea' | 'agr' | 'luck' | 'end' | 'acc' | 'aluck', label: string][] = [
   ['str', 'Сила'], ['agi', 'Ловкость'], ['rea', 'Реакция'], ['agr', 'Агрессия'],
-  ['luck', 'Фарт'], ['end', 'Выносливость'],
+  ['luck', 'Фарт'], ['end', 'Выносливость'], ['aluck', 'Антифарт'],
 ]
 const CARD_CHARMS: [key: 'antiDodge' | 'antiLuck' | 'antiCrit' | 'antiCounter', label: string][] = [
   ['antiDodge', 'Оберег уворота'], ['antiLuck', 'Оберег удачи'], ['antiCrit', 'Оберег крита'], ['antiCounter', 'Оберег ответа'],

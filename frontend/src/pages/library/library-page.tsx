@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LOCATION_LEVELS } from '../../shared/lib/location-levels'
 import { libraryApi, type LibraryTables } from '../../shared/api/library.api'
+import { NewcomerLetterPage } from '../../widgets/welcome/newcomer-letter-page'
 import './library.css'
 
 interface Topic { key: string; title: string; body: React.ReactNode | ((t: LibraryTables | undefined) => React.ReactNode) }
@@ -80,10 +81,9 @@ function ConsumablesTopic({ t }: { t: LibraryTables | undefined }) {
 const lvl = (key: string) => LOCATION_LEVELS[key]?.level ?? 1
 
 const TOPICS: Topic[] = [
+  // Металлика 14.11: кодекс сразу здесь, без перехода и без пересказа.
   { key: 'start', title: 'С чего начать', body: <>
-    <p>Новичку — <Link to="/novichok">кодекс выживания приезжего</Link> от Бывалого: коротко, с чего начать.</p>
-    <p>Первые уровни проще всего взять на ботах: <Link to="/pvp">Стрелки</Link> → «Боты». Бой даёт опыт, а деньги приходят премией за каждый новый уровень: 650 ₽ за боевой и 10 000 ₽ за экономический.</p>
-    <p>Перед боем купите оружие и броню в <Link to="/shop">Гос магазине</Link> и наденьте их на <Link to="/inventory">Складе</Link>. Переодеваться можно только на Складе (из дома — тоже через Склад).</p>
+    <NewcomerLetterPage />
     <p>Локации открываются постепенно: Фермы, Промзона и Училище — с {lvl('farm')}-го уровня, Гаражи, Бары и Зоомагазин — с {lvl('garages')}-го, Территории, Дома бригад, Мэрия и Жилой сектор — с {lvl('territories')}-го.</p>
   </> },
   { key: 'stats', title: 'Характеристики', body: <>

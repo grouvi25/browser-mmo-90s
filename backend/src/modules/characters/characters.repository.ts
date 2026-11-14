@@ -40,7 +40,7 @@ export const CharactersRepository = {
 
   async createStats(characterId: string, stats: {
     str: number; agi: number; rea: number; acc: number
-    end: number; luck: number; agr: number; auth: number
+    end: number; luck: number; agr: number; auth: number; aluck: number
     pointsAvailable: number
   }): Promise<CharacterStats> {
     return prisma.characterStats.create({ data: { characterId, ...stats } })

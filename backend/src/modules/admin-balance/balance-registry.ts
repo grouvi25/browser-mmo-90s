@@ -146,6 +146,8 @@ export function balanceRegistry(): BalanceGroup[] {
             p('edge.critMid', B.edge.critMid, 'шанс крита при равенстве'),
             p('edge.pierceMid', B.edge.pierceMid, 'шанс пробить блок при равенстве'),
             p('edge.counterMid', B.edge.counterMid, 'шанс ответки при равенстве'),
+            p('edge.antiFartPerPoint', B.edge.antiFartPerPoint, 'антифарт: шанс удержать блок за 1 очко (0.01 = 1%)'),
+            p('edge.antiFartCap', B.edge.antiFartCap, 'антифарт: предел шанса (0.2 = 20%)'),
             p('counter.maxDistance', B.counter.maxDistance, 'ответка только рукопашным оружием и не дальше стольких клеток (1 — вплотную; 0 — по дальности оружия, и пистолет отвечает)'),
           ],
           source: 'modules/battles/battle.formulas.ts → edgeChance',

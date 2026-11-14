@@ -228,11 +228,11 @@ export function calcCharacterPower(
 // броня, посчитанные с улучшениями, вложенными очками и камнями.
 // Авторитет — социальная величина, в рейтинг не входит.
 // ---------------------------------------------------------------
-export const RATING_WEIGHTS: Readonly<Record<'str' | 'agi' | 'rea' | 'acc' | 'end' | 'luck' | 'agr', number>> = {
-  str: 2, end: 2, agi: 1.5, rea: 1.5, acc: 1.5, luck: 1, agr: 1,
+export const RATING_WEIGHTS: Readonly<Record<'str' | 'agi' | 'rea' | 'acc' | 'end' | 'luck' | 'agr' | 'aluck', number>> = {
+  str: 2, end: 2, agi: 1.5, rea: 1.5, acc: 1.5, luck: 1, agr: 1, aluck: 1,
 }
 
-type RatingStats = { str: number; agi: number; rea: number; acc: number; end: number; luck: number; agr: number }
+type RatingStats = { str: number; agi: number; rea: number; acc: number; end: number; luck: number; agr: number; aluck?: number }
 
 export interface EquippedForRating {
   template: {

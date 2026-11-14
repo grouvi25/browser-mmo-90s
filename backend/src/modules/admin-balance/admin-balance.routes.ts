@@ -60,7 +60,7 @@ const FIELD_LABELS: Record<string, string> = {
   statAllocation: 'Распределение очков', statBonuses: 'Характеристики персонажа',
   antiDodge: 'Оберег уворота', antiLuck: 'Оберег удачи', antiCrit: 'Оберег крита', antiCounter: 'Оберег ответа',
   sale: 'Магазин', price: 'Цена в магазине', shop: 'Магазин',
-  str: 'Сила', end: 'Выносливость', luck: 'Фарт', agi: 'Ловкость', acc: 'Меткость', agr: 'Агрессия', rea: 'Реакция',
+  str: 'Сила', end: 'Выносливость', luck: 'Фарт', agi: 'Ловкость', acc: 'Меткость', agr: 'Агрессия', rea: 'Реакция', aluck: 'Антифарт',
   extraBonuses: 'Минус-обереги и мастерства',
 }
 

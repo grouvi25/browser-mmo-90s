@@ -9,11 +9,11 @@ import { ApiError } from '../../shared/api/client'
 import { useState } from 'react'
 import {
   Dumbbell, Wind, Activity, Target, Droplet, Clover, Flame, Crown,
-  Heart, Scale, Zap, BarChart2,
+  Heart, Scale, Zap, BarChart2, ShieldCheck,
 } from 'lucide-react'
 
 // Авторитет скрыт до доработки (Дима 14.11).
-const STAT_KEYS = ['str', 'agi', 'rea', 'end', 'luck', 'agr'] as const
+const STAT_KEYS = ['str', 'agi', 'rea', 'end', 'luck', 'agr', 'aluck'] as const
 type StatKey = typeof STAT_KEYS[number]
 type Draft = Partial<Record<StatKey, number>>
 
@@ -30,6 +30,7 @@ const STAT_ICON_MAP: Record<string, React.ReactNode> = {
   luck: <Clover   size={20} />,
   agr:  <Flame    size={20} />,
   auth: <Crown    size={20} />,
+  aluck: <ShieldCheck size={20} />,
 }
 
 /** Производные параметры — формулы те же, что на сервере. */

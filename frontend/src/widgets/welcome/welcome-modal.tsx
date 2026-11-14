@@ -55,6 +55,8 @@ export function WelcomeModal() {
         <h2 id="welcome-title">{welcome.title}</h2>
         {welcome.text.split(/\n{2,}/).map((part, i) => <p key={i}>{part}</p>)}
         <div className="welcome__actions">
+          {/* Металлика 14.11: новичку сразу путь к кодексу, а не только про тестирование. */}
+          <button type="button" className="btn" onClick={() => { close(); navigate('/novichok') }}>С чего начать</button>
           <button type="button" className="btn" onClick={() => { close(); navigate('/support/new') }}>Написать в поддержку</button>
           <button ref={okRef} type="button" className="btn welcome__ok" onClick={close}>Понятно</button>
         </div>

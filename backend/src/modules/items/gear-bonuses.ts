@@ -33,7 +33,7 @@ import { BalanceConfig } from '../../config/balance.config'
 import { calcHpMax } from '../stats/stats.formulas'
 
 // Без меткости (Дима 14.11): стат в бою не участвует, очки в него не вкладываются.
-export const GEAR_STAT_KEYS = ['str', 'end', 'luck', 'agi', 'agr', 'rea'] as const
+export const GEAR_STAT_KEYS = ['str', 'end', 'luck', 'agi', 'agr', 'rea', 'aluck'] as const
 export type GearStatKey = typeof GEAR_STAT_KEYS[number]
 export type GearStats = Record<GearStatKey, number>
 
@@ -98,7 +98,7 @@ type ItemLike = {
   effective?: { antiCrit?: number | null }
 } | null | undefined
 
-const zeroStats = (): GearStats => ({ str: 0, end: 0, luck: 0, agi: 0, agr: 0, rea: 0 })
+const zeroStats = (): GearStats => ({ str: 0, end: 0, luck: 0, agi: 0, agr: 0, rea: 0, aluck: 0 })
 const zeroCharms = (): Record<CharmKey, number> => ({ antiDodge: 0, antiLuck: 0, antiCrit: 0, antiCounter: 0 })
 const zeroMastery = (): Record<MasteryKey, number> => ({ fist: 0, defense: 0, weapon: 0, accuracy: 0 })
 

@@ -718,6 +718,8 @@ model CharacterStats {
   luck Int @default(1) // Фарт
   agr  Int @default(1) // Агрессия
   auth Int @default(1) // Авторитет
+  /// Антифарт блокера (Nobody 14.11): 1 очко = 1% удержать блок от удачного и удара мимо блока.
+  aluck Int @default(0)
 
   // Available points to distribute
   pointsAvailable Int @default(0) @map("points_available")

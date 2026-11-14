@@ -34,6 +34,8 @@ export interface AttackerSnapshot {
 export interface DefenderSnapshot {
   agi: number; rea: number; end: number; luck: number
   agr?: number                   // агрессия защитника гасит крит (книга: интуиция защитника)
+  /** Антифарт блокера (Nobody 14.11): очки, 1 очко = 1% удержать блок. */
+  aluck?: number
   level?: number                 // боевой уровень защитника: от него зависит вес брони
   armor: number
   dodgeBonus: number; antiCrit: number; blockBonus: number
@@ -397,6 +399,11 @@ export function calcLuckyPierceChance(
   return clamp((attacker.luck ?? 0) * 0.02 - (defender.antiLuck ?? 0), 0, 0.25) // до 25%
 }
 
+/** Антифарт (Nobody 14.11): шанс, что блокер удержит удар в открытую зону или удачный, пробивший блок. Без перевесов, с пределом. */
+export function calcAntiFartChance(defender: Partial<Pick<DefenderSnapshot, 'aluck'>>): number {
+  return clamp((defender.aluck ?? 0) * (B.edge.antiFartPerPoint ?? 0.01), 0, B.edge.antiFartCap ?? 0.2)
+}
+
 export function resolveZonalAttack(
   attacker: AttackerSnapshot,
   defender: DefenderSnapshot,
@@ -434,6 +441,16 @@ export function resolveZonalAttack(
   //    блоком из бюджета стойки, то есть открытой остаётся ещё одна зона.
   const blockLayers = blockedZones.filter(blocked => blocked === zone).length
   const zoneBlocked = blockLayers > 0
+  // Антифарт: блокер (выставил хоть один блок) держит удар мимо блока или
+  // удачный, пробивший блок. Кидается, только когда удар иначе прошёл бы.
+  const wouldPass = !zoneBlocked || (lucky && blockLayers === 1)
+  if (blockedZones.length > 0 && wouldPass && (defender.aluck ?? 0) > 0 && rng() < calcAntiFartChance(defender)) {
+    block = true
+    const counter = calcCounterAttack(defender, attacker, incomingForce, rng)
+    if (counter.triggered) counterDamage = counter.damage
+    log.push(`Антифарт! Блок (${zoneName})${counter.triggered ? ` + ответка ${counterDamage}` : ''}`)
+    return base()
+  }
   if (zoneBlocked && (!lucky || blockLayers > 1)) {
     block = true
     const counter = calcCounterAttack(defender, attacker, incomingForce, rng)

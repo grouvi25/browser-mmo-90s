@@ -188,7 +188,7 @@ export const BalanceConfig = {
 
     baseStats: {
       str: 3, agi: 3, rea: 2, acc: 3,
-      end: 3, luck: 1, agr: 1, auth: 1,
+      end: 3, luck: 1, agr: 1, auth: 1, aluck: 0,
     },
 
     // Очки для распределения при создании
@@ -277,6 +277,10 @@ export const BalanceConfig = {
     critMid:    0.5,
     pierceMid:  0.5,
     counterMid: 0.5,
+    // Антифарт блокера (Nobody 14.11): без перевесов, просто шанс удержать
+    // блок — удар в открытую зону или удачный, пробивший блок. Очко = 1%.
+    antiFartPerPoint: 0.01,
+    antiFartCap:      0.2,
   },
 
   // --- Сила и мастерство (Дима 11.11, обращение №87) ---

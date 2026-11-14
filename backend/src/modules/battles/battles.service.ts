@@ -505,6 +505,7 @@ export function buildDefenderSnapshot(
   const wMax = equippedWeapon?.template.maxDamage ?? 5
   return {
     agi: s.agi, rea: s.rea, end: s.end, luck: s.luck, agr: s.agr, level: char.battleLevel,
+    aluck: (s as { aluck?: number }).aluck ?? 0,
     armor: totalArmor, dodgeBonus, antiCrit, blockBonus, armorWeight,
     reflectShare: buffs.reflect,
     antiSkillLevel,

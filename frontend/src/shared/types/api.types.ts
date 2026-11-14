@@ -17,6 +17,8 @@ export interface CharacterStats {
   luck: number
   agr: number
   auth: number
+  /** Антифарт блокера (Nobody 14.11). */
+  aluck?: number
   pointsAvailable: number
   respecScrolls?: number
 }
@@ -66,7 +68,7 @@ export interface Character {
   weaponSkills?: WeaponSkill[]
   /** Прибавки и обереги от надетого — тем же расчётом, что в бою (26.10). */
   gear?: {
-    stats: Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr' | 'rea', number>
+    stats: Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr' | 'rea' | 'aluck', number>
     antiDodge: number; antiLuck: number; antiCrit: number; antiCounter: number; hp: number
     /** Мастерства и минус-мастерства, доли (правка 31.10). */
     mastery?: Record<'fist' | 'defense' | 'weapon' | 'accuracy', number>
@@ -121,7 +123,7 @@ export interface ItemTemplate {
   antiLuck?: number | null
   antiCounter?: number | null
   /** Прибавки к характеристикам персонажа, пока вещь надета. */
-  statBonuses?: Partial<Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr' | 'rea', number>> | null
+  statBonuses?: Partial<Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr' | 'rea' | 'aluck', number>> | null
   /** Минус-обереги и мастерства вещи, проценты (правка 31.10). */
   extraBonuses?: Partial<Pick<ItemBonuses, 'mastery' | 'minusMastery' | 'minusCharms'>> | null
   blockBonus: number | null
@@ -149,7 +151,7 @@ export interface ItemTemplate {
 
 /** Что записано на вещи сверх базовых полей. Проценты: 5 = 5%. */
 export interface ItemBonuses {
-  stats: Partial<Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr' | 'rea', number>>
+  stats: Partial<Record<'str' | 'end' | 'luck' | 'agi' | 'acc' | 'agr' | 'rea' | 'aluck', number>>
   mastery: Partial<Record<'fist' | 'defense' | 'weapon' | 'accuracy', number>>
   minusMastery: Partial<Record<'fist' | 'defense' | 'weapon' | 'accuracy', number>>
   charms: Partial<Record<'antiDodge' | 'antiLuck' | 'antiCrit' | 'antiCounter', number>>
@@ -351,7 +353,7 @@ export const ARCHETYPE_BONUS: Record<string, string> = {
 
 export const STAT_LABELS: Record<string, string> = {
   str:  'СИЛ', agi: 'ЛВК', rea: 'РЕА', acc: 'МТК',
-  end:  'ВЫН', luck: 'ФРТ', agr: 'АГР', auth: 'АВТ',
+  end:  'ВЫН', luck: 'ФРТ', agr: 'АГР', auth: 'АВТ', aluck: 'АФР',
 }
 
 export const STAT_DESCRIPTIONS: Record<string, string> = {
@@ -363,11 +365,12 @@ export const STAT_DESCRIPTIONS: Record<string, string> = {
   luck: 'Фарт: пробитие блока, сравнивается с фартом противника',
   agr:  'Агрессия: шанс крита, сравнивается с агрессией противника',
   auth: 'Авторитет: клановые бонусы, влияние, дипломатия',
+  aluck: 'Антифарт: 1 очко = 1% удержать блок, когда удар пришел мимо блока или удачный пробил блок, до 20%',
 }
 
 export const STAT_FULL: Record<string, string> = {
   str: 'Сила', agi: 'Ловкость', rea: 'Реакция', acc: 'Меткость',
-  end: 'Выносливость', luck: 'Фарт', agr: 'Агрессия', auth: 'Авторитет',
+  end: 'Выносливость', luck: 'Фарт', agr: 'Агрессия', auth: 'Авторитет', aluck: 'Антифарт',
 }
 
 export const WEAPON_TYPE_LABELS: Record<string, string> = {
