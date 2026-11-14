@@ -9,6 +9,7 @@
 // подложки (CardCutout), содержимое разделов рендерится тем же
 // ViewportPanel, что и на большом экране.
 // =============================================================
+import { useMoscowTime } from '../../shared/lib/moscow-time'
 import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -72,6 +73,7 @@ export function MobileShell() {
     navigate(to)
   }
 
+  const clock = useMoscowTime()
   return (
     <div className="m-shell">
       <header className="m-top">
@@ -112,6 +114,8 @@ export function MobileShell() {
           <button type="button" className="m-sheet__scrim" aria-label="Закрыть" onClick={() => setSheet(null)} />
           <div className="m-sheet__body">
             <button ref={sheetCloseRef} type="button" className="m-sheet__close" onClick={() => setSheet(null)}>закрыть ✕</button>
+            {/* №110: единое время города. В шапке телефона ему нет места, поэтому оно здесь. */}
+            <p className="m-sheet__clock">Время города <b>{clock}</b> МСК</p>
 
             {sheet === 'chat' && <MobileChat />}
             {sheet === 'menu' && (

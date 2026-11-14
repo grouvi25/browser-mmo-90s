@@ -1,3 +1,4 @@
+import { useMoscowTime } from '../../shared/lib/moscow-time'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -170,6 +171,18 @@ function NavMoney({ currency }: { currency: 'rub' | 'usd' }) {
   )
 }
 
+function NavClock() {
+  const time = useMoscowTime()
+  const cell = MENU.navClock
+  return (
+    <div className="t-sign stage-money stage-clock"
+      style={{ left: cell.x, top: cell.y, width: cell.w, fontSize: MENU.navFontSize, transform: `translateY(${MENU.navDy}px)` }}
+      title="Время города (Москва)">
+      <span className="stage-money__text"><span className="stage-money__cur">мск</span> <span className="stage-money__sum">{time}</span></span>
+    </div>
+  )
+}
+
 export function TopNav() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -218,6 +231,7 @@ export function TopNav() {
       >
         {MENU.navExit.label}
       </FitText>
+      <NavClock />
       <NavMoney currency="usd" />
       <NavMoney currency="rub" />
     </>

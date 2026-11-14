@@ -173,6 +173,8 @@ export interface Helper {
   /** Смен за сегодня и суточная норма (обращение №75). */
   shiftsToday?: number
   dailyShiftCap?: number
+  /** Когда суточная норма помощника обнулится (№110). */
+  shiftsResetAt?: string
   /** Боевой помощник: тактика, уровень, опыт, здоровье в бою. */
   tactic?: 'ATTACK' | 'STANDARD' | 'DEFENSIVE'
   combatLevel?: number

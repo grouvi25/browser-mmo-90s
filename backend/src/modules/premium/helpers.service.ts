@@ -156,6 +156,8 @@ export const HelpersService = {
         activeShift: helper.activeShift,
         shiftsToday: todayCounts.get(helper.id) ?? 0,
         dailyShiftCap: H.dailyShiftCap,
+        // №110: когда норма снова откроется — сутки помощника считаются по UTC (3:00 МСК).
+        shiftsResetAt: new Date(dayStart.getTime() + 24 * 3_600_000).toISOString(),
         // Боевой помощник: уровень, опыт до следующего, здоровье, тактика.
         tactic: helper.tactic,
         combatLevel: helper.combatLevel,
@@ -380,7 +382,7 @@ export const HelpersService = {
       if (today >= H.dailyShiftCap) {
         throw new AppError(
           ErrorCode.HELP_DAILY_LIMIT,
-          `Помощник отработал суточную норму: ${H.dailyShiftCap} смен`,
+          `Помощник отработал суточную норму: ${H.dailyShiftCap} смен. Новые смены в 3:00 по Москве`,
           409,
         )
       }

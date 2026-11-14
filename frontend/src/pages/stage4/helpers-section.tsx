@@ -170,11 +170,13 @@ function HelperCard({
   const shift = helper.activeShift
   // Часы для таймера: смена кончилась — «Забрать» включается сразу, без ожидания опроса.
   const [now, setNow] = useState(() => Date.now())
+  // Норма на сегодня выбрана: тикаем до обнуления (№110).
+  const capped = helper.dailyShiftCap != null && (helper.shiftsToday ?? 0) >= helper.dailyShiftCap
   useEffect(() => {
-    if (!shift) return
-    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    if (!shift && !capped) return
+    const timer = window.setInterval(() => setNow(Date.now()), shift ? 1000 : 30_000)
     return () => window.clearInterval(timer)
-  }, [shift])
+  }, [shift, capped])
   const ready = shift && new Date(shift.endsAt).getTime() <= now
   const shiftPlace = shift ? objects.find(object => object.id === shift.productionObjectId) : undefined
   const dormant = helper.status === 'DORMANT'
@@ -197,7 +199,7 @@ function HelperCard({
         </div>
         {helper.dailyShiftCap != null && <div>
           <dt>Смен сегодня</dt>
-          <dd>{helper.shiftsToday ?? 0} из {helper.dailyShiftCap} · осталось {Math.max(0, helper.dailyShiftCap - (helper.shiftsToday ?? 0))}</dd>
+          <dd>{helper.shiftsToday ?? 0} из {helper.dailyShiftCap} · {capped && helper.shiftsResetAt ? `новые через ${remaining(helper.shiftsResetAt, now)} (в 3:00 МСК)` : `осталось ${Math.max(0, helper.dailyShiftCap - (helper.shiftsToday ?? 0))}`}</dd>
         </div>}
       </dl>
 

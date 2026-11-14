@@ -341,6 +341,9 @@ html, body {
 .stage-money__cur { margin-left: .28em; }
 .stage-money__sum { color: var(--text); font-weight: 600; letter-spacing: .01em; }
 .stage-money__cur { color: var(--red); font-weight: 700; }
+/* Время города в шапке ПК (№110): по центру своей полосы, подсказка по наведению. */
+.stage-clock { justify-content: center; pointer-events: auto; cursor: default; }
+.stage-clock .stage-money__cur { margin-left: 0; text-transform: uppercase; }
 
 .stage-nav {
   position: absolute;
