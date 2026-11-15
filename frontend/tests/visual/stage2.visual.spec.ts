@@ -93,9 +93,12 @@ test.describe('Stage 2 visual and browser flow', () => {
       data: { privateShopItemId: kit.id, quantity: 1 },
     })
     expect(boughtKit.status()).toBe(200)
+    // Ремкомплект крафтовый: цена в пределах затрат +20%…+100% (Дима 15.11).
+    const boundsRes = await apiContext.get(`/api/market/price-bounds/${kit.resourceTemplateId}`, { headers: { Authorization: `Bearer ${seller.token}` } })
+    const bounds = (await boundsRes.json() as { bounds: { min: number } | null }).bounds
     const listed = await apiContext.post('/api/market/listings', {
       headers: { Authorization: `Bearer ${seller.token}`, 'Idempotency-Key': `visual-list-${seller.login}` },
-      data: { listingType: 'RESOURCE', resourceTemplateId: kit.resourceTemplateId, amount: 1, price: 100 },
+      data: { listingType: 'RESOURCE', resourceTemplateId: kit.resourceTemplateId, amount: 1, price: bounds?.min ?? 100 },
     })
     expect(listed.status()).toBe(201)
     listingId = (await listed.json() as { listing: { id: string } }).listing.id
