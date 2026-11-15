@@ -17,6 +17,7 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { logger } from '../../shared/logger/logger'
 import { NoticesService } from '../chat/notices.service'
 import { sendTelegram, sendTelegramPhoto } from '../admin-balance/telegram.service'
+import { DevBoard } from '../dev-board/dev-board.service'
 import { pushLater } from '../push/push.service'
 
 export const SUPPORT = {
@@ -136,6 +137,7 @@ export const SupportService = {
       select: { ...TICKET_FIELDS, character: { select: { nickname: true } } },
     })
     tellStaff(`Новое обращение №${ticket.number} от ${escapeHtml(ticket.character.nickname)} · ${CATEGORY_LABEL[category]}${image ? ' · со скриншотом' : ''}\n<b>${escapeHtml(subject)}</b>\n${escapeHtml(text)}`, image)
+    DevBoard.ticketCreated({ number: ticket.number, nickname: ticket.character.nickname, subject, text, hasImage: !!image })
     const { character: _c, ...row } = ticket
     void _c
     return row
@@ -205,6 +207,7 @@ export const SupportService = {
     ])
     const who = await prisma.character.findUnique({ where: { id: characterId }, select: { nickname: true } })
     tellStaff(`${reopened ? 'Открыто снова' : 'Игрок дописал в'} обращение №${ticket.number} (${escapeHtml(who?.nickname ?? '')})${image ? ' · со скриншотом' : ''}\n<b>${escapeHtml(ticket.subject)}</b>\n${escapeHtml(text)}`, image)
+    DevBoard.ticketMessage({ number: ticket.number, nickname: who?.nickname ?? '', subject: ticket.subject, text, reopened })
     return this.thread(characterId, ticketId)
   },
 
@@ -215,6 +218,7 @@ export const SupportService = {
         prisma.supportMessage.create({ data: { ticketId, author: 'SYSTEM', text: 'Игрок закрыл обращение' } }),
         prisma.supportTicket.update({ where: { id: ticketId }, data: { status: 'CLOSED', closedAt: new Date(), closedBy: 'игрок', staffUnread: false } }),
       ])
+      DevBoard.ticketClosed(ticket.number, 'игрок закрыл сам')
     }
     return this.thread(characterId, ticketId)
   },
@@ -332,6 +336,7 @@ export const SupportService = {
         },
       }),
     ])
+    if (close) DevBoard.ticketClosed(ticket.number, adminLabel)
     await NoticesService.push(ticket.characterId, `Поддержка ответила на обращение №${ticket.number} «${ticket.subject}». Откройте Поддержку, чтобы прочитать.`)
     pushLater(ticket.characterId, { title: 'Ответ поддержки', body: `Обращение №${ticket.number} «${ticket.subject}»`, url: `/support/${ticketId}`, kind: 'support' })
     return this.adminThread(ticketId)
@@ -361,6 +366,8 @@ export const SupportService = {
       ...notes.map(text => prisma.supportMessage.create({ data: { ticketId, author: 'SYSTEM', text } })),
       prisma.supportTicket.update({ where: { id: ticketId }, data }),
     ])
+    if (patch.status === 'CLOSED' && ticket.status !== 'CLOSED') DevBoard.ticketClosed(ticket.number, adminLabel)
+    if (patch.status && patch.status !== 'CLOSED' && ticket.status === 'CLOSED') DevBoard.ticketReopened(ticket.number)
     if (patch.status === 'CLOSED' && ticket.status !== 'CLOSED') {
       await NoticesService.push(ticket.characterId, `Обращение №${ticket.number} «${ticket.subject}» закрыто. Оцените, пожалуйста, ответ в Поддержке.`)
     }

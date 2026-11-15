@@ -2830,3 +2830,22 @@ model DogGearTemplate {
 
   @@map("dog_gear_templates")
 }
+
+/// Доска разработчиков (группа в Telegram): кто взял обращение или задачу.
+/// В админке не показывается.
+model DevBoardItem {
+  id           Int      @id @default(autoincrement())
+  ticketNumber Int?     @unique @map("ticket_number")
+  title        String
+  note         String?
+  /// OPEN — свободно, TAKEN — в работе, DONE — готово.
+  status       String   @default("OPEN")
+  takenBy      String?  @map("taken_by")
+  doneBy       String?  @map("done_by")
+  createdBy    String?  @map("created_by")
+  messageId    Int?     @map("message_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("dev_board_items")
+}

@@ -51,6 +51,7 @@ import { referralRoutes } from './modules/referral/referral.routes'
 import { paymentsRoutes } from './modules/payments/payments.routes'
 import { housingRoutes } from './modules/housing/housing.routes'
 import { adminSupportRoutes, supportRoutes } from './modules/support/support.routes'
+import { devBoardRoutes } from './modules/dev-board/dev-board.routes'
 import { pushRoutes } from './modules/push/push.routes'
 import { siteRoutes, adminSiteRoutes } from './modules/site/site.routes'
 import { staffRoutes } from './modules/staff/staff.routes'
@@ -200,6 +201,7 @@ export async function buildApp() {
   await fastify.register(adminActionsRoutes,  { prefix: '/api/admin' })
   await fastify.register(adminBalanceRoutes,  { prefix: '/api/admin' })
   await fastify.register(adminSupportRoutes,  { prefix: '/api/admin/support' })
+  await fastify.register(devBoardRoutes,      { prefix: '/api/dev-board' })
   await fastify.register(adminSiteRoutes,     { prefix: '/api/admin/site' })
   await fastify.register(staffRoutes,         { prefix: '/api/admin/staff' })
 

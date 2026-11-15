@@ -25,6 +25,12 @@ const EnvSchema = z.object({
   // админке означал бы и доступ к боту.
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID:   z.string().optional(),
+  // Доска разработчиков: закрытая группа в Telegram (тот же бот) и ключ
+  // для нейронок. Без них доски нет, алерты работают как раньше.
+  DEV_BOARD_CHAT_ID:  z.string().optional(),
+  DEV_BOARD_TOKEN:    z.string().min(24).optional(),
+  /** Имена в карточках: «ник_в_тг=Имя» через запятую. */
+  DEV_BOARD_NAMES:    z.string().optional(),
 
   // Почта игры (noreply@kooperativ.space на Beget): письма со ссылкой на
   // новый пароль. Необязательна: без неё ссылка уходит в бот администрации.
