@@ -137,7 +137,7 @@ export const SupportService = {
       select: { ...TICKET_FIELDS, character: { select: { nickname: true } } },
     })
     tellStaff(`Новое обращение №${ticket.number} от ${escapeHtml(ticket.character.nickname)} · ${CATEGORY_LABEL[category]}${image ? ' · со скриншотом' : ''}\n<b>${escapeHtml(subject)}</b>\n${escapeHtml(text)}`, image)
-    DevBoard.ticketCreated({ number: ticket.number, nickname: ticket.character.nickname, subject, text, hasImage: !!image })
+    DevBoard.ticketCreated({ number: ticket.number, nickname: ticket.character.nickname, subject, text, hasImage: !!image, image })
     const { character: _c, ...row } = ticket
     void _c
     return row
@@ -207,7 +207,7 @@ export const SupportService = {
     ])
     const who = await prisma.character.findUnique({ where: { id: characterId }, select: { nickname: true } })
     tellStaff(`${reopened ? 'Открыто снова' : 'Игрок дописал в'} обращение №${ticket.number} (${escapeHtml(who?.nickname ?? '')})${image ? ' · со скриншотом' : ''}\n<b>${escapeHtml(ticket.subject)}</b>\n${escapeHtml(text)}`, image)
-    DevBoard.ticketMessage({ number: ticket.number, nickname: who?.nickname ?? '', subject: ticket.subject, text, reopened })
+    DevBoard.ticketMessage({ number: ticket.number, nickname: who?.nickname ?? '', subject: ticket.subject, text, reopened, image })
     return this.thread(characterId, ticketId)
   },
 

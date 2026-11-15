@@ -38,7 +38,8 @@ export function SupportSection() {
   const [search, setSearch] = useState('')
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
-  const [selected, setSelected] = useState<string | null>(null)
+  // Ссылка из рабочего чата: ?ticket=<id> сразу открывает обращение.
+  const [selected, setSelected] = useState<string | null>(() => new URLSearchParams(window.location.search).get('ticket'))
   const panelRef = useRef<HTMLDivElement>(null)
 
   // Поиск — с паузой после ввода, а не запросом на каждую букву.

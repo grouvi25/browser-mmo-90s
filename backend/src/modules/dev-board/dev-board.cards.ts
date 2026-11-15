@@ -16,9 +16,10 @@ export const ICONS: Record<string, string> = {
   gauge: '6026006551293074961',
   bolt: '6023761060786346622',
   brain: '6021733363776231718',
+  open: '5807928135139728476',
 }
 const PLAIN: Record<string, string> = {
-  ok: '✅', undo: '↩️', start: '▶️', stop: '⏹', spark: '✨', list: '📋', user: '👤', chat: '💬', time: '🕐', gauge: '📊', bolt: '⚡', brain: '🧠',
+  ok: '✅', undo: '↩️', start: '▶️', stop: '⏹', spark: '✨', list: '📋', user: '👤', chat: '💬', time: '🕐', gauge: '📊', bolt: '⚡', brain: '🧠', open: '🌐',
 }
 
 export type Icons = Record<string, string>
@@ -34,6 +35,8 @@ function button(kind: 'callback_data' | 'disabled', content: string, style?: 'su
   return `<tg-button type="${kind}"${style ? ` style="${style}"` : ''}${data ? ` data="${esc(data)}"` : ''}>${content}</tg-button>`
 }
 
+const link = (content: string, url: string) => `<tg-button type="url" url="${esc(url)}">${content}</tg-button>`
+
 const row = (...buttons: string[]) => `<tg-button-row align="center">${buttons.join('')}</tg-button-row>`
 const since = (date: Date) => `<tg-time unix="${Math.floor(date.getTime() / 1000)}" format="r">недавно</tg-time>`
 
@@ -42,7 +45,7 @@ function table(rows: [string, string, string][], icons: Icons): string {
 }
 
 /** Карточка: тикет пишется как «ник · тема» в title, текст игрока — в note. */
-export function cardHtml(item: DevBoardItem, icons: Icons): string {
+export function cardHtml(item: DevBoardItem, icons: Icons, adminUrl?: string | null): string {
   const isTicket = item.ticketNumber != null
   const [who, ...subjectParts] = isTicket ? item.title.split(' · ') : ['', item.title]
   const subject = isTicket ? subjectParts.join(' · ') : item.title
@@ -75,6 +78,7 @@ export function cardHtml(item: DevBoardItem, icons: Icons): string {
   parts.push(item.status === 'DONE'
     ? row(button('callback_data', `${icon('undo', icons)} Вернуть в работу`, undefined, `free:${item.id}`))
     : row(take, done, free))
+  if (adminUrl) parts.push(row(link(`${icon('open', icons)} Открыть в админке`, adminUrl)))
   return parts.join('')
 }
 

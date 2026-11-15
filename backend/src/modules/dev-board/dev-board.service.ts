@@ -105,6 +105,38 @@ async function richCall<T>(method: string, base: Record<string, unknown>, html: 
 
 const REACTION: Record<string, string | null> = { OPEN: null, TAKEN: '👨‍💻', DONE: '💯' }
 
+/** Админка на поддомене: https://admin.<домен игры>/support?ticket=<id>. */
+async function adminUrl(item: DevBoardItem): Promise<string | null> {
+  if (!item.ticketNumber) return null
+  const ticket = await prisma.supportTicket.findUnique({ where: { number: item.ticketNumber }, select: { id: true } })
+  if (!ticket) return null
+  try {
+    const url = new URL(env.APP_URL)
+    url.hostname = `admin.${url.hostname}`
+    return `${url.origin}/support?ticket=${ticket.id}`
+  } catch {
+    return null
+  }
+}
+
+/** Скриншот из обращения — фото ответом на карточку в теме «Обращения». */
+async function sendShot(item: DevBoardItem, image: { mime: string; data: string }, caption: string): Promise<void> {
+  const topic = (await settings()).ticketsTopic
+  const ext = image.mime === 'image/png' ? 'png' : image.mime === 'image/webp' ? 'webp' : 'jpg'
+  const form = new FormData()
+  form.set('chat_id', String(env.DEV_BOARD_CHAT_ID))
+  if (topic) form.set('message_thread_id', String(topic))
+  if (item.messageId) form.set('reply_parameters', JSON.stringify({ message_id: item.messageId, allow_sending_without_reply: true }))
+  form.set('caption', caption)
+  form.set('photo', new Blob([new Uint8Array(Buffer.from(image.data, 'base64'))], { type: image.mime }), `screenshot.${ext}`)
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: 'POST', body: form, signal: AbortSignal.timeout(20000) })
+    if (!response.ok) logger.warn({ status: response.status, body: (await response.text().catch(() => '')).slice(0, 200) }, '[DevBoard] скриншот не ушёл')
+  } catch (err) {
+    logger.warn({ err }, '[DevBoard] скриншот не ушёл')
+  }
+}
+
 /** Карточка в своей теме: новая — отправить, есть — поправить на месте. */
 async function render(item: DevBoardItem): Promise<void> {
   if (!devBoardConfigured()) return
@@ -112,9 +144,10 @@ async function render(item: DevBoardItem): Promise<void> {
   // Перенос в темы мог уже прислать эту карточку заново: берём свежий номер сообщения.
   item = (await prisma.devBoardItem.findUnique({ where: { id: item.id } })) ?? item
   const chat = env.DEV_BOARD_CHAT_ID!
+  const url = await adminUrl(item)
   let messageId = item.messageId
   if (messageId) {
-    const edited = await richCall('editMessageText', { chat_id: chat, message_id: messageId }, icons => cardHtml(item, icons))
+    const edited = await richCall('editMessageText', { chat_id: chat, message_id: messageId }, icons => cardHtml(item, icons, url))
     if (!edited.ok && !/not modified/i.test(edited.description ?? '')) {
       // Старое простое сообщение или удалено: убираем и шлём заново.
       await tg('deleteMessage', { chat_id: chat, message_id: messageId })
@@ -123,7 +156,7 @@ async function render(item: DevBoardItem): Promise<void> {
   }
   if (!messageId) {
     const topic = item.ticketNumber ? s.ticketsTopic : s.tasksTopic
-    const sent = await richCall<{ message_id: number }>('sendRichMessage', { chat_id: chat, ...(topic ? { message_thread_id: topic } : {}) }, icons => cardHtml(item, icons))
+    const sent = await richCall<{ message_id: number }>('sendRichMessage', { chat_id: chat, ...(topic ? { message_thread_id: topic } : {}) }, icons => cardHtml(item, icons, url))
     if (!sent.ok || !sent.result) return
     messageId = sent.result.message_id
     await prisma.devBoardItem.update({ where: { id: item.id }, data: { messageId } })
@@ -170,18 +203,19 @@ const safe = (work: () => Promise<unknown>) => { if (devBoardConfigured()) void 
 
 export const DevBoard = {
   // ── Хуки из поддержки ─────────────────────────────────────
-  ticketCreated(ticket: { number: number; nickname: string; subject: string; text: string; hasImage: boolean }) {
+  ticketCreated(ticket: { number: number; nickname: string; subject: string; text: string; hasImage: boolean; image?: { mime: string; data: string } | null }) {
     safe(async () => {
       const item = await prisma.devBoardItem.upsert({
         where: { ticketNumber: ticket.number },
         update: {},
-        create: { ticketNumber: ticket.number, title: `${ticket.nickname} · ${ticket.subject}`, note: snippet(ticket.text) + (ticket.hasImage ? '\n(есть скриншот)' : '') },
+        create: { ticketNumber: ticket.number, title: `${ticket.nickname} · ${ticket.subject}`, note: snippet(ticket.text) },
       })
       await render(item)
+      if (ticket.image) await sendShot((await prisma.devBoardItem.findUnique({ where: { id: item.id } })) ?? item, ticket.image, `Скриншот к №${ticket.number}`)
     })
   },
 
-  ticketMessage(ticket: { number: number; nickname: string; subject: string; text: string; reopened: boolean }) {
+  ticketMessage(ticket: { number: number; nickname: string; subject: string; text: string; reopened: boolean; image?: { mime: string; data: string } | null }) {
     safe(async () => {
       let item = await prisma.devBoardItem.upsert({
         where: { ticketNumber: ticket.number },
@@ -198,6 +232,7 @@ export const DevBoard = {
         ...(topic ? { message_thread_id: topic } : {}),
         ...(fresh?.messageId ? { reply_parameters: { message_id: fresh.messageId, allow_sending_without_reply: true } } : {}),
       })
+      if (ticket.image && fresh) await sendShot(fresh, ticket.image, `Скриншот к №${ticket.number}`)
     })
   },
 
