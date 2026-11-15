@@ -189,7 +189,13 @@ export const DevBoard = {
         create: { ticketNumber: ticket.number, title: `${ticket.character.nickname} · ${ticket.subject}`, note: snippet(ticket.messages[0]?.text ?? '') },
       })
     }
-    const active = await prisma.devBoardItem.findMany({ where: { status: { not: 'DONE' } }, orderBy: { id: 'asc' } })
+    let active = await prisma.devBoardItem.findMany({ where: { status: { not: 'DONE' } }, orderBy: { id: 'asc' } })
+    // Пришло до запуска доски — карточки в группе ещё нет: досылаем один раз.
+    const unsent = active.filter(item => !item.messageId)
+    if (unsent.length && devBoardConfigured()) {
+      for (const item of unsent) await render(item)
+      active = await prisma.devBoardItem.findMany({ where: { status: { not: 'DONE' } }, orderBy: { id: 'asc' } })
+    }
     const recent = await prisma.devBoardItem.findMany({ where: { status: 'DONE' }, orderBy: { updatedAt: 'desc' }, take: 15 })
     return { active, recentDone: recent }
   },
