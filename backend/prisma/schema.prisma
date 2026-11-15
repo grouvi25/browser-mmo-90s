@@ -2849,3 +2849,18 @@ model DevBoardItem {
 
   @@map("dev_board_items")
 }
+
+/// Рейтинг разработчиков (доска): очки ставит только владелец.
+model DevScoreEvent {
+  id        Int      @id @default(autoincrement())
+  who       String
+  delta     Int
+  reason    String?
+  itemId    Int?     @map("item_id")
+  by        String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([who])
+  @@index([itemId])
+  @@map("dev_score_events")
+}

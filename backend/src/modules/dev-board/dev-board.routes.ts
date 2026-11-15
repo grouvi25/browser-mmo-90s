@@ -53,7 +53,16 @@ export async function devBoardRoutes(fastify: FastifyInstance): Promise<void> {
         const who = devName(cb.from)
         let answer = ''
         try {
-          if (action === 'take') { await DevBoard.take(id, who); answer = 'Взял' }
+          const isOwner = (cb.from.username ?? '').toLowerCase() === env.DEV_BOARD_OWNER.replace(/^@/, '').toLowerCase()
+          if (action === 'rate') {
+            if (!isOwner) {
+              // Миша 15.11: кто тянется к оценке сам, получает её наоборот.
+              const tried = Math.min(10, Math.abs(Number(cb.data!.split(':')[2]) || 1))
+              const r = await DevBoard.rate(who, -tried, 'пытался сам поставить оценку', 'доска')
+              answer = `Оценивает только Миша. ${r.who}: −${tried}`
+            }
+            else { const r = await DevBoard.rateItem(id, Number(cb.data!.split(':')[2]), who); answer = `${r.who}: ${r.delta > 0 ? '+' : ''}${r.delta}` }
+          } else if (action === 'take') { await DevBoard.take(id, who); answer = 'Взял' }
           else if (action === 'done') { await DevBoard.done(id, who); answer = 'Готово' }
           else if (action === 'free') { await DevBoard.free(id); answer = 'Свободно' }
         } catch (err) {
@@ -70,6 +79,24 @@ export async function devBoardRoutes(fastify: FastifyInstance): Promise<void> {
           const title = rest.join(' ')
           if (title) await DevBoard.addTask(title, devName(msg.from))
           else await tgCall('sendMessage', { chat_id: env.DEV_BOARD_CHAT_ID, text: 'Напишите так: /task что сделать' })
+        } else if (name === '/rate') {
+          const owner = (msg.from?.username ?? '').toLowerCase() === env.DEV_BOARD_OWNER.replace(/^@/, '').toLowerCase()
+          const [who, amount, ...reason] = rest
+          if (!owner) {
+            const tried = Math.min(10, Math.abs(Number((amount ?? '').replace('−', '-')) || 1))
+            const r = await DevBoard.rate(devName(msg.from), -tried, 'пытался сам поставить оценку', 'доска')
+            await tgCall('sendMessage', { chat_id: env.DEV_BOARD_CHAT_ID, text: `Рейтинг ставит только Миша. ${r.who}: −${tried}` })
+          }
+          else {
+            try {
+              const r = await DevBoard.rate(who ?? '', Number((amount ?? '').replace('−', '-')), reason.join(' ') || null, devName(msg.from))
+              await tgCall('sendMessage', { chat_id: env.DEV_BOARD_CHAT_ID, text: `${r.who}: ${r.delta > 0 ? '+' : ''}${r.delta}${reason.length ? ` · ${reason.join(' ')}` : ''}` })
+            } catch (err) {
+              await tgCall('sendMessage', { chat_id: env.DEV_BOARD_CHAT_ID, text: err instanceof AppError ? err.message : 'Не получилось' })
+            }
+          }
+        } else if (name === '/rating') {
+          await DevBoard.ratingToChat()
         } else if (name === '/board') {
           await DevBoard.summaryToBottom()
         }

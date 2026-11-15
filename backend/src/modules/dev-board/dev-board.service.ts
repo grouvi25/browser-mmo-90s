@@ -17,7 +17,7 @@ import { prisma } from '../../shared/db/prisma'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { logger } from '../../shared/logger/logger'
-import { ICONS, cardHtml, summaryHtml, type Icons } from './dev-board.cards'
+import { ICONS, cardHtml, ratingHtml, summaryHtml, type Icons } from './dev-board.cards'
 
 export function devBoardConfigured(): boolean {
   return Boolean(env.TELEGRAM_BOT_TOKEN && env.DEV_BOARD_CHAT_ID && env.DEV_BOARD_TOKEN)
@@ -105,6 +105,19 @@ async function richCall<T>(method: string, base: Record<string, unknown>, html: 
 
 const REACTION: Record<string, string | null> = { OPEN: null, TAKEN: '👨‍💻', DONE: '💯' }
 
+/** «Миша (нейронка)» → «Миша»: очки идут человеку, а не его нейронке. */
+export const personOf = (name: string) => name.replace(/\s*\(.*\)\s*$/, '').trim()
+
+async function itemRating(itemId: number): Promise<number | null> {
+  const rows = await prisma.devScoreEvent.findMany({ where: { itemId }, select: { delta: true } })
+  return rows.length ? rows.reduce((sum, row) => sum + row.delta, 0) : null
+}
+
+async function scores(): Promise<{ who: string; total: number }[]> {
+  const rows = await prisma.devScoreEvent.groupBy({ by: ['who'], _sum: { delta: true } })
+  return rows.map(row => ({ who: row.who, total: row._sum.delta ?? 0 })).sort((a, b) => b.total - a.total)
+}
+
 /** Админка на поддомене: https://admin.<домен игры>/support?ticket=<id>. */
 async function adminUrl(item: DevBoardItem): Promise<string | null> {
   if (!item.ticketNumber) return null
@@ -145,9 +158,10 @@ async function render(item: DevBoardItem): Promise<void> {
   item = (await prisma.devBoardItem.findUnique({ where: { id: item.id } })) ?? item
   const chat = env.DEV_BOARD_CHAT_ID!
   const url = await adminUrl(item)
+  const rating = item.status === 'DONE' ? await itemRating(item.id) : null
   let messageId = item.messageId
   if (messageId) {
-    const edited = await richCall('editMessageText', { chat_id: chat, message_id: messageId }, icons => cardHtml(item, icons, url))
+    const edited = await richCall('editMessageText', { chat_id: chat, message_id: messageId }, icons => cardHtml(item, icons, url, rating))
     if (!edited.ok && !/not modified/i.test(edited.description ?? '')) {
       // Старое простое сообщение или удалено: убираем и шлём заново.
       await tg('deleteMessage', { chat_id: chat, message_id: messageId })
@@ -156,7 +170,7 @@ async function render(item: DevBoardItem): Promise<void> {
   }
   if (!messageId) {
     const topic = item.ticketNumber ? s.ticketsTopic : s.tasksTopic
-    const sent = await richCall<{ message_id: number }>('sendRichMessage', { chat_id: chat, ...(topic ? { message_thread_id: topic } : {}) }, icons => cardHtml(item, icons, url))
+    const sent = await richCall<{ message_id: number }>('sendRichMessage', { chat_id: chat, ...(topic ? { message_thread_id: topic } : {}) }, icons => cardHtml(item, icons, url, rating))
     if (!sent.ok || !sent.result) return
     messageId = sent.result.message_id
     await prisma.devBoardItem.update({ where: { id: item.id }, data: { messageId } })
@@ -180,12 +194,13 @@ function scheduleSummary() {
 async function refreshSummary(toBottom: boolean): Promise<void> {
   if (!devBoardConfigured()) return
   const chat = env.DEV_BOARD_CHAT_ID!
-  const [active, doneToday, s] = await Promise.all([
+  const [active, doneToday, s, board] = await Promise.all([
     prisma.devBoardItem.findMany({ where: { status: { not: 'DONE' } }, orderBy: { id: 'asc' } }),
     prisma.devBoardItem.count({ where: { status: 'DONE', updatedAt: { gte: new Date(Date.now() - 86_400_000) } } }),
     settings(),
+    scores(),
   ])
-  const html = (icons: Icons) => summaryHtml(active, doneToday, chat, icons)
+  const html = (icons: Icons) => summaryHtml(active, doneToday, chat, icons, board)
   if (s.summaryId && !toBottom) {
     const edited = await richCall('editMessageText', { chat_id: chat, message_id: s.summaryId }, html)
     if (edited.ok || /not modified/i.test(edited.description ?? '')) return
@@ -313,6 +328,37 @@ export const DevBoard = {
     const recent = await prisma.devBoardItem.findMany({ where: { status: 'DONE' }, orderBy: { updatedAt: 'desc' }, take: 15 })
     return { active, recentDone: recent }
   },
+
+  // ── Рейтинг (ставит только владелец доски) ─────────────
+  /** Оценка за готовую карточку тому, кто её сделал. Повторная заменяет прежнюю. */
+  async rateItem(id: number, delta: number, by: string) {
+    const item = await prisma.devBoardItem.findUnique({ where: { id } })
+    if (!item || item.status !== 'DONE') throw new AppError(ErrorCode.CONFLICT, 'Оценить можно готовое', 409)
+    const who = personOf(item.doneBy ?? item.takenBy ?? '')
+    if (!who) throw new AppError(ErrorCode.CONFLICT, 'Непонятно, кто делал', 409)
+    await prisma.$transaction([
+      prisma.devScoreEvent.deleteMany({ where: { itemId: id } }),
+      prisma.devScoreEvent.create({ data: { who, delta, itemId: id, by, reason: `${label(item)}: ${item.title}`.slice(0, 200) } }),
+    ])
+    await render(item)
+    return { who, delta }
+  },
+
+  async rate(who: string, delta: number, reason: string | null, by: string) {
+    const name = personOf(who)
+    if (!name || !Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 100) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Пример: /rate Егор +5 за быстрый фикс', 422)
+    await prisma.devScoreEvent.create({ data: { who: name, delta, reason: reason?.slice(0, 200) || null, by } })
+    scheduleSummary()
+    return { who: name, delta }
+  },
+
+  async ratingToChat() {
+    const recent = await prisma.devScoreEvent.findMany({ orderBy: { createdAt: 'desc' }, take: 10 })
+    const board = await scores()
+    await richCall('sendRichMessage', { chat_id: env.DEV_BOARD_CHAT_ID }, icons => ratingHtml(board, recent, icons))
+  },
+
+  async scores() { return scores() },
 
   /** /board: сводка заново внизу общей темы и закреплена. */
   async summaryToBottom() { await refreshSummary(true) },

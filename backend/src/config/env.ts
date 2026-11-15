@@ -31,6 +31,8 @@ const EnvSchema = z.object({
   DEV_BOARD_TOKEN:    z.string().min(24).optional(),
   /** Имена в карточках: «ник_в_тг=Имя» через запятую. */
   DEV_BOARD_NAMES:    z.string().optional(),
+  /** Ник в Telegram того, кто ставит рейтинг разработчикам. */
+  DEV_BOARD_OWNER:    z.string().default('GroYvi'),
 
   // Почта игры (noreply@kooperativ.space на Beget): письма со ссылкой на
   // новый пароль. Необязательна: без неё ссылка уходит в бот администрации.

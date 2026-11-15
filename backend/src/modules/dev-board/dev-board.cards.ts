@@ -17,9 +17,11 @@ export const ICONS: Record<string, string> = {
   bolt: '6023761060786346622',
   brain: '6021733363776231718',
   open: '5807928135139728476',
+  rank: '6026121742315952530',
+  hot: '6021384767050618542',
 }
 const PLAIN: Record<string, string> = {
-  ok: '✅', undo: '↩️', start: '▶️', stop: '⏹', spark: '✨', list: '📋', user: '👤', chat: '💬', time: '🕐', gauge: '📊', bolt: '⚡', brain: '🧠', open: '🌐',
+  ok: '✅', undo: '↩️', start: '▶️', stop: '⏹', spark: '✨', list: '📋', user: '👤', chat: '💬', time: '🕐', gauge: '📊', bolt: '⚡', brain: '🧠', open: '🌐', rank: '📈', hot: '🔥',
 }
 
 export type Icons = Record<string, string>
@@ -45,7 +47,9 @@ function table(rows: [string, string, string][], icons: Icons): string {
 }
 
 /** Карточка: тикет пишется как «ник · тема» в title, текст игрока — в note. */
-export function cardHtml(item: DevBoardItem, icons: Icons, adminUrl?: string | null): string {
+const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
+
+export function cardHtml(item: DevBoardItem, icons: Icons, adminUrl?: string | null, rating?: number | null): string {
   const isTicket = item.ticketNumber != null
   const [who, ...subjectParts] = isTicket ? item.title.split(' · ') : ['', item.title]
   const subject = isTicket ? subjectParts.join(' · ') : item.title
@@ -59,6 +63,7 @@ export function cardHtml(item: DevBoardItem, icons: Icons, adminUrl?: string | n
       ['chat', isTicket ? 'Тема' : 'Что', esc(subject)],
       ['bolt', 'Статус', status],
       ['time', isTicket ? 'Пришло' : 'Заведено', `${since(item.createdAt)}${!isTicket && item.createdBy ? ` · ${esc(item.createdBy)}` : ''}`],
+      ...(item.status === 'DONE' && rating != null ? [['rank', 'Оценка', signed(rating)] as [string, string, string]] : []),
     ], icons),
   ]
   if (item.status !== 'DONE') {
@@ -75,6 +80,14 @@ export function cardHtml(item: DevBoardItem, icons: Icons, adminUrl?: string | n
   const free = item.status === 'TAKEN'
     ? button('callback_data', `${icon('stop', icons)} Отпустить`, 'danger', `free:${item.id}`)
     : button('disabled', `${icon('stop', icons)} Отпустить`)
+  if (item.status === 'DONE') {
+    // Оценка исполнителю: засчитывается только владельцу доски, повторное нажатие заменяет прежнюю.
+    parts.push(row(
+      button('callback_data', `${icon('hot', icons)} +3`, rating === 3 ? 'success' : undefined, `rate:${item.id}:3`),
+      button('callback_data', '+1', rating === 1 ? 'success' : undefined, `rate:${item.id}:1`),
+      button('callback_data', '−1', rating === -1 ? 'danger' : undefined, `rate:${item.id}:-1`),
+    ))
+  }
   parts.push(item.status === 'DONE'
     ? row(button('callback_data', `${icon('undo', icons)} Вернуть в работу`, undefined, `free:${item.id}`))
     : row(take, done, free))
@@ -90,7 +103,7 @@ export function messageLink(chatId: string, messageId: number | null): string | 
 }
 
 /** Закреплённая сводка доски: сколько свободно и у кого что. */
-export function summaryHtml(active: DevBoardItem[], doneToday: number, chatId: string, icons: Icons): string {
+export function summaryHtml(active: DevBoardItem[], doneToday: number, chatId: string, icons: Icons, scores: { who: string; total: number }[] = []): string {
   const free = active.filter(item => item.status === 'OPEN')
   const taken = active.filter(item => item.status === 'TAKEN')
   const byWho = new Map<string, number>()
@@ -107,9 +120,19 @@ export function summaryHtml(active: DevBoardItem[], doneToday: number, chatId: s
       ['spark', 'Свободно', String(free.length)],
       ...[...byWho.entries()].map(([who, n]) => ['user', `У ${esc(who)}`, String(n)] as [string, string, string]),
       ['ok', 'Готово за сутки', String(doneToday)],
+      ...(scores.length ? [['rank', 'Рейтинг', scores.map(s => `${esc(s.who)} ${s.total}`).join(' · ')] as [string, string, string]] : []),
     ], icons),
     free.length ? `<h4>${icon('spark', icons)} Свободно</h4><ul>${free.map(item => line(item, false)).join('')}</ul>` : '',
     taken.length ? `<h4>${icon('user', icons)} В работе</h4><ul>${taken.map(item => line(item, true)).join('')}</ul>` : '',
     `<p><i>Обновлено ${`<tg-time unix="${Math.floor(Date.now() / 1000)}" format="r">только что</tg-time>`}</i></p>`,
+  ].join('')
+}
+
+/** /rating: очки и последние оценки с причинами. */
+export function ratingHtml(scores: { who: string; total: number }[], recent: { who: string; delta: number; reason: string | null; createdAt: Date }[], icons: Icons): string {
+  return [
+    `<h3>${icon('rank', icons)} Рейтинг</h3>`,
+    scores.length ? table(scores.map(s => ['user', esc(s.who), String(s.total)] as [string, string, string]), icons) : '<p>Оценок пока нет.</p>',
+    recent.length ? `<h4>Последние оценки</h4><ul>${recent.map(r => `<li><b>${signed(r.delta)}</b> ${esc(r.who)}${r.reason ? ` · ${esc(r.reason)}` : ''} · ${since(r.createdAt)}</li>`).join('')}</ul>` : '',
   ].join('')
 }
