@@ -141,8 +141,10 @@ describe('city locations and purchases', () => {
   })
   it('донатная собака за доллары: свои очки распределяет игрок, снаряжение даёт бонус', async () => {
     const p = await player()
+    // Малинуа 100 $ (Дима 15.11): денег с запасом на снаряжение ниже.
+    await testPrisma.character.update({ where: { id: p.character.id }, data: { dollars: 300 } })
     const { pet } = await CityService.buyPet(p.character.id, 'malinois', randomUUID())
-    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).dollars).toBe(100 - 25)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).dollars).toBe(300 - 100)
     await CityService.allocateDog(p.character.id, pet.id, 'str', 1)
     await CityService.allocateDog(p.character.id, pet.id, 'str', 1)
     await CityService.allocateDog(p.character.id, pet.id, 'luck', 1)
