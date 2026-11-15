@@ -17,6 +17,7 @@ import { prisma } from '../../shared/db/prisma'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { logger } from '../../shared/logger/logger'
+import { ICONS, cardHtml, summaryHtml, type Icons } from './dev-board.cards'
 
 export function devBoardConfigured(): boolean {
   return Boolean(env.TELEGRAM_BOT_TOKEN && env.DEV_BOARD_CHAT_ID && env.DEV_BOARD_TOKEN)
@@ -55,37 +56,110 @@ async function tg<T = unknown>(method: string, body: Record<string, unknown>): P
 
 const label = (item: DevBoardItem) => (item.ticketNumber ? `Обращение №${item.ticketNumber}` : `Задача ${item.id}`)
 
-function statusLine(item: DevBoardItem): string {
-  if (item.status === 'TAKEN') return `🔧 в работе: <b>${escape(item.takenBy ?? '')}</b>`
-  if (item.status === 'DONE') return `✅ готово${item.doneBy ? `: ${escape(item.doneBy)}` : ''}`
-  return '🟡 свободно'
+// ── Настройки доски: темы группы, сводка, запасные значки ──────────
+type BoardSettings = { ticketsTopic?: number; tasksTopic?: number; summaryId?: number; noIcons?: boolean }
+const SETTINGS_KEY = 'dev_board'
+
+async function settings(): Promise<BoardSettings> {
+  const row = await prisma.siteSetting.findUnique({ where: { key: SETTINGS_KEY } })
+  return (row?.value as BoardSettings | undefined) ?? {}
+}
+async function saveSettings(patch: BoardSettings): Promise<BoardSettings> {
+  const next = { ...(await settings()), ...patch }
+  await prisma.siteSetting.upsert({ where: { key: SETTINGS_KEY }, update: { value: next }, create: { key: SETTINGS_KEY, value: next } })
+  return next
 }
 
-function cardText(item: DevBoardItem): string {
-  return [
-    `<b>${label(item)}</b> · ${escape(item.title)}`,
-    item.note ? escape(item.note) : '',
-    statusLine(item),
-  ].filter(Boolean).join('\n\n')
+/** Темы «Обращения» и «Задачи». Нет прав на темы — всё идёт в общую. Создали впервые — старые карточки переезжают. */
+async function ensureTopics(): Promise<BoardSettings> {
+  const current = await settings()
+  if (current.ticketsTopic && current.tasksTopic) return current
+  const make = async (name: string, color: number) => (await tg<{ message_thread_id: number }>('createForumTopic', { chat_id: env.DEV_BOARD_CHAT_ID, name, icon_color: color })).result?.message_thread_id
+  const ticketsTopic = current.ticketsTopic ?? await make('Обращения', 0x6FB9F0)
+  const tasksTopic = current.tasksTopic ?? await make('Задачи', 0xFFD67E)
+  if (!ticketsTopic || !tasksTopic) {
+    if (ticketsTopic || tasksTopic) await saveSettings({ ticketsTopic, tasksTopic })
+    return current
+  }
+  const next = await saveSettings({ ticketsTopic, tasksTopic })
+  // Переезд: старые карточки из общей темы убираем, активные пришлём в свои темы.
+  const old = await prisma.devBoardItem.findMany({ where: { messageId: { not: null } } })
+  for (const item of old) await tg('deleteMessage', { chat_id: env.DEV_BOARD_CHAT_ID, message_id: item.messageId })
+  await prisma.devBoardItem.updateMany({ where: { messageId: { not: null } }, data: { messageId: null } })
+  for (const item of await prisma.devBoardItem.findMany({ where: { status: { not: 'DONE' } }, orderBy: { id: 'asc' } })) await render(item)
+  return next
 }
 
-function keyboard(item: DevBoardItem) {
-  if (item.status === 'OPEN') return { inline_keyboard: [[{ text: 'Беру', callback_data: `take:${item.id}` }]] }
-  if (item.status === 'TAKEN') return { inline_keyboard: [[{ text: 'Готово', callback_data: `done:${item.id}` }, { text: 'Отпустить', callback_data: `free:${item.id}` }]] }
-  return { inline_keyboard: [[{ text: 'Вернуть в работу', callback_data: `free:${item.id}` }]] }
+const ICON_ERRORS = /not modified|not found|can't be edited|can't be deleted|MESSAGE_ID_INVALID/i
+
+/** Rich-сообщение со значками; не приняли значки — то же без них, и больше не пробуем. */
+async function richCall<T>(method: string, base: Record<string, unknown>, html: (icons: Icons) => string) {
+  const s = await settings()
+  const body = (icons: Icons) => ({ ...base, rich_message: { html: html(icons), skip_entity_detection: true } })
+  const first = await tg<T>(method, body(s.noIcons ? {} : ICONS))
+  if (first.ok || s.noIcons || ICON_ERRORS.test(first.description ?? '')) return first
+  const plain = await tg<T>(method, body({}))
+  if (plain.ok) await saveSettings({ noIcons: true })
+  return plain
 }
 
-/** Карточка в группе: новая — отправить, есть — обновить на месте. */
+const REACTION: Record<string, string | null> = { OPEN: null, TAKEN: '👨‍💻', DONE: '💯' }
+
+/** Карточка в своей теме: новая — отправить, есть — поправить на месте. */
 async function render(item: DevBoardItem): Promise<void> {
   if (!devBoardConfigured()) return
-  const body = { chat_id: env.DEV_BOARD_CHAT_ID, text: cardText(item), parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: keyboard(item) }
-  if (item.messageId) {
-    const edited = await tg('editMessageText', { ...body, message_id: item.messageId })
-    // «message is not modified» — не ошибка; удалённую карточку шлём заново.
+  const s = await ensureTopics()
+  const chat = env.DEV_BOARD_CHAT_ID!
+  let messageId = item.messageId
+  if (messageId) {
+    const edited = await richCall('editMessageText', { chat_id: chat, message_id: messageId }, icons => cardHtml(item, icons))
+    if (!edited.ok && !/not modified/i.test(edited.description ?? '')) {
+      // Старое простое сообщение или удалено: убираем и шлём заново.
+      await tg('deleteMessage', { chat_id: chat, message_id: messageId })
+      messageId = null
+    }
+  }
+  if (!messageId) {
+    const topic = item.ticketNumber ? s.ticketsTopic : s.tasksTopic
+    const sent = await richCall<{ message_id: number }>('sendRichMessage', { chat_id: chat, ...(topic ? { message_thread_id: topic } : {}) }, icons => cardHtml(item, icons))
+    if (!sent.ok || !sent.result) return
+    messageId = sent.result.message_id
+    await prisma.devBoardItem.update({ where: { id: item.id }, data: { messageId } })
+  }
+  const emoji = REACTION[item.status]
+  await tg('setMessageReaction', { chat_id: chat, message_id: messageId, reaction: emoji ? [{ type: 'emoji', emoji }] : [] })
+  scheduleSummary()
+}
+
+// ── Закреплённая сводка в общей теме ──────────────────────────────
+let summaryTimer: NodeJS.Timeout | null = null
+let summaryRunning: Promise<void> = Promise.resolve()
+function scheduleSummary() {
+  if (summaryTimer) clearTimeout(summaryTimer)
+  summaryTimer = setTimeout(() => {
+    summaryTimer = null
+    summaryRunning = summaryRunning.then(() => refreshSummary(false)).catch(err => logger.warn({ err }, '[DevBoard] сводка'))
+  }, 1500)
+}
+
+async function refreshSummary(toBottom: boolean): Promise<void> {
+  if (!devBoardConfigured()) return
+  const chat = env.DEV_BOARD_CHAT_ID!
+  const [active, doneToday, s] = await Promise.all([
+    prisma.devBoardItem.findMany({ where: { status: { not: 'DONE' } }, orderBy: { id: 'asc' } }),
+    prisma.devBoardItem.count({ where: { status: 'DONE', updatedAt: { gte: new Date(Date.now() - 86_400_000) } } }),
+    settings(),
+  ])
+  const html = (icons: Icons) => summaryHtml(active, doneToday, chat, icons)
+  if (s.summaryId && !toBottom) {
+    const edited = await richCall('editMessageText', { chat_id: chat, message_id: s.summaryId }, html)
     if (edited.ok || /not modified/i.test(edited.description ?? '')) return
   }
-  const sent = await tg<{ message_id: number }>('sendMessage', body)
-  if (sent.ok && sent.result) await prisma.devBoardItem.update({ where: { id: item.id }, data: { messageId: sent.result.message_id } })
+  if (s.summaryId) await tg('deleteMessage', { chat_id: chat, message_id: s.summaryId })
+  const sent = await richCall<{ message_id: number }>('sendRichMessage', { chat_id: chat }, html)
+  if (!sent.ok || !sent.result) return
+  await saveSettings({ summaryId: sent.result.message_id })
+  await tg('pinChatMessage', { chat_id: chat, message_id: sent.result.message_id, disable_notification: true })
 }
 
 const snippet = (text: string, max = 400) => (text.length > max ? `${text.slice(0, max)}…` : text)
@@ -114,10 +188,13 @@ export const DevBoard = {
       })
       if (item.status === 'DONE') item = await prisma.devBoardItem.update({ where: { id: item.id }, data: { status: 'OPEN', takenBy: null, doneBy: null } })
       await render(item)
+      const fresh = await prisma.devBoardItem.findUnique({ where: { id: item.id } })
+      const topic = (await settings()).ticketsTopic
       await tg('sendMessage', {
         chat_id: env.DEV_BOARD_CHAT_ID, parse_mode: 'HTML',
         text: `${ticket.reopened ? 'Игрок открыл снова' : 'Игрок дописал в'} №${ticket.number}:\n${escape(snippet(ticket.text))}`,
-        ...(item.messageId ? { reply_to_message_id: item.messageId, allow_sending_without_reply: true } : {}),
+        ...(topic ? { message_thread_id: topic } : {}),
+        ...(fresh?.messageId ? { reply_parameters: { message_id: fresh.messageId, allow_sending_without_reply: true } } : {}),
       })
     })
   },
@@ -199,6 +276,9 @@ export const DevBoard = {
     const recent = await prisma.devBoardItem.findMany({ where: { status: 'DONE' }, orderBy: { updatedAt: 'desc' }, take: 15 })
     return { active, recentDone: recent }
   },
+
+  /** /board: сводка заново внизу общей темы и закреплена. */
+  async summaryToBottom() { await refreshSummary(true) },
 
   /** Текст для /board в группе. */
   async boardText(): Promise<string> {

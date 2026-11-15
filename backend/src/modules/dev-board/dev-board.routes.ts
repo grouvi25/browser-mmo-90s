@@ -71,7 +71,7 @@ export async function devBoardRoutes(fastify: FastifyInstance): Promise<void> {
           if (title) await DevBoard.addTask(title, devName(msg.from))
           else await tgCall('sendMessage', { chat_id: env.DEV_BOARD_CHAT_ID, text: 'Напишите так: /task что сделать' })
         } else if (name === '/board') {
-          await tgCall('sendMessage', { chat_id: env.DEV_BOARD_CHAT_ID, text: await DevBoard.boardText(), parse_mode: 'HTML', disable_web_page_preview: true })
+          await DevBoard.summaryToBottom()
         }
       }
     } catch (err) {
