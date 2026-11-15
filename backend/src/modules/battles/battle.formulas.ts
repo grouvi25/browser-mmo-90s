@@ -327,6 +327,17 @@ export function calcRawDamage(
 // Чем выше уровень защитника, тем больше брони нужно на ту же защиту:
 // вещи растут с уровнем, и броня не должна обнулять удары.
 // ---------------------------------------------------------------
+/**
+ * Броня единицами (Дима 15.11): «100 брони это не в %, может быть 5000 брони
+ * в каждом месте; количество брони сокращает урон или силу». Броня зоны плюс
+ * половина выносливости вычитается из удара, как урон и сила прибавляются.
+ * Броня больше удара — удар в ноль: непробиваемый танк возможен.
+ */
+export function calcArmorFlat(armor: number, defenderEnd: number): number {
+  return Math.max(0, armor) + B.strike.endArmor * Math.max(0, defenderEnd)
+}
+
+/** Прежняя доля урона после брони (до 15.11), осталась для примеров в админке. */
 export function calcArmorShare(armor: number, defenderEnd: number, defenderLevel = 1): number {
   const C = B.strike
   const total = Math.max(0, armor) + C.endArmor * Math.max(0, defenderEnd)
@@ -481,12 +492,13 @@ export function resolveZonalAttack(
   rawDamage = incomingForce * critMult
   if (crit) log.push('КРИТ!')
 
-  // 6. Броня зоны с половиной выносливости, вес брони — от уровня защитника,
-  //    затем разброс ±10%. Книга: INT(База × ДоляПослеБрони × Разброс × крит),
-  //    и масштаб под наши вещи и здоровье.
-  const dmg = rawDamage * calcArmorShare(zoneArmor, defender.end, defender.level) * calcSpread(rng) * B.strike.damageScale
+  // 6. Броня зоны с половиной выносливости вычитается из удара (Дима 15.11),
+  //    затем разброс ±10% и масштаб под наши вещи и здоровье.
+  const dmg = Math.max(0, rawDamage - calcArmorFlat(zoneArmor, defender.end)) * calcSpread(rng) * B.strike.damageScale
 
-  finalDamage = Math.max(B.damage.minFinalDamage, Math.floor(dmg * (defender.incomingDamageMultiplier ?? 1)))
+  // Броня или защита 250% могут свести удар в ноль — это норма (Дима 15.11).
+  const afterDefense = dmg * (defender.incomingDamageMultiplier ?? 1)
+  finalDamage = afterDefense <= 0 ? 0 : Math.max(B.damage.minFinalDamage, Math.floor(afterDefense))
   log.push(`Удар в ${zoneName}: ${finalDamage}`)
   return base()
 }

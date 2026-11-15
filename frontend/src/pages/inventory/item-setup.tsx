@@ -175,7 +175,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
 
       <div className="inv-setup__groups">
         {ownStats.length > 0 && <Section title="Сама вещь">
-          {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${perDamage}` : hint} min={0} disabled={busy} value={own[key] ?? 0}
+          {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${perDamage}` : key === 'ARMOR' ? `+${item.armorPerPoint ?? 5} брони` : hint} min={0} disabled={busy} value={own[key] ?? 0}
             onChange={value => setOwn(prev => ({ ...prev, [key]: value }))} />)}
           {damage && <small className={'inv-setup__damage' + (inverted ? ' is-over' : '')}>{inverted
             ? `Мин. урон ${damage.min} выше макс. ${damage.max}: очки урона делятся между ними, например 50–50 или 0–100`

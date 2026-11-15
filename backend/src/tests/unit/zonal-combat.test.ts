@@ -201,9 +201,8 @@ describe('resolveZonalAttack: удачный удар пробивает бло�
     })
     expect(r.blockPierced).toBe(true)
     expect(r.block).toBe(false)
-    // огромная броня зоны проигнорирована lucky-ударом → урон существенный
-    expect(r.finalDamage).toBeLessThan(20)
-    expect(r.finalDamage).toBeGreaterThanOrEqual(1)
+    // Дима 15.11: броня единицами; 1000 брони больше удара — танка не пробить, урон 0
+    expect(r.finalDamage).toBe(0)
   })
 })
 

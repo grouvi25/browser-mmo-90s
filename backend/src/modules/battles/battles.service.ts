@@ -25,7 +25,7 @@ import {
   type AttackerSnapshot,
   type DefenderSnapshot,
   type ZonalAttackResult,
-  calcArmorShare,
+  calcArmorFlat,
 } from './battle.formulas'
 import { decayedAlcohol, intoxicationModifiers } from '../bars/bars.formulas'
 import { pairBattlesToday, repeatBattleCoeff } from '../antiabuse/antiabuse.limits'
@@ -69,7 +69,7 @@ import {
 } from '../stats/stats.formulas'
 import { withPetBonus } from '../city/city.config'
 import { BalanceConfig } from '../../config/balance.config'
-import { healAmount, EMPTY_GEAR, charmBalance, gearOf, withGearStats, type GearBonuses, MASTERY_DAMAGE_CAP, MASTERY_DEFENSE_CAP, masteryBalance } from '../items/gear-bonuses'
+import { healAmount, EMPTY_GEAR, charmBalance, gearOf, withGearStats, type GearBonuses, MASTERY_DAMAGE_CAP, masteryBalance } from '../items/gear-bonuses'
 import type { CharacterWithStats } from '../characters/characters.repository'
 import type { ItemWithTemplate } from '../items/item-instance.repository'
 import { applyBattleProgression } from '../experience/progression'
@@ -516,7 +516,9 @@ export function buildDefenderSnapshot(
     antiCounterDefense: 0, antiLuck,
     luckCharmEdge: gear.antiLuck - opponentGear.minus.antiLuck,
     critCharmEdge: effectiveArmor.reduce((sum, a) => sum + Math.max(0, a.antiCrit), 0) + (gear.antiCrit - armorAntiCritBase) - opponentGear.minus.antiCrit,
-    incomingDamageMultiplier: (1 - Math.min(MASTERY_DEFENSE_CAP, masteryBalance(gear, opponentGear, 'defense'))) * (1 - buffs.resist),
+    // Дима 15.11: мастерство защиты как оберег — своё минус минус-защита противника,
+    // 250% = урон в ноль, меньше — пропорционально.
+    incomingDamageMultiplier: (1 - Math.min(1, masteryBalance(gear, opponentGear, 'defense') / (BalanceConfig.strike.defenseFullAt ?? 2.5))) * (1 - buffs.resist),
     minDamage: wMin, maxDamage: wMax,
   }
 }
@@ -2510,7 +2512,7 @@ export const BattleService = {
               const zone = BODY_ZONES[Math.floor(Math.random() * BODY_ZONES.length)]
               const armor = armorOfZone(armorListFromEquipped(victimCtx.armor, victimCtx.char), zone)
               hit.rawDamage = hit.damage
-              hit.damage = Math.max(1, Math.floor(hit.damage * calcArmorShare(armor, 0, victimCtx.char.battleLevel)))
+              hit.damage = Math.max(0, Math.floor(hit.damage - calcArmorFlat(armor, 0) * BalanceConfig.strike.damageScale))
               hit.zone = zone
               const zones = hitZones.get(targetId) ?? []
               zones.push(zone)

@@ -35,11 +35,11 @@ describe('Именные вещи: столбики, уровни, картин�
   beforeEach(async () => cleanDatabase())
   afterAll(async () => testPrisma.$disconnect())
 
-  it('очко всегда что-то добавляет: броня 3 и урон 0 растут', () => {
-    expect(applyUpgradeModifiers({ armor: 3, durabilityMax: 100 }, { ARMOR: 1 }).armor).toBe(4)
+  it('очко всегда что-то добавляет: броня единицами (Дима 15.11), урон 0 растёт', () => {
+    // Очко брони = 5 единиц брони, как очко урона = 5 урона.
+    expect(applyUpgradeModifiers({ armor: 3, durabilityMax: 100 }, { ARMOR: 1 }).armor).toBe(8)
     expect(applyUpgradeModifiers({ minDamage: 0, maxDamage: 0, durabilityMax: 100 }, { DAMAGE: 2 }).maxDamage).toBe(2)
-    // Большая база считается процентом, как раньше.
-    expect(applyUpgradeModifiers({ armor: 100, durabilityMax: 100 }, { ARMOR: 2 }).armor).toBe(112)
+    expect(applyUpgradeModifiers({ armor: 100, durabilityMax: 100 }, { ARMOR: 2 }).armor).toBe(110)
   })
 
   it('сохраняет весь расклад: минус на стате и минус-оберег не возвращают очки', async () => {
@@ -60,7 +60,8 @@ describe('Именные вещи: столбики, уровни, картин�
     expect(gear.minus.antiDodge).toBeCloseTo(0.25)
     expect(gear.mastery.fist).toBeCloseTo(0.25)
     expect(gear.minusMastery.defense).toBeCloseTo(0.1)
-    expect(applyUpgradeModifiers(row.template, {}, row.statAllocation).armor).toBe(13)
+    // база 3 + 10 очков × 5 брони (Дима 15.11: броня единицами)
+    expect(applyUpgradeModifiers(row.template, {}, row.statAllocation).armor).toBe(53)
   })
 
   it('у вещи ЦУМа нет блока «Сама вещь»', async () => {
