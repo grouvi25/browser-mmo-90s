@@ -438,14 +438,27 @@ export function resolveZonalAttack(
   // 1. Уворот (заменяет «промах»)
   const hitChance = calcHitChance(attacker, defender)
   dodge = rng() >= hitChance
+  // Ловкач (Nobody и Дима 15.11): 100% уворот даёт перевес ловкости или оберега
+  // уворота, но если у бьющего минус-оберег крита больше оберега крита ловкача
+  // и агрессия выше, крит может пройти сквозь уворот — с шансом обычного крита.
+  // То же с удачным: минус-оберег удачи больше и фарт выше.
+  let forcedCrit = false, forcedLucky = false
   if (dodge) {
-    hit = false
-    log.push(`Уворот (${zoneName})`)
-    return base()
+    const critOpen = (defender.critCharmEdge ?? 0) < 0 && (attacker.agr ?? 0) > (defender.agr ?? 0)
+    const luckOpen = (defender.luckCharmEdge ?? 0) < 0 && (attacker.luck ?? 0) > (defender.luck ?? 0)
+    if (critOpen && rng() < calcCritChance(attacker, defender)) forcedCrit = true
+    else if (luckOpen && rng() < calcLuckyPierceChance(attacker, defender)) forcedLucky = true
+    if (!forcedCrit && !forcedLucky) {
+      hit = false
+      log.push(`Уворот (${zoneName})`)
+      return base()
+    }
+    dodge = false
+    log.push(forcedCrit ? 'Крит сквозь уворот!' : 'Удачный сквозь уворот!')
   }
 
   // 2. «Удачный удар» — определяем заранее: он пробивает одиночный блок.
-  lucky = rng() < calcLuckyPierceChance(attacker, defender)
+  lucky = forcedLucky || rng() < calcLuckyPierceChance(attacker, defender)
 
   // Incoming force is rolled once and also defines bounded counterattack damage.
   const incomingForce = calcRawDamage(attacker, defender.antiSkillLevel, rng)
@@ -483,7 +496,7 @@ export function resolveZonalAttack(
 
   // 4. Крит
   const critChance = calcCritChance(attacker, defender)
-  crit = rng() < critChance
+  crit = forcedCrit || rng() < critChance
   const critMult = crit
     ? clamp(BalanceConfig.crit.multiplierBase + attacker.critDamageBonus, BalanceConfig.crit.multiplierMin, BalanceConfig.crit.multiplierMax)
     : 1

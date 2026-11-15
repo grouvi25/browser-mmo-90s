@@ -72,7 +72,7 @@ describe('админка: новая вещь', () => {
     expect((await create({ item: { ...knife, weaponType: 'KNIFE', minDamage: 9 }, reason: REASON })).json()).toMatchObject({ message: expect.stringMatching(/больше/) })
     const overBudget = { ...knife, weaponType: 'KNIFE', statBudget: 3, allocationMode: 'FIXED', statAllocation: { DAMAGE: 2, CRIT: 2 } }
     expect((await create({ item: overBudget, reason: REASON })).json()).toMatchObject({ message: expect.stringMatching(/Расставлено 4/) })
-    const wrongStat = { ...knife, weaponType: 'KNIFE', statBudget: 3, allocationMode: 'FIXED', statAllocation: { ARMOR: 1 } }
+    const wrongStat = { ...knife, weaponType: 'KNIFE', statBudget: 3, allocationMode: 'FIXED', statAllocation: { ANTI_CRIT: 1 } }
     expect((await create({ item: wrongStat, reason: REASON })).statusCode).toBe(422)
     // Заказчик 26.10: «пишет Валидейшн эррор» — теперь сказано, какое поле и что не так.
     const bad = await create({ item: { ...boots, priceBase: 99.5, dodgeBonus: 3 }, reason: REASON })

@@ -20,7 +20,8 @@ describe('ItemStatsService TZ 2.2', () => {
     const result = await ItemStatsService.allocate(character.id, item.id, 'DAMAGE', 2)
     expect(result).toMatchObject({ freePoints: 1, statAllocation: { DAMAGE: 2 } })
     expect(await testPrisma.itemLog.count({ where: { itemId: item.id, actionCode: 'POINTS_ALLOCATED' } })).toBe(1)
-    await expect(ItemStatsService.allocate(character.id, item.id, 'ARMOR', 1)).rejects.toMatchObject({ statusCode: 422 })
+    // 15.11: броня в оружие теперь можно, защита от крита — нет.
+    await expect(ItemStatsService.allocate(character.id, item.id, 'ANTI_CRIT', 1)).rejects.toMatchObject({ statusCode: 422 })
     await expect(ItemStatsService.allocate(character.id, item.id, 'DAMAGE', 2)).rejects.toMatchObject({ statusCode: 409 })
   })
 })

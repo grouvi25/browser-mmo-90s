@@ -235,7 +235,7 @@ export function BattleGrid({
               {lastEvent.actor === 'player' ? playerName : enemyName}
             </span>
             <span style={{ color: e.color, fontWeight: 'bold', fontSize: 12.75 }}>{e.label}</span>
-            {lastEvent.finalDamage > 0 && (
+            {(lastEvent.finalDamage > 0 || (lastEvent.hit && !lastEvent.block && !lastEvent.dodge)) && (
               <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 12.75 }}>
                 -{lastEvent.finalDamage} HP
               </span>

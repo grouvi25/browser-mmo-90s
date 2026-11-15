@@ -84,12 +84,20 @@ export function budgetAfterSwaps(
 export interface EquipArmorLike {
   armor: number
   slot: ArmorSlot | null | undefined
+  /** Вещь без своей зоны (кольцо, амулет, оружие): броня поровну на все зоны (15.11). */
+  spread?: boolean
 }
+
+/** Слоты, которые закрывают конкретную зону тела. */
+export const BODY_ARMOR_SLOTS = new Set<ArmorSlot>(['HEAD', 'CHEST', 'BACK', 'BELT', 'RIGHT_HAND', 'GLOVES', 'HANDS', 'LEGS', 'FEET'])
+/** Пять зон, на которые делится броня вещи без своей зоны. */
+export const SPREAD_ZONES = 5
 
 // Суммарная броня зоны = сумма armor всех предметов в слотах этой зоны.
 export function armorOfZone(equipped: EquipArmorLike[], zone: BodyZone): number {
   const slots = ZONE_ARMOR_SLOTS[zone]
   return equipped.reduce((sum, it) => {
+    if (it.spread) return sum + (it.armor ?? 0) / SPREAD_ZONES
     if (it.slot && slots.includes(it.slot)) return sum + (it.armor ?? 0)
     return sum
   }, 0)

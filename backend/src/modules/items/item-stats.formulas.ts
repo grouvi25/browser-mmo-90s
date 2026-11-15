@@ -20,13 +20,16 @@ export function bonusCost(bonuses: ItemBonuses): number {
   return sum(bonuses.stats) + sum(bonuses.mastery) + sum(bonuses.minusMastery) + sum(bonuses.charms) + sum(bonuses.minusCharms)
 }
 export function allowedItemStats(itemType: string): ItemStatKey[] {
-  if (itemType === 'WEAPON') return ['DAMAGE', 'MIN_DAMAGE', 'MAX_DAMAGE', 'ACCURACY', 'CRIT']
+  // 15.11 (Nobody, Дима): броню можно вкладывать в любую вещь.
+  if (itemType === 'WEAPON') return ['DAMAGE', 'MIN_DAMAGE', 'MAX_DAMAGE', 'ACCURACY', 'CRIT', 'ARMOR']
   if (itemType === 'ARMOR' || itemType === 'SHIELD') return ['ARMOR', 'ANTI_CRIT']
+  if (itemType === 'ACCESSORY') return ['ARMOR']
   return []
 }
 /** Что из «Самой вещи» можно вписать в именную вещь: только урон оружия (№89). */
 export function namedItemStats(itemType: string): ItemStatKey[] {
-  return itemType === 'WEAPON' ? ['MIN_DAMAGE', 'MAX_DAMAGE'] : []
+  // 15.11: в именную вещь ещё и броня — в любую.
+  return itemType === 'WEAPON' ? ['MIN_DAMAGE', 'MAX_DAMAGE', 'ARMOR'] : ['ARMOR']
 }
 export function normalizeAllocation(value: unknown): ItemStatAllocation {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}

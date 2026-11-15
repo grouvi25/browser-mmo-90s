@@ -50,7 +50,8 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
   // стволов рука нужна — «выстрел с левой в корпус, −12 HP», «выстрел с правой …».
   const hand = !turn.sourceHand ? '' : !turn.ranged ? ` ${HAND[turn.sourceHand]}` : turn.bothHands ? ` с ${HAND[turn.sourceHand]}` : ''
   const attack = turn.ranged ? 'выстрел' : 'удар'
-  const damage = turn.finalDamage > 0 ? `, −${turn.finalDamage} HP` : ''
+  // Дима 15.11: попадание, которое броня или защита свели в ноль, тоже видно («−0 HP»).
+  const damage = turn.finalDamage > 0 || (turn.hit && !turn.block && !turn.dodge) ? `, −${turn.finalDamage} HP` : ''
   switch (turn.action) {
     // «Походил, ударил» (правка заказчика 22.10): шаг — отдельной строкой.
     case 'MOVE': return { kind: 'move', text: 'делает шаг' }

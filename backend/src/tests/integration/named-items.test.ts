@@ -64,9 +64,10 @@ describe('Именные вещи: столбики, уровни, картин�
     expect(applyUpgradeModifiers(row.template, {}, row.statAllocation).armor).toBe(53)
   })
 
-  it('у вещи ЦУМа нет блока «Сама вещь»', async () => {
+  it('у вещи ЦУМа из «Самой вещи» только урон и броня (15.11)', async () => {
     const { character, item } = await named()
-    await expect(ItemStatsService.configure(character.id, item.id, { ARMOR: 1 }, none())).rejects.toMatchObject({ statusCode: 422 })
+    await expect(ItemStatsService.configure(character.id, item.id, { ANTI_CRIT: 1 }, none())).rejects.toMatchObject({ statusCode: 422 })
+    expect((await ItemStatsService.configure(character.id, item.id, { ARMOR: 1 }, none())).statAllocation).toMatchObject({ ARMOR: 1 })
     await expect(ItemStatsService.allocate(character.id, item.id, 'ARMOR', 1)).rejects.toMatchObject({ statusCode: 409 })
   })
 
@@ -136,7 +137,8 @@ describe('Именные вещи: столбики, уровни, картин�
 
   it('кольцо настраивается: раньше очки в него было не вложить', async () => {
     const { character, item } = await named({ type: 'ACCESSORY', budget: 100 })
-    await expect(ItemStatsService.configure(character.id, item.id, { ARMOR: 1 }, none())).rejects.toMatchObject({ statusCode: 422 })
+    // 15.11: в кольцо можно вложить броню, а защиту от крита — нельзя.
+    await expect(ItemStatsService.configure(character.id, item.id, { ANTI_CRIT: 1 }, none())).rejects.toMatchObject({ statusCode: 422 })
     const saved = await ItemStatsService.configure(character.id, item.id, {}, { ...none(), charms: { antiLuck: 10 } })
     expect(saved.freePoints).toBe(90)
   })

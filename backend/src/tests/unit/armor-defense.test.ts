@@ -34,3 +34,12 @@ describe('броня единицами и мастерство защиты', (
     expect(half).toBeLessThan(full * 0.6)
   })
 })
+
+describe('броня вещи без своей зоны (15.11)', () => {
+  it('кольцо и оружие делят броню поровну на 5 зон, нательная вещь — в свою зону', async () => {
+    const { armorOfZone } = await import('../../modules/battles/zones')
+    const list = [{ armor: 100, slot: 'RING' as const, spread: true }, { armor: 40, slot: 'CHEST' as const }, { armor: 50, slot: null, spread: true }]
+    expect(armorOfZone(list, 'CHEST')).toBe(40 + 20 + 10)
+    expect(armorOfZone(list, 'HEAD')).toBe(20 + 10)
+  })
+})

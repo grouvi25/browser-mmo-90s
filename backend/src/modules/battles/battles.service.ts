@@ -31,6 +31,7 @@ import { decayedAlcohol, intoxicationModifiers } from '../bars/bars.formulas'
 import { pairBattlesToday, repeatBattleCoeff } from '../antiabuse/antiabuse.limits'
 import {
   armorOfZone,
+  BODY_ARMOR_SLOTS,
   BODY_ZONES,
   botArmorOfZone,
   legacyActionToTurn,
@@ -527,12 +528,18 @@ export function buildDefenderSnapshot(
 // Zonal helpers
 // ---------------------------------------------------------------
 // Преобразуем экипированную броню в форму для расчёта брони по зоне.
-export function armorListFromEquipped(equippedArmor: ItemWithTemplate[], char?: { activeEffects?: unknown }): EquipArmorLike[] {
+export function armorListFromEquipped(equippedArmor: ItemWithTemplate[], char?: { activeEffects?: unknown }, weapons: (ItemWithTemplate | null | undefined)[] = []): EquipArmorLike[] {
   const armorBuff = 1 + buffTotals(parseActiveEffects(char?.activeEffects)).armor
-  return equippedArmor.map(it => ({
-    armor: armorBuff * applyUpgradeModifiers(it.template, ((it.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), it.statAllocation, it.socketsJson).armor,
-    slot: it.armorSlot ?? it.template.armorSlot ?? null,
-  }))
+  const armorOf = (it: ItemWithTemplate) => armorBuff * applyUpgradeModifiers(it.template, ((it.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}), it.statAllocation, it.socketsJson).armor
+  // 15.11 (Nobody, Дима): броня вкладывается в любую вещь. У кольца, амулета и
+  // оружия своей зоны нет — их броня делится поровну на все зоны тела.
+  const worn = equippedArmor.map(it => {
+    const slot = it.armorSlot ?? it.template.armorSlot ?? null
+    return { armor: armorOf(it), slot, spread: !slot || !BODY_ARMOR_SLOTS.has(slot) }
+  })
+  const held = weapons.filter((it): it is ItemWithTemplate => !!it && it.template.type === 'WEAPON')
+    .map(it => ({ armor: armorOf(it), slot: null, spread: true }))
+  return [...worn, ...held]
 }
 
 // Обмен ударами: attacker бьёт по своим зонам, defender блокирует свои зоны.
@@ -1805,7 +1812,7 @@ export const BattleService = {
 
     const equippedItems = await ItemsRepository.findEquipped(char.id)
     const equippedArmor = equippedItems.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
-    const playerArmorList = armorListFromEquipped(equippedArmor, char)
+    const playerArmorList = armorListFromEquipped(equippedArmor, char, [leftWeapon, rightWeapon])
     const playerGear = gearOf(equippedItems)
 
     const [leftAttackerSnap, rightAttackerSnap] = await Promise.all([
@@ -2437,7 +2444,7 @@ export const BattleService = {
         buildAttackerSnapshotAsync(ctx.char, ctx.weaponRight, skillRight.skillLevel, ctx.armor, actorGear, targetGear),
       ])
       const defSnap = buildDefenderSnapshot(targetCtx.char, targetCtx.armor, targetGear, antiLeft.antiSkillLevel, targetCtx.weaponLeft, actorGear)
-      const defArmorList = armorListFromEquipped(targetCtx.armor, targetCtx.char)
+      const defArmorList = armorListFromEquipped(targetCtx.armor, targetCtx.char, [targetCtx.weaponLeft, targetCtx.weaponRight])
 
       const res = executeStrikes({
         attackerSnap: atkLeft,
@@ -2510,7 +2517,7 @@ export const BattleService = {
             const victimCtx = parseCompanionId(targetId) ? undefined : contexts.get(targetId)
             if (victimCtx) {
               const zone = BODY_ZONES[Math.floor(Math.random() * BODY_ZONES.length)]
-              const armor = armorOfZone(armorListFromEquipped(victimCtx.armor, victimCtx.char), zone)
+              const armor = armorOfZone(armorListFromEquipped(victimCtx.armor, victimCtx.char, [victimCtx.weaponLeft, victimCtx.weaponRight]), zone)
               hit.rawDamage = hit.damage
               hit.damage = Math.max(0, Math.floor(hit.damage - calcArmorFlat(armor, 0) * BalanceConfig.strike.damageScale))
               hit.zone = zone
@@ -2672,8 +2679,8 @@ export const BattleService = {
     ])
     const armor1 = equippedItems1.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
     const armor2 = equippedItems2.filter(i => (i.template.type === 'ARMOR' || (i.template.type === 'ACCESSORY' && i.durabilityCurrent > 0)))
-    const armorList1 = armorListFromEquipped(armor1, char1)
-    const armorList2 = armorListFromEquipped(armor2, char2)
+    const armorList1 = armorListFromEquipped(armor1, char1, [weapon1Left, weapon1Right])
+    const armorList2 = armorListFromEquipped(armor2, char2, [weapon2Left, weapon2Right])
 
     const wtype1 = (weapon1Left?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]
     const wtype2 = (weapon2Left?.template.weaponType ?? 'MELEE') as Parameters<typeof WeaponSkillsRepository.findOrCreate>[1]

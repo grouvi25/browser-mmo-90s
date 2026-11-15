@@ -18,7 +18,8 @@ import type { Character, ItemBonuses, ItemInstance, ItemStatKey } from '../../sh
 // Урон оружия очками (обращение №89): единицы к нижней и верхней границе.
 const DAMAGE_STATS: [ItemStatKey, string, string][] = [['MIN_DAMAGE', 'Мин. урон', '+4'], ['MAX_DAMAGE', 'Макс. урон', '+4']]
 const OWN_STATS: Record<string, [ItemStatKey, string, string][]> = {
-  WEAPON: [...DAMAGE_STATS, ['ACCURACY', 'Точность', '+1%'], ['CRIT', 'Крит', '+0,5%']],
+  WEAPON: [...DAMAGE_STATS, ['ACCURACY', 'Точность', '+1%'], ['CRIT', 'Крит', '+0,5%'], ['ARMOR', 'Броня', '']],
+  ACCESSORY: [['ARMOR', 'Броня', '']],
   ARMOR: [['ARMOR', 'Броня', '+6% или хотя бы +1'], ['ANTI_CRIT', 'Защита от крита', '+0,5%']],
   SHIELD: [['ARMOR', 'Броня', '+6% или хотя бы +1'], ['ANTI_CRIT', 'Защита от крита', '+0,5%']],
 }
@@ -121,7 +122,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
   // урон видны, пока они есть: их можно снять и переложить.
   const [own, setOwn] = useState<Numbers>(() => ({ ...(item.statAllocation ?? {}) }) as Numbers)
   const ownStats: [ItemStatKey, string, string][] = [
-    ...(item.canSetIcon ? (t.type === 'WEAPON' ? DAMAGE_STATS : []) : OWN_STATS[t.type] ?? []),
+    ...(item.canSetIcon ? [...(t.type === 'WEAPON' ? DAMAGE_STATS : []), ['ARMOR', 'Броня', ''] as [ItemStatKey, string, string]] : OWN_STATS[t.type] ?? []),
     ...(t.type === 'WEAPON' && (item.statAllocation?.DAMAGE ?? 0) > 0 ? [['DAMAGE', 'Урон', '+4%, прежний расклад'] as [ItemStatKey, string, string]] : []),
   ]
   const perDamage = item.damagePerPoint ?? 4
