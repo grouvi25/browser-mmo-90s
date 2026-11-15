@@ -45,6 +45,8 @@ export interface MarketListingsResponse {
 }
 
 export const marketApi = {
+  /** Пределы цены крафтового сырья за штуку в рублях (Дима 15.11); null — без пределов. */
+  priceBounds: (resourceTemplateId: string) => request<{ bounds: { cost: number; min: number; max: number } | null }>(`/api/market/price-bounds/${resourceTemplateId}`),
   list: (filters: MarketFilters = {}) => {
     const query = new URLSearchParams()
     if (filters.mine) query.set('mine', 'true')

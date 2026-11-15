@@ -450,6 +450,8 @@ export function balanceRegistry(): BalanceGroup[] {
             p('economy.exchange.sellRate', B.economy.exchange.sellRate, 'обменник: рублей за продажу 1 $'),
             p('economy.exchange.dailyBuyLimit', B.economy.exchange.dailyBuyLimit, 'обменник: сколько $ можно купить за сутки'),
             p('economy.market.maxActiveListings', B.economy.market.maxActiveListings, 'активных лотов на игрока, 0 — без ограничения'),
+            p('economy.market.craftPriceMin', B.economy.market.craftPriceMin, 'крафтовое сырьё: не дешевле затрат × это (1.2 = +20%)'),
+            p('economy.market.craftPriceMax', B.economy.market.craftPriceMax, 'крафтовое сырьё: не дороже затрат × это (2 = +100%)'),
           ],
           source: 'modules/market/market.formulas.ts',
         },

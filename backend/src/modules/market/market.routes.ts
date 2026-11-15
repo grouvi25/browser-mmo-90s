@@ -1,3 +1,5 @@
+import { craftPriceBounds } from './price-bounds'
+import { prisma } from '../../shared/db/prisma'
 import type{FastifyInstance}from'fastify'
 import{z}from'zod'
 import{authenticate}from'../../shared/security/auth-middleware'
@@ -17,6 +19,8 @@ return reply.send(await MarketService.list({...q,type:q.type??(q.mine?undefined:
  fastify.post<{Params:{listingId:string}}>('/listings/:listingId/cancel',{preHandler:authenticate},async(req,reply)=>reply.send(await MarketService.cancel((await character(req.authUser.userId)).id,req.params.listingId)))
 
  // Торгаш и магазины (правка 21.10)
+ // Пределы цены крафтового сырья за штуку в рублях; null — без пределов.
+ fastify.get<{Params:{resourceTemplateId:string}}>('/price-bounds/:resourceTemplateId',{preHandler:authenticate},async(req,reply)=>{if(!z.string().uuid().safeParse(req.params.resourceTemplateId).success)return reply.code(422).send({code:'GEN_001',message:'Validation error'});return reply.send({bounds:await craftPriceBounds(prisma,req.params.resourceTemplateId)})})
  fastify.get('/trader',{preHandler:authenticate},async(req,reply)=>reply.send(await TraderService.status((await character(req.authUser.userId)).id)))
  fastify.post<{Body:{level:number}}>('/trader',{preHandler:authenticate},async(req,reply)=>{const p=z.object({level:z.union([z.literal(1),z.literal(2)])}).safeParse(req.body);if(!p.success)return reply.code(422).send({code:'GEN_001',message:'Уровень Торгаша: 1 или 2'});return reply.send(await TraderService.buyLevel((await character(req.authUser.userId)).id,p.data.level))})
  fastify.get('/shops',{preHandler:authenticate},async(_req,reply)=>reply.send({items:await TraderService.directory()}))
