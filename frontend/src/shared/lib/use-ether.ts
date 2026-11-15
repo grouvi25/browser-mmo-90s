@@ -30,9 +30,9 @@ function merge(messages: ChatLine[], line: ChatLine): ChatLine[] {
 const feedKey = (channel: ChatChannel) => ['chat', channel, ''] as const
 
 // №126: обычно лента держит последние 50 реплик канала, по кнопке
-// «Показать раньше» подгружается весь день (до 300). Флаг общий на все
+// «Показать раньше» подгружается весь день (до 1000: в общем бывает под 500 за день). Флаг общий на все
 // окна чата, иначе опросы с разной длиной перебивали бы друг друга.
-const FULL_LIMIT = 300
+const FULL_LIMIT = 1000
 const PAGE = 50
 let fullDay = false
 const fullListeners = new Set<() => void>()
@@ -46,8 +46,9 @@ function useFeed(channel: ChatChannel, enabled: boolean) {
     enabled,
     retry: false,
     refetchOnWindowFocus: true,
-    // Страховка, если сокет молча отвалился.
-    refetchInterval: 15_000,
+    // Страховка, если сокет молча отвалился. Длинную ленту за день
+    // перезапрашиваем реже: новые реплики и так идут сокетом.
+    refetchInterval: () => fullDay ? 60_000 : 15_000,
     staleTime: 5_000,
   })
 }

@@ -113,7 +113,7 @@ describe('жалоба на реплику в чате', () => {
     expect((await app.inject({ method: 'POST', url: `/api/chat/messages/${dm.id}/report`, headers: b.headers, payload: {} })).statusCode).toBe(201)
   })
 
-  it('№126: обычно лента отдаёт последние 50, по запросу весь день до 300', async () => {
+  it('№126: обычно лента отдаёт последние 50, по запросу весь день до 1000', async () => {
     const author = await player()
     const now = Date.now()
     await testPrisma.chatMessage.createMany({
@@ -124,7 +124,7 @@ describe('жалоба на реплику в чате', () => {
     const plain = (await app.inject({ url: '/api/chat/global', headers: author.headers })).json().messages as { body: string }[]
     expect(plain).toHaveLength(50)
     expect(plain[plain.length - 1].body).toBe('реплика 119')
-    const day = (await app.inject({ url: '/api/chat/global?limit=300', headers: author.headers })).json().messages as { body: string }[]
+    const day = (await app.inject({ url: '/api/chat/global?limit=1000', headers: author.headers })).json().messages as { body: string }[]
     expect(day).toHaveLength(120)
     expect(day[0].body).toBe('реплика 0')
   })

@@ -23,10 +23,11 @@ import { SupportService } from '../support/support.service'
  */
 export const PRESENCE_TTL_SEC = 3600
 const ONLINE_LIMIT = 100
-// Metallica 15.11: за 50 сообщений чат не листался дальше пары часов. 300 хватает на день.
+// Metallica 15.11: за 50 сообщений чат не листался дальше пары часов.
+// Обычное обновление — последние 50, «Показать раньше» берёт весь день:
+// в общем канале бывает под 500 реплик за день, отсюда предел 1000.
 const HISTORY_LIMIT = 50
-// «Показать раньше»: вся лента за день по запросу, обычное обновление — последние 50.
-const HISTORY_MAX = 300
+const HISTORY_MAX = 1000
 
 export interface ChatLine {
   id: string
