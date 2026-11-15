@@ -40,3 +40,12 @@ describe('ловкач: крит и удачный сквозь уворот', (
     expect(r.lucky).toBe(r.hits)
   })
 })
+
+describe('крито-удачный сквозь уворот (Дима 15.11)', () => {
+  it('перевес и по криту, и по удаче: каждый пробивший удар и крит, и удачный', () => {
+    const r = run(attacker({ agr: 30, luck: 30 }), dodger({ critCharmEdge: -1, luckCharmEdge: -1 }))
+    expect(r.hits).toBeGreaterThan(0)
+    expect(r.crits).toBe(r.hits)
+    expect(r.lucky).toBe(r.hits)
+  })
+})

@@ -453,8 +453,11 @@ export function resolveZonalAttack(
       log.push(`Уворот (${zoneName})`)
       return base()
     }
+    // Дима 15.11: перевес и по криту, и по удаче — пробивший удар сразу крито-удачный,
+    // «не делилось то красный, то синий».
+    if (critOpen && luckOpen) { forcedCrit = true; forcedLucky = true }
     dodge = false
-    log.push(forcedCrit ? 'Крит сквозь уворот!' : 'Удачный сквозь уворот!')
+    log.push(forcedCrit && forcedLucky ? 'Крито-удачный сквозь уворот!' : forcedCrit ? 'Крит сквозь уворот!' : 'Удачный сквозь уворот!')
   }
 
   // 2. «Удачный удар» — определяем заранее: он пробивает одиночный блок.
