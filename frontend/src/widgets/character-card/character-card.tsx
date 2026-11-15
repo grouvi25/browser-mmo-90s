@@ -171,17 +171,21 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
     [items],
   )
 
-  /** Броня по зоне — та же карта слотов, что на бэкенде в zones.ts */
+  /** Броня по зоне — та же карта слотов, что на бэкенде в zones.ts.
+      В бою на красной зоне (3 попадания) броня сбита и не прикрывает (wounds.ts):
+      показываем 0, а не надетую (Дима 15.11: «броня 500 не слетает»). Ноги в бою — одна зона LEGS. */
   const zoneArmor = useMemo(() => {
     const out: Record<string, number> = {}
     for (const z of ZONE_KEYS) {
       const slots = ZONE_ARMOR_SLOTS[z] ?? []
-      out[z] = equipped
+      const woundKey = z === 'LEFT_LEG' || z === 'RIGHT_LEG' ? 'LEGS' : z
+      const stripped = (wounds?.[woundKey] ?? wounds?.[z] ?? 0) >= WOUND_STRIP_AT
+      out[z] = stripped ? 0 : equipped
         .filter(i => i.armorSlot && slots.includes(i.armorSlot))
         .reduce((s, i) => s + (i.effective?.armor ?? i.template.armor ?? 0), 0)
     }
     return out
-  }, [equipped])
+  }, [equipped, wounds])
 
   const weapon = equipped.find(i => i.template.type === 'WEAPON'
     && i.armorSlot !== 'RIGHT_HAND')
