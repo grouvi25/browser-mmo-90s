@@ -86,6 +86,9 @@ export interface Character {
     professions: Array<{ id:string; professionCode:string; name?:string; level:number; exp:number; unlockedAt:string; updatedAt:string }>
     economicLevel: number
     economicExp: number
+    /** Порог текущего экономического уровня и следующего; null — последний (обращение №119). */
+    economicLevelExp?: number
+    economicNextLevelExp?: number | null
     activeShift: { id: string; status: string; startedAt: string; endsAt: string } | null
   }
   createdAt: string

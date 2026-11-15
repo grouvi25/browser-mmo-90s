@@ -432,7 +432,7 @@ export function InventoryPage() {
           {CELLS.map((cell, n) => <DollCell key={cell.slot ?? `empty-${n}`} cell={cell} />)}
           <button type="button" className="inv-doll__all"
             disabled={inBattle || equipped.length === 0 || undressing}
-            onClick={() => unequipAllMut.mutate(equipped.map(i => i.id))}>
+            onClick={() => { if (window.confirm('Снять все вещи?')) unequipAllMut.mutate(equipped.map(i => i.id)) }}>
             {unequipAllMut.isPending ? 'Снимаем…' : 'Снять всё'}
           </button>
         </aside>

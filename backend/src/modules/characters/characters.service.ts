@@ -137,6 +137,10 @@ export const CharactersService = {
         professions: professions.map(item => ({ ...item, name: PROFESSION_NAMES[item.professionCode as ProfessionCode] ?? item.professionCode })),
         economicLevel: char.economicLevel,
         economicExp: char.economicExp,
+        // Обращение №119: полоска экономического уровня, как у боевого. Пороги в
+        // economicExp.levelThresholds, индекс = уровень (с нулевого).
+        economicLevelExp: BalanceConfig.economicExp.levelThresholds[char.economicLevel] ?? 0,
+        economicNextLevelExp: BalanceConfig.economicExp.levelThresholds[char.economicLevel + 1] ?? null,
         activeShift,
       },
     }

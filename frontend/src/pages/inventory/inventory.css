@@ -168,6 +168,9 @@
   font: inherit;
   cursor: pointer;
   overflow: hidden;
+  /* Обращение №120: при высоте куклы 330 px «Снять всё» заходила на низ ячейки обуви
+     и стояла выше неё — нажатие по берцам снимало всё. Ячейки всегда поверх кнопки. */
+  z-index: 1;
 }
 .inv-cell img { max-width: 84%; max-height: 84%; object-fit: contain; }
 .inv-cell.is-empty { cursor: default; }

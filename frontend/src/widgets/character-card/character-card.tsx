@@ -60,6 +60,25 @@ const pctText = (share: number) => `${Math.round(share * 1000) / 10}%`
 
 type MeCharacter = Awaited<ReturnType<typeof charactersApi.getMe>>
 
+/** Обращение №119: экономический уровень с опытом и полоской до следующего, как у боевого. */
+function EconomicProgress({ char }: { char?: MeCharacter }) {
+  const eco = char?.economy
+  if (!eco) return null
+  const next = eco.economicNextLevelExp ?? null
+  const from = eco.economicLevelExp ?? 0
+  const share = next != null && next > from ? Math.min(1, Math.max(0, (eco.economicExp - from) / (next - from))) : 1
+  return <>
+    <div className="card-list__kv"><span>Экон. уровень</span><b>{eco.economicLevel}</b></div>
+    <div className="card-list__kv"><span>Экон. опыт</span>
+      <b>{eco.economicExp.toLocaleString('ru')}{next != null ? ` из ${next.toLocaleString('ru')}` : ''}</b></div>
+    <div className="dog-exp" role="progressbar" aria-label="Экономический опыт до следующего уровня"
+      aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)}>
+      <i style={{ width: `${Math.round(share * 100)}%` }} />
+      <span>{next != null ? `до ${eco.economicLevel + 1}-го: ${Math.max(0, next - eco.economicExp).toLocaleString('ru')}` : 'максимальный уровень'}</span>
+    </div>
+  </>
+}
+
 /** Характеристики с прибавками от надетого, владение оружием, мастерства и обереги.
  *  Одни и те же строки — во вкладке карточки на большом экране и в досье на
  *  телефоне (обращение №86: на телефоне карточки нет, обереги было не увидеть). */
@@ -378,6 +397,7 @@ export function CharacterCard({ profile, wounds, liveHp }: {
           <div className="card-list__kv"><span>Поражений</span><b>{Math.max(0, (char?.battlesTotal ?? 0) - (char?.battlesWon ?? 0))}</b></div>
           <div className="card-list__kv"><span>Опыт</span><b>{(char?.battleExp ?? 0).toLocaleString('ru')}</b></div>
           <div className="card-list__kv"><span>Следующий уровень</span><b>{char?.nextLevelExp != null ? char.nextLevelExp.toLocaleString('ru') : 'максимум'}</b></div>
+          <EconomicProgress char={char} />
           <div className="card-list__kv"><span>Очки статов</span><b>{char?.stats?.pointsAvailable ?? 0}</b></div>
           <button type="button" className="card-list__more" onClick={() => navigate('/profile')}>
             Открыть полностью →

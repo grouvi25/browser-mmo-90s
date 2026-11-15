@@ -57,6 +57,9 @@ interface DossierView {
   /** Только в своём деле: действующие настойки. */
   effects?: { name: string; minutesLeft: number }[]
   economicLevel: number
+  /** Только в своём деле: экономический опыт и порог следующего уровня (обращение №119). */
+  economicExp?: number
+  economicNextLevelExp?: number | null
   /** Рейтинг (книга заказчика 23.10): статы с весами + надетые вещи. */
   rating?: number
   hpCurrent: number
@@ -135,6 +138,8 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
       battleLevel: char.battleLevel, economicLevel: char.economicLevel, rating: char.rating,
       // Только в своём деле: на телефоне опыт больше негде посмотреть (Дмитрий 05.11).
       battleExp: char.battleExp, nextLevelExp: char.nextLevelExp ?? null,
+      economicExp: char.economy?.economicExp ?? char.economicExp,
+      economicNextLevelExp: char.economy?.economicNextLevelExp ?? null,
       effects: (char.activeEffects ?? [])
         .filter(e => e.expiresAt && new Date(e.expiresAt).getTime() > Date.now())
         .map(e => ({ name: e.name, minutesLeft: Math.ceil((new Date(e.expiresAt!).getTime() - Date.now()) / 60_000) })),
@@ -201,7 +206,9 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
     `1. Боевой — ${view.battleLevel}${view.battleExp != null
       ? `, опыт ${view.battleExp.toLocaleString('ru')}${view.nextLevelExp != null ? ` из ${view.nextLevelExp.toLocaleString('ru')}` : ''}`
       : ''}`,
-    `2. Экономический — ${view.economicLevel}`,
+    `2. Экономический — ${view.economicLevel}${view.economicExp != null
+      ? `, опыт ${view.economicExp.toLocaleString('ru')}${view.economicNextLevelExp != null ? ` из ${view.economicNextLevelExp.toLocaleString('ru')}` : ''}`
+      : ''}`,
     `3. Рейтинг — ${view.rating != null ? String(view.rating).replace('.', ',') : '—'}`,
     ...(view.professions.length
       ? ['4. Профессии:', ...view.professions.map(p => `   ${p.name}: ур. ${p.level}${p.exp != null ? `, опыт ${p.exp}` : ''}`)]
