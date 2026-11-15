@@ -56,3 +56,13 @@ describe('перевес №76', () => {
     expect(calcCounterAttackChance(def({ rea: 50 }), atk({ rea: 50 }))).toBe(0.5)
   })
 })
+
+describe('ровная пуха (Дима 15.11)', () => {
+  it('удар до брони не слабее мин. урона оружия, даже без силы и с антимастерством', async () => {
+    const { calcRawDamage } = await import('../../modules/battles/battle.formulas')
+    const attacker = { str: 300, minDamage: 50, maxDamage: 50, weaponSkillLevel: 0, flatDamageBonus: 0, outgoingDamageMultiplier: 1, strMastery: 0 }
+    // мастерства кулачки нет: сила считается как 5-10; огромное антимастерство режет навык
+    for (let i = 0; i < 200; i++) expect(calcRawDamage(attacker, 999)).toBeGreaterThanOrEqual(50)
+    expect(calcRawDamage({ ...attacker, outgoingDamageMultiplier: 0.1 }, 999)).toBe(50)
+  })
+})

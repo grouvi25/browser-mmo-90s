@@ -315,7 +315,10 @@ export function calcRawDamage(
 
   // Книга: База = 1,5 × сила + сила оружия.
   const str = effectiveStrength(attacker.str, attacker.strMastery, rng)
-  return (weaponRoll * wskMult + str * B.strike.strCoeff + attacker.flatDamageBonus) * (attacker.outgoingDamageMultiplier ?? 1)
+  const raw = (weaponRoll * wskMult + str * B.strike.strCoeff + attacker.flatDamageBonus) * (attacker.outgoingDamageMultiplier ?? 1)
+  // «Ровная пуха» (Дима 15.11): удар не слабее мин. урона оружия, даже при минус
+  // кулачке и минус оружейке у бьющего. Броня и защита цели режут его потом, как обычно.
+  return Math.max(attacker.minDamage, raw)
 }
 
 // ---------------------------------------------------------------

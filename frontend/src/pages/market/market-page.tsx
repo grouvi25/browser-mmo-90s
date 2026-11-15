@@ -116,16 +116,21 @@ export function MarketPage() {
     <div className="panel">
       <div className="panel-header"><span className="panel-title">Выставить ресурс</span></div>
       <div className="panel-body market-form">
-        <select aria-label="Ресурс для продажи" value={resourceId} onChange={e => setResourceId(e.target.value)}>
-          <option value="">Выберите ресурс</option>
-          {resources.data?.items?.map(stack => <option key={stack.template.id} value={stack.template.id}>{stack.template.name} ({stack.availableAmount})</option>)}
-        </select>
-        <input aria-label="Количество ресурса" type="number" min={1} value={amount || ''} onChange={e => setAmount(Number(e.target.value))} />
-        <input aria-label="Цена за штуку" placeholder="Цена за штуку" type="number" min={1} value={price || ''} onChange={e => setPrice(Math.floor(Number(e.target.value)))} />
-        <select aria-label="Валюта" value={currency} onChange={e => setCurrency(e.target.value as Currency)}>
-          <option value="RUB">₽</option>
-          <option value="USD" disabled={!usd}>${usd ? '' : ' — добытчик 2-го уровня'}</option>
-        </select>
+        {/* Monnarhh 15.11: подписи над полями — где количество, где цена. */}
+        <label className="market-field"><span>Ресурс</span>
+          <select value={resourceId} onChange={e => setResourceId(e.target.value)}>
+            <option value="">Выберите ресурс</option>
+            {resources.data?.items?.map(stack => <option key={stack.template.id} value={stack.template.id}>{stack.template.name} ({stack.availableAmount})</option>)}
+          </select></label>
+        <label className="market-field"><span>Количество</span>
+          <input type="number" min={1} value={amount || ''} onChange={e => setAmount(Number(e.target.value))} /></label>
+        <label className="market-field"><span>Цена за штуку</span>
+          <input type="number" min={1} value={price || ''} onChange={e => setPrice(Math.floor(Number(e.target.value)))} /></label>
+        <label className="market-field"><span>Валюта</span>
+          <select value={currency} onChange={e => setCurrency(e.target.value as Currency)}>
+            <option value="RUB">₽</option>
+            <option value="USD" disabled={!usd}>${usd ? '' : ' — добытчик 2-го уровня'}</option>
+          </select></label>
         <span>Итого {money(total, currency)} · сбор {fee(total, currency)} ₽{total > 1_000_000 ? ' · больше 1 000 000 нельзя' : ''}</span>
         <button className="btn btn-primary" disabled={create.isPending || !resourceId || !amount || !price || total > 1_000_000} onClick={() => create.mutate()}>Выставить</button>
       </div>
@@ -194,14 +199,17 @@ export function TraderPage() {
       <div className="panel">
         <div className="panel-header"><span className="panel-title">Выставить вещь в магазине №{t.shopNumber}</span></div>
         <div className="panel-body market-form">
-          <select aria-label="Вещь для продажи" value={itemId} onChange={e => setItemId(e.target.value)}>
-            <option value="">Выберите вещь</option>
-            {inventory.data?.filter(item => !item.isEquipped && item.status === 'NORMAL').map(item => <option key={item.id} value={item.id}>{item.template.name}</option>)}
-          </select>
-          <input aria-label="Цена" type="number" min={1} max={1_000_000} value={price || ''} onChange={e => setPrice(Number(e.target.value))} />
-          <select aria-label="Валюта" value={currency} onChange={e => setCurrency(e.target.value as Currency)}>
-            <option value="RUB">₽</option><option value="USD" disabled={t.traderLevel < 2}>${t.traderLevel < 2 ? ' — 2-й уровень' : ''}</option>
-          </select>
+          <label className="market-field"><span>Вещь</span>
+            <select value={itemId} onChange={e => setItemId(e.target.value)}>
+              <option value="">Выберите вещь</option>
+              {inventory.data?.filter(item => !item.isEquipped && item.status === 'NORMAL').map(item => <option key={item.id} value={item.id}>{item.template.name}</option>)}
+            </select></label>
+          <label className="market-field"><span>Цена</span>
+            <input type="number" min={1} max={1_000_000} value={price || ''} onChange={e => setPrice(Number(e.target.value))} /></label>
+          <label className="market-field"><span>Валюта</span>
+            <select value={currency} onChange={e => setCurrency(e.target.value as Currency)}>
+              <option value="RUB">₽</option><option value="USD" disabled={t.traderLevel < 2}>${t.traderLevel < 2 ? ' — 2-й уровень' : ''}</option>
+            </select></label>
           <span>Сбор {fee(price, currency)} ₽</span>
           <button className="btn btn-primary" disabled={create.isPending || !itemId || !price} onClick={() => create.mutate()}>Выставить</button>
         </div>

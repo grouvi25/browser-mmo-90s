@@ -264,9 +264,9 @@
   /* Формы рынка: поля разной ширины шли лесенкой. Ровная сетка:
      выбор и поиск — во всю строку, числа и валюта — парой. */
   .market-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-items: center; }
-  .market-form > select:first-child, .market-form > input:first-child,
+  .market-form > .market-field:first-child, .market-form > select:first-child, .market-form > input:first-child,
   .market-form > span, .market-form > .btn-primary:last-child { grid-column: 1 / -1; }
-  .panel-body.market-form input, .panel-body.market-form select, .panel-body.market-form .btn { width: 100%; max-width: none; min-width: 0; }
+  .panel-body.market-form input, .panel-body.market-form select, .panel-body.market-form .btn, .market-form .market-field { width: 100%; max-width: none; min-width: 0; }
   .market-form input[aria-label='Номер магазина'] { min-width: 0; }
 
   /* локация: картинка и действия под ней, а не поверх */
