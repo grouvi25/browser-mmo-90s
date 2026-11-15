@@ -17,7 +17,7 @@ import { FLOOD, MAX_BODY, chatRoom, privateRoom, type Rejection } from './chat.f
 import { pushLater } from '../push/push.service'
 
 const Channel = z.enum(['DISTRICT', 'CLAN', 'GLOBAL', 'PRIVATE'])
-const Query = z.object({ scope: z.string().max(64).optional(), limit: z.coerce.number().int().min(1).max(50).optional() })
+const Query = z.object({ scope: z.string().max(64).optional(), limit: z.coerce.number().int().min(1).max(300).optional() })
 // to — ник, или несколько через запятую (обращение №26).
 const Body = z.object({ scope: z.string().max(64).optional(), to: z.string().max(200).optional(), body: z.string().max(MAX_BODY * 2) })
 

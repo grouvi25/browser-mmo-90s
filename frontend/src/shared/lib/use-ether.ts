@@ -7,7 +7,7 @@
 // и на компьютере, и на телефоне». Каждый канал — свой запрос, живые
 // реплики приходят по одному сокету и раскладываются по каналам.
 // =============================================================
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { chatApi, type ChatChannel, type ChatFeed, type ChatLine } from '../api/chat.api'
@@ -24,15 +24,25 @@ const byTime = (a: ChatLine, b: ChatLine) => new Date(a.createdAt).getTime() - n
 
 function merge(messages: ChatLine[], line: ChatLine): ChatLine[] {
   if (messages.some(m => m.id === line.id)) return messages
-  return [...messages, line].sort(byTime).slice(-50)
+  return [...messages, line].sort(byTime).slice(-FULL_LIMIT)
 }
 
 const feedKey = (channel: ChatChannel) => ['chat', channel, ''] as const
 
+// №126: обычно лента держит последние 50 реплик канала, по кнопке
+// «Показать раньше» подгружается весь день (до 300). Флаг общий на все
+// окна чата, иначе опросы с разной длиной перебивали бы друг друга.
+const FULL_LIMIT = 300
+const PAGE = 50
+let fullDay = false
+const fullListeners = new Set<() => void>()
+const subscribeFull = (fn: () => void) => { fullListeners.add(fn); return () => { fullListeners.delete(fn) } }
+const getFull = () => fullDay
+
 function useFeed(channel: ChatChannel, enabled: boolean) {
   return useQuery<ChatFeed>({
     queryKey: feedKey(channel),
-    queryFn: () => chatApi.feed(channel),
+    queryFn: () => chatApi.feed(channel, undefined, fullDay ? FULL_LIMIT : undefined),
     enabled,
     retry: false,
     refetchOnWindowFocus: true,
@@ -58,6 +68,10 @@ export interface Ether {
   edit: (id: string, body: string) => Promise<boolean>
   /** Пожаловаться на чужую реплику: уходит в поддержку. */
   report: (id: string, reason?: string) => Promise<void>
+  /** Есть ли за сегодня реплики раньше показанных. */
+  canLoadEarlier: boolean
+  loadingEarlier: boolean
+  loadEarlier: () => void
 }
 
 /** Сколько минут после отправки реплику можно поправить — как на сервере. */
@@ -79,6 +93,17 @@ export function useEther(): Ether {
     queryKey: ['chat', 'notices'], queryFn: chatApi.notices, retry: false,
     refetchInterval: 8_000, staleTime: 4_000,
   })
+
+  const full = useSyncExternalStore(subscribeFull, getFull)
+  const [loadingEarlier, setLoadingEarlier] = useState(false)
+  const loadEarlier = useCallback(() => {
+    if (fullDay) return
+    fullDay = true
+    fullListeners.forEach(fn => fn())
+    setLoadingEarlier(true)
+    void qc.refetchQueries({ predicate: q => q.queryKey[0] === 'chat' && q.queryKey[2] === '' && q.queryKey.length === 3 })
+      .finally(() => setLoadingEarlier(false))
+  }, [qc])
 
   useEffect(() => onChatConnect(() => { void qc.invalidateQueries({ queryKey: ['chat'] }) }), [qc])
 
@@ -155,8 +180,15 @@ export function useEther(): Ether {
       ...(hasClan ? clan.data?.messages ?? [] : []),
       ...(privateFeed.data?.messages ?? []),
       ...system,
-    ], dayStart).sort(byTime).slice(-80)
-  }, [global.data, clan.data, privateFeed.data, notices.data, hasClan, dayStart])
+    ], dayStart).sort(byTime).slice(full ? -3 * FULL_LIMIT : -80)
+  }, [global.data, clan.data, privateFeed.data, notices.data, hasClan, dayStart, full])
+
+  // Кнопка нужна, только если какой-то канал упёрся в обычный предел и
+  // самая ранняя его реплика ещё сегодняшняя: раньше могли быть другие.
+  const canLoadEarlier = !full && [global.data, hasClan ? clan.data : undefined, privateFeed.data].some(feed => {
+    const list = feed?.messages ?? []
+    return list.length >= PAGE && todayChatLines(list.slice(0, 1), dayStart).length > 0
+  })
 
   return {
     messages,
@@ -171,6 +203,9 @@ export function useEther(): Ether {
     remove,
     edit,
     report,
+    canLoadEarlier,
+    loadingEarlier,
+    loadEarlier,
   }
 }
 

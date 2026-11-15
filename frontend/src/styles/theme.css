@@ -451,6 +451,16 @@ html, body {
 /* Строка от «Системы»: личное уведомление. Курсив и тёмно-зелёный — не спутать с репликой игрока. */
 .city-chat__row--system, .bs-chat__row--system { font-style: italic; color: #2f5d3a; }
 .city-chat__time { color: var(--ink-red); }
+/* №126: «Показать раньше» вверху ленты. Только цвет и подчёркивание, без сдвигов. */
+.ether-earlier {
+  display: block; width: 100%; padding: 2px 0; margin: 0 0 4px;
+  border: 0; background: none; font: inherit; text-align: center;
+  color: var(--ink-red); cursor: pointer; text-decoration: underline dotted;
+}
+.ether-earlier:hover { text-decoration-style: solid; color: #7a1f14; }
+.ether-earlier:active { color: #4d130c; }
+.ether-earlier:focus-visible { outline: 1px dashed currentColor; outline-offset: 1px; }
+.ether-earlier:disabled { cursor: progress; opacity: .6; text-decoration: none; }
 .city-chat__nick { cursor: pointer; }
 .city-chat__nick:hover { text-decoration: underline; }
 

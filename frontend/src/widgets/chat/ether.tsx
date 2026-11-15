@@ -6,7 +6,7 @@
 // цветами; смайлики. Одна разметка на все три окна, иначе они
 // разъедутся при первой же доработке.
 // =============================================================
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 
@@ -146,6 +146,36 @@ export function addRecipient(target: string, nick: string): string {
 const removeRecipient = (target: string, nick: string) => recipientsOf(target).filter(name => name !== nick).join(', ')
 
 /** Одна строка ленты: время, метка канала, ник (клик — обращение) и текст. */
+/** №126: вверху ленты — подгрузить реплики за весь день. Прокрутка
+ *  остаётся на той же строке, а не прыгает к самым старым. */
+export function EarlierButton({ ether, boxRef, className = '' }: {
+  ether: Ether; boxRef: RefObject<HTMLDivElement | null>; className?: string
+}) {
+  const fromBottom = useRef<number | null>(null)
+  const count = ether.messages.length
+  useLayoutEffect(() => {
+    const el = boxRef.current
+    if (!el || fromBottom.current === null) return
+    el.scrollTop = el.scrollHeight - fromBottom.current
+    if (!ether.loadingEarlier) fromBottom.current = null
+  }, [count, ether.loadingEarlier, boxRef])
+  if (!ether.canLoadEarlier && !ether.loadingEarlier) return null
+  return (
+    <button
+      type="button"
+      className={`ether-earlier ${className}`}
+      disabled={ether.loadingEarlier}
+      onClick={() => {
+        const el = boxRef.current
+        if (el) fromBottom.current = el.scrollHeight - el.scrollTop
+        ether.loadEarlier()
+      }}
+    >
+      {ether.loadingEarlier ? 'Загружаю...' : 'Показать раньше'}
+    </button>
+  )
+}
+
 export function EtherLine({ line, ether, composer, className = '' }: {
   line: ChatLine; ether: Ether; composer: Composer; className?: string
 }) {

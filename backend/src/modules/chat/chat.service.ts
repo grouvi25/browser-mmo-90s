@@ -23,7 +23,10 @@ import { SupportService } from '../support/support.service'
  */
 export const PRESENCE_TTL_SEC = 3600
 const ONLINE_LIMIT = 100
+// Metallica 15.11: за 50 сообщений чат не листался дальше пары часов. 300 хватает на день.
 const HISTORY_LIMIT = 50
+// «Показать раньше»: вся лента за день по запросу, обычное обновление — последние 50.
+const HISTORY_MAX = 300
 
 export interface ChatLine {
   id: string
@@ -118,7 +121,7 @@ export const ChatService = {
     const rows = await prisma.chatMessage.findMany({
       where: { channel, scope, deletedAt: null, createdAt: { gte: chatDayStart(now) } },
       orderBy: { createdAt: 'desc' },
-      take: Math.min(Math.max(limit, 1), HISTORY_LIMIT),
+      take: Math.min(Math.max(limit, 1), HISTORY_MAX),
       select: LINE_SELECT,
     })
     return rows.reverse().map(row => toLine(row))
@@ -129,7 +132,7 @@ export const ChatService = {
     const rows = await prisma.chatMessage.findMany({
       where: { channel: 'PRIVATE', deletedAt: null, createdAt: { gte: chatDayStart(now) }, OR: [{ authorId: characterId }, { recipientId: characterId }] },
       orderBy: { createdAt: 'desc' },
-      take: Math.min(Math.max(limit, 1), HISTORY_LIMIT),
+      take: Math.min(Math.max(limit, 1), HISTORY_MAX),
       select: LINE_SELECT,
     })
     const ids = [...new Set(rows.map(r => r.recipientId).filter(Boolean) as string[])]

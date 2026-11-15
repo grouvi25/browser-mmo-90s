@@ -11,7 +11,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
-import { EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, onMentionPlayer, onWritePrivately, useComposer } from '../chat/ether'
+import { EarlierButton, EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, onMentionPlayer, onWritePrivately, useComposer } from '../chat/ether'
 import { levelTone } from '../../shared/lib/chat-format'
 
 export function MobileChat() {
@@ -57,6 +57,7 @@ export function MobileChat() {
       {tab === 'chat' ? (
         <>
           <div className="m-chat__log" ref={logRef}>
+            <EarlierButton ether={ether} boxRef={logRef} className="m-chat__row" />
             {ether.messages.map(m => <EtherLine key={m.id} line={m} ether={ether} composer={composer} className="m-chat__row" />)}
             {!ether.loading && !ether.messages.length && (
               <div className="m-chat__row">В эфире тихо. Скажите первое слово.</div>

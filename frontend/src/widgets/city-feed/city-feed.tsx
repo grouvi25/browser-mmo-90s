@@ -13,7 +13,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
-import { EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, useComposer } from '../chat/ether'
+import { EarlierButton, EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, useComposer } from '../chat/ether'
 import { levelTone } from '../../shared/lib/chat-format'
 import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useFitBlock } from '../../shared/lib/use-fit-block'
@@ -135,6 +135,7 @@ export function CityChat() {
           fontSize: MENU.chat.size, lineHeight: `${MENU.chat.lineHeight}px`,
         }}
       >
+        <EarlierButton ether={ether} boxRef={boxRef} className="city-chat__row" />
         {ether.messages.map(m => <EtherLine key={m.id} line={m} ether={ether} composer={composer} className="city-chat__row" />)}
         {!ether.loading && !ether.messages.length && (
           <div className="city-chat__row city-chat__empty">В эфире тихо. Скажите первое слово.</div>
