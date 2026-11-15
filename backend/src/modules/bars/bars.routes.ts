@@ -30,6 +30,16 @@ export async function barsRoutes(fastify: FastifyInstance) {
     return reply.send(await BarsService.buy(actor.id, req.params.offerId, key))
   })
 
+  // №117: съесть или выпить свою порцию со склада.
+  fastify.post('/eat', { preHandler: authenticate }, async (req, reply) => {
+    const parsed = z.object({ resourceCode: z.string().min(1).max(64) }).safeParse(req.body)
+    if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const key = req.headers['idempotency-key']
+    if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+    const actor = await character(req.authUser.userId)
+    return reply.send(await BarsService.eat(actor.id, parsed.data.resourceCode, key))
+  })
+
   fastify.patch<{ Params: { offerId: string }; Body: { price: number } }>('/offers/:offerId/price', { preHandler: authenticate }, async (req, reply) => {
     const parsed = z.object({ price: z.number().int().positive() }).safeParse(req.body)
     if (!Id.safeParse(req.params.offerId).success || !parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })

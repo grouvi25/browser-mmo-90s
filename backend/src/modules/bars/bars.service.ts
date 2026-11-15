@@ -4,7 +4,39 @@ import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ObjectInventoryService } from '../production/inventory.service'
+import { ResourcesService } from '../resources/resources.service'
+import type { Prisma } from '@prisma/client'
 import { barPriceRange, barSaleSplit, canTakeBuff, decayedAlcohol, intoxicationModifiers } from './bars.formulas'
+
+type OfferEffect = { hpRestore: number; alcoholDegrees: number; accuracyBuff: number; damageBuff: number; buffMinutes: number }
+
+/** Проверки и действие еды или выпивки: заказ в баре и своя порция со склада (№117) работают одинаково. */
+async function prepareEffect(tx: Prisma.TransactionClient, characterId: string, offer: OfferEffect) {
+  const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
+  const now = new Date()
+  const currentAlcohol = decayedAlcohol(character.alcoholLevel, character.alcoholUpdatedAt, now)
+  const crossedFromWasted = character.alcoholLevel >= 70 && currentAlcohol < 70
+  const hangoverUntil = crossedFromWasted ? new Date(now.getTime() + 60 * 60_000) : character.hangoverUntil
+  if (offer.alcoholDegrees > 0 && hangoverUntil && hangoverUntil > now) throw new AppError(ErrorCode.BAR_HANGOVER, 'Cannot drink during hangover', 409, { hangoverUntil })
+  const hasBuff = offer.accuracyBuff !== 0 || offer.damageBuff !== 0
+  if (hasBuff && !canTakeBuff(character.lastBarBuffAt, now)) throw new AppError(ErrorCode.BAR_BUFF_COOLDOWN, 'Bar buff is on cooldown', 409)
+  return {
+    character,
+    async apply() {
+      const alcoholLevel = character.status === 'IN_BATTLE' ? currentAlcohol : Math.min(100, currentAlcohol + offer.alcoholDegrees)
+      const hpCurrent = Math.min(character.hpMax, character.hpCurrent + offer.hpRestore)
+      const buffExpiresAt = hasBuff ? new Date(now.getTime() + offer.buffMinutes * 60_000) : character.barBuffExpiresAt
+      await tx.character.update({ where: { id: characterId }, data: {
+        hpCurrent,
+        alcoholLevel: Math.round(alcoholLevel),
+        alcoholUpdatedAt: now,
+        hangoverUntil,
+        ...(hasBuff ? { barBuffAccuracy: offer.accuracyBuff, barBuffDamage: offer.damageBuff, barBuffExpiresAt: buffExpiresAt, lastBarBuffAt: now } : {}),
+      } })
+      return { hpCurrent, alcoholLevel, buffExpiresAt }
+    },
+  }
+}
 
 export const BarsService = {
   async list() {
@@ -40,18 +72,27 @@ export const BarsService = {
     return prisma.barOffer.update({ where: { id: offerId }, data: { price } })
   },
 
+  /** №117 (Metallica 15.11): купленные на рынке щи лежали на складе, а съесть их было негде.
+   *  Своя порция действует так же, как заказ в баре, только без оплаты. */
+  async eat(characterId: string, resourceCode: string, key: string) {
+    return withIdempotency({ characterId, scope: 'bars.eat', key, execute: async tx => {
+      const offer = await tx.barOffer.findFirst({ where: { resourceCode, isActive: true } })
+      const template = await tx.resourceTemplate.findUnique({ where: { code: resourceCode } })
+      if (!offer || !template) throw new AppError(ErrorCode.BAR_OFFER_NOT_FOUND, 'Это не едят и не пьют', 404)
+      const effect = await prepareEffect(tx, characterId, offer)
+      const onlyHp = offer.alcoholDegrees === 0 && offer.accuracyBuff === 0 && offer.damageBuff === 0
+      if (onlyHp && effect.character.hpCurrent >= effect.character.hpMax) throw new AppError(ErrorCode.CONFLICT, 'HP уже полное, есть не нужно', 409)
+      await ResourcesService.consume(tx, { characterId, resourceTemplateId: template.id, amount: 1, reasonCode: 'BAR_SALE', refType: 'eat', refId: offer.id })
+      const { hpCurrent, alcoholLevel, buffExpiresAt } = await effect.apply()
+      return { resourceCode, hpCurrent, alcoholLevel, buffExpiresAt }
+    } })
+  },
+
   async buy(characterId: string, offerId: string, key: string) {
     return withIdempotency({ characterId, scope: 'bars.buy', key, execute: async tx => {
       const offer = await tx.barOffer.findUnique({ where: { id: offerId }, include: { productionObject: true } })
       if (!offer?.isActive || offer.productionObject.type !== 'BAR') throw new AppError(ErrorCode.BAR_OFFER_NOT_FOUND, 'Bar offer not found', 404)
-      const character = await tx.character.findUniqueOrThrow({ where: { id: characterId } })
-      const now = new Date()
-      const currentAlcohol = decayedAlcohol(character.alcoholLevel, character.alcoholUpdatedAt, now)
-      const crossedFromWasted = character.alcoholLevel >= 70 && currentAlcohol < 70
-      const hangoverUntil = crossedFromWasted ? new Date(now.getTime() + 60 * 60_000) : character.hangoverUntil
-      if (offer.alcoholDegrees > 0 && hangoverUntil && hangoverUntil > now) throw new AppError(ErrorCode.BAR_HANGOVER, 'Cannot drink during hangover', 409, { hangoverUntil })
-      const hasBuff = offer.accuracyBuff !== 0 || offer.damageBuff !== 0
-      if (hasBuff && !canTakeBuff(character.lastBarBuffAt, now)) throw new AppError(ErrorCode.BAR_BUFF_COOLDOWN, 'Bar buff is on cooldown', 409)
+      const effect = await prepareEffect(tx, characterId, offer)
 
       // Государственный бар, пока его не купили, торгует без склада: пополнять
       // его некому, и раньше он стоял пустым («бар не работает», чат 07.11).
@@ -68,16 +109,7 @@ export const BarsService = {
       const split = barSaleSplit(offer.price)
       if (!stateRun) await tx.productionObject.update({ where: { id: offer.productionObjectId }, data: { balance: { increment: split.ownerIncome } } })
 
-      const alcoholLevel = character.status === 'IN_BATTLE' ? currentAlcohol : Math.min(100, currentAlcohol + offer.alcoholDegrees)
-      const hpCurrent = Math.min(character.hpMax, character.hpCurrent + offer.hpRestore)
-      const buffExpiresAt = hasBuff ? new Date(now.getTime() + offer.buffMinutes * 60_000) : character.barBuffExpiresAt
-      await tx.character.update({ where: { id: characterId }, data: {
-        hpCurrent,
-        alcoholLevel: Math.round(alcoholLevel),
-        alcoholUpdatedAt: now,
-        hangoverUntil,
-        ...(hasBuff ? { barBuffAccuracy: offer.accuracyBuff, barBuffDamage: offer.damageBuff, barBuffExpiresAt: buffExpiresAt, lastBarBuffAt: now } : {}),
-      } })
+      const { hpCurrent, alcoholLevel, buffExpiresAt } = await effect.apply()
       return { offerId, price: offer.price, tax: split.tax, ownerIncome: split.ownerIncome, hpCurrent, alcoholLevel, newBalance, buffExpiresAt }
     } })
   },
