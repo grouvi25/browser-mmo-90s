@@ -737,12 +737,21 @@ function loadParticipantProfiles(participants: { id: string; characterId: string
           },
         },
       })
+      // Обращение №121: рейтинг виден в бою, как в профиле, тем же расчётом (статы + надетое).
+      const [ratingStats, worn] = await Promise.all([
+        prisma.characterStats.findUnique({ where: { characterId: participant.characterId } }),
+        prisma.itemInstance.findMany({
+          where: { ownerId: participant.characterId, isEquipped: true, status: { not: 'DELETED' } },
+          include: { template: true },
+        }),
+      ])
       const primary = character?.items.find(item => item.armorSlot === 'LEFT_HAND') ?? character?.items.find(item => item.armorSlot == null)
       const secondary = character?.items.find(item => item.armorSlot === 'RIGHT_HAND')
       return {
         participantId: participant.id,
         name: character?.nickname ?? 'Боец',
         level: character?.battleLevel ?? 0,
+        rating: ratingStats ? calcCharacterRating(ratingStats, worn) : null,
         avatar: character?.avatar ?? null,
         gender: character?.gender ?? null,
         primaryHand: primary?.template.name ?? null,
@@ -778,6 +787,7 @@ function loadParticipantProfiles(participants: { id: string; characterId: string
       participantId: participant.id,
       name: bot?.name ?? 'Противник',
       level: bot?.battleLevel ?? 0,
+      rating: null,
       avatar: typeof equipment.avatar === 'string' ? equipment.avatar : null,
       gender: null,
       primaryHand: mainWeapon === 'Оружие' || !mainWeapon ? shown.name : mainWeapon,
@@ -1427,7 +1437,7 @@ export const BattleService = {
         const who = profiles.find(profile => profile.participantId === p.id)
         return {
           participantId: p.id, side: p.side, hpCurrent: p.hpCurrent, hpMax: p.hpMax,
-          name: who?.name ?? 'Боец', level: who?.level ?? 0, primaryHand: who?.primaryHand ?? null, secondaryHand: who?.secondaryHand ?? null,
+          name: who?.name ?? 'Боец', level: who?.level ?? 0, rating: who?.rating ?? null, primaryHand: who?.primaryHand ?? null, secondaryHand: who?.secondaryHand ?? null,
         }
       }),
     }

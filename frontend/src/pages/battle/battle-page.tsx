@@ -350,6 +350,8 @@ export function BattlePage() {
   const eHpMax    = ePart?.hpMax ?? dbEPart?.hpMax ?? 0  // 0 показывает полный бар до загрузки
   const enemyProfile = profiles.find(profile => profile.participantId === ePart?.participantId)
   const enemyName = enemyProfile?.name ?? 'Противник'
+  // Обращение №121: рейтинг виден прямо в бою, как в досье («123,4»). У ботов его нет.
+  const ratingText = (rating?: number | null) => rating != null ? ` · рейт. ${String(rating).replace('.', ',')}` : ''
 
   // Победой считался только PVE_WIN: PvP и командный бой возвращают победителя
   // иначе, и победитель дуэли видел «ПОРАЖЕНИЕ».
@@ -705,7 +707,7 @@ export function BattlePage() {
             <img className="m-battle__avatar" alt="" draggable={false}
               src={char?.avatar ?? SPRITES[char?.gender === 'FEMALE' ? 'portrait-female' : 'portrait']} />
             <div className="m-battle__fighter-text">
-              <span className="m-battle__name"><span className="m-battle__who">{playerName} · {char?.battleLevel ?? 0} ур.</span><b className="m-battle__hpnum">{pHp}/{pHpMax}</b></span>
+              <span className="m-battle__name"><span className="m-battle__who">{playerName} · {char?.battleLevel ?? 0} ур.{ratingText(playerProfile?.rating)}</span><b className="m-battle__hpnum">{pHp}/{pHpMax}</b></span>
               <span className="m-battle__hp"><i style={{ transform: `scaleX(${pHpMax ? pHp / pHpMax : 0})` }} /></span>
             </div>
           </div>
@@ -713,7 +715,7 @@ export function BattlePage() {
             <img className="m-battle__avatar" alt={`Портрет: ${enemyName}`} draggable={false}
               src={enemyProfile?.avatar ?? SPRITES[enemyProfile?.gender === 'FEMALE' ? 'portrait-female' : 'portrait']} />
             <div className="m-battle__fighter-text">
-              <span className="m-battle__name"><span className="m-battle__who">{enemyName} · {enemyProfile?.level ?? 0} ур.</span><b className="m-battle__hpnum">{eHp}/{eHpMax}</b></span>
+              <span className="m-battle__name"><span className="m-battle__who">{enemyName} · {enemyProfile?.level ?? 0} ур.{ratingText(enemyProfile?.rating)}</span><b className="m-battle__hpnum">{eHp}/{eHpMax}</b></span>
               <span className="m-battle__hp is-enemy"><i style={{ transform: `scaleX(${eHpMax ? eHp / eHpMax : 0})` }} /></span>
             </div>
           </div>
@@ -803,7 +805,7 @@ export function BattlePage() {
           <Sword size={15} /><b>Бой</b>
           <span className="battle-desk__timer" title="Время на ход">{timerText}</span>
           <b>Раунд {currentRound} / 30</b>
-          <span>{playerName} {pHp}/{pHpMax} · {enemyName} {eHp}/{eHpMax}</span>
+          <span>{playerName}{ratingText(playerProfile?.rating)} {pHp}/{pHpMax} · {enemyName}{ratingText(enemyProfile?.rating)} {eHp}/{eHpMax}</span>
           <span className={'battle-desk__status' + (actionMut.isPending ? ' is-pending' : '')}>
             {actionMut.isPending ? 'Ход отправляется…' : pPart?.hasActedThisRound ? 'Ждём противника' : 'Ваш ход'}
           </span>

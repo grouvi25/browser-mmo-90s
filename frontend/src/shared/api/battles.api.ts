@@ -22,6 +22,8 @@ export interface BattleParticipantProfile {
   participantId: string
   name: string
   level: number
+  /** Рейтинг бойца (статы + надетое), null у ботов (обращение №121). */
+  rating?: number | null
   avatar: string | null
   gender: 'MALE' | 'FEMALE' | null
   primaryHand: string | null
@@ -50,7 +52,7 @@ export interface BattleWatchView {
   } | null
   fighters: {
     participantId: string; side: number; hpCurrent: number; hpMax: number
-    name: string; level: number; primaryHand: string | null; secondaryHand: string | null
+    name: string; level: number; rating?: number | null; primaryHand: string | null; secondaryHand: string | null
   }[]
 }
 

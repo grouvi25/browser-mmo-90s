@@ -32,7 +32,7 @@ function Fighter({ fighter, live }: {
   return (
     <li className={'bwatch-fighter' + (out ? ' is-out' : '')}>
       <span className="bwatch-fighter__who">
-        <Link to={`/u/${encodeURIComponent(fighter.name)}`}>{fighter.name}</Link> <i>{fighter.level} ур.</i>
+        <Link to={`/u/${encodeURIComponent(fighter.name)}`}>{fighter.name}</Link> <i>{fighter.level} ур.{fighter.rating != null ? ` · рейт. ${String(fighter.rating).replace('.', ',')}` : ''}</i>
       </span>
       <b className="bwatch-fighter__num">{live?.isSurrendered ? 'сдался' : `${hp} / ${hpMax}`}</b>
       <span className="bwatch-fighter__hp"><i style={{ transform: `scaleX(${hpMax ? Math.max(0, hp / hpMax) : 0})` }} /></span>
