@@ -57,3 +57,18 @@ void loadTemplateImages().finally(() => ReactDOM.createRoot(document.getElementB
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') void loadTemplateImages().then(() => queryClient.invalidateQueries({ queryKey: ['inventory'] }))
 })
+
+// №118 (Anastasia 15.11): Safari на iPhone сам приближает страницу при нажатии на поле
+// со шрифтом мельче 16px, а отдалить щипком не даёт защита выше (№83). Пока палец на
+// поле — запрещаем этот автоприближ, после ухода с поля возвращаем обычную настройку.
+{
+  const viewport = document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
+  const base = viewport?.content ?? ''
+  const isField = (target: EventTarget | null) => target instanceof Element && !!target.closest('input, select, textarea')
+  document.addEventListener('touchstart', event => {
+    if (viewport && isField(event.target)) viewport.content = `${base}, maximum-scale=1`
+  }, { capture: true, passive: true })
+  document.addEventListener('focusout', () => {
+    window.setTimeout(() => { if (viewport && !isField(document.activeElement)) viewport.content = base }, 300)
+  })
+}
