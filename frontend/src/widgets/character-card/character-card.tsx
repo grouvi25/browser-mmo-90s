@@ -116,6 +116,8 @@ export function CharacterStatRows({ char }: { char: MeCharacter | undefined }) {
 export interface CardProfile {
   nickname: string
   level: number
+  /** Рейтинг бойца: в бою пишется на табличке с ником (обращение №121). У ботов нет. */
+  rating?: number | null
   hp: number
   hpMax: number
   avatar?: string | null
@@ -133,8 +135,10 @@ export interface CardProfile {
 export type CardWounds = Partial<Record<string, number>>
 const WOUND_STRIP_AT = 3
 
-export function CharacterCard({ profile, wounds, liveHp }: {
+export function CharacterCard({ profile, wounds, liveHp, showRating }: {
   profile?: CardProfile
+  /** Своя карточка в бою: рейтинг на табличке с ником, как у противника (№121). */
+  showRating?: boolean
   wounds?: CardWounds
   /** Здоровье своего бойца в идущем бою. Профиль персонажа обновляется
    *  раз в 30 секунд и в бою не меняется — без этого цифра на своей
@@ -192,6 +196,7 @@ export function CharacterCard({ profile, wounds, liveHp }: {
   const hp = profile?.hp ?? liveHp?.hp ?? char?.hpCurrent ?? 0
   const energy = profile?.level ?? char?.battleLevel ?? 0
   const nickname = profile?.nickname ?? char?.nickname ?? '—'
+  const rating = profile ? profile.rating : showRating ? char?.rating : null
   const hpMax = profile?.hpMax ?? liveHp?.hpMax ?? char?.hpMax
 
   return (
@@ -255,7 +260,7 @@ export function CharacterCard({ profile, wounds, liveHp }: {
         as={own ? 'button' : 'div'}
         onClick={own ? () => navigate('/profile') : undefined}
       >
-        {nickname}
+        {nickname}{rating != null && <span className="nick-badge__rating" title="Рейтинг"> · {String(rating).replace('.', ',')}</span>}
       </FitText>
 
       {/* ── тело карточки: зависит от выбранной вкладки ──── */}

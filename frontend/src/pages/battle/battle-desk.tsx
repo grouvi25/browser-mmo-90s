@@ -62,7 +62,7 @@ export function BattleDesk({
       <div className="stage__plate" style={{ backgroundImage: plate, width: MENU_STAGE.w, height: MENU_STAGE.h }} />
       <TopNav />
       {/* Своя карточка — та же, что в городе, и на том же месте. */}
-      <CharacterCard wounds={playerWounds} liveHp={playerHp} />
+      <CharacterCard wounds={playerWounds} liveHp={playerHp} showRating />
 
       <div className="battle-desk" style={box(DESK.center)}>
         {header}

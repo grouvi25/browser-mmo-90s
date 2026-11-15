@@ -665,7 +665,7 @@ export function BattlePage() {
   //    колонкой, в бумажной палитре городской оболочки. ──
   // Противник той же карточкой, что и в городе: фигура, раны по зонам, оружие в руках.
   const enemyCard: CardProfile = {
-    nickname: enemyName, level: enemyProfile?.level ?? 0,
+    nickname: enemyName, level: enemyProfile?.level ?? 0, rating: enemyProfile?.rating ?? null,
     hp: eHp, hpMax: eHpMax,
     avatar: enemyProfile?.avatar,
     gender: enemyProfile?.gender,
@@ -805,7 +805,7 @@ export function BattlePage() {
           <Sword size={15} /><b>Бой</b>
           <span className="battle-desk__timer" title="Время на ход">{timerText}</span>
           <b>Раунд {currentRound} / 30</b>
-          <span>{playerName}{ratingText(playerProfile?.rating)} {pHp}/{pHpMax} · {enemyName}{ratingText(enemyProfile?.rating)} {eHp}/{eHpMax}</span>
+          <span>{playerName} {pHp}/{pHpMax} · {enemyName} {eHp}/{eHpMax}</span>
           <span className={'battle-desk__status' + (actionMut.isPending ? ' is-pending' : '')}>
             {actionMut.isPending ? 'Ход отправляется…' : pPart?.hasActedThisRound ? 'Ждём противника' : 'Ваш ход'}
           </span>
