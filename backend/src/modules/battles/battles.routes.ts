@@ -11,12 +11,17 @@ const StartPveSchema = z.object({ botCode: z.string().default('training_bandit')
 // живёт только в истории боёв и приходить с клиента больше не должно.
 // Раздельные ноги принимаются от старых клиентов и сводятся к LEGS (zones.ts).
 const ZoneEnum = z.enum(['HEAD', 'CHEST', 'RIGHT_ARM', 'LEFT_ARM', 'LEGS', 'RIGHT_LEG', 'LEFT_LEG'])
-const ActionSchema = z.object({
+export const ActionSchema = z.object({
   action: z.enum(['attack', 'block', 'move', 'use_item', 'change_weapon', 'surrender']),
   itemInstanceId: z.string().uuid().optional(),
   weaponHand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional(),
   moveTo: z.object({ x: z.number().int().min(0).max(8), y: z.number().int().min(0).max(8) }).optional(),
-  targetParticipantId: z.string().uuid().optional(),
+  // Цель — боец (uuid участника) или чужая фигура на поле: «dog:<uuid>» / «helper:<uuid>»
+  // (companions.ts). Раньше принимался только uuid, и удар по собаке или помощнику
+  // отбивался проверкой ещё до боя: по фигурам бить было нельзя (Дима 15.11).
+  targetParticipantId: z.string()
+    .regex(/^(?:(?:helper|dog):)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+    .optional(),
   // Зональная боёвка (опционально — старый фронт шлёт только action)
   stance: z.enum(['attack2', 'mixed', 'defense4']).optional(),
   attackZones: z.array(ZoneEnum).max(2).optional(),
