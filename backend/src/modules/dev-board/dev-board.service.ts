@@ -109,6 +109,8 @@ const REACTION: Record<string, string | null> = { OPEN: null, TAKEN: '👨‍�
 async function render(item: DevBoardItem): Promise<void> {
   if (!devBoardConfigured()) return
   const s = await ensureTopics()
+  // Перенос в темы мог уже прислать эту карточку заново: берём свежий номер сообщения.
+  item = (await prisma.devBoardItem.findUnique({ where: { id: item.id } })) ?? item
   const chat = env.DEV_BOARD_CHAT_ID!
   let messageId = item.messageId
   if (messageId) {
