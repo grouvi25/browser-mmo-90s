@@ -144,7 +144,9 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
   // там, включая правки, сделанные после последнего посева.
   fastify.get('/sandbox/items', READ_ADMIN, async (_req, reply) => {
     const [templates, privateRows] = await Promise.all([
+      // Выключенные шаблоны убраны из игры (армейские вещи, №125) и в справочнике не нужны.
       prisma.itemTemplate.findMany({
+        where: { isActive: true },
         orderBy: [{ type: 'asc' }, { levelReq: 'asc' }, { priceBase: 'asc' }],
         include: {
           shopEntries: { select: { overridePrice: true, isAvailable: true } },

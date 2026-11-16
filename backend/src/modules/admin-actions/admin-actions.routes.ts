@@ -303,7 +303,7 @@ export async function adminActionsRoutes(fastify: FastifyInstance): Promise<void
   // «как выдавать какие-то ресы, вещи?» — в карточке игрока этого не было.
   fastify.get('/grant-options', READ_ADMIN, async (_req, reply) => {
     const [items, resources] = await Promise.all([
-      prisma.itemTemplate.findMany({ select: { id: true, name: true, type: true, levelReq: true }, orderBy: [{ type: 'asc' }, { name: 'asc' }] }),
+      prisma.itemTemplate.findMany({ where: { isActive: true }, select: { id: true, name: true, type: true, levelReq: true }, orderBy: [{ type: 'asc' }, { name: 'asc' }] }),
       prisma.resourceTemplate.findMany({ where: { isActive: true }, select: { id: true, name: true, code: true }, orderBy: { name: 'asc' } }),
     ])
     return reply.send({ items, resources })

@@ -10,13 +10,15 @@ export const PrivateShopsService={
  async listShops(){return[{code:'kommersant',name:'Коммерсант'},{code:'armory_garage',name:'Оружейный гараж'}]},
  async listItems(shopCode:string){
   const entries=await prisma.privateShopItem.findMany({where:{shopCode,isActive:true},orderBy:{price:'asc'}})
-  return Promise.all(entries.map(async entry=>{
+  // Вещь, убранная из игры (шаблон выключен, №125), в лавке не показывается, даже если строка лавки осталась.
+  const rows=await Promise.all(entries.map(async entry=>{
    const itemTemplate=entry.itemTemplateId?await prisma.itemTemplate.findUnique({where:{id:entry.itemTemplateId}}):null
    const resourceTemplate=entry.resourceTemplateId?await prisma.resourceTemplate.findUnique({where:{id:entry.resourceTemplateId}}):null
    return{...entry,kind:itemTemplate?'ITEM':'RESOURCE',name:itemTemplate?.name??resourceTemplate?.name??'Unknown',code:itemTemplate?.code??resourceTemplate?.code,itemTier:itemTemplate?.itemTier??resourceTemplate?.tier??1,levelReq:itemTemplate?.levelReq??0,
     // Характеристики вещи — те же, что видны в госмагазине (обращение №49: в лавке их не было).
-    template:itemTemplate}
+    template:itemTemplate,retired:!!itemTemplate&&!itemTemplate.isActive}
   }))
+  return rows.filter(row=>!row.retired).map(({retired:_retired,...row})=>row)
  },
  async buy(characterId:string,shopCode:string,privateShopItemId:string,quantity:number,key:string){
   return withIdempotency({characterId,scope:'private-shop.buy',key,execute:async tx=>{
@@ -33,7 +35,7 @@ export const PrivateShopsService={
    const itemIds:string[]=[]
    let itemName:string|null=null
    if(entry.itemTemplateId){
-    const template=await tx.itemTemplate.findUniqueOrThrow({where:{id:entry.itemTemplateId}});itemName=template.name
+    const template=await tx.itemTemplate.findUniqueOrThrow({where:{id:entry.itemTemplateId}});if(!template.isActive)throw new AppError(ErrorCode.PSHOP_ITEM_NOT_FOUND,'Shop item unavailable',404);itemName=template.name
     for(let i=0;i<quantity;i++){const item=await tx.itemInstance.create({data:{templateId:template.id,ownerId:characterId,quality:template.qualityBase,durabilityCurrent:template.durabilityMax,durabilityMax:template.durabilityMax,weight:template.weight,sourceType:'PRIVATE',freePoints:template.allocationMode==='PLAYER'?template.statBudget:0,usesLeft:template.type==='TOOL'?template.usesMax:null}});itemIds.push(item.id);await tx.itemLog.create({data:{itemId:item.id,characterId,actionCode:'CREATED_FROM_PRIVATE_SHOP',details:{shopCode,price:entry.price}}})}
    }else if(entry.resourceTemplateId){await ResourcesService.add(tx,{characterId,resourceTemplateId:entry.resourceTemplateId,amount:quantity,reasonCode:'PRIVATE_SHOP_BUY',refType:'private_shop',refId:entry.id})}
    return{privateShopItemId,quantity,total,newBalance,itemIds,itemName}

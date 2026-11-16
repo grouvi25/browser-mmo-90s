@@ -11,6 +11,7 @@
 import type { AttackHand, BattleAction, BodyZone } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { INTERCEPT_MARK } from './companions'
+import { IDLE_FROZEN, IDLE_SKIP } from './battle-timeout'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 
@@ -23,7 +24,7 @@ const ZONE_TO: Record<BodyZone, string> = {
 }
 const HAND: Record<AttackHand, string> = { LEFT_HAND: 'левой', RIGHT_HAND: 'правой' }
 
-export type JournalKind = 'hit' | 'crit' | 'pierce' | 'dodge' | 'block' | 'move' | 'item' | 'weapon' | 'surrender'
+export type JournalKind = 'hit' | 'crit' | 'lucky' | 'critlucky' | 'idle' | 'dodge' | 'block' | 'move' | 'item' | 'weapon' | 'surrender'
 
 export interface JournalTurn {
   action: BattleAction
@@ -55,7 +56,11 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
   switch (turn.action) {
     // «Походил, ударил» (правка заказчика 22.10): шаг — отдельной строкой.
     case 'MOVE': return { kind: 'move', text: 'делает шаг' }
-    case 'BLOCK': return { kind: 'block', text: 'уходит в защиту' }
+    // Пропуск по таймеру (Дима 15.11): первый раз стоит, второй — замёрз до конца боя.
+    case 'BLOCK':
+      if (turn.logLine === IDLE_SKIP) return { kind: 'idle', text: 'пропустил ход и стоит' }
+      if (turn.logLine === IDLE_FROZEN) return { kind: 'idle', text: 'замёрз до конца боя' }
+      return { kind: 'block', text: 'уходит в защиту' }
     // Строка хода называет вещь и что она сделала: иначе свиток выглядит пустым ходом.
     case 'USE_ITEM': {
       const used = turn.logLine?.match(/^Использовал (.+)$/)?.[1]
@@ -77,7 +82,14 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
   // Свиток отражения у защитника вернул бьющему часть урона.
   const reflected = turn.logLine?.match(/отражение (\d+)/)?.[1]
   const tail = (strip ? ` — ${strip}` : '') + (reflected ? `, отражено −${reflected} HP` : '')
-  if (turn.blockPierced) return { kind: 'pierce', text: `пробил блок${zone}${damage}${tail}` }
+  // Дима 15.11: обычный удар серый, крит красный, удачный синий, крито-удачный
+  // наполовину красный, наполовину синий. Крит, пробивший блок, раньше писался
+  // только «пробил блок», и крит пропадал из журнала. Удачный без блока виден
+  // по строке движка: «Удачный сквозь уворот», «Крито-удачный сквозь уворот».
+  const lucky = turn.blockPierced || /удачн/i.test(turn.logLine ?? '')
+  const pierced = turn.blockPierced ? ', пробил блок' : ''
+  if (turn.crit && lucky) return { kind: 'critlucky', text: `крито-удачный${pierced}${zone}${damage}${tail}` }
+  if (lucky) return { kind: 'lucky', text: `удачный${pierced}${zone}${damage}${tail}` }
   if (turn.crit) return { kind: 'crit', text: `крит${zone}${damage}${tail}` }
   return { kind: 'hit', text: `${attack}${hand}${zone}${damage}${tail}` }
 }

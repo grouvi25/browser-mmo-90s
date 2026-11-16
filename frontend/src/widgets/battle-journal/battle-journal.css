@@ -13,9 +13,11 @@
 .bj-side-1 .bj-actor { color: var(--accent-light); }
 .bj-side-2 .bj-actor { color: var(--danger); }
 .bj-icon { vertical-align: -1px; }
-.bj-line--hit .bj-icon { color: #c43030; }
-.bj-line--crit .bj-icon { color: #d4a017; }
-.bj-line--pierce .bj-icon { color: #9a60c0; }
+/* Дима 15.11: обычный удар серый, крит красный, удачный синий, крито-удачный пополам. */
+.bj-line--hit .bj-icon, .bj-kind.is-hit { color: #5c5c5c; }
+.bj-line--crit .bj-icon, .bj-kind.is-crit, .bj-kind .is-crit { color: #b3261e; }
+.bj-line--lucky .bj-icon, .bj-kind.is-lucky, .bj-kind .is-lucky { color: #1f4fa8; }
+.bj-line--critlucky .bj-icon { color: #b3261e; }
 .bj-line--dodge .bj-icon, .bj-line--block .bj-icon { color: #6a9a3a; }
 .bj-line--move .bj-icon { color: #365d91; }
 .bj-pages { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }

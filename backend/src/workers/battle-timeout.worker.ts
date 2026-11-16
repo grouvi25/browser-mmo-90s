@@ -2,7 +2,9 @@
  * Battle Timeout Worker — Этап 1.5
  *
  * Каждые 2 секунды проверяет активные бои.
- * Если игрок не сделал ход за 60 секунд (roundDeadline) → авто-блок.
+ * Если игрок не сделал ход за 60 секунд (roundDeadline), он стоит без ударов и блоков.
+ * Второй пропуск за бой (Дима 15.11) — замерзает до конца боя: дальше за него
+ * таймер ходит сразу, не дожидаясь срока.
  *
  * Используется BattleRedis (Redis) + прямой вызов BattleService.submitAction
  * от имени «системы».
@@ -51,14 +53,9 @@ export async function runBattleTimeout(): Promise<void> {
 
         logger.info({
           battleId, characterId, round: timeoutRound,
-        }, '[BattleTimeout] Auto-defense for timeout')
+        }, currentParticipant.frozen ? '[BattleTimeout] Frozen fighter stands' : '[BattleTimeout] Missed turn')
 
-        await BattleService.submitAction(char.userId, battleId, {
-          action: 'block',
-          stance: 'defense4',
-          attackZones: [],
-          blockZones: ['HEAD', 'CHEST', 'LEGS', 'LEGS'],
-        })
+        await BattleService.submitAction(char.userId, battleId, { action: 'block', timeout: true })
       }
 
     } catch (err) {

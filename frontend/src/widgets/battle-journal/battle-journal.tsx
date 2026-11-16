@@ -8,13 +8,13 @@
 // =============================================================
 import { useEffect, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ArrowRight, Copy, Flag, Link2, Package, RefreshCw, RotateCcw, Shield, Sword, Zap } from 'lucide-react'
+import { ArrowRight, Copy, Flag, Link2, Package, RefreshCw, RotateCcw, Shield, Snowflake, Sword, Zap } from 'lucide-react'
 import { battlesApi, type BattleJournalPage, type JournalKind } from '../../shared/api/battles.api'
 import { pageNumbers } from './page-numbers'
 import './battle-journal.css'
 
 const ICON: Record<JournalKind, typeof Sword> = {
-  hit: Sword, crit: Zap, pierce: Zap, dodge: ArrowRight, block: Shield,
+  hit: Sword, crit: Zap, lucky: Zap, critlucky: Zap, idle: Snowflake, dodge: ArrowRight, block: Shield,
   move: ArrowRight, item: Package, weapon: RefreshCw, surrender: Flag,
 }
 
@@ -67,6 +67,17 @@ function CopyJournal({ battleId, first }: { battleId: string; first: BattleJourn
       <Copy size={12} aria-hidden="true" /> {state === 'busy' ? 'Собираю…' : state === 'done' ? 'Скопировано' : state === 'fail' ? 'Не получилось' : 'Скопировать журнал'}
     </button>
   )
+}
+
+/**
+ * Текст удара в цветах Димы (15.11): крит красный, удачный синий, у крито-удачного
+ * «крито-» красное, остальное синее.
+ */
+export function StrikeText({ kind, text, className }: { kind: JournalKind; text: string; className: string }) {
+  if (kind === 'critlucky' && text.startsWith('крито-')) {
+    return <span className={`${className} is-critlucky`}><span className="is-crit">крито-</span><span className="is-lucky">{text.slice(6)}</span></span>
+  }
+  return <span className={`${className} is-${kind}`}>{text}</span>
 }
 
 const watchUrl = (battleId: string) => `${window.location.origin}/battle/${battleId}/watch`
@@ -132,7 +143,7 @@ export function BattleJournal({ battleId, refreshKey = 0 }: { battleId: string; 
               <span className="bj-text">
                 <b className="bj-actor">{line.actor}</b>
                 {line.target && <> → <b className="bj-target">{line.target}</b></>}
-                {': '}<Icon size={12} aria-hidden="true" className="bj-icon" /> {line.text}
+                {': '}<Icon size={12} aria-hidden="true" className="bj-icon" /> <StrikeText kind={line.kind} text={line.text} className="bj-kind" />
               </span>
             </li>
           )

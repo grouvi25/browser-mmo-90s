@@ -41,6 +41,7 @@ import {
   type AttackHand,
   type EquipArmorLike,
 } from './zones'
+import { FREEZE_AFTER_MISSED, IDLE_FROZEN, IDLE_SKIP } from './battle-timeout'
 import type { BodyZone } from '@prisma/client'
 import {
   BATTLE_GRID,
@@ -113,8 +114,13 @@ function weaponRangeOf(weapon: ItemWithTemplate | null | undefined): number {
  * противник за ход (походил, ударил и так далее), а раньше такой ход
  * не оставлял следа вовсе.
  */
-function blockedOnly(turn: { attackZones: BodyZone[]; blockZones: BodyZone[]; moveTo?: GridPosition }, moved: boolean): boolean {
-  return !moved && turn.attackZones.length === 0 && turn.blockZones.length > 0
+function blockedOnly(turn: { attackZones: BodyZone[]; blockZones: BodyZone[]; moveTo?: GridPosition; idle?: 'skip' | 'frozen' }, moved: boolean): boolean {
+  return !moved && turn.attackZones.length === 0 && (turn.blockZones.length > 0 || !!turn.idle)
+}
+
+/** Строка журнала для пропущенного хода: без неё боец, который стоит, из журнала пропадал. */
+function idleNote(turn: { idle?: 'skip' | 'frozen' }): { logLine?: string } {
+  return turn.idle ? { logLine: turn.idle === 'frozen' ? IDLE_FROZEN : IDLE_SKIP } : {}
 }
 
 /** Строка журнала для хода фигуры: удар или шаг (companions.ts). */
@@ -191,6 +197,10 @@ export interface LiveParticipant {
   hitsLanded: number
   weaponDamage?: Partial<Record<PrismaWeaponType, number>>
   skippedTurns: number   // tracks AFK/passive turns for anti-abuse
+  /** Пропущенные по таймеру ходы за бой (Дима 15.11): на втором боец замерзает. */
+  missedTurns?: number
+  /** Замёрз до конца боя: стоит без ударов и блоков, свой ход сделать не может. */
+  frozen?: boolean
   position: GridPosition
   /** Попадания по зонам за бой: на третьем снимается оружие или броня (wounds.ts). */
   wounds?: Wounds
@@ -1471,6 +1481,8 @@ export const BattleService = {
       /** Этап 4: переодевание в бою, часть обычного хода. */
       swapWeapon?: { hand: AttackHand; itemInstanceId: string }
       swapArmor?: { zone: BodyZone; itemInstanceId: string }
+      /** Ход за бойца от таймера (battle-timeout.worker): из маршрута не приходит. */
+      timeout?: boolean
     } | string,
     legacyTargetItemId?: string
   ) {
@@ -1515,6 +1527,17 @@ export const BattleService = {
       // В текущей схеме все actions явные, поэтому skippedTurns не растёт здесь,
       // но обнуляем при любом активном действии для честности
       playerPart.skippedTurns = 0
+
+      // ── Пропуск хода и заморозка (Дима 15.11) ───────────
+      // Первый пропуск — стоит, второй за бой (даже не подряд) — замёрз до конца боя.
+      const timedOut = typeof input !== 'string' && input.timeout === true
+      if (playerPart.frozen && !timedOut && action !== 'surrender') {
+        throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Вы замёрзли до конца боя: пропущено два хода', 400)
+      }
+      if (timedOut && !playerPart.frozen) {
+        playerPart.missedTurns = (playerPart.missedTurns ?? 0) + 1
+        if (playerPart.missedTurns >= FREEZE_AFTER_MISSED) playerPart.frozen = true
+      }
 
       // ── Сдача ───────────────────────────────────────────
       if (action === 'surrender') {
@@ -1634,7 +1657,9 @@ export const BattleService = {
       }
 
       // ── Зональный ход: стойка (2 удара / 1 блок+1 удар / 4 блока) + зоны ──
-      const turn: ZonalTurnInput = payload.stance || payload.moveTo
+      const turn: ZonalTurnInput = timedOut
+        ? normalizeTurn({ stance: 'defense4', idle: playerPart.frozen ? 'frozen' : 'skip' })
+        : payload.stance || payload.moveTo
         ? normalizeTurn({
             stance: payload.stance as ZonalTurnInput['stance'],
             attackZones: (payload.attackZones ?? []) as BodyZone[],
@@ -2109,7 +2134,7 @@ export const BattleService = {
     ]
     const companionRecords = companionEvents.map(e => companionRecord(battleId, roundNumber, e, () => ({ targetBotId: botPart.botId })))
     const blockRecords = [
-      ...(blockedOnly(playerTurn, playerMoved) ? [{ battleId, roundNumber, actorCharId: char.id, action: 'BLOCK' as BattleAction }] : []),
+      ...(blockedOnly(playerTurn, playerMoved) ? [{ battleId, roundNumber, actorCharId: char.id, action: 'BLOCK' as BattleAction, ...idleNote(playerTurn) }] : []),
       ...(blockedOnly(botTurn, botMoved) ? [{ battleId, roundNumber, actorBotId: botPart.botId, action: 'BLOCK' as BattleAction }] : []),
     ]
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2584,7 +2609,7 @@ export const BattleService = {
     }))
     const blockRecords = [...contexts.values()]
       .filter(ctx => blockedOnly(ctx.turn, moved.has(ctx.part.participantId)))
-      .map(ctx => ({ battleId, roundNumber, actorCharId: ctx.char.id, action: 'BLOCK' as BattleAction }))
+      .map(ctx => ({ battleId, roundNumber, actorCharId: ctx.char.id, action: 'BLOCK' as BattleAction, ...idleNote(ctx.turn) }))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await prisma.battleTurn.createMany({ data: [...moveRecords, ...blockRecords, ...turnRecords, ...companionHitRecords, ...companionRecords] as any })
     for (const [participantId, zones] of hitZones) {
@@ -2850,8 +2875,8 @@ export const BattleService = {
       ...(moved2 ? [{ battleId, roundNumber, actorCharId: part2.characterId, action: 'MOVE' as BattleAction, fromX: from2.x, fromY: from2.y, toX: part2.position.x, toY: part2.position.y }] : []),
     ]
     const blockRecords = [
-      ...(blockedOnly(turn1, moved1) ? [{ battleId, roundNumber, actorCharId: part1.characterId, action: 'BLOCK' as BattleAction }] : []),
-      ...(blockedOnly(turn2, moved2) ? [{ battleId, roundNumber, actorCharId: part2.characterId, action: 'BLOCK' as BattleAction }] : []),
+      ...(blockedOnly(turn1, moved1) ? [{ battleId, roundNumber, actorCharId: part1.characterId, action: 'BLOCK' as BattleAction, ...idleNote(turn1) }] : []),
+      ...(blockedOnly(turn2, moved2) ? [{ battleId, roundNumber, actorCharId: part2.characterId, action: 'BLOCK' as BattleAction, ...idleNote(turn2) }] : []),
     ]
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await prisma.battleTurn.createMany({ data: [...moveRecords, ...blockRecords, ...turnRecords] as any })

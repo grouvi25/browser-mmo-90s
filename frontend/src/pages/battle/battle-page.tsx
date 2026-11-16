@@ -463,7 +463,7 @@ export function BattlePage() {
   // Свой ход сделан — до конца раунда кнопки хода неактивны (Дима, №56):
   // сервер всё равно отклонит второй ход, а нажатая впустую кнопка путает.
   const turnDone = !!pPart?.hasActedThisRound
-  const canAct = !battleOver && !actionMut.isPending && !turnDone
+  const canAct = !battleOver && !actionMut.isPending && !turnDone && !pPart?.frozen
   const targetInRange = playerRange == null || currentDistance <= playerRange
   const outOfRangeHands = ([['LEFT_HAND', playerProfile?.primaryRange ?? playerRange ?? 1], ['RIGHT_HAND', playerProfile?.secondaryRange ?? 1]] as const)
     .filter(([, range]) => currentDistance > range).map(([hand]) => hand)
@@ -687,7 +687,7 @@ export function BattlePage() {
           <span className="battle-desk__timer">{timerText}</span>
           <b className="m-battle__round">Раунд {currentRound} / 30</b>
           <span className={'m-battle__status' + (actionMut.isPending ? ' is-pending' : '')}>
-            {actionMut.isPending ? 'Ход отправляется…' : pPart?.hasActedThisRound ? 'Ждём противника' : 'Ваш ход'}
+            {actionMut.isPending ? 'Ход отправляется…' : pPart?.frozen ? 'Вы замёрзли до конца боя' : pPart?.hasActedThisRound ? 'Ждём противника' : 'Ваш ход'}
           </span>
           <span className="m-battle__tools">
             <button type="button" aria-label="Боевой карман" title="Боевой карман" aria-expanded={pocketsOpen}
@@ -807,7 +807,7 @@ export function BattlePage() {
           <b>Раунд {currentRound} / 30</b>
           <span>{playerName} {pHp}/{pHpMax} · {enemyName} {eHp}/{eHpMax}</span>
           <span className={'battle-desk__status' + (actionMut.isPending ? ' is-pending' : '')}>
-            {actionMut.isPending ? 'Ход отправляется…' : pPart?.hasActedThisRound ? 'Ждём противника' : 'Ваш ход'}
+            {actionMut.isPending ? 'Ход отправляется…' : pPart?.frozen ? 'Вы замёрзли до конца боя' : pPart?.hasActedThisRound ? 'Ждём противника' : 'Ваш ход'}
           </span>
           <span className="battle-desk__tools">
             <button type="button" onClick={() => { setShowLog(false); setPocketsOpen(value => !value) }}>

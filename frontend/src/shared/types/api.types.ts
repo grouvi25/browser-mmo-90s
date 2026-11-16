@@ -288,6 +288,8 @@ export interface LiveParticipant {
   isAlive: boolean
   isSurrendered: boolean
   hasActedThisRound: boolean
+  /** Дима 15.11: второй пропущенный ход — замёрз до конца боя. */
+  frozen?: boolean
   weaponInstanceId?: string
   leftWeaponInstanceId?: string
   rightWeaponInstanceId?: string

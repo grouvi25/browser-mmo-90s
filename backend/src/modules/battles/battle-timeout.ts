@@ -3,6 +3,8 @@ export interface TimeoutParticipant {
   isAlive: boolean
   isSurrendered: boolean
   hasActedThisRound: boolean
+  /** Замёрз (второй пропущенный ход): за него ходит таймер сразу, не дожидаясь срока. */
+  frozen?: boolean
 }
 
 export interface TimeoutBattleState {
@@ -12,8 +14,17 @@ export interface TimeoutBattleState {
 }
 
 export function timedOutCharacterIds(state: TimeoutBattleState, now: number): string[] {
-  if (state.status !== 'active' || !state.roundDeadline || now < state.roundDeadline) return []
+  if (state.status !== 'active') return []
+  const expired = !!state.roundDeadline && now >= state.roundDeadline
   return state.participants
     .filter(participant => participant.characterId && participant.isAlive && !participant.isSurrendered && !participant.hasActedThisRound)
+    .filter(participant => expired || participant.frozen)
     .map(participant => participant.characterId!)
 }
+
+/** Дима 15.11: первый пропуск — боец просто стоит, второй (даже не подряд) — замерзает до конца боя. */
+export const FREEZE_AFTER_MISSED = 2
+
+/** Метки пропущенного хода в строке журнала (battle_turns.log_line). */
+export const IDLE_SKIP = 'Пропустил ход'
+export const IDLE_FROZEN = 'Замёрз'

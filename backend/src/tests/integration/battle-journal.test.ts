@@ -84,8 +84,14 @@ describe('журнал боя', () => {
     // Раньше такая строка выходила «удар в корпус» без урона (заказчик 26.10).
     expect(describeTurn({ ...base, zone: 'CHEST', hit: true, block: true })).toEqual({ kind: 'block', text: 'удар в корпус — блок' })
     expect(describeTurn({ ...base, zone: 'RIGHT_LEG', hit: true, crit: true, finalDamage: 12 })).toEqual({ kind: 'crit', text: 'крит в правую ногу, −12 HP' })
-    expect(describeTurn({ ...base, zone: 'CHEST', hit: true, blockPierced: true, finalDamage: 7 })).toEqual({ kind: 'pierce', text: 'пробил блок в корпус, −7 HP' })
+    expect(describeTurn({ ...base, zone: 'CHEST', hit: true, blockPierced: true, finalDamage: 7 })).toEqual({ kind: 'lucky', text: 'удачный, пробил блок в корпус, −7 HP' })
+    // Дима 15.11: крит, пробивший блок, не теряется — строка крито-удачная.
+    expect(describeTurn({ ...base, zone: 'HEAD', hit: true, crit: true, blockPierced: true, finalDamage: 30 })).toEqual({ kind: 'critlucky', text: 'крито-удачный, пробил блок в голову, −30 HP' })
+    expect(describeTurn({ ...base, zone: 'HEAD', hit: true, crit: true, finalDamage: 30, logLine: 'Крито-удачный сквозь уворот!, КРИТ!, Удар в голову: 30' })).toEqual({ kind: 'critlucky', text: 'крито-удачный в голову, −30 HP' })
+    expect(describeTurn({ ...base, zone: 'CHEST', hit: true, finalDamage: 9, logLine: 'Удачный сквозь уворот!, Удар в корпус: 9' })).toEqual({ kind: 'lucky', text: 'удачный в корпус, −9 HP' })
     expect(describeTurn({ ...base, action: 'MOVE', zone: null })).toEqual({ kind: 'move', text: 'делает шаг' })
+    expect(describeTurn({ ...base, action: 'BLOCK', zone: null, logLine: 'Пропустил ход' })).toEqual({ kind: 'idle', text: 'пропустил ход и стоит' })
+    expect(describeTurn({ ...base, action: 'BLOCK', zone: null, logLine: 'Замёрз' })).toEqual({ kind: 'idle', text: 'замёрз до конца боя' })
   })
 
   it('дальнобойный ход подписывается выстрелом — без руки (просьба из чата 22.10)', () => {

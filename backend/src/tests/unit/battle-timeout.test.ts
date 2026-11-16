@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { timedOutCharacterIds } from '../../modules/battles/battle-timeout'
+import { normalizeTurn } from '../../modules/battles/zones'
 import type { LiveBattleState, LiveParticipant } from '../../modules/battles/battles.service'
 
 const participant = (
@@ -50,5 +51,19 @@ describe('battle timeout team handling', () => {
     const finishing = state(1_000)
     finishing.status = 'finishing'
     expect(timedOutCharacterIds(finishing, 2_000)).toEqual([])
+  })
+
+  // Дима 15.11: второй пропуск — замёрз до конца боя, раунд его не ждёт.
+  it('frozen fighter is played by the timer at once, before the deadline', () => {
+    const frozen = state(2_000)
+    frozen.participants[0].frozen = true
+    expect(timedOutCharacterIds(frozen, 1_000)).toEqual(['c1'])
+  })
+
+  it('missed turn stands still: no hits and no blocks', () => {
+    const turn = normalizeTurn({ stance: 'defense4', idle: 'skip' })
+    expect(turn.attackZones).toEqual([])
+    expect(turn.blockZones).toEqual([])
+    expect(turn.idle).toBe('skip')
   })
 })

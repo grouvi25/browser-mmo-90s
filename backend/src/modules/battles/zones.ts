@@ -55,6 +55,9 @@ export interface ZonalTurnInput {
   /** Этап 4: переодевание в бою. Смена оружия — очко хода, брони — весь ход. */
   swapWeapon?: { hand: AttackHand; itemInstanceId: string }
   swapArmor?: { zone: BodyZone; itemInstanceId: string }
+  /** Дима 15.11: пропущенный ход. Боец стоит без ударов и без блоков;
+   *  «frozen» — второй пропуск, замёрз до конца боя. */
+  idle?: 'skip' | 'frozen'
 }
 
 /**
@@ -124,7 +127,7 @@ export function botArmorOfZone(
 export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): ZonalTurnInput {
   const stance: Stance =
     input?.stance && STANCE_BUDGET[input.stance] ? input.stance : 'attack2'
-  const budget = input?.moveTo
+  const budget = input?.moveTo || input?.idle
     ? { attacks: 0, blocks: 0 }
     : budgetAfterSwaps(STANCE_BUDGET[stance], { weapon: input?.swapWeapon, armor: input?.swapArmor })
 
@@ -177,6 +180,7 @@ export function normalizeTurn(input: Partial<ZonalTurnInput> | undefined): Zonal
     swapArmor: input?.swapArmor,
     moveTo: input?.moveTo,
     targetParticipantId: input?.targetParticipantId,
+    ...(input?.idle ? { idle: input.idle } : {}),
   }
 }
 

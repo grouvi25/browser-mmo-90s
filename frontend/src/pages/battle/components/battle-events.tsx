@@ -43,8 +43,10 @@ export function getEvent(t: TurnEvent) {
   if (!t.hit && t.dodge) return { type: 'dodge',   label: hand + 'Уворот' + z,   color: '#88b048' }
   if (!t.hit)            return { type: 'dodge',   label: hand + 'Уворот' + z,   color: '#88b048' } // нет промаха
   if (t.block)           return { type: 'block',   label: ((t.counterDamage ?? 0) > 0 ? 'Блок + ответка' : 'Блок') + z, color: '#6a9a3a' }
-  if (t.blockPierced)    return { type: 'lucky',   label: hand + 'Пробил блок' + z, color: '#9a60c0' }
-  if (t.lucky)           return { type: 'lucky',   label: hand + 'Пробитие' + z, color: '#9a60c0' }
-  if (t.crit)            return { type: 'crit',    label: 'КРИТ' + z,     color: '#d4a017' }
-  return                        { type: 'hit',     label: hand + 'Удар' + z,     color: '#c43030' }
+  // Дима 15.11: крит красный, удачный синий, крито-удачный пополам, обычный серый.
+  if (t.crit && (t.lucky || t.blockPierced)) return { type: 'crit', label: 'Крито-удачный' + (t.blockPierced ? ', пробил блок' : '') + z, color: '#b3261e' }
+  if (t.blockPierced)    return { type: 'lucky',   label: hand + 'Удачный, пробил блок' + z, color: '#1f4fa8' }
+  if (t.lucky)           return { type: 'lucky',   label: hand + 'Удачный' + z, color: '#1f4fa8' }
+  if (t.crit)            return { type: 'crit',    label: 'КРИТ' + z,     color: '#b3261e' }
+  return                        { type: 'hit',     label: hand + 'Удар' + z,     color: '#5c5c5c' }
 }

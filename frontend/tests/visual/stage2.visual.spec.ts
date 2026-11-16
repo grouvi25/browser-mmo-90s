@@ -203,11 +203,20 @@ test.describe('Stage 2 visual and browser flow', () => {
 
   // Правка 22.10: обувь была куплена, а на складе её не было ни в одной вкладке.
   test('купленная обувь лежит на складе во вкладке «Обувь»', async ({ page }) => {
-    await buyPrivateItem(apiContext, fighter, 'armor_boots_army_private')
+    // Армейские берцы убраны из игры 16.11 (№125), обувь берём у государства.
+    const shop = await apiContext.get('/api/shops/government/items', { headers: { Authorization: `Bearer ${fighter.token}` } })
+    expect(shop.status()).toBe(200)
+    const boots = (await shop.json() as Array<{ templateId: string; template: { code: string } }>).find(item => item.template.code === 'armor_boots_basic')
+    expect(boots).toBeTruthy()
+    const bought = await apiContext.post('/api/shops/government/buy', {
+      headers: { Authorization: `Bearer ${fighter.token}`, 'Idempotency-Key': `visual-gov-boots-${fighter.login}` },
+      data: { templateId: boots!.templateId },
+    })
+    expect(bought.status()).toBe(201)
     await authPage(page, fighter)
     await page.goto('/inventory')
     await page.getByRole('button', { name: 'Обувь', exact: true }).click()
-    await expect(page.getByText('Армейские берцы').first()).toBeVisible()
+    await expect(page.getByText('Берцы', { exact: true }).first()).toBeVisible()
   })
 
   // Документ заказчика: «после боя — полный лог и кнопка для перехода на

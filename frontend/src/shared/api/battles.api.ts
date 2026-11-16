@@ -106,7 +106,7 @@ export interface BattleHistoryItem {
   finishedAt: string | null
 }
 
-export type JournalKind = 'hit' | 'crit' | 'pierce' | 'dodge' | 'block' | 'move' | 'item' | 'weapon' | 'surrender'
+export type JournalKind = 'hit' | 'crit' | 'lucky' | 'critlucky' | 'idle' | 'dodge' | 'block' | 'move' | 'item' | 'weapon' | 'surrender'
 export interface BattleJournalLine {
   id: string; round: number; at: string; actor: string; target: string | null
   side: number; kind: JournalKind; text: string

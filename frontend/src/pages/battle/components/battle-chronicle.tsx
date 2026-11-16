@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { battlesApi } from '../../../shared/api/battles.api'
+import { StrikeText } from '../../../widgets/battle-journal/battle-journal'
 
 interface BattleChronicleProps {
   battleId: string
@@ -37,7 +38,7 @@ export function PersistedBattleChronicle({ battleId, refreshKey, playerSide, onO
             <i className="battle-chronicle__clock">[{new Date(line.at).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })}]</i>
             {/* Кто по кому (обращение №80): цель была только во всплывающей подсказке. */}
             <b>{line.actor}</b>{line.target && <> → <b className="battle-chronicle__target">{line.target}</b></>}
-            <span className={`battle-chronicle__label is-${line.kind}`}>{line.text}</span>
+            <StrikeText kind={line.kind} text={line.text} className="battle-chronicle__label" />
           </li>)}
         </ol>}
   </section>

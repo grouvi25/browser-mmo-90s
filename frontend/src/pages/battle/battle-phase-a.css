@@ -151,9 +151,10 @@
 .battle-chronicle li.is-theirs b { color: oklch(41% .13 25); }
 .battle-chronicle li em { margin-left: auto; color: oklch(38% .13 25); font: 700 11.5px/1 var(--font-mono); font-style: normal; font-variant-numeric: tabular-nums; }
 .battle-chronicle__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: oklch(38% .05 55); }
-.battle-chronicle__label.is-hit { color: oklch(44% .16 27); }
-.battle-chronicle__label.is-crit { color: oklch(45% .11 70); }
-.battle-chronicle__label.is-lucky { color: oklch(44% .17 305); }
+/* Дима 15.11: обычный удар серый, крит красный, удачный синий, крито-удачный пополам. */
+.battle-chronicle__label.is-hit { color: oklch(46% 0 0); }
+.battle-chronicle__label.is-crit, .battle-chronicle__label .is-crit { color: oklch(46% .18 27); }
+.battle-chronicle__label.is-lucky, .battle-chronicle__label .is-lucky { color: oklch(43% .15 260); }
 .battle-chronicle__label.is-block { color: oklch(41% .11 140); }
 .battle-chronicle__label.is-dodge { color: oklch(43% .12 132); }
 .battle-chronicle__label.is-move { color: oklch(44% .12 250); }
@@ -1044,9 +1045,9 @@
    только когда журнал пуст, поэтому и прошло мимо прошлой правки. */
 .battle-command-dock.is-compact .battle-chronicle__empty { color: oklch(30% .04 55); }
 .battle-command-dock.is-compact .battle-chronicle__label { color: oklch(30% .05 55); }
-.battle-command-dock.is-compact .battle-chronicle__label.is-hit { color: oklch(35% .16 27); }
-.battle-command-dock.is-compact .battle-chronicle__label.is-crit { color: oklch(34% .11 70); }
-.battle-command-dock.is-compact .battle-chronicle__label.is-lucky { color: oklch(35% .17 305); }
+.battle-command-dock.is-compact .battle-chronicle__label.is-hit { color: oklch(32% 0 0); }
+.battle-command-dock.is-compact .battle-chronicle__label.is-crit, .battle-command-dock.is-compact .battle-chronicle__label .is-crit { color: oklch(35% .17 27); }
+.battle-command-dock.is-compact .battle-chronicle__label.is-lucky, .battle-command-dock.is-compact .battle-chronicle__label .is-lucky { color: oklch(33% .15 260); }
 .battle-command-dock.is-compact .battle-chronicle__label.is-block { color: oklch(33% .11 140); }
 .battle-command-dock.is-compact .battle-chronicle__label.is-dodge { color: oklch(34% .12 132); }
 .battle-command-dock.is-compact .battle-chronicle__label.is-move { color: oklch(35% .12 250); }
