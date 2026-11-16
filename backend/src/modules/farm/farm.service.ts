@@ -1,5 +1,5 @@
 import { grantProductionExp } from '../professions/production-level'
-﻿import { prisma } from '../../shared/db/prisma'
+import { prisma } from '../../shared/db/prisma'
 import { professionLevelFromExp } from '../professions/professions'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
