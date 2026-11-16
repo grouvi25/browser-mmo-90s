@@ -38,4 +38,12 @@ describe('кошелёк рублей', () => {
     expect(second.items.map(row => row.amount)).toEqual([5, 4, 3, 2, 1])
     expect(second.hasMore).toBe(false)
   })
+
+  // Metallica 16.11: в строке видно, что именно продали или купили.
+  it('подпись называет вещь или сырьё', async () => {
+    const c = await character()
+    const res = await testPrisma.resourceTemplate.create({ data: { code: uid('walletres'), name: 'Лён', category: 'PRIMARY', tier: 1, basePrice: 10, weight: 0.1 } })
+    await testPrisma.$transaction(tx => EconomyService.credit(tx, { characterId: c.id, amount: 30, reasonCode: 'RESOURCE_SELL', refType: 'resource', refId: res.id }))
+    expect((await moneyLog(c.id)).items[0].label).toBe('Продажа сырья государству: Лён')
+  })
 })
