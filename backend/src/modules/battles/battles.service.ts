@@ -628,7 +628,6 @@ async function applyZonalArmorWear(
     if (lost === 0) continue
     const newDur = Math.max(0, item.durabilityCurrent - lost)
     await ItemsRepository.updateDurability(item.id, newDur)
-    if (newDur <= 0) await ItemsRepository.updateStatus(item.id, 'BROKEN')
   }
 }
 

@@ -104,10 +104,11 @@ export const ItemsRepository = {
   },
 
   async updateDurability(id: string, durabilityCurrent: number): Promise<void> {
-    const status = durabilityCurrent <= 0 ? 'BROKEN' : undefined
+    // №131: сломанная вещь сама уходит в сумку, снимать руками не нужно.
+    const broken = durabilityCurrent <= 0
     await prisma.itemInstance.update({
       where: { id },
-      data: { durabilityCurrent, ...(status ? { status } : {}) },
+      data: { durabilityCurrent, ...(broken ? { status: 'BROKEN', isEquipped: false, armorSlot: null } : {}) },
     })
   },
 
