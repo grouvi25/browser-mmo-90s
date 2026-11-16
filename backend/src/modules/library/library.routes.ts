@@ -117,6 +117,16 @@ export async function libraryRoutes(fastify: FastifyInstance) {
       level, exp, money: level === 0 ? 0 : B.productionLevel.levelMoney, end: level === 0 ? 0 : B.productionLevel.endPerLevel,
       shifts: B.productionLevel.shiftEveryLevels > 0 ? Math.floor(level / B.productionLevel.shiftEveryLevels) : 0,
     }))
-    return reply.send({ battle, economic, production, professions, professionLevels, statPointsPerLevel: B.battleExp.statPointsPerLevel, botExpPenalty: B.battleExp.pveDailyPenaltyPerKill, botExpMin: B.battleExp.pveDailyMin, consumables: items, objectPriceUsd: B.economy.production.objectPriceUsd })
+    // Числа для раздела «Бой» (16.11): текст в Библиотеке собирается из настроек и не отстаёт от игры.
+    const rules = {
+      statGap: B.edge.statGap, charmGapPct: B.edge.charmGap * 100, critMult: B.crit.multiplierBase,
+      endArmor: B.strike.endArmor, armorPerPoint: B.strike.armorPerPoint, damageScale: B.strike.damageScale,
+      defenseFullPct: (B.strike.defenseFullAt ?? 2.5) * 100, strengthFullPct: B.strengthMastery.fullAt * 100,
+      strengthFloor: [B.strengthMastery.floorMin, B.strengthMastery.floorMax],
+      antiFartPct: Math.round((B.edge.antiFartPerPoint ?? 0.01) * 100), antiFartCapPct: Math.round((B.edge.antiFartCap ?? 0.2) * 100),
+      saleTaxPct: Math.round(B.economy.market.saleTaxRate * 100), listingFree: B.economy.market.listingFeeRate === 0,
+      craftMinPct: Math.round((B.economy.market.craftPriceMin - 1) * 100), craftMaxPct: Math.round((B.economy.market.craftPriceMax - 1) * 100),
+    }
+    return reply.send({ battle, economic, production, rules, professions, professionLevels, statPointsPerLevel: B.battleExp.statPointsPerLevel, botExpPenalty: B.battleExp.pveDailyPenaltyPerKill, botExpMin: B.battleExp.pveDailyMin, consumables: items, objectPriceUsd: B.economy.production.objectPriceUsd })
   })
 }

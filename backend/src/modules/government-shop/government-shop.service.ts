@@ -18,7 +18,7 @@ export type ShopItemWithTemplate = GovernmentShopItem & {
 
 /** Сколько государство платит за вещь: половина базовой цены. Её же показывает склад (№132). */
 export function governmentBuyPrice(priceBase: number): number {
-  return Math.floor(priceBase * 0.5)
+  return Math.floor(priceBase * BalanceConfig.shop.sellBackMultiplier)
 }
 
 export const GovernmentShopService = {

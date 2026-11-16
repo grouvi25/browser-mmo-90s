@@ -5,6 +5,12 @@ export interface LibraryTables {
   battle: Array<{ level: number; exp: number; money: number; statPoints: number | null }>
   economic: Array<{ level: number; exp: number; money: number; str: number }>
   production?: Array<{ level: number; exp: number; money: number; end: number; shifts: number }>
+  /** Числа для разделов «Бой» и «Заработок». */
+  rules?: {
+    statGap: number; charmGapPct: number; critMult: number; endArmor: number; armorPerPoint: number; damageScale: number
+    defenseFullPct: number; strengthFullPct: number; strengthFloor: [number, number]; antiFartPct: number; antiFartCapPct: number
+    saleTaxPct: number; listingFree: boolean; craftMinPct: number; craftMaxPct: number
+  }
   professions: Array<{
     chain: string
     steps: Array<{

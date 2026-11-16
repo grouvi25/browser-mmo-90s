@@ -12,7 +12,7 @@
 import { BalanceConfig as B } from '../../config/balance.config'
 import {
   calcCritChance, calcDodgeChance, calcEffectiveWeaponSkill,
-  calcBlockChance, calcWeaponSkillMultiplier, calcArmorShare,
+  calcWeaponSkillMultiplier, calcArmorFlat, calcLuckyPierceChance,
 } from '../battles/battle.formulas'
 import { calcFinalSalary, dailyShiftSalaryCoeff, objectLevelCoeff, workerEfficiency } from '../work/work.formulas'
 import { calcUpgradeCost, calcUpgradeSuccessChance } from '../upgrades/upgrades.formulas'
@@ -90,52 +90,53 @@ export const BALANCE_EXAMPLES: Record<string, () => BalanceExample> = {
   },
 
   'battle.dodge': () => {
-    const C = B.strike
-    const value = calcDodgeChance(DEFENDER, ATTACKER)
-    const edge = (DEFENDER.agi - ATTACKER.acc) / (DEFENDER.agi + ATTACKER.acc + C.statSoftener)
-    const accuracy = ATTACKER.weaponAccuracy - C.baseWeaponAccuracy
+    // №130 (Nobody 16.11): цепочка условий, оберег не главнее ловкости.
+    const E = B.edge
+    const cases = [
+      { text: `ловкость ${ATTACKER.agi} против ${DEFENDER.agi}, обереги равны`, a: { ...ATTACKER }, d: { ...DEFENDER } },
+      { text: `ловкость бьющего больше на ${E.statGap}`, a: { ...ATTACKER, agi: DEFENDER.agi + E.statGap }, d: { ...DEFENDER } },
+      { text: `то же, но у цели минус-оберег уворота ${E.charmGap * 100 + 50}%`, a: { ...ATTACKER, agi: DEFENDER.agi + E.statGap, dodgeCharmEdge: -(E.charmGap + 0.5) }, d: { ...DEFENDER } },
+      { text: `ловкость равна, оберег уворота бьющего +${E.charmGap * 100}%`, a: { ...ATTACKER, dodgeCharmEdge: E.charmGap }, d: { ...DEFENDER } },
+      { text: `ловкость цели больше на ${E.statGap}`, a: { ...ATTACKER }, d: { ...DEFENDER, agi: ATTACKER.agi + E.statGap } },
+    ]
     return {
-      given: [`ловкость защитника ${DEFENDER.agi}`, `меткость атакующего ${ATTACKER.acc}`,
-        `точность оружия ${ATTACKER.weaponAccuracy}`],
-      steps: [
-        { text: 'база', value: String(C.dodgeBase) },
-        { text: `${C.dodgeSpread} × (${DEFENDER.agi} − ${ATTACKER.acc})/(${DEFENDER.agi} + ${ATTACKER.acc} + ${C.statSoftener})`, value: `${edge >= 0 ? '+' : '−'}${round2(Math.abs(C.dodgeSpread * edge))}` },
-        { text: `точность оружия сверх ${C.baseWeaponAccuracy}`, value: `−${round2(accuracy)}` },
-        { text: `ограничение ${C.dodgeMin}…${C.dodgeMax}`, value: pct(value) },
-      ],
-      result: pct(value),
-      meaning: 'С такой вероятностью защитник увернётся, и урона не будет вовсе. Ловкость защитника против меткости атакующего.',
+      given: ['бьющий и цель из общего примера, точность оружия как у бьющего'],
+      steps: cases.map(c => ({ text: c.text, value: `попадание ${pct(1 - calcDodgeChance(c.d, c.a))}` })),
+      result: 'перевес ловкости или оберега даёт попадание без рандома',
+      meaning: 'Попал без рандома, если оберег уворота перекрыл минус цели на порог ИЛИ ловкость больше на порог. Не прошло ни то, ни другое: дальше крит и удачный сквозь уворот (их минус-обереги больше и агрессия или фарт выше). Иначе уворот.',
     }
   },
 
   'battle.block': () => {
-    const value = calcBlockChance(DEFENDER, ATTACKER)
-    const ratio = DEFENDER.rea / Math.max(ATTACKER.rea + DEFENDER.rea, 1)
+    const pierce = calcLuckyPierceChance({ luck: ATTACKER.luck }, { luck: DEFENDER.luck })
+    const pierceEdge = calcLuckyPierceChance({ luck: DEFENDER.luck + B.edge.statGap }, { luck: DEFENDER.luck })
     return {
-      given: [`REA защитника ${DEFENDER.rea}`, `REA атакующего ${ATTACKER.rea}`],
+      given: [`фарт бьющего ${ATTACKER.luck}`, `фарт цели ${DEFENDER.luck}`],
       steps: [
-        { text: 'база', value: String(B.blockChance.base) },
-        { text: `отношение реакций: ${DEFENDER.rea}/(${ATTACKER.rea}+${DEFENDER.rea}) × ${B.blockChance.reactionRatioMult}`, value: `+${round2(ratio * B.blockChance.reactionRatioMult)}` },
-        { text: 'успешный блок пропускает', value: pct(B.blockChance.blockReduction) },
+        { text: 'удар в зону, закрытую одним блоком', value: 'гасится, если удар не удачный' },
+        { text: `шанс удачного при фарте ${ATTACKER.luck} против ${DEFENDER.luck}`, value: pct(pierce) },
+        { text: `фарт бьющего больше на ${B.edge.statGap}`, value: pct(pierceEdge) },
+        { text: 'два блока в одну зону', value: 'держат и удачный' },
+        { text: `антифарт блокера: очко = ${pct(B.edge.antiFartPerPoint ?? 0.01)}, не больше ${pct(B.edge.antiFartCap ?? 0.2)}`, value: 'держит удар мимо блока или пробивший блок' },
       ],
-      result: pct(value),
-      meaning: `Блок не отменяет удар: сквозь него проходит ${pct(B.blockChance.blockReduction)} урона.`,
+      result: `удачный пробивает одиночный блок с шансом ${pct(pierce)}`,
+      meaning: 'Блоки выставляет сам игрок, шанса «словить блок» нет. Крит блок не пробивает, только удачный. Блок без ответки гасит удар целиком, с реакцией больше на порог блокер бьёт в ответ.',
     }
   },
 
   'battle.crit': () => {
-    const C = B.strike
     const value = calcCritChance(ATTACKER, DEFENDER)
-    const edge = (ATTACKER.agr - DEFENDER.agr) / (ATTACKER.agr + DEFENDER.agr + C.statSoftener)
+    const edge = calcCritChance({ ...ATTACKER, agr: DEFENDER.agr + B.edge.statGap }, DEFENDER)
     return {
-      given: [`агрессия атакующего ${ATTACKER.agr}`, `агрессия защитника ${DEFENDER.agr}`],
+      given: [`агрессия бьющего ${ATTACKER.agr}`, `агрессия цели ${DEFENDER.agr}`],
       steps: [
-        { text: 'база', value: String(C.critBase) },
-        { text: `${C.critSpread} × (${ATTACKER.agr} − ${DEFENDER.agr})/(${ATTACKER.agr} + ${DEFENDER.agr} + ${C.statSoftener})`, value: `${edge >= 0 ? '+' : '−'}${round2(Math.abs(C.critSpread * edge))}` },
-        { text: `ограничение ${C.critMin}…${C.critMax}`, value: pct(value) },
+        { text: `${B.edge.critMid * 100}% при равенстве, каждый пункт разницы сдвигает шанс`, value: pct(value) },
+        { text: `агрессия бьющего больше на ${B.edge.statGap}`, value: pct(edge) },
+        { text: 'оберег крита бьющего против оберега крита цели', value: `перевес ${B.edge.charmGap * 100}% решает без рандома` },
+        { text: 'сила крита', value: `×${B.crit.multiplierBase}` },
       ],
       result: pct(value),
-      meaning: `При крите урон ×${B.crit.multiplierBase}.`,
+      meaning: `При крите урон ×${B.crit.multiplierBase}. Крит сквозь уворот ловкача проходит, если минус-оберег крита больше и агрессия выше; блок крит не пробивает.`,
     }
   },
 
@@ -162,19 +163,20 @@ export const BALANCE_EXAMPLES: Record<string, () => BalanceExample> = {
     const roll = Math.round((ATTACKER.minDamage + ATTACKER.maxDamage) / 2)
     const mult = calcWeaponSkillMultiplier(ATTACKER.weaponSkillLevel)
     const raw = roll * mult + ATTACKER.str * C.strCoeff
-    const share = calcArmorShare(DEFENDER.armor, DEFENDER.end, DEFENDER.level)
-    const k = C.armorK * Math.pow(C.armorKGrowth, DEFENDER.level - 1)
-    const total = DEFENDER.armor + C.endArmor * DEFENDER.end
+    const flat = calcArmorFlat(DEFENDER.armor, DEFENDER.end)
+    const left = Math.max(0, raw - flat)
+    const final = Math.floor(left * C.damageScale)
     return {
-      given: [`урон до брони ${Math.round(raw)}`, `броня зоны ${DEFENDER.armor}`, `выносливость защитника ${DEFENDER.end}`, `уровень защитника ${DEFENDER.level}`],
+      given: [`урон до брони ${Math.round(raw)}`, `броня зоны ${DEFENDER.armor}`, `выносливость цели ${DEFENDER.end}`],
       steps: [
-        { text: `броня: ${DEFENDER.armor} + ${C.endArmor} × ${DEFENDER.end}`, value: String(round2(total)) },
-        { text: `вес брони: ${C.armorK} × ${C.armorKGrowth}^(${DEFENDER.level} − 1)`, value: String(round2(k)) },
-        { text: `проходит: ${round2(k)}/(${round2(k)} + ${round2(total)})`, value: `×${round2(share)}` },
+        { text: `броня: ${DEFENDER.armor} + ${C.endArmor} × ${DEFENDER.end}`, value: String(round2(flat)) },
+        { text: `вычитаем из удара: ${Math.round(raw)} − ${round2(flat)}`, value: String(round2(left)) },
+        { text: `масштаб под здоровье: × ${C.damageScale}`, value: String(final) },
         { text: `разброс ±${pct(C.spread)}`, value: 'взят средний' },
+        { text: `мастерство защиты ${C.defenseFullAt * 100}% (за вычетом минус-защиты бьющего)`, value: 'урон в ноль, меньше — пропорционально' },
       ],
-      result: `${Math.floor(raw * share)} урона по здоровью`,
-      meaning: `Броня ${DEFENDER.armor} и выносливость ${DEFENDER.end} срезали ${pct(1 - share)} урона. На уровень выше та же броня держит слабее.`,
+      result: `${final} урона по здоровью`,
+      meaning: `Броня единицами (Дима 15.11): вычитается из удара, больше удара — урон 0, танка можно не пробить. Очко брони на вещи = ${C.armorPerPoint} брони. На красной зоне (третье попадание) броня зоны 0.`,
     }
   },
 
@@ -234,12 +236,13 @@ export const BALANCE_EXAMPLES: Record<string, () => BalanceExample> = {
     return {
       given: [`цена лота ${price} ₽`],
       steps: [
-        { text: `комиссия за выставление: ${price} × ${B.economy.market.listingFeeRate}`, value: `−${fee} ₽` },
+        { text: 'выставление', value: fee > 0 ? `−${fee} ₽` : 'бесплатно' },
         { text: `налог с продажи: ${price} × ${B.economy.market.saleTaxRate}`, value: `−${tax} ₽` },
         { text: 'продавец получает', value: `${calcSellerPayout(price)} ₽` },
+        { text: `сырьё: цена за штуку от затрат × ${B.economy.market.craftPriceMin} до затрат × ${B.economy.market.craftPriceMax}`, value: 'затраты = госцены входов рецепта, у добываемого — госцена' },
       ],
       result: `из ${price} ₽ экономика забирает ${fee + tax} ₽`,
-      meaning: 'Комиссия сгорает даже если лот не продан — это плата за место на рынке, а не за сделку.',
+      meaning: 'Дима 16.11: выставлять бесплатно, с продажи 10%. Налог берётся только со сделки.',
     }
   },
 
