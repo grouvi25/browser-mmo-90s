@@ -1519,7 +1519,9 @@ export const BattleService = {
       const playerPart = state.participants.find(p => p.characterId === char.id)
       if (!playerPart) throw new AppError(ErrorCode.BATTLE_NOT_PARTICIPANT, 'Not a participant', 403)
       if (!playerPart.isAlive) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'You are dead', 400)
-      if (playerPart.hasActedThisRound) throw new AppError(ErrorCode.BATTLE_ACTION_TAKEN, 'Already acted this round', 400)
+      // За замёрзшего таймер ходит сразу в начале раунда, поэтому «уже сходил» у него
+      // всегда; сдаться он должен мочь в любой момент, иначе стоит до смерти.
+      if (playerPart.hasActedThisRound && !(action === 'surrender' && playerPart.frozen)) throw new AppError(ErrorCode.BATTLE_ACTION_TAKEN, 'Already acted this round', 400)
 
       // ── Anti-abuse: отслеживаем пропуски ────────────────
       // "block" без атаки — пассивный ход, считается как активный
