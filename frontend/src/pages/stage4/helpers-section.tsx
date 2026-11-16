@@ -44,6 +44,7 @@ export function HelpersSection() {
     onSuccess: () => { setName(''); done('Помощник нанят') },
     onError: fail,
   })
+  const renew = useMutation({ mutationFn: helpersApi.renew, onSuccess: r => done(`Аренда оплачена до ${new Date(r.rentPaidUntil).toLocaleDateString('ru')}`), onError: fail })
   const dismiss = useMutation({ mutationFn: helpersApi.dismiss, onSuccess: () => done('Помощник уволен, его прогресс потерян'), onError: fail })
   // Правка заказчика 21.10: двое — боевой и рабочий или два рабочих.
   const hasCombat = (query.data?.items ?? []).some(h => h.kind === 'COMBAT')
@@ -65,7 +66,7 @@ export function HelpersSection() {
   const items = data?.items ?? []
   const slots = data?.slots ?? { used: 0, total: 0 }
   const noSubscription = slots.total === 0
-  const busy = hire.isPending || dismiss.isPending || work.isPending || claim.isPending
+  const busy = hire.isPending || renew.isPending || dismiss.isPending || work.isPending || claim.isPending
 
   return (
     <>
@@ -119,10 +120,10 @@ export function HelpersSection() {
             </select>
           )}
           <button type="submit" disabled={busy || name.trim().length < 2}>
-            <UserPlus size={13} /> Нанять{data?.prices ? ` · ${fmt(data.prices[kind])} $` : ''}
+            <UserPlus size={13} /> Нанять{data?.hirePrice ? ` · ${fmt(data.hirePrice.amount)} ${data.hirePrice.currency === 'RUB' ? `₽ за ${data.hirePrice.days} дней` : '$'}` : ''}
           </button>
           {/* №91: профессию потом не сменить, а наём при увольнении не возвращается. */}
-          <p className="s4-muted">Профессию потом не сменить. При увольнении деньги за наём не возвращаются, даже если помощник не вышел ни на одну смену.</p>
+          <p className="s4-muted">Первый помощник — аренда {fmt(2000)} ₽ каждые 30 дней, списывается сама; не хватит денег — он уснёт, пока аренду не оплатят. Второй — 100 $ разово. Профессию потом не сменить. При увольнении деньги за наём не возвращаются, даже если помощник не вышел ни на одну смену.</p>
         </form>
       )}
 
@@ -138,6 +139,7 @@ export function HelpersSection() {
                 objects={objects.data?.items ?? []}
                 onWork={objectId => work.mutate({ id: helper.id, objectId })}
                 onClaim={() => claim.mutate(helper.id)}
+                onRenew={() => renew.mutate(helper.id)}
                 onDismiss={() => dismiss.mutate(helper.id)}
                 onTacticError={fail}
               />
@@ -149,13 +151,14 @@ export function HelpersSection() {
 }
 
 function HelperCard({
-  helper, busy, objects, onWork, onClaim, onDismiss, onTacticError,
+  helper, busy, objects, onWork, onClaim, onRenew, onDismiss, onTacticError,
 }: {
   helper: Helper
   busy: boolean
   objects: HelperObject[]
   onWork: (objectId: string) => void
   onClaim: () => void
+  onRenew: () => void
   onDismiss: () => void
   onTacticError: (e: Error) => void
 }) {
@@ -185,8 +188,10 @@ function HelperCard({
     <li className={`s4-helper ${dormant ? 's4-helper--dormant' : ''}`}>
       <div className="s4-helper__head">
         <b>{helper.name}</b>
-        {dormant && <span className="s4-muted"><Moon size={12} /> спит без подписки</span>}
+        {dormant && <span className="s4-muted"><Moon size={12} /> {helper.sleepReason === 'rent' ? 'спит: аренда не оплачена' : helper.sleepReason === 'admin' ? 'спит' : 'спит без подписки'}</span>}
       </div>
+
+      {helper.rent && <HelperRent rent={helper.rent} busy={busy} onRenew={onRenew} />}
 
       {helper.kind === 'COMBAT' ? (
         <CombatHelperFacts helper={helper} disabled={dormant} onError={onTacticError} />
@@ -242,5 +247,28 @@ function HelperCard({
         <Trash2 size={12} /> Уволить
       </button>
     </li>
+  )
+}
+
+/**
+ * Аренда первого помощника (Дима 15.11): дата следующего списания и кнопка
+ * «Продлить». Продлить можно, когда до конца оплаченного меньше 30 дней.
+ */
+function HelperRent({ rent, busy, onRenew }: { rent: NonNullable<Helper['rent']>; busy: boolean; onRenew: () => void }) {
+  const until = rent.paidUntil ? new Date(rent.paidUntil) : null
+  const expired = !until || until.getTime() <= Date.now()
+  const canRenew = expired || until.getTime() - Date.now() <= rent.days * 24 * 3_600_000
+  return (
+    <div className="s4-helper__rent">
+      <span>
+        {expired
+          ? <>Аренда не оплачена: {fmt(rent.priceRub)} ₽ за {rent.days} дней</>
+          : <>Аренда оплачена до {until.toLocaleDateString('ru')}, следующее списание {fmt(rent.priceRub)} ₽</>}
+      </span>
+      <button type="button" disabled={busy || !canRenew} onClick={onRenew}
+        title={canRenew ? undefined : 'Вперёд можно оплатить не больше двух сроков'}>
+        Продлить · {fmt(rent.priceRub)} ₽
+      </button>
+    </div>
   )
 }

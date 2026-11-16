@@ -93,6 +93,37 @@ async function spendOwnerTool(
   throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, name ? `Нужен инструмент: ${name}` : `Нужен инструмент ${params.tier} уровня`, 400)
 }
 
+const DAY_MS = 24 * 3_600_000
+
+/**
+ * Аренда помощников (Дима 15.11, ответы Миши): первый помощник — самый ранний
+ * нанятый из действующих, боевой он или рабочий, — стоит 2000 ₽ каждые 30 дней.
+ * Второй — 100 $ разово при найме. Уволили первого — первым становится
+ * оставшийся, и оплаченный срок переходит к нему.
+ */
+export function firstHelperId(helpers: Array<{ id: string; createdAt: Date }>): string | null {
+  const first = [...helpers].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))[0]
+  return first?.id ?? null
+}
+
+/** Срок аренды прошёл (или его нет). */
+export function rentExpired(helper: { rentPaidUntil: Date | null }, now = new Date()): boolean {
+  return !helper.rentPaidUntil || helper.rentPaidUntil.getTime() <= now.getTime()
+}
+
+/** Спит ли помощник из-за аренды: только первый и только с прошедшим сроком. */
+export async function sleepsForRent(characterId: string, helperId: string, now = new Date()): Promise<boolean> {
+  const helpers = await prisma.helper.findMany({ where: { characterId }, select: { id: true, createdAt: true, rentPaidUntil: true } })
+  const row = helpers.find(h => h.id === helperId)
+  return !!row && row.id === firstHelperId(helpers) && rentExpired(row, now)
+}
+
+/** Новый срок аренды: от конца оплаченного, а если он уже прошёл — от сейчас. */
+function nextRentUntil(paidUntil: Date | null, now: Date): Date {
+  const from = paidUntil && paidUntil.getTime() > now.getTime() ? paidUntil.getTime() : now.getTime()
+  return new Date(from + H.rentDays * DAY_MS)
+}
+
 async function assertSubscribed(characterId: string) {
   const state = await PremiumService.state(characterId)
   if (!state.isPremium) {
@@ -137,14 +168,23 @@ export const HelpersService = {
     const todayCounts = new Map((await prisma.workShift.groupBy({
       by: ['helperId'], where: { helperId: { in: helpers.map(h => h.id) }, startedAt: { gte: dayStart } }, _count: { _all: true },
     })).map(row => [row.helperId, row._count._all]))
+    const now = new Date()
+    const firstId = firstHelperId(helpers)
     return {
-      items: helpers.map(helper => ({
+      items: helpers.map(helper => {
+        const first = helper.id === firstId
+        const unpaid = first && rentExpired(helper, now)
+        return {
         id: helper.id,
         name: helper.name,
         kind: helper.kind,
         // Без подписки помощник числится DORMANT, что бы ни лежало в базе:
         // подписка могла истечь по времени, а строку никто не трогал.
-        status: state.isPremium ? helper.status : 'DORMANT',
+        // Первый с неоплаченной арендой тоже спит (Дима 15.11).
+        status: state.isPremium && !unpaid ? helper.status : 'DORMANT',
+        sleepReason: !state.isPremium ? 'subscription' : unpaid ? 'rent' : helper.status === 'DORMANT' ? 'admin' : null,
+        // Аренда у первого: до какого числа оплачено, это же дата следующего списания.
+        rent: first ? { paidUntil: helper.rentPaidUntil?.toISOString() ?? null, priceRub: H.rentFirstRub, days: H.rentDays } : null,
         professionCode: helper.professionCode,
         professionName: professionName(helper.professionCode),
         professionLevel: helper.professionLevel,
@@ -164,9 +204,13 @@ export const HelpersService = {
         combatExp: helper.combatExp,
         combatHpMax: helperHpMax(helper.combatLevel),
         combatExpToNext: expToNextLevel(helper.combatLevel),
-      })),
+      }
+      }),
       slots: { used: helpers.length, total: state.benefits.helperSlots },
-      prices: { COMBAT: H.priceCombatUsd, WORK: H.priceWorkUsd },
+      // Цена следующего найма: первый — аренда в рублях, второй — доллары разово.
+      hirePrice: helpers.length === 0
+        ? { amount: H.rentFirstRub, currency: 'RUB' as const, days: H.rentDays }
+        : { amount: H.priceSecondUsd, currency: 'USD' as const, days: null },
       professions: entry
         .map(row => row.requiredProfessionCode)
         .filter(knownProfession)
@@ -264,10 +308,17 @@ export const HelpersService = {
           409,
         )
       }
-      // Заказчик 30.10: «Помощник боевой 200$, крафтовый 100$».
-      await DollarsService.debit(tx, { characterId, amount: kind === 'COMBAT' ? H.priceCombatUsd : H.priceWorkUsd, reason: 'PURCHASE', note: `Помощник «${name.trim()}»` })
+      // Дима 15.11: первый помощник — 2000 ₽ в месяц, второй — 100 $ разово.
+      // (Раньше: боевой 200 $, крафтовый 100 $, оба разово.)
+      let rentPaidUntil: Date | null = null
+      if (used === 0) {
+        await EconomyService.debit(tx, { characterId, amount: H.rentFirstRub, reasonCode: 'HELPER_RENT', refType: 'helper', note: `Помощник «${name.trim()}», аренда на ${H.rentDays} дней` })
+        rentPaidUntil = nextRentUntil(null, new Date())
+      } else {
+        await DollarsService.debit(tx, { characterId, amount: H.priceSecondUsd, reason: 'PURCHASE', note: `Помощник «${name.trim()}»` })
+      }
       const helper = await tx.helper.create({
-        data: { characterId, name: name.trim(), kind, professionCode: kind === 'COMBAT' ? 'combat' : professionCode },
+        data: { characterId, name: name.trim(), kind, professionCode: kind === 'COMBAT' ? 'combat' : professionCode, rentPaidUntil },
       })
       return { id: helper.id, name: helper.name, kind: helper.kind, professionCode: helper.professionCode }
     })
@@ -283,9 +334,69 @@ export const HelpersService = {
       if (helper.activeShiftId) {
         throw new AppError(ErrorCode.HELP_ALREADY_WORKING, 'Помощник на смене', 409)
       }
+      // Уволили первого — первым становится оставшийся и получает оплаченный срок.
+      const all = await tx.helper.findMany({ where: { characterId }, select: { id: true, createdAt: true } })
+      const heir = firstHelperId(all) === helperId ? firstHelperId(all.filter(h => h.id !== helperId)) : null
       await tx.helper.delete({ where: { id: helperId } })
+      if (heir) await tx.helper.update({ where: { id: heir }, data: { rentPaidUntil: helper.rentPaidUntil } })
       return { dismissed: helperId }
     })
+  },
+
+  /**
+   * Продлить аренду первого помощника на 30 дней (кнопка «Продлить»).
+   * Срок прибавляется к оплаченному; вперёд больше двух сроков не набрать.
+   */
+  async renew(characterId: string, helperId: string) {
+    return withTransaction(async tx => {
+      await tx.$executeRaw`SELECT id FROM helpers WHERE character_id = ${characterId} FOR UPDATE`
+      const all = await tx.helper.findMany({ where: { characterId }, select: { id: true, createdAt: true, rentPaidUntil: true } })
+      const helper = all.find(h => h.id === helperId)
+      if (!helper) throw AppError.notFound('Helper', helperId)
+      if (firstHelperId(all) !== helperId) {
+        throw new AppError(ErrorCode.VALIDATION_ERROR, 'Аренда только у первого помощника, второй оплачен при найме', 409)
+      }
+      const now = new Date()
+      if (helper.rentPaidUntil && helper.rentPaidUntil.getTime() - now.getTime() > H.rentDays * DAY_MS) {
+        throw new AppError(ErrorCode.VALIDATION_ERROR, `Аренда уже оплачена до ${helper.rentPaidUntil.toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' })}`, 409)
+      }
+      const newBalance = await EconomyService.debit(tx, { characterId, amount: H.rentFirstRub, reasonCode: 'HELPER_RENT', refType: 'helper', refId: helperId, note: `Аренда помощника на ${H.rentDays} дней` })
+      const rentPaidUntil = nextRentUntil(helper.rentPaidUntil, now)
+      await tx.helper.update({ where: { id: helperId }, data: { rentPaidUntil } })
+      return { id: helperId, rentPaidUntil, newBalance }
+    })
+  },
+
+  /**
+   * Списание аренды раз в час (воркер). Первый помощник с прошедшим сроком:
+   * хватает денег — срок продлевается на 30 дней, не хватает — он спит, и на
+   * следующем проходе списание пробуется снова. Без подписки не списываем:
+   * помощник и так спит, платить за него нечестно.
+   */
+  async chargeRent(now = new Date()): Promise<number> {
+    const due = await prisma.helper.findMany({
+      where: { OR: [{ rentPaidUntil: null }, { rentPaidUntil: { lte: now } }] },
+      select: { characterId: true }, distinct: ['characterId'], take: 500,
+    })
+    let charged = 0
+    for (const { characterId } of due) {
+      try {
+        if (!(await PremiumService.state(characterId)).isPremium) continue
+        const done = await withTransaction(async tx => {
+          await tx.$executeRaw`SELECT id FROM helpers WHERE character_id = ${characterId} FOR UPDATE`
+          const all = await tx.helper.findMany({ where: { characterId }, select: { id: true, createdAt: true, rentPaidUntil: true } })
+          const first = all.find(h => h.id === firstHelperId(all))
+          if (!first || !rentExpired(first, now)) return false
+          const { money } = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { money: true } })
+          if (money < H.rentFirstRub) return false
+          await EconomyService.debit(tx, { characterId, amount: H.rentFirstRub, reasonCode: 'HELPER_RENT', refType: 'helper', refId: first.id, note: `Аренда помощника на ${H.rentDays} дней` })
+          await tx.helper.update({ where: { id: first.id }, data: { rentPaidUntil: nextRentUntil(first.rentPaidUntil, now) } })
+          return true
+        })
+        if (done) charged += 1
+      } catch { /* один игрок не останавливает списание остальным */ }
+    }
+    return charged
   },
 
   /**
@@ -300,6 +411,9 @@ export const HelpersService = {
       await assertSubscribed(characterId)
       const helper = await tx.helper.findUnique({ where: { id: helperId } })
       if (!helper || helper.characterId !== characterId) throw AppError.notFound('Helper', helperId)
+      if (await sleepsForRent(characterId, helperId)) {
+        throw new AppError(ErrorCode.HELP_NO_SUBSCRIPTION, `Помощник спит: аренда не оплачена. Продлите её за ${H.rentFirstRub} ₽`, 409)
+      }
       if (helper.kind === 'COMBAT') throw new AppError(ErrorCode.HELP_PROFESSION_UNKNOWN, 'Боевой помощник на смены не ходит', 409)
       if (helper.activeShiftId) {
         throw new AppError(ErrorCode.HELP_ALREADY_WORKING, 'Помощник уже на смене', 409)

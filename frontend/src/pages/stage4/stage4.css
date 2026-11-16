@@ -153,6 +153,8 @@
 .s4-helper__shift > span { display: inline-flex; align-items: center; gap: 5px; font-size: 0.859rem; flex: 1 1 auto; }
 .s4-helper__shift select { flex: 1 1 180px; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
 .s4-helper__shift button { min-height: 38px; padding: 6px 12px; }
+.s4-helper__rent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 0.875rem; }
+.s4-helper__rent button { min-height: 32px; padding: 4px 10px; }
 .s4-helper__dismiss { justify-self: start; min-height: 32px; padding: 4px 10px; font-size: 0.828rem; display: inline-flex; align-items: center; gap: 5px; }
 
 /* ── Узкий экран ───────────────────────────────────────────── */

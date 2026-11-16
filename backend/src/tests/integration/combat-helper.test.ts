@@ -29,7 +29,7 @@ async function fighter(prefix: string, premium = true) {
   const login = uid(prefix)
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
   const character = await testPrisma.character.create({
-    data: { userId: user.id, nickname: login.slice(0, 20), archetype: 'STREET', hpCurrent: 400, hpMax: 400, money: 1_000, dollars: 1_000, battleLevel: 3, status: 'ACTIVE' },
+    data: { userId: user.id, nickname: login.slice(0, 20), archetype: 'STREET', hpCurrent: 400, hpMax: 400, money: 10_000, dollars: 1_000, battleLevel: 3, status: 'ACTIVE' },
   })
   await testPrisma.characterStats.create({ data: { characterId: character.id } })
   if (premium) await PremiumService.grant({ characterId: character.id, productCode: 'prem_sub_30' })
@@ -158,6 +158,15 @@ describe('боевой помощник в бою', () => {
     const second = await BattleService.startPve(b.user.id, 'training_bandit')
     const st2 = (await BattleRedis.getState<LiveBattleState>(second.battleId))!
     expect(st2.participants.find(p => p.characterId === b.character.id)!.helper).toBeUndefined()
+  })
+
+  it('первый помощник с неоплаченной арендой в бой не выходит (Дима 15.11)', async () => {
+    const a = await fighter('rent')
+    const hired = await HelpersService.hire(a.character.id, 'Шарик', '', 'COMBAT')
+    await testPrisma.helper.update({ where: { id: hired.id }, data: { rentPaidUntil: new Date(Date.now() - 1000) } })
+    const { battleId } = await BattleService.startPve(a.user.id, 'training_bandit')
+    const state = (await BattleRedis.getState<LiveBattleState>(battleId))!
+    expect(state.participants.find(p => p.characterId === a.character.id)!.helper).toBeUndefined()
   })
 
   it('тактику можно менять только боевому помощнику', async () => {

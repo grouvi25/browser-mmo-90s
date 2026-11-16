@@ -14,7 +14,7 @@ async function player(prefix = 'hp') {
   const login = uid(prefix)
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
   return testPrisma.character.create({
-    data: { userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 80, hpMax: 80, money: 1000, dollars: 1000 },
+    data: { userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 80, hpMax: 80, money: 10_000, dollars: 1000 },
   })
 }
 
@@ -90,12 +90,62 @@ describe('помощники', () => {
     const character = await subscribed()
     await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
     await HelpersService.hire(character.id, 'Толян', 'supplier')
-    // Заказчик 30.10: крафтовый 100 $, боевой 200 $; из 1 000 $ осталось 800.
-    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).dollars).toBe(800)
+    // Дима 15.11: первый — 2000 ₽ на 30 дней, второй — 100 $ разово.
+    const after = await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })
+    expect(after.money).toBe(10_000 - H.rentFirstRub)
+    expect(after.dollars).toBe(1000 - H.priceSecondUsd)
     await expect(HelpersService.hire(character.id, 'Третий', 'procurer'))
       .rejects.toMatchObject({ code: 'HELP_002' })
     const list = await HelpersService.list(character.id)
     expect(list.slots).toEqual({ used: 2, total: H.maxCount })
+    // Аренда только у первого; дата списания через 30 дней.
+    const [first, second] = list.items
+    expect(second.rent).toBeNull()
+    expect(new Date(first.rent!.paidUntil!).getTime()).toBeGreaterThan(Date.now() + (H.rentDays - 1) * 86_400_000)
+  })
+
+  it('аренда первого: просрочена — спит, воркер списывает, без денег — спит дальше, продлить можно вручную', async () => {
+    const character = await subscribed()
+    const first = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
+    const second = await HelpersService.hire(character.id, 'Толян', 'supplier')
+    await testPrisma.helper.update({ where: { id: first.id }, data: { rentPaidUntil: new Date(Date.now() - 1000) } })
+    await testPrisma.character.update({ where: { id: character.id }, data: { money: 500 } })
+
+    let list = await HelpersService.list(character.id)
+    expect(list.items.find(h => h.id === first.id)).toMatchObject({ status: 'DORMANT', sleepReason: 'rent' })
+    expect(list.items.find(h => h.id === second.id)).toMatchObject({ status: 'ACTIVE', sleepReason: null })
+    const object = await testPrisma.productionObject.findFirst({ where: { requiredProfessionCode: 'scrap_collector' } })
+    if (object) await expect(HelpersService.startShift(character.id, first.id, object.id)).rejects.toThrow('аренда не оплачена')
+
+    // Денег нет — воркер не списывает, помощник спит.
+    await HelpersService.chargeRent()
+    expect((await testPrisma.helper.findUniqueOrThrow({ where: { id: first.id } })).rentPaidUntil!.getTime()).toBeLessThan(Date.now())
+    // Деньги появились — следующий проход списывает и будит.
+    await testPrisma.character.update({ where: { id: character.id }, data: { money: 5000 } })
+    await HelpersService.chargeRent()
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).money).toBe(5000 - H.rentFirstRub)
+    list = await HelpersService.list(character.id)
+    expect(list.items.find(h => h.id === first.id)).toMatchObject({ status: 'ACTIVE', sleepReason: null })
+
+    // Ручное продление: прибавляет срок; больше двух сроков вперёд нельзя; у второго аренды нет.
+    await HelpersService.renew(character.id, first.id)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).money).toBe(5000 - 2 * H.rentFirstRub)
+    await expect(HelpersService.renew(character.id, first.id)).rejects.toThrow('уже оплачена')
+    await expect(HelpersService.renew(character.id, second.id)).rejects.toThrow('только у первого')
+  })
+
+  it('уволили первого — оставшийся становится первым и получает оплаченный срок', async () => {
+    const character = await subscribed()
+    const first = await HelpersService.hire(character.id, 'Витёк', 'scrap_collector')
+    const second = await HelpersService.hire(character.id, 'Толян', 'supplier')
+    const paid = (await testPrisma.helper.findUniqueOrThrow({ where: { id: first.id } })).rentPaidUntil
+    await HelpersService.dismiss(character.id, first.id)
+    expect((await testPrisma.helper.findUniqueOrThrow({ where: { id: second.id } })).rentPaidUntil).toEqual(paid)
+    const list = await HelpersService.list(character.id)
+    expect(list.items[0]).toMatchObject({ id: second.id, status: 'ACTIVE' })
+    expect(list.items[0].rent).not.toBeNull()
+    // Следующий найм — уже второй, за доллары.
+    expect(list.hirePrice).toMatchObject({ currency: 'USD', amount: H.priceSecondUsd })
   })
 
   it('боевой и рабочий — можно; два боевых — нельзя; боевой на смены не ходит', async () => {

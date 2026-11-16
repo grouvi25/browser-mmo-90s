@@ -164,6 +164,10 @@ export interface Helper {
   professionName?: string
   kind?: 'WORK' | 'COMBAT'
   status: 'ACTIVE' | 'DORMANT'
+  /** Почему спит: нет подписки, не оплачена аренда первого помощника, усыпил админ. */
+  sleepReason?: 'subscription' | 'rent' | 'admin' | null
+  /** Аренда первого помощника (Дима 15.11): оплачено до этого срока. */
+  rent?: { paidUntil: string | null; priceRub: number; days: number } | null
   professionCode: string
   professionLevel: number
   professionExp: number
@@ -198,10 +202,11 @@ export interface HelperObject {
 }
 
 export const helpersApi = {
-  list: () => api.get<{ items: Helper[]; slots: { used: number; total: number }; prices?: { COMBAT: number; WORK: number }; professions?: { code: string; name: string }[] }>('/api/helpers'),
+  list: () => api.get<{ items: Helper[]; slots: { used: number; total: number }; hirePrice?: { amount: number; currency: 'RUB' | 'USD'; days: number | null }; professions?: { code: string; name: string }[] }>('/api/helpers'),
   objects: () => api.get<{ items: HelperObject[] }>('/api/helpers/objects'),
   hire: (name: string, professionCode: string, kind: 'WORK' | 'COMBAT' = 'WORK') =>
     api.post<Helper>('/api/helpers', { name, kind, ...(kind === 'WORK' ? { professionCode } : {}) }, idem()),
+  renew: (id: string) => api.post<{ id: string; rentPaidUntil: string; newBalance: number }>(`/api/helpers/${id}/renew`, {}, idem()),
   dismiss: (id: string) => api.delete<{ dismissed: string }>(`/api/helpers/${id}`),
   setTactic: (id: string, tactic: 'ATTACK' | 'STANDARD' | 'DEFENSIVE') =>
     api.patch<{ id: string; tactic: string }>(`/api/helpers/${id}/tactic`, { tactic }),

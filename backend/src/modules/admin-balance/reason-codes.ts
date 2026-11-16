@@ -36,6 +36,7 @@ const REASONS: Record<string, ReasonMeta> = {
   // Стоки: деньги уходят из игры насовсем.
   SHOP_PURCHASE: { title: 'Покупки в магазине', flow: 'sink' },
   BAR_PURCHASE: { title: 'Бар', flow: 'sink' },
+  HELPER_RENT: { title: 'Аренда помощника', flow: 'sink' },
   REPAIR_COST: { title: 'Ремонт вещей', flow: 'sink' },
   REPAIR_USE: { title: 'Ремонт (расход набора)', flow: 'sink' },
   UPGRADE_COST: { title: 'Улучшение вещей', flow: 'sink' },

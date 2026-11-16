@@ -21,6 +21,7 @@ import { runHouseSieges, HOUSE_SIEGES_MS } from './modules/clans/house-siege.ser
 import { HOME_RAIDS_MS, runHomeRaids } from './modules/housing/housing.service'
 import { collectEconomyMetrics, startEconomyMetricsDaily } from './workers/economy-metrics-daily.worker'
 import { cleanupExpiredIdempotencyKeys } from './shared/db/idempotency'
+import { HelpersService } from './modules/premium/helpers.service'
 import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -126,6 +127,15 @@ async function startWorker(): Promise<void> {
     catch (err) { logger.error({ err }, '[Worker] Market expire error') }
   }, MARKET_EXPIRE_MS)
 
+  // Аренда первого помощника (Дима 15.11): раз в час списать 2000 ₽ тем, у
+  // кого срок прошёл; не хватило денег — помощник спит до следующей попытки.
+  const helperRentTimer = setInterval(async () => {
+    try {
+      const charged = await HelpersService.chargeRent()
+      if (charged > 0) logger.info({ charged }, '[Worker] Helper rent charged')
+    } catch (err) { logger.error({ err }, '[Worker] Helper rent error') }
+  }, 60 * 60 * 1000)
+
   const IDEMPOTENCY_CLEANUP_MS = 60 * 60 * 1000
   const runIdempotencyCleanup = async () => {
     try {
@@ -168,6 +178,7 @@ const shutdown = async (signal: string): Promise<void> => {
     clearInterval(territoryClaimsTimer)
     clearInterval(antiAbuseTimer)
     clearInterval(marketExpireTimer)
+    clearInterval(helperRentTimer)
     clearInterval(battleApplicationsTimer)
     clearInterval(houseSiegesTimer)
     clearInterval(homeRaidsTimer)

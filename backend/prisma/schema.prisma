@@ -215,6 +215,7 @@ enum CurrencyLogReason {
   WORK_SALARY // Зарплата за работу (этап 2)
   STAT_RESPEC_PURCHASE // Свиток перераспределения характеристик
   CURRENCY_EXCHANGE // Обменник Чёрного рынка
+  HELPER_RENT // Аренда первого помощника, 2000 ₽ за 30 дней (Дима 15.11)
 }
 
 enum ItemLogAction {
@@ -2244,6 +2245,11 @@ model Helper {
 
   /// Текущая смена, если помощник занят.
   activeShiftId String? @unique @map("active_shift_id")
+
+  /// Аренда первого помощника (Дима 15.11): оплачен до этого срока. Считается
+  /// только у первого, то есть самого раннего из действующих; срок прошёл —
+  /// помощник спит, пока аренду не оплатят.
+  rentPaidUntil DateTime? @map("rent_paid_until")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

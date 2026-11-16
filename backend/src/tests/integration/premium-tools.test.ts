@@ -12,7 +12,7 @@ async function setup() {
   const login = uid('prem')
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
   const character = await testPrisma.character.create({
-    data: { userId: user.id, nickname: login.slice(0, 20), archetype: 'WORKER', hpCurrent: 80, hpMax: 80, dollars: 500, money: 1000 },
+    data: { userId: user.id, nickname: login.slice(0, 20), archetype: 'WORKER', hpCurrent: 80, hpMax: 80, dollars: 500, money: 10_000 },
   })
   await testPrisma.characterProfession.create({ data: { characterId: character.id, professionCode: 'carpenter', level: 3 } })
   const tool = await testPrisma.itemTemplate.create({

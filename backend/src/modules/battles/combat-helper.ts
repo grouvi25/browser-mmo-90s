@@ -103,6 +103,10 @@ export async function loadCombatHelper(characterId: string): Promise<LiveHelper 
   if (!helper) return undefined
   // Без подписки помощник «спит» (как и рабочий) и в бой не выходит.
   if (!(await PremiumService.state(characterId)).isPremium) return undefined
+  // Первый помощник (самый ранний нанятый) с неоплаченной арендой тоже спит (Дима 15.11).
+  // Свой запрос, а не helpers.service: тот сам импортирует этот модуль.
+  const first = await prisma.helper.findFirst({ where: { characterId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true, rentPaidUntil: true } })
+  if (first?.id === helper.id && (!first.rentPaidUntil || first.rentPaidUntil.getTime() <= Date.now())) return undefined
   const hpMax = helperHpMax(helper.combatLevel)
   return { id: helper.id, name: helper.name, level: helper.combatLevel, tactic: helper.tactic, hp: hpMax, hpMax, alive: true, damageDealt: 0 }
 }

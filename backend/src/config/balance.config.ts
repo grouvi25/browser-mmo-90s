@@ -59,7 +59,7 @@ export const BalanceConfig = {
     },
     clanObjects: { base: 2, perTerritory: 2 },
     premium: { skillMultiplier: 1.5, dailyShiftCap: 16, helperSlots: 2, loadoutSlots: 4 },
-    helper: { efficiency: 0.6, maxCount: 2, skillCap: 3, skillRate: 0.5, dailyShiftCap: 6, priceCombatUsd: 200, priceWorkUsd: 100 },
+    helper: { efficiency: 0.6, maxCount: 2, skillCap: 3, skillRate: 0.5, dailyShiftCap: 6, rentFirstRub: 2000, rentDays: 30, priceSecondUsd: 100 },
     battleSwap: { weaponCostPoints: 1, armorCostTurn: true },
   },
 

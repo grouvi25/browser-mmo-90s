@@ -84,6 +84,13 @@ export async function helpersRoutes(fastify: FastifyInstance) {
     return reply.send(await HelpersService.dismiss(character.id, req.params.id))
   })
 
+  // Продлить аренду первого помощника на 30 дней (Дима 15.11).
+  fastify.post<{ Params: { id: string } }>('/:id/renew', { preHandler: authenticate }, async (req, reply) => {
+    if (!Id.safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+    const character = await me(req.authUser.userId)
+    return reply.send(await HelpersService.renew(character.id, req.params.id))
+  })
+
   fastify.post<{ Params: { id: string }; Body: { objectId: string } }>('/:id/work', { preHandler: authenticate }, async (req, reply) => {
     const parsed = z.object({ objectId: Id }).safeParse(req.body)
     if (!Id.safeParse(req.params.id).success || !parsed.success) {
