@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanDatabase, testPrisma, uid } from './helpers'
 import { getRedis, disconnectRedis } from '../../shared/db/redis'
 import { WorkService } from '../../modules/work/work.service'
@@ -57,6 +57,12 @@ describe('WorkService E2',()=>{
   // шестнадцати, а fitsDailyBudget проверял бюджет с настройками по
   // умолчанию — двенадцать смен и 360 минут. Подписчик работал ровно
   // столько же, сколько бесплатный игрок, при заявленных шестнадцати сменах.
+  // Часы — на полдень UTC: двенадцать смен лежат с полуночи, и в первый час
+  // после 00:00 UTC отдых после последней из них ещё не кончился — тест краснел
+  // по времени суток, а не по коду.
+  const noon = new Date(); noon.setUTCHours(12, 0, 0, 0)
+  vi.useFakeTimers({ toFake: ['Date'], now: noon })
+  try {
   const { character, object } = await fixture()
   const view = await WorkService.listObjects(character.id)
   expect(view.daily.shiftsLimit).toBe(12)
@@ -84,6 +90,7 @@ describe('WorkService E2',()=>{
    } })
   }
   await expect(WorkService.start(character.id, object.id)).resolves.toBeTruthy()
+  } finally { vi.useRealTimers() }
  })
 
 })

@@ -60,6 +60,8 @@ describe('шмот для собак из админки', () => {
     expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).money).toBe(46_000)
     await expect(CityService.buyDogGear(character.id, pet.id, code, uid('k'))).rejects.toMatchObject({ message: 'Это уже надето' })
 
+    // №124: меткость не съедается молча вместе с остальной раскладкой.
+    await expect(CityService.allocateDogGear(character.id, pet.id, 'ARMOR', { str: 10, acc: 10 })).rejects.toMatchObject({ message: 'Меткости у собак нет, вложите очки в другие характеристики' })
     await CityService.allocateDogGear(character.id, pet.id, 'ARMOR', { end: 12, agi: 5 })
     await expect(CityService.allocateDogGear(character.id, pet.id, 'ARMOR', { luck: 4 })).rejects.toMatchObject({ message: 'Свободных очков у вещи: 3' })
     await CityService.allocateDogGear(character.id, pet.id, 'ARMOR', { luck: 3 })

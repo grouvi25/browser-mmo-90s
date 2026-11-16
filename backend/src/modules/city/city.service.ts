@@ -165,6 +165,11 @@ export const CityService = {
       if (!pet || !breedOf(pet.code)) throw AppError.notFound('Собака')
       const worn = dogGear(pet)[slot]
       if (!worn || worn.budget == null) throw AppError.conflict('На этой вещи нечего распределять')
+      // Стат, которого у собаки нет (меткость), не выбрасывается молча: иначе
+      // вложилась бы только часть раскладки (обращение №124).
+      if (Object.entries(add).some(([stat, n]) => !(DOG_STATS as readonly string[]).includes(stat) && Number(n) > 0)) {
+        throw AppError.validation('Меткости у собак нет, вложите очки в другие характеристики')
+      }
       const extra = cleanStats(add)
       const total = Object.values(extra).reduce((sum, n) => sum + (n ?? 0), 0)
       if (total < 1) throw AppError.validation('Выберите, куда вложить очки')
