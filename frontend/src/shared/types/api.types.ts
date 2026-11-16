@@ -81,8 +81,11 @@ export interface Character {
   /** Настойки и свитки, действующие сейчас. */
   activeEffects?: { name: string; expiresAt?: string }[]
   economy?: {
+    /** №128: производственный уровень — своя шкала по всему опыту профессий. */
     productionLevel: number
     productionExp: number
+    productionLevelExp?: number
+    productionNextLevelExp?: number | null
     professions: Array<{ id:string; professionCode:string; name?:string; level:number; exp:number; unlockedAt:string; updatedAt:string }>
     economicLevel: number
     economicExp: number

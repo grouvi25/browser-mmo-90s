@@ -1,3 +1,4 @@
+import { productionLevelBounds } from '../professions/production-level'
 import { dogSummary } from '../city/city.config'
 import { CharactersRepository } from './characters.repository'
 import { calcCharacterRating, calcHpMax, getExpForNextLevel } from '../stats/stats.formulas'
@@ -131,8 +132,11 @@ export const CharactersService = {
       }))),
       nextLevelExp: Number.isFinite(getExpForNextLevel(char.battleLevel)) ? getExpForNextLevel(char.battleLevel) : null,
       economy: {
-        productionLevel: professions.reduce((max, item) => Math.max(max, item.level), 0),
-        productionExp: professions.reduce((max, item) => Math.max(max, item.exp), 0),
+        // №128: производственный уровень — своя шкала по всему опыту профессий.
+        productionLevel: char.productionLevel,
+        productionExp: char.productionExp,
+        productionLevelExp: productionLevelBounds(char.productionLevel).from,
+        productionNextLevelExp: productionLevelBounds(char.productionLevel).next,
         // Название рядом с кодом: досье показывало игроку «procurer».
         professions: professions.map(item => ({ ...item, name: PROFESSION_NAMES[item.professionCode as ProfessionCode] ?? item.professionCode })),
         economicLevel: char.economicLevel,

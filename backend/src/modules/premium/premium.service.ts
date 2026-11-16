@@ -1,3 +1,4 @@
+import { productionShiftBonus } from '../professions/production-level'
 // =============================================================
 // PREMIUM — шаг F5 Этапа 4
 //
@@ -252,7 +253,9 @@ export const PremiumService = {
   /** Суточный потолок смен с учётом подписки. */
   async dailyShiftCap(characterId: string): Promise<number> {
     const state = await this.state(characterId)
-    return state.benefits.dailyShiftCap
+    // №128: каждые 5 производственных уровней — смена в день сверху.
+    const { productionLevel } = await prisma.character.findUniqueOrThrow({ where: { id: characterId }, select: { productionLevel: true } })
+    return state.benefits.dailyShiftCap + productionShiftBonus(productionLevel)
   },
 
   /**

@@ -29,6 +29,14 @@ function LevelsTopic({ t }: { t: LibraryTables | undefined }) {
       <thead><tr><th>Уровень</th><th>Опыт</th><th>Премия</th><th>Сила</th></tr></thead>
       <tbody>{t.economic.filter(row => row.level > 0).map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>{n(row.money)} ₽</td><td>+{row.str}</td></tr>)}</tbody>
     </table></div>
+    {t.production && <>
+      <h3>Производственный уровень</h3>
+      <p>Растёт от работы: весь опыт профессий за смены, крафт в цехах и урожай идёт и сюда. За каждый новый уровень +1 к выносливости и денежная премия, а каждые 5 уровней ещё одна смена в день.</p>
+      <div className="library__scroll"><table className="library__table library__table--fit">
+        <thead><tr><th>Уровень</th><th>Опыт</th><th>Премия</th><th>Выносливость</th><th>Смен сверху</th></tr></thead>
+        <tbody>{t.production.filter(row => row.level > 0).map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>{n(row.money)} ₽</td><td>+{row.end}</td><td>{row.shifts ? `+${row.shifts}` : '0'}</td></tr>)}</tbody>
+      </table></div>
+    </>}
   </>
 }
 

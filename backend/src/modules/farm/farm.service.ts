@@ -1,3 +1,4 @@
+import { grantProductionExp } from '../professions/production-level'
 ﻿import { prisma } from '../../shared/db/prisma'
 import { professionLevelFromExp } from '../professions/professions'
 import { withTransaction } from '../../shared/db/transaction'
@@ -135,8 +136,8 @@ export const FarmService = {
         professionExpGain = harvestProfessionExp(cropCode)
         const exp = profession.exp + professionExpGain
         await tx.characterProfession.update({ where: { id: profession.id }, data: { exp, level: professionLevelFromExp(exp) } })
-        const aggregate = await tx.characterProfession.aggregate({ where: { characterId }, _max: { level: true, exp: true } })
-        await tx.character.update({ where: { id: characterId }, data: { productionLevel: aggregate._max.level ?? 0, productionExp: aggregate._max.exp ?? 0 } })
+        // №128: опыт урожая идёт и в производственный уровень.
+        await grantProductionExp(tx, characterId, professionExpGain)
       }
       return { cropCode, resourceCode: crop.resourceCode, amount, professionExpGain }
     })

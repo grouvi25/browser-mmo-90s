@@ -112,6 +112,11 @@ export async function libraryRoutes(fastify: FastifyInstance) {
       return { name: item.name, does: does || 'пока ничего', where, madeAt: madeAt(item.code) }
     })
     const professionLevels = PROFESSION_CUMULATIVE_XP.map((exp, level) => ({ level, exp, efficiencyPct: Math.round((professionEfficiency(level) - 1) * 100) }))
-    return reply.send({ battle, economic, professions, professionLevels, statPointsPerLevel: B.battleExp.statPointsPerLevel, botExpPenalty: B.battleExp.pveDailyPenaltyPerKill, botExpMin: B.battleExp.pveDailyMin, consumables: items, objectPriceUsd: B.economy.production.objectPriceUsd })
+    // №128: производственный уровень — порог, премия, выносливость, смены сверху.
+    const production = B.productionLevel.levelThresholds.map((exp, level) => ({
+      level, exp, money: level === 0 ? 0 : B.productionLevel.levelMoney, end: level === 0 ? 0 : B.productionLevel.endPerLevel,
+      shifts: B.productionLevel.shiftEveryLevels > 0 ? Math.floor(level / B.productionLevel.shiftEveryLevels) : 0,
+    }))
+    return reply.send({ battle, economic, production, professions, professionLevels, statPointsPerLevel: B.battleExp.statPointsPerLevel, botExpPenalty: B.battleExp.pveDailyPenaltyPerKill, botExpMin: B.battleExp.pveDailyMin, consumables: items, objectPriceUsd: B.economy.production.objectPriceUsd })
   })
 }

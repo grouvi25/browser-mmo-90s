@@ -1,3 +1,4 @@
+import { grantProductionExp } from '../professions/production-level'
 import { prisma } from '../../shared/db/prisma'
 import { getRedis } from '../../shared/db/redis'
 import { logger } from '../../shared/logger/logger'
@@ -435,8 +436,9 @@ export const WorkService = {
         }
       }
       await tx.characterProfession.update({ where: { id: profession.id }, data: { exp: professionExp, level: professionLevel } })
-      const aggregate = await tx.characterProfession.aggregate({ where: { characterId }, _max: { level: true, exp: true } })
-      await tx.character.update({ where: { id: characterId }, data: { status: 'ACTIVE', productionLevel: aggregate._max.level ?? professionLevel, productionExp: aggregate._max.exp ?? professionExp } })
+      await tx.character.update({ where: { id: characterId }, data: { status: 'ACTIVE' } })
+      // №128: весь опыт профессий идёт и в производственный уровень.
+      await grantProductionExp(tx, characterId, professionExpGain)
       await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CLAIMED', metadataJson: { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionLevel, resourceReward, resourceToOwner, toolUse, cycleContribution, crafted } } })
       return { shiftId, salary, professionCode: shift.professionCode, professionExpGain, professionExp, professionLevel, resourceReward, resourceToOwner, toolUse, cycleContribution, crafted, newBalance }
     } })

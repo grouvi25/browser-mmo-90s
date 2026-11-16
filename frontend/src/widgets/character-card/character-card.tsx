@@ -79,6 +79,25 @@ function EconomicProgress({ char }: { char?: MeCharacter }) {
   </>
 }
 
+/** №128: производственный уровень с полоской, как экономический. */
+function ProductionProgress({ char }: { char?: MeCharacter }) {
+  const eco = char?.economy
+  if (!eco) return null
+  const next = eco.productionNextLevelExp ?? null
+  const from = eco.productionLevelExp ?? 0
+  const share = next != null && next > from ? Math.min(1, Math.max(0, (eco.productionExp - from) / (next - from))) : 1
+  return <>
+    <div className="card-list__kv"><span>Произв. уровень</span><b>{eco.productionLevel}</b></div>
+    <div className="card-list__kv"><span>Произв. опыт</span>
+      <b>{eco.productionExp.toLocaleString('ru')}{next != null ? ` из ${next.toLocaleString('ru')}` : ''}</b></div>
+    <div className="dog-exp" role="progressbar" aria-label="Производственный опыт до следующего уровня"
+      aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)}>
+      <i style={{ width: `${Math.round(share * 100)}%` }} />
+      <span>{next != null ? `до ${eco.productionLevel + 1}-го: ${Math.max(0, next - eco.productionExp).toLocaleString('ru')}` : 'максимальный уровень'}</span>
+    </div>
+  </>
+}
+
 /** Характеристики с прибавками от надетого, владение оружием, мастерства и обереги.
  *  Одни и те же строки — во вкладке карточки на большом экране и в досье на
  *  телефоне (обращение №86: на телефоне карточки нет, обереги было не увидеть). */
@@ -407,6 +426,7 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
           <div className="card-list__kv"><span>Опыт</span><b>{(char?.battleExp ?? 0).toLocaleString('ru')}</b></div>
           <div className="card-list__kv"><span>Следующий уровень</span><b>{char?.nextLevelExp != null ? char.nextLevelExp.toLocaleString('ru') : 'максимум'}</b></div>
           <EconomicProgress char={char} />
+          <ProductionProgress char={char} />
           <div className="card-list__kv"><span>Очки статов</span><b>{char?.stats?.pointsAvailable ?? 0}</b></div>
           <button type="button" className="card-list__more" onClick={() => navigate('/profile')}>
             Открыть полностью →

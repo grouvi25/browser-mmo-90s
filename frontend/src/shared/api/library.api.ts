@@ -4,6 +4,7 @@ import { api } from './client'
 export interface LibraryTables {
   battle: Array<{ level: number; exp: number; money: number; statPoints: number | null }>
   economic: Array<{ level: number; exp: number; money: number; str: number }>
+  production?: Array<{ level: number; exp: number; money: number; end: number; shifts: number }>
   professions: Array<{
     chain: string
     steps: Array<{
