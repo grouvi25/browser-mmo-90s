@@ -142,16 +142,20 @@ export function edgeChance(statDiff: number, charmDiff: number, mid: number): { 
   return { chance, decided: charmCap === 0 || (statDecided && charmCap >= stat) }
 }
 
-/** Попадание (Nobody 14.11): попасть без рандома можно ловкостью ИЛИ оберегом
- *  уворота — перевес оберегов 250% решает сам, раньше статов. Крит, удачный и
- *  ответка считаются через edgeChance, там оберег только защищает. */
+/** Попадание (Nobody 14.11, уточнение 16.11 по №130): условия проверяются все,
+ *  оберег не главнее ловкости. Попал без рандома, если оберег уворота бьющего
+ *  перекрыл минус цели на 250% ИЛИ ловкость больше на 50. Минус-оберег цели гасит
+ *  только оберег бьющего: снимает базовые 50%, но перевес ловкости всё равно
+ *  ведёт к попаданию. Не попал — дальше крит и удачный сквозь уворот (resolveZonalAttack).
+ *  Крит, удачный и ответка считаются через edgeChance, там оберег только защищает. */
 export function hitEdgeChance(statDiff: number, charmDiff: number, mid: number): { chance: number; decided: boolean } {
   const E = B.edge
-  if (charmDiff >= E.charmGap) return { chance: 1, decided: true }
-  if (charmDiff <= -E.charmGap) return { chance: 0, decided: true }
-  if (statDiff >= E.statGap) return { chance: 1, decided: true }
+  if (charmDiff >= E.charmGap || statDiff >= E.statGap) return { chance: 1, decided: true }
   if (statDiff <= -E.statGap) return { chance: 0, decided: true }
-  return { chance: clamp(mid + statDiff / (2 * E.statGap) + charmDiff / (2 * E.charmGap), 0, 1), decided: false }
+  const charm = Math.max(charmDiff, -E.charmGap)
+  const chance = clamp(mid + statDiff / (2 * E.statGap) + charm / (2 * E.charmGap), 0, 1)
+  // Минус цели перекрыл оберег, а ловкости не больше — попасть можно только критом или удачным.
+  return { chance, decided: chance === 0 && charm === -E.charmGap }
 }
 
 // ---------------------------------------------------------------

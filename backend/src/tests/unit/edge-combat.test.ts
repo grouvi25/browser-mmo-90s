@@ -19,10 +19,15 @@ describe('перевес №76', () => {
     expect(edgeChance(-50, 0, 0.5)).toEqual({ chance: 0, decided: true })
   })
 
-  it('попадание: без рандома — ловкостью или оберегом уворота (Nobody 14.11), оберег решает раньше статов', () => {
+  it('попадание: без рандома — ловкостью или оберегом уворота (Nobody 14.11), оберег не главнее ловкости (16.11)', () => {
     expect(calcHitChance(atk({ agi: 100, dodgeCharmEdge: 2.5 }), def())).toBe(1)
-    expect(calcHitChance(atk({ agi: 400 }), def({ dodgeBonus: 2.6 }))).toBe(0)
     expect(calcHitChance(atk({ agi: 250 }), def())).toBe(1)
+    // №130: минус-оберег уворота цели 300%, но у бьющего ловкость больше на 94 — попал.
+    expect(calcHitChance(atk({ agi: 294, dodgeCharmEdge: -3 }), def())).toBe(1)
+    // Минус цели перекрыл оберег, ловкость равна — без крита и удачного не попасть.
+    expect(calcHitChance(atk({ agi: 200, dodgeCharmEdge: -3 }), def())).toBe(0)
+    // Ловкость больше на 25 — половина пути до гарантии.
+    expect(calcHitChance(atk({ agi: 225, dodgeCharmEdge: -3 }), def())).toBeCloseTo(0.25)
   })
 
   it('крит и удачный: минус бьющего, перекрывший оберег, ничего не гарантирует, дальше решает стат', () => {

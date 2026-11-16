@@ -95,7 +95,8 @@ export const BalanceConfig = {
     resources: { governmentPayoutRate: 0.25 },
     /** Обменник Чёрного рынка. Дима 13.11: купить 1 $ — 700 ₽, продать — 500 ₽ (было 1500 и 1000). */
     exchange: { buyRate: 700, sellRate: 500, dailyBuyLimit: 20 },
-    market: { listingFeeRate: 0.02, listingFeeMin: 5, saleTaxRate: 0.05, listingDurationHours: 72, maxActiveListings: 0 /* 0 — без ограничения (решение 10.11) */,
+    // Дима 16.11: выставлять на рынок бесплатно, с продажи 10% (было 2% за лот и 5% с продажи).
+    market: { listingFeeRate: 0, listingFeeMin: 0, saleTaxRate: 0.1, listingDurationHours: 72, maxActiveListings: 0 /* 0 — без ограничения (решение 10.11) */,
       // Дима 15.11: крафтовое сырьё не дешевле затрат +20% и не дороже затрат +100%.
       craftPriceMin: 1.2, craftPriceMax: 2 },
     tools: { tiers: { 1: { price: 500, uses: 50 }, 2: { price: 1250, uses: 50 }, 3: { price: 1800, uses: 50 } } },

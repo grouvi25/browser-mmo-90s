@@ -114,14 +114,14 @@ describe('бонусы районов действуют', () => {
     const sale = await MarketService.buy(buyer.id, listed.listing.id, uid('buy'))
 
     const after = await testPrisma.clan.findUniqueOrThrow({ where: { id: clan.id } })
-    // Налог 5% от 1000 = 50, треть района = 30% -> 15
-    expect(sale.tax).toBe(50)
-    expect(after.treasury).toBe(15)
+    // Налог 10% от 1000 = 100 (Дима 16.11), доля района 30% -> 30
+    expect(sale.tax).toBe(100)
+    expect(after.treasury).toBe(30)
 
     const log = await testPrisma.clanTreasuryLog.findFirst({
       where: { clanId: clan.id, reason: 'TERRITORY_MARKET_SHARE' },
     })
-    expect(log?.amount).toBe(15)
+    expect(log?.amount).toBe(30)
 
     // Деньги не печатаются: доля берётся из уже собранного налога, поэтому
     // у игроков суммарно убыло ровно на величину налога.

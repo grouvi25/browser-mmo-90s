@@ -19,7 +19,9 @@ import { resourcesApi } from '../../shared/api/resources.api'
 const money = (value: number, currency: Currency = 'RUB') => `${value.toLocaleString('ru')} ${currency === 'USD' ? '$' : '₽'}`
 /** Курс пошлины на сервере (market.service RUB_PER_USD): доллар как 100 ₽. */
 const RUB_PER_USD = 100
-const fee = (price: number, currency: Currency) => Math.max(5, Math.round((currency === 'USD' ? price * RUB_PER_USD : price) * 0.02))
+// Дима 16.11: выставлять бесплатно, с продажи 10% (balance.config economy.market).
+const fee = (_price: number, _currency: Currency) => 0
+const SALE_TAX = '10%'
 
 function useRefresh() {
   const qc = useQueryClient()
@@ -101,7 +103,7 @@ export function MarketPage() {
   const trader = useQuery({ queryKey: ['market', 'trader'], queryFn: marketApi.trader })
 
   const buy = useMutation({ mutationFn: marketApi.buy, onSuccess: () => { setMessage('Покупка завершена'); refresh() }, onError: (e: Error) => setMessage(e.message) })
-  const cancel = useMutation({ mutationFn: marketApi.cancel, onSuccess: () => { setMessage('Объявление снято, сбор не возвращается'); refresh() }, onError: (e: Error) => setMessage(e.message) })
+  const cancel = useMutation({ mutationFn: marketApi.cancel, onSuccess: () => { setMessage('Объявление снято'); refresh() }, onError: (e: Error) => setMessage(e.message) })
   const reprice = useMutation({ mutationFn: (v: { id: string; price: number }) => marketApi.updatePrice(v.id, v.price), onSuccess: r => { setMessage(r.feeCharged ? `Цена изменена, доплата сбора ${r.feeCharged} ₽` : 'Цена изменена'); refresh() }, onError: (e: Error) => setMessage(e.message) })
   // Цену вводят за штуку, итог считается сам (обращение №40). На сервер уходит итог, как и раньше.
   const total = price * amount
@@ -111,7 +113,7 @@ export function MarketPage() {
   const outOfBounds = !!bounds && !!price && (unitRub < bounds.min || unitRub > bounds.max)
   const create = useMutation({
     mutationFn: () => marketApi.createResource(resourceId, amount, total, currency),
-    onSuccess: () => { setMessage(`Выставлено. Сбор: ${fee(total, currency)} ₽`); refresh() },
+    onSuccess: () => { setMessage(`Выставлено. С продажи налог ${SALE_TAX}`); refresh() },
     onError: (e: Error) => setMessage(e.message),
   })
   const totalPages = Math.max(1, listings.data?.totalPages ?? 1)
@@ -137,7 +139,7 @@ export function MarketPage() {
             <option value="RUB">₽</option>
             <option value="USD" disabled={!usd}>${usd ? '' : ' — добытчик 2-го уровня'}</option>
           </select></label>
-        <span>Итого {money(total, currency)} · сбор {fee(total, currency)} ₽{total > 1_000_000 ? ' · больше 1 000 000 нельзя' : ''}</span>
+        <span>Итого {money(total, currency)} · налог с продажи {SALE_TAX}{total > 1_000_000 ? ' · больше 1 000 000 нельзя' : ''}</span>
         <button className="btn btn-primary" disabled={create.isPending || !resourceId || !amount || !price || total > 1_000_000 || outOfBounds}
           title={outOfBounds && bounds ? `Цена за штуку от ${bounds.min} до ${bounds.max} ₽` : undefined} onClick={() => create.mutate()}>Выставить</button>
       </div>
@@ -217,7 +219,7 @@ export function TraderPage() {
             <select value={currency} onChange={e => setCurrency(e.target.value as Currency)}>
               <option value="RUB">₽</option><option value="USD" disabled={t.traderLevel < 2}>${t.traderLevel < 2 ? ' — 2-й уровень' : ''}</option>
             </select></label>
-          <span>Сбор {fee(price, currency)} ₽</span>
+          <span>Налог с продажи {SALE_TAX}</span>
           <button className="btn btn-primary" disabled={create.isPending || !itemId || !price} onClick={() => create.mutate()}>Выставить</button>
         </div>
       </div>
