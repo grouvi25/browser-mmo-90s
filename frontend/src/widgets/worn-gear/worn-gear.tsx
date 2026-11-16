@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { itemImage } from '../../shared/assets/shop/shop-images'
 import { ARMOR_SLOT_LABELS } from '../../shared/types/api.types'
+import { itemHoverText } from '../../shared/lib/item-bonuses'
 import './worn-gear.css'
 
 /** Что надето — крупными картинками перед боем (обещание игрокам 22.10:
@@ -20,7 +21,7 @@ export function WornGear() {
         const slot = item.armorSlot ? ARMOR_SLOT_LABELS[item.armorSlot] ?? item.armorSlot : ''
         return (
           <Link key={item.id} to="/inventory" className={'worn-gear__item' + (low ? ' is-low' : '')}
-            title={`${item.template.name}${slot ? ` · ${slot}` : ''} · прочность ${item.durabilityCurrent}/${item.durabilityMax}`}>
+            title={itemHoverText(item, slot || undefined)}>
             <img src={itemImage(item.template.code, item.template.weaponType, item.template.type)} alt={item.template.name} />
             <small>{item.durabilityCurrent}/{item.durabilityMax}</small>
           </Link>

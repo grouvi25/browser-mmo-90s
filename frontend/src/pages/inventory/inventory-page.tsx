@@ -30,7 +30,7 @@ import { shopApi } from '../../shared/api/shop.api'
 import { ARMOR_SLOT_LABELS, QUALITY_LABELS, effectLabel, healLabel, type ItemInstance } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
-import { instanceImage, itemBonusLines } from '../../shared/lib/item-bonuses'
+import { instanceImage, itemBonusLines, itemHoverText } from '../../shared/lib/item-bonuses'
 import { SPRITES } from '../../shared/ui/sprite'
 import { rangeLabel } from '../../shared/lib/weapon-range'
 import { useBattleLoadout } from '../../shared/lib/battle-loadout'
@@ -257,7 +257,7 @@ export function InventoryPage() {
     return <>
       <button type="button" className={'inv-cell' + (item ? '' : ' is-empty')} style={place(cell.box)} data-slot={cell.slot}
         disabled={!item || inBattle || undressing}
-        title={item ? `${item.template.name} — снять` : `${label}: пусто`}
+        title={item ? itemHoverText(item, 'снять') : `${label}: пусто`}
         aria-label={item ? `Снять: ${item.template.name}` : `${label}: пусто`}
         onClick={() => item && unequipMut.mutate(item.id)}>
         {item && <img src={instanceImage(item)} alt="" />}

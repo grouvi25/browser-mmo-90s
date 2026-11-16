@@ -282,6 +282,22 @@ export function calcCharacterRating(stats: RatingStats, equipped: EquippedForRat
 }
 
 /**
+ * №121 (Amadeus 16.11): рейтинг бота в бою — той же формулой, что у игрока.
+ * У бота статы, оружие и броня лежат цифрами в базе; пустые поля берём теми
+ * же значениями, с которыми бот дерётся (buildBot*Snapshot).
+ */
+export function calcBotRating(stats: Record<string, unknown>, equipment: Record<string, unknown>): number {
+  const num = (value: unknown, fallback: number) => (typeof value === 'number' && Number.isFinite(value) ? value : fallback)
+  const base = calcBaseRating({
+    str: num(stats.str, 3), agi: num(stats.agi, 3), rea: num(stats.rea, 2), acc: num(stats.acc, 3),
+    end: num(stats.end, 3), luck: num(stats.luck, 1), agr: num(stats.agr, 1), aluck: num(stats.aluck, 0),
+  })
+  const weapon = equipment.weapon && typeof equipment.weapon === 'object' ? equipment.weapon as Record<string, unknown> : {}
+  const gear = 2 * ((num(weapon.minDamage, 3) + num(weapon.maxDamage, 8)) / 2) + 1.5 * num(stats.armor, 2)
+  return Math.round((base + gear) * 10) / 10
+}
+
+/**
  * Сколько единиц прочности снять: целая часть всегда, дробная с её
  * вероятностью. Прочность целая, а износ с 13.11 бывает 0.5 (№102).
  */

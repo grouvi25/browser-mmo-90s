@@ -64,6 +64,23 @@ export function itemBonusLines(t: ItemTemplate, item?: ItemInstance): BonusLine[
   return lines
 }
 
+/**
+ * №129 (Nobody 15.11): статы надетой вещи по наведению, без похода на Склад.
+ * Те же строки, что в карточке Склада, — одной подсказкой, по строке на стат.
+ */
+export function itemHoverText(item: ItemInstance, action?: string): string {
+  const t = item.template
+  const eff = item.effective
+  const lines = [action ? `${t.name} — ${action}` : t.name, `Прочность: ${item.durabilityCurrent}/${item.durabilityMax}`]
+  if (t.minDamage != null) lines.push(`Урон: ${eff?.minDamage ?? t.minDamage}–${eff?.maxDamage ?? t.maxDamage}`)
+  if (t.armor || eff?.armor) lines.push(`Броня: +${eff?.armor ?? t.armor}`)
+  if (t.hpBonus) lines.push(`Здоровье: +${t.hpBonus}`)
+  for (const line of itemBonusLines(t, item)) lines.push(`${line.label}: ${line.value}`)
+  if (t.type === 'WEAPON' && eff?.weaponAccuracy) lines.push(`Точность: ${round(eff.weaponAccuracy * 100)}%`)
+  if (eff?.critBonus) lines.push(`Крит: +${round(eff.critBonus * 100)}%`)
+  return lines.join('\n')
+}
+
 /** Картинка вещи игрока: своя, если он её загрузил, иначе общая. */
 export function instanceImage(item: ItemInstance): string | undefined {
   return item.iconVersion ? inventoryApi.iconUrl(item.id, item.iconVersion) : itemImage(item.template.code, item.template.weaponType, item.template.type)

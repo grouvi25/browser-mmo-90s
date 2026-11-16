@@ -4,7 +4,7 @@
  * с учётом улучшений и вложенных очков). Авторитет не входит.
  */
 import { describe, it, expect } from 'vitest'
-import { calcBaseRating, calcCharacterRating, calcEquippedItemRating, RATING_WEIGHTS } from '../../modules/stats/stats.formulas'
+import { calcBaseRating, calcBotRating, calcCharacterRating, calcEquippedItemRating, RATING_WEIGHTS } from '../../modules/stats/stats.formulas'
 
 const stats = { str: 10, agi: 10, rea: 10, acc: 10, end: 10, luck: 10, agr: 10 }
 
@@ -61,5 +61,16 @@ describe('calcCharacterRating', () => {
 
   it('без вещей рейтинг равен базовому', () => {
     expect(calcCharacterRating(stats, [])).toBe(calcBaseRating(stats))
+  })
+})
+
+describe('рейтинг бота (№121)', () => {
+  it('статы с весами + оружие 2×среднее + броня 1,5×', () => {
+    // 10×(2+2+1,5×3+1+1) = 105; оружие (20+40)/2×2 = 60; броня 4×1,5 = 6
+    expect(calcBotRating({ ...stats, armor: 4 }, { weapon: { minDamage: 20, maxDamage: 40 } })).toBe(171)
+  })
+  it('пустые поля — те же, с которыми бот дерётся', () => {
+    // 3×2+3×1,5+2×1,5+3×1,5+3×2+1+1 = 26; кулак (3+8)/2×2 = 11; броня 2×1,5 = 3
+    expect(calcBotRating({}, {})).toBe(40)
   })
 })

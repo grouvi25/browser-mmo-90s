@@ -9,7 +9,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../../shared/security/auth-middleware'
-import { NoticesService } from './notices.service'
+import { NoticesService, NOTICES_KEEP } from './notices.service'
 import { ChatService } from './chat.service'
 import { publish } from '../../shared/realtime/io'
 import { prisma } from '../../shared/db/prisma'
@@ -60,8 +60,10 @@ export async function chatRoutes(fastify: FastifyInstance) {
 
   /** Личные уведомления игрока: что он сделал и что с ним сделали. */
   fastify.get('/notices', { preHandler: authenticate }, async (req, reply) => {
+    // №126: «Показать раньше» берёт и системные строки за весь день, не последние 40.
+    const limit = z.coerce.number().int().min(1).max(NOTICES_KEEP).catch(40).parse((req.query as { limit?: unknown } | undefined)?.limit)
     const who = await ChatService.speaker(req.authUser.userId)
-    return reply.send({ items: await NoticesService.list(who.characterId) })
+    return reply.send({ items: await NoticesService.list(who.characterId, 24, limit) })
   })
 
   /** Кто в эфире. Список общий на игру, не по каналам. */

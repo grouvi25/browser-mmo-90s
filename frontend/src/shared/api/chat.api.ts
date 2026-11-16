@@ -61,5 +61,5 @@ export const chatApi = {
 
   online: () => api.get<{ players: OnlinePlayer[] }>('/api/chat/online/list'),
 
-  notices: () => api.get<{ items: Array<{ id: string; text: string; createdAt: string }> }>('/api/chat/notices'),
+  notices: (limit?: number) => api.get<{ items: Array<{ id: string; text: string; createdAt: string }> }>(`/api/chat/notices${limit ? `?limit=${limit}` : ''}`),
 }

@@ -22,7 +22,7 @@ import { Sprite, SpriteButton, SPRITES } from '../../shared/ui/sprite'
 import type { ItemInstance } from '../../shared/types/api.types'
 import { WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
 import { itemImage } from '../../shared/assets/shop/shop-images'
-import { MASTERY_LABELS, instanceImage } from '../../shared/lib/item-bonuses'
+import { MASTERY_LABELS, instanceImage, itemHoverText } from '../../shared/lib/item-bonuses'
 import { IntoxicationBadge } from '../intoxication-badge/intoxication-badge'
 import { dogTitle } from '../../shared/lib/dog'
 import { dogImage } from '../../shared/assets/dogs/dog-images'
@@ -286,7 +286,7 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
             disabled={!own}
             title={leftKnocked ? 'Левая рука: оружие выбито' : own
               ? (weapon
-                ? `${weapon.template.name} · прочность ${weapon.durabilityCurrent}/${weapon.durabilityMax}`
+                ? itemHoverText(weapon)
                 : 'Оружие не надето — открыть снаряжение')
               : `Левая рука: ${profile?.weaponName || 'кулак'}`}
             onClick={own ? () => navigate('/inventory') : undefined}
@@ -301,7 +301,7 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
             disabled={!own}
             title={rightKnocked ? 'Правая рука: оружие выбито' : own
               ? (offhand
-                ? `${offhand.template.name} · прочность ${offhand.durabilityCurrent}/${offhand.durabilityMax}`
+                ? itemHoverText(offhand)
                 : 'Правая рука свободна — открыть снаряжение')
               : `Правая рука: ${profile?.offhandName || 'кулак'}`}
             onClick={own ? () => navigate('/inventory') : undefined}
@@ -321,7 +321,7 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
           {own && amulet && (
             <button type="button" className="card-amulet"
               style={{ left: C.zones[0].box.x + C.zones[0].box.w / 2 - 9, top: C.zones[1].box.y - 4 }}
-              title={`${amulet.template.name} · ${amulet.durabilityCurrent}/${amulet.durabilityMax}`}
+              title={itemHoverText(amulet)}
               onClick={() => navigate('/inventory')}>
               <img src={instanceImage(amulet) ?? ''} alt={amulet.template.name} />
             </button>

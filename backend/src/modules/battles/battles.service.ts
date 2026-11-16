@@ -64,6 +64,7 @@ import {
 import {
   calcBattleExp,
   calcCharacterRating,
+  calcBotRating,
   ratingExpCoeff,
   calcRatingPower,
   rollWear,
@@ -795,7 +796,7 @@ function loadParticipantProfiles(participants: { id: string; characterId: string
       participantId: participant.id,
       name: bot?.name ?? 'Противник',
       level: bot?.battleLevel ?? 0,
-      rating: null,
+      rating: bot ? calcBotRating(bot.stats && typeof bot.stats === 'object' && !Array.isArray(bot.stats) ? bot.stats as Record<string, unknown> : {}, equipment) : null,
       avatar: typeof equipment.avatar === 'string' ? equipment.avatar : null,
       gender: null,
       primaryHand: mainWeapon === 'Оружие' || !mainWeapon ? shown.name : mainWeapon,

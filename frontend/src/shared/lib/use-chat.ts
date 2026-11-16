@@ -71,7 +71,7 @@ export function useChat(channel: ChatChannel, district?: string): ChatState {
   // Личные уведомления («вы посадили», «вам назначена должность») идут
   // в той же ленте строками от «Системы», но видит их только адресат.
   const notices = useQuery({
-    queryKey: ['chat', 'notices'], queryFn: chatApi.notices, retry: false,
+    queryKey: ['chat', 'notices'], queryFn: () => chatApi.notices(), retry: false,
     refetchInterval: 8_000, staleTime: 4_000,
   })
 

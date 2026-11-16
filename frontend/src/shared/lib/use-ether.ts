@@ -34,6 +34,9 @@ const feedKey = (channel: ChatChannel) => ['chat', channel, ''] as const
 // окна чата, иначе опросы с разной длиной перебивали бы друг друга.
 const FULL_LIMIT = 1000
 const PAGE = 50
+/** Системных строк обычно 40; за весь день — сколько сервер хранит (500). */
+const NOTICES_PAGE = 40
+const NOTICES_FULL = 500
 let fullDay = false
 const fullListeners = new Set<() => void>()
 const subscribeFull = (fn: () => void) => { fullListeners.add(fn); return () => { fullListeners.delete(fn) } }
@@ -91,8 +94,9 @@ export function useEther(): Ether {
   const privateFeed = useFeed('PRIVATE', !!char)
   const clan = useFeed('CLAN', hasClan)
   const notices = useQuery({
-    queryKey: ['chat', 'notices'], queryFn: chatApi.notices, retry: false,
-    refetchInterval: 8_000, staleTime: 4_000,
+    // №126: ключ той же формы, что у лент, — «Показать раньше» перезапросит и его.
+    queryKey: ['chat', 'notices', ''], queryFn: () => chatApi.notices(fullDay ? NOTICES_FULL : undefined), retry: false,
+    refetchInterval: () => fullDay ? 60_000 : 8_000, staleTime: 4_000,
   })
 
   const full = useSyncExternalStore(subscribeFull, getFull)
@@ -186,10 +190,10 @@ export function useEther(): Ether {
 
   // Кнопка нужна, только если какой-то канал упёрся в обычный предел и
   // самая ранняя его реплика ещё сегодняшняя: раньше могли быть другие.
-  const canLoadEarlier = !full && [global.data, hasClan ? clan.data : undefined, privateFeed.data].some(feed => {
+  const canLoadEarlier = !full && ([global.data, hasClan ? clan.data : undefined, privateFeed.data].some(feed => {
     const list = feed?.messages ?? []
     return list.length >= PAGE && todayChatLines(list.slice(0, 1), dayStart).length > 0
-  })
+  }) || (notices.data?.items.length ?? 0) >= NOTICES_PAGE)
 
   return {
     messages,

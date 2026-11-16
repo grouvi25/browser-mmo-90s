@@ -9,8 +9,11 @@ import { prisma } from '../../shared/db/prisma'
 import { logger } from '../../shared/logger/logger'
 import { chatDayStart } from './chat.formulas'
 
-/** Сколько уведомлений держим на игрока: старые чистит записью новых. */
-const KEEP = 100
+/** Сколько уведомлений держим на игрока: старые чистит записью новых.
+ *  №126: было 100 — у фермера за день столько набегает, утренние строки
+ *  стирались раньше, чем их успевали прокрутить. */
+export const NOTICES_KEEP = 500
+const KEEP = NOTICES_KEEP
 
 export const NoticesService = {
   async push(characterId: string, text: string): Promise<void> {
