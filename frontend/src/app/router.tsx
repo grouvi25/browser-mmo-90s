@@ -32,6 +32,7 @@ import { AdminPage }           from '../pages/admin/admin-page'
 import { LibraryPage }         from '../pages/library/library-page'
 import { StatsPage }           from '../pages/character/stats-page'
 import { ResourcesPage }       from '../pages/resources/resources-page'
+import { WalletPage }          from '../pages/resources/wallet-page'
 import { WorkPage }            from '../pages/work/work-page'
 import { PrivateShopsPage }    from '../pages/private-shops/private-shops-page'
 import { MarketPage, TraderPage, ShopsPage, ShopPage } from '../pages/market/market-page'
@@ -279,6 +280,10 @@ export function AppRouter() {
         <Route path="/resources" element={
           <ViewportPanel title="Склад" subtitle="Сырьё и детали">
             <ResourcesPage />
+          </ViewportPanel>} />
+        <Route path="/wallet" element={
+          <ViewportPanel title="Склад" subtitle="Кошелёк">
+            <WalletPage />
           </ViewportPanel>} />
 
         <Route path="/skills" element={

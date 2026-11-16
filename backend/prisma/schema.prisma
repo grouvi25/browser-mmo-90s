@@ -216,6 +216,7 @@ enum CurrencyLogReason {
   STAT_RESPEC_PURCHASE // Свиток перераспределения характеристик
   CURRENCY_EXCHANGE // Обменник Чёрного рынка
   HELPER_RENT // Аренда первого помощника, 2000 ₽ за 30 дней (Дима 15.11)
+  LEVEL_BONUS // Премия за новый боевой или экономический уровень (№133)
 }
 
 enum ItemLogAction {

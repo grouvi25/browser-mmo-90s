@@ -1,7 +1,12 @@
 import { api } from './client'
 import type { ItemBonuses, ItemInstance, ItemStatKey } from '../types/api.types'
 
+export interface MoneyMove { id: string; amount: number; balanceAfter: number; label: string; at: string }
+
 export const inventoryApi = {
+  /** Кошелёк (№133): новые сверху; after — id последней показанной строки. */
+  moneyLog: (after?: string) =>
+    api.get<{ items: MoneyMove[]; hasMore: boolean }>(`/api/inventory/money-log${after ? `?after=${encodeURIComponent(after)}` : ''}`),
   outfits: () => api.get<{ slots: number; items: { slot: number; name: string; count: number }[] }>('/api/inventory/outfits'),
   saveOutfit: (slot: number, name?: string) => api.post<{ slot: number; name: string; count: number }>(`/api/inventory/outfits/${slot}/save`, { name }),
   wearOutfit: (slot: number) => api.post<{ equipped: number; skipped: string[] }>(`/api/inventory/outfits/${slot}/wear`, {}),

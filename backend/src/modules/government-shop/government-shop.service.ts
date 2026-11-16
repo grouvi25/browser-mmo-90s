@@ -16,6 +16,11 @@ export type ShopItemWithTemplate = GovernmentShopItem & {
   fits?: { code: string; name: string }[]
 }
 
+/** Сколько государство платит за вещь: половина базовой цены. Её же показывает склад (№132). */
+export function governmentBuyPrice(priceBase: number): number {
+  return Math.floor(priceBase * 0.5)
+}
+
 export const GovernmentShopService = {
   async listItems(): Promise<ShopItemWithTemplate[]> {
     const items = await prisma.governmentShopItem.findMany({
@@ -145,7 +150,7 @@ export const GovernmentShopService = {
         throw new AppError(ErrorCode.ITEM_NOT_SELLABLE, 'Item is no longer available to sell', 409)
       }
 
-      const sellPrice = Math.floor(item.template.priceBase * 0.5) // 50% от базовой цены
+      const sellPrice = governmentBuyPrice(item.template.priceBase)
 
       const char = await tx.character.findUnique({ where: { id: characterId } })
       if (!char) throw AppError.notFound('Character', characterId)

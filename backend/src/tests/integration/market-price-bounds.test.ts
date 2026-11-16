@@ -39,8 +39,9 @@ describe('пределы цены крафтового сырья', () => {
     expect((await MarketService.updatePrice(character.id, ok.listing.id, 60)).listing.price).toBe(60)
   })
 
-  it('добываемое сырьё без входов не ограничено', async () => {
+  // Дима 16.11: пределы на всё сырьё. У добываемого затраты = госцена (10 ₽): 12…20 ₽.
+  it('добываемое сырьё без входов: пределы от госцены', async () => {
     const { input } = await crafted()
-    expect(await craftPriceBounds(testPrisma, input.id)).toBeNull()
+    expect(await craftPriceBounds(testPrisma, input.id)).toEqual({ cost: 10, min: 12, max: 20 })
   })
 })

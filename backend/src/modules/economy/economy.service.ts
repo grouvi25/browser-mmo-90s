@@ -58,10 +58,15 @@ export const EconomyService = {
     const gained = Math.max(0, economicLevel - character.economicLevel)
     const E = BalanceConfig.economicExp
     const levelMoney = gained * E.levelMoney
-    await tx.character.update({
+    const updated = await tx.character.update({
       where: { id: characterId },
       data: { economicExp, economicLevel: Math.max(economicLevel, character.economicLevel), ...(levelMoney > 0 ? { money: { increment: levelMoney } } : {}) },
+      select: { money: true },
     })
+    // №133: премия видна в кошельке (раньше шла мимо журнала денег).
+    if (levelMoney > 0) {
+      await tx.currencyLog.create({ data: { characterId, amount: levelMoney, balanceAfter: updated.money, reasonCode: 'LEVEL_BONUS', refType: 'economic_level', note: `Экономический уровень ${Math.max(economicLevel, character.economicLevel)}` } })
+    }
     if (gained > 0 && E.strPerLevel > 0) {
       await tx.characterStats.update({ where: { characterId }, data: { str: { increment: gained * E.strPerLevel } } })
     }

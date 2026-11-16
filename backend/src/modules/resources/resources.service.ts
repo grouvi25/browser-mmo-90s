@@ -16,7 +16,8 @@ async function logResource(tx: Prisma.TransactionClient, params: {
 export const ResourcesService = {
   async list(characterId: string) {
     const stacks = await prisma.resourceStack.findMany({
-      where: { characterId }, include: { template: true }, orderBy: { template: { tier: 'asc' } },
+      // Дима 16.11: того, чего нет, не показываем: пустые строки после продажи и крафта висели с нулём.
+      where: { characterId, amount: { gt: 0 } }, include: { template: true }, orderBy: { template: { tier: 'asc' } },
     })
     const totalWeight = stacks.reduce((sum, stack) => sum + calcResourceWeight(stack.amount, stack.template.weight), 0)
     return { items: stacks.map(stack => ({ ...stack, availableAmount: availableResourceAmount(stack.amount, stack.reservedAmount) })), totalWeight }

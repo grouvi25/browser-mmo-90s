@@ -18,6 +18,8 @@ import { CHARM_KEYS, GEAR_STAT_KEYS, MASTERY_KEYS, healAmount, syncHpWithGear } 
 import { decayedAlcohol } from '../bars/bars.formulas'
 import { effectText, parseActiveEffects, parseUseEffect, withAppliedEffect } from '../items/item-effects'
 import { isTwoHanded, otherHand } from '../items/hands'
+import { moneyLog } from '../economy/money-log'
+import { governmentBuyPrice } from '../government-shop/government-shop.service'
 
 const RING_SLOTS = ['RING', 'RING_2', 'RING_3', 'RING_4', 'RING_5', 'RING_6', 'RING_7', 'RING_8'] as const
 const EquipSchema = z.object({ itemInstanceId: z.string().uuid(), hand: z.enum(['LEFT_HAND', 'RIGHT_HAND']).optional() })
@@ -83,6 +85,8 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       ...item,
       budget: itemBudget(item.template, item.namedLevel),
       canSetIcon: tsum.has(item.templateId),
+      // №132 (Monnarhh 16.11): за сколько вещь купит государство — видно до продажи.
+      sellPrice: item.template.isSellable ? governmentBuyPrice(item.template.priceBase) : null,
       percentPerPoint: named.percentPerPoint,
       damagePerPoint: named.damagePerPoint,
       armorPerPoint: BalanceConfig.strike.armorPerPoint,
@@ -123,6 +127,15 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
 
   // Без авторизации, как иконка бригады: картинку грузит тег <img>.
   // Картинки шаблонов из админки: список «код → версия» и сама картинка.
+  // Кошелёк (№133): приход и расход рублей, новые сверху, по 30 строк; after — id последней показанной строки.
+  fastify.get<{ Querystring: { after?: string } }>('/money-log', { preHandler: authenticate }, async (req, reply) => {
+    const char = await CharactersRepository.findByUserId(req.authUser.userId)
+    if (!char) throw new AppError(ErrorCode.CHARACTER_NOT_FOUND, 'Персонаж не найден', 404)
+    const after = z.string().uuid().safeParse(req.query.after)
+    // Чужая строка как курсор ничего не откроет: выборка всё равно по своему персонажу.
+    return reply.send(await moneyLog(char.id, after.success ? after.data : undefined))
+  })
+
   fastify.get('/template-images', async (_req, reply) => {
     return reply.header('Cache-Control', 'public, max-age=60').send(await TemplateImages.list())
   })

@@ -126,7 +126,7 @@ export function MarketPage() {
         <label className="market-field"><span>Ресурс</span>
           <select value={resourceId} onChange={e => setResourceId(e.target.value)}>
             <option value="">Выберите ресурс</option>
-            {resources.data?.items?.map(stack => <option key={stack.template.id} value={stack.template.id}>{stack.template.name} ({stack.availableAmount})</option>)}
+            {resources.data?.items?.filter(stack => stack.availableAmount > 0).map(stack => <option key={stack.template.id} value={stack.template.id}>{stack.template.name} ({stack.availableAmount})</option>)}
           </select></label>
         <label className="market-field"><span>Количество</span>
           <input type="number" min={1} value={amount || ''} onChange={e => setAmount(Number(e.target.value))} /></label>

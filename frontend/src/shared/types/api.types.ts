@@ -183,6 +183,10 @@ export interface ItemInstance {
   namedLevel?: number
   iconVersion?: number
   canSetIcon?: boolean
+  /** Откуда вещь: госмагазин, лавка, крафт, доллары, админ (№132). */
+  sourceType?: string
+  /** Сколько заплатит государство при продаже со склада, null — не продаётся. */
+  sellPrice?: number | null
   percentPerPoint?: number
   damagePerPoint?: number
   /** Брони за очко на вещи (Дима 15.11: броня единицами). */

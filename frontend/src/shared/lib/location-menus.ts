@@ -76,9 +76,11 @@ const PLACES: Place[] = [
     ],
   },
   {
-    key: 'inventory', match: ['/inventory', '/resources'], tabs: [
+    key: 'inventory', match: ['/inventory', '/resources', '/wallet'], tabs: [
       { key: 'gear', label: 'Снаряжение', to: '/inventory' },
       { key: 'resources', label: 'Сырьё и детали', to: '/resources' },
+      // №133: приход и расход рублей.
+      { key: 'wallet', label: 'Кошелёк', to: '/wallet' },
     ],
   },
   {

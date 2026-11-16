@@ -44,6 +44,11 @@ const RANGED = new Set(['PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 
 type Match = (item: ItemInstance) => boolean
 interface Tab { key: string; label: string; match?: Match }
 
+const SOURCE: Record<string, string> = {
+  GOVERNMENT: 'госмагазин', PRIVATE: 'частная лавка', WORKSHOP: 'мастерская', CRAFTED: 'сделана игроком',
+  DONATE: 'за доллары', PREMIUM: 'за доллары', DROP: 'добыча в бою', ADMIN: 'выдана администрацией',
+}
+
 /** Порядок и подписи — как нарисовано (плюс «Обувь»): восемь вкладок в
  *  первом ряду, остальные во втором. Все вкладки открыты (правка заказчика
  *  28.10: «сделать все вкладки со шмотом активные»): где вещей пока нет,
@@ -316,6 +321,9 @@ export function InventoryPage() {
                       <div className="inv-card__body">
                         <dl>
                           <div><dt>Прочность</dt><dd>{item.durabilityCurrent}/{item.durabilityMax}</dd></div>
+                          {/* №132 (Monnarhh 16.11): откуда вещь и за сколько её купит государство. */}
+                          {item.sourceType && SOURCE[item.sourceType] && <div><dt>Откуда</dt><dd>{SOURCE[item.sourceType]}</dd></div>}
+                          {item.sellPrice != null && <div><dt>Продажа государству</dt><dd>{item.sellPrice.toLocaleString('ru-RU')} ₽</dd></div>}
                           <div><dt>Качество</dt><dd>{QUALITY_LABELS[item.quality]}</dd></div>
                           <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
                           {t.minDamage != null && <div><dt>Урон</dt><dd>{eff?.minDamage ?? t.minDamage}–{eff?.maxDamage ?? t.maxDamage}<Gain value={(eff?.maxDamage ?? 0) - (t.maxDamage ?? 0)} /></dd></div>}
@@ -381,7 +389,7 @@ export function InventoryPage() {
                             {!item.isEquipped && (
                               <>
                                 <button type="button" className="inv-btn" disabled={sellMut.isPending}
-                                  onClick={() => { if (window.confirm(`Продать «${t.name}»? Вернуть вещь будет нельзя.`)) sellMut.mutate(item.id) }}>
+                                  onClick={() => { if (window.confirm(`Продать «${t.name}»${item.sellPrice != null ? ` за ${item.sellPrice.toLocaleString('ru-RU')} ₽` : ''}? Вернуть вещь будет нельзя.`)) sellMut.mutate(item.id) }}>
                                   <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
                                   <span>Продать</span>
                                 </button>

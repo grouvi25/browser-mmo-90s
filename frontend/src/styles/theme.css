@@ -1170,3 +1170,8 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 }
 .scene-sheet > :first-child { margin-top: 0; }
 .scene-sheet > :last-child { margin-bottom: 0; }
+
+/* Кошелёк (№133): приход зелёный, расход красный, как в выписке по долларам. */
+.wallet-table .wallet-when { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wallet-table .wallet-plus { color: #2f6b3a; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wallet-table .wallet-minus { color: var(--ink-red, #ab0303); font-variant-numeric: tabular-nums; white-space: nowrap; }

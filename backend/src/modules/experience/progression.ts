@@ -31,8 +31,9 @@ export async function applyBattleProgression(
         .reduce((sum, level) => sum + (BalanceConfig.battleExp.levelMoneyBonus[level - 1] ?? 0), 0)
     : 0
 
-  await tx.character.update({
+  const updated = await tx.character.update({
     where: { id: char.id },
+    select: { money: true },
     data: {
       battleExp: newExp,
       battleLevel: newLevel,
@@ -45,6 +46,10 @@ export async function applyBattleProgression(
       lastBattleFinishedAt: new Date(),
     },
   })
+  // №133: премия за уровень видна в кошельке.
+  if (moneyBonus > 0) {
+    await tx.currencyLog.create({ data: { characterId: char.id, amount: moneyBonus, balanceAfter: updated.money, reasonCode: 'LEVEL_BONUS', refType: 'battle_level', note: `Боевой уровень ${newLevel}` } })
+  }
 
   if (levelsGained > 0) {
     await tx.characterStats.update({
