@@ -89,6 +89,9 @@ export function StatsPage() {
   const next: Record<string, number> = Object.fromEntries(STAT_KEYS.map(k => [k, (s[k] ?? 0) + (draft[k] ?? 0)]))
   const before = derived(s, char.battleLevel)
   const after = derived(next, char.battleLevel)
+  // №135: в профиле HP с вещами (выносливость с вещи — 5 HP за очко), здесь
+  // было только по базе. Прибавка вещей от черновика не зависит, берём её с сервера.
+  const gearHp = Math.max(0, char.hpMax - before.hp)
   const scrolls = char.stats.respecScrolls ?? 0
   const busy = applyMut.isPending || respecMut.isPending || buyMut.isPending
   const bump = (key: StatKey, d: 1 | -1) => setDraft(prev => ({ ...prev, [key]: Math.max(0, (prev[key] ?? 0) + d) }))
@@ -110,7 +113,7 @@ export function StatsPage() {
         <div className="panel-body">
           {/* Производные — сверху, чтобы при «+» и «−» были перед глазами. */}
           <div className="stats-derived">
-            <div><span><Heart size={11} /> HP</span><b><Delta now={before.hp} next={after.hp} /></b><small>60 + ВЫН×6 + Ур.×2</small></div>
+            <div><span><Heart size={11} /> HP</span><b><Delta now={before.hp + gearHp} next={after.hp + gearHp} /></b><small>60 + ВЫН×6 + Ур.×2{gearHp > 0 && <> = {before.hp}, с вещей +{gearHp}</>}</small></div>
             <div><span><Scale size={11} /> Перенос веса</span><b><Delta now={before.carry} next={after.carry} unit=" кг" /></b><small>20 + СИЛ×6</small></div>
             <div><span><Zap size={11} /> Инициатива</span><b>~<Delta now={before.init} next={after.init} digits={1} /></b><small>РЕА×1.2 + ЛВК×0.6</small></div>
           </div>
