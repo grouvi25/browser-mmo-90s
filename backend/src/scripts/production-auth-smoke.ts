@@ -124,8 +124,9 @@ async function main(): Promise<void> {
   assert(Array.isArray(shops) && shops.some(shop => shop.code === 'kommersant'), 'Kommersant shop is missing')
   assert(shops.some(shop => shop.code === 'armory_garage'), 'Armory garage is missing')
 
-  const privateItems = await jsonRequest('/api/private-shops/kommersant/items', { headers }) as unknown[]
-  assert(Array.isArray(privateItems) && privateItems.length >= 5, 'Private shop seed is incomplete')
+  // С 16.11 (№125) армейские бронежилет и берцы убраны: у Коммерсанта кожанка и два ремкомплекта.
+  const privateItems = await jsonRequest('/api/private-shops/kommersant/items', { headers }) as Array<{ code?: string }>
+  assert(Array.isArray(privateItems) && privateItems.length >= 3 && privateItems.some(item => item.code === 'armor_leather_jacket_private'), 'Private shop seed is incomplete')
 
   const market = await jsonRequest('/api/market/listings?page=1&limit=5', { headers }) as {
     items?: unknown[]
