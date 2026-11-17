@@ -499,6 +499,10 @@ export function resolveZonalAttack(
   if (zoneBlocked && lucky) {
     blockPierced = true
     log.push(`Удачный! Пробил блок (${zoneName})`)
+  } else if (lucky && !forcedLucky) {
+    // №136: удачный в открытую зону тоже пишем в строку — журнал боя узнаёт
+    // удачный по ней, иначе крито-удачный в просмотре был просто «крит».
+    log.push('Удачный!')
   }
 
   // 4. Крит
