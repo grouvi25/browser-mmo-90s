@@ -14,7 +14,12 @@ const RENAMED_ITEMS: readonly (readonly [string, string, string])[] = [
   ['tb_item_a07', 'Настойка скорости', 'Настойка ловкости'],
   ['tb_item_a08', 'Противоядие', 'Отрезвитель'],
   ['tb_item_w06', 'Свиток скорости', 'Свиток ловкости'],
+  // Юрист 18.11: перо стало печатной машинкой.
+  ['tool_tb_u08', 'Рунное перо', 'Печатная машинка'],
 ]
+// Юрист 18.11: свитки нотариальной конторы заменены договором подряда.
+// Рецепты гасятся, а не удаляются: по ним остались циклы и журналы. Свитки у игроков остаются.
+const RETIRED_RECIPES = ['rcp_tb_w01', 'rcp_tb_w02', 'rcp_tb_w03', 'rcp_tb_w04', 'rcp_tb_w05', 'rcp_tb_w06']
 
 export async function seedEconomyTable(prisma: PrismaClient) {
   for (const [code, name, tier, units] of TABLE_RESOURCES) {
@@ -80,6 +85,7 @@ export async function seedEconomyTable(prisma: PrismaClient) {
     })
   }
 
+  await prisma.productionRecipe.updateMany({ where: { code: { in: RETIRED_RECIPES } }, data: { isActive: false } })
   for (const recipe of TABLE_RECIPES) {
     // Время книги — это труд. Таймер цикла идёт уже после него, иначе срок считался бы дважды.
     const data = {
@@ -100,6 +106,14 @@ export async function seedEconomyTable(prisma: PrismaClient) {
     if (!own || current?.ownerType !== 'SYSTEM' || !current.activeRecipeId) continue
     const active = await prisma.productionRecipe.findUnique({ where: { id: current.activeRecipeId }, select: { productionObjectCode: true } })
     if (active?.productionObjectCode !== object.code) await prisma.productionObject.update({ where: { code: object.code }, data: { activeRecipeId: own.id } })
+  }
+
+  // Объект, у которого активным остался снятый рецепт, получает первый живой свой.
+  const retired = await prisma.productionRecipe.findMany({ where: { code: { in: RETIRED_RECIPES } }, select: { id: true, productionObjectCode: true } })
+  for (const recipe of retired) {
+    const live = TABLE_RECIPES.find(row => row.object === recipe.productionObjectCode)
+    const liveId = live ? (await prisma.productionRecipe.findUnique({ where: { code: live.code }, select: { id: true } }))?.id : undefined
+    await prisma.productionObject.updateMany({ where: { activeRecipeId: recipe.id }, data: { activeRecipeId: liveId ?? null } })
   }
 
   // Цехи первой версии вошли в заводы таблицы v2. Купленный цех остаётся у владельца.

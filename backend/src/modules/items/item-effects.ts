@@ -25,6 +25,8 @@ export interface UseEffect {
   regenPercent?: number
   /** Прямой урон врагу мимо брони. */
   directDamage?: number
+  /** Договор подряда (юрист, 18.11): смен сверх суточного потолка до 3:00 по Москве. */
+  extraShifts?: number
 }
 
 export interface ActiveEffect {
@@ -38,6 +40,8 @@ export interface ActiveEffect {
   untilRound?: number
   /** Свиток прорыва: сгорает, как только у бойца стало больше попаданий. */
   hitsAtStart?: number
+  /** Договор подряда: столько смен сверх потолка, пока не истёк. */
+  extraShifts?: number
 }
 
 export type BattleMoment = { battleId: string; round: number; hitsLanded?: number }
@@ -58,9 +62,10 @@ export function parseUseEffect(raw: unknown): UseEffect | null {
     ...(positive(raw.rounds) ? { rounds: positive(raw.rounds) } : {}),
     ...(positive(raw.regenPercent) ? { regenPercent: positive(raw.regenPercent) } : {}),
     ...(positive(raw.directDamage) ? { directDamage: positive(raw.directDamage) } : {}),
+    ...(positive(raw.extraShifts) ? { extraShifts: Math.floor(positive(raw.extraShifts)!) } : {}),
   }
   const lasting = !!(effect.buffs || effect.regenPercent) && !!(effect.minutes || effect.rounds)
-  return lasting || effect.directDamage ? effect : null
+  return lasting || effect.directDamage || effect.extraShifts ? effect : null
 }
 
 export function parseActiveEffects(raw: unknown): ActiveEffect[] {
@@ -86,6 +91,8 @@ export function withAppliedEffect(
   battle?: BattleMoment,
 ): ActiveEffect[] {
   const kept = liveEffects(effects, now, battle).filter(active => active.code !== item.code)
+  // Договор подряда действует до конца рабочих суток: новые смены начинаются в 3:00 по Москве (00:00 UTC).
+  if (effect.extraShifts) return [...kept, { code: item.code, name: item.name, buffs: [], extraShifts: effect.extraShifts, expiresAt: nextShiftDay(now).toISOString() }]
   if (!effect.buffs?.length && !effect.regenPercent) return kept
   const base = { code: item.code, name: item.name, buffs: effect.buffs ?? [], ...(effect.regenPercent ? { regenPercent: effect.regenPercent } : {}) }
   if (effect.minutes) return [...kept, { ...base, expiresAt: new Date(now.getTime() + effect.minutes * 60_000).toISOString() }]
@@ -94,6 +101,18 @@ export function withAppliedEffect(
     return [...kept, { ...base, ...once, battleId: battle.battleId, fromRound: battle.round, untilRound: battle.round + effect.rounds - 1 }]
   }
   return kept
+}
+
+/** Начало следующих рабочих суток: 3:00 по Москве, то есть полночь UTC. */
+export function nextShiftDay(now: Date): Date {
+  const day = new Date(now)
+  day.setUTCHours(24, 0, 0, 0)
+  return day
+}
+
+/** Сколько смен сверх потолка дают действующие договоры подряда. */
+export function extraShiftsNow(effects: readonly ActiveEffect[], now: Date): number {
+  return liveEffects(effects, now).reduce((sum, effect) => sum + (effect.extraShifts ?? 0), 0)
 }
 
 export function buffTotals(effects: readonly ActiveEffect[]): BuffTotals {
@@ -140,6 +159,7 @@ export function effectText(effect: UseEffect): string {
     ...(effect.buffs ?? []).map(buff => BUFF_TEXT[buff.stat](buff.value)),
     ...(effect.regenPercent ? [`здоровье +${effect.regenPercent}% за раунд`] : []),
     ...(effect.directDamage ? [`${effect.directDamage} урона врагу мимо брони`] : []),
+    ...(effect.extraShifts ? [`+${effect.extraShifts} смена сегодня, до 3:00 по Москве`] : []),
   ]
   const time = effect.minutes ? `на ${effect.minutes} мин` : effect.rounds ? `на ${roundsWord(effect.rounds)}` : ''
   return [parts.join(', '), time].filter(Boolean).join(' ')

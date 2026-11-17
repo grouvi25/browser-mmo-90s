@@ -16,7 +16,7 @@ import { ItemStatsService } from '../items/item-stats.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
 import { CHARM_KEYS, GEAR_STAT_KEYS, MASTERY_KEYS, healAmount, syncHpWithGear } from '../items/gear-bonuses'
 import { decayedAlcohol } from '../bars/bars.formulas'
-import { effectText, parseActiveEffects, parseUseEffect, withAppliedEffect } from '../items/item-effects'
+import { effectText, extraShiftsNow, parseActiveEffects, parseUseEffect, withAppliedEffect } from '../items/item-effects'
 import { isTwoHanded, otherHand } from '../items/hands'
 import { moneyLog } from '../economy/money-log'
 import { governmentBuyPrice } from '../government-shop/government-shop.service'
@@ -415,7 +415,11 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       const effect = parseUseEffect(item.template.useEffect)
       if (restore <= 0 && sober <= 0 && !effect) throw new AppError(ErrorCode.CONFLICT, 'Этот предмет пока нельзя применить', 409)
       // Раундовый эффект и прямой урон имеют смысл только в бою.
-      if (effect && !effect.minutes) throw new AppError(ErrorCode.CONFLICT, 'Это применяют в бою: положите в карман', 409)
+      if (effect && !effect.minutes && !effect.extraShifts) throw new AppError(ErrorCode.CONFLICT, 'Это применяют в бою: положите в карман', 409)
+      // Договор подряда — один на рабочие сутки: второй сгорел бы впустую.
+      if (effect?.extraShifts && extraShiftsNow(parseActiveEffects(char.activeEffects), new Date()) > 0) {
+        throw new AppError(ErrorCode.CONFLICT, 'Договор подряда уже действует. Новый можно применить после 3:00 по Москве', 409)
+      }
       if (restore > 0 && sober <= 0 && !effect && hpFull) throw new AppError(ErrorCode.CONFLICT, 'HP уже полное — расходник не нужен', 400)
       const alcohol = decayedAlcohol(char.alcoholLevel, char.alcoholUpdatedAt)
       if (sober > 0 && restore <= 0 && alcohol <= 0) throw new AppError(ErrorCode.CONFLICT, 'Вы и так трезвы', 409)

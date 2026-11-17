@@ -1,4 +1,5 @@
 import { productionShiftBonus } from '../professions/production-level'
+import { extraShiftsNow, parseActiveEffects } from '../items/item-effects'
 // =============================================================
 // PREMIUM — шаг F5 Этапа 4
 //
@@ -254,8 +255,9 @@ export const PremiumService = {
   async dailyShiftCap(characterId: string): Promise<number> {
     const state = await this.state(characterId)
     // №128: каждые 5 производственных уровней — смена в день сверху.
-    const { productionLevel } = await prisma.character.findUniqueOrThrow({ where: { id: characterId }, select: { productionLevel: true } })
-    return state.benefits.dailyShiftCap + productionShiftBonus(productionLevel)
+    const { productionLevel, activeEffects } = await prisma.character.findUniqueOrThrow({ where: { id: characterId }, select: { productionLevel: true, activeEffects: true } })
+    // Юрист 18.11: договор подряда даёт смену сверх потолка до 3:00 по Москве.
+    return state.benefits.dailyShiftCap + productionShiftBonus(productionLevel) + extraShiftsNow(parseActiveEffects(activeEffects), new Date())
   },
 
   /**

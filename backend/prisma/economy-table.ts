@@ -75,8 +75,8 @@ export const TABLE_RESOURCES: readonly [string, string, number, number][] = [
   ["tb_leather_lining", "Кожаная подкладка", 2, 285.13],
   ["tb_glass", "Стекло для тары", 2, 376.58],
   ["tb_heat_glass", "Жаростойкое стекло", 2, 461.71],
-  ["tb_paper", "Бумага льняная", 2, 458.35],
-  ["tb_cotton_paper", "Бумага хлопковая", 2, 401.94],
+  ["tb_paper", "Льняная основа", 2, 458.35],
+  ["tb_cotton_paper", "Хлопковая основа", 2, 401.94],
   ["tb_ext_stjohn", "Экстракт зверобоя", 2, 288.29],
   ["tb_ext_plantain", "Экстракт подорожника", 2, 288.29],
   ["tb_ext_chamomile", "Экстракт ромашки", 2, 288.29],
@@ -98,10 +98,12 @@ export const TABLE_RESOURCES: readonly [string, string, number, number][] = [
   ["tb_strap", "Усиленная стропа", 3, 3007.12],
   ["tb_shield_lining", "Экранирующая подкладка", 3, 4679.61],
   ["tb_protect_lining", "Защитная подкладка", 3, 3458.07],
-  ["tb_ink", "Рунные чернила", 3, 1427.63],
+  ["tb_ink", "Красящая лента", 3, 2735],
   ["tb_tincture_base", "Настойка-основа", 3, 1922.49],
   ["tb_heal_complex", "Перевязочный комплекс", 3, 1925.44],
-  ["tb_rune_base", "Рунная основа", 3, 3802.54],
+  ["tb_rune_base", "Офисная бумага", 3, 900],
+  // Юрист 18.11 (предложение игрока, решение Димы): бланк для документов адвокатуры.
+  ["tb_blank", "Бланк", 3, 6600],
 ]
 
 /** [код, имя, цена в единицах, прочность] — рабочие инструменты, каждый под свои рецепты. */
@@ -113,7 +115,7 @@ export const TABLE_TOOLS: readonly [string, string, number, number][] = [
   ["tool_tb_u05", "Лабораторный набор", 327.78, 100],
   ["tool_tb_u06", "Малый пресс", 606.04, 100],
   ["tool_tb_u07", "Раскройный нож", 245.83, 100],
-  ["tool_tb_u08", "Рунное перо", 163.89, 100],
+  ["tool_tb_u08", "Печатная машинка", 200, 100],
 ]
 
 /** Изделия книги. Статов и эффектов в ней нет: их заполняет заказчик в админке. */
@@ -154,6 +156,8 @@ export const TABLE_ITEMS: readonly { code: string; name: string; group: 'kit' | 
   { code: "tb_item_w10", name: "Свиток отражения", group: 'scroll', tier: 3, units: 9344.83, slot: null },
   { code: "tb_item_w11", name: "Свиток концентрации", group: 'scroll', tier: 3, units: 9358.94, slot: null },
   { code: "tb_item_w12", name: "Свиток высшего усиления", group: 'scroll', tier: 3, units: 21292.5, slot: null },
+  // Юрист 18.11: договор подряда, +1 смена на сегодня (до 3:00 по Москве), один в день.
+  { code: "tb_item_d01", name: "Договор подряда", group: 'scroll', tier: 3, units: 1000, slot: null },
 ]
 
 /** Сбор — смена даёт ресурс сразу; цех — продаётся заводом за доллары и работает по рецепту. */
@@ -282,10 +286,11 @@ export const TABLE_RECIPES: readonly { code: string; name: string; object: strin
   { code: "rcp_tb_strap", name: "Усиленная стропа", object: "obj_tb_spinning", resource: "tb_strap", item: null, minutes: 1400, profession: "weaver", tool: "tool_tb_u03", inputs: [["tb_linen_thread", 1], ["tb_hemp_thread", 2], ["tb_cloth", 1]] },
   { code: "rcp_tb_shield_lining", name: "Экранирующая подкладка", object: "obj_tb_armor_metal", resource: "tb_shield_lining", item: null, minutes: 1600, profession: "metallurgist", tool: "tool_tb_u06", inputs: [["tb_lead_blank", 1], ["tb_shield_alloy", 1], ["tb_cotton_thread", 1], ["tb_cloth", 2]] },
   { code: "rcp_tb_protect_lining", name: "Защитная подкладка", object: "obj_tb_sewing", resource: "tb_protect_lining", item: null, minutes: 1600, profession: "tailor", tool: "tool_tb_u03", inputs: [["tb_cotton_thread", 1], ["tb_cloth", 1], ["tb_leather", 1], ["tb_leather_lining", 2]] },
-  { code: "rcp_tb_ink", name: "Рунные чернила", object: "obj_tb_rune_base", resource: "tb_ink", item: null, minutes: 1000, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_water", 1], ["tb_ext_wormwood", 1], ["tb_conc_acid", 1]] },
+  { code: "rcp_tb_ink", name: "Красящая лента", object: "obj_tb_rune_base", resource: "tb_ink", item: null, minutes: 1000, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_cloth", 1], ["tb_ext_wormwood", 1], ["tb_conc_acid", 1]] },
   { code: "rcp_tb_tincture_base", name: "Настойка-основа", object: "obj_tb_pharm_base", resource: "tb_tincture_base", item: null, minutes: 1200, profession: "alchemist", tool: "tool_tb_u05", inputs: [["tb_water", 2], ["tb_ext_stjohn", 1], ["tb_ext_nettle", 1], ["tb_conc_vitamin", 1]] },
   { code: "rcp_tb_heal_complex", name: "Перевязочный комплекс", object: "obj_tb_pharm_base", resource: "tb_heal_complex", item: null, minutes: 1200, profession: "alchemist", tool: "tool_tb_u05", inputs: [["tb_ext_plantain", 1], ["tb_ext_chamomile", 1], ["tb_ext_yarrow", 1], ["tb_ext_calendula", 1]] },
-  { code: "rcp_tb_rune_base", name: "Рунная основа", object: "obj_tb_rune_base", resource: "tb_rune_base", item: null, minutes: 1600, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_paper", 1], ["tb_cotton_paper", 1], ["tb_ext_sage", 1], ["tb_ext_lavender", 1], ["tb_ink", 1]] },
+  { code: "rcp_tb_rune_base", name: "Офисная бумага", object: "obj_tb_rune_base", resource: "tb_rune_base", item: null, minutes: 600, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_paper", 1], ["tb_cotton_paper", 1]] },
+  { code: "rcp_tb_blank", name: "Бланк", object: "obj_tb_rune_base", resource: "tb_blank", item: null, minutes: 800, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_rune_base", 1], ["tb_ink", 2]] },
   { code: "rcp_tb_u01", name: "Молот и клещи", object: "obj_tb_tools_1", resource: null, item: "tool_tb_u01", minutes: 200, profession: "toolmaker", tool: null, inputs: [["tb_scrap", 3], ["tb_wood", 1]] },
   { code: "rcp_tb_u02", name: "Садовый набор", object: "obj_tb_tools_1", resource: null, item: "tool_tb_u02", minutes: 200, profession: "toolmaker", tool: null, inputs: [["tb_scrap", 2], ["tb_wood", 2]] },
   { code: "rcp_tb_u03", name: "Швейный набор", object: "obj_tb_tools_1", resource: null, item: "tool_tb_u03", minutes: 150, profession: "toolmaker", tool: null, inputs: [["tb_scrap", 2], ["tb_wood", 1]] },
@@ -318,12 +323,7 @@ export const TABLE_RECIPES: readonly { code: string; name: string; object: strin
   { code: "rcp_tb_c10", name: "Армированные ботинки", object: "obj_tb_armor_shop", resource: null, item: "tb_item_c10", minutes: 5250, profession: "tailor", tool: "tool_tb_u03", inputs: [["tb_leather", 2], ["tb_hardware", 2], ["tb_armo_cloth", 2], ["tb_strap", 2]] },
   { code: "rcp_tb_c11", name: "Механизированные перчатки", object: "obj_tb_armor_shop", resource: null, item: "tb_item_c11", minutes: 4500, profession: "tailor", tool: "tool_tb_u03", inputs: [["tb_leather", 1], ["tb_hardware", 2], ["tb_mechanism", 1], ["tb_armo_cloth", 2]] },
   { code: "rcp_tb_c12", name: "Бронежилет мастера (топ)", object: "obj_tb_armor_shop", resource: null, item: "tb_item_c12", minutes: 59250, profession: "tailor", tool: "tool_tb_u03", inputs: [["tb_armor_plate", 4], ["tb_hardware", 6], ["tb_mechanism", 1], ["tb_armo_cloth", 3], ["tb_strap", 4], ["tb_shield_lining", 2], ["tb_protect_lining", 2]] },
-  { code: "rcp_tb_w01", name: "Свиток удара", object: "obj_tb_rune_base", resource: null, item: "tb_item_w01", minutes: 1800, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_paper", 2], ["tb_ext_nettle", 1], ["tb_ink", 1]] },
-  { code: "rcp_tb_w02", name: "Свиток защиты", object: "obj_tb_rune_base", resource: null, item: "tb_item_w02", minutes: 1800, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_paper", 2], ["tb_ext_wormwood", 1], ["tb_ink", 1]] },
-  { code: "rcp_tb_w03", name: "Свиток здоровья", object: "obj_tb_rune_base", resource: null, item: "tb_item_w03", minutes: 2400, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_cotton_paper", 2], ["tb_ext_plantain", 1], ["tb_ext_chamomile", 1], ["tb_ink", 1]] },
-  { code: "rcp_tb_w04", name: "Свиток точности", object: "obj_tb_rune_base", resource: null, item: "tb_item_w04", minutes: 1800, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_cotton_paper", 2], ["tb_ext_sage", 1], ["tb_ink", 1]] },
-  { code: "rcp_tb_w05", name: "Свиток стойкости", object: "obj_tb_rune_base", resource: null, item: "tb_item_w05", minutes: 1800, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_paper", 2], ["tb_ext_stjohn", 1], ["tb_ink", 1]] },
-  { code: "rcp_tb_w06", name: "Свиток ловкости", object: "obj_tb_rune_base", resource: null, item: "tb_item_w06", minutes: 1800, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_paper", 2], ["tb_ext_mint", 1], ["tb_ink", 1]] },
+  { code: "rcp_tb_d01", name: "Договор подряда", object: "obj_tb_rune_base", resource: null, item: "tb_item_d01", minutes: 600, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_rune_base", 1]] },
   { code: "rcp_tb_w07", name: "Свиток силы", object: "obj_tb_rune_2", resource: null, item: "tb_item_w07", minutes: 1800, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_cotton_paper", 2], ["tb_ext_nettle", 1], ["tb_ink", 1]] },
   { code: "rcp_tb_w08", name: "Свиток удачи", object: "obj_tb_rune_2", resource: null, item: "tb_item_w08", minutes: 1800, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_cotton_paper", 2], ["tb_ext_lavender", 1], ["tb_ink", 1]] },
   { code: "rcp_tb_w09", name: "Свиток прорыва", object: "obj_tb_rune_2", resource: null, item: "tb_item_w09", minutes: 4500, profession: "rune_scribe", tool: "tool_tb_u08", inputs: [["tb_paper", 2], ["tb_ext_mint", 1], ["tb_ext_yarrow", 1], ["tb_ink", 1], ["tb_rune_base", 1]] },
@@ -337,7 +337,8 @@ export const TABLE_RECIPES: readonly { code: string; name: string; object: strin
  * заменена ловкостью, время боя в раундах). Точность, урон и броня долями, ловкость
  * и выносливость единицами. Сид заполняет только пустые: правки в базе не стираются.
  */
-export const TABLE_ITEM_EFFECTS: Record<string, { buffs?: { stat: 'armor' | 'damage' | 'accuracy' | 'resist' | 'crit' | 'agi' | 'end' | 'nextHit' | 'reflect'; value: number }[]; minutes?: number; rounds?: number; regenPercent?: number; directDamage?: number }> = {
+export const TABLE_ITEM_EFFECTS: Record<string, { buffs?: { stat: 'armor' | 'damage' | 'accuracy' | 'resist' | 'crit' | 'agi' | 'end' | 'nextHit' | 'reflect'; value: number }[]; minutes?: number; rounds?: number; regenPercent?: number; directDamage?: number; extraShifts?: number }> = {
+  tb_item_d01: { extraShifts: 1 },
   tb_item_a02: { buffs: [{ stat: 'end', value: 2 }], minutes: 20 },
   tb_item_a04: { buffs: [{ stat: 'armor', value: 0.1 }], minutes: 20 },
   tb_item_a06: { buffs: [{ stat: 'damage', value: 0.1 }], minutes: 20 },
