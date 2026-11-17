@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi, type DogGearRow, type DogGearSlot } from '../admin-api'
 import { Skeleton, Fault, Empty, Note } from '../../stage3/stage3-ui'
 import { Table } from '../admin-ui'
+import { ItemImageCell } from './combat-sandbox-section'
 
 const SLOTS: Record<DogGearSlot, string> = { MUZZLE: 'Намордник', ARMOR: 'Защита', COLLAR: 'Ошейник', BOOTS: 'Обувь' }
 type Kind = 'zoo' | 'named'
@@ -63,7 +64,7 @@ export function DogGearAdmin({ canEdit }: { canEdit: boolean }) {
               const dirty = newPrice !== price || newBudget !== row.statBudget
               return (
                 <tr key={row.id} className={row.isActive ? undefined : 'is-muted'}>
-                  <td>{row.name}</td>
+                  <td><ItemImageCell item={{ code: row.code }} canEdit={canEdit} />{row.name}</td>
                   <td>{SLOTS[row.slot] ?? row.slot}</td>
                   <td><input type="number" min={0} max={1000} value={newBudget} disabled={!canEdit} aria-label={`Очков: ${row.name}`} style={{ width: 70 }}
                     onChange={ev => setEdits({ ...edits, [row.code]: { ...e, statBudget: Number(ev.target.value) || 0 } })} /></td>

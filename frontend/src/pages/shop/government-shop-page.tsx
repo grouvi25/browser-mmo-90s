@@ -22,7 +22,7 @@ import './shop.css'
 const RANGED = new Set(['PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 'THROWN'])
 
 type Category = 'MELEE' | 'RANGED' | 'HEAD' | 'NECK' | 'BODY' | 'FEET' | 'HANDS' | 'RINGS'
-  | 'BRACERS' | 'PANTS' | 'BRACELETS' | 'TOOL' | 'PAPERS' | 'MEDICINE' | 'DRINK' | 'DOGS'
+  | 'BRACERS' | 'PANTS' | 'BELT' | 'BRACELETS' | 'TOOL' | 'PAPERS' | 'MEDICINE' | 'DRINK' | 'DOGS'
 
 /**
  * Вкладки по правке заказчика 28.10: вместо «Оружие» и «Броня» — по месту
@@ -41,6 +41,8 @@ const CATEGORIES: Array<{ key: Category; label: string; match?: (item: ShopItem)
   { key: 'RINGS', label: 'Кольца', match: i => i.template.armorSlot === 'RING' },
   { key: 'BRACERS', label: 'Наручи', match: i => i.template.armorSlot === 'GLOVES' || i.template.armorSlot === 'HANDS' },
   { key: 'PANTS', label: 'Штаны', match: i => i.template.armorSlot === 'LEGS' },
+  // Дима 17.11: «в Госе пояса нет раздела».
+  { key: 'BELT', label: 'Пояса', match: i => i.template.armorSlot === 'BELT' },
   // Дима 16.11: «Браслеты» переименованы в «Накидки» — вещи на спину (слот BACK).
   { key: 'BRACELETS', label: 'Накидки', match: i => i.template.armorSlot === 'BACK' },
   { key: 'TOOL', label: 'Инструменты', match: i => i.template.type === 'TOOL' },

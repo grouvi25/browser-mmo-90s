@@ -10,6 +10,7 @@ import { ApiError } from '../../shared/api/client'
 import { SPRITES } from '../../shared/ui/sprite'
 import { dogBonusText } from '../../shared/lib/dog'
 import { dogImage } from '../../shared/assets/dogs/dog-images'
+import { templateImageUrl } from '../../shared/assets/shop/shop-images'
 
 export type DogGoodsKind = 'dogs' | 'food' | 'gear'
 
@@ -71,6 +72,8 @@ export function DogGoods({ currency, kinds = ['dogs', 'food', 'gear'] }: {
     })),
     ...data.gear.map((g): Good => ({
       key: `gear-${g.code}`, kind: 'gear', name: g.name,
+      // Картинка из админки (Дима 17.11), без неё значок категории.
+      image: templateImageUrl(g.code),
       // Вещь из админки: очки раскладывает игрок после покупки (Дима 10.11).
       lines: [data.gearSlots[g.slot] ?? g.slot, g.budget != null ? `${g.budget} очков, распределяете сами` : dogBonusText(g.bonus), g.named ? 'Именная' : ''],
       price: g.price, currency: g.currency ?? 'RUB',

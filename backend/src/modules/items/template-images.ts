@@ -24,7 +24,10 @@ export const TemplateImages = {
     if (Buffer.byteLength(parsed[2], 'base64') > TEMPLATE_IMAGE_MAX_BYTES) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, 'Картинка слишком большая: не больше 600 КБ', 422)
     }
-    if (!await prisma.itemTemplate.findUnique({ where: { code }, select: { id: true } })) {
+    // Дима 17.11: картинки и у вещей собак (свой справочник, коды не пересекаются с вещами).
+    const exists = await prisma.itemTemplate.findUnique({ where: { code }, select: { id: true } })
+      ?? await prisma.dogGearTemplate.findUnique({ where: { code }, select: { id: true } })
+    if (!exists) {
       throw new AppError(ErrorCode.NOT_FOUND, 'Вещь не найдена', 404)
     }
     const row = await prisma.itemTemplateImage.upsert({
