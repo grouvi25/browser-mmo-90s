@@ -41,6 +41,20 @@ describe('ловкач: крит и удачный сквозь уворот', (
   })
 })
 
+// Дима 17.11: сквозь уворот всегда рандом — крит 33%, удачный 25%, даже при огромном перевесе.
+describe('рандом пробивания ловкача (Дима 17.11)', () => {
+  it('крит проходит примерно в трети ударов, даже при перевесе агрессии в сотни', () => {
+    const r = run(attacker({ agr: 500 }), dodger({ critCharmEdge: -10 }))
+    expect(r.hits / 3000).toBeGreaterThan(0.29)
+    expect(r.hits / 3000).toBeLessThan(0.37)
+  })
+  it('удачный проходит примерно в четверти ударов', () => {
+    const r = run(attacker({ luck: 500 }), dodger({ luckCharmEdge: -10 }))
+    expect(r.hits / 3000).toBeGreaterThan(0.21)
+    expect(r.hits / 3000).toBeLessThan(0.29)
+  })
+})
+
 describe('крито-удачный сквозь уворот (Дима 15.11)', () => {
   it('перевес и по криту, и по удаче: каждый пробивший удар и крит, и удачный', () => {
     const r = run(attacker({ agr: 30, luck: 30 }), dodger({ critCharmEdge: -1, luckCharmEdge: -1 }))

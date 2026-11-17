@@ -57,7 +57,7 @@ const TABS: Tab[] = [
   { key: 'caps',    label: 'Шапки',    match: i => i.template.armorSlot === 'HEAD' },
   { key: 'amulets', label: 'Амулеты',  match: i => i.template.armorSlot === 'ACCESSORY' },
   { key: 'belts',   label: 'Пояса',    match: i => i.template.armorSlot === 'BELT' },
-  { key: 'cloaks',  label: 'Плащи',    match: i => i.template.armorSlot === 'BACK' },
+  { key: 'cloaks',  label: 'Накидки',  match: i => i.template.armorSlot === 'BACK' },
   { key: 'pants',   label: 'Штаны',    match: i => i.template.armorSlot === 'LEGS' },
   // Обуви в макете нет, а вещи под ноги в игре есть (берцы): без вкладки
   // купленную обувь на складе было не найти (правка заказчика 22.10).

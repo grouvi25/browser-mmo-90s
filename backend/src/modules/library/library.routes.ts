@@ -120,6 +120,7 @@ export async function libraryRoutes(fastify: FastifyInstance) {
     // Числа для раздела «Бой» (16.11): текст в Библиотеке собирается из настроек и не отстаёт от игры.
     const rules = {
       statGap: B.edge.statGap, charmGapPct: B.edge.charmGap * 100, critMult: B.crit.multiplierBase,
+      dodgeCritPct: Math.round((B.edge.dodgePierceCrit ?? 0.33) * 100), dodgeLuckPct: Math.round((B.edge.dodgePierceLuck ?? 0.25) * 100),
       endArmor: B.strike.endArmor, armorPerPoint: B.strike.armorPerPoint, damageScale: B.strike.damageScale,
       defenseFullPct: (B.strike.defenseFullAt ?? 2.5) * 100, strengthFullPct: B.strengthMastery.fullAt * 100,
       strengthFloor: [B.strengthMastery.floorMin, B.strengthMastery.floorMax],

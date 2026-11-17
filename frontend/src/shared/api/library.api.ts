@@ -7,7 +7,7 @@ export interface LibraryTables {
   production?: Array<{ level: number; exp: number; money: number; end: number; shifts: number }>
   /** Числа для разделов «Бой» и «Заработок». */
   rules?: {
-    statGap: number; charmGapPct: number; critMult: number; endArmor: number; armorPerPoint: number; damageScale: number
+    statGap: number; charmGapPct: number; critMult: number; dodgeCritPct?: number; dodgeLuckPct?: number; endArmor: number; armorPerPoint: number; damageScale: number
     defenseFullPct: number; strengthFullPct: number; strengthFloor: [number, number]; antiFartPct: number; antiFartCapPct: number
     saleTaxPct: number; listingFree: boolean; craftMinPct: number; craftMaxPct: number
   }

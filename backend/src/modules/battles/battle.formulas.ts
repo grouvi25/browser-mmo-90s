@@ -444,14 +444,15 @@ export function resolveZonalAttack(
   dodge = rng() >= hitChance
   // Ловкач (Nobody и Дима 15.11): 100% уворот даёт перевес ловкости или оберега
   // уворота, но если у бьющего минус-оберег крита больше оберега крита ловкача
-  // и агрессия выше, крит может пройти сквозь уворот — с шансом обычного крита.
-  // То же с удачным: минус-оберег удачи больше и фарт выше.
+  // и агрессия выше, крит может пройти сквозь уворот. То же с удачным: минус-оберег
+  // удачи больше и фарт выше. Всегда рандомом (Дима 17.11): крит 33%, удачный 25%,
+  // как бы ни был велик перевес.
   let forcedCrit = false, forcedLucky = false
   if (dodge) {
     const critOpen = (defender.critCharmEdge ?? 0) < 0 && (attacker.agr ?? 0) > (defender.agr ?? 0)
     const luckOpen = (defender.luckCharmEdge ?? 0) < 0 && (attacker.luck ?? 0) > (defender.luck ?? 0)
-    if (critOpen && rng() < calcCritChance(attacker, defender)) forcedCrit = true
-    else if (luckOpen && rng() < calcLuckyPierceChance(attacker, defender)) forcedLucky = true
+    if (critOpen && rng() < (B.edge.dodgePierceCrit ?? 0.33)) forcedCrit = true
+    else if (luckOpen && rng() < (B.edge.dodgePierceLuck ?? 0.25)) forcedLucky = true
     if (!forcedCrit && !forcedLucky) {
       hit = false
       log.push(`Уворот (${zoneName})`)

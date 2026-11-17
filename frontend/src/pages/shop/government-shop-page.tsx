@@ -28,7 +28,7 @@ type Category = 'MELEE' | 'RANGED' | 'HEAD' | 'NECK' | 'BODY' | 'FEET' | 'HANDS'
  * Вкладки по правке заказчика 28.10: вместо «Оружие» и «Броня» — по месту
  * на теле, в его порядке; «Бафф-еду» убрали, напитки оставили. «Бумаги» —
  * будущие свитки нападения и иммунитета (заказчик просил назвать ближе к
- * жизни). Браслеты пока пусты: таких вещей в игре ещё нет.
+ * жизни). Вкладка «Накидки» (бывшие «Браслеты») — вещи на спину.
  */
 const CATEGORIES: Array<{ key: Category; label: string; match?: (item: ShopItem) => boolean }> = [
   { key: 'MELEE', label: 'Ближний бой', match: i => i.template.type === 'WEAPON' && !RANGED.has(i.template.weaponType ?? '') },
@@ -41,7 +41,8 @@ const CATEGORIES: Array<{ key: Category; label: string; match?: (item: ShopItem)
   { key: 'RINGS', label: 'Кольца', match: i => i.template.armorSlot === 'RING' },
   { key: 'BRACERS', label: 'Наручи', match: i => i.template.armorSlot === 'GLOVES' || i.template.armorSlot === 'HANDS' },
   { key: 'PANTS', label: 'Штаны', match: i => i.template.armorSlot === 'LEGS' },
-  { key: 'BRACELETS', label: 'Браслеты' },
+  // Дима 16.11: «Браслеты» переименованы в «Накидки» — вещи на спину (слот BACK).
+  { key: 'BRACELETS', label: 'Накидки', match: i => i.template.armorSlot === 'BACK' },
   { key: 'TOOL', label: 'Инструменты', match: i => i.template.type === 'TOOL' },
   { key: 'PAPERS', label: 'Бумаги' },
   { key: 'MEDICINE', label: 'Аптечки', match: i => i.template.type === 'CONSUMABLE' },

@@ -35,7 +35,7 @@ const WEAPON_TYPES: [string, string][] = [
 const JEWELS: [string, string][] = [['ACCESSORY', 'Амулет (на шею)'], ['RING', 'Кольцо (можно носить восемь)']]
 const SLOTS: [string, string][] = [
   ['HEAD', 'Голова (шапка)'], ['CHEST', 'Тело (куртка, броня)'], ['LEGS', 'Штаны'], ['FEET', 'Обувь'],
-  ['GLOVES', 'Руки (перчатки, наручи)'], ['BELT', 'Пояс'], ['BACK', 'Плащ'],
+  ['GLOVES', 'Руки (перчатки, наручи)'], ['BELT', 'Пояс'], ['BACK', 'Накидка (спина)'],
 ]
 /** Очки улучшения: что даёт одно очко (формулы улучшений игры). */
 const STAT_INFO: Record<StatKey, { title: string; perPoint: string }> = {
