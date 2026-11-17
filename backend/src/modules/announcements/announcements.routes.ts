@@ -69,6 +69,32 @@ export async function announcementsRoutes(fastify: FastifyInstance) {
     async (_req, reply) => reply.send({ items: await AnnouncementsService.feed() }),
   )
 
+  // Черновики (18.11): текст готовят заранее, публикует администрация.
+  fastify.get(
+    '/admin/drafts',
+    { preHandler: requirePermission('content') },
+    async (_req, reply) => reply.send({ items: await AnnouncementsService.drafts() }),
+  )
+
+  fastify.post<{ Body: unknown }>(
+    '/drafts',
+    { preHandler: requirePermission('content') },
+    async (req, reply) => {
+      const parsed = Publish.extend({ id: z.string().uuid().optional() }).safeParse(req.body)
+      if (!parsed.success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      return reply.send(await AnnouncementsService.saveDraft({ ...parsed.data, authorLabel: req.adminUser.label }))
+    },
+  )
+
+  fastify.post<{ Params: { id: string } }>(
+    '/drafts/:id/publish',
+    { preHandler: requirePermission('content') },
+    async (req, reply) => {
+      if (!z.string().uuid().safeParse(req.params.id).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })
+      return reply.send(await AnnouncementsService.publishDraft(req.params.id, req.adminUser.label))
+    },
+  )
+
   fastify.patch<{ Params: { id: string }; Body: unknown }>(
     '/:id/pin',
     { preHandler: requirePermission('content') },

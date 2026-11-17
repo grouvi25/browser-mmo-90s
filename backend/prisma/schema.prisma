@@ -2355,7 +2355,7 @@ model Announcement {
   id          String           @id @default(uuid())
   kind        AnnouncementKind
   title       String           @db.VarChar(120)
-  body        String           @db.VarChar(2000)
+  body        String           @db.VarChar(4000)
   // Закреплённое висит сверху ленты, сколько бы нового ни пришло.
   pinned      Boolean          @default(false)
   // Кто написал. Пусто у событий мира — их пишет игра.
@@ -2363,6 +2363,9 @@ model Announcement {
   createdAt   DateTime         @default(now()) @map("created_at")
   // Мягкое снятие: объявление уходит из ленты, но остаётся в истории.
   removedAt   DateTime?        @map("removed_at")
+  /// Черновик: в ленту не попадает, пока его не опубликуют из админки (18.11).
+  isDraft     Boolean          @default(false) @map("is_draft")
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at")
 
   @@index([removedAt, pinned, createdAt])
   @@map("announcements")

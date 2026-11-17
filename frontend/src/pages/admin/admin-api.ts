@@ -429,6 +429,11 @@ export const adminApi = {
     request<Announcement>('/api/announcements', { method: 'POST', body }),
   pinAnnouncement: (id: string, pinned: boolean) => request(`/api/announcements/${id}/pin`, { method: 'PATCH', body: { pinned } }),
   removeAnnouncement: (id: string) => request(`/api/announcements/${id}`, { method: 'DELETE' }),
+  // Черновики (18.11): готовятся заранее, публикуются кнопкой.
+  announcementDrafts: () => request<{ items: Announcement[] }>('/api/announcements/admin/drafts'),
+  saveAnnouncementDraft: (body: { id?: string; kind: AnnouncementKind; title: string; body: string; pinned?: boolean }) =>
+    request<Announcement>('/api/announcements/drafts', { method: 'POST', body }),
+  publishAnnouncementDraft: (id: string) => request<Announcement>(`/api/announcements/drafts/${id}/publish`, { method: 'POST' }),
   // Заявки на вывод реферальных: выплата вручную, здесь только отметка.
   paymentsReport: (from: string, to: string) => request<{ items: AdminPayment[]; totals: { status: AdminPaymentStatus; count: number; amountKopecks: number; dollars: number }[] }>(`/api/payments/admin/report?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
   payouts: (status?: PayoutStatus) => request<{ items: AdminPayout[] }>(`/api/referral/admin/payouts${status ? `?status=${status}` : ''}`),

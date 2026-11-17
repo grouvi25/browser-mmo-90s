@@ -15,6 +15,8 @@ export interface Announcement {
   pinned: boolean
   authorLogin: string | null
   createdAt: string
+  /** Только у черновиков в админке. */
+  updatedAt?: string
 }
 
 export const announcementsApi = {
