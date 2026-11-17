@@ -1,0 +1,12 @@
+# Горячий резерв на втором сервере (Beget). Подключается третьим файлом только на резерве:
+#   docker compose -p mmo90s -f docker-compose.prod.yml -f docker-compose.vps.yml \
+#     -f infra/standby/docker-compose.standby.yml up -d postgres redis
+# Postgres здесь реплика (standby.signal и primary_conninfo кладёт pg_basebackup -R),
+# Redis копирует основной. Основной доступен через туннель koop-tunnel на 172.17.0.1.
+# После переключения (failover.sh) этот файл больше не подключается.
+services:
+  postgres:
+    extra_hosts: ["host.docker.internal:host-gateway"]
+  redis:
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru --appendonly yes --appendfsync everysec --replicaof host.docker.internal 16379

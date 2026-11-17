@@ -30,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 45
+    env:
+      STANDBY_HOST: ${{ secrets.STANDBY_HOST }}
     steps:
       - name: Resolve deploy commit
         id: target
@@ -71,3 +73,18 @@ jobs:
 
       - name: Deploy on server
         run: ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} deploy ${{ steps.target.outputs.sha }}
+
+      # Горячий резерв: те же образы и код уходят на второй сервер, но игра там не
+      # запускается (база приходит репликацией, см. infra/standby). Сбой резерва
+      # не валит выкат основного, но виден в прогоне.
+      - name: Stage release on standby
+        if: env.STANDBY_HOST != ''
+        continue-on-error: true
+        run: |
+          install -m 600 /dev/null ~/.ssh/standby
+          printf '%s\n' "${{ secrets.STANDBY_SSH_KEY }}" > ~/.ssh/standby
+          printf '%s\n' "${{ secrets.STANDBY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          S="ssh -i $HOME/.ssh/standby -o IdentitiesOnly=yes root@$STANDBY_HOST"
+          $S ping
+          docker save mmo90s-backend:incoming mmo90s-worker:incoming mmo90s-frontend:incoming | gzip -1 | $S load
+          $S stage ${{ steps.target.outputs.sha }}
