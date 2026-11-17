@@ -15,8 +15,11 @@ const forbidden = [
   /\bRENAME\s+(?:TABLE|COLUMN)\b/i,
 ]
 const failures = []
+// Единственное разрешённое изменение типа: расширение VARCHAR. Оно данные не трогает и
+// таблицу не переписывает. Оператор должен стоять сразу под строкой-пометкой.
+const WIDEN = /--\s*additivity:\s*widen-varchar\s*\r?\n\s*ALTER\s+TABLE\s+"\w+"\s+ALTER\s+COLUMN\s+"\w+"\s+TYPE\s+VARCHAR\(\d+\)\s*;/gi
 for (const file of stage2) {
-  const sql = readFileSync(file, 'utf8')
+  const sql = readFileSync(file, 'utf8').replace(WIDEN, '')
   for (const rule of forbidden) if (rule.test(sql)) failures.push(`${file}: ${rule}`)
 }
 if (stage2.length === 0) failures.push('No Stage 2 migrations found')

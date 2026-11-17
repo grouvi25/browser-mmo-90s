@@ -25,10 +25,10 @@ async function worker(professions: string[], dollars = 0) {
 const object = (code: string) => testPrisma.productionObject.findUniqueOrThrow({ where: { code } })
 
 describe('Книга экономики: данные', () => {
-  it('книга целая: 77 ресурсов, 121 рецепт, 36 изделий, 8 инструментов', () => {
-    expect(TABLE_RESOURCES).toHaveLength(77)
-    expect(TABLE_RECIPES).toHaveLength(121)
-    expect(TABLE_ITEMS).toHaveLength(36)
+  it('книга целая: 78 ресурсов, 117 рецептов, 37 изделий, 8 инструментов (юрист 18.11)', () => {
+    expect(TABLE_RESOURCES).toHaveLength(78)
+    expect(TABLE_RECIPES).toHaveLength(117)
+    expect(TABLE_ITEMS).toHaveLength(37)
     expect(TABLE_TOOLS).toHaveLength(8)
   })
 
@@ -59,7 +59,7 @@ describe('Книга экономики: данные', () => {
   it('имена не совпадают со старыми ресурсами: на рынке их не спутать', () => {
     const old = new Set([...RESOURCES.map(row => row[1] as string), ...BAR_RESOURCES.map(row => row[1] as string)])
     expect(TABLE_RESOURCES.filter(row => old.has(row[1])).map(row => row[1])).toEqual([])
-    expect(new Set(TABLE_RESOURCES.map(row => row[1])).size).toBe(77)
+    expect(new Set(TABLE_RESOURCES.map(row => row[1])).size).toBe(78)
   })
 
   it('заводы по таблице v2: 21 завод, на каждом одна профессия и от 3 до 5 рецептов', () => {
