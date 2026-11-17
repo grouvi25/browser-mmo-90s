@@ -5,6 +5,7 @@
 #   ping        — проверка связи
 #   load        — docker load образов mmo90s-*:incoming из потока
 #   stage <sha> — код на этот коммит, incoming -> latest (готово к failover.sh)
+#   pull <sha>  — забрать образы и коммит с основного (основной путь с 18.11)
 set -euo pipefail
 P=/opt/mmo90s
 
@@ -14,6 +15,24 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
     ;;
   load)
     gunzip | docker load
+    ;;
+  pull\ *)
+    # Забрать выкаченную версию с основного: образы и коммит (GitHub даёт только команду).
+    sha="${SSH_ORIGINAL_COMMAND#pull }"
+    [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Плохой коммит" >&2; exit 2; }
+    if [ -f "$P/.failover-done" ]; then
+      echo "Резерв уже работает как основной сервер, выкатывать сюда надо обычным deploy" >&2
+      exit 3
+    fi
+    A="ssh -i /root/.ssh/koop_images -o BatchMode=yes -o ConnectTimeout=15 root@82.148.244.248"
+    live="$($A sha)"
+    [ "$live" = "$sha" ] || { echo "На основном выкачен $live, а не $sha" >&2; exit 4; }
+    $A images | gunzip | docker load | tail -3
+    cd "$P"
+    git fetch -q --depth 30 origin "$sha"
+    git reset -q --hard "$sha"
+    docker image prune -f >/dev/null
+    echo "резерв готов на $sha"
     ;;
   stage\ *)
     sha="${SSH_ORIGINAL_COMMAND#stage }"
