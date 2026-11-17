@@ -675,6 +675,7 @@ export function BattlePage() {
     offhandName: enemyProfile?.secondaryHand,
     offhandCode: enemyProfile?.secondaryWeaponCode,
     offhandType: enemyProfile?.secondaryWeaponType,
+    zoneArmor: enemyProfile?.zoneArmor,
   }
 
   if (isMobile) {

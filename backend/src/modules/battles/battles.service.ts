@@ -749,6 +749,7 @@ function loadParticipantProfiles(participants: { id: string; characterId: string
           avatar: true,
           gender: true,
           battleLevel: true,
+          activeEffects: true,
           stats: { select: { str: true, agi: true, rea: true, acc: true, end: true, luck: true, agr: true } },
           items: {
             where: { isEquipped: true, status: { not: 'DELETED' }, template: { type: 'WEAPON' } },
@@ -766,7 +767,15 @@ function loadParticipantProfiles(participants: { id: string; characterId: string
       ])
       const primary = character?.items.find(item => item.armorSlot === 'LEFT_HAND') ?? character?.items.find(item => item.armorSlot == null)
       const secondary = character?.items.find(item => item.armorSlot === 'RIGHT_HAND')
+      // Дима 17.11: «в бою не видно броню противника». Та же броня по зонам, что считает бой
+      // (вещи, их очки и камни, бафы), без половины выносливости — как на своей карточке.
+      const armorList = armorListFromEquipped(
+        worn.filter(item => item.template.type !== 'WEAPON'), character ?? undefined,
+        worn.filter(item => item.template.type === 'WEAPON'),
+      )
+      const zoneArmor = Object.fromEntries(BODY_ZONES.map(zone => [zone, Math.round(armorOfZone(armorList, zone))]))
       return {
+        zoneArmor,
         participantId: participant.id,
         name: character?.nickname ?? 'Боец',
         level: character?.battleLevel ?? 0,
@@ -802,7 +811,10 @@ function loadParticipantProfiles(participants: { id: string; characterId: string
       : reach >= 3 ? { code: 'weapon_pistol_pm', type: 'PISTOL', name: 'Пистолет ПМ' }
       : (bot?.battleLevel ?? 1) >= 2 ? { code: 'weapon_pipe_basic', type: 'CLUB', name: 'Труба' }
       : { code: 'weapon_fists', type: 'MELEE', name: 'Кулаки' }
+    const botStatsRaw = bot?.stats && typeof bot.stats === 'object' && !Array.isArray(bot.stats) ? bot.stats as Record<string, unknown> : {}
+    const botFallbackArmor = typeof botStatsRaw.armor === 'number' ? botStatsRaw.armor : 2
     return {
+      zoneArmor: Object.fromEntries(BODY_ZONES.map(zone => [zone, Math.round(botArmorOfZone(equipment, zone, botFallbackArmor))])),
       participantId: participant.id,
       name: bot?.name ?? 'Противник',
       level: bot?.battleLevel ?? 0,

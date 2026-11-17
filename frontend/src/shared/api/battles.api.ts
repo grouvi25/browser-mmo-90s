@@ -34,6 +34,8 @@ export interface BattleParticipantProfile {
   secondaryWeaponType: string | null
   primaryRange: number
   secondaryRange: number
+  /** Броня по зонам тела (HEAD, CHEST, RIGHT_ARM, LEFT_ARM, LEGS), Дима 17.11. */
+  zoneArmor?: Partial<Record<string, number>>
   stats: { str: number; agi: number; rea: number; acc: number; end: number; luck: number; agr: number } | null
 }
 

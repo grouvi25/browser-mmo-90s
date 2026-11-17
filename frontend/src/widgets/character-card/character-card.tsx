@@ -148,6 +148,8 @@ export interface CardProfile {
   offhandCode?: string | null
   /** Тип оружия правой руки: без него у пистолета без своей картинки рисовалась бита (№58). */
   offhandType?: string | null
+  /** Броня противника по зонам боя (HEAD, CHEST, RIGHT_ARM, LEFT_ARM, LEGS), Дима 17.11. */
+  zoneArmor?: Partial<Record<string, number>>
 }
 
 /** Раны по зонам в бою: 0 — зелёная, 1 — жёлтая, 2 — оранжевая, 3 — красная. */
@@ -199,12 +201,14 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
       const slots = ZONE_ARMOR_SLOTS[z] ?? []
       const woundKey = z === 'LEFT_LEG' || z === 'RIGHT_LEG' ? 'LEGS' : z
       const stripped = (wounds?.[woundKey] ?? wounds?.[z] ?? 0) >= WOUND_STRIP_AT
+      // Чужой боец: броню по зонам присылает сервер (ноги в бою одна зона LEGS).
+      if (profile?.zoneArmor) { out[z] = stripped ? 0 : Math.round(profile.zoneArmor[woundKey] ?? 0); continue }
       out[z] = stripped ? 0 : equipped
         .filter(i => i.armorSlot && slots.includes(i.armorSlot))
         .reduce((s, i) => s + (i.effective?.armor ?? i.template.armor ?? 0), 0)
     }
     return out
-  }, [equipped, wounds])
+  }, [equipped, wounds, profile?.zoneArmor])
 
   const weapon = equipped.find(i => i.template.type === 'WEAPON'
     && i.armorSlot !== 'RIGHT_HAND')
@@ -358,9 +362,8 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
                 className="zone-hot"
                 active={own && zone === key}
                 disabled={!own}
-                // Броня чужого бойца нам неизвестна: боевой профиль
-                // отдаёт оружие и характеристики, но не зональную защиту.
-                title={own ? `${z.label} · броня ${armor}` : z.label}
+                // Броня чужого бойца приходит в боевом профиле (Дима 17.11).
+                title={own || profile?.zoneArmor ? `${z.label} · броня ${armor}` : z.label}
                 onClick={own ? () => setZone(zone === key ? null : key) : undefined}
               />
             )
@@ -376,8 +379,9 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
             return <span key={`armor-${z.key}`} className="zone-armor" aria-hidden="true"
               style={{ left: z.box.x, top: z.box.y, width: z.box.w, height: z.box.h, maskImage: mask, WebkitMaskImage: mask }} />
           })}
-          {/* Цифра защиты — и в бою, поверх цвета ран: там она нужнее всего. */}
-          {own && C.zones.map(z => {
+          {/* Цифра защиты — и в бою, поверх цвета ран: там она нужнее всего.
+              У противника тоже (Дима 17.11: «в бою не видно броню противника»). */}
+          {(own || profile?.zoneArmor) && C.zones.map(z => {
             const armor = zoneArmor[z.key] ?? 0
             if (armor <= 0) return null
             return <span key={`armor-n-${z.key}`} className="zone-armor-n" aria-hidden="true"
