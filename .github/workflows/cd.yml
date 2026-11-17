@@ -79,6 +79,8 @@ jobs:
       # запускается (база приходит репликацией, см. infra/standby). Сбой резерва
       # не валит выкат основного, но виден в прогоне.
       - name: Stage release on standby
+        # Резерв не должен держать выкат основного: зависшая передача обрывается.
+        timeout-minutes: 15
         if: env.STANDBY_HOST != ''
         continue-on-error: true
         run: |
@@ -92,6 +94,8 @@ jobs:
 
       # Третий узел (Timeweb): такая же копия, на случай если лягут оба первых.
       - name: Stage release on second standby
+        # Резерв не должен держать выкат основного: зависшая передача обрывается.
+        timeout-minutes: 15
         if: env.STANDBY2_HOST != ''
         continue-on-error: true
         run: |
