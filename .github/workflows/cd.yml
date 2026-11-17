@@ -32,6 +32,7 @@ jobs:
     timeout-minutes: 45
     env:
       STANDBY_HOST: ${{ secrets.STANDBY_HOST }}
+      STANDBY2_HOST: ${{ secrets.STANDBY2_HOST }}
     steps:
       - name: Resolve deploy commit
         id: target
@@ -85,6 +86,19 @@ jobs:
           printf '%s\n' "${{ secrets.STANDBY_SSH_KEY }}" > ~/.ssh/standby
           printf '%s\n' "${{ secrets.STANDBY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           S="ssh -i $HOME/.ssh/standby -o IdentitiesOnly=yes root@$STANDBY_HOST"
+          $S ping
+          docker save mmo90s-backend:incoming mmo90s-worker:incoming mmo90s-frontend:incoming | gzip -1 | $S load
+          $S stage ${{ steps.target.outputs.sha }}
+
+      # Третий узел (Timeweb): такая же копия, на случай если лягут оба первых.
+      - name: Stage release on second standby
+        if: env.STANDBY2_HOST != ''
+        continue-on-error: true
+        run: |
+          install -m 600 /dev/null ~/.ssh/standby2
+          printf '%s\n' "${{ secrets.STANDBY2_SSH_KEY }}" > ~/.ssh/standby2
+          printf '%s\n' "${{ secrets.STANDBY2_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          S="ssh -i $HOME/.ssh/standby2 -o IdentitiesOnly=yes root@$STANDBY2_HOST"
           $S ping
           docker save mmo90s-backend:incoming mmo90s-worker:incoming mmo90s-frontend:incoming | gzip -1 | $S load
           $S stage ${{ steps.target.outputs.sha }}

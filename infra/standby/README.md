@@ -31,7 +31,28 @@
     docker exec mmo90s-postgres-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select pg_is_in_recovery(), now()-pg_last_xact_replay_timestamp()"'
     docker exec mmo90s-redis-1 redis-cli info replication | grep link_status
 
-## Переключение
+## Три узла и автопереключение (кворум)
+
+Третий узел — Timeweb 195.133.81.121: такая же реплика (слот `timeweb_slot`, свой туннель
+`koop-tunnel`), получает образы автовыкаткой (`STANDBY2_*`) и служит свидетелем.
+
+- `witness.sh` (Beget и Timeweb, `/opt/mmo90s-tools`, forced command ключей `koop_witness`):
+  отвечает соседям, видит ли этот сервер игру на основном и кем здесь работает база.
+- `watch.sh` (Beget, таймер `koop-watch`, раз в 30 с): если основной не отвечает 5 минут
+  и Timeweb это подтверждает, запускает `failover.sh`, переключает домен (`dns-beget.sh`)
+  и пишет в Telegram. Если Timeweb основной видит или сам недоступен, не переключает.
+  Выключатель на время работ: `touch /var/lib/koop-watch/disabled`.
+- `fence.sh` (Aeza, таймер `koop-fence`, раз в 30 с и после загрузки): гасит игру, если 2 минуты
+  не видит ни одного соседа или если Beget уже стал основным. Включает обратно, только когда
+  соседи видны и база на Beget по-прежнему реплика.
+- `notify.sh`: сообщения ботом Grouvi Nox, токен в `/etc/koop-notify.env` на всех трёх.
+- `dns-beget.sh`: A-записи через API Beget, доступ в `/etc/koop-beget-api.env`
+  (`BEGET_LOGIN`, `BEGET_API_PASS`). Без него домен меняется руками, бот об этом напишет.
+
+После переключения Timeweb всё ещё смотрит на старый основной: его туннель перевести
+на новый основной и при необходимости пересоздать реплику (`pg_basebackup`).
+
+## Переключение вручную
 
 На резерве: `bash /opt/mmo90s/infra/standby/failover.sh`. Скрипт откажется, если основной
 отвечает: две живые базы потом не склеить. Для учебной тревоги сначала остановить игру на
