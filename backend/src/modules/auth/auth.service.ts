@@ -1,4 +1,5 @@
 import { AuthRepository } from './auth.repository'
+import { attributionFields } from '../analytics/acquisition'
 import { hashPassword, verifyPassword } from '../../shared/security/password'
 import { generateJti, storeSession, revokeSession } from '../../shared/security/jwt'
 import { SessionRedis } from '../../shared/db/redis'
@@ -66,6 +67,7 @@ export const AuthService = {
       lastUserAgent: userAgent,
       policyAcceptedAt: new Date(),
       ...(input.phone ? { phone: normalizePhone(input.phone) } : {}),
+      ...attributionFields(input.attribution),
     })
 
     // Пригласивший — не повод сорвать регистрацию.

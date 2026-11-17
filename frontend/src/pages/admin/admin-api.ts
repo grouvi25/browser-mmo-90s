@@ -457,7 +457,7 @@ export const adminApi = {
     return result
   },
 
-  stats: () => request<{ users: number; characters: number; battles: number; items: number }>('/api/admin/stats'),
+  stats: () => request<{ users: number; characters: number; battles: number; items: number; registrations7d?: number }>('/api/admin/stats'),
 
   economyOverview: () => request<EconomyOverview>('/api/admin/economy/overview'),
   economyHistory: (days = 30) => request<{ items: EconomySnapshot[] }>(`/api/admin/economy/history?days=${days}`),

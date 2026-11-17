@@ -5,6 +5,7 @@ import { authApi } from '../../shared/api/auth.api'
 import { ApiError } from '../../shared/api/client'
 import { SmartCaptcha, useCaptchaKey } from '../../shared/ui/smart-captcha'
 import { storedReferral } from '../../shared/lib/referral'
+import { readAttribution, reachGoal } from '../../shared/lib/attribution'
 import { PasswordInput } from '../../shared/ui/password-input'
 
 export function RegisterPage() {
@@ -52,7 +53,8 @@ export function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      await authApi.register({ nickname: form.nickname.trim(), email: form.email, password: form.password, acceptPolicy: true, website: trap, captchaToken: captchaToken || undefined, ref: referrer.trim() || undefined, phone: phone.trim() || undefined })
+      await authApi.register({ nickname: form.nickname.trim(), email: form.email, password: form.password, acceptPolicy: true, website: trap, captchaToken: captchaToken || undefined, ref: referrer.trim() || undefined, phone: phone.trim() || undefined, attribution: readAttribution() })
+      reachGoal('registration')
       // Auto-login after register
       const res = await authApi.login({ login: form.nickname.trim(), password: form.password })
       signIn(res.token, res.userId, res.login)

@@ -1,21 +1,29 @@
 // Главная страница для гостя (просьба заказчика 28.10, по его образцу):
 // рассказ об игре, вход прямо здесь и свежая сводка новостей. Нужна и для
 // заявки на эквайринг — у сайта должна быть понятная витрина и политика.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
 import type { Announcement, AnnouncementKind } from '../../shared/api/announcements.api'
 import { LoginForm } from '../auth/login-form'
 import sceneCenter from '../../shared/assets/ui/scene-center.webp'
+import sceneIndustrial from '../../shared/assets/ui/scene-industrial.webp'
+import sceneGarages from '../../shared/assets/ui/scene-garages.webp'
+import sceneBrigade from '../../shared/assets/ui/scene-brigade-houses.webp'
 import './landing.css'
 
+// Тексты для игроков по правилам Димы: без «ё», без длинных тире, кавычки прямые.
 const FEATURES: { title: string; text: string }[] = [
-  { title: 'Постой за себя', text: 'Пошаговые бои один на один и стенка на стенку: куда бить, что закрывать, когда подойти. Опыт, уровни, оружие и навыки.' },
-  { title: 'Найди свой ресурс', text: 'Фермы, металлолом, колхоз, пилорама. Сырьё сдаёшь государству, продаёшь на рынке или пускаешь в дело.' },
-  { title: 'Открой своё дело', text: 'Смены на заводах и в цехах, свои объекты и наёмные рабочие. Из сырья — заготовки, из заготовок — вещи.' },
-  { title: 'Собери своих', text: 'Бригады, общак, дома и районы города. Территорию держат вместе — и вместе её отбивают.' },
+  { title: 'Постой за себя', text: 'Пошаговые бои один на один и стенка на стенку: куда бить, что закрывать, когда подойти. Ножи, биты, стволы, броня и обереги.' },
+  { title: 'Найди свой ресурс', text: 'Фермы, огород, пункт металлолома, пилорама. Сырье сдаешь государству, продаешь на рынке или пускаешь в дело.' },
+  { title: 'Освой ремесло', text: 'Профессии в Училище: оружейник, металлург, технолог, юрист. Смены в госцехах, свои заводы и производственный уровень.' },
+  { title: 'Торгуй', text: 'Рынок между игроками, госскупка, ЦУМ и Березка с редкими вещами. В кошельке виден каждый рубль.' },
+  { title: 'Собери своих', text: 'Бригады, общак, дома бригад и районы города. Территорию держат вместе и вместе ее отбивают.' },
+  { title: 'Заведи пса', text: 'Собака идет с тобой в бой, ее можно одеть и прокачать. Помощники отработают смену, пока ты занят.' },
 ]
+
+const GALLERY: [string, string][] = [[sceneIndustrial, 'Промзона'], [sceneGarages, 'Гаражи'], [sceneBrigade, 'Дома бригад']]
 
 const KIND_LABEL: Record<AnnouncementKind, string> = { NEWS: 'новость', PATCH: 'обновление', WORLD: 'в городе' }
 
@@ -32,12 +40,23 @@ function StartMoneyLead() {
   })
   // Страница входа стоит на этой же главной: кривой ответ не должен её ронять.
   const startMoney = facts.data?.startMoney
-  const money = typeof startMoney === 'number' ? `${startMoney.toLocaleString('ru-RU')} рублей` : 'небольшой суммой'
-  return <p className="landing__lead">Кооператив — город девяностых, где каждый начинает с нуля: с {money} в кармане и пустыми руками. Дальше — как сам решишь.</p>
+  const money = typeof startMoney === 'number' ? `${startMoney.toLocaleString('ru-RU')} рублей` : 'немного денег'
+  return <p className="landing__lead">Кооператив это город девяностых, где каждый начинает с нуля: {money} в кармане и пустые руки. Дальше как сам решишь.</p>
 }
 
 function Svodka() {
-  const [kind, setKind] = useState<AnnouncementKind | 'ALL'>('ALL')
+  const [kind, setKind] = useState<AnnouncementKind | 'ALL'>(() => (window.location.hash === '#updates' ? 'PATCH' : 'ALL'))
+  // Пункты меню «Новости» и «Обновления» ведут сюда же, но с нужным фильтром.
+  useEffect(() => {
+    const onHash = () => {
+      const hash = window.location.hash
+      if (hash !== '#updates' && hash !== '#news') return
+      setKind(hash === '#updates' ? 'PATCH' : 'NEWS')
+      document.getElementById('news')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
   const [open, setOpen] = useState<string | null>(null)
   const feed = useQuery({
     queryKey: ['landing', 'announcements', kind],
@@ -82,7 +101,7 @@ export function LandingPage() {
         <nav aria-label="Разделы">
           <a href="#about">Об игре</a>
           <a href="#news">Новости</a>
-          <a href="#news">Обновления</a>
+          <a href="#updates">Обновления</a>
           <a className="landing__enter" href="#login">Войти</a>
         </nav>
       </header>
@@ -105,7 +124,7 @@ export function LandingPage() {
       </section>
 
       <section className="landing__about" id="about" aria-labelledby="about-title">
-        <h2 id="about-title">Здесь всё решают люди.</h2>
+        <h2 id="about-title">Здесь все решают люди.</h2>
         <StartMoneyLead />
         <div className="landing__features">
           {FEATURES.map(feature => (
@@ -115,18 +134,26 @@ export function LandingPage() {
             </article>
           ))}
         </div>
+        <div className="landing__gallery">
+          {GALLERY.map(([src, label]) => (
+            <figure key={label}>
+              <img src={src} alt={label} loading="lazy" draggable={false} />
+              <figcaption>{label}</figcaption>
+            </figure>
+          ))}
+        </div>
       </section>
 
       <Svodka />
 
       <section className="landing__cta">
         <p className="landing__kicker">У каждого свой путь</p>
-        <h2>Твоё место ещё не занято.</h2>
-        <Link className="landing__btn landing__btn--main" to="/register">Вписать своё имя</Link>
+        <h2>Твое место еще не занято.</h2>
+        <Link className="landing__btn landing__btn--main" to="/register">Вписать свое имя</Link>
       </section>
 
       <footer className="landing__footer">
-        <b>КООПЕРАТИВ — свои люди. Своё дело.</b>
+        <b>КООПЕРАТИВ. Свои люди. Свое дело.</b>
         <span>Браузерная онлайн-игра про Россию девяностых · 12+</span>
         <nav aria-label="Документы">
           <Link to="/politika">Политика обработки персональных данных</Link>

@@ -67,6 +67,13 @@ export const AuthRepository = {
     lastUserAgent?: string
     policyAcceptedAt?: Date
     phone?: string
+    utmSource?: string | null
+    utmMedium?: string | null
+    utmCampaign?: string | null
+    utmContent?: string | null
+    utmTerm?: string | null
+    firstReferrer?: string | null
+    landingPath?: string | null
   }): Promise<User> {
     return prisma.user.create({ data })
   },

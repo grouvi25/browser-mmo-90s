@@ -6,6 +6,7 @@ import { AppError } from '../errors/app-error'
 import { ErrorCode } from '../errors/error-codes'
 import { prisma } from '../db/prisma'
 import { isAdminSessionValid, isSessionValid } from './jwt'
+import { markActiveDay } from '../../modules/analytics/acquisition'
 
 export interface AuthUser {
   userId: string
@@ -61,6 +62,8 @@ export async function authenticate(
       userId: payload.sub,
       jti:    payload.jti,
     }
+    // День в игре для отчёта «кто вернулся»: раз в сутки, без ожидания и без влияния на запрос.
+    void markActiveDay(payload.sub).catch(() => undefined)
   } catch (err: unknown) {
     if (err instanceof AppError) {
       reply.code(err.statusCode).send({ code: err.code, message: err.message })

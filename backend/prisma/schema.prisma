@@ -533,15 +533,35 @@ model User {
   /// Кто пригласил (персонаж по реферальной ссылке ?ref=ник). Ставится
   /// только при регистрации и больше не меняется.
   referrerCharacterId String?    @map("referrer_character_id")
+  /// Откуда пришёл (первая ссылка с метками или сайт-источник), ставится при регистрации.
+  utmSource           String?    @map("utm_source")
+  utmMedium           String?    @map("utm_medium")
+  utmCampaign         String?    @map("utm_campaign")
+  utmContent          String?    @map("utm_content")
+  utmTerm             String?    @map("utm_term")
+  firstReferrer       String?    @map("first_referrer")
+  landingPath         String?    @map("landing_path")
 
   // Relations
   character      Character?
+  activeDays     UserActiveDay[]
   sessions       Session[]
   passwordResets PasswordReset[]
   staff          StaffMember?
 
   @@index([referrerCharacterId])
   @@map("users")
+}
+
+/// День (по Москве), когда игрок заходил в игру. Из этого считается «вернулся».
+model UserActiveDay {
+  userId String   @map("user_id")
+  day    DateTime @db.Date
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, day])
+  @@index([day])
+  @@map("user_active_days")
 }
 
 /// Одноразовая ссылка на новый пароль (просьба игроков 26.10: «нет

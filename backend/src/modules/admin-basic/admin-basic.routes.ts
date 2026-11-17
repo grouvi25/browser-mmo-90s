@@ -13,13 +13,15 @@ export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> 
   // GET /api/admin/stats — общая статистика
   fastify.get('/stats', READ_ADMIN,
     async (_req, reply) => {
-      const [users, characters, battles, items] = await Promise.all([
+      const weekAgo = new Date(Date.now() - 7 * 86_400_000)
+      const [users, characters, battles, items, registrations7d] = await Promise.all([
         prisma.user.count(),
         prisma.character.count(),
         prisma.battle.count(),
         prisma.itemInstance.count({ where: { status: { not: 'DELETED' } } }),
+        prisma.user.count({ where: { registeredAt: { gte: weekAgo } } }),
       ])
-      return reply.send({ users, characters, battles, items })
+      return reply.send({ users, characters, battles, items, registrations7d })
     })
 
   // GET /api/admin/chat?days=7 — общий чат и чаты районов за срок.

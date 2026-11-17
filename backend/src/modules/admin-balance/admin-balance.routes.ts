@@ -6,6 +6,7 @@
 // и ничего без отмены» распространяется и на правку баланса.
 // =============================================================
 import { TemplateImages } from '../items/template-images'
+import { acquisitionReport } from '../analytics/acquisition'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
@@ -316,6 +317,25 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
           label: row.nickname,
           value: new Date(row.createdAt).toLocaleString('ru-RU'),
           characterId: row.id,
+        })),
+      })
+    }
+
+    if (kind === 'sources') {
+      const { rows, latest } = await acquisitionReport(30)
+      const pct = (part: number, base: number) => base ? `${Math.round(part / base * 100)}%` : '—'
+      return reply.send({
+        title: 'Регистрации за 30 дней по источникам',
+        rows: rows.map(row => ({
+          label: row.label,
+          value: `${row.registered} · вернулись ${pct(row.returned, row.registered)}`
+            + (row.weekBase ? ` · через неделю ${pct(row.week, row.weekBase)}` : ''),
+        })),
+        secondTitle: 'Последние регистрации',
+        second: latest.map(row => ({
+          label: `${row.nickname} — ${row.source}`,
+          value: new Date(row.registeredAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
+          characterId: row.characterId,
         })),
       })
     }

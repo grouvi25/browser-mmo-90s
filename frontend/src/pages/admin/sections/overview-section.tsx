@@ -79,6 +79,13 @@ export function OverviewSection({ onGo }: { onGo: (tab: string, focus?: string) 
           action={{ label: 'к игрокам', tab: 'players' }}
         />
         <Tile
+          kind="sources"
+          label="Регистраций за неделю"
+          value={rub(stats.data!.registrations7d ?? 0)}
+          note="откуда пришли и кто вернулся"
+          onGo={onGo}
+        />
+        <Tile
           kind="shifts"
           label="Смен идёт"
           value={rub(economy.data!.activeShifts)}

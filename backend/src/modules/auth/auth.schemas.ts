@@ -20,6 +20,11 @@ export const RegisterSchema = z.object({
     .refine(v => v === '' || /^\+?[\d\s()-]{10,24}$/.test(v) && v.replace(/\D/g, '').length >= 10 && v.replace(/\D/g, '').length <= 15, 'Телефон: 10–15 цифр, например +7 900 123-45-67'),
   // Ник пригласившего из реферальной ссылки ?ref=.
   ref: z.string().max(64).optional(),
+  // Откуда пришёл (метки первой ссылки и сайт-источник). Кривые данные не мешают регистрации.
+  attribution: z.object({
+    utmSource: z.string().max(300), utmMedium: z.string().max(300), utmCampaign: z.string().max(300),
+    utmContent: z.string().max(300), utmTerm: z.string().max(300), referrer: z.string().max(500), landing: z.string().max(500),
+  }).partial().optional().catch(undefined),
 }).refine(data => !!(data.nickname || data.login), { message: 'Укажите ник', path: ['nickname'] })
 
 export const LoginSchema = z.object({

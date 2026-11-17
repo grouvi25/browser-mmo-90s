@@ -5,12 +5,14 @@ import { UpdateWatcher } from './app/update-watcher'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { App } from './app/App'
 import { rememberReferral } from './shared/lib/referral'
+import { captureAttribution } from './shared/lib/attribution'
 import { loadTemplateImages } from './shared/assets/shop/shop-images'
 import './styles/global.css'
 import './styles/theme.css'
 import './styles/mobile.css'
 
 rememberReferral()
+captureAttribution()
 
 // Обращение №39: в числовом поле стоял 0, курсор вставал после него, и вместо «5» выходило «05».
 // Правило для всех числовых полей игры: при входе в поле число выделено, новая цифра его заменяет.
