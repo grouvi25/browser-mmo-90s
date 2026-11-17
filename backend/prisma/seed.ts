@@ -382,13 +382,15 @@ async function main() {
   // посчитанной scripts/simulate-full.ts::ownerDay(). obj_parts_factory и
   // obj_pharmacy уже попадали в коридор и не тронуты.
   const purchasePrices: Record<string, number> = {
-    obj_scrapyard: 6500,
+    // Дима 17.11: лом и древесина 1 за смену по 150 ₽ — владелец получает больше,
+    // цена пересчитана под те же ~16 суток окупаемости.
+    obj_scrapyard: 40000,
     obj_garage_workshop: 3800,
     obj_small_factory: 2000,
     obj_parts_factory: 55000,
     obj_cooperative_site: 5500,
     obj_kolhoz_zarya: 64000,
-    obj_sawmill: 3600,
+    obj_sawmill: 27000,
     obj_textile: 13000,
     obj_herb_point: 16000,
     obj_pharmacy: 28000,

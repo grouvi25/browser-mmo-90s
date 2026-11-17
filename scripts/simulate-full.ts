@@ -68,9 +68,9 @@ const resourcePrice = new Map<string, number>([
  * Пересчитаны под В1· 04.09.2026 — см. комментарий у purchasePrices в seed.ts.
  */
 const OBJECT_PRICES: Record<string, number> = {
-  obj_scrapyard: 6_500, obj_garage_workshop: 3_800, obj_small_factory: 2_000,
+  obj_scrapyard: 40_000, obj_garage_workshop: 3_800, obj_small_factory: 2_000,
   obj_parts_factory: 55_000, obj_cooperative_site: 5_500, obj_kolhoz_zarya: 64_000,
-  obj_sawmill: 3_600, obj_textile: 13_000, obj_herb_point: 16_000,
+  obj_sawmill: 27_000, obj_textile: 13_000, obj_herb_point: 16_000,
   obj_pharmacy: 28_000, obj_chem_lab: 6_500,
 }
 const BAR_PRICE = 100_000
