@@ -96,7 +96,9 @@ export function UpgradesPage() {
   const commit = useMutation({
     mutationFn: () => upgradesApi.commit(itemId, type),
     onSuccess: r => {
-      setMsg(r.success ? `Получилось, уровень ${r.levelAfter}` : 'Не вышло. Деньги и детали потрачены.')
+      setMsg(r.success
+        ? (r.pointsGain ? `Получилось: уровень ${r.levelAfter}, на вещи +${r.pointsGain} очков. Раскладка на Складе.` : `Получилось, уровень ${r.levelAfter}`)
+        : 'Не вышло. Деньги и ресурсы потрачены.')
       refresh()
     },
     onError: (e: Error) => setMsg(e.message),
@@ -107,6 +109,7 @@ export function UpgradesPage() {
   const s = socket.data
   const p = preview.data
   const lacking = p?.requiredResources?.filter(r => !r.enough) ?? []
+  const points = p?.mode === 'POINTS'
 
   const status: string[] = []
   if (items.data?.length === 0) status.push('У вас нет вещей для улучшения.')
@@ -118,9 +121,11 @@ export function UpgradesPage() {
     if (!s.enoughMoney) status.push('Не хватает денег.')
   }
   if (section === 'forge' && p) {
-    status.push(`Станет: +${p.nextTotalLevel}. Шанс успеха: ${Math.round(p.chance * 100)}%.`)
-    if (lacking.length > 0) status.push(`Не хватает деталей: ${lacking.map(r => r.resourceName).join(', ')}.`)
-    status.push('При неудаче деньги и детали спишутся.')
+    status.push(points
+      ? `Станет: +${p.nextTotalLevel}, очков на вещи ${p.budgetAfter} вместо ${p.budgetNow}. Шанс успеха: ${Math.round(p.chance * 100)}%.`
+      : `Станет: +${p.nextTotalLevel}. Шанс успеха: ${Math.round(p.chance * 100)}%.`)
+    if (lacking.length > 0) status.push(`Не хватает: ${lacking.map(r => r.resourceName).join(', ')}.`)
+    status.push(points ? 'Вещь из крафта: ресурсы из ее рецепта, с каждым уровнем их нужно больше. При неудаче деньги и ресурсы спишутся.' : 'При неудаче деньги и детали спишутся.')
   }
 
   return (
@@ -280,21 +285,31 @@ export function UpgradesPage() {
                 </span>
               </label>
 
-              <label className="upg-slot">
-                <span>Усиление</span>
-                <span className="upg-slot__box">
-                  <img src={SPRITES['gem-diamond']} alt="" draggable={false} />
-                  <select className="upg-slot__pick" value={type}
-                    onChange={e => setType(e.target.value as UpgradeType)} aria-label="Вид усиления">
-                    {TYPES.map(x => <option key={x} value={x}>{TYPE_LABELS[x]}</option>)}
-                  </select>
-                </span>
-              </label>
+              {points ? (
+                <div className="upg-slot">
+                  <span>Усиление</span>
+                  <span className="upg-slot__box">
+                    <img src={SPRITES['gem-diamond']} alt="" draggable={false} />
+                    <output className="upg-slot__mark">очки</output>
+                  </span>
+                </div>
+              ) : (
+                <label className="upg-slot">
+                  <span>Усиление</span>
+                  <span className="upg-slot__box">
+                    <img src={SPRITES['gem-diamond']} alt="" draggable={false} />
+                    <select className="upg-slot__pick" value={type}
+                      onChange={e => setType(e.target.value as UpgradeType)} aria-label="Вид усиления">
+                      {TYPES.map(x => <option key={x} value={x}>{TYPE_LABELS[x]}</option>)}
+                    </select>
+                  </span>
+                </label>
+              )}
 
               <div className="upg-slot">
                 <span>Результат</span>
                 <span className={'upg-slot__box' + (p ? '' : ' is-empty')}>
-                  <output className="upg-slot__mark">{p ? `+${p.nextTotalLevel}` : '—'}</output>
+                  <output className="upg-slot__mark">{p ? (points ? `+${p.pointsGain} оч.` : `+${p.nextTotalLevel}`) : '—'}</output>
                 </span>
               </div>
             </div>

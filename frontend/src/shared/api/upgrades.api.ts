@@ -1,8 +1,9 @@
 import{request}from'./client'
 export type UpgradeType='DAMAGE'|'ACCURACY'|'CRIT'|'ARMOR'|'DURABILITY'|'ANTI_CRIT'
 export interface UpgradeItem{id:string;upgradeLevel:number;template:{name:string;type:string}}
-export interface UpgradePreview{itemId:string;upgradeType:UpgradeType;currentTotalLevel:number;nextTotalLevel:number;cost:number;chance:number;requiredResources:{resourceCode:string;resourceName:string;amount:number;available:number;enough:boolean}[];canCommit:boolean;effectiveStats:Record<string,number>}
-export const upgradesApi={items:()=>request<UpgradeItem[]>('/api/upgrades/items'),preview:(itemInstanceId:string,upgradeType:UpgradeType)=>request<UpgradePreview>('/api/upgrades/preview',{method:'POST',body:{itemInstanceId,upgradeType}}),commit:(itemInstanceId:string,upgradeType:UpgradeType)=>request<{success:boolean;levelAfter:number;cost:number}>('/api/upgrades/commit',{method:'POST',body:{itemInstanceId,upgradeType},headers:{'Idempotency-Key':crypto.randomUUID()}})}
+// mode POINTS: крафтовая вещь, улучшение даёт очки на раскладку (Дима 17.11).
+export interface UpgradePreview{mode?:'MODIFIERS'|'POINTS';pointsGain?:number;budgetNow?:number;budgetAfter?:number;itemId:string;upgradeType:UpgradeType|'POINTS';currentTotalLevel:number;nextTotalLevel:number;cost:number;chance:number;requiredResources:{resourceCode:string;resourceName:string;amount:number;available:number;enough:boolean}[];canCommit:boolean;effectiveStats:Record<string,number>}
+export const upgradesApi={items:()=>request<UpgradeItem[]>('/api/upgrades/items'),preview:(itemInstanceId:string,upgradeType:UpgradeType)=>request<UpgradePreview>('/api/upgrades/preview',{method:'POST',body:{itemInstanceId,upgradeType}}),commit:(itemInstanceId:string,upgradeType:UpgradeType)=>request<{success:boolean;levelAfter:number;cost:number;pointsGain?:number}>('/api/upgrades/commit',{method:'POST',body:{itemInstanceId,upgradeType},headers:{'Idempotency-Key':crypto.randomUUID()}})}
 
 // Вставка камней: сорт камня даёт очки, огранка — куда они лягут.
 export interface StoneGrade{code:string;name:string;points:number;fee:number}

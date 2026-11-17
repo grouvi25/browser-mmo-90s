@@ -7,6 +7,37 @@ import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
 import { craftProfessionForItem } from '../professions/professions'
 import { applyUpgradeModifiers, calcUpgradeCost, calcUpgradeSuccessChance, isUpgradeCompatible, requiredUpgradeResource, type UpgradeKind } from './upgrades.formulas'
+import { BalanceConfig } from '../../config/balance.config'
+import type { Prisma } from '@prisma/client'
+
+/**
+ * Крафт (Дима 17.11): вещь из крафта улучшается не процентами, а очками на раскладку:
+ * +20 за уровень. Платится ресурсами из рецепта этой же вещи, на уровне N — ×N.
+ */
+const MAX_LEVEL = 5
+type Db = Prisma.TransactionClient | typeof prisma
+function isPointsUpgrade(item: { sourceType: string }): boolean {
+  return item.sourceType === 'CRAFTED'
+}
+async function craftUpgradeResources(db: Db, templateCode: string, nextLevel: number) {
+  const recipe = await db.productionRecipe.findFirst({
+    where: { outputItemTemplateCode: templateCode, isActive: true },
+    select: { inputs: { select: { resourceCode: true, amount: true } } },
+    orderBy: { code: 'asc' },
+  })
+  if (!recipe || recipe.inputs.length === 0) throw new AppError(ErrorCode.UPG_NOT_ALLOWED, 'Для этой вещи нет рецепта, улучшать нечем', 400)
+  return recipe.inputs.map(input => ({ code: input.resourceCode, amount: input.amount * nextLevel }))
+}
+async function resourceAvailability(db: Db, characterId: string, needs: { code: string; amount: number }[]) {
+  const templates = await db.resourceTemplate.findMany({ where: { code: { in: needs.map(n => n.code) } }, select: { id: true, code: true, name: true } })
+  const stacks = await db.resourceStack.findMany({ where: { characterId, resourceTemplateId: { in: templates.map(t => t.id) } } })
+  return needs.map(need => {
+    const template = templates.find(t => t.code === need.code)
+    const stack = stacks.find(row => row.resourceTemplateId === template?.id)
+    const available = (stack?.amount ?? 0) - (stack?.reservedAmount ?? 0)
+    return { resourceCode: need.code, resourceTemplateId: template?.id, resourceName: template?.name ?? need.code, amount: need.amount, available, enough: !!template && available >= need.amount }
+  })
+}
 
 async function professionLevel(characterId: string, itemType: string, configuredCode?: string | null) {
   const professionCode = configuredCode ?? craftProfessionForItem(itemType)
@@ -19,7 +50,14 @@ async function professionLevel(characterId: string, itemType: string, configured
 export const UpgradesService = {
   async items(characterId: string) {
     return prisma.itemInstance.findMany({
-      where: { ownerId: characterId, status: { notIn: ['DELETED', 'CONSUMED', 'BROKEN', 'ON_MARKET'] }, template: { type: { in: ['WEAPON', 'ARMOR'] }, upgradeAllowed: true } },
+      where: {
+        ownerId: characterId, status: { notIn: ['DELETED', 'CONSUMED', 'BROKEN', 'ON_MARKET'] },
+        OR: [
+          { template: { type: { in: ['WEAPON', 'ARMOR'] }, upgradeAllowed: true } },
+          // Крафтовые вещи улучшаются очками, в том числе кольца и амулеты.
+          { sourceType: 'CRAFTED', template: { type: { in: ['WEAPON', 'ARMOR', 'ACCESSORY', 'SHIELD'] }, upgradeAllowed: true } },
+        ],
+      },
       include: { template: true },
     })
   },
@@ -28,9 +66,10 @@ export const UpgradesService = {
     const character = await prisma.character.findUniqueOrThrow({ where: { id: characterId } })
     const item = await prisma.itemInstance.findUnique({ where: { id: itemInstanceId }, include: { template: true } })
     if (!item || item.ownerId !== characterId) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
+    if (isPointsUpgrade(item)) return UpgradesService.previewPoints(character, item)
     if (!item.template.upgradeAllowed || !isUpgradeCompatible(item.template.type, upgradeType)) throw new AppError(ErrorCode.UPG_INVALID_TYPE, 'Upgrade type is incompatible', 400)
     if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.UPG_ITEM_STATE, 'Item cannot be upgraded', 409)
-    if (item.upgradeLevel >= 5) throw new AppError(ErrorCode.UPG_MAX_LEVEL, 'Maximum upgrade level reached', 400)
+    if (item.upgradeLevel >= MAX_LEVEL) throw new AppError(ErrorCode.UPG_MAX_LEVEL, 'Maximum upgrade level reached', 400)
     const next = item.upgradeLevel + 1
     const cost = calcUpgradeCost(item.template.priceBase, next)
     const craft = await professionLevel(characterId, item.template.type, item.template.craftProfessionCode)
@@ -42,11 +81,37 @@ export const UpgradesService = {
     const mods = (item.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {}
     const nextMods = { ...mods, [upgradeType]: (mods[upgradeType] ?? 0) + 1 }
     return {
+      mode: 'MODIFIERS' as const,
       itemId: item.id, upgradeType, currentTotalLevel: item.upgradeLevel, nextTotalLevel: next,
       cost, chance, profession: craft,
       requiredResources: [{ resourceCode: required.code, resourceName: template.name, amount: required.amount, available, enough: available >= required.amount }],
       canCommit: character.money >= cost && available >= required.amount,
       effectiveStats: applyUpgradeModifiers(item.template, nextMods, item.statAllocation, item.socketsJson),
+    }
+  },
+
+  /** Предпросмотр улучшения крафтовой вещи: +20 очков за ресурсы её рецепта. */
+  async previewPoints(
+    character: { id: string; money: number },
+    item: { id: string; upgradeLevel: number; extraPoints: number; status: string; template: { code: string; type: string; priceBase: number; statBudget: number; upgradeAllowed: boolean; craftProfessionCode: string | null } },
+  ) {
+    if (!item.template.upgradeAllowed) throw new AppError(ErrorCode.UPG_INVALID_TYPE, 'Эту вещь улучшать нельзя', 400)
+    if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.UPG_ITEM_STATE, 'Item cannot be upgraded', 409)
+    if (item.upgradeLevel >= MAX_LEVEL) throw new AppError(ErrorCode.UPG_MAX_LEVEL, 'Maximum upgrade level reached', 400)
+    const next = item.upgradeLevel + 1
+    const cost = calcUpgradeCost(item.template.priceBase, next)
+    const craft = await professionLevel(character.id, item.template.type, item.template.craftProfessionCode)
+    const chance = calcUpgradeSuccessChance(item.upgradeLevel, craft.level)
+    const required = await resourceAvailability(prisma, character.id, await craftUpgradeResources(prisma, item.template.code, next))
+    const gain = BalanceConfig.economy.crafting.upgradePoints
+    return {
+      mode: 'POINTS' as const,
+      itemId: item.id, upgradeType: 'POINTS', currentTotalLevel: item.upgradeLevel, nextTotalLevel: next,
+      cost, chance, profession: craft, pointsGain: gain,
+      budgetNow: item.template.statBudget + item.extraPoints, budgetAfter: item.template.statBudget + item.extraPoints + gain,
+      requiredResources: required.map(row => ({ resourceCode: row.resourceCode, resourceName: row.resourceName, amount: row.amount, available: row.available, enough: row.enough })),
+      canCommit: character.money >= cost && required.every(row => row.enough),
+      effectiveStats: {},
     }
   },
 
@@ -56,9 +121,40 @@ export const UpgradesService = {
       if (['IN_BATTLE', 'WORKING'].includes(character.status)) throw new AppError(ErrorCode.UPG_CHARACTER_BUSY, 'Character is busy', 409)
       const item = await tx.itemInstance.findUnique({ where: { id: itemInstanceId }, include: { template: true } })
       if (!item || item.ownerId !== characterId) throw new AppError(ErrorCode.ITEM_NOT_OWNED, 'Not your item', 403)
+      if (isPointsUpgrade(item)) {
+        if (!item.template.upgradeAllowed) throw new AppError(ErrorCode.UPG_NOT_ALLOWED, 'Upgrade unavailable', 400)
+        if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.UPG_ITEM_STATE, 'Item cannot be upgraded', 409)
+        if (item.upgradeLevel >= MAX_LEVEL) throw new AppError(ErrorCode.UPG_MAX_LEVEL, 'Maximum upgrade level reached', 400)
+        const next = item.upgradeLevel + 1
+        const cost = calcUpgradeCost(item.template.priceBase, next)
+        const professionCode = item.template.craftProfessionCode ?? craftProfessionForItem(item.template.type)
+        const owned = await tx.characterProfession.findUnique({ where: { characterId_professionCode: { characterId, professionCode } } })
+        const chance = calcUpgradeSuccessChance(item.upgradeLevel, owned?.level ?? 0)
+        const required = await resourceAvailability(tx, characterId, await craftUpgradeResources(tx, item.template.code, next))
+        const lacking = required.filter(row => !row.enough)
+        if (lacking.length) {
+          const what = lacking.map(row => row.resourceName + ' ' + row.available + '/' + row.amount).join(', ')
+          throw new AppError(ErrorCode.CONFLICT, 'Не хватает: ' + what, 409)
+        }
+        for (const row of required) {
+          await ResourcesService.consume(tx, { characterId, resourceTemplateId: row.resourceTemplateId!, amount: row.amount, reasonCode: 'UPGRADE_USE', refType: 'upgrade', refId: item.id })
+        }
+        const newBalance = await EconomyService.debit(tx, { characterId, amount: cost, reasonCode: 'UPGRADE_COST', refType: 'upgrade', refId: item.id })
+        const success = rng() < chance
+        const gain = BalanceConfig.economy.crafting.upgradePoints
+        const before = item.upgradeLevel
+        const after = success ? next : before
+        if (success) {
+          await tx.itemInstance.update({ where: { id: item.id }, data: { upgradeLevel: after, extraPoints: { increment: gain }, freePoints: { increment: gain } } })
+        }
+        const spent = required.map(row => ({ code: row.resourceCode, amount: row.amount }))
+        await tx.upgradeLog.create({ data: { characterId, itemInstanceId: item.id, upgradeType: 'POINTS', levelBefore: before, levelAfter: after, cost, successChance: chance, result: success ? 'SUCCESS' : 'FAILURE', resourcesSpentJson: spent, resultCode: success ? 'SUCCESS' : 'FAIL' } })
+        await tx.itemLog.create({ data: { itemId: item.id, characterId, actionCode: success ? 'UPGRADED' : 'UPGRADE_FAILED', details: { upgradeType: 'POINTS', before, after, cost, chance, professionCode, points: success ? gain : 0, resources: spent } } })
+        return { itemId: item.id, success, upgradeType: 'POINTS', levelBefore: before, levelAfter: after, cost, chance, profession: { code: professionCode, level: owned?.level ?? 0 }, pointsGain: success ? gain : 0, resourceSpent: spent, newBalance }
+      }
       if (!item.template.upgradeAllowed || !isUpgradeCompatible(item.template.type, upgradeType)) throw new AppError(ErrorCode.UPG_NOT_ALLOWED, 'Upgrade unavailable', 400)
       if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.UPG_ITEM_STATE, 'Item cannot be upgraded', 409)
-      if (item.upgradeLevel >= 5) throw new AppError(ErrorCode.UPG_MAX_LEVEL, 'Maximum upgrade level reached', 400)
+      if (item.upgradeLevel >= MAX_LEVEL) throw new AppError(ErrorCode.UPG_MAX_LEVEL, 'Maximum upgrade level reached', 400)
       const next = item.upgradeLevel + 1
       const cost = calcUpgradeCost(item.template.priceBase, next)
       const professionCode = item.template.craftProfessionCode ?? craftProfessionForItem(item.template.type)

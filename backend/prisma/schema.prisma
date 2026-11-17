@@ -428,6 +428,8 @@ enum UpgradeType {
   ARMOR
   DURABILITY
   ANTI_CRIT
+  /// Улучшение крафтовой вещи: +очки на раскладку вместо процентов (Дима 17.11).
+  POINTS
 }
 
 enum StockMode {
@@ -873,6 +875,8 @@ model ItemInstance {
   bonuses              Json?
   /// Уровень именной вещи: каждый добавляет очки в бюджет (правка 31.10).
   namedLevel           Int         @default(0) @map("named_level")
+  /// Очки от улучшений крафтовой вещи в Кузнице (+20 за уровень, Дима 17.11).
+  extraPoints          Int         @default(0) @map("extra_points")
   /// Растёт при замене своей картинки — адрес меняется, кэш браузера не мешает.
   iconVersion          Int         @default(0) @map("icon_version")
   usesLeft             Int?        @map("uses_left")

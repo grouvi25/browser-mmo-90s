@@ -83,7 +83,7 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
     const named = BalanceConfig.economy.namedItems
     return reply.send(items.map(item => ({
       ...item,
-      budget: itemBudget(item.template, item.namedLevel),
+      budget: itemBudget(item.template, item.namedLevel, item.extraPoints),
       canSetIcon: tsum.has(item.templateId),
       // №132 (Monnarhh 16.11): за сколько вещь купит государство — видно до продажи.
       sellPrice: item.template.isSellable ? governmentBuyPrice(item.template.priceBase) : null,

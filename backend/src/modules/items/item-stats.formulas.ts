@@ -9,9 +9,9 @@ export type ItemStatAllocation = Partial<Record<ItemStatKey, number>>
 // Прочности среди очков вещи нет (правка заказчика 28.10: «прочность из доп
 // характеристик убрать вообще, на всех вещах стандартно 100»). Ключ остался
 // в ITEM_STAT_KEYS, чтобы старые записи читались, но вложить в него нельзя.
-/** Сколько очков на вещи: её бюджет плюс очки за уровни именной вещи. */
-export function itemBudget(template: { statBudget: number }, namedLevel: number): number {
-  return template.statBudget + namedLevel * BalanceConfig.economy.namedItems.pointsPerLevel
+/** Сколько очков на вещи: её бюджет, очки за уровни именной вещи и за улучшения крафтовой. */
+export function itemBudget(template: { statBudget: number }, namedLevel: number, extraPoints = 0): number {
+  return template.statBudget + namedLevel * BalanceConfig.economy.namedItems.pointsPerLevel + Math.max(0, extraPoints)
 }
 /** Цена добавок в очках. Минус на стате не возвращает очки: иначе ненужный
  *  стат превращался бы в бесплатные очки для нужного. */

@@ -559,7 +559,29 @@ async function main() {
   console.log('  ✓ Admin user created (username: admin, change password!)')
 
   await seedCity(prisma)
+  await seedCraftPoints()
   console.log('\n✅ Seed complete!')
+}
+
+// Крафт (Дима 17.11): вещь из крафта даёт 40 очков на раскладку (в 2 раза больше госовской),
+// очки игрок раскладывает сам, вещь улучшается в Кузнице на +20 очков. Касается только вещей,
+// которые делаются по рецепту и не продаются в магазинах. Идёт последним: рецепты и шаблоны
+// к этому моменту уже на месте. Уже сделанным вещам без раскладки освобождаются новые очки.
+// Must match BalanceConfig.economy.crafting.itemPoints (seed runs without src/ in the image).
+const CRAFT_ITEM_POINTS = 40
+async function seedCraftPoints() {
+  const changed = await prisma.$executeRaw`
+    UPDATE item_templates t SET stat_budget = ${CRAFT_ITEM_POINTS}, allocation_mode = 'PLAYER', upgrade_allowed = true
+    WHERE t.type IN ('WEAPON', 'ARMOR', 'ACCESSORY', 'SHIELD')
+      AND t.code IN (SELECT output_item_template_code FROM production_recipes WHERE output_item_template_code IS NOT NULL)
+      AND NOT EXISTS (SELECT 1 FROM shop_items_government g WHERE g.template_id = t.id)
+      AND NOT EXISTS (SELECT 1 FROM shop_items_dollar d WHERE d.template_id = t.id)`
+  await prisma.$executeRaw`
+    UPDATE item_instances i SET free_points = t.stat_budget + i.extra_points
+    FROM item_templates t
+    WHERE i.template_id = t.id AND t.allocation_mode = 'PLAYER' AND t.stat_budget = ${CRAFT_ITEM_POINTS}
+      AND i.stat_allocation IS NULL AND i.bonuses IS NULL AND i.source_type = 'CRAFTED'`
+  console.log(`  ✓ Craft gear: ${changed} templates at ${CRAFT_ITEM_POINTS} points`)
 }
 
 main()

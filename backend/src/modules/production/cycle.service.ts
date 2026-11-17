@@ -223,6 +223,8 @@ export const CycleService = {
               durabilityMax: template.durabilityMax,
               weight: template.weight,
               sourceType: 'CRAFTED',
+              // Очки на раскладку, как у вещи из госцеха (крафт 17.11: 40 очков).
+              freePoints: template.allocationMode === 'PLAYER' ? template.statBudget : 0,
               // Инструмент расходуется применениями. До Этапа 5 ни один
               // рецепт не выпускал TOOL, поэтому запас не проставлялся;
               // импортная оснастка (G8) — первый крафт-инструмент, и без
