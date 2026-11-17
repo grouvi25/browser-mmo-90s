@@ -353,6 +353,14 @@ async function main() {
     { code: 'weapon_prem_tt', name: 'ТТ мастера', description: 'Пистолет ТТ, собранный из точных деталей.', type: 'WEAPON' as const, weaponType: 'PISTOL' as const, minDamage: 55, maxDamage: 105, weaponAccuracy: .84, optimalRange: 4, maxRange: 5, weight: 1.1, durabilityMax: 150, priceBase: 1800, levelReq: 5, itemTier: 3, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 10, repairResourceCode: 'comp_weapon_part' },
     { code: 'consumable_prem_kit', name: 'Полевая аптечка', description: 'Лечит вдвое лучше обычной аптечки.', type: 'CONSUMABLE' as const, hpBonus: 100, healPercent: 50, weight: 0.3, durabilityMax: 1, priceBase: 250, levelReq: 0, isSellable: true, isEquippable: false, sourceType: 'CRAFTED' as const },
   ]
+  // Крафт, вторая часть (18.11): вещи, которых в крафте не было. База как у госовских
+  // (вся сила в очках), очков 40 — их проставляет seedCraftPoints.
+  premiumCrafted.push(
+    { code: 'craft_knife_finka', name: 'Финка', description: 'Нож, выкованный в цеху: всё решает заточка.', type: 'WEAPON' as const, weaponType: 'KNIFE' as const, minDamage: 0, maxDamage: 0, weaponAccuracy: 1, optimalRange: 1, maxRange: 1, weight: 0.4, durabilityMax: 100, priceBase: 700, levelReq: 1, itemTier: 2, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 40, repairResourceCode: 'comp_metal_plate' } as never,
+    { code: 'craft_ring_signet', name: 'Печатка', description: 'Тяжёлая печатка из кованой стали.', type: 'ACCESSORY' as const, armorSlot: 'RING' as const, weight: 0.1, durabilityMax: 100, priceBase: 700, levelReq: 1, itemTier: 2, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 40, repairResourceCode: 'comp_metal_plate' } as never,
+    { code: 'craft_amulet_chain', name: 'Цепь', description: 'Цепь на шею, звенья на крепеже.', type: 'ACCESSORY' as const, armorSlot: 'ACCESSORY' as const, weight: 0.2, durabilityMax: 100, priceBase: 700, levelReq: 1, itemTier: 2, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 40, repairResourceCode: 'comp_metal_plate' } as never,
+    { code: 'craft_belt_buckle', name: 'Ремень с бляхой', description: 'Кожаный ремень, бляха из пластины.', type: 'ARMOR' as const, armorSlot: 'BELT' as const, armor: 0, weight: 0.4, durabilityMax: 100, priceBase: 700, levelReq: 1, itemTier: 2, sourceType: 'CRAFTED' as const, privateShopAllowed: true, upgradeAllowed: true, allocationMode: 'PLAYER' as const, statBudget: 40, repairResourceCode: 'res_leather' } as never,
+  )
   for (const tpl of premiumCrafted) await prisma.itemTemplate.upsert({ where: { code: tpl.code }, update: tpl, create: tpl })
   // Сами инструменты завёл заказчик; здесь только то, что делает их рабочими.
   for (const tool of PREMIUM_TOOLS) {
@@ -567,6 +575,8 @@ async function main() {
 // очки игрок раскладывает сам, вещь улучшается в Кузнице на +20 очков. Касается только вещей,
 // которые делаются по рецепту и не продаются в магазинах. Идёт последним: рецепты и шаблоны
 // к этому моменту уже на месте. Уже сделанным вещам без раскладки освобождаются новые очки.
+// Шаблоны, которые продаются ещё и в лавках NPC (ТТ, куртка с пластинами), не трогаются:
+// купленная в лавке вещь остаётся с прежними очками, а скрафченной добавка ложится на сам экземпляр.
 // Must match BalanceConfig.economy.crafting.itemPoints (seed runs without src/ in the image).
 const CRAFT_ITEM_POINTS = 40
 async function seedCraftPoints() {
@@ -575,7 +585,8 @@ async function seedCraftPoints() {
     WHERE t.type IN ('WEAPON', 'ARMOR', 'ACCESSORY', 'SHIELD')
       AND t.code IN (SELECT output_item_template_code FROM production_recipes WHERE output_item_template_code IS NOT NULL)
       AND NOT EXISTS (SELECT 1 FROM shop_items_government g WHERE g.template_id = t.id)
-      AND NOT EXISTS (SELECT 1 FROM shop_items_dollar d WHERE d.template_id = t.id)`
+      AND NOT EXISTS (SELECT 1 FROM shop_items_dollar d WHERE d.template_id = t.id)
+      AND NOT EXISTS (SELECT 1 FROM private_shop_items p WHERE p.item_template_id = t.id)`
   await prisma.$executeRaw`
     UPDATE item_instances i SET free_points = t.stat_budget + i.extra_points
     FROM item_templates t

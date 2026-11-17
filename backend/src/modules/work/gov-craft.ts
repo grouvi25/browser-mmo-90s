@@ -9,6 +9,7 @@
  *
  * Купленный цех работает по старым правилам: склад цеха, циклы, владелец.
  */
+import { craftBonusPoints } from '../items/item-stats.formulas'
 import type { Prisma } from '@prisma/client'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
@@ -146,7 +147,8 @@ export async function finishGovCraft(db: Tx, params: {
     const item = await db.itemInstance.create({ data: {
       templateId: template.id, ownerId: params.characterId, sourceType: 'CRAFTED', quality: resourceToItemQuality(quality),
       durabilityCurrent: template.durabilityMax, durabilityMax: template.durabilityMax, weight: template.weight,
-      freePoints: template.allocationMode === 'PLAYER' ? template.statBudget : 0,
+      freePoints: template.allocationMode === 'PLAYER' ? template.statBudget + craftBonusPoints(template) : 0,
+      extraPoints: craftBonusPoints(template),
       usesLeft: template.type === 'TOOL' ? template.usesMax : null,
     } })
     await db.itemLog.create({ data: { itemId: item.id, characterId: params.characterId, actionCode: 'CREATED_BY_CRAFT', details: { govCraft: true, shiftId: params.shiftId, recipe: recipe.code } } })

@@ -89,7 +89,8 @@ describe('госкрафт', () => {
     expect(await WorkService.claim(character.id, second.shift.id, uid('key'))).toMatchObject({ crafted: { kind: 'item', name: 'Жилет' } })
     const item = await testPrisma.itemInstance.findFirstOrThrow({ where: { ownerId: character.id, templateId: vest.id } })
     // Игрок сам раскладывает очки изделия (заказчик 04.11).
-    expect(item).toMatchObject({ sourceType: 'CRAFTED', freePoints: 20 })
+    // Крафт (Дима 17.11): вещь из крафта — 40 очков, недостающие 20 лежат на экземпляре.
+    expect(item).toMatchObject({ sourceType: 'CRAFTED', freePoints: 40, extraPoints: 20 })
     expect(await stack(blank.id)).toMatchObject({ amount: 0 })
   })
 

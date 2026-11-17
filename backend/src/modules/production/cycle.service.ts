@@ -1,3 +1,4 @@
+import { craftBonusPoints } from '../items/item-stats.formulas'
 import type { Prisma, ProductionCycleFailure, ResourceQuality } from '@prisma/client'
 import { withTransaction } from '../../shared/db/transaction'
 import { AppError } from '../../shared/errors/app-error'
@@ -223,8 +224,9 @@ export const CycleService = {
               durabilityMax: template.durabilityMax,
               weight: template.weight,
               sourceType: 'CRAFTED',
-              // Очки на раскладку, как у вещи из госцеха (крафт 17.11: 40 очков).
-              freePoints: template.allocationMode === 'PLAYER' ? template.statBudget : 0,
+              // Очки на раскладку: у вещи из крафта 40 (крафт 17.11), недостающее ложится на экземпляр.
+              freePoints: template.allocationMode === 'PLAYER' ? template.statBudget + craftBonusPoints(template) : 0,
+              extraPoints: craftBonusPoints(template),
               // Инструмент расходуется применениями. До Этапа 5 ни один
               // рецепт не выпускал TOOL, поэтому запас не проставлялся;
               // импортная оснастка (G8) — первый крафт-инструмент, и без

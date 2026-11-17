@@ -13,6 +13,15 @@ export type ItemStatAllocation = Partial<Record<ItemStatKey, number>>
 export function itemBudget(template: { statBudget: number }, namedLevel: number, extraPoints = 0): number {
   return template.statBudget + namedLevel * BalanceConfig.economy.namedItems.pointsPerLevel + Math.max(0, extraPoints)
 }
+/**
+ * Крафт (Дима 17.11): вещь из крафта — 40 очков. Шаблоны только для крафта получают их
+ * в шаблоне (сид), а шаблоны, которые продаются ещё и в лавках NPC, держат свои очки:
+ * скрафченный экземпляр добирает разницу на себе (extraPoints).
+ */
+export function craftBonusPoints(template: { type: string; allocationMode: string; statBudget: number }): number {
+  if (template.allocationMode !== 'PLAYER' || !['WEAPON', 'ARMOR', 'ACCESSORY', 'SHIELD'].includes(template.type)) return 0
+  return Math.max(0, BalanceConfig.economy.crafting.itemPoints - template.statBudget)
+}
 /** Цена добавок в очках. Минус на стате не возвращает очки: иначе ненужный
  *  стат превращался бы в бесплатные очки для нужного. */
 export function bonusCost(bonuses: ItemBonuses): number {

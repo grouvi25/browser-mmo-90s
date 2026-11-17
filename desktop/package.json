@@ -1,0 +1,34 @@
+{
+  "name": "kooperativ-desktop",
+  "version": "1.0.0",
+  "description": "Кооператив: браузерная онлайн-игра про девяностые, отдельным окном",
+  "main": "main.js",
+  "author": "GroUvi",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "45.3.4",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "space.kooperativ.desktop",
+    "productName": "Кооператив",
+    "artifactName": "Kooperativ-Setup-${version}.${ext}",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "offline.html", "build/icon.png"],
+    "win": { "target": "nsis", "icon": "build/icon.ico" },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Кооператив",
+      "uninstallDisplayName": "Кооператив",
+      "language": "1049"
+    }
+  }
+}
