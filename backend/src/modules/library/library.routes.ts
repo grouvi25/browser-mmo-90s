@@ -121,7 +121,7 @@ export async function libraryRoutes(fastify: FastifyInstance) {
     const rules = {
       statGap: B.edge.statGap, charmGapPct: B.edge.charmGap * 100, critMult: B.crit.multiplierBase,
       dodgeCritPct: Math.round((B.edge.dodgePierceCrit ?? 0.33) * 100), dodgeLuckPct: Math.round((B.edge.dodgePierceLuck ?? 0.25) * 100),
-      endArmor: B.strike.endArmor, armorPerPoint: B.strike.armorPerPoint, damageScale: B.strike.damageScale,
+      endArmor: B.strike.endArmor, armorPerPoint: B.strike.armorPerPoint, damageScale: B.strike.damageScale, spreadPct: Math.round(B.strike.spread * 100),
       defenseFullPct: (B.strike.defenseFullAt ?? 2.5) * 100, strengthFullPct: B.strengthMastery.fullAt * 100,
       strengthFloor: [B.strengthMastery.floorMin, B.strengthMastery.floorMax],
       antiFartPct: Math.round((B.edge.antiFartPerPoint ?? 0.01) * 100), antiFartCapPct: Math.round((B.edge.antiFartCap ?? 0.2) * 100),

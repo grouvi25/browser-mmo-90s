@@ -18,7 +18,11 @@ function line(row: ChatLogRow): string {
 export function ChatSection() {
   const [days, setDays] = useState(7)
   const [filter, setFilter] = useState('')
-  const log = useQuery({ queryKey: ['admin', 'chat', days], queryFn: () => adminApi.chatLog(days) })
+  // Дима 18.11: новое сверху и само обновляется, без F5. Длинные сроки не дёргаем: там тысячи строк.
+  const log = useQuery({
+    queryKey: ['admin', 'chat', days], queryFn: () => adminApi.chatLog(days),
+    refetchInterval: days <= 7 ? 10_000 : false, refetchIntervalInBackground: false,
+  })
   const qc = useQueryClient()
   // Удаление из эфира (заказчик 28.10): у игроков пропадает сразу, здесь
   // строка остаётся помеченной «спрятано» — для разбора жалоб.
@@ -28,9 +32,12 @@ export function ChatSection() {
   })
   const needle = filter.trim().toLowerCase()
   const items = (log.data?.items ?? []).filter(r => !needle || r.text.toLowerCase().includes(needle) || r.author.toLowerCase().includes(needle))
+  // На экране свежие сверху; в файле — по порядку, как читают переписку.
+  const newestFirst = [...items].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+  const chronological = [...newestFirst].reverse()
 
   const download = () => {
-    const text = items.map(line).join('\n') + '\n'
+    const text = chronological.map(line).join('\n') + '\n'
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
     const a = document.createElement('a')
     a.href = url
@@ -50,8 +57,7 @@ export function ChatSection() {
       </div>
       <div className="s3-toolbar">
         <label>Поиск по тексту или нику<input value={filter} onChange={e => setFilter(e.target.value)} placeholder="например: правка" /></label>
-        <button type="button" disabled={items.length === 0} onClick={download}>Скачать файлом ({items.length})</button>
-      </div>
+        <button type="button" disabled={items.length === 0} onClick={download}>Скачать файлом ({items.length})</button>      </div>
       <Note text={hide.isError ? hide.error.message : ''} kind="bad" />
       {log.isLoading && <Skeleton rows={6} />}
       {log.isError && <Fault retry={() => log.refetch()} />}
@@ -60,7 +66,7 @@ export function ChatSection() {
         : <div className="s3-scroll">
             <table className="s3-table">
               <thead><tr><th>Когда</th><th>Где</th><th>Кто</th><th>Сообщение</th><th /></tr></thead>
-              <tbody>{items.map(r => (
+              <tbody>{newestFirst.map(r => (
                 <tr key={r.id} className={r.hidden ? 'muted' : undefined}>
                   <td>{when(r.at)}</td>
                   <td>{r.channel === 'GLOBAL' ? 'общий' : r.district}</td>
