@@ -8,6 +8,7 @@ import { adminApi } from '../admin-api'
 import type { PayoutStatus } from '../../../shared/api/referral.api'
 import { Skeleton, Fault, Empty, Note, fmt } from '../../stage3/stage3-ui'
 import { when } from '../admin-ui'
+import { askText } from '../../../widgets/ask-text/ask-text'
 
 const FILTERS: [PayoutStatus | undefined, string][] = [['PENDING', 'Ждут'], ['PAID', 'Выплачено'], ['REJECTED', 'Отклонено'], [undefined, 'Все']]
 const STATUS: Record<PayoutStatus, string> = { PENDING: 'ждёт выплаты', PAID: 'выплачено', REJECTED: 'отклонено' }
@@ -63,8 +64,8 @@ export function PayoutsSection() {
                       Выплачено
                     </button>
                     <button type="button" className="danger" disabled={busy}
-                      onClick={() => {
-                        const note = window.prompt('Причина отказа (игрок её увидит)')
+                      onClick={async () => {
+                        const note = await askText('Причина отказа (игрок её увидит)')
                         if (note !== null) reject.mutate({ id: row.id, note })
                       }}>
                       Отклонить

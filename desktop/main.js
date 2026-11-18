@@ -72,6 +72,17 @@ if (!app.requestSingleInstanceLock()) {
       if (input.control && input.key === '-') { win.webContents.setZoomLevel(win.webContents.getZoomLevel() - 0.5); event.preventDefault() }
       if (input.control && input.key === '0') { win.webContents.setZoomLevel(0); event.preventDefault() }
     })
+    // Правая кнопка: копировать, вставить и т. д. Без этого меню в окне Electron нет
+    // вовсе, а в браузере игроки привыкли вставлять так ники и ссылки.
+    win.webContents.on('context-menu', (_event, params) => {
+      const { editFlags: f, isEditable, selectionText, linkURL } = params
+      const items = []
+      if (isEditable) items.push({ role: 'cut', label: 'Вырезать', enabled: f.canCut })
+      if (selectionText || isEditable) items.push({ role: 'copy', label: 'Копировать', enabled: f.canCopy })
+      if (isEditable) items.push({ role: 'paste', label: 'Вставить', enabled: f.canPaste }, { type: 'separator' }, { role: 'selectAll', label: 'Выделить всё' })
+      if (linkURL && !isGame(linkURL)) items.push({ type: 'separator' }, { label: 'Открыть в браузере', click: () => shell.openExternal(linkURL) })
+      if (items.length) Menu.buildFromTemplate(items).popup({ window: win })
+    })
     win.on('close', () => saveState(win))
     win.loadURL(START)
   })

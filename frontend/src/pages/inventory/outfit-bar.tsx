@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { ApiError } from '../../shared/api/client'
+import { askText } from '../../widgets/ask-text/ask-text'
 
 /** Комплекты одежды (обещание игрокам 22.10): сохранить надетое и надеть
     одной кнопкой. Переодеваются только на Складе — сюда же ведёт дом. */
@@ -26,9 +27,9 @@ export function OutfitBar({ disabled, onMessage }: { disabled: boolean; onMessag
   // Правка заказчика 28.10: «есть комплекты, а создать их нельзя». Создавались
   // они кнопкой «Сохранить», но пустой комплект выглядел мёртвой кнопкой и
   // было неясно, что сохраняется. Теперь подписи прямые и имя задаётся сразу.
-  const remember = (slot: number, current?: string) => {
+  const remember = async (slot: number, current?: string) => {
     if (current && !window.confirm(`Перезаписать «${current}» тем, что надето сейчас?`)) return
-    const name = window.prompt('Как назвать комплект? Сохранится то, что сейчас надето.', current ?? `Комплект ${slot}`)
+    const name = await askText('Как назвать комплект? Сохранится то, что сейчас надето.', current ?? `Комплект ${slot}`, { maxLength: 30 })
     if (name === null) return
     save.mutate({ slot, name: name.trim().slice(0, 30) || undefined })
   }

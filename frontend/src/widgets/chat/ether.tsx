@@ -14,6 +14,7 @@ import type { ChatLine } from '../../shared/api/chat.api'
 import { chatTime } from '../../shared/lib/chat-format'
 import { canEditLine, mentionsMe, type Ether, type EtherMode } from '../../shared/lib/use-ether'
 import { SMILES, SmileImage, smileToken, withSmiles } from '../../shared/ui/smiles'
+import { askText } from '../ask-text/ask-text'
 
 export const EMOJIS = [
   '😀', '😂', '😉', '😎', '😡', '😢', '😱', '🤔', '😏', '🙄',
@@ -213,8 +214,8 @@ export function EtherLine({ line, ether, composer, className = '' }: {
       )}
       {!mine && (
         <button type="button" className="ether-report" aria-label={`Пожаловаться на сообщение ${line.nickname}`} title="Пожаловаться"
-          onClick={() => {
-            const reason = window.prompt(`Жалоба на сообщение ${line.nickname}. За что? (можно оставить пустым)`, '')
+          onClick={async () => {
+            const reason = await askText(`Жалоба на сообщение ${line.nickname}. За что? (можно оставить пустым)`, '', { maxLength: 300 })
             if (reason !== null) void ether.report(line.id, reason)
           }}>
           ⚑

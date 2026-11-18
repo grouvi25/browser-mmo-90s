@@ -93,6 +93,12 @@ function Svodka() {
   )
 }
 
+// Установщик программы для ПК (18.11) лежит на сервере рядом с сайтом, nginx /download/.
+// Кнопку видят только на Windows в обычном браузере: в самой программе она лишняя.
+const DESKTOP_INSTALLER = '/download/Kooperativ-Setup.exe'
+const offerDesktop = typeof navigator !== 'undefined'
+  && /Windows/.test(navigator.userAgent) && !/KooperativDesktop|Mobile/.test(navigator.userAgent)
+
 export function LandingPage() {
   return (
     <div className="landing">
@@ -114,6 +120,7 @@ export function LandingPage() {
           <div className="landing__actions">
             <Link className="landing__btn landing__btn--main" to="/register">Начать свой путь</Link>
             <a className="landing__btn" href="#about">Что за игра?</a>
+            {offerDesktop && <a className="landing__btn" href={DESKTOP_INSTALLER} download>Скачать для ПК</a>}
           </div>
         </div>
         <div className="landing__login" id="login">

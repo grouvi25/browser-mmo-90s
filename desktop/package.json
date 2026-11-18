@@ -1,6 +1,6 @@
 {
   "name": "kooperativ-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Кооператив: браузерная онлайн-игра про девяностые, отдельным окном",
   "main": "main.js",
   "author": "GroUvi",

@@ -1,0 +1,32 @@
+/* Окно ввода текста поверх игры: та же бумага, что у баннера cookie. */
+.ask-text {
+  position: fixed; inset: 0; z-index: 1300;
+  display: grid; place-items: center; padding: 16px;
+  background: rgba(23, 19, 15, .45);
+}
+.ask-text__box {
+  width: min(440px, 100%); padding: 16px;
+  display: grid; gap: 10px;
+  background: #f4efe6; color: #241c17; border: 1px solid #6f5f68;
+  box-shadow: 0 8px 28px rgba(23, 19, 15, .35); font: 14px/1.45 Arial, sans-serif;
+}
+.ask-text__box label { font-weight: 700; }
+.ask-text__box input {
+  min-height: 40px; padding: 6px 10px; font: inherit;
+  border: 1px solid #6f5f68; background: #fffdf8; color: #241c17;
+}
+.ask-text__box input:focus-visible { outline: 2px solid #7a1010; outline-offset: 1px; }
+.ask-text__acts { display: flex; justify-content: flex-end; gap: 8px; }
+.ask-text__btn {
+  min-height: 36px; padding: 6px 14px; border: 1px solid #6f5f68; background: #fffdf8; color: #241c17;
+  font: inherit; cursor: pointer; transition: background .12s, color .12s;
+}
+.ask-text__btn:hover { background: #fff; color: #7a1010; }
+.ask-text__btn:active { background: #e6d8bd; }
+.ask-text__btn:focus-visible { outline: 2px solid #7a1010; outline-offset: 2px; }
+.ask-text__btn.is-main { background: #7a1010; border-color: #7a1010; color: #fff; }
+.ask-text__btn.is-main:hover { background: #8f1b1b; color: #fff; }
+.ask-text__btn.is-main:active { background: #5f0c0c; }
+@media (max-width: 600px) {
+  .ask-text__btn { flex: 1 1 0; min-height: 44px; }
+}
