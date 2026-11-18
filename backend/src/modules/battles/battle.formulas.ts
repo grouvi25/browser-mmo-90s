@@ -439,8 +439,21 @@ export function resolveZonalAttack(
     rawDamage: Math.round(rawDamage), finalDamage, counterDamage, logParts: log,
   })
 
-  // 1. Уворот (заменяет «промах»)
-  const hitChance = calcHitChance(attacker, defender)
+  // 0. Меткость стрелка против антиметкости цели (№95). Не прошёл меткость — промах,
+  //    а не уворот: его не пробивают ни крит, ни удачный (Дима 17.11 в бою с Monnarhh:
+  //    «антиметка перекрывать должна»; так же в «Королях»: меткость решает, попал ли выстрел).
+  if (attacker.rangedAccEdge !== undefined) {
+    const accGate = clamp(1 + attacker.rangedAccEdge / B.edge.charmGap, 0, 1)
+    if (accGate < 1 && rng() >= accGate) {
+      hit = false
+      dodge = true
+      log.push(`Промах: меткость (${zoneName})`)
+      return base()
+    }
+  }
+
+  // 1. Уворот (заменяет «промах»); меткость уже проверена выше.
+  const hitChance = calcHitChance({ ...attacker, rangedAccEdge: undefined }, defender)
   dodge = rng() >= hitChance
   // Ловкач (Nobody и Дима 15.11): 100% уворот даёт перевес ловкости или оберега
   // уворота, но если у бьющего минус-оберег крита больше оберега крита ловкача
