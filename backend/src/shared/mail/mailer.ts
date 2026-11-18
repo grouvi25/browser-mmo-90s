@@ -22,7 +22,8 @@ function transport(): Transporter {
     transporter = nodemailer.createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
-      secure: env.SMTP_PORT === 465,
+      // 465 и 2465 (запасной порт Resend: Aeza режет 25/465/587) — сразу TLS, остальные через STARTTLS.
+      secure: env.SMTP_PORT === 465 || env.SMTP_PORT === 2465,
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
       connectionTimeout: 15_000,
       greetingTimeout: 15_000,
