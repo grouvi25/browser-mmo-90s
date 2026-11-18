@@ -57,7 +57,7 @@ async function tg<T = unknown>(method: string, body: Record<string, unknown>): P
 const label = (item: DevBoardItem) => (item.ticketNumber ? `Обращение №${item.ticketNumber}` : `Задача ${item.id}`)
 
 // ── Настройки доски: темы группы, сводка, запасные значки ──────────
-type BoardSettings = { ticketsTopic?: number; tasksTopic?: number; summaryId?: number; noIcons?: boolean }
+type BoardSettings = { ticketsTopic?: number; tasksTopic?: number; dimaTopic?: number; summaryId?: number; noIcons?: boolean }
 const SETTINGS_KEY = 'dev_board'
 
 async function settings(): Promise<BoardSettings> {
@@ -90,14 +90,16 @@ async function ensureTopics(): Promise<BoardSettings> {
   return next
 }
 
-const ICON_ERRORS = /not modified|not found|can't be edited|can't be deleted|MESSAGE_ID_INVALID/i
+// Только ошибки про сами значки. Раньше значки выключались навсегда на любой
+// посторонней ошибке («canceled by new edit message request», 18.11), хотя Premium был.
+const ICON_ERRORS = /emoji|DOCUMENT_INVALID|ENTITY_BOUNDS|custom/i
 
-/** Rich-сообщение со значками; не приняли значки — то же без них, и больше не пробуем. */
+/** Rich-сообщение со значками; Telegram отклонил именно значки — то же без них, и больше не пробуем. */
 async function richCall<T>(method: string, base: Record<string, unknown>, html: (icons: Icons) => string) {
   const s = await settings()
   const body = (icons: Icons) => ({ ...base, rich_message: { html: html(icons), skip_entity_detection: true } })
   const first = await tg<T>(method, body(s.noIcons ? {} : ICONS))
-  if (first.ok || s.noIcons || ICON_ERRORS.test(first.description ?? '')) return first
+  if (first.ok || s.noIcons || !ICON_ERRORS.test(first.description ?? '')) return first
   const plain = await tg<T>(method, body({}))
   if (plain.ok) await saveSettings({ noIcons: true })
   return plain
@@ -217,6 +219,21 @@ const snippet = (text: string, max = 400) => (text.length > max ? `${text.slice(
 const safe = (work: () => Promise<unknown>) => { if (devBoardConfigured()) void work().catch(err => logger.warn({ err }, '[DevBoard] пропущено')) }
 
 export const DevBoard = {
+  /**
+   * Пересылка из лички владельца в тему «Дима» (18.11): Миша пересылает боту сообщения
+   * из переписки с заказчиком, бот кладёт их в группу, чтобы разработчики были в курсе.
+   * Пересылается как есть, с подписью «переслано от», фото, голосовые и файлы тоже.
+   */
+  async forwardToDima(fromChatId: number, messageId: number): Promise<boolean> {
+    if (!devBoardConfigured()) return false
+    let topic = (await settings()).dimaTopic
+    if (!topic) {
+      topic = (await tg<{ message_thread_id: number }>('createForumTopic', { chat_id: env.DEV_BOARD_CHAT_ID, name: 'Дима', icon_color: 0xFF93B2 })).result?.message_thread_id
+      if (topic) await saveSettings({ dimaTopic: topic })
+    }
+    const sent = await tg('forwardMessage', { chat_id: env.DEV_BOARD_CHAT_ID, ...(topic ? { message_thread_id: topic } : {}), from_chat_id: fromChatId, message_id: messageId })
+    return sent.ok
+  },
   // ── Хуки из поддержки ─────────────────────────────────────
   ticketCreated(ticket: { number: number; nickname: string; subject: string; text: string; hasImage: boolean; image?: { mime: string; data: string } | null }) {
     safe(async () => {

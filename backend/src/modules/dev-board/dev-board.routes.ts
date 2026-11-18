@@ -29,7 +29,7 @@ const IdParam = z.coerce.number().int().positive()
 type TgUser = { username?: string; first_name?: string }
 type TgUpdate = {
   callback_query?: { id: string; from: TgUser; data?: string; message?: { chat: { id: number } } }
-  message?: { chat: { id: number }; from?: TgUser; text?: string }
+  message?: { message_id: number; chat: { id: number; type?: string }; from?: TgUser; text?: string }
 }
 
 async function tgCall(method: string, body: Record<string, unknown>) {
@@ -71,6 +71,13 @@ export async function devBoardRoutes(fastify: FastifyInstance): Promise<void> {
         await tgCall('answerCallbackQuery', { callback_query_id: cb.id, text: answer })
       }
       const msg = update.message
+      // Личка владельца с ботом: всё, что Миша пересылает, уходит в тему «Дима» (18.11).
+      // Чат чистым: вместо ответа реакция на его сообщении.
+      const fromOwner = (msg?.from?.username ?? '').toLowerCase() === env.DEV_BOARD_OWNER.replace(/^@/, '').toLowerCase()
+      if (msg && msg.chat.type === 'private' && fromOwner && !(msg.text ?? '').startsWith('/')) {
+        const ok = await DevBoard.forwardToDima(msg.chat.id, msg.message_id)
+        await tgCall('setMessageReaction', { chat_id: msg.chat.id, message_id: msg.message_id, reaction: [{ type: 'emoji', emoji: ok ? '👌' : '🤷' }] })
+      }
       if (msg?.text && chatOk(msg.chat.id)) {
         // В группе команда может прийти как /task@kooperativAlertsBot.
         const [command, ...rest] = msg.text.trim().split(/\s+/)
