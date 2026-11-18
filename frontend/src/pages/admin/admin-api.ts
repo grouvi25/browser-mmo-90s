@@ -127,7 +127,7 @@ export interface SupportStaffThread {
 }
 // Сотрудники и права (правка 30.10): сервер проверяет право, меню строится по ним же.
 export type StaffRole = 'OWNER' | 'ADMIN' | 'GAMEDESIGNER' | 'MODERATOR' | 'SUPPORT' | 'FINANCE'
-export type Permission = 'view' | 'moderate' | 'support' | 'content' | 'catalog' | 'balance' | 'grant' | 'finance' | 'staff'
+export type Permission = 'view' | 'insight' | 'moderate' | 'support' | 'content' | 'catalog' | 'balance' | 'grant' | 'finance' | 'staff'
 export interface AdminMe {
   label: string; staffRole: StaffRole | null; roleTitle: string
   permissions: Permission[]; permissionTitles: Record<Permission, string>

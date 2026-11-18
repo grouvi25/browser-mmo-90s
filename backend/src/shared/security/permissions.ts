@@ -9,6 +9,8 @@ import type { AdminRole, StaffRole } from '@prisma/client'
 
 export const PERMISSIONS = {
   view: 'Просмотр: игроки, журналы, мир, экономика',
+  // Дима 18.11: модераторам разделы экономики, мира и журналов не нужны — у них их не видно.
+  insight: 'Разделы Экономика, Мир и Журнал в админке',
   moderate: 'Наказания: бан, мут, тюрьма, чат, лоты, сигналы',
   support: 'Обращения игроков',
   content: 'Объявления и окно при входе',
@@ -26,10 +28,10 @@ const ALL = Object.keys(PERMISSIONS) as Permission[]
 export const STAFF_ROLES: Record<StaffRole, { title: string; permissions: Permission[] }> = {
   OWNER: { title: 'Владелец', permissions: ALL },
   ADMIN: { title: 'Администратор', permissions: ALL.filter(p => p !== 'staff') },
-  GAMEDESIGNER: { title: 'Геймдизайнер', permissions: ['view', 'catalog', 'balance'] },
+  GAMEDESIGNER: { title: 'Геймдизайнер', permissions: ['view', 'insight', 'catalog', 'balance'] },
   MODERATOR: { title: 'Модератор', permissions: ['view', 'moderate', 'content', 'support'] },
   SUPPORT: { title: 'Поддержка', permissions: ['view', 'support'] },
-  FINANCE: { title: 'Финансы', permissions: ['view', 'finance'] },
+  FINANCE: { title: 'Финансы', permissions: ['view', 'insight', 'finance'] },
 }
 
 /** Старые учётки админки (общий «admin») — те же права, что были у их ролей. */
