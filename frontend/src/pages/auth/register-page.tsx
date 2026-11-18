@@ -7,6 +7,7 @@ import { SmartCaptcha, useCaptchaKey } from '../../shared/ui/smart-captcha'
 import { storedReferral } from '../../shared/lib/referral'
 import { readAttribution, reachGoal } from '../../shared/lib/attribution'
 import { PasswordInput } from '../../shared/ui/password-input'
+import { DESKTOP_INSTALLER, offerDesktop } from '../../shared/lib/desktop-app'
 
 export function RegisterPage() {
   const { signIn } = useAuth()
@@ -188,6 +189,7 @@ export function RegisterPage() {
 
         <div className="auth-footer">
           Уже есть аккаунт? <Link to="/login">Войти</Link>
+          {offerDesktop && <><br /><a href={DESKTOP_INSTALLER} download>Скачать игру для ПК</a></>}
         </div>
       </div>
     </div>

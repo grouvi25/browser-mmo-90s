@@ -12,6 +12,7 @@ import sceneIndustrial from '../../shared/assets/ui/scene-industrial.webp'
 import sceneGarages from '../../shared/assets/ui/scene-garages.webp'
 import sceneBrigade from '../../shared/assets/ui/scene-brigade-houses.webp'
 import './landing.css'
+import { DESKTOP_INSTALLER, offerDesktop } from '../../shared/lib/desktop-app'
 
 // Тексты для игроков по правилам Димы: без «ё», без длинных тире, кавычки прямые.
 const FEATURES: { title: string; text: string }[] = [
@@ -93,12 +94,6 @@ function Svodka() {
   )
 }
 
-// Установщик программы для ПК (18.11) лежит на сервере рядом с сайтом, nginx /download/.
-// Кнопку видят только на Windows в обычном браузере: в самой программе она лишняя.
-const DESKTOP_INSTALLER = '/download/Kooperativ-Setup.exe'
-const offerDesktop = typeof navigator !== 'undefined'
-  && /Windows/.test(navigator.userAgent) && !/KooperativDesktop|Mobile/.test(navigator.userAgent)
-
 export function LandingPage() {
   return (
     <div className="landing">
@@ -127,6 +122,7 @@ export function LandingPage() {
           <h2>Свой на районе?</h2>
           <LoginForm />
           <p className="landing__login-foot">Нет аккаунта? <Link to="/register">Зарегистрироваться</Link></p>
+          {offerDesktop && <p className="landing__login-foot"><a href={DESKTOP_INSTALLER} download>Скачать игру для ПК</a></p>}
         </div>
       </section>
 

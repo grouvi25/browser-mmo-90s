@@ -5,6 +5,7 @@ import { housingApi } from '../../shared/api/housing.api'
 import { charactersApi } from '../../shared/api/characters.api'
 import { supportApi } from '../../shared/api/support.api'
 import { LOCATION_HINTS, LOCATION_LEVELS, levelGateApplies } from '../../shared/lib/location-levels'
+import { DESKTOP_INSTALLER, downloadDesktop, offerDesktop } from '../../shared/lib/desktop-app'
 
 const within = (path: string, prefix: string) => path === prefix || path.startsWith(prefix + '/')
 
@@ -24,7 +25,10 @@ export function LocationTabs() {
   const homeTab: LocationTab | null = exit.data?.via && exit.data.area.some(prefix => within(pathname, prefix))
     ? { key: 'home', label: 'В дом', to: '/housing/home' }
     : null
-  const tabs = homeTab ? [...menu.tabs, homeTab] : menu.tabs
+  const desktopTab: LocationTab | null = menu.key === 'center' && offerDesktop
+    ? { key: 'desktop', label: 'Скачать для ПК', to: DESKTOP_INSTALLER }
+    : null
+  const tabs = [...menu.tabs, ...(homeTab ? [homeTab] : []), ...(desktopTab ? [desktopTab] : [])]
   const active = activeTabKey(menu.tabs, pathname, search)
   const me = useQuery({ queryKey: ['character', 'me'], queryFn: charactersApi.getMe, staleTime: 30_000 })
   const level = me.data?.battleLevel ?? 1
@@ -48,7 +52,7 @@ export function LocationTabs() {
         className={(active === item.key ? 'is-active' : '') + (item.key === 'support' && supportNew > 0 ? ' has-unread' : '') + (item.key === 'center' && menu.key !== 'center' ? ' is-center' : '') + (lock ? ' is-locked' : '')}
         title={item.key === 'support' && supportNew > 0 ? 'Поддержка ответила' : hintOf(item.key)} aria-disabled={lock ? true : undefined}
         disabled={item === homeTab && back.isPending}
-        onClick={() => lock ? undefined : item === homeTab ? back.mutate() : navigate(item.to)}>
+        onClick={() => lock ? undefined : item === homeTab ? back.mutate() : item === desktopTab ? downloadDesktop() : navigate(item.to)}>
         {item.label}{lock ? <small className="city-locations__lock"> · с {lock} ур.</small> : null}
         {item.key === 'support' && supportNew > 0 ? <small className="city-locations__new"> · {supportNew}</small> : null}</button>
     })}

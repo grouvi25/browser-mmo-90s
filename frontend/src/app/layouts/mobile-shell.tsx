@@ -24,6 +24,7 @@ import { MobileChat } from '../../widgets/city-feed/mobile-chat'
 import { useTableLabels } from '../../shared/lib/use-table-labels'
 import { ErrorBoundary } from '../error-boundary'
 import { useUnreadAnnouncements } from '../../shared/lib/unread-announcements'
+import { downloadDesktop, offerDesktop } from '../../shared/lib/desktop-app'
 
 type Sheet = 'chat' | 'menu' | null
 
@@ -130,6 +131,7 @@ export function MobileShell() {
                 <button type="button" className="m-menu__item" onClick={() => go('/battles/history')}>история боёв</button>
                 <button type="button" className="m-menu__item" onClick={() => go('/premium')}>чёрный рынок</button>
                 <button type="button" className="m-menu__item" onClick={() => go('/library')}>библиотека</button>
+                {offerDesktop && <button type="button" className="m-menu__item" onClick={downloadDesktop}>скачать для ПК</button>}
                 <button type="button" className="m-menu__item m-menu__item--exit" onClick={logout}>выход</button>
               </div>
             )}
