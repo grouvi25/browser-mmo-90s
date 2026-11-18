@@ -16,6 +16,7 @@ import { LogOut, Menu, ShieldCheck, X } from 'lucide-react'
 import { adminApi, adminDevice, adminToken, AdminApiError, type AdminRole, type Permission } from './admin-api'
 import { Note } from '../stage3/stage3-ui'
 import { ClansSection } from './sections/clans-section'
+import { MetricsSection } from './sections/metrics-section'
 import { TerritoriesSection } from './sections/territories-section'
 import { ClaimsSection } from './sections/claims-section'
 import { SignalsSection } from './sections/signals-section'
@@ -59,6 +60,8 @@ interface Section {
 const SECTIONS: Section[] = [
   { key: 'overview', group: 'Главное', title: 'Обзор', need: 'view', hint: 'Сводка: игроки, деньги в игре, сигналы о нарушениях.',
     render: c => <OverviewSection onGo={c.go} /> },
+  { key: 'metrics', group: 'Главное', title: 'Метрика', need: 'insight', hint: 'Откуда приходят игроки, что делают и кто возвращается.',
+    render: c => <MetricsSection onGo={c.go} /> },
   { key: 'players', group: 'Игроки', title: 'Игроки', need: 'view', hint: 'Поиск игрока, его деньги, вещи, наказания.',
     render: c => <PlayersSection focusId={c.focus} onTrace={id => c.go('trace', id)} /> },
   { key: 'support', group: 'Игроки', title: 'Поддержка', need: 'support', hint: 'Обращения игроков: очередь и переписка.',

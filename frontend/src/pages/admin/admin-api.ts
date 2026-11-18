@@ -462,6 +462,7 @@ export const adminApi = {
     return result
   },
 
+  metrics: (days: number) => request<MetricsReport>(`/api/admin/metrics?days=${days}`),
   stats: () => request<{ users: number; characters: number; battles: number; items: number; registrations7d?: number }>('/api/admin/stats'),
 
   economyOverview: () => request<EconomyOverview>('/api/admin/economy/overview'),
@@ -659,3 +660,18 @@ export const REASON_MIN = 10
 /** Платёж картой или СБП (эквайринг). */
 export type AdminPaymentStatus = 'NEW' | 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELED' | 'REFUNDED'
 export interface AdminPayment { id: string; nickname: string | null; dollars: number; amountKopecks: number; status: AdminPaymentStatus; providerPaymentId: string | null; errorText: string | null; createdAt: string; confirmedAt: string | null }
+
+/** Вкладка «Метрика» (18.11). */
+export interface MetricsCount { label: string; count: number }
+export interface MetricsRetention { base: number; returned: number; pct: number | null }
+export interface MetricsReport {
+  days: number
+  trackingSince: string
+  totals: { users: number; characters: number; dau: number; wau: number; mau: number; registered: number; revenueRub: number }
+  series: { day: string; regs: number; active: number; fresh: number }[]
+  retention: Record<'d1' | 'd3' | 'd7' | 'd30', MetricsRetention>
+  funnel: { step: string; count: number; pct: number | null }[]
+  sources: { source: string; registered: number; withCharacter: number; fought: number; worked: number; d1: MetricsRetention; d7: MetricsRetention; paying: number; revenueRub: number }[]
+  campaigns: MetricsCount[]; landings: MetricsCount[]; referrers: MetricsCount[]; platforms: MetricsCount[]; invitedBy: MetricsCount[]
+  players: { characterId: string | null; nickname: string; registeredAt: string; source: string; campaign: string | null; landing: string | null; platform: string; invitedBy: string | null; level: number | null; battles: number; shifts: number; daysActive: number; lastSeen: string | null; paidRub: number }[]
+}

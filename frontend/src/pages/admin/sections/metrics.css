@@ -1,0 +1,23 @@
+/* Метрика (18.11). Цвет один — акцент админки: на каждом графике одна величина. */
+.mtr-graphs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.mtr-bars svg { display: block; width: 100%; height: 120px; overflow: visible; }
+.mtr-bars__base { stroke: var(--s3-line, #b9a68f); stroke-width: 0.4; vector-effect: non-scaling-stroke; }
+.mtr-bars__hit { fill: transparent; cursor: default; }
+.mtr-bars__bar { fill: var(--admx-accent, #c0392b); opacity: .78; transition: opacity .12s ease; }
+.mtr-bars__bar.is-hover { opacity: 1; }
+.mtr-bars__tip { min-height: 1.4em; font-size: 13.25px; color: var(--admx-ink, #2b2118); }
+.mtr-table td.num, .mtr-table th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mtr-dim { color: var(--s3-dim, #6b5b4a); font-size: 12.5px; }
+.mtr-funnel { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.mtr-funnel li { display: grid; grid-template-columns: minmax(150px, 220px) 1fr 56px 56px; align-items: center; gap: 10px; }
+.mtr-funnel b { text-align: right; font-variant-numeric: tabular-nums; }
+.mtr-funnel__track { height: 10px; background: color-mix(in oklab, var(--s3-line, #b9a68f) 35%, transparent); border-radius: 0 4px 4px 0; }
+.mtr-funnel__fill { display: block; height: 100%; background: var(--admx-accent, #c0392b); opacity: .78; border-radius: 0 4px 4px 0; }
+.mtr-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mtr-grid .adm-card-block { margin: 0; }
+@media (max-width: 900px) {
+  .mtr-graphs { grid-template-columns: 1fr; }
+  .mtr-grid { grid-template-columns: 1fr; }
+  .mtr-funnel li { grid-template-columns: 1fr 48px 48px; }
+  .mtr-funnel__track { grid-column: 1 / -1; grid-row: 2; }
+}

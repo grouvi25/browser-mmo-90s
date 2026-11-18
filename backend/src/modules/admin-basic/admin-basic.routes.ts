@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { requirePermission } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
+import { metricsReport } from '../analytics/metrics'
 import { ChatService } from '../chat/chat.service'
 import { getEconomyMetricsHistory, getLatestEconomyMetrics } from '../../workers/economy-metrics-daily.worker'
 import { BalanceSandboxSchema, simulateBalanceSandbox } from '../balance-sandbox/balance-sandbox.service'
@@ -9,6 +10,12 @@ import { CombatSandboxSchema, simulateCombat } from '../admin-balance/combat-san
 const READ_ADMIN = { preHandler: requirePermission('view') }
 
 export async function adminBasicRoutes(fastify: FastifyInstance): Promise<void> {
+
+  // GET /api/admin/metrics?days=30 — вкладка «Метрика» (18.11): откуда пришли, что сделали, кто вернулся.
+  fastify.get('/metrics', { preHandler: requirePermission('insight') }, async (req, reply) => {
+    const days = Math.min(365, Math.max(1, Number((req.query as { days?: string }).days) || 30))
+    return reply.send(await metricsReport(days))
+  })
 
   // GET /api/admin/stats — общая статистика
   fastify.get('/stats', READ_ADMIN,
