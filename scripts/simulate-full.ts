@@ -99,6 +99,11 @@ const ITEM_PRICES: Record<string, number> = {
   armor_prem_coat: 700,
   weapon_prem_tt: 1_800,
   consumable_prem_kit: 250,
+  // Крафт, вторая часть (18.11): финка, печатка, цепь, ремень — цены из seed.ts.
+  craft_knife_finka: 700,
+  craft_ring_signet: 700,
+  craft_amulet_chain: 700,
+  craft_belt_buckle: 700,
   // Лёгкая одежда Швейного цеха (27.10) — цены госмагазина из seed.ts.
   armor_cap_basic: 100,
   armor_jeans_basic: 200,
