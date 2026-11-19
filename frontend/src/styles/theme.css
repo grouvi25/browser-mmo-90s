@@ -250,6 +250,9 @@ html, body {
 
 /* Недоступный предмет — обесцвечен */
 .hotspot:disabled .sprite-btn__img { filter: grayscale(1) opacity(.45) contrast(.9); }
+/* Чужой портрет — тоже «недоступная» кнопка, но это лицо, а не вещь: обесцвечивать
+   его нельзя (Дима 19.11: свой портрет у других игроков был серым). */
+.hotspot.portrait-hot:disabled .sprite-btn__img { filter: none; }
 
 /* Пустой слот */
 .sprite-btn__empty {
