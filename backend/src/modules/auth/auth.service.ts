@@ -83,9 +83,16 @@ export const AuthService = {
     const lockKey = input.login.trim().toLowerCase()
     await RegistrationGuard.assertLoginNotLocked(lockKey)
     const candidates = await AuthRepository.findForSignIn(input.login)
+    // Скопированный пароль часто приходит с пробелом или переносом строки по краям
+    // (Дима 19.11: игрок не мог войти в программу для ПК, вставляя пароль из браузера).
+    // Сначала пароль как есть: пробел, поставленный в пароль нарочно, тоже работает.
+    // trim() срезает и неразрывный пробел, и переносы строк.
+    const tries = [...new Set([input.password, input.password.trim()])].filter(Boolean)
     let user: (typeof candidates)[number] | undefined
-    for (const candidate of candidates) {
-      if (await verifyPassword(input.password, candidate.passwordHash)) { user = candidate; break }
+    search: for (const password of tries) {
+      for (const candidate of candidates) {
+        if (await verifyPassword(password, candidate.passwordHash)) { user = candidate; break search }
+      }
     }
     if (!user) {
       if (candidates.length) await RegistrationGuard.recordLoginFailure(lockKey)

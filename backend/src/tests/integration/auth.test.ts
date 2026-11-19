@@ -84,6 +84,19 @@ describe('AuthService.login', () => {
     expect(result.login).toBe(login)
   })
 
+  it('пускает с пробелом или переносом по краям скопированного пароля', async () => {
+    const login = uid('paste')
+    await AuthService.register({ acceptPolicy: true, login, email: `${login}@t.com`, password: 'realpass' })
+    expect((await AuthService.login({ login, password: ' realpass\n' })).login).toBe(login)
+    expect((await AuthService.login({ login, password: 'realpass ' })).login).toBe(login)
+  })
+
+  it('пароль с пробелом, поставленным нарочно, по-прежнему работает', async () => {
+    const login = uid('space')
+    await AuthService.register({ acceptPolicy: true, login, email: `${login}@t.com`, password: 'realpass ' })
+    expect((await AuthService.login({ login, password: 'realpass ' })).login).toBe(login)
+  })
+
   it('throws 401 on wrong password', async () => {
     const login = uid('badpw')
     await AuthService.register({ acceptPolicy: true, login, email: `${login}@t.com`, password: 'realpass' })
