@@ -74,7 +74,8 @@ const OBJECT_PRICES: Record<string, number> = {
   obj_pharmacy: 28_000, obj_chem_lab: 6_500,
 }
 const BAR_PRICE = 100_000
-const RECIPES = PRODUCTION_RECIPES as unknown as Array<{
+// Выключенные рецепты (Пистолет ТТ убран 19.11) в игре не работают — и в модели тоже.
+const RECIPES = (PRODUCTION_RECIPES as readonly { isActive?: boolean }[]).filter(r => r.isActive !== false) as unknown as Array<{
   code: string; productionObjectCode: string; outputResourceCode: string | null
   outputAmount: number; laborRequired: number; outputItemTemplateCode?: string | null
   requiredToolCode?: string

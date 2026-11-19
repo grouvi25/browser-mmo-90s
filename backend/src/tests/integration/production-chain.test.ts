@@ -1,7 +1,7 @@
 /**
  * Проверяет реальные сид-рецепты Этапа 3 (не синтетические фикстуры), а не
  * только формулы цикла: вертикальный срез из акта приёмки —
- * res_scrap_metal → comp_metal_plate → comp_weapon_part → weapon_tt_private.
+ * res_scrap_metal → comp_metal_plate → … → craft_knife_finka (до 19.11 был Пистолет ТТ, его убрали из игры).
  * Данные берутся из economy-data.ts напрямую, поэтому тест ловит и опечатку
  * в коде ресурса, и рассинхрон между рецептом и объектом.
  */
@@ -126,14 +126,14 @@ describe('production chain (real Stage 3 recipes)', () => {
     expect(inputRow.reservedAmount).toBe(0)
   })
 
-  it('rcp_tt_pistol crafts a private weapon_tt_private item once the object has an owner', async () => {
+  it('rcp_craft_finka crafts a craft_knife_finka item once the object has an owner', async () => {
     const login = uid('gunsmith')
     const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
     const character = await testPrisma.character.create({
       data: { userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 80, hpMax: 80 },
     })
-    const { object, def } = await objectWithRecipe('rcp_tt_pistol', character.id)
-    expect(def.outputItemTemplateCode).toBe('weapon_tt_private')
+    const { object, def } = await objectWithRecipe('rcp_craft_finka', character.id)
+    expect(def.outputItemTemplateCode).toBe('craft_knife_finka')
 
     await runToCompletion(object.id, character.id, def.laborRequired)
 
@@ -142,11 +142,11 @@ describe('production chain (real Stage 3 recipes)', () => {
       include: { template: true },
     })
     expect(items).toHaveLength(def.outputAmount)
-    expect(items[0].template.code).toBe('weapon_tt_private')
+    expect(items[0].template.code).toBe('craft_knife_finka')
   })
 
   it('a recipe requiring an item output is blocked without a private owner', async () => {
-    const { object, def } = await objectWithRecipe('rcp_tt_pistol')
+    const { object, def } = await objectWithRecipe('rcp_craft_finka')
     expect(object.ownerCharacterId).toBeNull()
     const login = uid('nobody')
     const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })

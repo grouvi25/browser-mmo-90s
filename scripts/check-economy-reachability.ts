@@ -80,7 +80,7 @@ const purchasable = new Set(PRIVATE_SHOP_RESOURCES.map(row => row.resourceCode))
  */
 type UnifiedRecipe = { code: string; productionObjectCode: string; output: string | null; inputs: string[] }
 const allRecipes: UnifiedRecipe[] = [
-  ...PRODUCTION_RECIPES.map(recipe => ({
+  ...PRODUCTION_RECIPES.filter(recipe => (recipe as { isActive?: boolean }).isActive !== false).map(recipe => ({
     code: recipe.code,
     productionObjectCode: recipe.productionObjectCode,
     output: recipe.outputResourceCode,

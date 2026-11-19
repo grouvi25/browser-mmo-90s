@@ -107,7 +107,8 @@ export const PRODUCTION_RECIPES = [
   { code: 'rcp_weapon_part', name: 'Оружейная деталь', productionObjectCode: 'obj_parts_factory', outputResourceCode: 'comp_weapon_part', outputItemTemplateCode: null, outputAmount: 1, cycleMinutes: 90, laborRequired: 120, requiredProfessionCode: 'gunsmith', requiredProfessionLevel: 0, requiredToolTier: 2, inputs: [{ resourceCode: 'comp_metal_plate', amount: 3, minQuality: 'NORMAL' }, { resourceCode: 'comp_spring', amount: 2, minQuality: 'NORMAL' }] },
     // Крепёж в сборке — чтобы верхний предмет ветки тянул спрос и на дешёвый
   // передел: без него гаражный цех работал только на самого себя.
-  { code: 'rcp_tt_pistol', name: 'Сборка пистолета ТТ', productionObjectCode: 'obj_parts_factory', outputResourceCode: null, outputItemTemplateCode: 'weapon_tt_private', outputAmount: 1, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'gunsmith', requiredProfessionLevel: 2, requiredToolTier: 3, inputs: [{ resourceCode: 'comp_weapon_part', amount: 4, minQuality: 'NORMAL' }, { resourceCode: 'comp_spring', amount: 2, minQuality: 'NORMAL' }, { resourceCode: 'comp_fastener', amount: 3, minQuality: 'POOR' }] },
+  // Пистолет ТТ убран из игры 19.11 (Дима): рецепт выключен, остался для истории циклов.
+  { code: 'rcp_tt_pistol', isActive: false, name: 'Сборка пистолета ТТ', productionObjectCode: 'obj_parts_factory', outputResourceCode: null, outputItemTemplateCode: 'weapon_tt_private', outputAmount: 1, cycleMinutes: 120, laborRequired: 180, requiredProfessionCode: 'gunsmith', requiredProfessionLevel: 2, requiredToolTier: 3, inputs: [{ resourceCode: 'comp_weapon_part', amount: 4, minQuality: 'NORMAL' }, { resourceCode: 'comp_spring', amount: 2, minQuality: 'NORMAL' }, { resourceCode: 'comp_fastener', amount: 3, minQuality: 'POOR' }] },
 
   // --- Этап 3: строительная ветка (STAGE3_SEED_CONTENT.md 3.3) ---
   // Дима 17.11: древесина и лом стали «крупными» (1 за смену, 150 ₽) — первый передел
