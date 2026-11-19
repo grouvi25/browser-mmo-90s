@@ -1175,3 +1175,16 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 .wallet-table .wallet-when { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .wallet-table .wallet-plus { color: #2f6b3a; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .wallet-table .wallet-minus { color: var(--ink-red, #ab0303); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Вещь в лоте рынка (Дима 19.11): по клику раскрывается карточка как в Госмагазине. */
+.market-item-name { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.market-item-name:hover span { color: var(--ink-red, #7a1010); text-decoration: underline; }
+.market-item-name:focus-visible { outline: 2px solid var(--ink-red, #7a1010); outline-offset: 2px; }
+.market-item-name img { object-fit: contain; flex-shrink: 0; }
+.market-item-name i { font-style: normal; color: var(--text-dim, #6b5b4a); font-size: 11px; }
+.market-item-row > td { background: var(--paper-warm, #f3ead9); }
+.market-item-card { display: flex; gap: 12px; align-items: flex-start; padding: 4px 0; white-space: normal; }
+.market-item-card img { object-fit: contain; flex-shrink: 0; }
+.market-item-card__noimg { width: 72px; flex-shrink: 0; }
+.market-item-card p { margin: 4px 0; max-width: 560px; }
+.market-item-card ul { margin: 4px 0 0; padding-left: 18px; columns: 2 200px; column-gap: 24px; }

@@ -585,3 +585,6 @@
 .adm-item-image__none { display: inline-grid; place-items: center; width: 40px; height: 40px; font-size: 11px; color: #8a7a6a; background: rgba(0, 0, 0, .04); }
 .adm-item-image__acts { display: inline-flex; flex-direction: column; gap: 2px; }
 .adm-item-image__acts label { cursor: pointer; }
+
+/* Предпросмотр раздела Библиотеки и Кодекса так, как увидят игроки (19.11). */
+.adm-content-preview { padding: 10px 12px; border: 1px solid var(--admx-line, #c9b8a5); background: #fffdf8; max-height: 480px; overflow: auto; }

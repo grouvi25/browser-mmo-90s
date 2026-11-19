@@ -11,6 +11,7 @@
 // не должен выкидывать из админки, и наоборот.
 // =============================================================
 import type { Announcement, AnnouncementKind } from '../../shared/api/announcements.api'
+import type { ContentSection } from '../../shared/api/content.api'
 import type { AdminPayout, PayoutStatus } from '../../shared/api/referral.api'
 import type { SupportAuthor, SupportCategory } from '../../shared/api/support.api'
 
@@ -429,6 +430,12 @@ export const adminApi = {
     request<Announcement>('/api/announcements', { method: 'POST', body }),
   pinAnnouncement: (id: string, pinned: boolean) => request(`/api/announcements/${id}/pin`, { method: 'PATCH', body: { pinned } }),
   removeAnnouncement: (id: string) => request(`/api/announcements/${id}`, { method: 'DELETE' }),
+  contentPages: (section: ContentSection) => request<{ items: AdminContentPage[] }>(`/api/admin/content?section=${section}`).then(r => r.items),
+  createContentPage: (body: { section: ContentSection; title: string; body: string; sortOrder: number; isPublished: boolean }) =>
+    request<AdminContentPage>('/api/admin/content', { method: 'POST', body }),
+  updateContentPage: (id: string, body: { title: string; body: string; sortOrder: number; isPublished: boolean }) =>
+    request<AdminContentPage>(`/api/admin/content/${id}`, { method: 'PATCH', body }),
+  removeContentPage: (id: string) => request(`/api/admin/content/${id}`, { method: 'DELETE' }),
   // Черновики (18.11): готовятся заранее, публикуются кнопкой.
   announcementDrafts: () => request<{ items: Announcement[] }>('/api/announcements/admin/drafts'),
   saveAnnouncementDraft: (body: { id?: string; kind: AnnouncementKind; title: string; body: string; pinned?: boolean }) =>
@@ -675,3 +682,6 @@ export interface MetricsReport {
   campaigns: MetricsCount[]; landings: MetricsCount[]; referrers: MetricsCount[]; platforms: MetricsCount[]; invitedBy: MetricsCount[]
   players: { characterId: string | null; nickname: string; registeredAt: string; source: string; campaign: string | null; landing: string | null; platform: string; invitedBy: string | null; level: number | null; battles: number; shifts: number; daysActive: number; lastSeen: string | null; paidRub: number }[]
 }
+
+/** Раздел Библиотеки или Кодекса из админки (19.11). */
+export interface AdminContentPage { id: string; section: ContentSection; title: string; body: string; sortOrder: number; isPublished: boolean; updatedBy: string | null; createdAt: string; updatedAt: string }

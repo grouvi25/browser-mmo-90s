@@ -31,6 +31,7 @@ import { PlayersSection } from './sections/players-section'
 import { SupportSection } from './sections/support-section'
 import { ChatSection } from './sections/chat-section'
 import { AnnouncementsSection } from './sections/announcements-section'
+import { ContentSection } from './sections/content-section'
 import { PayoutsSection } from './sections/payouts-section'
 import { PaymentsSection } from './sections/payments-section'
 import { StaffSection } from './sections/staff-section'
@@ -72,6 +73,8 @@ const SECTIONS: Section[] = [
     render: () => <SignalsSection /> },
   { key: 'news', group: 'Контент', title: 'Объявления', need: 'content', hint: 'Окно при входе, новости и обновления.',
     render: () => <AnnouncementsSection /> },
+  { key: 'texts', group: 'Контент', title: 'Библиотека и Кодекс', need: 'content', hint: 'Свои разделы Библиотеки и законы Кодекса.',
+    render: () => <ContentSection /> },
   { key: 'items', group: 'Экономика', title: 'Справочник', need: 'insight', hint: 'Вещи, магазины, сырьё: создать и править.',
     render: c => <CatalogSection role={c.roleFor('catalog')} /> },
   { key: 'balance', group: 'Экономика', title: 'Баланс', need: 'insight', hint: 'Формулы и их параметры.',

@@ -42,6 +42,7 @@ import { farmRoutes } from './modules/farm/farm.routes'
 import { barsRoutes } from './modules/bars/bars.routes'
 import { chatRoutes } from './modules/chat/chat.routes'
 import { announcementsRoutes } from './modules/announcements/announcements.routes'
+import { contentRoutes, contentAdminRoutes } from './modules/content/content.routes'
 import { libraryRoutes } from './modules/library/library.routes'
 import { clansRoutes } from './modules/clans/clans.routes'
 import { territoriesRoutes, clanTerritoriesRoutes, objectWarRoutes } from './modules/territories/territories.routes'
@@ -176,6 +177,7 @@ export async function buildApp() {
   await fastify.register(barsRoutes,           { prefix: '/api/bars' })
   await fastify.register(chatRoutes,           { prefix: '/api/chat' })
   await fastify.register(announcementsRoutes,  { prefix: '/api/announcements' })
+  await fastify.register(contentRoutes,        { prefix: '/api/content' })
   await fastify.register(libraryRoutes,        { prefix: '/api/library' })
   await fastify.register(clansRoutes,          { prefix: '/api/clans' })
   // Территории клана — под тем же префиксом, что и сам клан:
@@ -197,6 +199,7 @@ export async function buildApp() {
   await fastify.register(upgradesRoutes,       { prefix: '/api/upgrades' })
   await fastify.register(adminAuthRoutes,      { prefix: '/api/admin/auth' })
   await fastify.register(adminBasicRoutes,     { prefix: '/api/admin' })
+  await fastify.register(contentAdminRoutes,   { prefix: '/api/admin' })
   await fastify.register(adminStrategyRoutes, { prefix: '/api/admin' })
   await fastify.register(adminActionsRoutes,  { prefix: '/api/admin' })
   await fastify.register(adminBalanceRoutes,  { prefix: '/api/admin' })

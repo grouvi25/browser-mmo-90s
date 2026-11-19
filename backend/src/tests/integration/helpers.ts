@@ -14,6 +14,7 @@ export const testPrisma = new PrismaClient({
 /** Clean test data in correct order (respecting FK constraints) */
 export async function cleanDatabase(): Promise<void> {
   await testPrisma.$transaction([
+    testPrisma.contentPage.deleteMany(),
     testPrisma.idempotencyKey.deleteMany(),
     testPrisma.pushDevice.deleteMany(),
     testPrisma.payment.deleteMany(),

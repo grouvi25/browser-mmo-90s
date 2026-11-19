@@ -2371,6 +2371,29 @@ model Announcement {
   @@map("announcements")
 }
 
+/// Где показывается раздел, который пишет администрация (Дима 19.11).
+enum ContentSection {
+  LIBRARY
+  CODEX
+}
+
+/// Разделы Библиотеки и Кодекса, которые Дима пишет сам в админке (19.11).
+/// Встроенные разделы Библиотеки с таблицами из игры остаются в коде.
+model ContentPage {
+  id          String         @id @default(uuid())
+  section     ContentSection
+  title       String         @db.VarChar(80)
+  body        String         @db.VarChar(20000)
+  sortOrder   Int            @default(0) @map("sort_order")
+  isPublished Boolean        @default(true) @map("is_published")
+  updatedBy   String?        @map("updated_by")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  @@index([section, sortOrder])
+  @@map("content_pages")
+}
+
 model CharacterPet {
   id          String    @id @default(uuid())
   characterId String    @map("character_id")

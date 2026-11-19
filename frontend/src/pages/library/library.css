@@ -28,3 +28,4 @@
 .library__table--fit th, .library__table--fit td { white-space: normal; overflow-wrap: break-word; hyphens: auto; }
 .library__table--fit td.library__wrap { min-width: 0; }
 .library__table--fit th { hyphens: manual; }
+.library__text ul { margin: 0 0 8px; padding-left: 20px; line-height: 1.45; }

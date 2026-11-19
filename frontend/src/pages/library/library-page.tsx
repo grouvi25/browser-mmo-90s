@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LOCATION_LEVELS } from '../../shared/lib/location-levels'
 import { libraryApi, type LibraryTables } from '../../shared/api/library.api'
+import { contentApi } from '../../shared/api/content.api'
+import { RichText } from '../../widgets/rich-text/rich-text'
 import { NewcomerLetterPage } from '../../widgets/welcome/newcomer-letter-page'
 import './library.css'
 
@@ -160,12 +162,15 @@ const TOPICS: Topic[] = [
 
 export function LibraryPage() {
   const [open, setOpen] = useState(TOPICS[0].key)
-  const topic = TOPICS.find(t => t.key === open) ?? TOPICS[0]
   const tables = useQuery({ queryKey: ['library', 'tables'], queryFn: libraryApi.tables, staleTime: 5 * 60_000 })
+  // Разделы, которые Дима пишет в админке (19.11), идут после встроенных.
+  const custom = useQuery({ queryKey: ['content', 'LIBRARY'], queryFn: () => contentApi.list('LIBRARY'), staleTime: 60_000 })
+  const topics: Topic[] = [...TOPICS, ...(custom.data ?? []).map(page => ({ key: `c-${page.id}`, title: page.title, body: <RichText body={page.body} /> }))]
+  const topic = topics.find(t => t.key === open) ?? topics[0]
   return (
     <div className="library">
       <nav className="library__toc" aria-label="Разделы библиотеки">
-        {TOPICS.map(t => <button key={t.key} type="button" aria-current={t.key === open ? 'page' : undefined}
+        {topics.map(t => <button key={t.key} type="button" aria-current={t.key === open ? 'page' : undefined}
           className={t.key === open ? 'is-active' : ''} onClick={() => setOpen(t.key)}>{t.title}</button>)}
       </nav>
       <article className="library__text"><h2>{topic.title}</h2>{typeof topic.body === 'function' ? topic.body(tables.data) : topic.body}</article>

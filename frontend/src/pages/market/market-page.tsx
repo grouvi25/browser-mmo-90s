@@ -9,12 +9,14 @@
 //   /market/trader   — Торгаш: уровни, свой магазин, продажа вещей
 //   /market/shops    — магазины торгашей: поиск по номеру и список
 // =============================================================
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { marketApi, type MarketFilters, type MarketListingView, type Currency } from '../../shared/api/market.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { resourcesApi } from '../../shared/api/resources.api'
+import { instanceImage, itemHoverText } from '../../shared/lib/item-bonuses'
+import { QUALITY_LABELS } from '../../shared/types/api.types'
 
 const money = (value: number, currency: Currency = 'RUB') => `${value.toLocaleString('ru')} ${currency === 'USD' ? '$' : '₽'}`
 /** Курс пошлины на сервере (market.service RUB_PER_USD): доллар как 100 ₽. */
@@ -35,16 +37,24 @@ function ListingsTable({ items, mine, onBuy, onCancel, onPrice, busy }: {
   onBuy?: (id: string) => void; onCancel?: (id: string) => void
   onPrice?: (id: string, price: number) => void
 }) {
+  const [open, setOpen] = useState<string | null>(null)
   return <table className="data-table"><thead><tr><th>Тип</th><th>Название</th><th>Продавец</th><th>Кол-во</th><th>За штуку</th><th>Цена</th><th>Истекает</th><th /></tr></thead>
     <tbody>{items.map(listing => {
       const count = listing.resourceAmount ?? 1
       const total = listing.finalPrice ?? listing.price
-      return <tr key={listing.id}>
+      const detail = listing.item?.detail
+      return <Fragment key={listing.id}><tr>
         <td>{listing.type === 'ITEM' ? 'Вещь' : 'Ресурс'}</td>
         {/* Металлика 14.11: по названию ресурса сразу видно, откуда он и куда идёт. */}
         <td>{listing.resource
           ? <Link to={`/recipes?product=${encodeURIComponent(listing.resource.code)}`} title="Откуда берётся и куда идёт">{listing.resource.name}</Link>
-          : listing.item?.name ?? 'Неизвестно'}</td>
+          : detail
+            ? <button type="button" className="market-item-name" aria-expanded={open === listing.id}
+                onClick={() => setOpen(open === listing.id ? null : listing.id)}>
+                {instanceImage(detail) && <img src={instanceImage(detail)} alt="" width={28} height={28} draggable={false} />}
+                <span>{listing.item?.name}</span><i aria-hidden="true">{open === listing.id ? '▴' : '▾'}</i>
+              </button>
+            : listing.item?.name ?? 'Неизвестно'}</td>
         <td><Link to={listing.sellerUrl}>{listing.sellerNickname}</Link></td>
         <td>{count}</td>
         <td>{count > 1 ? money(Math.round(total / count * 100) / 100, listing.currency) : '—'}</td>
@@ -57,8 +67,26 @@ function ListingsTable({ items, mine, onBuy, onCancel, onPrice, busy }: {
             </span>
           : <button className="btn btn-sm btn-gold" disabled={busy} onClick={() => onBuy?.(listing.id)}>Купить</button>}</td>
       </tr>
+      {detail && open === listing.id && <tr className="market-item-row"><td colSpan={8}><ListingItemCard item={detail} /></td></tr>}
+      </Fragment>
     })}</tbody>
   </table>
+}
+
+/** Вещь в лоте подробно, как карточка Госмагазина: картинка, описание, прочность и все статы. */
+function ListingItemCard({ item }: { item: NonNullable<NonNullable<MarketListingView['item']>['detail']> }) {
+  const t = item.template
+  const image = instanceImage(item)
+  const [, ...lines] = itemHoverText(item).split(/\r?\n/)
+  return <div className="market-item-card">
+    {image ? <img src={image} alt="" width={72} height={72} draggable={false} /> : <span className="market-item-card__noimg" />}
+    <div>
+      <b className={`q-${item.quality}`}>{t.name}</b>
+      {t.description && <p>{t.description}</p>}
+      <p className="text-dim">Качество: {QUALITY_LABELS[item.quality] ?? item.quality}{t.levelReq > 0 ? ` · с ${t.levelReq} уровня` : ''}{item.upgradeLevel ? ` · улучшена до ${item.upgradeLevel} ур.` : ''}</p>
+      <ul>{lines.map(line => <li key={line}>{line}</li>)}</ul>
+    </div>
+  </div>
 }
 
 /**

@@ -30,6 +30,7 @@ import { SkillsPage }          from '../pages/skills/skills-page'
 import { ArenaPage }           from '../pages/arena/arena-page'
 import { AdminPage }           from '../pages/admin/admin-page'
 import { LibraryPage }         from '../pages/library/library-page'
+import { CodexPage }           from '../pages/codex/codex-page'
 import { StatsPage }           from '../pages/character/stats-page'
 import { ResourcesPage }       from '../pages/resources/resources-page'
 import { WalletPage }          from '../pages/resources/wallet-page'
@@ -357,6 +358,10 @@ export function AppRouter() {
         <Route path="/library" element={
           <ViewportPanel title="Библиотека" subtitle="Что где делать">
             <LibraryPage />
+          </ViewportPanel>} />
+        <Route path="/codex" element={
+          <ViewportPanel title="Кодекс" subtitle="Законы города">
+            <CodexPage />
           </ViewportPanel>} />
         <Route path="/forum"   element={<LockedSection title="Форум" stage={3}
           what="Общение, объявления и торговые темы." />} />

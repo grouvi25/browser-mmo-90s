@@ -1,4 +1,5 @@
 import { request } from './client'
+import type { ItemInstance } from '../types/api.types'
 
 export type Currency = 'RUB' | 'USD'
 export interface TraderStatus { traderLevel: number; shopNumber: number | null; canSellResourcesForUsd: boolean; prices: { level1PriceRub: number; level2PriceUsd: number } }
@@ -19,7 +20,8 @@ export interface MarketListingView {
   sellerNickname: string
   sellerUrl: string
   expiresAt: string
-  item: { name: string; code: string; type: string; weaponType: string | null; levelReq: number; quality: string } | null
+  /** detail: вещь целиком, как на Складе (Дима 19.11: в лотах не было видно статов и описания). */
+  item: { name: string; code: string; type: string; weaponType: string | null; levelReq: number; quality: string; detail?: ItemInstance } | null
   resource: { name: string; code: string; tier: number } | null
 }
 
