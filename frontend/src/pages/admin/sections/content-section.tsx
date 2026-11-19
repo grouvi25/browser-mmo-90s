@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi, type AdminContentPage } from '../admin-api'
 import type { ContentSection as Section } from '../../../shared/api/content.api'
-import { RichText } from '../../../widgets/rich-text/rich-text'
+import { TextEditor } from '../../../widgets/rich-text/text-editor'
 import { Skeleton, Fault, Empty, Note } from '../../stage3/stage3-ui'
 import { when } from '../admin-ui'
 import '../../library/library.css'
@@ -20,7 +20,6 @@ export function ContentSection() {
   const qc = useQueryClient()
   const [section, setSection] = useState<Section>('LIBRARY')
   const [form, setForm] = useState<Form>(EMPTY)
-  const [preview, setPreview] = useState(false)
   const [msg, setMsg] = useState('')
   const [bad, setBad] = useState(false)
 
@@ -48,9 +47,9 @@ export function ContentSection() {
 
   const open = (page: AdminContentPage) => {
     setForm({ id: page.id, title: page.title, body: page.body, sortOrder: page.sortOrder, isPublished: page.isPublished })
-    setPreview(false); setMsg('')
+    setMsg('')
   }
-  const switchSection = (next: Section) => { setSection(next); setForm(EMPTY); setPreview(false); setMsg('') }
+  const switchSection = (next: Section) => { setSection(next); setForm(EMPTY); setMsg('') }
   const ready = form.title.trim().length > 0 && form.body.trim().length > 0
   const items = list.data ?? []
 
@@ -93,15 +92,11 @@ export function ContentSection() {
             <input type="number" value={form.sortOrder} min={-1000} max={1000} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) || 0 }))} /></label>
           <label className="adm-check"><input type="checkbox" checked={form.isPublished} onChange={e => setForm(f => ({ ...f, isPublished: e.target.checked }))} /> Видно игрокам</label>
         </div>
-        {preview
-          ? <div className="library__text adm-content-preview"><h2>{form.title || 'Без названия'}</h2><RichText body={form.body} /></div>
-          : <label className="adm-announce-body"><span>Текст</span>
-              <textarea value={form.body} maxLength={MAX_BODY} rows={18} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-                placeholder={'## Подзаголовок\nАбзац текста. Пустая строка начинает новый абзац.\n\n- пункт списка\n- еще пункт\n\n**жирным** выделяется так'} /></label>}
+        <TextEditor value={form.body} maxLength={MAX_BODY} title={form.title}
+          onChange={body => setForm(f => ({ ...f, body }))}
+          placeholder={'Пишите как обычно. Кнопки сверху делают жирный текст, подзаголовок и список.'} />
         <div className="adm-item__save">
-          <small>{form.body.length} / {MAX_BODY}</small>
-          <button type="button" onClick={() => setPreview(p => !p)}>{preview ? 'Править текст' : 'Как увидят игроки'}</button>
-          {form.id && <button type="button" onClick={() => { setForm(EMPTY); setPreview(false); setMsg('') }}>Новый раздел</button>}
+          {form.id && <button type="button" onClick={() => { setForm(EMPTY); setMsg('') }}>Новый раздел</button>}
           <button type="button" disabled={!ready || save.isPending} onClick={() => save.mutate()}>
             {save.isPending ? 'Сохраняем…' : 'Сохранить'}
           </button>

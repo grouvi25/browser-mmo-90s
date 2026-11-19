@@ -1,0 +1,20 @@
+/* Редактор разделов Библиотеки и Кодекса: кнопки сверху, поле и предпросмотр рядом. */
+.text-editor { display: grid; gap: 6px; }
+.text-editor__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.text-editor__bar button {
+  min-height: 32px; padding: 4px 10px; border: 1px solid var(--admx-line, #b9a68f); background: #fffdf8;
+  color: inherit; font: inherit; cursor: pointer; transition: background .12s, border-color .12s;
+}
+.text-editor__bar button:hover { background: #f3ead9; border-color: var(--admx-accent, #c0392b); }
+.text-editor__bar button:active { background: #e6d8bd; }
+.text-editor__bar button:focus-visible { outline: 2px solid var(--admx-accent, #c0392b); outline-offset: 1px; }
+.text-editor__count { margin-left: auto; color: #6b5b4a; font-variant-numeric: tabular-nums; }
+.text-editor__panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.text-editor__panes textarea {
+  width: 100%; min-height: 420px; resize: vertical; padding: 10px; box-sizing: border-box;
+  border: 1px solid var(--admx-line, #b9a68f); background: #fffdf8; font: 14px/1.5 Arial, sans-serif;
+}
+.text-editor__panes textarea:focus-visible { outline: 2px solid var(--admx-accent, #c0392b); outline-offset: 0; }
+.text-editor__preview { min-height: 420px; max-height: 620px; overflow: auto; padding: 10px 12px; border: 1px dashed var(--admx-line, #b9a68f); background: #fbf6ec; }
+.text-editor__empty { color: #8a7a68; }
+@media (max-width: 900px) { .text-editor__panes { grid-template-columns: 1fr; } .text-editor__panes textarea, .text-editor__preview { min-height: 240px; } }
