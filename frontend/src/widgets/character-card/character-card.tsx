@@ -245,7 +245,7 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
       {/* ── портрет ──────────────────────────────────────── */}
       <SpriteButton
         name={(profile ? profile.gender : char?.gender) === 'FEMALE' ? 'portrait-female' : 'portrait'}
-        src={profile?.avatar ?? undefined}
+        src={(profile ? profile.avatar : char?.avatar) ?? undefined}
         box={C.portrait}
         className="portrait-hot"
         disabled={!own}

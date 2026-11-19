@@ -274,6 +274,8 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
         nickname: char.nickname,
         archetype: char.archetype,
         gender: char.gender,
+        // Свой портрет вместо стандартного (Дима 19.11), путь к картинке на сайте.
+        avatar: char.avatar,
         battleLevel: char.battleLevel,
         economicLevel: char.economicLevel,
         rating: char.stats ? calcCharacterRating(char.stats, equipped) : 0,

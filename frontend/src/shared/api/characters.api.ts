@@ -6,6 +6,7 @@ export interface PublicProfile {
   id?: string
   nickname: string
   archetype?: string
+  avatar?: string | null
   battleLevel?: number
   battlesTotal?: number
   battlesWon?: number

@@ -51,6 +51,7 @@ interface DossierView {
   nickname: string
   archetype?: string
   gender?: 'MALE' | 'FEMALE'
+  avatar?: string | null
   battleLevel: number
   battleExp?: number
   nextLevelExp?: number | null
@@ -126,7 +127,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
       const w = o.weapons?.find(x => x.armorSlot !== 'RIGHT_HAND')
       const off = o.weapons?.find(x => x.armorSlot === 'RIGHT_HAND')
       view = {
-        id: o.id, nickname: o.nickname, archetype: o.archetype, gender: o.gender,
+        id: o.id, nickname: o.nickname, archetype: o.archetype, gender: o.gender, avatar: o.avatar ?? null,
         battleLevel: o.battleLevel ?? 0, economicLevel: o.economicLevel ?? 0, rating: o.rating,
         hpCurrent: o.hpCurrent ?? 0, hpMax: o.hpMax ?? 0,
         battlesTotal: o.battlesTotal ?? 0, battlesWon: o.battlesWon ?? 0,
@@ -138,7 +139,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
     }
   } else if (char) {
     view = {
-      id: char.id, nickname: char.nickname, archetype: char.archetype, gender: char.gender,
+      id: char.id, nickname: char.nickname, archetype: char.archetype, gender: char.gender, avatar: char.avatar ?? null,
       battleLevel: char.battleLevel, economicLevel: char.economicLevel, rating: char.rating,
       // Только в своём деле: на телефоне опыт больше негде посмотреть (Дмитрий 05.11).
       battleExp: char.battleExp, nextLevelExp: char.nextLevelExp ?? null,
@@ -272,7 +273,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
         </form>
 
         <div className="m-dossier__head">
-          <img className="m-dossier__portrait" src={SPRITES[view?.gender === 'FEMALE' ? 'p-portrait-female' : 'p-portrait']} alt="" draggable={false} />
+          <img className="m-dossier__portrait" src={view?.avatar ?? SPRITES[view?.gender === 'FEMALE' ? 'p-portrait-female' : 'p-portrait']} alt="" draggable={false} />
           <div className="m-dossier__fields">
             <div className="m-dossier__title">Личное дело №{caseNumber(view?.id)}</div>
             {PROFILE.fields.map(f => (
@@ -359,7 +360,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
 
       {/* портрет и показатели */}
       <SpriteButton
-        name={view?.gender === 'FEMALE' ? 'p-portrait-female' : 'p-portrait'} box={PROFILE.portrait} className="portrait-hot"
+        name={view?.gender === 'FEMALE' ? 'p-portrait-female' : 'p-portrait'} src={view?.avatar ?? undefined} box={PROFILE.portrait} className="portrait-hot"
         title={own ? 'Сменить портрет можно будет позже' : view?.nickname} disabled={!own} onClick={own ? () => navigate('/inventory') : undefined}
       />
       <Sprite name="p-icon-energy" box={PROFILE.energyIcon} />
