@@ -24,6 +24,7 @@ export function ContentSection() {
   const [bad, setBad] = useState(false)
 
   const list = useQuery({ queryKey: ['admin', 'content', section], queryFn: () => adminApi.contentPages(section) })
+  const tables = useQuery({ queryKey: ['admin', 'content', 'tables'], queryFn: adminApi.contentTables, staleTime: 5 * 60_000 })
   const done = (text: string) => {
     setBad(false); setMsg(text)
     void qc.invalidateQueries({ queryKey: ['admin', 'content'] })
@@ -92,7 +93,7 @@ export function ContentSection() {
             <input type="number" value={form.sortOrder} min={-1000} max={1000} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) || 0 }))} /></label>
           <label className="adm-check"><input type="checkbox" checked={form.isPublished} onChange={e => setForm(f => ({ ...f, isPublished: e.target.checked }))} /> Видно игрокам</label>
         </div>
-        <TextEditor value={form.body} maxLength={MAX_BODY} title={form.title}
+        <TextEditor value={form.body} maxLength={MAX_BODY} title={form.title} tables={tables.data}
           onChange={body => setForm(f => ({ ...f, body }))}
           placeholder={'Пишите как обычно. Кнопки сверху делают жирный текст, подзаголовок и список.'} />
         <div className="adm-item__save">

@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { prisma } from '../../shared/db/prisma'
 import { authenticate, requirePermission } from '../../shared/security/auth-middleware'
 import { AppError } from '../../shared/errors/app-error'
+import { libraryTables } from '../library/library.routes'
 
 export const CONTENT_MAX_TITLE = 80
 export const CONTENT_MAX_BODY = 20_000
@@ -40,6 +41,9 @@ export async function contentRoutes(fastify: FastifyInstance) {
 /** Для админки: все разделы, правка и удаление. */
 export async function contentAdminRoutes(fastify: FastifyInstance) {
   const guard = { preHandler: requirePermission('content') }
+
+  // Предпросмотр редактора: те же таблицы и числа, что видят игроки.
+  fastify.get('/content/tables', guard, async (_req, reply) => reply.send(await libraryTables()))
 
   fastify.get<{ Querystring: { section?: string } }>('/content', guard, async (req, reply) => {
     const section = Section.safeParse(String(req.query.section ?? '').toUpperCase())

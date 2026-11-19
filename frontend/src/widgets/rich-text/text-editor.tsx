@@ -3,6 +3,9 @@
 // подзаголовок, список, абзац. Справа сразу видно, как прочтут игроки.
 import { useRef, type KeyboardEvent } from 'react'
 import { RichText } from './rich-text'
+import { LIBRARY_BLOCKS, LIBRARY_VARS } from './library-blocks'
+import type { LibraryTables } from '../../shared/api/library.api'
+import { askText } from '../ask-text/ask-text'
 import './text-editor.css'
 
 interface Props {
@@ -11,6 +14,8 @@ interface Props {
   maxLength: number
   title?: string
   placeholder?: string
+  /** Данные игры для предпросмотра таблиц и чисел. */
+  tables?: LibraryTables
 }
 
 type Edit = (text: string, start: number, end: number) => { text: string; start: number; end: number }
@@ -35,6 +40,19 @@ const linePrefix = (prefix: string): Edit => (text, start, end) => {
   return { text: text.slice(0, from) + changed + text.slice(to), start: from, end: from + changed.length }
 }
 
+/** Вставить кусок в место курсора (вместо выделения). Блок — отдельной строкой с пустыми вокруг. */
+const insert = (piece: string, ownLine = false): Edit => (text, start, end) => {
+  const before = text.slice(0, start)
+  const after = text.slice(end)
+  const NL = String.fromCharCode(10)
+  let lead = ''
+  if (ownLine && before && !before.endsWith(NL + NL)) lead = before.endsWith(NL) ? NL : NL + NL
+  const chunk = ownLine ? lead + piece + NL + NL : piece
+  const rest = ownLine ? after.replace(/^\n+/, '') : after
+  const next = before + chunk + rest
+  return { text: next, start: before.length + chunk.length, end: before.length + chunk.length }
+}
+
 /** Новый абзац: пустая строка в месте курсора. */
 const paragraph: Edit = (text, start, end) => {
   const before = text.slice(0, start).replace(/\n*$/, '')
@@ -43,7 +61,7 @@ const paragraph: Edit = (text, start, end) => {
   return { text: next, start: before.length + 2, end: before.length + 2 }
 }
 
-export function TextEditor({ value, onChange, maxLength, title, placeholder }: Props) {
+export function TextEditor({ value, onChange, maxLength, title, placeholder, tables }: Props) {
   const area = useRef<HTMLTextAreaElement>(null)
 
   const apply = (edit: Edit) => {
@@ -68,6 +86,22 @@ export function TextEditor({ value, onChange, maxLength, title, placeholder }: P
         <button type="button" onClick={() => apply(linePrefix('## '))} title="Подзаголовок">Подзаголовок</button>
         <button type="button" onClick={() => apply(linePrefix('- '))} title="Список">• Список</button>
         <button type="button" onClick={() => apply(paragraph)} title="Новый абзац">¶ Абзац</button>
+        <button type="button" title="Ссылка на место в игре" onClick={async () => {
+          const el = area.current
+          const picked = el ? value.slice(el.selectionStart, el.selectionEnd) : ''
+          const path = await askText('Куда ведет ссылка? Адрес в игре, например /school, или https://…', '/', { maxLength: 200 })
+          if (!path || !(path.startsWith('/') || path.startsWith('https://'))) return
+          const label = picked || await askText('Текст ссылки', 'Училище', { maxLength: 80 })
+          if (label) apply(insert(`[${label}](${path.trim()})`))
+        }}>Ссылка</button>
+        <select aria-label="Вставить таблицу из игры" value="" onChange={e => { if (e.target.value) apply(insert(`[[${e.target.value}]]`, true)) }}>
+          <option value="">Таблица…</option>
+          {Object.entries(LIBRARY_BLOCKS).map(([key, def]) => <option key={key} value={key}>{def.label}</option>)}
+        </select>
+        <select aria-label="Вставить число из игры" value="" onChange={e => { if (e.target.value) apply(insert(`{{${e.target.value}}}`)) }}>
+          <option value="">Число…</option>
+          {Object.entries(LIBRARY_VARS).map(([key, def]) => <option key={key} value={key}>{def.label}</option>)}
+        </select>
         <small className="text-editor__count">{value.length} / {maxLength}</small>
       </div>
       <div className="text-editor__panes">
@@ -75,7 +109,7 @@ export function TextEditor({ value, onChange, maxLength, title, placeholder }: P
           aria-label="Текст раздела" onChange={e => onChange(e.target.value)} onKeyDown={onKey} />
         <div className="text-editor__preview library__text" aria-label="Как увидят игроки">
           {title && <h2>{title}</h2>}
-          {value.trim() ? <RichText body={value} /> : <p className="text-editor__empty">Здесь будет текст так, как его увидят игроки.</p>}
+          {value.trim() ? <RichText body={value} tables={tables} live={false} /> : <p className="text-editor__empty">Здесь будет текст так, как его увидят игроки.</p>}
         </div>
       </div>
     </div>

@@ -55,6 +55,10 @@ describe('Библиотека и Кодекс из админки', () => {
 
     expect((await app.inject({ method: 'DELETE', url: `/api/admin/content/${hidden.id}`, headers: admin })).statusCode).toBe(200)
     expect((await app.inject({ url: '/api/admin/content?section=CODEX', headers: admin })).json()).toMatchObject({ items: expect.any(Array) })
+    // Предпросмотр редактора видит те же таблицы и числа, что игроки.
+    const tables = await app.inject({ url: '/api/admin/content/tables', headers: admin })
+    expect(tables.statusCode).toBe(200)
+    expect(tables.json()).toMatchObject({ battle: expect.any(Array), rules: expect.any(Object) })
   })
 
   it('без прав писать нельзя, без входа читать нельзя', async () => {

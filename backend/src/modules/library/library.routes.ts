@@ -19,8 +19,8 @@ const CHAIN_TITLES: Record<keyof typeof PROFESSION_GROUPS, string> = {
   metal: 'Металл', construction: 'Стройка', chemistry: 'Химия и еда', crafts: 'Ремёсла',
 }
 
-export async function libraryRoutes(fastify: FastifyInstance) {
-  fastify.get('/tables', { preHandler: authenticate }, async (_req, reply) => {
+/** Таблицы и числа Библиотеки. Их же видит предпросмотр редактора в админке (19.11). */
+export async function libraryTables() {
     const B = BalanceConfig
     const battle = B.battleExp.levelThresholds.map((exp, i) => ({
       level: i + 1,
@@ -128,6 +128,9 @@ export async function libraryRoutes(fastify: FastifyInstance) {
       saleTaxPct: Math.round(B.economy.market.saleTaxRate * 100), listingFree: B.economy.market.listingFeeRate === 0,
       craftMinPct: Math.round((B.economy.market.craftPriceMin - 1) * 100), craftMaxPct: Math.round((B.economy.market.craftPriceMax - 1) * 100),
     }
-    return reply.send({ battle, economic, production, rules, professions, professionLevels, statPointsPerLevel: B.battleExp.statPointsPerLevel, botExpPenalty: B.battleExp.pveDailyPenaltyPerKill, botExpMin: B.battleExp.pveDailyMin, consumables: items, objectPriceUsd: B.economy.production.objectPriceUsd })
-  })
+  return { battle, economic, production, rules, professions, professionLevels, statPointsPerLevel: B.battleExp.statPointsPerLevel, botExpPenalty: B.battleExp.pveDailyPenaltyPerKill, botExpMin: B.battleExp.pveDailyMin, consumables: items, objectPriceUsd: B.economy.production.objectPriceUsd }
+}
+
+export async function libraryRoutes(fastify: FastifyInstance) {
+  fastify.get('/tables', { preHandler: authenticate }, async (_req, reply) => reply.send(await libraryTables()))
 }

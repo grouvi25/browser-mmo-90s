@@ -163,10 +163,13 @@ const TOPICS: Topic[] = [
 export function LibraryPage() {
   const [open, setOpen] = useState(TOPICS[0].key)
   const tables = useQuery({ queryKey: ['library', 'tables'], queryFn: libraryApi.tables, staleTime: 5 * 60_000 })
-  // Разделы, которые Дима пишет в админке (19.11), идут после встроенных.
+  // С 19.11 все разделы лежат в базе и правятся в админке, таблицы и числа в них живые.
+  // Встроенные из кода показываются, только если в базе разделов нет совсем.
   const custom = useQuery({ queryKey: ['content', 'LIBRARY'], queryFn: () => contentApi.list('LIBRARY'), staleTime: 60_000 })
-  const topics: Topic[] = [...TOPICS, ...(custom.data ?? []).map(page => ({ key: `c-${page.id}`, title: page.title, body: <RichText body={page.body} /> }))]
+  const fromDb: Topic[] = (custom.data ?? []).map(page => ({ key: `c-${page.id}`, title: page.title, body: t => <RichText body={page.body} tables={t} /> }))
+  const topics: Topic[] = custom.isLoading ? [] : fromDb.length ? fromDb : TOPICS
   const topic = topics.find(t => t.key === open) ?? topics[0]
+  if (!topic) return <p className="library__muted">Загружаем библиотеку…</p>
   return (
     <div className="library">
       <nav className="library__toc" aria-label="Разделы библиотеки">

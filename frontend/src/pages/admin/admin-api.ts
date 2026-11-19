@@ -12,6 +12,7 @@
 // =============================================================
 import type { Announcement, AnnouncementKind } from '../../shared/api/announcements.api'
 import type { ContentSection } from '../../shared/api/content.api'
+import type { LibraryTables } from '../../shared/api/library.api'
 import type { AdminPayout, PayoutStatus } from '../../shared/api/referral.api'
 import type { SupportAuthor, SupportCategory } from '../../shared/api/support.api'
 
@@ -436,6 +437,7 @@ export const adminApi = {
   updateContentPage: (id: string, body: { title: string; body: string; sortOrder: number; isPublished: boolean }) =>
     request<AdminContentPage>(`/api/admin/content/${id}`, { method: 'PATCH', body }),
   removeContentPage: (id: string) => request(`/api/admin/content/${id}`, { method: 'DELETE' }),
+  contentTables: () => request<LibraryTables>('/api/admin/content/tables'),
   // Черновики (18.11): готовятся заранее, публикуются кнопкой.
   announcementDrafts: () => request<{ items: Announcement[] }>('/api/announcements/admin/drafts'),
   saveAnnouncementDraft: (body: { id?: string; kind: AnnouncementKind; title: string; body: string; pinned?: boolean }) =>

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { contentApi } from '../../shared/api/content.api'
+import { libraryApi } from '../../shared/api/library.api'
 import { RichText } from '../../widgets/rich-text/rich-text'
 import { Skeleton, Fault, Empty } from '../stage3/stage3-ui'
 import '../library/library.css'
@@ -10,6 +11,7 @@ import '../library/library.css'
 export function CodexPage() {
   const pages = useQuery({ queryKey: ['content', 'CODEX'], queryFn: () => contentApi.list('CODEX'), staleTime: 60_000 })
   const [open, setOpen] = useState<string | null>(null)
+  const tables = useQuery({ queryKey: ['library', 'tables'], queryFn: libraryApi.tables, staleTime: 5 * 60_000 })
   if (pages.isLoading) return <Skeleton rows={4} />
   if (pages.isError) return <Fault retry={() => pages.refetch()} />
   const items = pages.data ?? []
@@ -21,7 +23,7 @@ export function CodexPage() {
         {items.map(p => <button key={p.id} type="button" aria-current={p.id === page.id ? 'page' : undefined}
           className={p.id === page.id ? 'is-active' : ''} onClick={() => setOpen(p.id)}>{p.title}</button>)}
       </nav>
-      <article className="library__text"><h2>{page.title}</h2><RichText body={page.body} /></article>
+      <article className="library__text"><h2>{page.title}</h2><RichText body={page.body} tables={tables.data} /></article>
     </div>
   )
 }
