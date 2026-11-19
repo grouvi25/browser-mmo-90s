@@ -24,7 +24,7 @@ export const TABLE_PROFESSIONS = [
 ] as const
 
 /** [код, имя, тир, цена в единицах] */
-export const TABLE_RESOURCES: readonly [string, string, number, number][] = [
+const BOOK_RESOURCES: readonly [string, string, number, number][] = [
   ["tb_scrap", "Металлолом сортовой", 1, 50.91],
   ["tb_iron_ore", "Железная руда", 1, 50.91],
   ["tb_copper_ore", "Медная руда", 1, 50.91],
@@ -119,7 +119,8 @@ export const TABLE_TOOLS: readonly [string, string, number, number][] = [
 ]
 
 /** Изделия книги. Статов и эффектов в ней нет: их заполняет заказчик в админке. */
-export const TABLE_ITEMS: readonly { code: string; name: string; group: 'kit' | 'clothes' | 'scroll'; tier: number; units: number; slot: string | null; level?: number; armor?: number; durability?: number; healPercent?: number; soberAmount?: number }[] = [
+type TableItem = { code: string; name: string; group: 'kit' | 'clothes' | 'scroll'; tier: number; units: number; slot: string | null; level?: number; armor?: number; durability?: number; healPercent?: number; soberAmount?: number }
+const BOOK_ITEMS: readonly TableItem[] = [
   { code: "tb_item_a01", name: "Аптечка простая", group: 'kit', tier: 2, units: 3601.6, slot: null, healPercent: 10 },
   { code: "tb_item_a02", name: "Настойка бодрости", group: 'kit', tier: 2, units: 2048.16, slot: null },
   { code: "tb_item_a03", name: "Очищающий раствор", group: 'kit', tier: 2, units: 1626.87, slot: null, soberAmount: 30 },
@@ -212,7 +213,8 @@ export const TABLE_OBJECTS: readonly { code: string; name: string; type: 'KOLHOZ
   { code: "obj_tb_rune_2", name: "Адвокатура", type: 'WORKSHOP', profession: "rune_scribe", district: 'center', gather: false, shiftMinutes: 60, resource: null },
 ]
 
-export const TABLE_RECIPES: readonly { code: string; name: string; object: string; resource: string | null; item: string | null; minutes: number; profession: string; tool: string | null; inputs: readonly (readonly [string, number])[] }[] = [
+type TableRecipe = { code: string; name: string; object: string; resource: string | null; item: string | null; minutes: number; profession: string; tool: string | null; inputs: readonly (readonly [string, number])[] }
+const BOOK_RECIPES: readonly TableRecipe[] = [
   { code: "rcp_tb_scrap", name: "Металлолом сортовой", object: "obj_tb_scrap", resource: "tb_scrap", item: null, minutes: 50, profession: "metallurgist", tool: null, inputs: [] },
   { code: "rcp_tb_iron_ore", name: "Железная руда", object: "obj_tb_iron_ore", resource: "tb_iron_ore", item: null, minutes: 50, profession: "metallurgist", tool: null, inputs: [] },
   { code: "rcp_tb_copper_ore", name: "Медная руда", object: "obj_tb_copper_ore", resource: "tb_copper_ore", item: null, minutes: 50, profession: "metallurgist", tool: null, inputs: [] },
@@ -357,3 +359,59 @@ export const TABLE_ITEM_EFFECTS: Record<string, { buffs?: { stat: 'armor' | 'dam
   tb_item_w11: { buffs: [{ stat: 'accuracy', value: 0.25 }], rounds: 3 },
   tb_item_w12: { buffs: [{ stat: 'armor', value: 0.2 }, { stat: 'damage', value: 0.2 }], rounds: 3 },
 }
+
+// =============================================================
+// Скидка на крафт (Дима 19.11): «снизить количество ресов в 10 раз (округлить
+// в большую сторону)» на создаваемый шмот и «в 7–8 раз расходы на свитки».
+// Число книги выше не трогаем: правило применяется поверх.
+//
+// Кому скидка: рецепт самой вещи и детали, которые идут только в этот вид
+// (одежда или свитки). Общие детали (ткань, нитки, кожа, бумага) не трогаем,
+// иначе подешевели бы аптечки и бумага юриста. Режутся и входы, и время труда:
+// у Бронежилета мастера одна сборка 988 часов, без этого скидка ничего не даёт.
+// Цена (единицы книги) падает во столько же раз, во сколько упали затраты рецепта,
+// поэтому государство не скупает дешёвый крафт по старой цене.
+// =============================================================
+export const CRAFT_DISCOUNT: Readonly<Record<'clothes' | 'scroll', number>> = { clothes: 10, scroll: 8 }
+/** Не режем: договор подряда юриста (18.11) и снятые свитки нотариальной конторы. */
+const DISCOUNT_SKIP = new Set(['tb_item_d01', 'tb_item_w01', 'tb_item_w02', 'tb_item_w03', 'tb_item_w04', 'tb_item_w05', 'tb_item_w06'])
+
+const outputOf = (recipe: TableRecipe) => (recipe.resource ?? recipe.item) as string
+const groupOfItem = new Map(BOOK_ITEMS.map(item => [item.code, item.group]))
+
+/** Вид, в который целиком уходит выход рецепта, или null, если он общий. */
+function discountGroup(code: string, seen = new Set<string>()): 'clothes' | 'scroll' | null {
+  const own = groupOfItem.get(code)
+  if (own) return own === 'kit' || DISCOUNT_SKIP.has(code) ? null : own
+  if (seen.has(code)) return null
+  seen.add(code)
+  const consumers = BOOK_RECIPES.filter(recipe => !DISCOUNT_SKIP.has(outputOf(recipe)) && recipe.inputs.some(([input]) => input === code))
+  if (!consumers.length) return null
+  const groups = new Set(consumers.map(recipe => discountGroup(outputOf(recipe), new Set(seen))))
+  return groups.size === 1 ? [...groups][0] : null
+}
+
+const bookUnits = new Map<string, number>([...BOOK_RESOURCES.map(row => [row[0], row[3]] as const), ...BOOK_ITEMS.map(item => [item.code, item.units] as const)])
+const newUnits = new Map(bookUnits)
+const discounted: TableRecipe[] = []
+// Рецепты книги идут по порядку производства: деталь раньше, чем её берут, поэтому
+// к рецепту вещи цены её деталей уже пересчитаны.
+for (const recipe of BOOK_RECIPES) {
+  // Добычу (рецепт без входов) не трогаем: руда и шкура стоят как раньше, заработок сборщиков тот же.
+  const group = recipe.inputs.length ? discountGroup(outputOf(recipe)) : null
+  if (!group) { discounted.push(recipe); continue }
+  const f = CRAFT_DISCOUNT[group]
+  const inputs = recipe.inputs.map(([code, amount]) => [code, Math.ceil(amount / f)] as const)
+  const minutes = Math.ceil(recipe.minutes / f)
+  const cost = (list: readonly (readonly [string, number])[], prices: Map<string, number>, labor: number) =>
+    list.reduce((sum, [code, amount]) => sum + amount * (prices.get(code) ?? 0), 0) + labor
+  const ratio = cost(inputs, newUnits, minutes) / cost(recipe.inputs, bookUnits, recipe.minutes)
+  newUnits.set(outputOf(recipe), Math.round((bookUnits.get(outputOf(recipe)) ?? 0) * ratio * 100) / 100)
+  discounted.push({ ...recipe, inputs, minutes })
+}
+
+export const TABLE_RECIPES: readonly TableRecipe[] = discounted
+export const TABLE_RESOURCES: readonly [string, string, number, number][] = BOOK_RESOURCES.map(([code, name, tier, units]) => [code, name, tier, newUnits.get(code) ?? units])
+export const TABLE_ITEMS: readonly TableItem[] = BOOK_ITEMS.map(item => ({ ...item, units: newUnits.get(item.code) ?? item.units }))
+/** Числа книги до скидки: для отчётов и проверки, что скидка задела только своё. */
+export const TABLE_BOOK = { resources: BOOK_RESOURCES, items: BOOK_ITEMS, recipes: BOOK_RECIPES }

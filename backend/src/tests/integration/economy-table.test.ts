@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { randomUUID } from 'crypto'
-import { ECONOMY_TABLE_RATE, TABLE_ITEMS, TABLE_OBJECTS, TABLE_RECIPES, TABLE_RESOURCES, TABLE_TOOLS, tablePrice } from '../../../prisma/economy-table'
+import { CRAFT_DISCOUNT, ECONOMY_TABLE_RATE, TABLE_BOOK, TABLE_ITEMS, TABLE_OBJECTS, TABLE_RECIPES, TABLE_RESOURCES, TABLE_TOOLS, tablePrice } from '../../../prisma/economy-table'
 import { RESOURCES } from '../../../prisma/economy-data'
 import { BAR_RESOURCES } from '../../../prisma/bar-data'
 import { seedEconomyTable } from '../../../prisma/seed-economy-table'
@@ -23,6 +23,32 @@ async function worker(professions: string[], dollars = 0) {
 }
 
 const object = (code: string) => testPrisma.productionObject.findUniqueOrThrow({ where: { code } })
+
+describe('Скидка на крафт (Дима 19.11)', () => {
+  const book = new Map(TABLE_BOOK.recipes.map(row => [row.code, row]))
+  const recipe = (code: string) => TABLE_RECIPES.find(row => row.code === code)!
+  const bookItem = new Map(TABLE_BOOK.items.map(row => [row.code, row.units]))
+
+  it('шмот: входы и труд в 10 раз меньше с округлением вверх, свитки в 8', () => {
+    const was = book.get('rcp_tb_c12')!
+    expect(recipe('rcp_tb_c12').minutes).toBe(Math.ceil(was.minutes / CRAFT_DISCOUNT.clothes))
+    expect(recipe('rcp_tb_c12').inputs).toEqual(was.inputs.map(([code, n]) => [code, Math.ceil(n / 10)]))
+    const scroll = book.get('rcp_tb_w12')!
+    expect(recipe('rcp_tb_w12').inputs).toEqual(scroll.inputs.map(([code, n]) => [code, Math.ceil(n / 8)]))
+  })
+
+  it('добыча, аптечки, настойки, общие детали и договор юриста как в книге', () => {
+    for (const row of TABLE_RECIPES.filter(r => !r.inputs.length)) expect(row).toEqual(book.get(row.code))
+    for (const code of ['rcp_tb_cloth', 'rcp_tb_paper', 'rcp_tb_a01', 'rcp_tb_a12', 'rcp_tb_d01']) expect(recipe(code)).toEqual(book.get(code))
+    for (const item of TABLE_ITEMS.filter(row => row.group === 'kit' || row.code === 'tb_item_d01')) expect(item.units).toBe(bookItem.get(item.code))
+  })
+
+  it('цена вещи падает вместе с затратами: государство не скупает крафт дороже книжного соотношения', () => {
+    const top = TABLE_ITEMS.find(row => row.code === 'tb_item_c12')!
+    expect(top.units).toBeLessThan(bookItem.get('tb_item_c12')! / 5)
+    for (const item of TABLE_ITEMS) expect(item.units).toBeLessThanOrEqual(bookItem.get(item.code)!)
+  })
+})
 
 describe('Книга экономики: данные', () => {
   it('книга целая: 78 ресурсов, 117 рецептов, 37 изделий, 8 инструментов (юрист 18.11)', () => {
@@ -120,7 +146,9 @@ describe('Книга экономики: в игре', () => {
     expect(await row()).toMatchObject({ forSaleUsd: null, products: [] })
     const recipe = await testPrisma.productionRecipe.findUniqueOrThrow({ where: { code: 'rcp_tb_steel_blank' }, include: { inputs: true } })
     expect((await object(shop.code)).activeRecipeId).toBe(recipe.id)
-    expect(recipe.inputs.map(row => [row.resourceCode, row.amount]).sort()).toEqual([['tb_coal', 1], ['tb_iron_ore', 1], ['tb_scrap', 2]])
+    // Числа рецепта — из таблицы (со скидкой на крафт 19.11), а не переписанные руками.
+    const steel = TABLE_RECIPES.find(row => row.code === 'rcp_tb_steel_blank')!
+    expect(recipe.inputs.map(row => [row.resourceCode, row.amount]).sort()).toEqual(steel.inputs.map(([code, n]) => [code, n]).sort())
   })
 
   it('цех от сырья до продукции: труд книги, потом минута таймера', async () => {
@@ -133,7 +161,7 @@ describe('Книга экономики: в игре', () => {
     const tool = await testPrisma.itemTemplate.findUniqueOrThrow({ where: { code: 'tool_tb_u01' } })
     await testPrisma.itemInstance.create({ data: { templateId: tool.id, ownerId: character.id, quality: 'COMMON', durabilityCurrent: 1, durabilityMax: 1, weight: 1, sourceType: 'GOVERNMENT', usesLeft: 100 } })
     const started = await CycleService.tryStart(shop.id)
-    expect(started).toMatchObject({ cycle: { laborRequired: 200 } })
+    expect(started).toMatchObject({ cycle: { laborRequired: TABLE_RECIPES.find(row => row.code === 'rcp_tb_steel_blank')!.minutes } })
     const cycle = await testPrisma.productionCycle.findFirstOrThrow({ where: { productionObjectId: shop.id } })
     await testPrisma.productionCycle.update({ where: { id: cycle.id }, data: { laborAccumulated: 199 } })
 

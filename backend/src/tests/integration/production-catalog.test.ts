@@ -43,7 +43,7 @@ describe('Справочник «как сделать»', () => {
     expect(vest.name).toBe('Бронежилет')
     expect(vest.kind).toBe('item')
     expect(vest.ways).toHaveLength(1)
-    expect(vest.ways[0]).toMatchObject({ objectCode: 'obj_tb_armor_shop', gather: false, forSaleUsd: 15_000, labor: 10_500, professionName: 'Портной', professionKnown: true, toolName: 'Швейный набор' })
+    expect(vest.ways[0]).toMatchObject({ objectCode: 'obj_tb_armor_shop', gather: false, forSaleUsd: 15_000, labor: TABLE_RECIPES.find(row => row.code === 'rcp_tb_c09')!.minutes, professionName: 'Портной', professionKnown: true, toolName: 'Швейный набор' })
     expect(vest.ways[0].inputs.length).toBeGreaterThan(0)
   })
 
