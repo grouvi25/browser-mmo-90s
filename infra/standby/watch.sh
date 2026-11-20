@@ -64,11 +64,17 @@ if [ ! -e "$ST/promotion-approved" ]; then
   elif [ "$status" != revoked ]; then
     exit 1
   fi
-  case "$(lease freeze)" in
-    waiting|healthy) exit 0 ;;
-    fenced) touch "$ST/promotion-approved" ;;
+  witness_fence="$(lease freeze)"
+  case "$witness_fence" in
+    healthy) exit 0 ;;
+    waiting|fenced) ;;
     *) exit 1 ;;
   esac
+  # Держим тот же lock, что и запасная выдача аренды. С этого момента
+  # закрыты оба источника, а срок последней аренды Beget ещё может идти.
+  peer_fence="$(bash "$S/lease-peer.sh" --freeze)"
+  [ "$witness_fence" = fenced ] && [ "$peer_fence" = fenced ] || exit 0
+  touch "$ST/promotion-approved"
 fi
 
 if [ ! -e "$P/.failover-done" ]; then

@@ -1,5 +1,5 @@
 [Unit]
-Description=Renew Aeza game lease with Timeweb
+Description=Renew Aeza game lease with Timeweb or the Beget standby
 Wants=network-online.target
 Requires=koop-lease-firewall.service
 After=network-online.target koop-lease-firewall.service

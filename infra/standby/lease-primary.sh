@@ -5,6 +5,7 @@ source /etc/koop-lease-network
 [[ "$KOOP_BRIDGE" =~ ^br-[a-f0-9]{12}$ ]]
 [[ "$KOOP_SUBNET" =~ ^[0-9.]+/[0-9]+$ ]]
 witness=195.133.81.121
+peer=85.198.67.48
 
 clear_lease() {
   nft -f - <<'NFT'
@@ -51,8 +52,12 @@ NFT
     ;;
   --renew)
     read -r started _ < /proc/uptime
-    answer="$(timeout -k 2 9 ssh -n -i /root/.ssh/koop_lease -o BatchMode=yes \
-      -o ConnectTimeout=5 -o StrictHostKeyChecking=yes "root@$witness" renew)" || exit 1
+    if ! answer="$(timeout -k 1 5 ssh -n -i /root/.ssh/koop_lease -o BatchMode=yes \
+      -o ConnectTimeout=3 -o StrictHostKeyChecking=yes "root@$witness" renew)"; then
+      answer="$(timeout -k 1 4 ssh -n -i /root/.ssh/koop_peer_lease -o BatchMode=yes \
+        -o IdentitiesOnly=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=yes \
+        -o UserKnownHostsFile=/root/.ssh/known_hosts_koop_peer "root@$peer" renew)" || exit 1
+    fi
     case "$answer" in
       revoked) clear_lease; exit 0 ;;
       granted) ;;

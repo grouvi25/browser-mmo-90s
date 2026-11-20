@@ -75,6 +75,8 @@ export const CharactersService = {
     // Create stats
     await CharactersRepository.createStats(char.id, { ...base, pointsAvailable })
 
+    await NoticesService.push(char.id, 'Добро пожаловать в «Кооператив»! Если есть вопросы, напиши в общий чат. Поможем освоиться.')
+
     // Письмо Бывалого новичку (Дмитрий 09.11): строка в ленте «Системы», сам текст — на /novichok.
     await NoticesService.push(char.id, `Бывалый оставил тебе письмо, ${char.nickname}: «Кодекс выживания приезжего». Читай в Библиотеке → «С чего начать» или по адресу kooperativ.space/novichok`)
       .catch(() => undefined)

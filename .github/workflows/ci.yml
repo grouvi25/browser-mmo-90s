@@ -44,6 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify standby lease safety
+        run: bash infra/standby/test-lease-peer.sh
       - uses: actions/setup-node@v4
         with:
           node-version: '20'

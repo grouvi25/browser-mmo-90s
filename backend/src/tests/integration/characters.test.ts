@@ -77,11 +77,14 @@ describe('CharactersService.create', () => {
 
   it('throws 409 if user already has a character', async () => {
     const { userId } = await createTestUser()
-    await CharactersService.create(userId, { nickname: uid('First'), archetype: 'WORKER' })
+    const char = await CharactersService.create(userId, { nickname: uid('First'), archetype: 'WORKER' })
 
     await expect(
       CharactersService.create(userId, { nickname: uid('Second'), archetype: 'WORKER' })
     ).rejects.toSatisfy((e: unknown) => e instanceof AppError && e.statusCode === 409)
+    expect(await testPrisma.gameNotice.count({
+      where: { characterId: char!.id, text: { startsWith: 'Добро пожаловать в «Кооператив»!' } },
+    })).toBe(1)
   })
 
   it('throws 409 if nickname already taken', async () => {
