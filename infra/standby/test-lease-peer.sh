@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Проверяет переключение источника аренды и ограждение перед повышением реплики.
 set -euo pipefail
+trap 'echo "Peer lease check failed at line $LINENO" >&2' ERR
 S="$(cd -- "$(dirname -- "$0")" && pwd)"
 fixture="$(mktemp -d)"
 trap 'rm -rf -- "$fixture"' EXIT
@@ -10,8 +11,10 @@ export PATH="$fixture/bin:$PATH" FIXTURE="$fixture"
 for script in lease-primary lease-peer watch; do
   sed -e "s|/var/lib/koop-watch|$fixture/state|g" \
     -e "s|/etc/koop-lease-network|$fixture/network|g" \
+    -e "s|/proc/uptime|$fixture/uptime|g" \
     -e "s|/opt/mmo90s|$fixture/project|g" "$S/$script.sh" > "$fixture/$script.sh"
 done
+printf '1000.00 0.00\n' > "$fixture/uptime"
 cat > "$fixture/network" <<'EOF'
 KOOP_BRIDGE=br-0123456789ab
 KOOP_SUBNET=172.18.0.0/16
@@ -82,8 +85,7 @@ test -s "$fixture/state/peer-frozen"
 test ! -e "$fixture/state/promotion-approved"
 test "$(SSH_ORIGINAL_COMMAND=renew bash "$fixture/lease-peer.sh" --renew)" = revoked
 
-read -r uptime _ < /proc/uptime
-printf '%s %s\n' "$(cat /proc/sys/kernel/random/boot_id)" "$((${uptime%.*} - 150))" > "$fixture/state/peer-frozen"
+printf '1150.00 0.00\n' > "$fixture/uptime"
 bash "$fixture/watch.sh"
 test -e "$fixture/state/promotion-approved"
 test -e "$fixture/state/dns-done"
