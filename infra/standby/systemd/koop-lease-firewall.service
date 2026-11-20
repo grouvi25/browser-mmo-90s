@@ -1,0 +1,11 @@
+[Unit]
+Description=Install Kooperativ lease firewall
+Before=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/mmo90s-tools/lease-primary.sh --init
+RemainAfterExit=yes
+
+[Install]
+RequiredBy=docker.service

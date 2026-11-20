@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew Aeza game lease with Timeweb
+Wants=network-online.target
+Requires=koop-lease-firewall.service
+After=network-online.target koop-lease-firewall.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/mmo90s-tools/lease-primary.sh --renew
+TimeoutStartSec=13s

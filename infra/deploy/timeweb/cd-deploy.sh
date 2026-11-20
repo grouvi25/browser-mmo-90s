@@ -13,6 +13,12 @@ C="docker compose -p mmo90s -f docker-compose.prod.yml -f docker-compose.vps.yml
 cd "$P"
 
 stamp() { echo "== $(date +%H:%M:%S) $*"; }
+check_lease() {
+  if [ -e /etc/koop-lease-network ]; then
+    bash "$T/lease-primary.sh" --check
+  fi
+}
+check_lease
 PREV_SHA="$(git rev-parse HEAD)"
 SWAPPED=0
 OLD_ROLLBACK=""
@@ -23,8 +29,10 @@ on_error() {
   git reset --hard "$PREV_SHA" >/dev/null
   if [ "$SWAPPED" = 1 ]; then
     for s in $SERVICES; do docker tag "mmo90s-$s:rollback" "mmo90s-$s:latest"; done
-    $C up -d --no-build
-    stamp "Прошлая версия запущена. База не откатывается, это решается вручную."
+    if check_lease; then
+      $C up -d --no-build
+      stamp "Прошлая версия запущена. База не откатывается, это решается вручную."
+    fi
   fi
   echo failed > "$T/cd.status"
   exit 1
@@ -56,11 +64,13 @@ done
 SWAPPED=1
 
 stamp "миграции"
+check_lease
 $C run --rm --no-deps backend npx prisma migrate deploy 2>&1 | tail -3
 stamp "сид"
 $C run --rm --no-deps backend npx tsx prisma/seed.ts 2>&1 | tail -4
 
 stamp "запуск"
+check_lease
 $C up -d --no-build --remove-orphans
 
 stamp "проверка игры"

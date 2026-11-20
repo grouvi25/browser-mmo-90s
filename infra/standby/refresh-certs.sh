@@ -8,6 +8,7 @@
 # Сертификаты продлевает основной сервер, поэтому здесь своего certbot для них нет.
 set -euo pipefail
 P=/opt/mmo90s
+[ ! -e "$P/.failover-done" ] || exit 0
 CERTS=/etc/nginx/koop-certs
 ARCH="$(ls -1t /srv/backups/aeza/aeza-*.tar.gz 2>/dev/null | head -1)"
 [ -n "$ARCH" ] || { echo "нет архивов основного в /srv/backups/aeza"; exit 1; }

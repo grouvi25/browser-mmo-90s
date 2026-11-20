@@ -1,75 +1,86 @@
 #!/usr/bin/env bash
-# Сторож на резерве (Beget), запуск таймером koop-watch раз в 30 секунд.
-# Автопереключение по кворуму: игра переезжает сюда, только если
-#   - отсюда основной (Aeza) не отвечает DOWN_LIMIT проверок подряд (по умолчанию 5 минут), и
-#   - третий сервер (Timeweb) сам проверил и тоже его не видит.
-# Если Timeweb основной видит, порвалась связь, а не упал сервер: не переключаем.
-# Если Timeweb недоступен, возможно отрезан сам резерв: тоже не переключаем.
-# Основной сам гасит игру, когда не видит обоих соседей (fence.sh), поэтому двух живых баз не будет.
-# Выключатель: touch /var/lib/koop-watch/disabled (например, на время учебной тревоги или работ).
-set -uo pipefail
+# Beget проверяет Aeza, ждёт свидетельство Timeweb и закрытие аренды Aeza.
+# Повышение базы и смена DNS повторяются независимо при сбоях.
+set -euo pipefail
 P=/opt/mmo90s
-S="$P/infra/standby"
+S="$(dirname "$(realpath "$0")")"
 ST=/var/lib/koop-watch
-PRIMARY=82.148.244.248
-SELF=85.198.67.48
 WITNESS=195.133.81.121
-DOWN_LIMIT="${KOOP_DOWN_LIMIT:-10}"
+source "$S/health.sh"
 mkdir -p "$ST"
-notify() { bash "$S/notify.sh" "$1"; }
-
-[ -f "$P/.failover-done" ] && exit 0
-[ -f "$ST/disabled" ] && exit 0
 exec 9>"$ST/lock"
 flock -n 9 || exit 0
+[ ! -e "$ST/disabled" ] || exit 0
 
-n="$(cat "$ST/down" 2>/dev/null || echo 0)"
-if curl -sk -m 8 --resolve "kooperativ.space:443:$PRIMARY" https://kooperativ.space/ready | grep -q '"ready"'; then
-  [ "$n" -ge 4 ] && notify "Аеза снова отвечает (не отвечала около $((n / 2)) мин). Переключение не понадобилось."
-  echo 0 > "$ST/down"
-  rm -f "$ST/split-notified"
-  # Заодно здоровье копии: реплика должна получать изменения с основного.
-  rs="$(docker exec mmo90s-postgres-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select coalesce((select status from pg_stat_wal_receiver), \$\$none\$\$)"' 2>/dev/null || echo error)"
-  if [ "$rs" != streaming ]; then
-    if [ ! -f "$ST/repl-notified" ] || [ -n "$(find "$ST/repl-notified" -mmin +180)" ]; then
-      notify "Копия базы на Бегете не получает изменения с Аезы (статус: $rs). Игра работает, но резерв отстаёт."
-      touch "$ST/repl-notified"
-    fi
-  else
-    rm -f "$ST/repl-notified"
+notify() { bash "$S/notify.sh" "$1"; }
+warn() {
+  local key="$1"
+  echo "$2" >&2
+  if [ ! -e "$ST/$key" ] || [ -n "$(find "$ST/$key" -mmin +60)" ]; then
+    touch "$ST/$key"
+    notify "$2"
   fi
-  exit 0
+}
+lease() {
+  timeout -k 2 12 ssh -n -i /root/.ssh/koop_lease -o BatchMode=yes \
+    -o ConnectTimeout=6 -o StrictHostKeyChecking=yes "root@$WITNESS" "$1"
+}
+
+if [ -e "$P/.failover-done" ] && [ -e "$ST/dns-done" ]; then exit 0; fi
+if [ ! -e "$ST/promotion-approved" ]; then
+  now="$(date +%s)"
+  if ready_at "$KOOP_AEZA"; then
+    rm -f "$ST/down-since" "$ST/split" "$ST/stale"
+    if [ "$(postgres "SELECT pg_is_in_recovery() AND NOT pg_is_wal_replay_paused() AND EXISTS (SELECT 1 FROM pg_stat_wal_receiver WHERE status = 'streaming' AND last_msg_receipt_time > now() - interval '2 minutes') AND pg_wal_lsn_diff(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn()) <= 16777216")" = t ] &&
+       docker exec mmo90s-redis-1 redis-cli --raw info replication | grep -Fxq $'master_link_status:up\r'; then
+      echo "$now" > "$ST/replica-ok"
+      rm -f "$ST/repl"
+    else
+      warn repl "Реплика PostgreSQL или Redis на Beget отстаёт. Автопереключение требует свежей копии."
+    fi
+    exit 0
+  fi
+  down="$(cat "$ST/down-since" 2>/dev/null || echo "$now")"
+  [[ "$down" =~ ^[0-9]+$ ]]
+  echo "$down" > "$ST/down-since"
+  [ "$((now - down))" -ge 300 ] || exit 0
+  last="$(cat "$ST/replica-ok" 2>/dev/null || echo 0)"
+  [[ "$last" =~ ^[0-9]+$ ]]
+  if [ "$last" -gt "$down" ] || [ "$((down - last))" -gt 120 ]; then
+    warn stale "Aeza недоступна, свежесть реплик Beget перед сбоем не подтверждена. Нужна проверка."
+    exit 1
+  fi
+  vote="$(timeout -k 2 35 ssh -n -i /root/.ssh/koop_witness -o BatchMode=yes \
+    -o ConnectTimeout=8 -o StrictHostKeyChecking=yes "root@$WITNESS" status)" || vote=unknown
+  case "$vote" in
+    aeza=down\ role=*) ;;
+    *) warn split "Проверка Timeweb не подтвердила отключение Aeza. Резерв ждёт." ; exit 0 ;;
+  esac
+  status="$(lease status)"
+  if [ "$status" = open ]; then
+    bash "$S/failover.sh" --preflight
+    python3 "$S/dns-cloudflare.py" --dry-run
+    if ready_at "$KOOP_AEZA"; then exit 0; fi
+  elif [ "$status" != revoked ]; then
+    exit 1
+  fi
+  case "$(lease freeze)" in
+    waiting|healthy) exit 0 ;;
+    fenced) touch "$ST/promotion-approved" ;;
+    *) exit 1 ;;
+  esac
 fi
 
-n=$((n + 1))
-echo "$n" > "$ST/down"
-[ "$n" -eq 4 ] && notify "Аеза не отвечает 2 минуты. Если так продлится до 5 минут и Таймвеб подтвердит, переключу игру на Бегет."
-[ "$n" -lt "$DOWN_LIMIT" ] && exit 0
-
-w="$(timeout 45 ssh -i /root/.ssh/koop_witness -o BatchMode=yes -o ConnectTimeout=10 "root@$WITNESS" status 2>/dev/null)"
-case "$w" in
-  aeza=down*) ;;
-  aeza=up*)
-    [ -f "$ST/split-notified" ] || notify "Бегет не видит Аезу $((n / 2)) мин, но Таймвеб её видит. Порвалась связь, а не упал сервер. Не переключаю."
-    touch "$ST/split-notified"
-    exit 0
-    ;;
-  *)
-    [ -f "$ST/split-notified" ] || notify "Бегет не видит ни Аезу, ни Таймвеб. Возможно, отрезан сам Бегет. Не переключаю."
-    touch "$ST/split-notified"
-    exit 0
-    ;;
-esac
-
-notify "Аеза лежит $((n / 2)) мин, Таймвеб это подтверждает. Переключаю игру на Бегет."
-if bash "$S/failover.sh" > "$ST/failover.log" 2>&1; then
-  if bash "$S/dns-beget.sh" "$SELF" >> "$ST/failover.log" 2>&1; then
-    dns="Домен переведён на Бегет, игроки переедут за несколько минут."
-  else
-    dns="Домен НЕ переключён: смени A-записи kooperativ.space, www и admin на $SELF."
+if [ ! -e "$P/.failover-done" ]; then
+  if ! bash "$S/failover.sh" > "$ST/failover.log" 2>&1; then
+    warn promotion-error "Запуск игры на Beget пока не удался. Повторю. Журнал $ST/failover.log."
+    exit 1
   fi
-  notify "Игра работает на Бегете. $dns Аезу после восстановления не включать как есть (см. infra/standby/README.md)."
+fi
+if beget_ready && python3 "$S/dns-cloudflare.py" >> "$ST/failover.log" 2>&1; then
+  touch "$ST/dns-done"
+  notify "Игра работает на Beget, оба NS Cloudflare возвращают $KOOP_BEGET. Aeza ограждена."
 else
-  touch "$ST/disabled"
-  notify "Переключение не удалось, сторож выключен, нужна ручная проверка. Конец журнала: $(tail -4 "$ST/failover.log" | tr '\n' ' ')"
+  warn dns-error "Beget ещё не прошёл проверку HTTPS или DNS Cloudflare. Сторож повторит проверку."
+  exit 1
 fi

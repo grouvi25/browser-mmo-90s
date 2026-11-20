@@ -1,0 +1,8 @@
+[Unit]
+Description=Kooperativ failover monitor on Beget
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/mmo90s-tools/standby/watch.sh
+TimeoutStartSec=8min

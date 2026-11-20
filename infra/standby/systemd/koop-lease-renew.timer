@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew the Kooperativ lease every 15 seconds
+
+[Timer]
+OnBootSec=1s
+OnUnitActiveSec=15s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

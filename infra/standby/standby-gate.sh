@@ -8,6 +8,16 @@
 #   pull <sha>  — забрать образы и коммит с основного (основной путь с 18.11)
 set -euo pipefail
 P=/opt/mmo90s
+ST=/var/lib/koop-watch
+
+lock_replica() {
+  exec 9>"$ST/lock"
+  flock -w 60 9
+  if [ -e "$ST/promotion-approved" ] || [ -e "$P/.failover-done" ]; then
+    echo "Beget уже повышается или работает как основной сервер" >&2
+    exit 3
+  fi
+}
 
 case "${SSH_ORIGINAL_COMMAND:-}" in
   ping)
@@ -20,10 +30,7 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
     # Забрать выкаченную версию с основного: образы и коммит (GitHub даёт только команду).
     sha="${SSH_ORIGINAL_COMMAND#pull }"
     [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Плохой коммит" >&2; exit 2; }
-    if [ -f "$P/.failover-done" ]; then
-      echo "Резерв уже работает как основной сервер, выкатывать сюда надо обычным deploy" >&2
-      exit 3
-    fi
+    lock_replica
     A="ssh -i /root/.ssh/koop_images -o BatchMode=yes -o ConnectTimeout=15 root@82.148.244.248"
     live="$($A sha)"
     [ "$live" = "$sha" ] || { echo "На основном выкачен $live, а не $sha" >&2; exit 4; }
@@ -37,10 +44,7 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
   stage\ *)
     sha="${SSH_ORIGINAL_COMMAND#stage }"
     [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Плохой коммит" >&2; exit 2; }
-    if [ -f "$P/.failover-done" ]; then
-      echo "Резерв уже работает как основной сервер, выкатывать сюда надо обычным deploy" >&2
-      exit 3
-    fi
+    lock_replica
     cd "$P"
     git fetch -q --depth 30 origin "$sha"
     git reset -q --hard "$sha"
