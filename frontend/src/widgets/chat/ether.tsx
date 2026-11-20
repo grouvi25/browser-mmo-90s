@@ -146,6 +146,28 @@ export function addRecipient(target: string, nick: string): string {
 }
 const removeRecipient = (target: string, nick: string) => recipientsOf(target).filter(name => name !== nick).join(', ')
 
+export function useChatScroll(messages: ChatLine[], visible = true) {
+  const lastId = messages[messages.length - 1]?.id
+  const boxRef = useRef<HTMLDivElement>(null)
+  const follow = useRef(true)
+
+  useLayoutEffect(() => {
+    if (!visible) {
+      follow.current = true
+      return
+    }
+    const box = boxRef.current
+    if (box && follow.current) box.scrollTop = box.scrollHeight
+  }, [lastId, visible])
+
+  function onScroll() {
+    const box = boxRef.current
+    if (box) follow.current = box.scrollHeight - box.clientHeight - box.scrollTop <= 24
+  }
+
+  return { boxRef, onScroll }
+}
+
 /** Одна строка ленты: время, метка канала, ник (клик — обращение) и текст. */
 /** №126: вверху ленты — подгрузить реплики за весь день. Прокрутка
  *  остаётся на той же строке, а не прыгает к самым старым. */
@@ -236,11 +258,33 @@ export function EtherComposer({ ether, composer, className = '', style }: {
   ether: Ether; composer: Composer; className?: string; style?: CSSProperties
 }) {
   const [emojiOpen, setEmojiOpen] = useState(false)
+  const emojiRef = useRef<HTMLSpanElement>(null)
+  const emojiButton = useRef<HTMLButtonElement>(null)
   const { mode, setMode, target, setTarget, draft, setDraft, inputRef, submit, editing, cancelEdit } = composer
   const modes: EtherMode[] = ether.hasClan ? ['GLOBAL', 'CLAN', 'PRIVATE'] : ['GLOBAL', 'PRIVATE']
   const placeholder = ether.notice
     || (editing ? 'Новый текст сообщения…' : mode === 'PRIVATE' ? (target ? `Лично ${target}…` : 'Нажмите на ник в чате, кому написать, можно на несколько')
       : mode === 'CLAN' ? 'Написать бригаде…' : 'Написать всем…')
+
+  useEffect(() => {
+    if (!emojiOpen) return
+    const dismissOutside = (event: Event) => {
+      if (event.target instanceof Node && !emojiRef.current?.contains(event.target)) setEmojiOpen(false)
+    }
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setEmojiOpen(false)
+      if (emojiRef.current?.contains(document.activeElement)) emojiButton.current?.focus({ preventScroll: true })
+    }
+    document.addEventListener('pointerdown', dismissOutside, true)
+    document.addEventListener('focusin', dismissOutside)
+    document.addEventListener('keydown', dismissOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', dismissOutside, true)
+      document.removeEventListener('focusin', dismissOutside)
+      document.removeEventListener('keydown', dismissOnEscape)
+    }
+  }, [emojiOpen])
 
   const insertEmoji = (emoji: string) => {
     // Код смайла отделяем пробелами, иначе «текст:pivo:» склеится в одно слово.
@@ -250,8 +294,9 @@ export function EtherComposer({ ether, composer, className = '', style }: {
   }
 
   return (
-    <form className={`ether-composer ether-composer--${mode.toLowerCase()}${editing ? ' is-editing' : ''} ${className}`} style={style} onSubmit={submit}
-      onKeyDown={e => { if (editing && e.key === 'Escape') cancelEdit() }}>
+    <form className={`ether-composer ether-composer--${mode.toLowerCase()}${editing ? ' is-editing' : ''} ${className}`} style={style}
+      onSubmit={event => { setEmojiOpen(false); void submit(event) }}
+      onKeyDown={e => { if (editing && !emojiOpen && e.key === 'Escape') cancelEdit() }}>
       {editing
         ? <span className="ether-editing">
             Правка
@@ -281,8 +326,8 @@ export function EtherComposer({ ether, composer, className = '', style }: {
         spellCheck
         aria-label={placeholder}
       />
-      <span className="ether-emoji">
-        <button type="button" aria-label="Смайлики" aria-expanded={emojiOpen} onClick={() => setEmojiOpen(o => !o)}>😊</button>
+      <span className="ether-emoji" ref={emojiRef}>
+        <button ref={emojiButton} type="button" aria-label="Смайлики" aria-expanded={emojiOpen} onClick={() => setEmojiOpen(o => !o)}>😊</button>
         {emojiOpen && (
           <span className="ether-emoji__grid" role="listbox" aria-label="Смайлики">
             {SMILES.map(s => (

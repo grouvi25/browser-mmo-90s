@@ -123,17 +123,23 @@ function ForeignDossier() {
   return <DossierPage key={nickname} nickname={nickname} />
 }
 
-function MetrikaTracker() {
+function AnalyticsTracker() {
   const location = useLocation()
-  const first = useRef(true)
+  const page = location.pathname + location.search
+  const previous = useRef(page)
   useEffect(() => {
-    if (first.current) { first.current = false; return }
-    const ym = (window as typeof window & { ym?: (id:number, action:string, url:string, options:Record<string,string>) => void }).ym
-    ym?.(111441325, 'hit', location.pathname + location.search, { title: document.title, referer: document.referrer })
+    if (previous.current === page) return
+    previous.current = page
+    const analytics = window as typeof window & {
+      ym?: (id: number, action: string, url: string, options: Record<string, string>) => void
+      _tmr?: unknown[]
+      __kooperativTop100?: () => void
+    }
+    analytics.ym?.(111441325, 'hit', page, { title: document.title, referer: document.referrer })
     // Top.Mail.Ru считает переходы внутри игры тем же способом; без согласия на cookie его нет.
-    const tmr = (window as typeof window & { _tmr?: unknown[] })._tmr
-    if (tmr && document.getElementById('tmr-code')) tmr.push({ id: '3813305', type: 'pageView', start: Date.now() })
-  }, [location.pathname, location.search])
+    if (document.getElementById('tmr-code')) analytics._tmr?.push({ id: '3813305', type: 'pageView', start: Date.now() })
+    analytics.__kooperativTop100?.()
+  }, [page])
   return null
 }
 
@@ -160,7 +166,7 @@ export function AppRouter() {
   }
   return (
     <>
-    <MetrikaTracker />
+    <AnalyticsTracker />
     <Routes>
       {/* ── Публичная часть ───────────────────────────────── */}
       <Route element={<PublicLayout />}>

@@ -51,7 +51,6 @@ export function HelpersSection() {
   const work = useMutation({
     mutationFn: ({ id, objectId }: { id: string; objectId: string }) => helpersApi.work(id, objectId),
     onSuccess: () => done('Помощник вышел на смену'),
-    onError: fail,
   })
   const claim = useMutation({
     mutationFn: helpersApi.claim,
@@ -137,7 +136,10 @@ export function HelpersSection() {
                 helper={helper}
                 busy={busy}
                 objects={objects.data?.items ?? []}
-                onWork={objectId => work.mutate({ id: helper.id, objectId })}
+                workError={work.error && work.variables?.id === helper.id
+                  ? { objectId: work.variables.objectId, message: work.error.message }
+                  : undefined}
+                onWork={objectId => { setMsg(''); work.mutate({ id: helper.id, objectId }) }}
                 onClaim={() => claim.mutate(helper.id)}
                 onRenew={() => renew.mutate(helper.id)}
                 onDismiss={() => dismiss.mutate(helper.id)}
@@ -151,11 +153,12 @@ export function HelpersSection() {
 }
 
 function HelperCard({
-  helper, busy, objects, onWork, onClaim, onRenew, onDismiss, onTacticError,
+  helper, busy, objects, workError, onWork, onClaim, onRenew, onDismiss, onTacticError,
 }: {
   helper: Helper
   busy: boolean
   objects: HelperObject[]
+  workError?: { objectId: string; message: string }
   onWork: (objectId: string) => void
   onClaim: () => void
   onRenew: () => void
@@ -234,6 +237,7 @@ function HelperCard({
           </button>
         </div>
       )}
+      {!shift && workError?.objectId === objectId && <Note kind="bad" text={workError.message} />}
 
       </>}
 

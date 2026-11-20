@@ -3,7 +3,7 @@
 // экране: /api/chat плюс живые реплики сокетом. Отдельного мобильного
 // канала нет — окна разные, эфир один.
 // =============================================================
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
@@ -11,7 +11,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
-import { EarlierButton, EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, onMentionPlayer, onWritePrivately, useComposer } from '../chat/ether'
+import { EarlierButton, EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, onMentionPlayer, onWritePrivately, useChatScroll, useComposer } from '../chat/ether'
 import { levelTone } from '../../shared/lib/chat-format'
 
 export function MobileChat() {
@@ -26,12 +26,7 @@ export function MobileChat() {
   useEffect(() => onWritePrivately(() => setTab('chat')), [])
   useEffect(() => onMentionPlayer(() => setTab('chat')), [])
   // Лента открывается на последних сообщениях, а не на самых старых.
-  const logRef = useRef<HTMLDivElement>(null)
-  const lastId = ether.messages[ether.messages.length - 1]?.id
-  useEffect(() => {
-    const el = logRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [lastId, tab])
+  const { boxRef, onScroll } = useChatScroll(ether.messages, tab === 'chat')
 
   const { data: char } = useQuery({
     queryKey: ['character', 'me'],
@@ -56,8 +51,8 @@ export function MobileChat() {
 
       {tab === 'chat' ? (
         <>
-          <div className="m-chat__log" ref={logRef}>
-            <EarlierButton ether={ether} boxRef={logRef} className="m-chat__row" />
+          <div className="m-chat__log" ref={boxRef} onScroll={onScroll} role="log" aria-label="Чат города" tabIndex={0}>
+            <EarlierButton ether={ether} boxRef={boxRef} className="m-chat__row" />
             {ether.messages.map(m => <EtherLine key={m.id} line={m} ether={ether} composer={composer} className="m-chat__row" />)}
             {!ether.loading && !ether.messages.length && (
               <div className="m-chat__row">В эфире тихо. Скажите первое слово.</div>

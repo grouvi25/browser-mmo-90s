@@ -5,7 +5,7 @@
 // сокетом, присутствие — из общего списка эфира. Демонстрационные
 // массивы, что стояли тут до появления модуля чата, убраны.
 // =============================================================
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
@@ -13,7 +13,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
-import { EarlierButton, EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, useComposer } from '../chat/ether'
+import { EarlierButton, EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, useChatScroll, useComposer } from '../chat/ether'
 import { levelTone } from '../../shared/lib/chat-format'
 import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useFitBlock } from '../../shared/lib/use-fit-block'
@@ -105,20 +105,7 @@ export function CityChat() {
   const ether = useEther()
   const composer = useComposer(ether)
 
-  const boxRef = useRef<HTMLDivElement>(null)
-  // К новому сообщению прокручиваем, только если игрок и так внизу.
-  // Раньше прокрутка сбрасывалась при каждом опросе чата, и пролистать
-  // назад было нельзя: через секунды выдёргивало вниз.
-  const lastId = ether.messages[ether.messages.length - 1]?.id
-  const stuckToBottom = useRef(true)
-  useEffect(() => {
-    const el = boxRef.current
-    if (el && stuckToBottom.current) el.scrollTop = el.scrollHeight
-  }, [lastId])
-  const onScroll = () => {
-    const el = boxRef.current
-    if (el) stuckToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
-  }
+  const { boxRef, onScroll } = useChatScroll(ether.messages)
 
   return (
     <>

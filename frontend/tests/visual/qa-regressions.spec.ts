@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type WebSocketRoute } from '@playwright/test'
 import { battleDisplayState, canSelectBattleMove } from '../../src/pages/battle/battle-view-model'
 import { hexNeighbours } from '../../src/shared/lib/hex'
 import { loginDestination, loginUrl } from '../../src/shared/lib/login-redirect'
@@ -93,6 +93,122 @@ test('library keeps the chapter readable while live tables can be retried', asyn
 function battle(round = 7, foe = enemy) {
   return { battle: { id: battleId, type: 'PVE_BOT', status: 'ACTIVE', participants: [], startedAt: '2026-10-21T12:00:00Z' }, liveState: { roundNumber: round, roundDeadline: Date.now() + 60000, distance: 8, participants: [player, foe] }, participantProfiles: [profile, { ...profile, participantId: 'e', name: 'Хулиган' }] }
 }
+
+test('chat keeps its position while reading history and dismisses the smile panel', async ({ page }) => {
+  await authenticate(page)
+  await mockApi(page, () => battle())
+  const createdAt = new Date().toISOString()
+  const line = (number: number) => ({
+    id: `chat-${number}`, channel: 'GLOBAL', scope: '',
+    authorId: 'another', nickname: 'Игрок', level: 1,
+    body: `Реплика ${number}`, createdAt,
+  })
+  const messages = Array.from({ length: 45 }, (_, index) => line(index))
+  await page.route('**/api/chat/global', route => route.fulfill({ json: { messages, limits: { maxBody: 400, minGapMs: 1500 } } }))
+  let socket: WebSocketRoute | undefined
+  await page.routeWebSocket('**/socket.io/**', ws => {
+    ws.send('0{"sid":"mock-engine","upgrades":[],"pingInterval":25000,"pingTimeout":20000,"maxPayload":1000000}')
+    ws.onMessage(message => {
+      if (typeof message !== 'string' || !message.startsWith('40')) return
+      socket = ws
+      ws.send('40{"sid":"mock-chat"}')
+    })
+  })
+  await page.goto(`/battle/${battleId}`)
+  const log = page.locator('.city-chat, .m-battle__chat .m-chat__log').filter({ visible: true })
+  await expect(log.getByText('Реплика 44', { exact: true })).toBeVisible()
+  await expect.poll(() => Boolean(socket)).toBe(true)
+  const read = () => log.evaluate(box => ({ top: box.scrollTop, bottomGap: box.scrollHeight - box.clientHeight - box.scrollTop }))
+  await expect.poll(async () => (await read()).bottomGap).toBeLessThan(2)
+  await log.evaluate(box => { box.scrollTop = 36; box.dispatchEvent(new Event('scroll')) })
+  const position = (await read()).top
+  socket?.send('42' + JSON.stringify(['chat:message', line(45)]))
+  await expect(log.getByText('Реплика 45', { exact: true })).toBeVisible()
+  expect((await read()).top).toBe(position)
+  await log.evaluate(box => { box.scrollTop = box.scrollHeight; box.dispatchEvent(new Event('scroll')) })
+  socket?.send('42' + JSON.stringify(['chat:message', line(46)]))
+  await expect(log.getByText('Реплика 46', { exact: true })).toBeVisible()
+  await expect.poll(async () => (await read()).bottomGap).toBeLessThan(2)
+
+  const composer = page.locator('.ether-composer--city, .m-battle__chat .m-chat__form').filter({ visible: true })
+  const toggle = composer.getByRole('button', { name: 'Смайлики' })
+  const picker = composer.getByRole('listbox', { name: 'Смайлики' })
+  await toggle.click()
+  await expect(picker).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(picker).toHaveCount(0)
+  await toggle.click()
+  await composer.locator('.ether-input').click()
+  await expect(picker).toHaveCount(0)
+})
+
+test('missing tools are reported beside the helper who could not start work', async ({ page }) => {
+  await authenticate(page)
+  await mockApi(page, () => ({}))
+  const helper = { id: 'one', name: 'Ткач для проверки', kind: 'WORK', status: 'ACTIVE', professionCode: 'WEAVER', professionLevel: 1, professionExp: 0, skillCap: 3, activeShift: null }
+  await page.route('**/api/helpers', route => route.fulfill({ json: { items: [helper, { ...helper, id: 'two', name: 'Другой помощник' }], slots: { used: 2, total: 2 } } }))
+  const field = { id: 'field', name: 'Хлопковое поле', requiredProfessionCode: 'WEAVER', requiredProfessionLevel: 1, ownerType: 'SYSTEM', workerSlots: 5 }
+  await page.route('**/api/helpers/objects', route => route.fulfill({ json: { items: [field, { ...field, id: 'mill', name: 'Мастерская' }] } }))
+  await page.route('**/api/helpers/one/work', route => route.fulfill({ status: 400, json: { code: 'WORK_011', message: 'Нужен инструмент: Ножницы' } }))
+  await page.goto('/premium/helpers')
+  const card = page.locator('.s4-helper', { hasText: helper.name })
+  await card.getByRole('button', { name: 'На смену' }).click()
+  await expect(card.getByRole('status')).toContainText('Нужен инструмент: Ножницы')
+  await expect(page.locator('.s4-helper', { hasText: 'Другой помощник' }).getByRole('status')).toHaveCount(0)
+  await card.getByRole('combobox').selectOption('mill')
+  await expect(card.getByRole('status')).toHaveCount(0)
+})
+
+test('Rambler Top100 uses renewed consent, counts navigation and skips reset URLs', async ({ page, baseURL }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false })
+    if (!sessionStorage.getItem('cookie-fixture-seeded')) {
+      sessionStorage.setItem('cookie-fixture-seeded', '1')
+      localStorage.setItem('kooperativ_cookies', 'all')
+    }
+  })
+  await page.route('**/*', async route => {
+    const url = new URL(route.request().url())
+    if (url.hostname !== 'kooperativ.space') return route.abort()
+    const response = await route.fetch({ url: new URL(url.pathname + url.search, baseURL).href })
+    await route.fulfill({ response })
+  })
+  await page.route('https://st.top100.ru/top100/top100.js', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `
+      window.top100 = function (options) {
+        window.top100Project = options.project;
+        window.top100Manual = options.manualControl;
+        window.top100Pages = [];
+        this.trackPageview = function () { window.top100Pages.push(location.pathname) };
+      };
+      window._top100q.forEach(callback => callback());
+    `,
+  }))
+  await page.goto('https://kooperativ.space/cookies')
+  await expect(page.locator('#rambler-top100')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Принять все' }).click()
+  const hits = () => page.evaluate(() => (window as typeof window & { top100Pages?: string[] }).top100Pages)
+  await expect.poll(hits).toEqual(['/cookies'])
+  expect(await page.evaluate(() => {
+    const w = window as typeof window & { top100Project?: number; top100Manual?: boolean }
+    return [w.top100Project, w.top100Manual]
+  })).toEqual([7753811, true])
+
+  const navigate = (path: string) => page.evaluate(url => {
+    history.pushState(history.state, '', url)
+    window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }))
+  }, path)
+  await navigate('/soglashenie')
+  await expect.poll(hits).toEqual(['/cookies', '/soglashenie'])
+  await navigate('/reset-password?token=fixture-secret')
+  await expect(page).toHaveURL(/reset-password/)
+  await navigate('/cookies')
+  await expect.poll(hits).toEqual(['/cookies', '/soglashenie', '/cookies'])
+  await page.getByRole('button', { name: 'Изменить выбор' }).click()
+  await expect(page.getByRole('button', { name: 'Только необходимые' })).toBeVisible()
+  await expect(page.locator('#rambler-top100')).toHaveCount(0)
+})
 
 test('new live data supersedes old action distance, HP and range; reload restores round', () => {
   const base = { live: { roundNumber: 7, distance: 8 }, player, enemy, profile, dataUpdatedAt: 200 }
