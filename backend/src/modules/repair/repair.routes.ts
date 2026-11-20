@@ -18,6 +18,16 @@ import { PrivateShopsService } from '../private-shops/private-shops.service'
 const PreviewSchema = z.object({ itemInstanceId: z.string().uuid() })
 const CommitSchema = z.object({ itemInstanceId: z.string().uuid() })
 
+function quoteRepair(item: NonNullable<Awaited<ReturnType<typeof ItemsRepository.findInstanceById>>>, discount: number) {
+  return calcRepairCost(
+    item.template.repairBasePrice ?? item.template.priceBase,
+    item.durabilityMax - item.durabilityCurrent,
+    item.quality,
+    item.upgradeLevel,
+    discount,
+  )
+}
+
 async function repairPartsPreview(characterId: string, item: Awaited<ReturnType<typeof ItemsRepository.findInstanceById>>) {
   if (!item) return { needsParts: false, requiredParts: [], partsEnough: true }
   const lost = item.durabilityMax - item.durabilityCurrent
@@ -80,7 +90,7 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
         const part = parts.requiredParts[0]
         return {
           ...i,
-          repairCost: calcRepairCost(i.template.priceBase, i.durabilityMax - i.durabilityCurrent, i.quality, i.upgradeLevel, repairDiscount),
+          repairCost: quoteRepair(i, repairDiscount),
           needsParts: parts.needsParts,
           partsResourceCode: part?.resourceCode ?? null,
           requiredPartsAmount: part?.amount ?? 0,
@@ -111,7 +121,7 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
 
       const lostDur = item.durabilityMax - item.durabilityCurrent
       const discount = (await TerritoriesService.bonusesForCharacter(char.id)).REPAIR_COST ?? 0
-      const cost = calcRepairCost(item.template.priceBase, lostDur, item.quality, item.upgradeLevel, discount)
+      const cost = quoteRepair(item, discount)
       const parts = await repairPartsPreview(char.id, item)
       return reply.send({
         item,
@@ -152,7 +162,7 @@ export async function repairRoutes(fastify: FastifyInstance): Promise<void> {
 
         const lostDur = item.durabilityMax - item.durabilityCurrent
         const discount = (await TerritoriesService.bonusesForCharacter(char.id)).REPAIR_COST ?? 0
-        const cost = calcRepairCost(item.template.priceBase, lostDur, item.quality, item.upgradeLevel, discount)
+        const cost = quoteRepair(item, discount)
         let partsSpent: { resourceCode: string; amount: number } | null = null
         if (needsRepairParts(item.template.itemTier, item.upgradeLevel)) {
           const code = repairPartsCode(item.template.repairResourceCode)

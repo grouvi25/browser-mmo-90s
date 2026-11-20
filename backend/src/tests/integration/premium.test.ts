@@ -178,6 +178,29 @@ describe('премиум продаёт время, а не силу', () => {
     expect(shop.items[0].code).toBe('prem_sub_30')
   })
 
+  it('витрина показывает действующие лимиты, а личный потолок учитывает бонусы', async () => {
+    const character = await player()
+    const base = P.dailyShiftCap
+    const premium = P as { dailyShiftCap: number }
+    const helper = BalanceConfig.strategy.helper as { dailyShiftCap: number }
+    const previousHelperCap = helper.dailyShiftCap
+    try {
+      premium.dailyShiftCap = base + 4
+      helper.dailyShiftCap = 20
+      expect((await PremiumService.shop()).subscriptionLimits).toEqual({ personalBase: base, perHelper: 20 })
+
+      await PremiumService.grant({ characterId: character.id, productCode: 'prem_sub_30' })
+      await testPrisma.character.update({ where: { id: character.id }, data: { productionLevel: 5 } })
+      const state = await PremiumService.state(character.id)
+      expect(state.benefits.dailyShiftCap).toBe(base)
+      expect(state.dailyShiftCap).toBe(base + 1)
+      expect(await PremiumService.dailyShiftCap(character.id)).toBe(state.dailyShiftCap)
+    } finally {
+      premium.dailyShiftCap = base
+      helper.dailyShiftCap = previousHelperCap
+    }
+  })
+
   // ── Что подписка НЕ даёт ─────────────────────────────────────
   it('подписка не поднимает потолок навыка, только скорость набора', () => {
     // Множитель применяется к приросту, а не к пределу: подписчик доходит

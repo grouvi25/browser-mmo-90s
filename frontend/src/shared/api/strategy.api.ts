@@ -134,6 +134,7 @@ export interface PremiumState {
   isPremium: boolean
   expiresAt: string | null
   benefits: { skillMultiplier: number; helperSlots: number; dailyShiftCap: number; loadoutSlots: number }
+  dailyShiftCap: number
 }
 
 export interface PremiumProduct {
@@ -148,7 +149,7 @@ export interface PremiumProduct {
 
 export const premiumApi = {
   me: () => api.get<PremiumState>('/api/premium/me'),
-  shop: () => api.get<{ items: PremiumProduct[] }>('/api/premium/shop'),
+  shop: () => api.get<{ items: PremiumProduct[]; subscriptionLimits: { personalBase: number; perHelper: number } }>('/api/premium/shop'),
   purchases: () =>
     api.get<{ items: { at: string; code: string; name: string; kind: string; priceRub: number; priceDollars: number; byAdmin: boolean }[] }>(
       '/api/premium/purchases'),
@@ -195,6 +196,7 @@ export interface HelperObject {
   requiredProfessionLevel: number
   ownerType: 'PRIVATE' | 'CLAN' | 'SYSTEM'
   workerSlots: number
+  shiftDurationMinutes: number
   salary?: number
   requiredToolName?: string | null
   /** Что добывают или делают на месте (обращение №85). */
@@ -202,7 +204,7 @@ export interface HelperObject {
 }
 
 export const helpersApi = {
-  list: () => api.get<{ items: Helper[]; slots: { used: number; total: number }; hirePrice?: { amount: number; currency: 'RUB' | 'USD'; days: number | null }; professions?: { code: string; name: string }[] }>('/api/helpers'),
+  list: () => api.get<{ items: Helper[]; dailyShiftCap: number; slots: { used: number; total: number }; hirePrice?: { amount: number; currency: 'RUB' | 'USD'; days: number | null }; professions?: { code: string; name: string }[] }>('/api/helpers'),
   objects: () => api.get<{ items: HelperObject[] }>('/api/helpers/objects'),
   hire: (name: string, professionCode: string, kind: 'WORK' | 'COMBAT' = 'WORK') =>
     api.post<Helper>('/api/helpers', { name, kind, ...(kind === 'WORK' ? { professionCode } : {}) }, idem()),

@@ -162,6 +162,38 @@ describe('Stage 2 repair and upgrade races', () => {
     await disconnectRedis()
   })
 
+  it('uses the repair base in list, preview and debit and falls back to the item price', async () => {
+    const { token, characterId } = await registerAndCreateCharacter(app)
+    const headers = { authorization: `Bearer ${token}` }
+    let balance = 10_000
+    for (const { repairBasePrice, durability, cost } of [
+      { repairBasePrice: 500, durability: 0, cost: 209 },
+      { repairBasePrice: 500, durability: 19, cost: 169 },
+      { repairBasePrice: null, durability: 0, cost: 417 },
+    ]) {
+      const template = await testPrisma.itemTemplate.create({
+        data: { code: uid('repair_base'), name: 'Пистолет', type: 'WEAPON', weaponType: 'PISTOL', priceBase: 1000, repairBasePrice },
+      })
+      const item = await testPrisma.itemInstance.create({
+        data: {
+          templateId: template.id, ownerId: characterId, quality: 'COMMON',
+          durabilityMax: 100, durabilityCurrent: durability, weight: 1, sourceType: 'PRIVATE',
+        },
+      })
+      const payload = { itemInstanceId: item.id }
+      const list = await app.inject({ url: '/api/repair/items', headers })
+      const preview = await app.inject({ method: 'POST', url: '/api/repair/preview', headers, payload })
+      const repair = await app.inject({ method: 'POST', url: '/api/repair/commit', headers, payload })
+      for (const result of [list, preview, repair]) expect(result.statusCode).toBe(200)
+      expect(list.json()).toContainEqual(expect.objectContaining({
+        id: item.id, repairCost: cost, template: expect.objectContaining({ priceBase: 1000 }),
+      }))
+      expect(preview.json()).toMatchObject({ repairCost: cost, item: { template: { priceBase: 1000 } } })
+      balance -= cost
+      expect(repair.json()).toMatchObject({ cost, newBalance: balance, durabilityAfter: 100 })
+    }
+  })
+
   it('repairs once when two commits race and charges money and parts once', async () => {
     const account = await registerAndCreateCharacter(app)
     const { item, repairPart } = await damagedTier2Item(account.characterId)

@@ -813,6 +813,7 @@ model ItemTemplate {
   durabilityMax        Int         @default(100) @map("durability_max")
   qualityBase          ItemQuality @default(COMMON) @map("quality_base")
   priceBase            Int         @default(100) @map("price_base")
+  repairBasePrice      Int?        @map("repair_base_price")
   itemTier             Int         @default(1) @map("item_tier")
   requiredRepairParts  Json?       @map("required_repair_parts")
   requiredUpgradeParts Json?       @map("required_upgrade_parts")

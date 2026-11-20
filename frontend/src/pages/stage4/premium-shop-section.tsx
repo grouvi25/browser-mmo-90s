@@ -56,6 +56,7 @@ export function PremiumShopSection() {
 
   const items = shop.data?.items ?? []
   const me = state.data
+  const subscriptionLimits = shop.data?.subscriptionLimits
 
   return (
     <>
@@ -76,8 +77,11 @@ export function PremiumShopSection() {
           <b>×{me?.benefits?.skillMultiplier ?? 1}</b>
         </div>
         <div className="s4-stat">
-          <span className="s4-stat__label">Смен в сутки</span>
-          <b>{me?.benefits?.dailyShiftCap ?? 12}</b>
+          <span className="s4-stat__label">Личный лимит смен</span>
+          <b>{me?.dailyShiftCap ?? '—'}</b>
+          {me && me.dailyShiftCap > me.benefits.dailyShiftCap && (
+            <small>{me.benefits.dailyShiftCap} базовых · бонус +{me.dailyShiftCap - me.benefits.dailyShiftCap}</small>
+          )}
         </div>
         <div className="s4-stat">
           <span className="s4-stat__label">Помощников</span>
@@ -110,6 +114,12 @@ export function PremiumShopSection() {
                     <div className="s4-goods__body">
                       <b>{item.name}</b>
                       <span className="s4-muted">{item.description}</span>
+                      {item.grantCode === 'SUBSCRIPTION_DAYS' && subscriptionLimits && (
+                        <span className="s4-muted">
+                          Личных смен в сутки — {subscriptionLimits.personalBase} базовых плюс бонусы.
+                          {' '}На каждого рабочего помощника — {subscriptionLimits.perHelper} смен в сутки.
+                        </span>
+                      )}
                     </div>
                     <span className="s4-goods__price">{item.priceDollars > 0 ? `${fmt(item.priceDollars)} $` : '—'}</span>
                     {item.priceDollars > 0 && (confirm === item.code

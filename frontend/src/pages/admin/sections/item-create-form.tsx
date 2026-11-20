@@ -104,6 +104,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
   const [shop, setShop] = useState<Shop>(startShop)
   const [price, setPrice] = useState(firstSale?.price ?? initial?.priceBase ?? 500)
   const [rubValue, setRubValue] = useState(initial?.priceBase ?? 500)
+  const [repairBasePrice, setRepairBasePrice] = useState(initial?.repairBasePrice ?? '')
   const [durability, setDurability] = useState(initial?.durabilityMax ?? 100)
   const [weight, setWeight] = useState(initial?.weight ?? 1)
   const [minDamage, setMinDamage] = useState(initial?.minDamage ?? 4)
@@ -139,8 +140,8 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
   const spent = stats.reduce((sum, key) => sum + (alloc[key] ?? 0), 0)
   const shopInfo = SHOPS.find(item => item.value === shop)!
   const dollars = !editing && shopInfo.currency === '$'
-  // Рублёвая стоимость вещи нужна всегда: от неё считаются ремонт и продажа
-  // государству. В рублёвом магазине это и есть цена на витрине.
+  // Рублёвая стоимость вещи нужна всегда: от неё считаются продажа государству и ремонт по умолчанию.
+  // В рублёвом магазине при создании это и есть цена на витрине.
   const priceBase = editing || dollars ? rubValue : price
   const defaultReason = name.trim() ? (editing ? `Правка вещи «${name.trim()}»` : `Новая вещь «${name.trim()}»`) : ''
   const reasonText = reason.trim() || defaultReason
@@ -164,6 +165,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
     name: name.trim(),
     description: description.trim() || null,
     priceBase: int(priceBase, 0, 10_000_000), levelReq: int(level, 0, 30), durabilityMax: int(durability, 1, 10_000),
+    ...(worn ? { repairBasePrice: repairBasePrice === '' ? null : int(Number(repairBasePrice), 0, 10_000_000) } : {}),
     weight: Math.min(100, Math.max(0, weight)),
     minDamage: kind === 'WEAPON' ? int(minDamage, 0, 1000) : null,
     maxDamage: kind === 'WEAPON' ? int(maxDamage, 0, 1000) : null,
@@ -294,7 +296,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
               <label><span>Стоимость в рублях</span>
                 <NumInput min={0} value={rubValue} onChange={setRubValue} /></label>
             </div>
-            <p className="adm-hint">От неё считаются ремонт и продажа вещи государству.</p>
+            <p className="adm-hint">От неё считается продажа вещи государству.</p>
           </>
         : <>
             <div className="adm-item__shops" role="radiogroup" aria-label="Где продаётся">
@@ -312,11 +314,20 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
                 <NumInput min={0} value={dollars ? rubValue : price} onChange={dollars ? setRubValue : setPrice} /></label>}
             </div>
             <p className="adm-hint">
-              {dollars ? 'Стоимость в рублях — для ремонта и продажи вещи государству; игрок платит долларами.'
-                : shop ? 'От этой же цены считаются ремонт и продажа вещи государству.'
-                  : 'Стоимость — для ремонта и продажи государству; в магазинах вещи не будет.'}
+              {dollars ? 'Игрок платит долларами. От цены в рублях считается продажа государству.'
+                : 'От цены в рублях считается продажа государству.'}
             </p>
           </>}
+      {worn && (
+        <div className="adm-item__fields">
+          <label>
+            <span>Ремонтная база, ₽</span>
+            <input type="number" min={0} max={10_000_000} step={1} placeholder="Цена предмета"
+              value={repairBasePrice} onChange={event => setRepairBasePrice(event.target.value)} />
+            <small>Если поле пустое, ремонт считается от цены предмета.</small>
+          </label>
+        </div>
+      )}
 
       {kind !== 'TOOL' && <>
         <h5>3. Основа вещи</h5>

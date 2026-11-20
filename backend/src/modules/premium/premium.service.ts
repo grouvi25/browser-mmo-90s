@@ -54,7 +54,7 @@ export function isGrantImplemented(code: string): boolean {
   return (IMPLEMENTED_GRANTS as readonly string[]).includes(code)
 }
 
-/** Льготы подписки. Числа живут в BalanceConfig, не в клиенте. */
+/** Действующие льготы подписки. Подхват сохранённого лимита личных смен меняет баланс. */
 export const PREMIUM_BENEFITS = {
   skillMultiplier: P.skillMultiplier,
   helperSlots: P.helperSlots,
@@ -83,20 +83,24 @@ export const PremiumService = {
   async state(characterId: string) {
     const character = await prisma.character.findUniqueOrThrow({
       where: { id: characterId },
-      select: { isPremium: true, premiumExpiresAt: true },
+      select: { isPremium: true, premiumExpiresAt: true, productionLevel: true, activeEffects: true },
     })
-    const active = isPremiumActive(character)
+    const now = new Date()
+    const active = isPremiumActive(character, now)
+    const benefits = active
+      ? PREMIUM_BENEFITS
+      : {
+          skillMultiplier: 1,
+          helperSlots: 0,
+          dailyShiftCap: BalanceConfig.economy.work.dailyShiftLimit,
+          loadoutSlots: 2,
+        }
+    const bonusShifts = productionShiftBonus(character.productionLevel) + extraShiftsNow(parseActiveEffects(character.activeEffects), now)
     return {
       isPremium: active,
       expiresAt: character.premiumExpiresAt,
-      benefits: active
-        ? PREMIUM_BENEFITS
-        : {
-            skillMultiplier: 1,
-            helperSlots: 0,
-            dailyShiftCap: BalanceConfig.economy.work.dailyShiftLimit,
-            loadoutSlots: 2,
-          },
+      benefits,
+      dailyShiftCap: benefits.dailyShiftCap + bonusShifts,
     }
   },
 
@@ -107,7 +111,13 @@ export const PremiumService = {
       orderBy: { sortOrder: 'asc' },
       select: { code: true, name: true, description: true, kind: true, priceRub: true, priceDollars: true, grantCode: true },
     })
-    return { items }
+    return {
+      items,
+      subscriptionLimits: {
+        personalBase: PREMIUM_BENEFITS.dailyShiftCap,
+        perHelper: BalanceConfig.strategy.helper.dailyShiftCap,
+      },
+    }
   },
 
   /**
@@ -253,11 +263,7 @@ export const PremiumService = {
 
   /** Суточный потолок смен с учётом подписки. */
   async dailyShiftCap(characterId: string): Promise<number> {
-    const state = await this.state(characterId)
-    // №128: каждые 5 производственных уровней — смена в день сверху.
-    const { productionLevel, activeEffects } = await prisma.character.findUniqueOrThrow({ where: { id: characterId }, select: { productionLevel: true, activeEffects: true } })
-    // Юрист 18.11: договор подряда даёт смену сверх потолка до 3:00 по Москве.
-    return state.benefits.dailyShiftCap + productionShiftBonus(productionLevel) + extraShiftsNow(parseActiveEffects(activeEffects), new Date())
+    return (await this.state(characterId)).dailyShiftCap
   },
 
   /**

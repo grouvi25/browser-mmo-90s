@@ -72,15 +72,13 @@ export function HelpersSection() {
       <Note text={msg} kind={bad ? 'bad' : 'ok'} />
 
       <p className="s4-lead">
-        Помощник работает за вас, пока вас нет: смена идёт час реального
-        времени, и тот, кто не может сидеть в игре весь день, иначе просто
-        проигрывает по доступности. Он делает 60% от вашей смены и не растёт
-        выше третьего уровня профессии — специалиста он не заменит.
+        Помощник работает за вас, пока вас нет. Длительность смены указана при выборе работы.
+        Он делает 60% от вашей смены и растёт до третьего уровня профессии.
       </p>
       <p className="s4-lead">
         Работает на ваших объектах, объектах бригады и на государственной работе.
-        На госработу ему нужен ваш инструмент, каждая смена тратит одно
-        использование. Норма — шесть смен в сутки.
+        На госработу ему нужен ваш инструмент, каждая смена тратит одно использование.
+        {data?.dailyShiftCap != null && <> Норма для каждого рабочего помощника — {data.dailyShiftCap} смен в сутки. Лимит обновляется в 03:00 МСК. Смена учитывается по времени начала.</>}
       </p>
 
       <div className="s4-summary">
@@ -228,7 +226,7 @@ function HelperCard({
               ? <option value="">нет работы под эту профессию и уровень</option>
               : suitable.map(object => (
                 <option key={object.id} value={object.id}>
-                  {object.name}{object.producesName ? ` (${object.producesName})` : ''}{object.salary ? ` · ${fmt(object.salary)} ₽` : ''}{object.requiredToolName ? ` · ${object.requiredToolName}` : ''}
+                  {object.name}{object.producesName ? ` (${object.producesName})` : ''}{object.shiftDurationMinutes != null ? ` · ${object.shiftDurationMinutes} мин` : ''}{object.salary ? ` · ${fmt(object.salary)} ₽` : ''}{object.requiredToolName ? ` · ${object.requiredToolName}` : ''}
                 </option>
               ))}
           </select>

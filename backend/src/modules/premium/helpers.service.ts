@@ -171,6 +171,7 @@ export const HelpersService = {
     const now = new Date()
     const firstId = firstHelperId(helpers)
     return {
+      dailyShiftCap: H.dailyShiftCap,
       items: helpers.map(helper => {
         const first = helper.id === firstId
         const unpaid = first && rentExpired(helper, now)
@@ -247,7 +248,7 @@ export const HelpersService = {
       select: {
         id: true, name: true, requiredProfessionCode: true, requiredProfessionLevel: true,
         ownerType: true, workerSlots: true, baseSalary: true, salaryOverride: true, activeRecipeId: true,
-        producesResourceCode: true,
+        producesResourceCode: true, shiftDurationMinutes: true,
         equipment: { select: { isActive: true, requiredToolTier: true } },
       },
       orderBy: { name: 'asc' },
@@ -270,7 +271,7 @@ export const HelpersService = {
     })).map(row => [row.code, row.name]))
     const items = objects
       .filter(object => (recipeOf.get(object.activeRecipeId ?? '')?.requiredToolTier ?? 0) < PREMIUM_TOOL_TIER)
-      .map(({ activeRecipeId, equipment, baseSalary, salaryOverride, producesResourceCode, ...object }) => {
+      .map(({ activeRecipeId, equipment, baseSalary, salaryOverride, producesResourceCode, shiftDurationMinutes, ...object }) => {
         const recipe = recipeOf.get(activeRecipeId ?? '')
         const toolCode = recipe?.requiredToolCode ?? null
         const outputCode = producesResourceCode ?? recipe?.outputResourceCode ?? null
@@ -278,6 +279,7 @@ export const HelpersService = {
         return {
           ...object,
           salary: salaryOverride ?? baseSalary,
+          shiftDurationMinutes: realShiftMinutes(shiftDurationMinutes),
           requiredToolName: toolCode ? toolNames.get(toolCode) ?? toolCode : tier ? toolForTier(soldTools, tier) : null,
           producesName: outputCode ? resourceNames.get(outputCode) ?? outputCode
             : recipe?.outputItemTemplateCode ? toolNames.get(recipe.outputItemTemplateCode) ?? recipe.outputItemTemplateCode : null,

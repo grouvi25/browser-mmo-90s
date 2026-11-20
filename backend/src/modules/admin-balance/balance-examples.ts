@@ -18,6 +18,7 @@ import { calcFinalSalary, dailyShiftSalaryCoeff, objectLevelCoeff, workerEfficie
 import { calcUpgradeCost, calcUpgradeSuccessChance } from '../upgrades/upgrades.formulas'
 import { calcListingFee, calcSaleTax, calcSellerPayout } from '../market/market.formulas'
 import { territoryUpkeepPerDay } from '../territories/territories.formulas'
+import { calcRepairCost } from '../stats/stats.formulas'
 
 export interface ExampleStep {
   /** Что считаем на этом шаге — с подставленными числами. */
@@ -262,19 +263,19 @@ export const BALANCE_EXAMPLES: Record<string, () => BalanceExample> = {
   },
 
   'money.repair': () => {
-    const priceBase = 2400, lost = 40
-    const perPoint = priceBase / B.repair.baseCostDivider
-    const common = Math.round(perPoint * lost * B.repair.qualityCoeff.COMMON)
-    const rare = Math.round(perPoint * lost * B.repair.qualityCoeff.RARE)
+    const priceBase = 1000, repairBasePrice = 500, lost = 100
+    const perPoint = repairBasePrice / B.repair.baseCostDivider
+    const common = calcRepairCost(repairBasePrice, lost, 'COMMON')
+    const rare = calcRepairCost(repairBasePrice, lost, 'RARE')
     return {
-      given: [`вещь за ${priceBase} ₽`, `потеряно ${lost} прочности`],
+      given: [`цена вещи ${priceBase} ₽`, `ремонтная база ${repairBasePrice} ₽`, `потеряно ${lost} прочности`],
       steps: [
-        { text: `цена единицы прочности: ${priceBase} / ${B.repair.baseCostDivider}`, value: `${round2(perPoint)} ₽` },
-        { text: `обычное качество: ${lost} × ${round2(perPoint)} × ${B.repair.qualityCoeff.COMMON}`, value: `${common} ₽` },
+        { text: `цена пункта прочности = ${repairBasePrice} / ${B.repair.baseCostDivider}`, value: `≈ ${round2(perPoint)} ₽` },
+        { text: `обычное качество × ${B.repair.qualityCoeff.COMMON}, округление вверх`, value: `${common} ₽` },
         { text: `редкое качество: ×${B.repair.qualityCoeff.RARE}`, value: `${rare} ₽` },
       ],
       result: `${common}–${rare} ₽ за ремонт`,
-      meaning: 'Редкая вещь и чинится дороже: качество умножает не только пользу, но и содержание.',
+      meaning: 'Ремонтная база может отличаться от цены вещи. Качество влияет на стоимость ремонта.',
     }
   },
 

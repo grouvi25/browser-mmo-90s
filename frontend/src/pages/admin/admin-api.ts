@@ -396,7 +396,7 @@ export interface CombatResult {
 
 export interface ItemTemplateRow {
   code: string; name: string; type: string
-  levelReq: number | null; priceBase: number | null
+  levelReq: number | null; priceBase: number | null; repairBasePrice?: number | null
   minDamage: number | null; maxDamage: number | null; weaponAccuracy: number | null
   armor: number | null; durabilityMax: number | null; weight: number | null
   // Полная строка шаблона — форма вещи открывается ею для правки и копии (30.10).

@@ -146,17 +146,41 @@ test('missing tools are reported beside the helper who could not start work', as
   await authenticate(page)
   await mockApi(page, () => ({}))
   const helper = { id: 'one', name: 'Ткач для проверки', kind: 'WORK', status: 'ACTIVE', professionCode: 'WEAVER', professionLevel: 1, professionExp: 0, skillCap: 3, activeShift: null }
-  await page.route('**/api/helpers', route => route.fulfill({ json: { items: [helper, { ...helper, id: 'two', name: 'Другой помощник' }], slots: { used: 2, total: 2 } } }))
-  const field = { id: 'field', name: 'Хлопковое поле', requiredProfessionCode: 'WEAVER', requiredProfessionLevel: 1, ownerType: 'SYSTEM', workerSlots: 5 }
+  await page.route('**/api/helpers', route => route.fulfill({ json: { items: [helper, { ...helper, id: 'two', name: 'Другой помощник' }], dailyShiftCap: 20, slots: { used: 2, total: 2 } } }))
+  const field = { id: 'field', name: 'Хлопковое поле', requiredProfessionCode: 'WEAVER', requiredProfessionLevel: 1, ownerType: 'SYSTEM', workerSlots: 5, shiftDurationMinutes: 5 }
   await page.route('**/api/helpers/objects', route => route.fulfill({ json: { items: [field, { ...field, id: 'mill', name: 'Мастерская' }] } }))
   await page.route('**/api/helpers/one/work', route => route.fulfill({ status: 400, json: { code: 'WORK_011', message: 'Нужен инструмент: Ножницы' } }))
   await page.goto('/premium/helpers')
+  await expect(page.getByText(/Норма для каждого рабочего помощника — 20 смен в сутки/)).toBeVisible()
   const card = page.locator('.s4-helper', { hasText: helper.name })
+  await expect(card.getByRole('option', { name: /Хлопковое поле.*5 мин/ })).toHaveCount(1)
   await card.getByRole('button', { name: 'На смену' }).click()
   await expect(card.getByRole('status')).toContainText('Нужен инструмент: Ножницы')
   await expect(page.locator('.s4-helper', { hasText: 'Другой помощник' }).getByRole('status')).toHaveCount(0)
   await card.getByRole('combobox').selectOption('mill')
   await expect(card.getByRole('status')).toHaveCount(0)
+})
+
+test('subscription shop separates the current personal total and limits advertised to buyers', async ({ page }) => {
+  await authenticate(page)
+  await mockApi(page, () => ({}))
+  await page.route('**/api/dollars/me', route => route.fulfill({ json: { dollars: 0, isDealer: false, history: [] } }))
+  await page.route('**/api/dollars/dealers', route => route.fulfill({ json: { items: [] } }))
+  await page.route('**/api/premium/me', route => route.fulfill({ json: {
+    isPremium: false, dailyShiftCap: 13,
+    benefits: { skillMultiplier: 1, helperSlots: 0, dailyShiftCap: 12, loadoutSlots: 2 },
+  } }))
+  await page.route('**/api/premium/shop', route => route.fulfill({ json: {
+    subscriptionLimits: { personalBase: 16, perHelper: 20 },
+    items: [{ code: 'prem_sub_30', name: 'Подписка на 30 дней', description: 'Доступ к помощникам', kind: 'TIME', priceRub: 299, priceDollars: 125, grantCode: 'SUBSCRIPTION_DAYS' }],
+  } }))
+  await page.goto('/premium')
+  const personal = page.locator('.s4-stat', { hasText: 'Личный лимит смен' })
+  await expect(personal.locator('b')).toHaveText('13')
+  await expect(personal).toContainText('12 базовых · бонус +1')
+  const product = page.locator('.s4-goods', { hasText: 'Подписка на 30 дней' })
+  await expect(product).toContainText('Личных смен в сутки — 16 базовых плюс бонусы')
+  await expect(product).toContainText('На каждого рабочего помощника — 20 смен в сутки')
 })
 
 test('Rambler Top100 uses renewed consent, counts navigation and skips reset URLs', async ({ page, baseURL }) => {

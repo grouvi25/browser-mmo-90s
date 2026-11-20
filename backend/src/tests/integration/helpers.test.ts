@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { HelpersService, helperEfficiency, helperLevelFromExp } from '../../modules/premium/helpers.service'
 import { PremiumService, isGrantImplemented } from '../../modules/premium/premium.service'
 import { WorkService } from '../../modules/work/work.service'
-import { workerEfficiency } from '../../modules/work/work.formulas'
+import { realShiftMinutes, workerEfficiency } from '../../modules/work/work.formulas'
 import { BalanceConfig } from '../../config/balance.config'
 import { PREMIUM_PRODUCTS } from '../../../prisma/economy-data'
 import { ErrorCode } from '../../shared/errors/error-codes'
@@ -84,6 +84,17 @@ describe('помощники', () => {
     const character = await player()
     await expect(HelpersService.hire(character.id, 'Витёк', 'scrap_collector'))
       .rejects.toMatchObject({ code: 'HELP_001' })
+  })
+
+  it('показывает лимит помощников даже без найма и реальное время смены', async () => {
+    const character = await player()
+    const object = await stateObject()
+    const list = await HelpersService.list(character.id)
+    expect(list.items).toHaveLength(0)
+    expect(list.dailyShiftCap).toBe(H.dailyShiftCap)
+    const eligible = await HelpersService.eligibleObjects(character.id)
+    expect(eligible.items.find(item => item.id === object.id)?.shiftDurationMinutes)
+      .toBe(realShiftMinutes(object.shiftDurationMinutes))
   })
 
   it('подписчик нанимает двоих, третьего нет', async () => {

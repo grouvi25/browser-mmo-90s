@@ -55,6 +55,7 @@ const REASON = z.string().min(10).max(500)
 const FIELD_LABELS: Record<string, string> = {
   reason: 'Причина', name: 'Название', code: 'Код', description: 'Описание', type: 'Что это',
   weaponType: 'Вид оружия', armorSlot: 'Куда надевается', priceBase: 'Цена', levelReq: 'Уровень',
+  repairBasePrice: 'Ремонтная база',
   durabilityMax: 'Прочность', weight: 'Вес', minDamage: 'Урон от', maxDamage: 'Урон до',
   weaponAccuracy: 'Точность', maxRange: 'Дальность', armor: 'Броня', critBonus: 'Крит',
   dodgeBonus: 'Уворот', hpBonus: 'Здоровье', healPercent: 'Лечит, %', statBudget: 'Очков статов', allocationMode: 'Кто распределяет',
@@ -705,6 +706,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
   const ITEM_FIELDS = z.object({
     name: z.string().min(1).max(60).optional(),
     priceBase: z.number().int().min(0).max(10_000_000).optional(),
+    repairBasePrice: z.number().int().min(0).max(10_000_000).nullable().optional(),
     levelReq: z.number().int().min(0).max(30).optional(),
     minDamage: z.number().int().min(0).max(1000).nullable().optional(),
     maxDamage: z.number().int().min(0).max(1000).nullable().optional(),
@@ -762,6 +764,7 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
     weaponType: z.enum(['MELEE', 'KNIFE', 'CLUB', 'PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 'THROWN']).nullable().optional(),
     armorSlot: z.enum(['HEAD', 'CHEST', 'LEGS', 'FEET', 'GLOVES', 'BELT', 'BACK', 'ACCESSORY', 'RING']).nullable().optional(),
     priceBase: z.number().int().min(0).max(10_000_000),
+    repairBasePrice: z.number().int().min(0).max(10_000_000).nullable().optional(),
     levelReq: z.number().int().min(0).max(30),
     durabilityMax: z.number().int().min(1).max(10_000),
     weight: z.number().min(0).max(100),
