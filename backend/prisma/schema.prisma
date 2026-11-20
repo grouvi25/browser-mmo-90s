@@ -1554,6 +1554,8 @@ model WorkShift {
   craftRecipeId        String?          @map("craft_recipe_id")
   /// Госкрафт: сколько штук за смену (1/3/5/10). Сырьё и износ инструмента умножаются, время одно.
   craftQuantity        Int              @default(1) @map("craft_quantity")
+  /// Фактически зарезервированное сырьё всей партии на момент начала смены.
+  craftReservedInputs  Json?            @map("craft_reserved_inputs")
   createdAt            DateTime         @default(now()) @map("created_at")
   updatedAt            DateTime         @updatedAt @map("updated_at")
   character            Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)

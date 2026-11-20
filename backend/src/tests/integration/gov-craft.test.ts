@@ -4,6 +4,7 @@
  * закрытым с табличкой «продаётся», и крафта у игроков не было вовсе.
  * Плюс честный суточный лимит: рецепт, который не влезает в оставшиеся минуты дня, помечен заранее.
  */
+import { Prisma } from '@prisma/client'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanDatabase, testPrisma, uid } from './helpers'
 import { disconnectRedis, getRedis } from '../../shared/db/redis'
@@ -98,6 +99,39 @@ describe('госкрафт', () => {
     const { character, object, toBlank, input, stack } = await fixture(4)
     const started = await WorkService.start(character.id, object.id, toBlank.id)
     await WorkService.cancel(character.id, started.shift.id)
+    expect(await stack(input.id)).toMatchObject({ amount: 4, reservedAmount: 0 })
+  })
+
+  it('после удешевления рецепта смена списывает то, что зарезервировала на всю партию', async () => {
+    const { character, object, toBlank, input, blank, stack, finish } = await fixture(15)
+    const { shift } = await WorkService.start(character.id, object.id, toBlank.id, 3)
+    expect(await stack(input.id)).toMatchObject({ amount: 15, reservedAmount: 12 })
+    await testPrisma.productionRecipeInput.updateMany({ where: { recipeId: toBlank.id }, data: { amount: 1 } })
+    await finish(shift.id)
+
+    const key = uid('key')
+    const result = await WorkService.claim(character.id, shift.id, key)
+    expect(result).toMatchObject({ crafted: { kind: 'resource', amount: 3 } })
+    await WorkService.claim(character.id, shift.id, key)
+    expect(await stack(input.id)).toMatchObject({ amount: 3, reservedAmount: 0 })
+    expect(await stack(blank.id)).toMatchObject({ amount: 3 })
+  })
+
+  it('отмена возвращает исходное сырьё, даже когда его убрали из рецепта', async () => {
+    const { character, object, toBlank, input, stack } = await fixture(4)
+    const { shift } = await WorkService.start(character.id, object.id, toBlank.id)
+    await testPrisma.productionRecipeInput.deleteMany({ where: { recipeId: toBlank.id } })
+
+    await WorkService.cancel(character.id, shift.id)
+    expect(await stack(input.id)).toMatchObject({ amount: 4, reservedAmount: 0 })
+  })
+
+  it('смена от старого backend без сохранённого резерва всё ещё отменяется', async () => {
+    const { character, object, toBlank, input, stack } = await fixture(4)
+    const { shift } = await WorkService.start(character.id, object.id, toBlank.id)
+    await testPrisma.workShift.update({ where: { id: shift.id }, data: { craftReservedInputs: Prisma.DbNull } })
+
+    await WorkService.cancel(character.id, shift.id)
     expect(await stack(input.id)).toMatchObject({ amount: 4, reservedAmount: 0 })
   })
 

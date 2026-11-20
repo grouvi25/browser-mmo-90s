@@ -65,6 +65,10 @@ async function professionState(characterId: string, professionCode: string) {
   })
 }
 
+function publicWorkShift<T extends { craftReservedInputs: unknown }>({ craftReservedInputs: _reservedInputs, ...shift }: T) {
+  return shift
+}
+
 export const WorkService = {
   async listObjects(characterId: string) {
     const { start, end } = utcDayRange()
@@ -185,7 +189,7 @@ export const WorkService = {
     return {
       restUntil: shift ? null : await restUntilOf(prisma, characterId),
       shift: shift ? {
-        ...shift,
+        ...publicWorkShift(shift),
         profession: profession ? { ...profession, name: PROFESSION_NAMES[profession.professionCode as ProfessionCode] ?? profession.professionCode } : null,
         isReady: shift.status === 'READY_TO_CLAIM' || shift.endsAt <= new Date(),
         remainingSeconds: Math.max(0, Math.ceil((shift.endsAt.getTime() - Date.now()) / 1000)),
@@ -324,13 +328,13 @@ export const WorkService = {
           throw new AppError(ErrorCode.WORK_TOOL_REQUIRED, name ? `Нужен инструмент: ${name}` : `Нужен инструмент ${tier} уровня`, 400)
         }
       }
-      if (craft) await reserveGovCraftInputs(tx, characterId, craft, quantity)
+      const craftReservedInputs = craft ? await reserveGovCraftInputs(tx, characterId, craft, quantity) : undefined
       const endsAt = new Date(now.getTime() + realShiftMinutes(craft?.cycleMinutes ?? object.shiftDurationMinutes) * 60_000)
       const shift = await tx.workShift.create({
-        data: { characterId, productionObjectId, professionCode: object.requiredProfessionCode, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: craft ? 0 : object.salaryOverride ?? object.baseSalary, toolInstanceId, craftRecipeId: craft?.id ?? null, craftQuantity: quantity },
+        data: { characterId, productionObjectId, professionCode: object.requiredProfessionCode, status: 'ACTIVE', startedAt: now, endsAt, baseSalary: craft ? 0 : object.salaryOverride ?? object.baseSalary, toolInstanceId, craftRecipeId: craft?.id ?? null, craftQuantity: quantity, craftReservedInputs },
       })
       await tx.productionLog.create({ data: { characterId, productionObjectId, eventType: 'SHIFT_STARTED', metadataJson: { shiftId: shift.id, endsAt, professionCode: shift.professionCode, toolInstanceId, craftRecipeId: craft?.id ?? null, craftQuantity: quantity } } })
-      return { shift, profession }
+      return { shift: publicWorkShift(shift), profession }
     })
   },
 
@@ -394,10 +398,7 @@ export const WorkService = {
         refId: shift.id,
       }) : (await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { money: true } })).money
       if (shift.productionObject.economicExpReward > 0) await EconomyService.grantEconomicExp(tx, characterId, shift.productionObject.economicExpReward)
-      const crafted = shift.craftRecipeId ? await finishGovCraft(tx, {
-        characterId, shiftId: shift.id, recipeId: shift.craftRecipeId,
-        professionLevel: profession.level, toolTier: shift.toolInstance?.template.toolTier ?? 0, quantity: shift.craftQuantity,
-      }) : null
+      const crafted = await finishGovCraft(tx, shift, profession.level, shift.toolInstance?.template.toolTier ?? 0)
       const cycleContribution = shift.productionObject.activeRecipeId && !shift.craftRecipeId
         ? await CycleService.contributeLabor(tx, {
           objectId: shift.productionObjectId,
@@ -450,7 +451,7 @@ export const WorkService = {
       if (!shift) throw new AppError(ErrorCode.WORK_SHIFT_NOT_FOUND, 'Active shift not found', 404)
       await tx.workShift.update({ where: { id: shift.id }, data: { status: 'CANCELLED' } })
       if (shift.toolInstanceId) await tx.itemInstance.updateMany({ where: { id: shift.toolInstanceId, ownerId: characterId, status: 'LOCKED' }, data: { status: 'NORMAL' } })
-      if (shift.craftRecipeId) await releaseGovCraftInputs(tx, characterId, shift.craftRecipeId, shift.craftQuantity)
+      await releaseGovCraftInputs(tx, shift)
       await tx.character.updateMany({ where: { id: characterId, status: 'WORKING' }, data: { status: 'ACTIVE' } })
       await tx.productionLog.create({ data: { characterId, productionObjectId: shift.productionObjectId, eventType: 'SHIFT_CANCELLED', metadataJson: { shiftId, professionCode: shift.professionCode } } })
       return { cancelled: true }

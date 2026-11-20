@@ -30,12 +30,12 @@ export function Skeleton({ rows }: { rows: number }) {
   )
 }
 
-export function Fault({ retry }: { retry: () => unknown }) {
+export function Fault({ retry, title = 'Раздел не загрузился' }: { retry: () => unknown; title?: string }) {
   return (
     <div className="s3-fault" role="alert">
       <ShieldAlert />
-      <h2>Раздел не загрузился</h2>
-      <button onClick={retry}>Повторить</button>
+      <h2>{title}</h2>
+      <button type="button" onClick={retry}>Повторить</button>
     </div>
   )
 }

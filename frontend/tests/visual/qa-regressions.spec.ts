@@ -41,6 +41,55 @@ async function mockApi(page: Page, battle: () => unknown, action?: () => { statu
     await route.fulfill({ status, json: data })
   })
 }
+
+const librarySection = { id: 'custom-library', title: 'Правила города', body: 'Очков за уровень: {{очки_за_уровень}}\n\n[[боевые уровни]]' }
+
+test('library stays empty when there are no published sections', async ({ page }) => {
+  await authenticate(page)
+  await mockApi(page, () => ({}))
+  await page.route('**/api/content/library', route => route.fulfill({ json: { items: [] } }))
+
+  await page.goto('/library')
+  await expect(page.getByText('В библиотеке пока нет опубликованных разделов')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Разделы библиотеки' })).toHaveCount(0)
+})
+
+test('library offers a retry when published sections fail to load', async ({ page }) => {
+  await authenticate(page)
+  await mockApi(page, () => ({}))
+  let failed = true
+  await page.route('**/api/content/library', route => failed
+    ? route.fulfill({ status: 503, json: {} })
+    : route.fulfill({ json: { items: [librarySection] } }))
+  await page.route('**/api/library/tables', route => route.fulfill({ json: { battle: [], statPointsPerLevel: 3 } }))
+
+  await page.goto('/library')
+  await expect(page.getByRole('alert')).toContainText('Раздел не загрузился')
+  failed = false
+  await page.getByRole('button', { name: 'Повторить' }).click()
+  await expect(page.getByRole('button', { name: librarySection.title })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('article')).toContainText('Очков за уровень: 3')
+})
+
+test('library keeps the chapter readable while live tables can be retried', async ({ page }) => {
+  await authenticate(page)
+  await mockApi(page, () => ({}))
+  await page.route('**/api/content/library', route => route.fulfill({ json: { items: [librarySection] } }))
+  let failed = true
+  await page.route('**/api/library/tables', route => failed
+    ? route.fulfill({ status: 503, json: {} })
+    : route.fulfill({ json: { battle: [], statPointsPerLevel: 3 } }))
+
+  await page.goto('/library')
+  await expect(page.getByRole('alert')).toContainText('Таблицы и числа не загрузились')
+  await expect(page.getByText('Очков за уровень: —')).toBeVisible()
+  await expect(page.getByText('Загружаем таблицу…')).toHaveCount(0)
+  failed = false
+  await page.getByRole('button', { name: 'Повторить' }).click()
+  await expect(page.getByRole('table')).toBeVisible()
+  await expect(page.getByText('Очков за уровень: 3')).toBeVisible()
+})
+
 function battle(round = 7, foe = enemy) {
   return { battle: { id: battleId, type: 'PVE_BOT', status: 'ACTIVE', participants: [], startedAt: '2026-10-21T12:00:00Z' }, liveState: { roundNumber: round, roundDeadline: Date.now() + 60000, distance: 8, participants: [player, foe] }, participantProfiles: [profile, { ...profile, participantId: 'e', name: 'Хулиган' }] }
 }

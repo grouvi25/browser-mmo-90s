@@ -1,182 +1,38 @@
-// Библиотека (обещание игрокам 22.10): короткие разделы «что где делать».
-// Тексты стартовые — заказчик дополнит; числа сверены с сервером на 23.10.
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LOCATION_LEVELS } from '../../shared/lib/location-levels'
-import { libraryApi, type LibraryTables } from '../../shared/api/library.api'
 import { contentApi } from '../../shared/api/content.api'
+import { libraryApi } from '../../shared/api/library.api'
 import { RichText } from '../../widgets/rich-text/rich-text'
-import { NewcomerLetterPage } from '../../widgets/welcome/newcomer-letter-page'
+import { Empty, Fault, Skeleton } from '../stage3/stage3-ui'
 import './library.css'
 
-interface Topic { key: string; title: string; body: React.ReactNode | ((t: LibraryTables | undefined) => React.ReactNode) }
-
-const n = (value: number) => value.toLocaleString('ru-RU')
-const Loading = () => <p className="library__muted">Загружаем таблицу…</p>
-
-/** Опыт и уровни (просьба заказчика 28.10) — числа с сервера. */
-function LevelsTopic({ t }: { t: LibraryTables | undefined }) {
-  if (!t) return <Loading />
-  return <>
-    <p>Боевой опыт даёт бой: чем сильнее соперник и чем больше урона вы нанесли, тем больше опыта. За каждый новый уровень — {t.statPointsPerLevel} очка характеристик и денежная премия.</p>
-    {t.botExpPenalty != null && <p>С ботами против фарма: каждый следующий бой с ботом за сутки даёт на {Math.round(t.botExpPenalty * 100)}% меньше опыта, но не меньше {Math.round((t.botExpMin ?? 0) * 100)}% от полного. Счёт обнуляется в 3:00 по Москве, после этого опыт снова полный.</p>}
-    <div className="library__scroll"><table className="library__table library__table--fit">
-      <thead><tr><th>Уровень</th><th>Опыт</th><th>Премия</th></tr></thead>
-      <tbody>{t.battle.map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>{row.level === 1 ? `старт ${n(row.money)} ₽` : `${n(row.money)} ₽`}</td></tr>)}</tbody>
-    </table></div>
-    <h3>Экономический уровень</h3>
-    <p>Растёт от торговли: опыт — 2% от суммы любой продажи — государству, вещей и сырья, и на рынке. За каждый новый уровень — +1 к силе и денежная премия.</p>
-    <div className="library__scroll"><table className="library__table library__table--fit">
-      <thead><tr><th>Уровень</th><th>Опыт</th><th>Премия</th><th>Сила</th></tr></thead>
-      <tbody>{t.economic.filter(row => row.level > 0).map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>{n(row.money)} ₽</td><td>+{row.str}</td></tr>)}</tbody>
-    </table></div>
-    {t.production && <>
-      <h3>Производственный уровень</h3>
-      <p>Растёт от работы: весь опыт профессий за смены, крафт в цехах и урожай идёт и сюда. За каждый новый уровень +1 к выносливости и денежная премия, а каждые 5 уровней ещё одна смена в день.</p>
-      <div className="library__scroll"><table className="library__table library__table--fit">
-        <thead><tr><th>Уровень</th><th>Опыт</th><th>Премия</th><th>Выносливость</th><th>Смен сверху</th></tr></thead>
-        <tbody>{t.production.filter(row => row.level > 0).map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>{n(row.money)} ₽</td><td>+{row.end}</td><td>{row.shifts ? `+${row.shifts}` : '0'}</td></tr>)}</tbody>
-      </table></div>
-    </>}
-  </>
-}
-
-/** Формулы боя (16.11): правила Дмитрия и Nobody, числа из настроек сервера. */
-function BattleTopic({ t }: { t: LibraryTables | undefined }) {
-  if (!t?.rules) return <Loading />
-  const r = t.rules
-  return <>
-    <h3>Попадание</h3>
-    <p>Удар попадает без рандома, если оберег уворота бьющего больше минус-оберега уворота цели на {r.charmGapPct}% или ловкость бьющего больше на {r.statGap}. Минус-оберег цели гасит только оберег бьющего, перевес ловкости он не отменяет. Если ловкость цели больше на {r.statGap}, по ней не попасть, кроме крита и удачного. Между порогами работает рандом: при равенстве 50%, каждый пункт разницы сдвигает шанс.</p>
-    <p>Ловкача пробивает крит, если минус-оберег крита у бьющего больше и агрессия выше: с шансом {r.dodgeCritPct ?? 33}%, как бы ни был велик перевес. Удачный пробивает так же, по минус-оберегу удачи и фарту, с шансом {r.dodgeLuckPct ?? 25}%. Если перевес и по криту, и по удаче, пробивший удар сразу крито-удачный.</p>
-    <p>Стрелка режет антиметкость цели: когда она выше его меткости, часть выстрелов уходит в промах, а при перевесе {r.charmGapPct}% не попасть совсем. Такой промах не уворот: крит и удачный его не пробивают.</p>
-    <h3>Крит, удачный и блок</h3>
-    <p>Крит зависит от агрессии и оберега крита, бьёт в {String(r.critMult).replace('.', ',')} раза сильнее. Удачный зависит от фарта и оберега удачи. Удар в закрытую зону гасится. Удачный пробивает одиночный блок, два блока в одну зону держат и его. Крит блок не пробивает. Антифарт блокера держит удар мимо блока или удачный: {r.antiFartPct}% за очко, не больше {r.antiFartCapPct}%. Если реакция блокера больше на {r.statGap}, он бьёт в ответ.</p>
-    <h3>Урон и броня</h3>
-    <p>Удар: урон оружия плюс сила x1,5. Сила работает целиком с {r.strengthFullPct}% кулачного боя (с оружием: исп. оружия), без мастерства считается как {r.strengthFloor[0]}..{r.strengthFloor[1]}. Ровная пуха бьёт не слабее своего минимального урона.</p>
-    <p>Броня считается единицами и вычитается из удара: броня зоны плюс половина выносливости. Очко брони на вещи даёт {r.armorPerPoint} брони. Если брони больше, чем удар, урон 0. Мастерство защиты {r.defenseFullPct}% обнуляет урон, минус-защита бьющего его снимает. Итог умножается на {String(r.damageScale).replace('.', ',')}, иначе бой кончался бы за один ход, и гуляет в пределах ±{r.spreadPct ?? 10}%.</p>
-    <p>Пример: крит на 257 в руку с бронёй 24 у бойца с выносливостью 11. Броня 24 + 5,5 = 29,5, остаётся 227,5, умножить на {String(r.damageScale).replace('.', ',')}: около {Math.round(227.5 * r.damageScale)}, а с разбросом от {Math.round(227.5 * r.damageScale * (1 - (r.spreadPct ?? 10) / 100))} до {Math.round(227.5 * r.damageScale * (1 + (r.spreadPct ?? 10) / 100))}.</p>
-    <p>Третье попадание в одну зону выбивает оружие из руки или сбивает броню: на красной зоне брони нет.</p>
-    <h3>Журнал боя</h3>
-    <p>Обычный удар серый, крит красный, удачный синий, крито-удачный наполовину красный, наполовину синий.</p>
-  </>
-}
-
-/** Профессии и их прокачка (просьба заказчика 28.10). */
-function ProfessionsTopic({ t }: { t: LibraryTables | undefined }) {
-  if (!t) return <Loading />
-  return <>
-    <p>Профессия покупается в <Link to="/school">Училище</Link> и качается сменами на объектах <Link to="/work">Промзоны</Link>: за смену — опыт профессии. Каждый уровень профессии прибавляет к выработке. Какой инструмент нужен, написано в таблице ниже, его продают в <Link to="/shop?tab=tools">Гос магазине</Link>.</p>
-    <p>Путь вещи такой: на точке добычи вы получаете сырьё себе, в цехе из сырья делают заготовки и изделия. Цехи покупают за {n(t.objectPriceUsd ?? 15000)} $ в «<Link to="/objects">Мои объекты</Link>», что нужно для каждой вещи, показано в «<Link to="/recipes">Рецептах</Link>».</p>
-    <div className="library__scroll"><table className="library__table library__table--fit">
-      <thead><tr><th>Уровень профессии</th><th>Опыт всего</th><th>Выработка</th></tr></thead>
-      <tbody>{t.professionLevels.map(row => <tr key={row.level}><td>{row.level}</td><td>{n(row.exp)}</td><td>+{row.efficiencyPct}%</td></tr>)}</tbody>
-    </table></div>
-    <p>В направлениях Металл, Стройка и Химия по три ступени: следующая профессия открывает объекты, когда предыдущая прокачана до нужного уровня. У ремёсел свои цепочки, они открыты сразу.</p>
-    {t.professions.map(chain => <section key={chain.chain} className="library__chain">
-      <h3>{chain.chain}</h3>
-      {chain.steps.map(step => <div key={step.code} className="library__step">
-        <b>{step.name}</b>{step.after && <span className="library__muted"> — после «{step.after}»</span>}
-        {step.objects.length > 0 && <div className="library__scroll"><table className="library__table library__table--fit">
-          <thead><tr><th>Где работать</th><th>Что даёт</th><th>Смена</th><th>Оплата</th><th>Инструмент</th><th>Опыт</th><th>Допуск</th></tr></thead>
-          <tbody>{step.objects.map(o => <tr key={o.name}>
-            <td>{o.name}{o.forSaleUsd ? <span className="library__muted"> · госцех</span> : null}</td>
-            <td className="library__wrap">{o.gives ?? '—'}</td>
-            <td>{o.minutes} мин</td><td>{o.salary > 0 ? `${n(o.salary)} ₽` : 'сырьём'}</td>
-            <td>{o.tool ?? '—'}</td><td>+{o.exp}</td>
-            <td>{o.admission ? `${o.admission.profession}, ур. ${o.admission.level}` : 'сразу'}</td>
-          </tr>)}</tbody>
-          </table></div>}
-      </div>)}
-    </section>)}
-  </>
-}
-
-/** Что делают настойки, аптечки и свитки из цехов — с сервера, из шаблонов вещей. */
-function ConsumablesTopic({ t }: { t: LibraryTables | undefined }) {
-  if (!t) return <Loading />
-  return <>
-    <p>Настойки действуют по времени, сколько минут, указано в таблице. Их пьют на <Link to="/inventory">Складе</Link> или из кармана в бою. Свитки работают только в бою: положите их в карман на Складе, они действуют несколько раундов.</p>
-    <p>В бою предмет не тратит ход: применили и бьёте как обычно. За раунд можно применить один предмет.</p>
-    <p>Усиления разного рода действуют вместе, например броня и урон. Два усиления одного рода не складываются, работает сильнейшее. Если выпить ту же настойку ещё раз, время не прибавляется, а начинается заново.</p>
-    <div className="library__scroll"><table className="library__table library__table--fit">
-      <thead><tr><th>Вещь</th><th>Что делает</th><th>Где применять</th><th>Где делают</th></tr></thead>
-      <tbody>{(t.consumables ?? []).map(row => <tr key={row.name}>
-        <td>{row.name}</td><td className="library__wrap">{row.does}</td><td>{row.where}</td><td>{row.madeAt ?? '—'}</td>
-      </tr>)}</tbody>
-    </table></div>
-  </>
-}
-
-const lvl = (key: string) => LOCATION_LEVELS[key]?.level ?? 1
-
-const TOPICS: Topic[] = [
-  // Металлика 14.11: кодекс сразу здесь, без перехода и без пересказа.
-  { key: 'start', title: 'С чего начать', body: <>
-    <NewcomerLetterPage />
-    <p>Локации открываются постепенно: Фермы, Промзона и Училище — с {lvl('farm')}-го уровня, Гаражи, Бары и Зоомагазин — с {lvl('garages')}-го, Территории, Дома бригад, Мэрия и Жилой сектор — с {lvl('territories')}-го.</p>
-  </> },
-  { key: 'stats', title: 'Характеристики', body: <>
-    <p>За каждый боевой уровень — очки характеристик (сколько — в разделе «Опыт и уровни»). В <Link to="/stats">Центре подготовки</Link> «+» и «−» только двигают черновик: сверху видно, как меняются HP, перенос веса и инициатива. Очки тратятся по кнопке «Подтвердить».</p>
-    <p>Ошиблись — свиток перераспределения вернёт все вложенные очки. Два свитка даются бесплатно, следующие продаются там же за рубли.</p>
-    <p>Кроме характеристик на урон влияет навык владения оружием: чем чаще бьёте оружием одного типа, тем выше навык. Подробно — во вкладке «Оружейные навыки».</p>
-  </> },
-  { key: 'levels', title: 'Опыт и уровни', body: t => <LevelsTopic t={t} /> },
-  { key: 'professions', title: 'Профессии', body: t => <ProfessionsTopic t={t} /> },
-  { key: 'consumables', title: 'Настойки и свитки', body: t => <ConsumablesTopic t={t} /> },
-  { key: 'battle', title: 'Бой', body: t => <BattleTopic t={t} /> },
-  { key: 'battle-field', title: 'Поле боя и карманы', body: <>
-    <p>Каждый раунд выбираете, куда бить и что закрывать блоком, или делаете шаг по полю. На ход минута. Кто не сходил, тот просто стоит без ударов и блоков, а после второго пропуска за бой замерзает до конца боя: ходить уже нельзя, можно только сдаться.</p>
-    <p>Зоны: голова, корпус, правая рука, левая рука, ноги. Третье попадание в одну зону выбивает оружие из руки или сбивает броню с этой зоны — цвет зоны на фигуре меняется от зелёного к красному.</p>
-    <p>Дуэль идёт в полосе 3×8 клеток. На поле стоят бочки: через них не пройти и не прострелить — за ними можно укрыться от стрелка. Оружие дальнего боя бьёт на столько клеток, сколько указано в его карточке.</p>
-    <p>Карманы — до четырёх расходников, их можно использовать прямо в бою: аптечки лечат, свитки усиливают на несколько раундов (подробно — в разделе «Настойки и свитки»). Собака, если сыта, бьёт вашу цель после вашего удара — в боях с ботами и в групповых, но не в дуэлях.</p>
-  </> },
-  { key: 'gear', title: 'Снаряжение и износ', body: <>
-    <p>Вещи изнашиваются в бою — и при победе, и при поражении. Когда прочность падает до 20%, после боя в чат приходит напоминание; чинят в <Link to="/repair">Гаражах</Link>. Сломанная вещь не работает.</p>
-    <p>На Складе можно сохранить до трёх комплектов одежды и надевать любой одной кнопкой.</p>
-  </> },
-  { key: 'money', title: 'Заработок', body: t => <>
-    <p><b>Фермы</b> — одна грядка даётся бесплатно, остальные участки покупаются. Посадите семена, полейте (до трёх раз, каждый полив ускоряет рост) и соберите урожай. Сроки созревания — во вкладке «Растения». Можно засадить или полить все грядки одной кнопкой. Урожай продают на Рынке, за каждый сбор идёт опыт профессии Заготовитель, если она куплена.</p>
-    <p><b>Промзона</b> — смены по профессии. Профессия покупается в <Link to="/school">Училище</Link>, для работы нужен инструмент из Гос магазина. По окончании смены начисляется опыт, а на точках добычи платят сырьём: его продают на Рынке или везут в цех на переработку. На смену выходят только с 90% здоровья.</p>
-    <p><b>Цехи и объекты</b> — сначала государственные, работать там может любой с нужной профессией. Объект можно купить за доллары в «<Link to="/objects">Мои объекты</Link>», тогда он частный: работает владелец или наёмные игроки за зарплату, которую назначает владелец. Владелец кладёт сырьё на склад цеха и запускает цикл, готовое изделие приходит ему. У одного игрока не больше двух объектов, бригадный игрок может передать свои объекты бригаде.</p>
-    <p><b>Смены и помощники</b> — без подписки 12 смен в сутки, с подпиской (<Link to="/premium">Чёрный рынок</Link>, Витрина) 16, и ещё по смене за каждые 5 производственных уровней, больше опыта профессии и можно нанять одного или двух рабочих помощников.</p>
-    <p><b>Рынок</b> — объявления игроков о сырье и продукции. Вещи и свитки продают через Магазин, для этого нужна профессия Торгаш.</p>
-    {t?.rules && <p>Выставить лот {t.rules.listingFree ? 'бесплатно' : 'стоит сбор'}, с продажи налог {t.rules.saleTaxPct}%. Цена сырья за штуку держится в вилке: от затрат +{t.rules.craftMinPct}% до затрат +{t.rules.craftMaxPct}%. Затраты считаются по госценам того, из чего сырьё делают, а у добываемого по его госцене. Все приходы и расходы рублей видно на Складе во вкладке «Кошелёк».</p>}
-  </> },
-  { key: 'dollars', title: 'Доллары и Чёрный рынок', body: <>
-    <p>Доллары покупаются у дилера — список дилеров на <Link to="/premium">Чёрном рынке</Link>. За доллары — премиум, помощники, вещи ЦУМа и Берёзки, жильё.</p>
-    <p>В <Link to="/premium/exchange">Обменнике</Link> рубли меняются на доллары и обратно; покупка долларов за рубли ограничена суточным потолком.</p>
-  </> },
-  { key: 'clan', title: 'Бригады', body: <>
-    <p>Зарегистрировать свою бригаду можно в Мэрии с 5-го боевого уровня, за 1 000 $. Вступить в бригаду можно с 7-го: глава с 5-го уровня создаёт её заранее и приглашает бойцов, когда те дорастут.</p>
-    <p>Иконка бригады ставится при регистрации: подойдёт любая картинка PNG, JPEG, WebP или GIF, игра сама ужмёт её до 64×64. Поменять иконку потом нельзя.</p>
-    <p>Общак пополняют сами участники в Домах бригад, у кого есть право «Пополнять общак». Содержание 500 ₽ в сутки игра списывает из общака сама. Если денег не хватает, копится долг: при долге от 1 500 ₽ бригада замораживается, пока общак не пополнят.</p>
-    <p>Налёт объявляют только на дом игрока. Дом можно купить в Жилом секторе, а он открывается с 5-го уровня, поэтому раньше этого уровня налёт не грозит. Отдельно правило защищает новичков до 3-го уровня.</p>
-  </> },
-  { key: 'help', title: 'Помощь', body: <>
-    <p>Вопрос или ошибка — в <Link to="/support">Поддержку</Link>: там видно, кто из модераторов в сети, а заявку сразу видят все модераторы.</p>
-    <p>При наведении на кнопку локации в Центре всплывает короткая подсказка, что в ней делают.</p>
-  </> },
-]
-
 export function LibraryPage() {
-  const [open, setOpen] = useState(TOPICS[0].key)
-  const tables = useQuery({ queryKey: ['library', 'tables'], queryFn: libraryApi.tables, staleTime: 5 * 60_000 })
-  // С 19.11 все разделы лежат в базе и правятся в админке, таблицы и числа в них живые.
-  // Встроенные из кода показываются, только если в базе разделов нет совсем.
-  const custom = useQuery({ queryKey: ['content', 'LIBRARY'], queryFn: () => contentApi.list('LIBRARY'), staleTime: 60_000 })
-  const fromDb: Topic[] = (custom.data ?? []).map(page => ({ key: `c-${page.id}`, title: page.title, body: t => <RichText body={page.body} tables={t} /> }))
-  const topics: Topic[] = custom.isLoading ? [] : fromDb.length ? fromDb : TOPICS
-  const topic = topics.find(t => t.key === open) ?? topics[0]
-  if (!topic) return <p className="library__muted">Загружаем библиотеку…</p>
+  const [open, setOpen] = useState<string | null>(null)
+  const pages = useQuery({ queryKey: ['content', 'LIBRARY'], queryFn: () => contentApi.list('LIBRARY'), staleTime: 60_000 })
+  const items = pages.data ?? []
+  const tables = useQuery({
+    queryKey: ['library', 'tables'],
+    queryFn: libraryApi.tables,
+    staleTime: 5 * 60_000,
+    enabled: items.length > 0,
+  })
+  if (pages.isLoading) return <Skeleton rows={4} />
+  if (pages.isError) return <Fault retry={() => pages.refetch()} />
+  if (!items.length) return <Empty title="В библиотеке пока нет опубликованных разделов" />
+
+  const page = items.find(item => item.id === open) ?? items[0]
+  const tablesUnavailable = tables.isError && !tables.data
   return (
     <div className="library">
       <nav className="library__toc" aria-label="Разделы библиотеки">
-        {topics.map(t => <button key={t.key} type="button" aria-current={t.key === open ? 'page' : undefined}
-          className={t.key === open ? 'is-active' : ''} onClick={() => setOpen(t.key)}>{t.title}</button>)}
+        {items.map(item => <button key={item.id} type="button" aria-current={item.id === page.id ? 'page' : undefined}
+          className={item.id === page.id ? 'is-active' : ''} onClick={() => setOpen(item.id)}>{item.title}</button>)}
       </nav>
-      <article className="library__text"><h2>{topic.title}</h2>{typeof topic.body === 'function' ? topic.body(tables.data) : topic.body}</article>
+      <article className="library__text">
+        <h2>{page.title}</h2>
+        {tablesUnavailable && <Fault title="Таблицы и числа не загрузились" retry={() => tables.refetch()} />}
+        <RichText body={page.body} tables={tables.data} tablesUnavailable={tablesUnavailable} />
+      </article>
     </div>
   )
 }
