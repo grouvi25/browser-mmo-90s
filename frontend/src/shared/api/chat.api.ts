@@ -34,10 +34,17 @@ export interface ChatFeed {
   messages: ChatLine[]
 }
 
+export interface ResidentProfile {
+  occupation: string
+  productionLevel: number
+  stats: { str: number; agi: number; end: number; acc: number }
+}
+
 export interface OnlinePlayer {
   characterId: string
   nickname: string
   level: number
+  resident?: ResidentProfile
   /** Бригада игрока с версией иконки (правка 21.10). */
   clan?: { id: string; name: string; iconVersion: number } | null
 }

@@ -8,15 +8,18 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
+import type { OnlinePlayer } from '../../shared/api/chat.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
 import { EarlierButton, EtherComposer, EtherLine, OnlineRefresh, PrivateArrow, mentionPlayer, onMentionPlayer, onWritePrivately, useChatScroll, useComposer } from '../chat/ether'
 import { levelTone } from '../../shared/lib/chat-format'
+import { ResidentProfileDialog } from './resident-profile-dialog'
 
 export function MobileChat() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<'chat' | 'online'>('chat')
+  const [selectedPlayer, setSelectedPlayer] = useState<OnlinePlayer | null>(null)
 
   // Та же лента, что на большом экране: общий, бригада, личные.
   const ether = useEther()
@@ -65,15 +68,15 @@ export function MobileChat() {
           <div className="m-chat__refresh"><OnlineRefresh /></div>
           {players.map(p => (
             <div key={p.characterId} className="m-chat__player-row">
-              {!p.self && <PrivateArrow nick={p.nickname} />}
-              {!p.self && (
+              {!p.self && !p.resident && <PrivateArrow nick={p.nickname} />}
+              {!p.self && !p.resident && (
                 <button type="button" className="m-chat__mention" aria-label={`Обратиться в чате: ${p.nickname}`}
                   title="Обратиться к игроку в чате" onClick={() => mentionPlayer(p.nickname)}>@</button>
               )}
               <button
                 type="button"
                 className={'m-chat__player' + (p.self ? ' is-self' : '')}
-                onClick={() => navigate(p.self ? '/profile' : `/u/${encodeURIComponent(p.nickname)}`)}
+                onClick={() => p.resident ? setSelectedPlayer(p) : navigate(p.self ? '/profile' : `/u/${encodeURIComponent(p.nickname)}`)}
               >
                 <span>{p.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(p.clan.id, p.clan.iconVersion)} alt="" width={16} height={16} /> : null} {p.nickname}</span>
                 <b className={`online-list__lvl online-list__lvl--${p.self ? 'o' : levelTone(p.level)}`}>{p.level}</b>
@@ -83,6 +86,8 @@ export function MobileChat() {
           {!players.length && <div className="m-chat__row">В эфире пусто.</div>}
         </div>
       )}
+      {selectedPlayer?.resident && <ResidentProfileDialog nickname={selectedPlayer.nickname} level={selectedPlayer.level}
+        profile={selectedPlayer.resident} onClose={() => setSelectedPlayer(null)} />}
     </div>
   )
 }

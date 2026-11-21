@@ -1,15 +1,15 @@
 // =============================================================
 // Чат района и список онлайна.
 //
-// Данные настоящие: лента приходит из /api/chat, живые реплики —
-// сокетом, присутствие — из общего списка эфира. Демонстрационные
-// массивы, что стояли тут до появления модуля чата, убраны.
+// Лента приходит из /api/chat, живые реплики — сокетом, присутствие
+// игроков и городских персонажей — из общего списка эфира.
 // =============================================================
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { charactersApi } from '../../shared/api/characters.api'
+import type { OnlinePlayer } from '../../shared/api/chat.api'
 import { clansApi } from '../../shared/api/clans.api'
 import { useOnline } from '../../shared/lib/use-chat'
 import { useEther } from '../../shared/lib/use-ether'
@@ -18,6 +18,7 @@ import { levelTone } from '../../shared/lib/chat-format'
 import { MENU, MENU_STAGE } from '../../shared/lib/layout-map'
 import { useFitBlock } from '../../shared/lib/use-fit-block'
 import { PLATES } from '../../shared/ui/sprite'
+import { ResidentProfileDialog } from './resident-profile-dialog'
 
 export interface ChatMessage {
   id: string
@@ -26,14 +27,6 @@ export interface ChatMessage {
   tone: 1 | 2 | 3 | 4
   text: string
   own?: boolean
-}
-
-export interface OnlinePlayer {
-  nick: string
-  level: number
-  tone: 'r' | 'c' | 'o'
-  self?: boolean
-  clan?: { id: string; name: string; iconVersion: number } | null
 }
 
 // ── Выдвижная полоса чата ────────────────────────────────────
@@ -147,6 +140,7 @@ const ONLINE_LIST_BOX = { w: 320, rows: 9 }
 
 export function OnlineList() {
   const navigate = useNavigate()
+  const [selectedPlayer, setSelectedPlayer] = useState<OnlinePlayer | null>(null)
   const { data: char } = useQuery({
     queryKey: ['character', 'me'],
     queryFn: () => charactersApi.getMe(),
@@ -159,14 +153,12 @@ export function OnlineList() {
   // Себя сервер тоже отдаёт в списке — он отмечает присутствие на любом
   // обращении к эфиру. Поднимаем свою строку наверх и красим отдельно.
   const online = useOnline()
-  const players: OnlinePlayer[] = online.map(p => ({
-    nick: p.nickname,
-    level: p.level,
+  const players = online.map(p => ({
+    ...p,
     tone: p.characterId === char?.id ? 'o' : levelTone(p.level),
     self: p.characterId === char?.id,
-    clan: p.clan,
   }))
-  players.sort((a, b) => Number(b.self ?? false) - Number(a.self ?? false))
+  players.sort((a, b) => Number(b.self) - Number(a.self))
 
   // Ник и уровень идут одной строкой: при подмене шрифта они больше
   // не расходятся и не налезают друг на друга, как при абсолютных позициях.
@@ -179,7 +171,7 @@ export function OnlineList() {
         ref={titleRef}
         className="online-title"
         style={{ left: MENU.onlineTitle.x, top: MENU.onlineTitle.y, fontSize: MENU.onlineTitle.size }}
-        title="Игроки, подключённые к общему эфиру"
+        title="Участники общего эфира"
       >
         Игроки онлайн: {players.length} <OnlineRefresh />
       </div>
@@ -204,22 +196,28 @@ export function OnlineList() {
       >
         {players.map(p => (
           <div
-            key={p.nick}
+            key={p.characterId}
             className={'online-list__row' + (p.self ? ' is-self' : '')}
-            onClick={() => navigate(p.self ? '/profile' : `/u/${encodeURIComponent(p.nick)}`)}
-            title={p.self ? 'Это вы — открыть личное дело' : `Открыть профиль ${p.nick}`}
+            onClick={() => p.resident ? setSelectedPlayer(p) : navigate(p.self ? '/profile' : `/u/${encodeURIComponent(p.nickname)}`)}
+            title={p.self ? 'Это вы — открыть личное дело' : `Открыть профиль ${p.nickname}`}
           >
             {p.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(p.clan.id, p.clan.iconVersion)} alt="" title={`Бригада «${p.clan.name}»`} width={14} height={14} /> : null}
-            {!p.self && <PrivateArrow nick={p.nick} />}
+            {!p.self && !p.resident && <PrivateArrow nick={p.nickname} />}
             {p.self
-              ? <span className="online-list__nick">{p.nick}</span>
-              : <button type="button" className="online-list__nick" title="Обратиться к игроку в чате"
-                  onClick={event => { event.stopPropagation(); mentionPlayer(p.nick) }}>{p.nick}</button>}
+              ? <span className="online-list__nick">{p.nickname}</span>
+              : <button type="button" className="online-list__nick" title={p.resident ? 'Открыть профиль' : 'Обратиться к игроку в чате'}
+                  onClick={event => {
+                    event.stopPropagation()
+                    if (p.resident) setSelectedPlayer(p)
+                    else mentionPlayer(p.nickname)
+                  }}>{p.nickname}</button>}
             <span className={`online-lvl online-lvl--${p.tone}`}>{p.level}</span>
           </div>
         ))}
       </div>
       </div>
+      {selectedPlayer?.resident && <ResidentProfileDialog nickname={selectedPlayer.nickname} level={selectedPlayer.level}
+        profile={selectedPlayer.resident} onClose={() => setSelectedPlayer(null)} />}
     </>
   )
 }

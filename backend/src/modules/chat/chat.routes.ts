@@ -70,7 +70,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
   fastify.get('/online/list', { preHandler: authenticate }, async (req, reply) => {
     const who = await ChatService.speaker(req.authUser.userId)
     await ChatService.touch(who.characterId)
-    return reply.send({ players: await ChatService.online() })
+    return reply.send({ players: await ChatService.onlineDirectory() })
   })
 
   /** Жалоба на чужую реплику — уходит в поддержку (правила чата, п. 6). */

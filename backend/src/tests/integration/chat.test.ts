@@ -304,6 +304,29 @@ describe('эфир', () => {
     expect((await ChatService.online()).map(p => p.characterId)).toEqual([two.character.id])
   })
 
+  it('показывает постоянных персонажей в интерфейсе при пустом онлайне', async () => {
+    expect(await ChatService.online()).toEqual([])
+    const residents = await ChatService.onlineDirectory()
+    expect(residents).toHaveLength(12)
+    expect(new Set(residents.map(({ characterId }) => characterId)).size).toBe(12)
+    expect(residents[0]).toMatchObject({
+      characterId: 'resident:gromov', nickname: 'Сава_Громов', level: 3,
+      resident: { occupation: 'Грузчик на рынке', productionLevel: 2, stats: { str: 8 } },
+    })
+
+    const live = await player('chat-res')
+    await testPrisma.character.update({ where: { id: live.character.id }, data: { nickname: 'сава_громов' } })
+    await ChatService.touch(live.character.id)
+    const present = await ChatService.onlineDirectory()
+    expect(present[0]).toMatchObject({ characterId: live.character.id, nickname: 'сава_громов' })
+    expect(present).toHaveLength(12)
+    expect(present.some(entry => entry.characterId === 'resident:gromov')).toBe(false)
+
+    await ChatService.leave(live.character.id)
+    expect(await ChatService.online()).toEqual([])
+    expect(await ChatService.onlineDirectory()).toEqual(residents)
+  })
+
   it('личное сообщение видят только автор и получатель; ник без учёта регистра', async () => {
     const a = await player('pm-a')
     const b = await player('pm-b')
