@@ -251,7 +251,7 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
   LOCK_LISTING: async (tx, payload) => {
     const changed = await tx.marketListing.updateMany({
       where: { id: str(payload, 'listingId'), status: 'ACTIVE' },
-      data: { status: 'LOCKED' },
+      data: { status: 'LOCKED', revision: { increment: 1 } },
     })
     if (changed.count !== 1) {
       throw new AppError(ErrorCode.ADMIN_STATE_CHANGED, 'Лот нельзя заблокировать', 409)
@@ -261,7 +261,7 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
   UNLOCK_LISTING: async (tx, payload) => {
     const changed = await tx.marketListing.updateMany({
       where: { id: str(payload, 'listingId'), status: 'LOCKED' },
-      data: { status: 'ACTIVE' },
+      data: { status: 'ACTIVE', revision: { increment: 1 } },
     })
     if (changed.count !== 1) {
       throw new AppError(ErrorCode.ADMIN_STATE_CHANGED, 'Лот нельзя разблокировать', 409)

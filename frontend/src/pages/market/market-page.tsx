@@ -9,14 +9,15 @@
 //   /market/trader   — Торгаш: уровни, свой магазин, продажа вещей
 //   /market/shops    — магазины торгашей: поиск по номеру и список
 // =============================================================
-import { Fragment, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { marketApi, type MarketFilters, type MarketListingView, type Currency } from '../../shared/api/market.api'
+import { marketApi, type MarketFilters, type MarketListingView, type MarketQuote, type Currency } from '../../shared/api/market.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { resourcesApi } from '../../shared/api/resources.api'
 import { instanceImage, itemHoverText } from '../../shared/lib/item-bonuses'
 import { QUALITY_LABELS } from '../../shared/types/api.types'
+import { ApiError } from '../../shared/api/client'
 
 const money = (value: number, currency: Currency = 'RUB') => `${value.toLocaleString('ru')} ${currency === 'USD' ? '$' : '₽'}`
 /** Курс пошлины на сервере (market.service RUB_PER_USD): доллар как 100 ₽. */
@@ -32,9 +33,9 @@ function useRefresh() {
   }
 }
 
-function ListingsTable({ items, mine, onBuy, onCancel, onPrice, busy }: {
+function ListingsTable({ items, mine, onBought, onCancel, onPrice, busy }: {
   items: MarketListingView[]; mine?: boolean; busy?: boolean
-  onBuy?: (id: string) => void; onCancel?: (id: string) => void
+  onBought?: (amount: number, remainingAmount: number) => void; onCancel?: (id: string) => void
   onPrice?: (id: string, price: number) => void
 }) {
   const [open, setOpen] = useState<string | null>(null)
@@ -65,12 +66,61 @@ function ListingsTable({ items, mine, onBuy, onCancel, onPrice, busy }: {
               {onPrice && <PriceEditor listing={listing} busy={busy} onSave={price => onPrice(listing.id, price)} />}
               <button className="btn btn-sm" disabled={busy} onClick={() => onCancel?.(listing.id)}>Снять</button>
             </span>
-          : <button className="btn btn-sm btn-gold" disabled={busy} onClick={() => onBuy?.(listing.id)}>Купить</button>}</td>
+          : onBought && <PurchaseEditor listing={listing} onBought={onBought} />}</td>
       </tr>
       {detail && open === listing.id && <tr className="market-item-row"><td colSpan={8}><ListingItemCard item={detail} /></td></tr>}
       </Fragment>
     })}</tbody>
   </table>
+}
+
+function PurchaseEditor({ listing, onBought }: {
+  listing: MarketListingView; onBought: (amount: number, remainingAmount: number) => void
+}) {
+  const count = listing.resourceAmount ?? 1
+  const [open, setOpen] = useState(false)
+  const [amount, setAmount] = useState(count)
+  const attempted = useRef<{ quote: MarketQuote; key: string } | null>(null)
+  const goodAmount = Number.isInteger(amount) && amount >= 1 && amount <= count
+  const quote = useQuery({
+    queryKey: ['market', 'quote', listing.id, amount], queryFn: () => marketApi.quote(listing.id, amount),
+    enabled: open && goodAmount, staleTime: 0, retry: false,
+  })
+  const buy = useMutation({
+    mutationFn: ({ quote, key }: NonNullable<typeof attempted.current>) => marketApi.buy(listing.id, quote, key),
+    onSuccess: purchase => { attempted.current = null; setOpen(false); onBought(purchase.amount, purchase.remainingAmount) },
+    onError: error => {
+      if (error instanceof ApiError && error.status < 500) {
+        attempted.current = null
+        if (error.code === 'MARKET_002' || error.code === 'MARKET_009') void quote.refetch()
+      }
+    },
+  })
+  if (!open) return <button type="button" className="btn btn-sm btn-gold" onClick={() => {
+    setAmount(count); buy.reset(); setOpen(true)
+  }}>Купить</button>
+
+  const purchase = attempted.current?.quote ?? quote.data
+  return <form className="market-edit" onSubmit={event => {
+    event.preventDefault()
+    if (buy.isPending || !purchase || (!attempted.current && (quote.isError || quote.isFetching))) return
+    attempted.current ??= { quote: purchase, key: crypto.randomUUID() }
+    buy.mutate(attempted.current)
+  }}>
+    {listing.canBuyPart && <input aria-label="Количество для покупки" type="number" min={1} max={count} step={1}
+      value={amount || ''} disabled={buy.isPending || !!attempted.current} onChange={event => {
+        buy.reset(); setAmount(Number(event.target.value))
+      }} />}
+    {purchase && <span>{money(purchase.finalPrice, purchase.currency)} за {purchase.amount} шт.</span>}
+    {quote.isFetching && !attempted.current && <span role="status">Уточняем цену…</span>}
+    {quote.isError && !attempted.current && <span role="alert">{quote.error.message}</span>}
+    {buy.isError && <span role="alert">{attempted.current ? 'Связь прервалась. Повторите подтверждение, чтобы узнать результат.' : buy.error.message}</span>}
+    <button className="btn btn-sm btn-primary" type="submit"
+      disabled={!goodAmount || !purchase || buy.isPending || (!attempted.current && (quote.isError || quote.isFetching))}>
+      {attempted.current && buy.isError ? 'Повторить подтверждение' : 'Подтвердить покупку'}
+    </button>
+    <button className="btn btn-sm" type="button" disabled={buy.isPending || !!attempted.current} onClick={() => setOpen(false)}>Отмена</button>
+  </form>
 }
 
 /** Вещь в лоте подробно, как карточка Госмагазина: картинка, описание, прочность и все статы. */
@@ -130,7 +180,7 @@ export function MarketPage() {
   const resources = useQuery({ queryKey: ['resources'], queryFn: resourcesApi.list })
   const trader = useQuery({ queryKey: ['market', 'trader'], queryFn: marketApi.trader })
 
-  const buy = useMutation({ mutationFn: marketApi.buy, onSuccess: () => { setMessage('Покупка завершена'); refresh() }, onError: (e: Error) => setMessage(e.message) })
+  const bought = (amount: number) => { setMessage(`Куплено: ${amount} шт.`); refresh() }
   const cancel = useMutation({ mutationFn: marketApi.cancel, onSuccess: () => { setMessage('Объявление снято'); refresh() }, onError: (e: Error) => setMessage(e.message) })
   const reprice = useMutation({ mutationFn: (v: { id: string; price: number }) => marketApi.updatePrice(v.id, v.price), onSuccess: r => { setMessage(r.feeCharged ? `Цена изменена, доплата сбора ${r.feeCharged} ₽` : 'Цена изменена'); refresh() }, onError: (e: Error) => setMessage(e.message) })
   // Цену вводят за штуку, итог считается сам (обращение №40). На сервер уходит итог, как и раньше.
@@ -186,8 +236,8 @@ export function MarketPage() {
     </div>
 
     <div className="panel"><div className="panel-body">
-      <ListingsTable items={listings.data?.items ?? []} mine={mine} busy={buy.isPending || cancel.isPending || reprice.isPending}
-        onBuy={id => buy.mutate(id)} onCancel={id => cancel.mutate(id)} onPrice={(id, p) => reprice.mutate({ id, price: p })} />
+      <ListingsTable items={listings.data?.items ?? []} mine={mine} busy={cancel.isPending || reprice.isPending}
+        onBought={bought} onCancel={id => cancel.mutate(id)} onPrice={(id, p) => reprice.mutate({ id, price: p })} />
       {!listings.data?.items?.length && <div className="text-dim">Подходящих объявлений нет.</div>}
       <div className="market-pages">
         <button className="btn btn-sm" disabled={page <= 1} onClick={() => setPage(v => v - 1)}>Назад</button>
@@ -286,13 +336,13 @@ export function ShopPage() {
   const refresh = useRefresh()
   const [message, setMessage] = useState('')
   const shop = useQuery({ queryKey: ['market', 'shop', number], queryFn: () => marketApi.shop(Number(number)), retry: false })
-  const buy = useMutation({ mutationFn: marketApi.buy, onSuccess: () => { setMessage('Покупка завершена'); refresh() }, onError: (e: Error) => setMessage(e.message) })
+  const bought = (amount: number) => { setMessage(`Куплено: ${amount} шт.`); refresh() }
   return <div>
     {message && <div className="alert mb8" role="status">{message}</div>}
     {shop.isError && <p role="alert">Магазина №{number} нет. <Link to="/market/shops">К списку магазинов</Link></p>}
     {shop.data && <>
       <h2>Магазин №{shop.data.owner.shopNumber} · {shop.data.owner.nickname} <small className="text-dim">Торгаш {shop.data.owner.traderLevel}-го уровня</small></h2>
-      <ListingsTable items={shop.data.listings.items} busy={buy.isPending} onBuy={id => buy.mutate(id)} />
+      <ListingsTable items={shop.data.listings.items} onBought={bought} />
       {!shop.data.listings.items.length && <div className="text-dim">В магазине пока пусто.</div>}
     </>}
   </div>

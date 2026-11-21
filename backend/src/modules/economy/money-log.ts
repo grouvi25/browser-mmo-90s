@@ -59,12 +59,16 @@ async function refNames(rows: Row[]): Promise<Map<string, string>> {
   const names = new Map<string, string>()
   const put = (type: string, id: string, name: string | null | undefined) => { if (name) names.set(`${type}:${id}`, name) }
   const itemIds = ids(['item', 'repair', 'upgrade', 'socket'])
-  const [shop, items, resources, privates, listings, shifts, bars, dogGear] = await Promise.all([
+  const [shop, items, resources, privates, listings, sales, shifts, bars, dogGear] = await Promise.all([
     ids('shop').length ? prisma.governmentShopItem.findMany({ where: { id: { in: ids('shop') } }, select: { id: true, template: { select: { name: true } } } }) : [],
     itemIds.length ? prisma.itemInstance.findMany({ where: { id: { in: itemIds } }, select: { id: true, template: { select: { name: true } } } }) : [],
     ids('resource').length ? prisma.resourceTemplate.findMany({ where: { id: { in: ids('resource') } }, select: { id: true, name: true } }) : [],
     ids('private_shop').length ? prisma.privateShopItem.findMany({ where: { id: { in: ids('private_shop') } }, select: { id: true, itemTemplateId: true, resourceTemplateId: true } }) : [],
     ids('market_listing').length ? prisma.marketListing.findMany({ where: { id: { in: ids('market_listing') } }, select: { id: true, itemInstanceId: true, resourceTemplateId: true, resourceAmount: true } }) : [],
+    ids('market_sale').length ? prisma.marketSale.findMany({
+      where: { id: { in: ids('market_sale') } },
+      select: { id: true, amount: true, listing: { select: { resourceTemplateId: true } } },
+    }) : [],
     ids('work_shift').length ? prisma.workShift.findMany({ where: { id: { in: ids('work_shift') } }, select: { id: true, productionObject: { select: { name: true } } } }) : [],
     ids('bar_offer').length ? prisma.barOffer.findMany({ where: { id: { in: ids('bar_offer') } }, select: { id: true, name: true } }) : [],
     ids('dog-gear').length ? prisma.dogGearTemplate.findMany({ where: { code: { in: ids('dog-gear') } }, select: { code: true, name: true } }) : [],
@@ -77,7 +81,7 @@ async function refNames(rows: Row[]): Promise<Map<string, string>> {
   for (const row of dogGear) put('dog-gear', row.code, row.name)
   // Лавки и рынок ссылаются на шаблон вещи или ресурса, а лот вещи — на саму вещь.
   const templateIds = [...new Set(privates.flatMap(r => r.itemTemplateId ? [r.itemTemplateId] : []))]
-  const resourceIds = [...new Set([...privates, ...listings].flatMap(r => r.resourceTemplateId ? [r.resourceTemplateId] : []))]
+  const resourceIds = [...new Set([...privates, ...listings, ...sales.map(s => s.listing)].flatMap(r => r.resourceTemplateId ? [r.resourceTemplateId] : []))]
   const lotItemIds = [...new Set(listings.flatMap(r => r.itemInstanceId ? [r.itemInstanceId] : []))]
   const [templates, resourceNames, lotItems] = await Promise.all([
     templateIds.length ? prisma.itemTemplate.findMany({ where: { id: { in: templateIds } }, select: { id: true, name: true } }) : [],
@@ -91,6 +95,10 @@ async function refNames(rows: Row[]): Promise<Map<string, string>> {
   for (const row of listings) {
     const name = row.itemInstanceId ? iName.get(row.itemInstanceId) : row.resourceTemplateId ? rName.get(row.resourceTemplateId) : null
     put('market_listing', row.id, name && row.resourceAmount && row.resourceAmount > 1 ? `${name} ×${row.resourceAmount}` : name)
+  }
+  for (const sale of sales) {
+    const name = sale.listing.resourceTemplateId ? rName.get(sale.listing.resourceTemplateId) : undefined
+    if (name) put('market_sale', sale.id, sale.amount > 1 ? `${name} ×${sale.amount}` : name)
   }
   for (const row of rows) {
     if (row.refType === 'profession' && row.refId) put('profession', row.refId, PROFESSION_NAMES[row.refId as keyof typeof PROFESSION_NAMES])

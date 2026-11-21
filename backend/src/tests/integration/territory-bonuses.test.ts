@@ -61,6 +61,27 @@ describe('бонусы районов действуют', () => {
   beforeEach(async () => { await cleanDatabase(); await seedTerritories() })
   afterAll(async () => testPrisma.$disconnect())
 
+  it('части лота сохраняют скидку бригады, налог, опыт и долю района как при одной покупке', async () => {
+    const { boss: seller, clan } = await clanWithBoss('partial')
+    const buyer = await player('ally')
+    await testPrisma.character.update({ where: { id: buyer.id }, data: { clanId: clan.id } })
+    await testPrisma.clan.update({ where: { id: clan.id }, data: { treasury: 0 } })
+    await give('market', clan.id)
+    const resource = await testPrisma.resourceTemplate.create({
+      data: { code: uid('partial'), name: 'Сырьё', category: 'PRIMARY', tier: 1, basePrice: 0, weight: 1 },
+    })
+    await testPrisma.resourceStack.create({ data: { characterId: seller.id, resourceTemplateId: resource.id, amount: 10 } })
+    const { listing } = await MarketService.createResource(seller.id, resource.id, 10, 500, uid('list'))
+    for (let i = 0; i < 10; i++) {
+      const quote = await MarketService.quote(buyer.id, listing.id, 1)
+      await MarketService.buy(buyer.id, listing.id, uid('buy'), quote)
+    }
+    expect((await testPrisma.marketSale.aggregate({ where: { listingId: listing.id }, _sum: { finalPrice: true, tax: true, payout: true } }))._sum)
+      .toEqual({ finalPrice: 450, tax: 45, payout: 405 })
+    expect((await testPrisma.clan.findUniqueOrThrow({ where: { id: clan.id } })).treasury).toBe(13)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: seller.id } })).economicExp - seller.economicExp).toBe(9)
+  })
+
   it('Гаражи режут стоимость ремонта на пятую часть', async () => {
     const { boss, clan } = await clanWithBoss()
     // 1200/240×20 = 100 ровно: проверяем скидку, а не округление

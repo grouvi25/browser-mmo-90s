@@ -1645,13 +1645,42 @@ model MarketListing {
   currency           MarketCurrency      @default(RUB)
   listingFee         Int                 @map("listing_fee")
   saleTax            Int?                @map("sale_tax")
+  revision           Int                 @default(0)
   expiresAt          DateTime            @map("expires_at")
   soldAt             DateTime?           @map("sold_at")
   createdAt          DateTime            @default(now()) @map("created_at")
+  sales              MarketSale[]
 
   @@index([status, expiresAt])
   @@index([sellerCharacterId, status])
   @@map("market_listings")
+}
+
+model MarketSale {
+  id                String            @id @default(uuid())
+  listingId         String            @map("listing_id")
+  sellerCharacterId String            @map("seller_character_id")
+  buyerCharacterId  String            @map("buyer_character_id")
+  type              MarketListingType
+  amount            Int
+  currency          MarketCurrency
+  basePrice         Int               @map("base_price")
+  finalPrice        Int               @map("final_price")
+  relation          String
+  sellerGross       Int               @map("seller_gross")
+  sellerTaxRate     Float             @map("seller_tax_rate")
+  tax               Int
+  payout            Int
+  ecoExpRate        Float             @map("eco_exp_rate")
+  marketClanId      String?           @map("market_clan_id")
+  marketShareRate   Float?            @map("market_share_rate")
+  soldAt            DateTime          @default(now()) @map("sold_at")
+  listing           MarketListing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([sellerCharacterId, buyerCharacterId, soldAt])
+  @@index([soldAt])
+  @@map("market_sales")
 }
 
 model UpgradeLog {
