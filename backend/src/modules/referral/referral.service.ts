@@ -28,17 +28,14 @@ export const ReferralService = {
    * в ссылке регистрацию не ломают — просто без пригласившего.
    */
   /** Есть ли игрок с таким ником (без учёта регистра). */
-  async exists(nickname: string) {
-    return !!(await prisma.character.findFirst({ where: { nickname: { equals: nickname.trim(), mode: 'insensitive' } }, select: { id: true } }))
+  async findReferrer(nickname: string) {
+    return prisma.character.findFirst({ where: { nickname: { equals: nickname.trim(), mode: 'insensitive' } }, select: { id: true, userId: true } })
   },
 
   async attach(userId: string, ref: string | undefined) {
     const nickname = ref?.trim()
     if (!nickname) return
-    const referrer = await prisma.character.findFirst({
-      where: { nickname: { equals: nickname, mode: 'insensitive' } },
-      select: { id: true, userId: true },
-    })
+    const referrer = await this.findReferrer(nickname)
     if (!referrer || referrer.userId === userId) return
     await prisma.user.update({ where: { id: userId }, data: { referrerCharacterId: referrer.id } })
   },

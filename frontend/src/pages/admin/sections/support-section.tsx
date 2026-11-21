@@ -251,23 +251,24 @@ function StaffBubble({ ticketId, message: m }: { ticketId: string; message: Supp
         {m.internal ? `Заметка ${m.authorLabel ?? ''}` : m.author === 'STAFF' ? `Ответ ${m.authorLabel ?? ''}` : 'Игрок'} · {when(m.createdAt)}
       </span>
       <p>{m.text}</p>
-      {m.hasImage && <StaffShot ticketId={ticketId} messageId={m.id} />}
+      {Array.from({ length: m.imageCount ?? Number(m.hasImage) }, (_, position) =>
+        <StaffShot key={position} ticketId={ticketId} messageId={m.id} position={position} />)}
     </li>
   )
 }
 
 /** Скриншот — по админскому токену, поэтому через blob-адрес. */
-function StaffShot({ ticketId, messageId }: { ticketId: string; messageId: string }) {
+function StaffShot({ ticketId, messageId, position }: { ticketId: string; messageId: string; position: number }) {
   const [url, setUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
   useEffect(() => {
     let alive = true
     let made: string | null = null
-    adminApi.supportImage(ticketId, messageId)
+    adminApi.supportImage(ticketId, messageId, position)
       .then(next => { made = next; if (alive) setUrl(next); else URL.revokeObjectURL(next) })
       .catch(() => { if (alive) setFailed(true) })
     return () => { alive = false; if (made) URL.revokeObjectURL(made) }
-  }, [ticketId, messageId])
+  }, [ticketId, messageId, position])
   if (failed) return <p className="adm-hint">Скриншот не загрузился.</p>
   if (!url) return <p className="adm-hint">Скриншот загружается…</p>
   return <a href={url} target="_blank" rel="noreferrer" className="adm-ticket__shot"><img src={url} alt="Скриншот игрока" /></a>

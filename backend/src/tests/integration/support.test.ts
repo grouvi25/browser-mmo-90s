@@ -63,6 +63,25 @@ describe('Поддержка', () => {
     await expect(ask(ch.id, 'текст', huge)).rejects.toMatchObject({ statusCode: 422 })
   })
 
+  it('хранит несколько скриншотов у одного сообщения и проверяет доступ ко всем', async () => {
+    const ch = await player('shots')
+    const other = await player('other')
+    const ticket = await SupportService.create(ch.id, { subject: 'Склад', text: 'Три скриншота', images: [PNG, PNG, PNG] })
+    const { messages: [message] } = await SupportService.thread(ch.id, ticket.id)
+    expect(message).toMatchObject({ hasImage: true, imageCount: 3 })
+    expect((await SupportService.adminThread(ticket.id)).messages).toHaveLength(1)
+    expect(await SupportService.playerImage(ch.id, ticket.id, message.id, 2)).toMatchObject({ mime: 'image/png' })
+    expect(await SupportService.adminImage(ticket.id, message.id, 1)).toMatchObject({ mime: 'image/png' })
+    expect(await SupportService.adminImage(ticket.id, message.id, 3)).toBeNull()
+    await expect(SupportService.playerImage(other.id, ticket.id, message.id, 1)).rejects.toMatchObject({ statusCode: 404 })
+    const reply = await SupportService.playerMessage(ch.id, ticket.id, { text: 'Ещё два', images: [PNG, PNG] })
+    expect(reply.messages).toHaveLength(2)
+    expect(reply.messages.at(-1)).toMatchObject({ imageCount: 2 })
+    const large = 'data:image/jpeg;base64,' + Buffer.alloc(400_000).toString('base64')
+    await expect(SupportService.playerMessage(ch.id, ticket.id, { text: 'Переполнение', images: [large, large] }))
+      .rejects.toMatchObject({ statusCode: 422 })
+  })
+
   it('ждущих ответа обращений не больше лимита; после ответа можно писать снова', async () => {
     const ch = await player('lim')
     const first = await ask(ch.id, 'раз')

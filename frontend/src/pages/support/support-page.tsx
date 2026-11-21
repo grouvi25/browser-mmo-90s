@@ -71,12 +71,12 @@ function NewTicket({ first = false }: { first?: boolean }) {
   const [subject, setSubject] = useState('')
   const [category, setCategory] = useState<SupportCategory>('BUG')
   const [text, setText] = useState('')
-  const [image, setImage] = useState<string | null>(null)
+  const [images, setImages] = useState<string[]>([])
   const [error, setError] = useState('')
   const mods = useQuery({ queryKey: ['support', 'moderators'], queryFn: supportApi.moderators, refetchInterval: 60_000 })
 
   const send = useMutation({
-    mutationFn: () => supportApi.create({ subject: subject.trim(), category, text: text.trim(), image }),
+    mutationFn: () => supportApi.create({ subject: subject.trim(), category, text: text.trim(), images }),
     onSuccess: ticket => {
       void qc.invalidateQueries({ queryKey: ['support'] })
       navigate(`/support/${ticket.id}`, { replace: true })
@@ -108,7 +108,7 @@ function NewTicket({ first = false }: { first?: boolean }) {
         </div>
         <label className="support__label" htmlFor="support-text">Подробности</label>
         <Composer
-          id="support-text" text={text} onText={setText} image={image} onImage={setImage} onError={setError}
+          id="support-text" text={text} onText={setText} images={images} onImages={setImages} onError={setError}
           placeholder="Подробно: что делали, где в игре, когда. Скриншот можно вставить сюда же через Ctrl+V"
           busy={send.isPending} ready={ready} submitLabel="Отправить"
         />
@@ -134,7 +134,7 @@ function NewTicket({ first = false }: { first?: boolean }) {
 function Thread({ id }: { id: string }) {
   const qc = useQueryClient()
   const [text, setText] = useState('')
-  const [image, setImage] = useState<string | null>(null)
+  const [images, setImages] = useState<string[]>([])
   const [error, setError] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const thread = useQuery({ queryKey: ['support', 'thread', id], queryFn: () => supportApi.thread(id), refetchInterval: 20_000 })
@@ -153,8 +153,8 @@ function Thread({ id }: { id: string }) {
   }
   const fail = (e: Error) => setError(e.message)
   const write = useMutation({
-    mutationFn: () => supportApi.write(id, text.trim(), image),
-    onSuccess: next => { setText(''); setImage(null); setError(''); update(next) },
+    mutationFn: () => supportApi.write(id, text.trim(), images),
+    onSuccess: next => { setText(''); setImages([]); setError(''); update(next) },
     onError: fail,
   })
   const close = useMutation({ mutationFn: () => supportApi.close(id), onSuccess: update, onError: fail })
@@ -207,7 +207,7 @@ function Thread({ id }: { id: string }) {
         <form className="support__form" onSubmit={e => { e.preventDefault(); if (text.trim()) write.mutate() }}>
           <label className="support__label" htmlFor="support-reply">{closed ? 'Не решилось? Напишите — обращение откроется снова' : 'Ваше сообщение'}</label>
           <Composer
-            id="support-reply" text={text} onText={setText} image={image} onImage={setImage} onError={setError}
+            id="support-reply" text={text} onText={setText} images={images} onImages={setImages} onError={setError}
             placeholder="Дописать, ответить на вопрос поддержки" busy={write.isPending} ready={!!text.trim()} submitLabel="Отправить"
             extra={!closed && <button type="button" className="btn" disabled={close.isPending} onClick={() => close.mutate()}>Вопрос решён — закрыть</button>}
           />
@@ -227,62 +227,80 @@ function Bubble({ ticketId, message: m }: { ticketId: string; message: SupportMe
     <li className={'support__bubble' + (staff ? ' is-staff' : ' is-mine')}>
       <span className="support__meta">{staff ? `Поддержка${m.authorLabel ? ` (${m.authorLabel})` : ''}` : 'Вы'} · {when(m.createdAt)}</span>
       <p className="support__body">{m.text}</p>
-      {m.hasImage && <Shot ticketId={ticketId} messageId={m.id} />}
+      {Array.from({ length: m.imageCount ?? Number(m.hasImage) }, (_, position) =>
+        <Shot key={position} ticketId={ticketId} messageId={m.id} position={position} />)}
     </li>
   )
 }
 
 /** Скриншот из переписки: грузится по токену, открывается целиком в новой вкладке. */
-function Shot({ ticketId, messageId }: { ticketId: string; messageId: string }) {
+function Shot({ ticketId, messageId, position }: { ticketId: string; messageId: string; position: number }) {
   const [url, setUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
   useEffect(() => {
     let alive = true
     let made: string | null = null
-    supportApi.image(ticketId, messageId)
+    supportApi.image(ticketId, messageId, position)
       .then(next => { made = next; if (alive) setUrl(next); else URL.revokeObjectURL(next) })
       .catch(() => { if (alive) setFailed(true) })
     return () => { alive = false; if (made) URL.revokeObjectURL(made) }
-  }, [ticketId, messageId])
+  }, [ticketId, messageId, position])
   if (failed) return <span className="support__meta">Скриншот не загрузился.</span>
   if (!url) return <span className="support__meta">Скриншот загружается…</span>
   return <a className="support__shot" href={url} target="_blank" rel="noreferrer"><img src={url} alt="Скриншот" /></a>
 }
 
-/** Поле сообщения со скриншотом: кнопкой или вставкой из буфера (Ctrl+V). */
-function Composer({ id, text, onText, image, onImage, onError, placeholder, busy, ready, submitLabel, extra }: {
+const MAX_SCREENSHOTS = 3
+
+/** Скриншоты можно выбрать файлами или вставить из буфера. */
+function Composer({ id, text, onText, images, onImages, onError, placeholder, busy, ready, submitLabel, extra }: {
   id: string; text: string; onText: (v: string) => void
-  image: string | null; onImage: (v: string | null) => void; onError: (v: string) => void
+  images: string[]; onImages: (v: string[]) => void; onError: (v: string) => void
   placeholder: string; busy: boolean; ready: boolean; submitLabel: string; extra?: ReactNode
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [preparing, setPreparing] = useState(false)
-  const pick = async (file: File | undefined | null) => {
-    if (!file) return
+  const pick = async (files: File[]) => {
+    if (!files.length || busy || preparing) return
+    if (files.length + images.length > MAX_SCREENSHOTS) {
+      onError('К одному сообщению можно приложить до трёх скриншотов')
+      return
+    }
     setPreparing(true)
-    try { onImage(await screenshotImage(file)); onError('') }
+    try {
+      const compressed = await Promise.all(files.map(file => screenshotImage(file, 1600, 225_000)))
+      onImages([...images, ...compressed])
+      onError('')
+    }
     catch (e) { onError((e as Error).message) }
-    finally { setPreparing(false); if (fileRef.current) fileRef.current.value = '' }
+    finally { setPreparing(false) }
   }
   return <>
     <textarea
       id={id} className="support__text" rows={4} maxLength={TEXT_MAX}
       value={text} onChange={e => onText(e.target.value)} placeholder={placeholder}
       onPaste={e => {
-        const file = Array.from(e.clipboardData.files).find(f => f.type.startsWith('image/'))
-        if (file) { e.preventDefault(); void pick(file) }
+        const files = Array.from(e.clipboardData.files).filter(f => f.type.startsWith('image/'))
+        if (files.length) { e.preventDefault(); void pick(files) }
       }}
     />
     <div className="support__row">
-      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={e => void pick(e.target.files?.[0])} />
-      {image ? (
-        <span className="support__thumb">
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={e => {
+        const files = Array.from(e.target.files ?? [])
+        e.target.value = ''
+        void pick(files)
+      }} />
+      {images.map((image, index) => (
+        <span className="support__thumb" key={index}>
           <img src={image} alt="Скриншот к сообщению" />
-          <button type="button" className="btn btn-sm" onClick={() => onImage(null)} aria-label="Убрать скриншот"><X size={13} /> Убрать</button>
+          <button type="button" className="btn btn-sm" disabled={busy || preparing}
+            onClick={() => onImages(images.filter((_, i) => i !== index))}
+            aria-label={`Убрать скриншот ${index + 1}`}><X size={13} /> Убрать</button>
         </span>
-      ) : (
-        <button type="button" className="btn" disabled={preparing} onClick={() => fileRef.current?.click()}>
-          <ImagePlus size={14} /> {preparing ? 'Готовим скриншот…' : 'Приложить скриншот'}
+      ))}
+      {images.length < MAX_SCREENSHOTS && (
+        <button type="button" className="btn" disabled={busy || preparing} onClick={() => fileRef.current?.click()}>
+          <ImagePlus size={14} /> {preparing ? 'Готовим скриншоты…' : `Приложить скриншоты (${images.length}/${MAX_SCREENSHOTS})`}
         </button>
       )}
       {extra}

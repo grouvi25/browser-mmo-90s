@@ -192,6 +192,8 @@ export interface ItemInstance {
   sellPrice?: number | null
   percentPerPoint?: number
   damagePerPoint?: number
+  /** Очки урона из шаблона, улучшений и камней, которые здесь не редактируются. */
+  fixedDamageAllocation?: Partial<Record<'DAMAGE' | 'MIN_DAMAGE' | 'MAX_DAMAGE', number>>
   /** Брони за очко на вещи (Дима 15.11: броня единицами). */
   armorPerPoint?: number
   /** Условия следующего уровня, если вещь его поддерживает. */

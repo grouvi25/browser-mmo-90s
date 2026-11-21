@@ -12,6 +12,7 @@ import sceneIndustrial from '../../shared/assets/ui/scene-industrial.webp'
 import sceneGarages from '../../shared/assets/ui/scene-garages.webp'
 import sceneBrigade from '../../shared/assets/ui/scene-brigade-houses.webp'
 import './landing.css'
+import { registrationPath } from '../../shared/lib/referral'
 import { DESKTOP_INSTALLER, offerDesktop } from '../../shared/lib/desktop-app'
 
 // Тексты для игроков по правилам Димы: без «ё», без длинных тире, кавычки прямые.
@@ -113,7 +114,7 @@ export function LandingPage() {
           <h1>Твой район.<br />Твои правила.</h1>
           <p className="landing__sub">Браузерная онлайн-игра · без установки · 18+</p>
           <div className="landing__actions">
-            <Link className="landing__btn landing__btn--main" to="/register">Начать свой путь</Link>
+            <Link className="landing__btn landing__btn--main" to={registrationPath()}>Начать свой путь</Link>
             <a className="landing__btn" href="#about">Что за игра?</a>
             {offerDesktop && <a className="landing__btn" href={DESKTOP_INSTALLER} download>Скачать для ПК</a>}
           </div>
@@ -121,7 +122,7 @@ export function LandingPage() {
         <div className="landing__login" id="login">
           <h2>Свой на районе?</h2>
           <LoginForm />
-          <p className="landing__login-foot">Нет аккаунта? <Link to="/register">Зарегистрироваться</Link></p>
+          <p className="landing__login-foot">Нет аккаунта? <Link to={registrationPath()}>Зарегистрироваться</Link></p>
           {offerDesktop && <p className="landing__login-foot"><a href={DESKTOP_INSTALLER} download>Скачать игру для ПК</a></p>}
         </div>
       </section>
@@ -152,7 +153,7 @@ export function LandingPage() {
       <section className="landing__cta">
         <p className="landing__kicker">У каждого свой путь</p>
         <h2>Твое место еще не занято.</h2>
-        <Link className="landing__btn landing__btn--main" to="/register">Вписать свое имя</Link>
+        <Link className="landing__btn landing__btn--main" to={registrationPath()}>Вписать свое имя</Link>
       </section>
 
       <footer className="landing__footer">

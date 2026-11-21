@@ -350,6 +350,15 @@ export function BattlePage() {
   const eHpMax    = ePart?.hpMax ?? dbEPart?.hpMax ?? 0  // 0 показывает полный бар до загрузки
   const enemyProfile = profiles.find(profile => profile.participantId === ePart?.participantId)
   const enemyName = enemyProfile?.name ?? 'Противник'
+  const isBotBattle = (live?.type ?? battleData?.battle?.type) === 'PVE_BOT'
+  const enemyWeapons = enemyProfile ? [
+    `${enemyProfile.primaryHand ?? 'Кулаки'} · ${enemyProfile.primaryRange} кл.`,
+    ...(!isBotBattle ? [`${enemyProfile.secondaryHand ?? 'Кулаки'} · ${enemyProfile.secondaryRange} кл.`] : []),
+  ] : []
+  const opponentInfo = (enemyWeapons.length > 0 || isBotBattle) && <div className="battle-field-v3__opponent">
+    {enemyWeapons.length > 0 && <span><b>Оружие цели</b> {Array.from(new Set(enemyWeapons)).join(' / ')}</span>}
+    {isBotBattle && <span>Бот ходит автоматически при расчёте раунда. Порядок выбора удара и блока не важен. Итог в хронике.</span>}
+  </div>
   // Обращение №121: рейтинг виден прямо в бою, как в досье («123,4»). У ботов его нет.
   const ratingText = (rating?: number | null) => rating != null ? ` · рейт. ${String(rating).replace('.', ',')}` : ''
 
@@ -737,6 +746,7 @@ export function BattlePage() {
         <div className="m-battle__field" ref={mobileFieldRef}>
           <div className="battle-field-v3">
             {grid}
+            {opponentInfo}
             <div className="battle-field-v3__meta battle-desk__meta">
               <span>Дистанция: <b>{currentDistance}</b></span>
               <span>Дальность: <b>{playerRange ?? '—'}</b></span>
@@ -822,6 +832,7 @@ export function BattlePage() {
         </header>}
         field={<div className="battle-field-v3">
           {grid}
+          {opponentInfo}
           {/* Кнопки хода — в полосе под полем, прямо над зонами (правка
               заказчика 22.10: «кнопки Применить и Сбросить сюда перенести»). */}
           <div className="battle-field-v3__meta battle-desk__meta">

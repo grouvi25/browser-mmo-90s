@@ -10,7 +10,6 @@ import type { RegisterInput, LoginInput } from './auth.schemas'
 import { RegistrationGuard } from './registration-guard'
 import { prisma } from '../../shared/db/prisma'
 import { ReferralService } from '../referral/referral.service'
-import { logger } from '../../shared/logger/logger'
 import { Nickname } from '../characters/characters.schemas'
 
 /** Телефон в одном виде: +цифры; 8XXXXXXXXXX и 7XXXXXXXXXX — российский номер. */
@@ -53,7 +52,8 @@ export const AuthService = {
     // Поле «Кто пригласил» (обращение №43): ник из ссылки или вписанный руками.
     // Опечатку видно сразу, а не молча теряем пригласившего, как раньше.
     const referrerNick = input.ref?.trim()
-    if (referrerNick && !(await ReferralService.exists(referrerNick))) {
+    const referrer = referrerNick ? await ReferralService.findReferrer(referrerNick) : null
+    if (referrerNick && !referrer) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, `Игрок «${referrerNick}», который вас пригласил, не найден: проверьте ник или оставьте поле пустым`, 422)
     }
 
@@ -66,12 +66,11 @@ export const AuthService = {
       lastIp: ip,
       lastUserAgent: userAgent,
       policyAcceptedAt: new Date(),
+      referrerCharacterId: referrer?.id,
       ...(input.phone ? { phone: normalizePhone(input.phone) } : {}),
       ...attributionFields(input.attribution),
     })
 
-    // Пригласивший — не повод сорвать регистрацию.
-    await ReferralService.attach(user.id, input.ref).catch(error => logger.warn({ error }, 'referral attach failed'))
     await RegistrationGuard.recordRegistration(ip)
     audit('user.registered', { userId: user.id, login: user.login, ip })
     return { id: user.id, login: user.login, email: user.email }

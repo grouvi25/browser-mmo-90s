@@ -808,7 +808,7 @@ function loadParticipantProfiles(participants: { id: string; characterId: string
     const reach = typeof botWeapon.maxRange === 'number' ? botWeapon.maxRange : 1
     const shown = typeof botWeapon.code === 'string'
       ? { code: botWeapon.code, type: typeof botWeapon.weaponType === 'string' ? botWeapon.weaponType : null, name: mainWeapon }
-      : reach >= 3 ? { code: 'weapon_pistol_pm', type: 'PISTOL', name: 'Пистолет ПМ' }
+      : reach >= 3 ? { code: 'weapon_pistol_pm', type: 'PISTOL', name: 'Дальнобойное оружие бота' }
       : (bot?.battleLevel ?? 1) >= 2 ? { code: 'weapon_pipe_basic', type: 'CLUB', name: 'Труба' }
       : { code: 'weapon_fists', type: 'MELEE', name: 'Кулаки' }
     const botStatsRaw = bot?.stats && typeof bot.stats === 'object' && !Array.isArray(bot.stats) ? bot.stats as Record<string, unknown> : {}
@@ -827,7 +827,7 @@ function loadParticipantProfiles(participants: { id: string; characterId: string
       secondaryWeaponCode: null,
       primaryWeaponType: shown.type,
       secondaryWeaponType: null,
-      primaryRange: typeof botWeapon.maxRange === 'number' ? Number(botWeapon.maxRange) : 1,
+      primaryRange: Math.max(1, reach),
       secondaryRange: 1,
       stats: bot?.stats && typeof bot.stats === 'object' && !Array.isArray(bot.stats) ? bot.stats as Record<string, number> : null,
     }
@@ -1383,7 +1383,7 @@ export const BattleService = {
       }
       if (body.summoned) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, body.alive ? 'Уже на поле' : 'Выбит до конца боя', 409)
       if (!body.alive) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'Выбит до конца боя', 409)
-      const cell = summonCell(part.position, positionedParticipants(state))
+      const cell = summonCell(part.position, part.side, positionedParticipants(state))
       if (!cell) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'На поле нет свободной клетки', 409)
       body.summoned = true
       body.position = cell

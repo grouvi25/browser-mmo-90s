@@ -90,10 +90,10 @@
 /* ── Поле: главный элемент, занимает сколько есть ───────────────── */
 .m-battle__field { flex: 1; min-height: 220px; display: grid; padding: 4px 4px 0; }
 .m-battle__field .battle-field-v3 {
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   border: 1px solid oklch(46% .04 55);
 }
-.m-battle__field .battle-field-v3__meta { flex-wrap: wrap; row-gap: 3px; padding: 4px 7px; font-size: 12px; }
+.m-battle__field .battle-field-v3__meta { grid-row: 3; flex-wrap: wrap; row-gap: 3px; padding: 4px 7px; font-size: 12px; }
 .m-battle__field .fighter-token .token-label { font-size: 11px; }
 .m-battle__buttons { display: flex; gap: 6px; margin-left: auto; }
 .m-battle__buttons button {

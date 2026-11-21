@@ -115,7 +115,7 @@ test('на списке домов бригад внизу только ЦЕНТ
 })
 
 // Поддержка тикетами (правка 29.10): тема, раздел, скриншот, переписка.
-test('поддержка: обращение с темой и скриншотом открывается перепиской и видно в списке', async ({ page }) => {
+test('поддержка: обращение с несколькими скриншотами открывается перепиской и видно в списке', async ({ page }) => {
   await authPage(page, owner)
   await page.goto('/')
   await page.locator('[data-stage-nav="support"]').click()
@@ -126,16 +126,18 @@ test('поддержка: обращение с темой и скриншото
   await page.getByLabel('Раздел', { exact: true }).selectOption('BUG')
   await page.getByLabel('Подробности').fill('Не открывается склад после боя')
   // Картинка 1×1 PNG: страница сама ужмёт её в JPEG.
-  await page.locator('.support input[type=file]').setInputFiles({
-    name: 'shot.png', mimeType: 'image/png',
+  await page.locator('.support input[type=file]').setInputFiles([1, 2, 3].map(number => ({
+    name: 'shot-' + number + '.png', mimeType: 'image/png',
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'),
-  })
-  await expect(page.getByAltText('Скриншот к сообщению')).toBeVisible()
+  })))
+  await expect(page.getByAltText('Скриншот к сообщению')).toHaveCount(3)
+  await page.getByRole('button', { name: 'Убрать скриншот 2' }).click()
+  await expect(page.getByAltText('Скриншот к сообщению')).toHaveCount(2)
   await page.locator('.support').getByRole('button', { name: 'Отправить' }).click()
   await expect(page).toHaveURL(/\/support\/[0-9a-f-]{36}$/)
   await expect(page.locator('.support__thread-head')).toContainText('Склад после боя')
   await expect(page.locator('.support__chat')).toContainText('Не открывается склад после боя')
-  await expect(page.locator('.support__chat').getByAltText('Скриншот')).toBeVisible()
+  await expect(page.locator('.support__chat').getByAltText('Скриншот')).toHaveCount(2)
   await expectNoAxeViolations(page)
 
   // Дописать в обращение и вернуться к списку.

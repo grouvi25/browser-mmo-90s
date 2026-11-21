@@ -39,6 +39,7 @@ export interface SupportMessage {
   authorLabel: string | null
   text: string
   hasImage: boolean
+  imageCount?: number
   createdAt: string
 }
 
@@ -50,17 +51,19 @@ export interface SupportThread {
 export const supportApi = {
   mine: () => api.get<{ items: SupportTicketRow[]; unread: number }>('/api/support'),
   unread: () => api.get<{ count: number }>('/api/support/unread'),
-  create: (body: { subject: string; category: SupportCategory; text: string; image: string | null }) =>
-    api.post<SupportTicketRow>('/api/support', body),
+  create: (body: { subject: string; category: SupportCategory; text: string; images: string[] }) =>
+    api.post<SupportTicketRow>('/api/support', body.images.length === 1
+      ? { ...body, images: undefined, image: body.images[0] } : body),
   thread: (id: string) => api.get<SupportThread>(`/api/support/${id}`),
-  write: (id: string, text: string, image: string | null) => api.post<SupportThread>(`/api/support/${id}/messages`, { text, image }),
+  write: (id: string, text: string, images: string[]) => api.post<SupportThread>(`/api/support/${id}/messages`,
+    images.length === 1 ? { text, image: images[0] } : { text, images }),
   close: (id: string) => api.post<SupportThread>(`/api/support/${id}/close`, {}),
   rate: (id: string, rating: number) => api.post<SupportThread>(`/api/support/${id}/rate`, { rating }),
   moderators: () => api.get<{ items: { nickname: string; level: number; online: boolean; lastActiveAt: string }[] }>('/api/support/moderators'),
   /** Скриншот по токену игрока: <img> заголовок не пошлёт, грузим fetch'ем. */
-  image: async (ticketId: string, messageId: string) => {
+  image: async (ticketId: string, messageId: string, position: number) => {
     const token = localStorage.getItem('mmo_token')
-    const res = await fetch(`${BASE}/api/support/${ticketId}/messages/${messageId}/image`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    const res = await fetch(`${BASE}/api/support/${ticketId}/messages/${messageId}/image?position=${position}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
     if (!res.ok) throw new Error('Скриншот не загрузился')
     return URL.createObjectURL(await res.blob())
   },

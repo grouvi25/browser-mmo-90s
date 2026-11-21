@@ -15,7 +15,12 @@ const Id = z.string().uuid()
 const BODY_LIMIT = Math.ceil(SUPPORT.imageMaxBytes * 4 / 3) + 16_000
 const Category = z.enum(CATEGORIES as [typeof CATEGORIES[number], ...typeof CATEGORIES])
 const Status = z.enum(['OPEN', 'ANSWERED', 'CLOSED'])
-const Message = z.object({ text: z.string().max(SUPPORT.textMax), image: z.string().max(BODY_LIMIT).nullish() })
+const Message = z.object({
+  text: z.string().max(SUPPORT.textMax),
+  image: z.string().max(BODY_LIMIT).nullish(),
+  images: z.array(z.string().min(1).max(BODY_LIMIT)).max(SUPPORT.imageMaxCount).optional(),
+})
+const ImagePosition = z.coerce.number().int().min(0).max(SUPPORT.imageMaxCount - 1).default(0)
 
 function sendImage(reply: FastifyReply, image: { mime: string; bytes: Buffer } | null) {
   if (!image) return reply.code(404).send()
@@ -78,7 +83,9 @@ export async function supportRoutes(fastify: FastifyInstance) {
   // Скриншот по токену игрока: в игре он грузится fetch'ем.
   fastify.get<{ Params: { id: string; messageId: string } }>('/:id/messages/:messageId/image', { preHandler: authenticate }, async (req, reply) => {
     if (!Id.safeParse(req.params.id).success || !Id.safeParse(req.params.messageId).success) return reply.code(404).send()
-    return sendImage(reply, await SupportService.playerImage(await me(req.authUser.userId), req.params.id, req.params.messageId))
+    const position = ImagePosition.safeParse((req.query as { position?: string }).position)
+    if (!position.success) return reply.code(404).send()
+    return sendImage(reply, await SupportService.playerImage(await me(req.authUser.userId), req.params.id, req.params.messageId, position.data))
   })
 }
 
@@ -123,6 +130,8 @@ export async function adminSupportRoutes(fastify: FastifyInstance) {
   // Скриншот отдаётся по админскому токену: в админке он грузится fetch'ем.
   fastify.get<{ Params: { id: string; messageId: string } }>('/:id/messages/:messageId/image', SUPPORT_ADMIN, async (req, reply) => {
     if (!Id.safeParse(req.params.id).success || !Id.safeParse(req.params.messageId).success) return reply.code(404).send()
-    return sendImage(reply, await SupportService.adminImage(req.params.id, req.params.messageId))
+    const position = ImagePosition.safeParse((req.query as { position?: string }).position)
+    if (!position.success) return reply.code(404).send()
+    return sendImage(reply, await SupportService.adminImage(req.params.id, req.params.messageId, position.data))
   })
 }

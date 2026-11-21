@@ -11,9 +11,10 @@ import { audit } from '../../shared/logger/audit-logger'
 import { z } from 'zod'
 import { BalanceConfig } from '../../config/balance.config'
 import type { Prisma } from '@prisma/client'
-import { ITEM_STAT_KEYS, itemBudget } from '../items/item-stats.formulas'
+import { ITEM_STAT_KEYS, itemBudget, mergeAllocations } from '../items/item-stats.formulas'
 import { ItemStatsService } from '../items/item-stats.service'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
+import { socketAllocation } from '../upgrades/upgrades.stones'
 import { CHARM_KEYS, GEAR_STAT_KEYS, MASTERY_KEYS, healAmount, syncHpWithGear } from '../items/gear-bonuses'
 import { decayedAlcohol } from '../bars/bars.formulas'
 import { effectText, extraShiftsNow, parseActiveEffects, parseUseEffect, withAppliedEffect } from '../items/item-effects'
@@ -89,6 +90,10 @@ export async function inventoryRoutes(fastify: FastifyInstance): Promise<void> {
       sellPrice: item.template.isSellable ? governmentBuyPrice(item.template.priceBase) : null,
       percentPerPoint: named.percentPerPoint,
       damagePerPoint: named.damagePerPoint,
+      fixedDamageAllocation: item.template.type === 'WEAPON' && item.template.allocationMode === 'PLAYER' ? (() => {
+        const fixed = mergeAllocations(item.template.statAllocation, item.upgradeModifiersJson, socketAllocation(item.socketsJson))
+        return { DAMAGE: fixed.DAMAGE, MIN_DAMAGE: fixed.MIN_DAMAGE, MAX_DAMAGE: fixed.MAX_DAMAGE }
+      })() : undefined,
       armorPerPoint: BalanceConfig.strike.armorPerPoint,
       levelUp: tsum.has(item.templateId) && item.template.allocationMode === 'PLAYER'
         ? { priceUsd: named.levelPriceUsd, points: named.pointsPerLevel, maxLevel: named.maxLevel } : null,
