@@ -2,11 +2,88 @@ import{afterAll,beforeAll,beforeEach,describe,expect,it}from'vitest'
 import{cleanDatabase,testPrisma,uid}from'./helpers'
 import{MarketService}from'../../modules/market/market.service'
 import{runMarketExpire}from'../../workers/market-expire.worker'
+import { pairFlowToday } from '../../modules/antiabuse/antiabuse.limits'
+import { moneyLog } from '../../modules/economy/money-log'
 async function character(money=5000){const login=uid('market');const user=await testPrisma.user.create({data:{login,email:`${login}@test.local`,passwordHash:'x'}});return testPrisma.character.create({data:{ traderLevel: 1,userId:user.id,nickname:login,archetype:'WORKER',hpCurrent:80,hpMax:80,money}})}
 async function item(ownerId:string){const t=await testPrisma.itemTemplate.create({data:{code:uid('marketitem'),name:'Market item',type:'ARMOR',armorSlot:'CHEST',armor:10,weight:1,durabilityMax:100,priceBase:500,itemTier:2,sourceType:'PRIVATE'}});return testPrisma.itemInstance.create({data:{templateId:t.id,ownerId,quality:'COMMON',durabilityCurrent:100,durabilityMax:100,weight:1,sourceType:'PRIVATE'}})}
 // Госцена 0: у ресурса без цены нет пределов (price-bounds), тесты резерва и сбора не про вилку цены.
 async function resource(ownerId:string,amount=10){const t=await testPrisma.resourceTemplate.create({data:{code:uid('marketres'),name:'Market resource',category:'PRIMARY',tier:1,basePrice:0,weight:.5}});await testPrisma.resourceStack.create({data:{characterId:ownerId,resourceTemplateId:t.id,amount}});return t}
 describe('MarketService E4',()=>{beforeAll(()=>testPrisma.$connect());beforeEach(()=>cleanDatabase());afterAll(()=>testPrisma.$disconnect())
+ it.each(['cancel', 'expire'] as const)('покупка 2 из 10, повтор запроса и возврат остатка (%s)', async mode => {
+  const seller = await character()
+  const buyer = await character()
+  const res = await resource(seller.id)
+  const { listing } = await MarketService.createResource(seller.id, res.id, 10, 1000, uid('list'))
+  const quote = await MarketService.quote(buyer.id, listing.id, 2)
+  expect(quote).toMatchObject({ available: 10, amount: 2, finalPrice: 200 })
+  const key = uid('buy')
+  const sale = await MarketService.buy(buyer.id, listing.id, key, quote)
+  expect(sale).toMatchObject({ status: 'ACTIVE', remainingAmount: 8, tax: 20, payout: 180 })
+  expect(await MarketService.buy(buyer.id, listing.id, key, quote)).toMatchObject({ replayed: true, saleId: sale.saleId })
+  expect(await testPrisma.marketListing.findUniqueOrThrow({ where: { id: listing.id } }))
+   .toMatchObject({ price: 800, resourceAmount: 8, expiresAt: listing.expiresAt })
+  expect(await pairFlowToday(testPrisma, buyer.id, seller.id)).toEqual({ money: 200, items: 0 })
+  expect((await moneyLog(buyer.id)).items[0].label).toContain('Market resource ×2')
+  if (mode === 'cancel') await MarketService.cancel(seller.id, listing.id)
+  else {
+   await testPrisma.marketListing.update({ where: { id: listing.id }, data: { expiresAt: new Date(Date.now() - 1_000) } })
+   expect(await runMarketExpire()).toBe(1)
+  }
+  expect(await testPrisma.resourceStack.findUniqueOrThrow({ where: { characterId_resourceTemplateId: { characterId: seller.id, resourceTemplateId: res.id } } }))
+   .toMatchObject({ amount: 8, reservedAmount: 0 })
+  expect(await testPrisma.resourceStack.findUniqueOrThrow({ where: { characterId_resourceTemplateId: { characterId: buyer.id, resourceTemplateId: res.id } } }))
+   .toMatchObject({ amount: 2 })
+  expect(await testPrisma.marketSale.count({ where: { listingId: listing.id } })).toBe(1)
+ })
+
+ it('сохраняет накопительный налог и снимает лот после последней части', async () => {
+  const seller = await character()
+  const buyer = await character()
+  const res = await resource(seller.id)
+  const { listing } = await MarketService.createResource(seller.id, res.id, 10, 20, uid('list'))
+  for (let i = 0; i < 10; i++) {
+   const quote = await MarketService.quote(buyer.id, listing.id, 1)
+   await MarketService.buy(buyer.id, listing.id, uid('buy'), quote)
+  }
+  expect(await testPrisma.marketListing.findUniqueOrThrow({ where: { id: listing.id } })).toMatchObject({ status: 'SOLD' })
+  expect((await testPrisma.marketSale.aggregate({ where: { listingId: listing.id }, _sum: { finalPrice: true, tax: true, payout: true } }))._sum)
+   .toEqual({ finalPrice: 20, tax: 2, payout: 18 })
+  expect(await pairFlowToday(testPrisma, buyer.id, seller.id)).toEqual({ money: 20, items: 0 })
+ })
+
+ it('отклоняет просроченную цену и защищает от двух покупок по одному остатку', async () => {
+  const seller = await character()
+  const first = await character()
+  const second = await character()
+  const res = await resource(seller.id)
+  const { listing } = await MarketService.createResource(seller.id, res.id, 10, 1000, uid('list'))
+  const stale = await MarketService.quote(first.id, listing.id, 6)
+  await MarketService.updatePrice(seller.id, listing.id, 1200)
+  await expect(MarketService.buy(first.id, listing.id, uid('buy'), stale)).rejects.toMatchObject({ statusCode: 409 })
+  const [a, b] = await Promise.all([MarketService.quote(first.id, listing.id, 6), MarketService.quote(second.id, listing.id, 6)])
+  const results = await Promise.allSettled([MarketService.buy(first.id, listing.id, uid('buy'), a), MarketService.buy(second.id, listing.id, uid('buy'), b)])
+  expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
+  expect(await testPrisma.marketSale.count({ where: { listingId: listing.id } })).toBe(1)
+  expect(await testPrisma.marketListing.findUniqueOrThrow({ where: { id: listing.id } })).toMatchObject({ price: 480, resourceAmount: 4 })
+ })
+
+ it('оставляет неделимые старые цены целыми и учитывает частичные сделки в лимите пары', async () => {
+  const seller = await character()
+  const buyer = await character(100_000)
+  const res = await resource(seller.id)
+  const odd = await MarketService.createResource(seller.id, res.id, 3, 100, uid('list'))
+  await expect(MarketService.quote(buyer.id, odd.listing.id, 1)).rejects.toMatchObject({ statusCode: 422 })
+  await MarketService.cancel(seller.id, odd.listing.id)
+  await testPrisma.marketListing.create({ data: {
+   sellerCharacterId: seller.id, buyerCharacterId: buyer.id, type: 'RESOURCE', resourceTemplateId: res.id,
+   resourceAmount: 1, price: 490, currency: 'USD', listingFee: 0, status: 'SOLD', soldAt: new Date(), expiresAt: new Date(),
+  } })
+  const { listing } = await MarketService.createResource(seller.id, res.id, 10, 5000, uid('list'))
+  await MarketService.buy(buyer.id, listing.id, uid('buy'), await MarketService.quote(buyer.id, listing.id, 2))
+  expect(await pairFlowToday(testPrisma, buyer.id, seller.id)).toEqual({ money: 50_000, items: 0 })
+  await expect(MarketService.buy(buyer.id, listing.id, uid('buy'), await MarketService.quote(buyer.id, listing.id, 1)))
+   .rejects.toMatchObject({ statusCode: 409, code: 'MARKET_013' })
+ })
  it('creates item listing, charges fee and locks item',async()=>{const seller=await character();const owned=await item(seller.id);const r=await MarketService.createItem(seller.id,owned.id,1000,'market-create-item');expect(r.listing.listingFee).toBe(0);expect((await testPrisma.itemInstance.findUniqueOrThrow({where:{id:owned.id}})).status).toBe('ON_MARKET');expect((await testPrisma.character.findUniqueOrThrow({where:{id:seller.id}})).money).toBe(5000);expect(await testPrisma.currencyLog.count({where:{reasonCode:'MARKET_LISTING_TAX',characterId:seller.id}})).toBe(0)})
  it('creates resource listing and reserves amount',async()=>{const seller=await character();const res=await resource(seller.id);await MarketService.createResource(seller.id,res.id,4,100,'market-create-resource');expect((await testPrisma.resourceStack.findFirstOrThrow({where:{characterId:seller.id}})).reservedAmount).toBe(4)})
  it('buys item with tax, transfer, eco exp and idempotent replay',async()=>{const seller=await character();const buyer=await character();const owned=await item(seller.id);const created=await MarketService.createItem(seller.id,owned.id,1000,'market-create-buy');const first=await MarketService.buy(buyer.id,created.listing.id,'market-buy-replay');const replay=await MarketService.buy(buyer.id,created.listing.id,'market-buy-replay');expect(first.payout).toBe(900);expect(replay.replayed).toBe(true);expect((await testPrisma.itemInstance.findUniqueOrThrow({where:{id:owned.id}})).ownerId).toBe(buyer.id);expect((await testPrisma.character.findUniqueOrThrow({where:{id:seller.id}})).money).toBe(5900);expect((await testPrisma.character.findUniqueOrThrow({where:{id:buyer.id}})).money).toBe(4000);expect(await testPrisma.currencyLog.count({where:{refId:created.listing.id}})).toBe(3)})

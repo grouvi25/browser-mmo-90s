@@ -15,6 +15,7 @@ export interface MarketListingView {
   price: number
   currency?: Currency
   finalPrice?: number
+  canBuyPart?: boolean
   listingFee: number
   sellerCharacterId: string
   sellerNickname: string
@@ -46,6 +47,14 @@ export interface MarketListingsResponse {
   totalPages: number
 }
 
+export interface MarketQuote {
+  amount: number
+  available: number
+  revision: number
+  finalPrice: number
+  currency: Currency
+}
+
 export const marketApi = {
   /** Пределы цены крафтового сырья за штуку в рублях (Дима 15.11); null — без пределов. */
   priceBounds: (resourceTemplateId: string) => request<{ bounds: { cost: number; min: number; max: number } | null }>(`/api/market/price-bounds/${resourceTemplateId}`),
@@ -69,7 +78,11 @@ export const marketApi = {
   buyTraderLevel: (level: 1 | 2) => request<{ traderLevel: number; shopNumber: number }>('/api/market/trader', { method: 'POST', body: { level } }),
   shops: () => request<{ items: Array<ShopOwner & { listings: number }> }>('/api/market/shops'),
   shop: (shopNumber: number) => request<{ owner: ShopOwner; listings: MarketListingsResponse }>(`/api/market/shops/${shopNumber}`),
-  buy: (id: string) => request(`/api/market/listings/${id}/buy`, { method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+  quote: (id: string, amount: number) => request<MarketQuote>(`/api/market/listings/${id}/quote?amount=${amount}`),
+  buy: (id: string, { amount, revision, finalPrice }: MarketQuote, key: string) =>
+    request<{ amount: number; remainingAmount: number }>(`/api/market/listings/${id}/buy`, {
+      method: 'POST', body: { amount, revision, finalPrice }, headers: { 'Idempotency-Key': key },
+    }),
   cancel: (id: string) => request(`/api/market/listings/${id}/cancel`, { method: 'POST' }),
   updatePrice: (id: string, price: number) => request<{ feeCharged: number }>(`/api/market/listings/${id}/price`, { method: 'POST', body: { price } }),
 }

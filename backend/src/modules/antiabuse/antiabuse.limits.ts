@@ -13,6 +13,7 @@
 // =============================================================
 import type { Prisma } from '@prisma/client'
 import { BalanceConfig } from '../../config/balance.config'
+import { marketPriceInRub } from '../market/market.formulas'
 
 const A = BalanceConfig.antiAbuse
 
@@ -78,19 +79,27 @@ export async function pairFlowToday(
   toCharacterId: string,
   now = new Date(),
 ): Promise<PairFlowToday> {
-  const { start } = dayBounds(now)
-  const sales = await tx.marketListing.findMany({
+  const { start, end } = dayBounds(now)
+  const pair = { sellerCharacterId: toCharacterId, buyerCharacterId: fromCharacterId, soldAt: { gte: start, lt: end } }
+  const [oldSales, sales] = await Promise.all([tx.marketListing.groupBy({
+    by: ['currency', 'type'],
     where: {
       status: 'SOLD',
-      sellerCharacterId: toCharacterId,
-      buyerCharacterId: fromCharacterId,
-      soldAt: { gte: start },
+      ...pair,
+      sales: { none: {} },
     },
-    select: { price: true, type: true },
-  })
+    _sum: { price: true },
+    _count: true,
+  }), tx.marketSale.groupBy({
+    by: ['currency', 'type'], where: pair, _sum: { basePrice: true }, _count: true,
+  })])
+  const groups = [
+    ...oldSales.map(row => ({ ...row, price: row._sum.price ?? 0 })),
+    ...sales.map(row => ({ ...row, price: row._sum.basePrice ?? 0 })),
+  ]
   return {
-    money: sales.reduce((sum, row) => sum + row.price, 0),
-    items: sales.filter(row => row.type === 'ITEM').length,
+    money: groups.reduce((sum, row) => sum + marketPriceInRub(row.price, row.currency), 0),
+    items: groups.reduce((sum, row) => sum + (row.type === 'ITEM' ? row._count : 0), 0),
   }
 }
 

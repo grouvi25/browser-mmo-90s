@@ -16,6 +16,7 @@ import type { AbuseSignalKind, Prisma } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { BalanceConfig } from '../../config/balance.config'
 import { priceRatio, suspiciousPriceReason } from '../market/market-abuse.formulas'
+import { marketTradesSince } from '../market/market-history'
 
 const DAY = 24 * 3_600_000
 
@@ -119,11 +120,7 @@ export async function rebuildAccountGraph(now = new Date()): Promise<number> {
   }
 
   // 2. Сделки на рынке.
-  const trades = await prisma.marketListing.findMany({
-    where: { status: 'SOLD', soldAt: { gte: since }, buyerCharacterId: { not: null } },
-    select: { sellerCharacterId: true, buyerCharacterId: true, price: true, soldAt: true },
-    take: 20_000,
-  })
+  const trades = await marketTradesSince(since)
   const characterIds = [...new Set(trades.flatMap(row => [row.sellerCharacterId, row.buyerCharacterId!]))]
   const owners = await prisma.character.findMany({
     where: { id: { in: characterIds } },
@@ -277,11 +274,7 @@ export async function detectMatchFixing(now = new Date()): Promise<number> {
  */
 export async function detectMoneyFunnel(now = new Date()): Promise<number> {
   const since = new Date(now.getTime() - 7 * DAY)
-  const trades = await prisma.marketListing.findMany({
-    where: { status: 'SOLD', soldAt: { gte: since }, buyerCharacterId: { not: null } },
-    select: { sellerCharacterId: true, buyerCharacterId: true, price: true },
-    take: 20_000,
-  })
+  const trades = await marketTradesSince(since)
 
   const flows = new Map<string, { forward: number; backward: number }>()
   for (const trade of trades) {
@@ -490,14 +483,7 @@ export async function detectLedgerMismatch(now = new Date()): Promise<number> {
  */
 export async function detectMarketManipulation(now = new Date()): Promise<number> {
   const since = new Date(now.getTime() - 7 * DAY)
-  const trades = await prisma.marketListing.findMany({
-    where: { status: 'SOLD', soldAt: { gte: since }, buyerCharacterId: { not: null } },
-    select: {
-      sellerCharacterId: true, buyerCharacterId: true, price: true, type: true,
-      resourceAmount: true, itemInstanceId: true, resourceTemplateId: true,
-    },
-    take: 20_000,
-  })
+  const trades = await marketTradesSince(since)
   if (trades.length === 0) return 0
 
   // Эталоны берём отдельными запросами, а не связью лота: money-funnel по
@@ -513,6 +499,7 @@ export async function detectMarketManipulation(now = new Date()): Promise<number
 
   interface Tally { seller: string; buyer: string; low: number; high: number; worstLow: number; worstHigh: number }
   const byPair = new Map<string, Tally>()
+  const countedEdges = new Set<string>()
   for (const t of trades) {
     const reference = t.type === 'ITEM'
       ? (t.itemInstanceId ? itemRef.get(t.itemInstanceId) ?? 0 : 0)
@@ -520,6 +507,9 @@ export async function detectMarketManipulation(now = new Date()): Promise<number
     if (reference <= 0) continue
     const reason = suspiciousPriceReason(t.price, reference)
     if (!reason) continue
+    const edge = [t.listingId, t.buyerCharacterId, reason].join(':')
+    if (countedEdges.has(edge)) continue
+    countedEdges.add(edge)
     const buyer = t.buyerCharacterId!
     const key = `${t.sellerCharacterId}|${buyer}`
     const entry = byPair.get(key) ?? { seller: t.sellerCharacterId, buyer, low: 0, high: 0, worstLow: 1, worstHigh: 1 }

@@ -10,11 +10,34 @@ import{MarketService}from'./market.service'
 import{TraderService}from'./trader'
 const Create=z.discriminatedUnion('listingType',[z.object({listingType:z.literal('ITEM'),itemInstanceId:z.string().uuid(),price:z.number().int().min(1).max(1_000_000),currency:z.enum(['RUB','USD']).default('RUB')}),z.object({listingType:z.literal('RESOURCE'),resourceTemplateId:z.string().uuid(),amount:z.number().int().min(1).max(10_000),price:z.number().int().min(1).max(1_000_000),currency:z.enum(['RUB','USD']).default('RUB')})])
 const Query=z.object({page:z.coerce.number().int().min(1).default(1),limit:z.coerce.number().int().min(1).max(50).default(20),type:z.enum(['ITEM','RESOURCE']).optional(),mine:z.coerce.boolean().optional(),combat:z.enum(['MELEE','RANGED']).optional(),level:z.coerce.number().int().min(0).max(30).optional(),search:z.string().trim().min(2).max(50).optional(),priceMin:z.coerce.number().int().min(1).max(1_000_000).optional(),priceMax:z.coerce.number().int().min(1).max(1_000_000).optional(),sort:z.enum(['NEWEST','PRICE_ASC','PRICE_DESC']).default('NEWEST')})
+const Purchase = z.object({
+ amount: z.number().int().min(1).max(10_000),
+ revision: z.number().int().min(0).max(2_147_483_647),
+ finalPrice: z.number().int().min(0).max(1_250_000),
+})
 export async function marketRoutes(fastify:FastifyInstance){const character=async(userId:string)=>{const c=await CharactersRepository.findByUserId(userId);if(!c)throw new AppError(ErrorCode.CHARACTER_NOT_FOUND,'Персонаж не найден',404);return c}
  fastify.get('/listings',{preHandler:authenticate},async(req,reply)=>{const p=Query.safeParse(req.query);if(!p.success)return reply.code(422).send({code:'GEN_001',message:'Validation error'});const q=p.data;const c=await character(req.authUser.userId);// Общий рынок — только ресурсы (правка 21.10); вещи — в магазинах торгашей и в «моих лотах».
 return reply.send(await MarketService.list({...q,type:q.type??(q.mine?undefined:'RESOURCE'),sellerCharacterId:q.mine?c.id:undefined,viewerCharacterId:c.id}))})
  fastify.post('/listings',{preHandler:authenticate},async(req,reply)=>{const p=Create.safeParse(req.body);if(!p.success)return reply.code(422).send({code:'GEN_001',message:'Validation error'});const key=req.headers['idempotency-key'];if(typeof key!=='string')return reply.code(400).send({code:ErrorCode.ECON_IDEMPOTENCY_REQUIRED,message:'Idempotency-Key is required'});const c=await character(req.authUser.userId);return reply.code(201).send(p.data.listingType==='ITEM'?await MarketService.createItem(c.id,p.data.itemInstanceId,p.data.price,key,p.data.currency):await MarketService.createResource(c.id,p.data.resourceTemplateId,p.data.amount,p.data.price,key,p.data.currency))})
- fastify.post<{Params:{listingId:string}}>('/listings/:listingId/buy',{preHandler:authenticate},async(req,reply)=>{const key=req.headers['idempotency-key'];if(typeof key!=='string')return reply.code(400).send({code:ErrorCode.ECON_IDEMPOTENCY_REQUIRED,message:'Idempotency-Key is required'});return reply.send(await MarketService.buy((await character(req.authUser.userId)).id,req.params.listingId,key))})
+ fastify.get<{ Params: { listingId: string } }>('/listings/:listingId/quote', { preHandler: authenticate }, async (req, reply) => {
+  const query = z.object({ amount: z.coerce.number().int().min(1).max(10_000).optional() }).safeParse(req.query)
+  if (!z.string().uuid().safeParse(req.params.listingId).success || !query.success) {
+   return reply.code(422).send({ code: 'GEN_001', message: 'Укажите целое количество от 1 до 10 000' })
+  }
+  const buyer = await character(req.authUser.userId)
+  return reply.header('Cache-Control', 'private, no-store').send(await MarketService.quote(buyer.id, req.params.listingId, query.data.amount))
+ })
+ fastify.post<{ Params: { listingId: string } }>('/listings/:listingId/buy', { preHandler: authenticate }, async (req, reply) => {
+  const key = req.headers['idempotency-key']
+  if (typeof key !== 'string') return reply.code(400).send({ code: ErrorCode.ECON_IDEMPOTENCY_REQUIRED, message: 'Idempotency-Key is required' })
+  const input = z.object({}).strict().optional().safeParse(req.body).success ? undefined : req.body
+  const body = Purchase.strict().optional().safeParse(input)
+  if (!z.string().uuid().safeParse(req.params.listingId).success || !body.success) {
+   return reply.code(422).send({ code: 'GEN_001', message: 'Запросите актуальную цену и количество лота' })
+  }
+  const buyer = await character(req.authUser.userId)
+  return reply.send(await MarketService.buy(buyer.id, req.params.listingId, key, body.data))
+ })
  fastify.post<{Params:{listingId:string};Body:{price:number}}>('/listings/:listingId/price',{preHandler:authenticate},async(req,reply)=>{const p=z.object({price:z.number().int().min(1).max(1_000_000)}).safeParse(req.body);if(!p.success||!z.string().uuid().safeParse(req.params.listingId).success)return reply.code(422).send({code:'GEN_001',message:'Цена — целое число от 1 до 1 000 000'});return reply.send(await MarketService.updatePrice((await character(req.authUser.userId)).id,req.params.listingId,p.data.price))})
  fastify.post<{Params:{listingId:string}}>('/listings/:listingId/cancel',{preHandler:authenticate},async(req,reply)=>reply.send(await MarketService.cancel((await character(req.authUser.userId)).id,req.params.listingId)))
 
