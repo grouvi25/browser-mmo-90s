@@ -13,7 +13,7 @@ import type { Prisma } from '@prisma/client'
 import { calcCharacterRating } from '../stats/stats.formulas'
 import { dogSummary } from '../city/city.config'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
-import { syncHpWithGear } from '../items/gear-bonuses'
+import { gearOf, syncHpWithGear, withGearStats } from '../items/gear-bonuses'
 import { isPremiumActive } from '../premium/premium.service'
 
 const BattleLoadoutSchema = z.object({
@@ -278,7 +278,7 @@ export async function charactersRoutes(fastify: FastifyInstance): Promise<void> 
         avatar: char.avatar,
         battleLevel: char.battleLevel,
         economicLevel: char.economicLevel,
-        rating: char.stats ? calcCharacterRating(char.stats, equipped) : 0,
+        rating: char.stats ? calcCharacterRating(withGearStats(char.stats, gearOf(equipped)), equipped) : 0,
         hpCurrent: char.hpCurrent,
         hpMax: char.hpMax,
         battlesTotal: char.battlesTotal,

@@ -92,6 +92,24 @@ test('поддержка в Android WebView даёт ссылку на ту же
   await expect(page.getByRole('button', { name: /Приложить скриншоты/ })).toBeEnabled()
 })
 
+test('открытие черновика переводит к редактору объявления', async ({ page }) => {
+  const drafts = Array.from({ length: 4 }, (_, index) => ({
+    id: `draft-${index}`, kind: 'PATCH', title: `Обновление ${index + 1}`,
+    body: 'Изменения в игре. '.repeat(32), createdAt: '2026-11-18T12:00:00Z', pinned: false,
+  }))
+  await page.addInitScript(() => localStorage.setItem('mmo_admin_token', 'fixture-admin-token'))
+  await page.route('**/api/admin/auth/me', route => route.fulfill({ json: { permissions: ['content'] } }))
+  await page.route('**/api/admin/site/welcome', route => route.fulfill({ json: { welcome: null } }))
+  await page.route('**/api/announcements/admin', route => route.fulfill({ json: { items: [] } }))
+  await page.route('**/api/announcements/admin/drafts', route => route.fulfill({ json: { items: drafts } }))
+  await page.goto('/admin/news')
+  await page.getByRole('article').filter({ hasText: drafts[0].title }).getByRole('button', { name: 'Открыть и править' }).click()
+  const editor = page.getByRole('region', { name: 'Черновик', exact: true })
+  await expect(editor).toBeFocused()
+  await expect(editor.getByRole('textbox', { name: 'Заголовок' })).toHaveValue(drafts[0].title)
+  await expect(editor.getByRole('textbox', { name: 'Заголовок' })).toBeInViewport()
+})
+
 test('library stays empty when there are no published sections', async ({ page }) => {
   await authenticate(page)
   await mockApi(page, () => ({}))

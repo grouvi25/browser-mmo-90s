@@ -779,7 +779,7 @@ function loadParticipantProfiles(participants: { id: string; characterId: string
         participantId: participant.id,
         name: character?.nickname ?? 'Боец',
         level: character?.battleLevel ?? 0,
-        rating: ratingStats ? calcCharacterRating(ratingStats, worn) : null,
+        rating: ratingStats ? calcCharacterRating(withGearStats(ratingStats, gearOf(worn)), worn) : null,
         avatar: character?.avatar ?? null,
         gender: character?.gender ?? null,
         primaryHand: primary?.template.name ?? null,

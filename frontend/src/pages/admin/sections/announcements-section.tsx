@@ -2,7 +2,7 @@
 // работала»). Лента «Обновления» и «Новости» в верхнем меню игры была,
 // а писать в неё было неоткуда: ручки на сервере есть, экрана в админке
 // не было — за всё время не вышло ни одного объявления.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '../admin-api'
 import type { AnnouncementKind } from '../../../shared/api/announcements.api'
@@ -23,6 +23,7 @@ export function AnnouncementsSection() {
   const [draftId, setDraftId] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   const [bad, setBad] = useState(false)
+  const editorRef = useRef<HTMLElement>(null)
 
   const list = useQuery({ queryKey: ['admin', 'announcements'], queryFn: adminApi.announcements })
   const drafts = useQuery({ queryKey: ['admin', 'announcements', 'drafts'], queryFn: adminApi.announcementDrafts })
@@ -63,6 +64,8 @@ export function AnnouncementsSection() {
   const openDraft = (item: { id: string; kind: AnnouncementKind; title: string; body: string; pinned: boolean }) => {
     setDraftId(item.id); setKind(item.kind); setTitle(item.title); setBody(item.body); setPinned(item.pinned)
     setBad(false); setMsg('Черновик открыт в форме: правьте и сохраняйте или публикуйте')
+    editorRef.current?.scrollIntoView({ block: 'start' })
+    editorRef.current?.focus({ preventScroll: true })
   }
   const draftItems = drafts.data?.items ?? []
 
@@ -100,8 +103,8 @@ export function AnnouncementsSection() {
         </section>
       )}
 
-      <section className="adm-card-block adm-announce-form">
-        <h4>{draftId ? 'Черновик' : 'Новое объявление'}</h4>
+      <section className="adm-card-block adm-announce-form" ref={editorRef} tabIndex={-1} aria-labelledby="announcement-editor-title">
+        <h4 id="announcement-editor-title">{draftId ? 'Черновик' : 'Новое объявление'}</h4>
         <div className="adm-item__fields">
           <label><span>Куда</span>
             <select value={kind} onChange={e => setKind(e.target.value as AnnouncementKind)}>
