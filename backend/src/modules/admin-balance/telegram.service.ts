@@ -87,6 +87,14 @@ export async function sendTelegram(text: string): Promise<{ ok: boolean; error?:
   return results.some(r => r.ok) ? { ok: true, error: `Не всем: ${failed}` } : { ok: false, error: failed }
 }
 
+export async function sendNewCharacterTelegram(nickname: string): Promise<void> {
+  const chatId = env.TELEGRAM_SIGNUP_CHAT_ID
+  if (!env.TELEGRAM_BOT_TOKEN || !chatId) return
+  const profile = new URL(`/u/${encodeURIComponent(nickname)}`, env.APP_URL).href
+  // В исходном нике используются только буквы, цифры, пробелы, _ и -.
+  await sendToChat(chatId, `Новый персонаж: ${nickname}\n<a href="${profile}">Открыть профиль</a>`)
+}
+
 async function sendToChat(chatId: string, text: string): Promise<{ ok: boolean; error?: string }> {
   let lastError = 'Не удалось связаться с Telegram'
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {

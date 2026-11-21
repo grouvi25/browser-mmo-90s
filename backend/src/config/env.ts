@@ -25,6 +25,7 @@ const EnvSchema = z.object({
   // админке означал бы и доступ к боту.
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID:   z.string().optional(),
+  TELEGRAM_SIGNUP_CHAT_ID: z.string().regex(/^[1-9]\d*$/).or(z.literal('')).optional(),
   // Доска разработчиков: закрытая группа в Telegram (тот же бот) и ключ
   // для нейронок. Без них доски нет, алерты работают как раньше.
   DEV_BOARD_CHAT_ID:  z.string().optional(),
