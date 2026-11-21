@@ -310,15 +310,15 @@ describe('эфир', () => {
     expect(residents).toHaveLength(12)
     expect(new Set(residents.map(({ characterId }) => characterId)).size).toBe(12)
     expect(residents[0]).toMatchObject({
-      characterId: 'resident:gromov', nickname: 'Сава_Громов', level: 3,
+      characterId: 'resident:gromov', nickname: 'Сапог', level: 3,
       resident: { occupation: 'Грузчик на рынке', productionLevel: 2, stats: { str: 8 } },
     })
 
     const live = await player('chat-res')
-    await testPrisma.character.update({ where: { id: live.character.id }, data: { nickname: 'сава_громов' } })
+    await testPrisma.character.update({ where: { id: live.character.id }, data: { nickname: 'сапог' } })
     await ChatService.touch(live.character.id)
     const present = await ChatService.onlineDirectory()
-    expect(present[0]).toMatchObject({ characterId: live.character.id, nickname: 'сава_громов' })
+    expect(present[0]).toMatchObject({ characterId: live.character.id, nickname: 'сапог' })
     expect(present).toHaveLength(12)
     expect(present.some(entry => entry.characterId === 'resident:gromov')).toBe(false)
 

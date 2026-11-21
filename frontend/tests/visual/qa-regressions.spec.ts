@@ -408,7 +408,7 @@ test('городской персонаж в общем онлайне откр�
   await mockApi(page, () => battle())
   await page.route('**/api/chat/online/list', route => route.fulfill({ json: { players: [
     { characterId: 'me', nickname: 'Проверка', level: 1 },
-    { characterId: 'resident:cassette', nickname: 'Рита_Кассета', level: 5,
+    { characterId: 'resident:cassette', nickname: 'VHS90', level: 5,
       resident: { occupation: 'Ткач', productionLevel: 6, stats: { str: 4, agi: 10, end: 6, acc: 8 } } },
   ] } }))
   await page.goto('/inventory')
@@ -416,11 +416,11 @@ test('городской персонаж в общем онлайне откр�
     await page.locator('.m-tabbar').getByRole('button', { name: 'Чат', exact: true }).click()
     await page.getByRole('button', { name: 'Онлайн: 2' }).click()
   }
-  const row = page.locator('.online-list__row:visible, .m-chat__player-row:visible').filter({ hasText: 'Рита_Кассета' })
+  const row = page.locator('.online-list__row:visible, .m-chat__player-row:visible').filter({ hasText: 'VHS90' })
   await expect(row).toContainText('5')
   await expect(row.locator('.ether-arrow')).toHaveCount(0)
-  await row.getByRole('button', { name: 'Рита_Кассета' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Рита_Кассета' })
+  await row.getByRole('button', { name: 'VHS90' }).click()
+  const dialog = page.getByRole('dialog', { name: 'VHS90' })
   await expect(dialog).toContainText('Ткач')
   await expect(dialog).toContainText(/Уровень производства\s*6/)
   await expect(dialog).toContainText(/Ловкость\s*10/)
