@@ -118,7 +118,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     expect(errors).toEqual([])
   })
 
-  test('browser registration reaches character creation and creates a playable profile', async ({ page }) => {
+  test('browser registration opens the square after creating a character', async ({ page }) => {
     const suffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
     const login = `browser_${suffix}`.slice(0, 30)
     const password = 'browser_pass_123'
@@ -142,6 +142,9 @@ test.describe('Stage 2 visual and browser flow', () => {
     await expect(page.locator('input[type="text"]')).toHaveValue(login)
     await page.locator('input[type="text"]').fill(`Hero_${suffix}`.slice(0, 30))
     await page.locator('button[type="submit"]').click()
+    await expect(page).toHaveURL(new URL('/', page.url()).href)
+    await expect(page.getByRole('img', { name: 'Центральная площадь' })).toBeVisible()
+    await page.goto('/profile')
     await expect(page).toHaveURL(/\/profile$/)
     await expect(page.locator('body')).toContainText(`Hero_${suffix}`.slice(0, 30))
   })
