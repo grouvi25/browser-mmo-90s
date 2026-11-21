@@ -26,7 +26,7 @@ export function PersistedBattleChronicle({ battleId, refreshKey, playerSide, onO
   const lastId = lines[lines.length - 1]?.id
   useEffect(() => { tail.current?.scrollTo({ top: tail.current.scrollHeight }) }, [lastId])
 
-  return <section className="battle-chronicle" aria-label="Хроника боя">
+  return <section className="battle-chronicle battle-chronicle--persisted" aria-label="Хроника боя">
     <header><b>Хроника</b><button type="button" onClick={onOpenLog}>весь лог</button></header>
     {query.isError ? <p className="battle-chronicle__empty" role="alert">
       Журнал не загрузился. <button type="button" onClick={() => void query.refetch()}>Повторить</button>
@@ -37,7 +37,9 @@ export function PersistedBattleChronicle({ battleId, refreshKey, playerSide, onO
             title={`Раунд ${line.round}. ${line.actor}${line.target ? ` → ${line.target}` : ''}: ${line.text}`}>
             <i className="battle-chronicle__clock">[{new Date(line.at).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })}]</i>
             {/* Кто по кому (обращение №80): цель была только во всплывающей подсказке. */}
-            <b>{line.actor}</b>{line.target && <> → <b className="battle-chronicle__target">{line.target}</b></>}
+            <span className="battle-chronicle__fighters">
+              <b>{line.actor}</b>{line.target && <> → <b className="battle-chronicle__target">{line.target}</b></>}
+            </span>
             <StrikeText kind={line.kind} text={line.text} className="battle-chronicle__label" />
           </li>)}
         </ol>}

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { markNewcomerLetter } from '../../shared/lib/newcomer-letter'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { User, Check } from 'lucide-react'
 import { charactersApi } from '../../shared/api/characters.api'
 import { ARCHETYPE_LABELS, ARCHETYPE_BONUS } from '../../shared/types/api.types'
@@ -12,6 +12,8 @@ const ARCHETYPES = Object.keys(ARCHETYPE_LABELS)
 
 export function CreateCharacterPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const createdHere = useRef(false)
   // Ник выбран при регистрации (правка 29.10) — подставляем его, поменять можно.
   const [nickname, setNickname] = useState(() => getStoredUser()?.login ?? '')
   const [archetype, setArchetype] = useState('ATHLETE')
@@ -34,7 +36,15 @@ export function CreateCharacterPage() {
   const { mutate, isPending } = useMutation({
     mutationFn: () => charactersApi.create({ nickname: nickname.trim(), archetype, gender }),
     // Новичку — письмо Бывалого (Дмитрий 09.11): окно откроется в игре.
-    onSuccess: () => { markNewcomerLetter(); navigate('/profile') },
+    onSuccess: async character => {
+      createdHere.current = true
+      const myCharacter = { queryKey: ['character', 'me'], exact: true } as const
+      await queryClient.cancelQueries(myCharacter)
+      queryClient.setQueryData(myCharacter.queryKey, character)
+      void queryClient.invalidateQueries({ ...myCharacter, refetchType: 'none' })
+      markNewcomerLetter()
+      navigate('/', { replace: true, state: { newCharacter: true } })
+    },
     onError: (err) => {
       if (err instanceof ApiError) {
         if (err.status === 409) setError('Этот никнейм уже занят')
@@ -47,7 +57,7 @@ export function CreateCharacterPage() {
   // навигация во время отрисовки — побочный эффект, а ранний выход до
   // остальных хуков ломал их порядок и валил компонент.
   useEffect(() => {
-    if (existingChar) navigate('/profile', { replace: true })
+    if (existingChar && !createdHere.current) navigate('/profile', { replace: true })
   }, [existingChar, navigate])
 
   if (existingChar) return null
