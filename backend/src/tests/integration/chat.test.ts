@@ -308,6 +308,8 @@ describe('эфир', () => {
     expect(await ChatService.online()).toEqual([])
     const residents = await ChatService.onlineDirectory()
     expect(residents).toHaveLength(12)
+    expect(Math.min(...residents.map(({ level }) => level))).toBe(1)
+    expect(Math.max(...residents.map(({ level }) => level))).toBe(10)
     expect(new Set(residents.map(({ characterId }) => characterId)).size).toBe(12)
     expect(residents[0]).toMatchObject({
       characterId: 'resident:gromov', nickname: 'Сапог', level: 3,

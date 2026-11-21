@@ -260,6 +260,7 @@ function Composer({ id, text, onText, images, onImages, onError, placeholder, bu
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [preparing, setPreparing] = useState(false)
+  const androidWebView = /\bAndroid\b.*\bwv\b/.test(navigator.userAgent)
   const pick = async (files: File[]) => {
     if (!files.length || busy || preparing) return
     if (files.length + images.length > MAX_SCREENSHOTS) {
@@ -309,5 +310,9 @@ function Composer({ id, text, onText, images, onImages, onError, placeholder, bu
         <Send size={14} /> {busy ? 'Отправляем…' : submitLabel}
       </button>
     </div>
+    {androidWebView && <p className="support__meta">
+      Если в приложении не открывается выбор файла, <a href={new URL(window.location.pathname, 'https://kooperativ.space').href}
+        target="_blank" rel="noreferrer">откройте эту страницу в браузере телефона</a> и прикрепите скриншот там.
+    </p>}
   </>
 }

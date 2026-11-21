@@ -22,9 +22,9 @@ export function ResumeLocation() {
   return <Navigate to={query.data?.path ?? '/'} replace />
 }
 export function LocationPersistence() {
-  const { pathname } = useLocation(); const navigate = useNavigate(); const { userId } = useAuth()
+  const { pathname, state } = useLocation(); const navigate = useNavigate(); const { userId } = useAuth()
   const queue = useRef(Promise.resolve())
-  const resumeFromHub = useRef(!alreadyResumed() && pathname === '/')
+  const resumeFromHub = useRef(!alreadyResumed() && pathname === '/' && state?.newCharacter !== true)
   useEffect(() => {
     if (resumeFromHub.current) navigate('/resume', { replace: true })
     else markResumed()

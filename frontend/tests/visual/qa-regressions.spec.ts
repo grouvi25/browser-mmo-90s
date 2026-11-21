@@ -11,12 +11,12 @@ const profile = { participantId: 'p', name: 'Проверка', primaryRange: 1,
 const character = { id: 'me', userId: 'u', nickname: 'Проверка', archetype: 'ATHLETE', battleLevel: 1, economicLevel: 1, productionLevel: 1, battleExp: 0, economicExp: 0, productionExp: 0, money: 25000, hpCurrent: 80, hpMax: 100, status: 'IN_BATTLE', gender: 'MALE', stats: { str: 3, agi: 3, rea: 3, acc: 3, end: 3, luck: 3, agr: 3, auth: 3 }, weaponSkills: [], battlesTotal: 1, battlesWon: 0 }
 const journal = { battle: { id: battleId, status: 'ACTIVE', rounds: 7 }, total: 1, page: 1, pages: 1, items: [{ id: 'persisted', round: 6, at: '2026-10-21T12:00:00Z', actor: 'Проверка', target: 'Хулиган', side: 1, kind: 'hit', text: 'удар в корпус, −5 HP' }] }
 
-async function authenticate(page: Page) {
-  await page.addInitScript(() => {
+async function authenticate(page: Page, resumed = true) {
+  await page.addInitScript(resumed => {
     localStorage.setItem('mmo_token', 'fixture-token')
     localStorage.setItem('mmo_user', JSON.stringify({ userId: 'u', login: 'qa' }))
-    sessionStorage.setItem('mmo_resumed', '1')
-  })
+    if (resumed) sessionStorage.setItem('mmo_resumed', '1')
+  }, resumed)
 }
 
 async function mockApi(page: Page, battle: () => unknown, action?: () => { status?: number; data: unknown }, noCharacter = false) {
@@ -43,6 +43,54 @@ async function mockApi(page: Page, battle: () => unknown, action?: () => { statu
 }
 
 const librarySection = { id: 'custom-library', title: 'Правила города', body: 'Очков за уровень: {{очки_за_уровень}}\n\n[[боевые уровни]]' }
+
+test('новый персонаж выходит на Центральную площадь с письмом Бывалого', async ({ page }) => {
+  await authenticate(page, false)
+  await mockApi(page, () => battle(), undefined, true)
+  let created = false
+  await page.route('**/api/characters/me', route => created
+    ? route.fulfill({ json: { ...character, status: 'ACTIVE' } })
+    : route.fulfill({ status: 404, json: { code: 'CHAR_001', message: 'Персонаж не найден' } }))
+  await page.route('**/api/characters', route => {
+    created = true
+    return route.fulfill({ status: 201, json: { ...character, status: 'ACTIVE' } })
+  })
+  await page.goto('/character/create')
+  await page.getByRole('button', { name: 'Создать персонажа' }).click()
+  await expect(page.getByRole('dialog', { name: 'Кодекс выживания приезжего' })).toBeVisible()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.locator('img[alt="Центральная площадь"]')).toBeAttached()
+})
+
+test('в мобильной хронике длинное попадание и урон помещаются целиком', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'Мобильная хроника')
+  await page.setViewportSize({ width: 320, height: 680 })
+  await authenticate(page)
+  await mockApi(page, () => battle())
+  const longHit = 'крито-удачный, пробил блок в левую руку, −147 HP — снял бронежилет, отражено −17 HP'
+  await page.route(url => url.pathname === '/api/battles/' + battleId + '/journal', route => route.fulfill({ json: {
+    ...journal, items: [{ ...journal.items[0], kind: 'critlucky', actor: 'ОченьДлинныйНикАтакующего', target: 'ОченьДлинныйНикЗащитника', text: longHit }],
+  } }))
+  await page.goto('/battle/' + battleId)
+  const line = page.getByRole('region', { name: 'Хроника боя' }).locator('.battle-chronicle__label')
+  await expect(line).toContainText('−147 HP')
+  await expect(line).toContainText('−17 HP')
+  await expect(line).toHaveCSS('white-space', 'normal')
+  expect(await line.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1)
+  await expect(page.getByRole('dialog', { name: 'Лог боя' })).toHaveCount(0)
+})
+
+test('поддержка в Android WebView даёт ссылку на ту же форму в браузере', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'userAgent', { get: () => 'Mozilla/5.0 (Linux; Android 14; Pixel 7; wv)' })
+  })
+  await authenticate(page)
+  await mockApi(page, () => battle())
+  await page.goto('/support/new')
+  await expect(page.getByRole('link', { name: 'откройте эту страницу в браузере телефона' }))
+    .toHaveAttribute('href', 'https://kooperativ.space/support/new')
+  await expect(page.getByRole('button', { name: /Приложить скриншоты/ })).toBeEnabled()
+})
 
 test('library stays empty when there are no published sections', async ({ page }) => {
   await authenticate(page)

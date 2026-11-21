@@ -151,6 +151,22 @@
 .battle-chronicle li.is-theirs b { color: oklch(41% .13 25); }
 .battle-chronicle li em { margin-left: auto; color: oklch(38% .13 25); font: 700 11.5px/1 var(--font-mono); font-style: normal; font-variant-numeric: tabular-nums; }
 .battle-chronicle__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: oklch(38% .05 55); }
+.battle-chronicle__fighters { display: flex; align-items: baseline; gap: 5px; flex: none; }
+@media (max-width: 900px) {
+  .battle-chronicle--persisted li {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: baseline;
+    gap: 1px 6px;
+  }
+  .battle-chronicle--persisted .battle-chronicle__fighters { min-width: 0; }
+  .battle-chronicle--persisted .battle-chronicle__fighters b { flex: 0 1 auto; max-width: none; }
+  .battle-chronicle--persisted .battle-chronicle__label {
+    grid-column: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
 /* Дима 15.11: обычный удар серый, крит красный, удачный синий, крито-удачный пополам. */
 .battle-chronicle__label.is-hit { color: oklch(46% 0 0); }
 .battle-chronicle__label.is-crit, .battle-chronicle__label .is-crit { color: oklch(46% .18 27); }
