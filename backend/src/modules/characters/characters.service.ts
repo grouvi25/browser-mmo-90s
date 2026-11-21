@@ -10,7 +10,9 @@ import { audit } from '../../shared/logger/audit-logger'
 import { Nickname, type CreateCharacterInput } from './characters.schemas'
 import { AuthRepository } from '../auth/auth.repository'
 import { NoticesService } from '../chat/notices.service'
+import { sendNewCharacterTelegram } from '../admin-balance/telegram.service'
 import { prisma } from '../../shared/db/prisma'
+import { logger } from '../../shared/logger/logger'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { applyUpgradeModifiers, type UpgradeKind } from '../upgrades/upgrades.formulas'
 
@@ -91,6 +93,10 @@ export const CharactersService = {
       characterId: char.id,
       nickname: char.nickname,
       archetype: arch,
+    })
+
+    void sendNewCharacterTelegram(char.nickname).catch(() => {
+      logger.warn({ characterId: char.id }, '[Telegram] Не удалось отправить уведомление о новом персонаже')
     })
 
     return CharactersRepository.findByUserId(userId)

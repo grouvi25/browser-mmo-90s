@@ -1,13 +1,14 @@
 /**
  * Integration tests: Characters module
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest'
 import { testPrisma, cleanDatabase, uid } from './helpers'
 import { AuthService } from '../../modules/auth/auth.service'
 import { CharactersService } from '../../modules/characters/characters.service'
 import { AppError } from '../../shared/errors/app-error'
 import { calcHpMax } from '../../modules/stats/stats.formulas'
 import { BalanceConfig } from '../../config/balance.config'
+import { env } from '../../config/env'
 
 beforeAll(async () => { await testPrisma.$connect() })
 afterAll(async () => { await testPrisma.$disconnect() })
@@ -20,6 +21,60 @@ async function createTestUser() {
   })
   return { userId, login }
 }
+
+describe('Telegram о новом персонаже', () => {
+  const saved = {
+    TELEGRAM_BOT_TOKEN: env.TELEGRAM_BOT_TOKEN,
+    TELEGRAM_CHAT_ID: env.TELEGRAM_CHAT_ID,
+    TELEGRAM_SIGNUP_CHAT_ID: env.TELEGRAM_SIGNUP_CHAT_ID,
+    APP_URL: env.APP_URL,
+  }
+
+  beforeEach(() => {
+    env.TELEGRAM_BOT_TOKEN = 'fixture-token'
+    env.TELEGRAM_CHAT_ID = '111'
+    env.TELEGRAM_SIGNUP_CHAT_ID = '222'
+    env.APP_URL = 'https://kooperativ.example'
+  })
+
+  afterEach(() => {
+    Object.assign(env, saved)
+    vi.unstubAllGlobals()
+  })
+
+  it('отправляет ник и ссылку только получателю алерта после создания персонажа', async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ok: true }))
+    vi.stubGlobal('fetch', send)
+    const { userId } = await createTestUser()
+    const nickname = 'Новый Герой'
+    expect(send).not.toHaveBeenCalled()
+    const char = await CharactersService.create(userId, { nickname, archetype: 'WORKER' })
+    expect(char?.stats).not.toBeNull()
+    expect(send).toHaveBeenCalledTimes(1)
+    const [url, init] = send.mock.calls[0]
+    expect(url).toBe('https://api.telegram.org/botfixture-token/sendMessage')
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      chat_id: '222',
+      text: `Новый персонаж: ${nickname}\n<a href="https://kooperativ.example/u/${encodeURIComponent(nickname)}">Открыть профиль</a>`,
+    })
+    await expect(CharactersService.create(userId, { nickname, archetype: 'WORKER' })).rejects.toMatchObject({ statusCode: 409 })
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it('создаёт персонажа независимо от того, ответил ли Telegram', async () => {
+    let reply!: (response: Response) => void
+    const send = vi.fn<typeof fetch>().mockReturnValue(new Promise(resolve => { reply = resolve }))
+    vi.stubGlobal('fetch', send)
+    try {
+      const { userId } = await createTestUser()
+      const char = await CharactersService.create(userId, { nickname: 'Герой без связи', archetype: 'WORKER' })
+      expect(char?.id).toBeDefined()
+      expect(send).toHaveBeenCalledTimes(1)
+    } finally {
+      reply(new Response('Forbidden', { status: 403 }))
+    }
+  })
+})
 
 // ---------------------------------------------------------------
 // Create character
