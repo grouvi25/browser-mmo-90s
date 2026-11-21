@@ -5,6 +5,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach, vi } 
 import { testPrisma, cleanDatabase, uid } from './helpers'
 import { AuthService } from '../../modules/auth/auth.service'
 import { CharactersService } from '../../modules/characters/characters.service'
+import { ItemsRepository } from '../../modules/items/item-instance.repository'
 import { AppError } from '../../shared/errors/app-error'
 import { calcHpMax } from '../../modules/stats/stats.formulas'
 import { BalanceConfig } from '../../config/balance.config'
@@ -177,6 +178,27 @@ describe('CharactersService.getProfile', () => {
     expect(profile.nickname).toContain('Profiler')
     expect(profile.stats).not.toBeNull()
     expect(profile.stats!.acc).toBe(BalanceConfig.character.baseStats.acc + 1) // SHUTTLE +ACC
+  })
+
+  it('учитывает вложенные в надетую вещь характеристики в рейтинге досье', async () => {
+    const { userId } = await createTestUser()
+    const character = await CharactersService.create(userId, { nickname: uid('Rating'), archetype: 'ATHLETE' })
+    const template = await testPrisma.itemTemplate.create({
+      data: { code: uid('rating_accessory'), name: 'Амулет', type: 'ACCESSORY', statBudget: 20 },
+    })
+    const item = await testPrisma.itemInstance.create({
+      data: { ownerId: character.id, templateId: template.id, durabilityCurrent: 100, durabilityMax: 100,
+        weight: 1, sourceType: 'GOVERNMENT', bonuses: { stats: { agr: 20 } } },
+    })
+    const before = await CharactersService.getProfile(userId)
+
+    await ItemsRepository.equip(item.id, null)
+    const equipped = await CharactersService.getProfile(userId)
+    expect(equipped.rating).toBe(before.rating + 20)
+    expect(equipped.stats?.agr).toBe(before.stats?.agr)
+
+    await ItemsRepository.unequip(item.id)
+    expect((await CharactersService.getProfile(userId)).rating).toBe(before.rating)
   })
 
   it('throws 404 if character not found', async () => {

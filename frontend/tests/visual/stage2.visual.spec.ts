@@ -199,7 +199,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     await page.locator('.arch-card').nth(0).click()
     await page.locator('input[type="text"]').fill(`Guard_${suffix}`.slice(0, 30))
     await page.locator('button[type="submit"]').click()
-    await expect(page).toHaveURL(/\/profile$/)
+    await expect(page).toHaveURL(new URL('/', page.url()).href)
     await page.goto('/shop')
     await expect(page).toHaveURL(/\/shop$/)
   })

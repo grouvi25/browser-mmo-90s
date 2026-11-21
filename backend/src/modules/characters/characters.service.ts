@@ -2,7 +2,7 @@ import { productionLevelBounds } from '../professions/production-level'
 import { dogSummary } from '../city/city.config'
 import { CharactersRepository } from './characters.repository'
 import { calcCharacterRating, calcHpMax, getExpForNextLevel } from '../stats/stats.formulas'
-import { gearOf } from '../items/gear-bonuses'
+import { gearOf, withGearStats } from '../items/gear-bonuses'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { BalanceConfig } from '../../config/balance.config'
@@ -122,22 +122,22 @@ export const CharactersService = {
         include: { template: true },
       }),
     ])
+    // Прибавки и обереги от надетого считаются так же, как в бою.
+    const gear = gearOf(equipped.map(item => ({
+      ...item,
+      effective: applyUpgradeModifiers(
+        item.template,
+        (item.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {},
+        item.statAllocation,
+        item.socketsJson,
+      ),
+    })))
     return {
       ...char,
       clan,
       dog: dogSummary(char.pets),
-      rating: char.stats ? calcCharacterRating(char.stats, equipped) : 0,
-      // Для карточки персонажа (правка 26.10, как в «Апехе»): прибавки и обереги
-      // от надетого — тем же расчётом, что в бою, и порог следующего уровня.
-      gear: gearOf(equipped.map(item => ({
-        ...item,
-        effective: applyUpgradeModifiers(
-          item.template,
-          (item.upgradeModifiersJson as Partial<Record<UpgradeKind, number>> | null) ?? {},
-          item.statAllocation,
-          item.socketsJson,
-        ),
-      }))),
+      rating: char.stats ? calcCharacterRating(withGearStats(char.stats, gear), equipped) : 0,
+      gear,
       nextLevelExp: Number.isFinite(getExpForNextLevel(char.battleLevel)) ? getExpForNextLevel(char.battleLevel) : null,
       economy: {
         // №128: производственный уровень — своя шкала по всему опыту профессий.
