@@ -39,7 +39,7 @@
 .battle-desk__field { min-height: 0; display: grid; }
 .battle-desk__field .battle-field-v3 {
   grid-area: auto;
-  grid-template-rows: minmax(0, 1fr) 40px;
+  grid-template-rows: minmax(0, 1fr) auto 40px;
   border: 1px solid oklch(46% .04 55);
 }
 /* Телефон в режиме «для ПК» даёт широкое портретное окно: сюда попадали правила
@@ -48,7 +48,11 @@
    всегда вписывается в свою строку, а полоса лежит выше него. */
 .battle-desk__field .battle-field-v3 .hex-board { container-type: size; padding: 4px; }
 .battle-desk__field .battle-field-v3 .designer-battle-field { width: min(100cqw, calc(100cqh * 1.824249)); height: auto; }
-.battle-desk__field .battle-field-v3__meta { position: relative; z-index: 2; font-size: 13px; }
+.battle-desk__field .battle-field-v3__meta { position: relative; z-index: 2; font-size: 13px; grid-row: 3; }
+.battle-field-v3__opponent {
+  display: flex; flex-wrap: wrap; gap: 2px 12px;
+  padding: 3px 7px; background: #f1e7d4; color: #3b2e23; font-size: 12px;
+}
 .battle-desk__field .fighter-token .token-label { font-size: 12px; }
 /* Клетки, до которых достаёт оружие (правка 22.10: дальность в клетках). */
 .hex-cell.is-in-range:not(.is-movable):not(.is-target) .designer-cell-hit { background: oklch(70% .09 230 / .22); }

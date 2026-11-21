@@ -264,16 +264,57 @@ test('login destination preserves requested URL and rejects external redirects a
 
 test('battle reload restores server round, range, target distance and persisted chronicle', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
-  await authenticate(page); await mockApi(page, () => battle())
+  await authenticate(page); await mockApi(page, () => {
+    const data = battle()
+    return { ...data, participantProfiles: [profile, { ...data.participantProfiles[1], primaryHand: 'Пистолет ПМ', primaryRange: 5 }] }
+  })
   await page.goto(`/battle/${battleId}`)
   await expect(page.locator('.battle-header-v3, .battle-desk__head, .m-battle__head')).toContainText('Раунд 7 / 30')
   await expect(page.locator('.battle-field-v3__meta')).toContainText(/Дистанция: 1\s*Дальность: 1/)
+  await expect(page.locator('.battle-field-v3__opponent')).toContainText('Пистолет ПМ · 5 кл.')
+  await expect(page.locator('.battle-field-v3__opponent')).toContainText('Бот ходит автоматически')
   await expect(page.getByRole('button', { name: 'Удар левой рукой, цель: голова', exact: true })).toBeEnabled()
   await expect(page.getByRole('region', { name: 'Хроника боя' })).toContainText('удар в корпус, −5 HP')
   await page.reload()
   await expect(page.locator('.battle-header-v3, .battle-desk__head, .m-battle__head')).toContainText('Раунд 7 / 30')
   await expect(page.getByRole('region', { name: 'Хроника боя' })).toContainText('удар в корпус, −5 HP')
   expect(errors).toEqual([])
+})
+
+test('приглашение с главной доходит до регистрации без сохранения в браузере', async ({ page }) => {
+  await page.addInitScript(() => {
+    const setItem = Storage.prototype.setItem
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'koop_ref') throw new DOMException('Storage unavailable', 'SecurityError')
+      setItem.call(this, key, value)
+    }
+  })
+  await mockApi(page, () => ({}))
+  await page.goto('/?ref=%D0%9F%D1%80%D0%B8%D0%B3%D0%BB%D0%B0%D1%81%D0%B8%D0%B2%D1%88%D0%B8%D0%B9')
+  await page.getByRole('link', { name: 'Начать свой путь' }).click()
+  await expect(page.getByLabel(/Кто пригласил/)).toHaveValue('Пригласивший')
+})
+
+test('расклад оружия показывает обе границы с учётом прежних очков и улучшений', async ({ page }) => {
+  await authenticate(page)
+  await mockApi(page, () => ({}))
+  await page.route('**/api/characters/me', route => route.fulfill({ json: { ...character, status: 'ACTIVE' } }))
+  await page.route('**/api/inventory', route => route.fulfill({ json: [{
+    id: 'named-pistol', templateId: 'named-pistol', ownerId: 'me', quality: 'COMMON',
+    durabilityCurrent: 100, durabilityMax: 100, upgradeLevel: 1, status: 'NORMAL', isEquipped: false,
+    weight: 1, budget: 20, freePoints: 17, damagePerPoint: 5, statAllocation: { DAMAGE: 1, MAX_DAMAGE: 2 },
+    fixedDamageAllocation: { DAMAGE: 1, MIN_DAMAGE: 1 },
+    template: { type: 'WEAPON', name: 'Пистолет', code: 'weapon_pistol_pm', minDamage: 10, maxDamage: 50, maxRange: 4, allocationMode: 'PLAYER', levelReq: 0 },
+  }] }))
+  await page.goto('/inventory')
+  await page.getByRole('button', { name: 'Настроить' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Пистолет' })
+  await expect(dialog).toContainText('Базовый урон оружия 10–50')
+  await expect(dialog).toContainText('Урон оружия с этим раскладом 17–64')
+  await dialog.getByRole('spinbutton', { name: /Макс\. урон/ }).fill('4')
+  await expect(dialog).toContainText('Урон оружия с этим раскладом 17–74')
+  const bounds = await dialog.boundingBox()
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width)
 })
 
 test('action override expires when polling observes an automatic round', async ({ page }) => {

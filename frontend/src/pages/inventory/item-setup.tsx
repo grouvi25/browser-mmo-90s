@@ -7,6 +7,7 @@
 // Здесь же итог всего надетого: те же группы, только считать ничего не надо.
 // =============================================================
 import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { inventoryApi } from '../../shared/api/inventory.api'
@@ -97,7 +98,7 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  return (
+  return createPortal(
     <div className="inv-setup__back" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
       <div className="inv-setup" role="dialog" aria-modal="true" aria-label={title}>
         <header className="inv-setup__head">
@@ -106,7 +107,8 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
         </header>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -126,9 +128,13 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
     ...(t.type === 'WEAPON' && (item.statAllocation?.DAMAGE ?? 0) > 0 ? [['DAMAGE', 'Урон', '+4%, прежний расклад'] as [ItemStatKey, string, string]] : []),
   ]
   const perDamage = item.damagePerPoint ?? 4
-  const damage = t.type === 'WEAPON' && t.minDamage != null && !(own.DAMAGE ?? 0) ? {
-    min: (t.minDamage ?? 0) + perDamage * (own.MIN_DAMAGE ?? 0),
-    max: (t.maxDamage ?? 0) + perDamage * (own.MAX_DAMAGE ?? 0),
+  const fixed = item.fixedDamageAllocation ?? t.statAllocation
+  const legacyDamagePoints = (fixed?.DAMAGE ?? 0) + (own.DAMAGE ?? 0)
+  // Та же надбавка за прежние процентные очки, что в applyUpgradeModifiers.
+  const damageWithLegacyPoints = (base: number) => base + Math.max(legacyDamagePoints, Math.round(base * 0.04 * legacyDamagePoints))
+  const damage = t.type === 'WEAPON' ? {
+    min: damageWithLegacyPoints(t.minDamage ?? 0) + perDamage * ((fixed?.MIN_DAMAGE ?? 0) + (own.MIN_DAMAGE ?? 0)),
+    max: damageWithLegacyPoints(t.maxDamage ?? 0) + perDamage * ((fixed?.MAX_DAMAGE ?? 0) + (own.MAX_DAMAGE ?? 0)),
   } : null
   const inverted = !!damage && damage.min > damage.max
   const [bonuses, setBonuses] = useState<ItemBonuses>(() => ({ ...emptyBonuses(), ...(item.bonuses ?? {}) }))
@@ -176,11 +182,13 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
 
       <div className="inv-setup__groups">
         {ownStats.length > 0 && <Section title="Сама вещь">
-          {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${perDamage}` : key === 'ARMOR' ? `+${item.armorPerPoint ?? 5} брони` : hint} min={0} disabled={busy} value={own[key] ?? 0}
+          {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${perDamage} за очко` : key === 'ARMOR' ? `+${item.armorPerPoint ?? 5} брони` : hint} min={0} disabled={busy} value={own[key] ?? 0}
             onChange={value => setOwn(prev => ({ ...prev, [key]: value }))} />)}
-          {damage && <small className={'inv-setup__damage' + (inverted ? ' is-over' : '')}>{inverted
-            ? `Мин. урон ${damage.min} выше макс. ${damage.max}: очки урона делятся между ними, например 50–50 или 0–100`
-            : `Урон без улучшений: ${damage.min}–${damage.max}`}</small>}
+          {damage && <div className={'inv-setup__damage' + (inverted ? ' is-over' : '')}>
+            <div>Базовый урон оружия <b>{t.minDamage ?? 0}–{t.maxDamage ?? 0}</b></div>
+            <div>Урон оружия с этим раскладом <b>{damage.min}–{damage.max}</b></div>
+            {inverted && <small>Минимум выше максимума. Перераспределите очки урона.</small>}
+          </div>}
         </Section>}
         <Section title="Статы">
           {STAT_LABELS.map(([key, label]) => <Field key={key} label={label} min={-budget} disabled={busy} value={bonuses.stats[key] ?? 0} onChange={set('stats', key)} />)}

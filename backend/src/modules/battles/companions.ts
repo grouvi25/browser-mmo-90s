@@ -101,20 +101,22 @@ function exists(cell: GridPosition): boolean {
 }
 
 /**
- * Клетка для вызова: справа от хозяина; занята — следующая справа и так до
- * края ряда; весь ряд занят — ряды сверху вниз, в каждом слева направо от
- * столбца справа от хозяина, а потом любая свободная клетка поля.
+ * Сначала ищем клетку перед хозяином в его ряду, затем в остальных рядах
+ * в ту же сторону, затем на всём поле. Стороны смотрят навстречу друг другу.
  */
-export function summonCell(owner: GridPosition, board: readonly PositionedParticipant[]): GridPosition | null {
+export function summonCell(owner: GridPosition, side: number, board: readonly PositionedParticipant[]): GridPosition | null {
   const free = (cell: GridPosition) => exists(cell) && !board.some(p => p.isAlive && samePosition(p.position, cell))
-  for (let x = owner.x + 1; x < BATTLE_GRID.width; x++) {
+  const step = side === 2 ? -1 : 1
+  const inBounds = (x: number) => x >= 0 && x < BATTLE_GRID.width
+  const start = side === 2 ? BATTLE_GRID.width - 1 : 0
+  for (let x = owner.x + step; inBounds(x); x += step) {
     if (free({ x, y: owner.y })) return { x, y: owner.y }
   }
   for (let y = 0; y < BATTLE_GRID.height; y++) {
-    for (let x = owner.x + 1; x < BATTLE_GRID.width; x++) if (free({ x, y })) return { x, y }
+    for (let x = owner.x + step; inBounds(x); x += step) if (free({ x, y })) return { x, y }
   }
   for (let y = 0; y < BATTLE_GRID.height; y++) {
-    for (let x = 0; x < BATTLE_GRID.width; x++) if (free({ x, y })) return { x, y }
+    for (let x = start; inBounds(x); x += step) if (free({ x, y })) return { x, y }
   }
   return null
 }

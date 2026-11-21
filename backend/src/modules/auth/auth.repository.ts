@@ -74,6 +74,7 @@ export const AuthRepository = {
     utmTerm?: string | null
     firstReferrer?: string | null
     landingPath?: string | null
+    referrerCharacterId?: string
   }): Promise<User> {
     return prisma.user.create({ data })
   },

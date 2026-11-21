@@ -26,6 +26,7 @@ export const SUPPORT = {
   /** Клиент ужимает скриншот в JPEG до 1600 px. Весь запрос должен уложиться
       в 1 МБ — лимит nginx на сервере по умолчанию. */
   imageMaxBytes: 700_000,
+  imageMaxCount: 3,
   /** Обращений, ждущих поддержку, у одного игрока — не больше.
       Поднято на время тестов игры (4.11): было 3, игроки упирались в потолок. */
   openMax: 30,
@@ -54,12 +55,14 @@ const TICKET_FIELDS = {
 
 const MESSAGE_FIELDS = {
   id: true, author: true, authorLabel: true, text: true, imageMime: true, internal: true, createdAt: true,
+  _count: { select: { extraImages: true } },
 } as const
 
 type MessageRow = Prisma.SupportMessageGetPayload<{ select: typeof MESSAGE_FIELDS }>
+type ImageInput = { image?: string | null; images?: string[] }
 
-function plainMessage({ imageMime, ...rest }: MessageRow) {
-  return { ...rest, hasImage: !!imageMime }
+function plainMessage({ imageMime, _count, ...rest }: MessageRow) {
+  return { ...rest, hasImage: !!imageMime, imageCount: Number(!!imageMime) + _count.extraImages }
 }
 
 function cleanText(text: string, empty: string) {
@@ -77,6 +80,24 @@ function parseImage(dataUrl?: string | null) {
     throw new AppError(ErrorCode.VALIDATION_ERROR, 'Скриншот слишком большой: не больше 700 КБ', 422)
   }
   return { mime: parsed[1], data: parsed[2] }
+}
+
+function messageImages(input: ImageInput) {
+  const uploads = input.images ?? (input.image ? [input.image] : [])
+  const images = uploads.map(parseImage).filter(image => image !== null)
+  const bytes = images.reduce((total, image) => total + Buffer.byteLength(image.data, 'base64'), 0)
+  if (images.length > SUPPORT.imageMaxCount || bytes > SUPPORT.imageMaxBytes) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'До трёх скриншотов, общий размер не больше 700 КБ', 422)
+  }
+  const [image, ...rest] = images
+  return {
+    image,
+    fields: {
+      imageData: image?.data ?? null,
+      imageMime: image?.mime ?? null,
+      extraImages: rest.length ? { create: rest.map((extra, index) => ({ ...extra, position: index + 1 })) } : undefined,
+    },
+  }
 }
 
 const notFound = () => new AppError(ErrorCode.NOT_FOUND, 'Обращение не найдено', 404)
@@ -112,12 +133,12 @@ export interface AdminListFilter {
 export const SupportService = {
   // ── Игрок ──────────────────────────────────────────────────
 
-  async create(characterId: string, input: { subject: string; category?: SupportCategory; text: string; image?: string | null }) {
+  async create(characterId: string, input: { subject: string; category?: SupportCategory; text: string } & ImageInput) {
     const subject = input.subject.trim().replace(/\s+/g, ' ')
     if (!subject) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Напишите тему обращения', 422)
     if (subject.length > SUPPORT.subjectMax) throw new AppError(ErrorCode.VALIDATION_ERROR, `Тема — не длиннее ${SUPPORT.subjectMax} знаков`, 422)
     const text = cleanText(input.text, 'Опишите, что случилось')
-    const image = parseImage(input.image)
+    const { image, fields } = messageImages(input)
     const category = input.category ?? 'OTHER'
 
     const [open, today] = await Promise.all([
@@ -132,7 +153,7 @@ export const SupportService = {
     const ticket = await prisma.supportTicket.create({
       data: {
         characterId, subject, category,
-        messages: { create: { author: 'PLAYER', text, imageData: image?.data ?? null, imageMime: image?.mime ?? null } },
+        messages: { create: { author: 'PLAYER', text, ...fields } },
       },
       select: { ...TICKET_FIELDS, character: { select: { nickname: true } } },
     })
@@ -180,10 +201,10 @@ export const SupportService = {
     }
   },
 
-  async playerMessage(characterId: string, ticketId: string, input: { text: string; image?: string | null }) {
+  async playerMessage(characterId: string, ticketId: string, input: { text: string } & ImageInput) {
     const ticket = await ownTicket(characterId, ticketId)
     const text = cleanText(input.text, 'Напишите сообщение')
-    const image = parseImage(input.image)
+    const { image, fields } = messageImages(input)
     if (ticket.status === 'CLOSED' && !canReopen(ticket)) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, 'Обращение закрыто давно — создайте новое', 409)
     }
@@ -198,7 +219,7 @@ export const SupportService = {
     await prisma.$transaction([
       ...(reopened ? [prisma.supportMessage.create({ data: { ticketId, author: 'SYSTEM', text: 'Игрок открыл обращение снова', createdAt: now } })] : []),
       prisma.supportMessage.create({
-        data: { ticketId, author: 'PLAYER', text, imageData: image?.data ?? null, imageMime: image?.mime ?? null, createdAt: new Date(now.getTime() + 1) },
+        data: { ticketId, author: 'PLAYER', text, ...fields, createdAt: new Date(now.getTime() + 1) },
       }),
       prisma.supportTicket.update({
         where: { id: ticketId },
@@ -233,9 +254,9 @@ export const SupportService = {
   },
 
   /** Скриншот из переписки: игрок видит только свои обращения и не видит заметок. */
-  async playerImage(characterId: string, ticketId: string, messageId: string) {
+  async playerImage(characterId: string, ticketId: string, messageId: string, position = 0) {
     await ownTicket(characterId, ticketId)
-    return readImage({ id: messageId, ticketId, internal: false })
+    return readImage({ id: messageId, ticketId, internal: false }, position)
   },
 
   // ── Поддержка ──────────────────────────────────────────────
@@ -374,8 +395,8 @@ export const SupportService = {
     return this.adminThread(ticketId)
   },
 
-  async adminImage(ticketId: string, messageId: string) {
-    return readImage({ id: messageId, ticketId })
+  async adminImage(ticketId: string, messageId: string, position = 0) {
+    return readImage({ id: messageId, ticketId }, position)
   },
 }
 
@@ -383,7 +404,13 @@ function canReopen(ticket: { status: SupportStatus; closedAt: Date | null }) {
   return ticket.status === 'CLOSED' && !!ticket.closedAt && Date.now() - ticket.closedAt.getTime() < SUPPORT.reopenDays * 86_400_000
 }
 
-async function readImage(where: Prisma.SupportMessageWhereInput) {
+async function readImage(where: Prisma.SupportMessageWhereInput, position: number) {
+  if (position > 0) {
+    const image = await prisma.supportMessageImage.findFirst({
+      where: { position, message: where }, select: { mime: true, data: true },
+    })
+    return image ? { mime: image.mime, bytes: Buffer.from(image.data, 'base64') } : null
+  }
   const row = await prisma.supportMessage.findFirst({ where, select: { imageData: true, imageMime: true } })
   if (!row?.imageData || !row.imageMime) return null
   return { mime: row.imageMime, bytes: Buffer.from(row.imageData, 'base64') }

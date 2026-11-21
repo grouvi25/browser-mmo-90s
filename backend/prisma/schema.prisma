@@ -2768,10 +2768,22 @@ model SupportMessage {
   internal    Boolean       @default(false)
   createdAt   DateTime      @default(now()) @map("created_at")
 
-  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticket      SupportTicket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  extraImages SupportMessageImage[]
 
   @@index([ticketId, createdAt])
   @@map("support_messages")
+}
+
+model SupportMessageImage {
+  messageId String @map("message_id")
+  position  Int
+  mime      String
+  data      String
+  message   SupportMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, position])
+  @@map("support_message_images")
 }
 
 /// Настройки сайта, которые админка меняет без выкатки (правка 29.10:

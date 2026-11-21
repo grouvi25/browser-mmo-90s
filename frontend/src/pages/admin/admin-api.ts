@@ -116,7 +116,7 @@ export interface SupportFilter {
   status?: SupportStatus; category?: SupportCategory; assigned?: 'me' | 'none'; q?: string; page?: number
 }
 export interface SupportStaffMessage {
-  id: string; author: SupportAuthor; authorLabel: string | null; text: string; hasImage: boolean; internal: boolean; createdAt: string
+  id: string; author: SupportAuthor; authorLabel: string | null; text: string; hasImage: boolean; imageCount?: number; internal: boolean; createdAt: string
 }
 export interface SupportStaffThread {
   ticket: SupportTicketInfo
@@ -455,7 +455,8 @@ export const adminApi = {
     return request<SupportList>(`/api/admin/support${query ? `?${query}` : ''}`)
   },
   supportThread: (id: string) => request<SupportStaffThread>(`/api/admin/support/${id}`),
-  supportImage: (id: string, messageId: string) => requestBlobUrl(`/api/admin/support/${id}/messages/${messageId}/image`),
+  supportImage: (id: string, messageId: string, position: number) =>
+    requestBlobUrl(`/api/admin/support/${id}/messages/${messageId}/image?position=${position}`),
   supportWrite: (id: string, body: { text: string; internal?: boolean; close?: boolean }) =>
     request<SupportStaffThread>(`/api/admin/support/${id}/messages`, { method: 'POST', body }),
   supportUpdate: (id: string, body: { status?: SupportStatus; priority?: SupportPriority; category?: SupportCategory; assign?: 'me' | 'none' }) =>

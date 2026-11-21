@@ -21,13 +21,15 @@ function owner(over: Partial<CompanionOwner> = {}): CompanionOwner {
 
 describe('клетка вызова', () => {
   it('справа от хозяина; занято — следующая справа', () => {
-    expect(summonCell({ x: 2, y: 5 }, [at('p1', 2, 5)])).toEqual({ x: 3, y: 5 })
-    expect(summonCell({ x: 2, y: 5 }, [at('p1', 2, 5), at('x', 3, 5)])).toEqual({ x: 4, y: 5 })
+    expect(summonCell({ x: 2, y: 5 }, 1, [at('p1', 2, 5)])).toEqual({ x: 3, y: 5 })
+    expect(summonCell({ x: 2, y: 5 }, 1, [at('p1', 2, 5), at('x', 3, 5)])).toEqual({ x: 4, y: 5 })
+    expect(summonCell({ x: 6, y: 5 }, 2, [at('p1', 6, 5)])).toEqual({ x: 5, y: 5 })
+    expect(summonCell({ x: 6, y: 5 }, 2, [at('p1', 6, 5), at('x', 5, 5)])).toEqual({ x: 4, y: 5 })
   })
 
   it('весь ряд справа занят — ряды сверху вниз', () => {
     const board = [at('p1', 2, 5), ...Array.from({ length: 7 }, (_, i) => at(`b${i}`, 3 + i, 5))]
-    expect(summonCell({ x: 2, y: 5 }, board)).toEqual({ x: 3, y: 0 })
+    expect(summonCell({ x: 2, y: 5 }, 1, board)).toEqual({ x: 3, y: 0 })
   })
 })
 
