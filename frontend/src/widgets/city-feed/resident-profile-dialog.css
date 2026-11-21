@@ -1,0 +1,20 @@
+.resident-profile {
+  box-sizing: border-box;
+  width: min(370px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  padding: 0;
+  overflow: auto;
+  border: 2px solid #554235;
+  background: #f4e8d4;
+  color: #261d17;
+  font-family: var(--font-ui);
+}
+
+.resident-profile::backdrop { background: rgb(18 13 10 / 58%); }
+.resident-profile article { padding: 16px; }
+.resident-profile__header { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.resident-profile__header h2 { margin: 0; font-size: 21px; overflow-wrap: anywhere; }
+.resident-profile p { margin: 9px 0 14px; }
+.resident-profile__stats { margin: 0; }
+.resident-profile__stats > div { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-top: 1px solid #d5bfa7; }
+.resident-profile__stats dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }

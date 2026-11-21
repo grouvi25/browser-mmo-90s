@@ -390,7 +390,7 @@ test('inventory deep link wins over the previously saved forum location', async 
   await expect(page.getByText('Склад', { exact: true }).first()).toBeVisible()
 })
 
-test('desktop online panel renders only connected players over cleaned paper', async ({ page }, testInfo) => {
+test('desktop online panel renders the server list over cleaned paper', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'Desktop plate only; mobile uses a separate dynamic list')
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
   await authenticate(page); await mockApi(page, () => battle())
@@ -401,4 +401,32 @@ test('desktop online panel renders only connected players over cleaned paper', a
   await expect(page.locator('.online-title')).not.toHaveAttribute('title', /демонстрационный/)
   await testInfo.attach('clean-online-panel', { body: await page.locator('.chat-dock').screenshot(), contentType: 'image/png' })
   expect(errors).toEqual([])
+})
+
+test('городской персонаж в общем онлайне открывает карточку характеристик', async ({ page }, testInfo) => {
+  await authenticate(page)
+  await mockApi(page, () => battle())
+  await page.route('**/api/chat/online/list', route => route.fulfill({ json: { players: [
+    { characterId: 'me', nickname: 'Проверка', level: 1 },
+    { characterId: 'resident:cassette', nickname: 'Рита_Кассета', level: 5,
+      resident: { occupation: 'Ткач', productionLevel: 6, stats: { str: 4, agi: 10, end: 6, acc: 8 } } },
+  ] } }))
+  await page.goto('/inventory')
+  if (testInfo.project.name === 'mobile-chromium') {
+    await page.locator('.m-tabbar').getByRole('button', { name: 'Чат', exact: true }).click()
+    await page.getByRole('button', { name: 'Онлайн: 2' }).click()
+  }
+  const row = page.locator('.online-list__row:visible, .m-chat__player-row:visible').filter({ hasText: 'Рита_Кассета' })
+  await expect(row).toContainText('5')
+  await expect(row.locator('.ether-arrow')).toHaveCount(0)
+  await row.getByRole('button', { name: 'Рита_Кассета' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Рита_Кассета' })
+  await expect(dialog).toContainText('Ткач')
+  await expect(dialog).toContainText(/Уровень производства\s*6/)
+  await expect(dialog).toContainText(/Ловкость\s*10/)
+  if (testInfo.project.name === 'mobile-chromium') await page.keyboard.press('Escape')
+  else await dialog.getByRole('button', { name: 'Закрыть' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(row).toBeVisible()
+  await expect(page).toHaveURL(/\/inventory$/)
 })

@@ -15,6 +15,7 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { FLOOD, MAX_BODY, chatDayStart, chatRoom, floodKeys, normalizeBody, privateRoom, scopeFor, type Rejection } from './chat.formulas'
 import { publish } from '../../shared/realtime/io'
 import { SupportService } from '../support/support.service'
+import { onlineResidents } from './online-residents'
 
 /**
  * Сколько ник держится в списке онлайн после последнего действия игрока.
@@ -247,6 +248,12 @@ export const ChatService = {
 
   async touch(characterId: string): Promise<void> {
     await ChatRedis.presenceTouch(characterId)
+  },
+
+  /** В интерфейсе присутствуют городские персонажи. Игровые правила используют online(). */
+  async onlineDirectory() {
+    const players = await this.online()
+    return [...players, ...onlineResidents(players.map(player => player.nickname))]
   },
 
   async leave(characterId: string): Promise<void> {
