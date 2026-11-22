@@ -15,6 +15,7 @@ import { dogSummary } from '../city/city.config'
 import { PROFESSION_NAMES, type ProfessionCode } from '../professions/professions'
 import { gearOf, syncHpWithGear, withGearStats } from '../items/gear-bonuses'
 import { isPremiumActive } from '../premium/premium.service'
+import { getTutorial, practiceTutorial } from './tutorial.service'
 
 const BattleLoadoutSchema = z.object({
   itemInstanceIds: z.array(z.string().uuid()).max(4),
@@ -53,6 +54,12 @@ async function syncHpMax(tx: Prisma.TransactionClient, characterId: string) {
 }
 
 export async function charactersRoutes(fastify: FastifyInstance): Promise<void> {
+  fastify.get('/tutorial', { preHandler: authenticate }, async req => getTutorial(req.authUser.userId))
+  fastify.post('/tutorial', { preHandler: authenticate }, async req => {
+    const { action } = z.object({ action: z.string().min(1).max(40) }).parse(req.body)
+    return practiceTutorial(req.authUser.userId, action)
+  })
+
   fastify.get('/creation-config', { preHandler: authenticate }, async (_req, reply) => {
     reply.header('Cache-Control', 'no-store')
     return { startMoney: BalanceConfig.character.startMoney }

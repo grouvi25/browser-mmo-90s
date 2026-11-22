@@ -9,7 +9,7 @@
 // =============================================================
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { siteApi } from '../../shared/api/site.api'
 import './welcome-modal.css'
@@ -26,11 +26,13 @@ function seenVersion(): number | null {
 
 export function WelcomeModal() {
   const navigate = useNavigate()
+  const location = useLocation()
   const q = useQuery({ queryKey: ['site', 'welcome'], queryFn: siteApi.welcome, staleTime: 10 * 60_000, retry: false })
   const welcome = q.data?.welcome
   const [closedVersion, setClosedVersion] = useState<number | null>(seenVersion)
   const okRef = useRef<HTMLButtonElement>(null)
-  const open = !!welcome && closedVersion !== welcome.version
+  // На первом входе место занимает письмо Бывалого, дальше его сменяет практика.
+  const open = !!welcome && closedVersion !== welcome.version && !location.state?.newCharacter && location.pathname !== '/training'
 
   const close = () => {
     if (!welcome) return

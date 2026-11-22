@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { contentApi } from '../../shared/api/content.api'
 import { libraryApi } from '../../shared/api/library.api'
 import { RichText } from '../../widgets/rich-text/rich-text'
 import { Empty, Fault, Skeleton } from '../stage3/stage3-ui'
+import { RUSTORE_APP } from '../../shared/lib/rustore'
 import './library.css'
 
 export function LibraryPage() {
@@ -25,8 +27,10 @@ export function LibraryPage() {
   return (
     <div className="library">
       <nav className="library__toc" aria-label="Разделы библиотеки">
+        <Link to="/training">Обучение для новичков</Link>
         {items.map(item => <button key={item.id} type="button" aria-current={item.id === page.id ? 'page' : undefined}
           className={item.id === page.id ? 'is-active' : ''} onClick={() => setOpen(item.id)}>{item.title}</button>)}
+        <a href={RUSTORE_APP} target="_blank" rel="noreferrer">Скачать игру в RuStore</a>
       </nav>
       <article className="library__text">
         <h2>{page.title}</h2>

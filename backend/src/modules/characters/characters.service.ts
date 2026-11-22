@@ -70,6 +70,7 @@ export const CharactersService = {
       hpCurrent: hpMax,
       hpMax,
       money: B.startMoney,
+      tutorialStep: 0,
       // Подписка в подарок новичку (Дима 11.11): две недели, дальше — как у всех.
       ...(B.newbiePremiumDays > 0 ? { isPremium: true, premiumExpiresAt: new Date(Date.now() + B.newbiePremiumDays * 24 * 3_600_000) } : {}),
     })

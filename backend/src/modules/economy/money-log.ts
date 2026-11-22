@@ -43,6 +43,7 @@ const REASON: Partial<Record<CurrencyLogReason, string>> = {
   CURRENCY_EXCHANGE: 'Обменник',
   HELPER_RENT: 'Аренда помощника',
   LEVEL_BONUS: 'Премия за уровень',
+  TUTORIAL: 'Награда за обучение',
 }
 
 /** Одна причина покрывает разные покупки: по типу записи подпись своя (Metallica 16.11). */

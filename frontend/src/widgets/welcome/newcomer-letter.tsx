@@ -57,6 +57,7 @@ export function NewcomerLetterModal() {
         <h2 id="newcomer-title">{NEWCOMER_LETTER_TITLE}</h2>
         <NewcomerLetterBody nick={me.data?.nickname} links={false} />
         <div className="welcome__actions">
+          <button type="button" className="btn" onClick={() => { close(); navigate('/training') }}>Пройти обучение</button>
           <button type="button" className="btn" onClick={() => { close(); navigate('/library') }}>В Библиотеку</button>
           <button ref={okRef} type="button" className="btn welcome__ok" onClick={close}>Понял, Бывалый</button>
         </div>

@@ -14,6 +14,7 @@ import sceneBrigade from '../../shared/assets/ui/scene-brigade-houses.webp'
 import './landing.css'
 import { registrationPath } from '../../shared/lib/referral'
 import { DESKTOP_INSTALLER, offerDesktop } from '../../shared/lib/desktop-app'
+import { RUSTORE_APP } from '../../shared/lib/rustore'
 
 // Тексты для игроков по правилам Димы: без «ё», без длинных тире, кавычки прямые.
 const FEATURES: { title: string; text: string }[] = [
@@ -112,10 +113,11 @@ export function LandingPage() {
         <div className="landing__hero-text">
           <p className="landing__kicker">Россия. Девяностые. Твоя история.</p>
           <h1>Твой район.<br />Твои правила.</h1>
-          <p className="landing__sub">Браузерная онлайн-игра · без установки · 18+</p>
+          <p className="landing__sub">Онлайн-игра для браузера, Android и Windows · 18+</p>
           <div className="landing__actions">
             <Link className="landing__btn landing__btn--main" to={registrationPath()}>Начать свой путь</Link>
             <a className="landing__btn" href="#about">Что за игра?</a>
+            <a className="landing__btn" href={RUSTORE_APP} target="_blank" rel="noreferrer">Скачать в RuStore</a>
             {offerDesktop && <a className="landing__btn" href={DESKTOP_INSTALLER} download>Скачать для ПК</a>}
           </div>
         </div>

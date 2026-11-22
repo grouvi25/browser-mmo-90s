@@ -9,6 +9,8 @@ import { GameShell } from './layouts/game-shell'
 import { ViewportPanel, LockedSection } from '../shared/ui/viewport-panel'
 import { SCENES } from '../shared/ui/sprite'
 import { NewcomerLetterPage } from '../widgets/welcome/newcomer-letter-page'
+import { TutorialPage } from '../pages/character/tutorial-page'
+import { ForumPage } from '../pages/forum/forum-page'
 import { loginDestination, loginUrl } from '../shared/lib/login-redirect'
 import { ResumeLocation } from './location-persistence'
 import { CityPage } from '../pages/locations/city-page'
@@ -369,8 +371,10 @@ export function AppRouter() {
           <ViewportPanel title="Кодекс" subtitle="Законы города">
             <CodexPage />
           </ViewportPanel>} />
-        <Route path="/forum"   element={<LockedSection title="Форум" stage={3}
-          what="Общение, объявления и торговые темы." />} />
+        <Route path="/training" element={<TutorialPage />} />
+        <Route path="/forum/:topicId?" element={<ViewportPanel title="Форум" subtitle="Общение игроков">
+          <ForumPage />
+        </ViewportPanel>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
