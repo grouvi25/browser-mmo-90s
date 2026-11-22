@@ -332,7 +332,7 @@ export function DossierPage({ nickname }: { nickname?: string } = {}) {
 
   return (
     <Stage width={PROFILE_STAGE.w} height={PROFILE_STAGE.h}
-      fit="contain" backdrop={plate} className="stage--profile">
+      fit="contain" backdrop="linear-gradient(180deg, #725848, #382d2b 80%)" className="stage--profile">
       <div className="stage__plate" style={{ backgroundImage: plate }} />
 
       {/* поиск игрока — работает через /api/characters/by-nickname */}
