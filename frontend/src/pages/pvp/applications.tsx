@@ -50,7 +50,7 @@ export function BattleApplications() {
   const [params] = useSearchParams()
   const raw = params.get('tab') as Tab | null
   const tab: Tab = raw && raw in TAB_LABEL ? raw : 'ALL'
-  const [kind, setKind] = useState<CreateKind>('DUEL')
+  const [kind, setKind] = useState<CreateKind>(() => params.get('opponent') === 'bot' ? 'BOT' : 'DUEL')
   const [teamSize, setTeamSize] = useState(2)
   const [delay, setDelay] = useState(5)
   const [levelMin, setLevelMin] = useState<number | ''>('')
