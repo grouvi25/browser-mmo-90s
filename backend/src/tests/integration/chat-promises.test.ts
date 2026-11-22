@@ -1,6 +1,6 @@
 /**
  * Обещания игрокам из чата 22.10: характеристики черновиком и свитки,
- * обменник, модераторы, комплекты одежды, поиск и чужие бои, бригада с 7-го
+ * обменник, модераторы, комплекты одежды, поиск и чужие бои, бригада с 5-го
  * уровня, защита новичков, износ.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -108,13 +108,14 @@ describe('Обещания из чата 22.10', () => {
     expect((await app.inject({ url: '/api/battles/history/nobody-here', headers: viewer.headers })).statusCode).toBe(404)
   })
 
-  it('бригада принимает с 7-го уровня', async () => {
+  it('бригада принимает с 5-го уровня', async () => {
     const boss = await player({ level: 7 })
     await paidClan(boss.character.id, uid('br').slice(0, 30))
-    const young = await player({ level: 6 })
+    const young = await player({ level: 4 })
     await expect(ClansService.invite(boss.character.id, { characterId: young.character.id })).rejects.toMatchObject({ statusCode: 403 })
-    const grown = await player({ level: 7 })
-    await expect(ClansService.invite(boss.character.id, { characterId: grown.character.id })).resolves.toBeTruthy()
+    const grown = await player({ level: 5 })
+    const invite = await ClansService.invite(boss.character.id, { characterId: grown.character.id })
+    await expect(ClansService.accept(grown.character.id, invite.id)).resolves.toEqual({ clanId: invite.clanId })
   })
 
   it('на дом новичка налёт не объявить', async () => {

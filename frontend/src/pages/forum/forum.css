@@ -1,0 +1,11 @@
+.forum { display: grid; gap: 12px; min-width: 0; }
+.forum__topics { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.forum__post { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--border); background: var(--paper-warm); overflow-wrap: anywhere; }
+.forum__post h2, .forum__post p { margin: 0; }
+.forum__post p { white-space: pre-wrap; }
+.forum__post .btn { justify-self: start; }
+.forum__post summary { cursor: pointer; font-weight: 700; }
+.forum__form { display: grid; justify-items: start; gap: 8px; width: 100%; padding: 6px 0; }
+.forum__form label { display: grid; gap: 4px; width: 100%; }
+.forum__form :is(input, textarea) { width: 100%; box-sizing: border-box; color: var(--text); background: var(--paper); border: 1px solid var(--border); padding: 6px; font: inherit; }
+.forum__actions { display: flex; align-items: center; gap: 8px; }

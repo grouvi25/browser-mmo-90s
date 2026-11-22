@@ -181,6 +181,7 @@ enum AttackHand {
 }
 
 enum CurrencyLogReason {
+  TUTORIAL
   SHOP_PURCHASE // Покупка в магазине
   SHOP_SELL // Продажа магазину
   BATTLE_REWARD // Награда за бой
@@ -639,6 +640,7 @@ model Character {
   referralEarned  Int       @default(0) @map("referral_earned")
   /// Модератор игры («Красные»): виден во вкладке Поддержки «Модераторы».
   isModerator     Boolean   @default(false) @map("is_moderator")
+  tutorialStep    Int?      @map("tutorial_step")
   /// «Кровавая травма» после проигранной осады: до этого времени в бой нельзя.
   traumaUntil     DateTime? @map("trauma_until")
 
@@ -708,7 +710,41 @@ model Character {
   premiumPurchases     PremiumPurchase[]
   chatMessages         ChatMessage[]
 
+  forumTopics ForumTopic[]
+  forumReplies ForumReply[]
+
   @@map("characters")
+}
+
+model ForumTopic {
+  id          String      @id @default(uuid())
+  authorId    String      @map("author_id")
+  title       String      @db.VarChar(100)
+  body        String      @db.VarChar(4000)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  activityAt  DateTime    @default(now()) @map("activity_at")
+  removedAt   DateTime?   @map("removed_at")
+  removedBy   String?     @map("removed_by")
+  author      Character   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replies     ForumReply[]
+
+  @@index([removedAt, activityAt, id])
+  @@map("forum_topics")
+}
+
+model ForumReply {
+  id        String    @id @default(uuid())
+  topicId   String    @map("topic_id")
+  authorId  String    @map("author_id")
+  body      String    @db.VarChar(4000)
+  createdAt DateTime  @default(now()) @map("created_at")
+  removedAt DateTime? @map("removed_at")
+  removedBy String?   @map("removed_by")
+  topic     ForumTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  author    Character  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([topicId, removedAt, createdAt, id])
+  @@map("forum_replies")
 }
 
 model CharacterProfession {
@@ -2449,6 +2485,7 @@ model CharacterPet {
 
 /// Причина движения игровых долларов.
 enum DollarReason {
+  TUTORIAL
   ISSUE // администрация выдала (дилеру за оплату или в подарок)
   WITHDRAW // администрация списала (в том числе откат выдачи)
   TRANSFER_OUT // дилер перевёл игроку

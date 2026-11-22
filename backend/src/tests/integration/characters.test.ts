@@ -5,6 +5,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach, vi } 
 import { testPrisma, cleanDatabase, uid } from './helpers'
 import { AuthService } from '../../modules/auth/auth.service'
 import { CharactersService } from '../../modules/characters/characters.service'
+import { getTutorial, practiceTutorial } from '../../modules/characters/tutorial.service'
 import { ItemsRepository } from '../../modules/items/item-instance.repository'
 import { AppError } from '../../shared/errors/app-error'
 import { calcHpMax } from '../../modules/stats/stats.formulas'
@@ -169,6 +170,24 @@ describe('CharactersService.create', () => {
 // ---------------------------------------------------------------
 // Get profile
 // ---------------------------------------------------------------
+describe('Практика новичка', () => {
+  it('сохраняет порядок шагов и начисляет обе награды один раз при повторе запроса', async () => {
+    const { userId } = await createTestUser()
+    const character = await CharactersService.create(userId, { nickname: uid('Practice'), archetype: 'ATHLETE' })
+    expect(await getTutorial(userId)).toMatchObject({ step: 0, completed: false })
+    await expect(practiceTutorial(userId, 'end-turn')).rejects.toThrow('предыдущий шаг')
+    for (const action of ['buy-jacket', 'equip-jacket', 'assign-endurance', 'buy-bandage', 'choose-strike', 'choose-block']) {
+      await practiceTutorial(userId, action)
+    }
+    const results = await Promise.all([practiceTutorial(userId, 'end-turn'), practiceTutorial(userId, 'end-turn')])
+    expect(results.every(result => result.completed)).toBe(true)
+    expect(await testPrisma.character.findUnique({ where: { id: character.id } }))
+      .toMatchObject({ money: character.money + 5000, dollars: character.dollars + 100 })
+    expect(await testPrisma.currencyLog.count({ where: { characterId: character.id, reasonCode: 'TUTORIAL' } })).toBe(1)
+    expect(await testPrisma.dollarLog.count({ where: { characterId: character.id, reason: 'TUTORIAL' } })).toBe(1)
+  })
+})
+
 describe('CharactersService.getProfile', () => {
   it('returns character with stats', async () => {
     const { userId } = await createTestUser()

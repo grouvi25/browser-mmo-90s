@@ -32,6 +32,7 @@ export const CharactersRepository = {
     hpCurrent: number
     hpMax: number
     money: number
+    tutorialStep?: number
     isPremium?: boolean
     premiumExpiresAt?: Date | null
   }): Promise<Character> {

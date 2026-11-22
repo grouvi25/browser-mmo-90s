@@ -23,6 +23,7 @@ import { chatRoom, privateRoom, DISTRICTS } from './modules/chat/chat.formulas'
 
 import { authRoutes } from './modules/auth/auth.routes'
 import { charactersRoutes } from './modules/characters/characters.routes'
+import { forumRoutes } from './modules/forum/forum.routes'
 import { inventoryRoutes } from './modules/inventory/inventory.routes'
 import { governmentShopRoutes } from './modules/government-shop/government-shop.routes'
 import { battlesRoutes } from './modules/battles/battles.routes'
@@ -184,6 +185,7 @@ export async function buildApp() {
   // адрес /api/clans/:id/territories задан в STAGE4_API 1.3.
   await fastify.register(clanTerritoriesRoutes, { prefix: '/api/clans' })
   await fastify.register(territoriesRoutes,   { prefix: '/api/territories' })
+  await fastify.register(forumRoutes,         { prefix: '/api/forum' })
   // Атаки на объекты и перевод в клан — рядом с остальными
   // операциями над объектами Этапа 3.
   await fastify.register(objectWarRoutes,     { prefix: '/api/objects' })
