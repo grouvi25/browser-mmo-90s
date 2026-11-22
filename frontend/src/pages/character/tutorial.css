@@ -1,4 +1,4 @@
-.tutorial { box-sizing: border-box; width: min(560px, calc(100% - 24px)); max-height: calc(100% - 24px); padding: clamp(16px, 5vw, 28px); color: var(--text); background: var(--paper); border: 2px solid var(--ink-red); }
+.tutorial { position: fixed; inset: 0; margin: auto; box-sizing: border-box; width: min(560px, calc(100% - 24px)); height: max-content; max-height: calc(100% - 24px); overflow: auto; padding: clamp(16px, 5vw, 28px); color: var(--text); background: var(--paper); border: 2px solid var(--ink-red); }
 .tutorial::backdrop { background: rgb(15 10 8 / 78%); }
 .tutorial h1 { font-size: 1.55rem; margin: 0 0 12px; }
 .tutorial h2 { font-size: 1.2rem; margin: 8px 0; }
