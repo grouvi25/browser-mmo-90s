@@ -723,12 +723,13 @@ model ForumTopic {
   body        String      @db.VarChar(4000)
   createdAt   DateTime    @default(now()) @map("created_at")
   activityAt  DateTime    @default(now()) @map("activity_at")
+  pinnedAt    DateTime?   @map("pinned_at")
   removedAt   DateTime?   @map("removed_at")
   removedBy   String?     @map("removed_by")
   author      Character   @relation(fields: [authorId], references: [id], onDelete: Cascade)
   replies     ForumReply[]
 
-  @@index([removedAt, activityAt, id])
+  @@index([removedAt, pinnedAt, activityAt(sort: Desc), id(sort: Desc)], map: "forum_topics_pinned_listing_idx")
   @@map("forum_topics")
 }
 

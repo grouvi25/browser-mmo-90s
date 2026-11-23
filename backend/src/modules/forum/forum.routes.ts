@@ -10,6 +10,7 @@ const pagination = z.object({ page: z.coerce.number().int().min(1).max(10000).de
 const idSchema = z.object({ id: z.string().uuid() })
 const bodySchema = z.object({ body: z.string().trim().min(1).max(4000) })
 const topicSchema = bodySchema.extend({ title: z.string().trim().min(1).max(100) })
+const pinSchema = z.object({ pinned: z.boolean() })
 const posting = { preHandler: authenticate, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }
 const visible = { removedAt: null } as const
 const author = { select: { nickname: true } } as const
@@ -37,8 +38,8 @@ export async function forumRoutes(server: FastifyInstance) {
     const [topics, character] = await Promise.all([
       prisma.forumTopic.findMany({
         where: visible, skip: (page - 1) * pageSize, take: pageSize + 1,
-        orderBy: [{ activityAt: 'desc' }, { id: 'desc' }],
-        select: { id: true, title: true, activityAt: true, author, _count: { select: { replies: { where: visible } } } },
+        orderBy: [{ pinnedAt: { sort: 'asc', nulls: 'last' } }, { activityAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, title: true, pinnedAt: true, activityAt: true, author, _count: { select: { replies: { where: visible } } } },
       }),
       viewer(req.authUser.userId),
     ])
@@ -59,7 +60,7 @@ export async function forumRoutes(server: FastifyInstance) {
       viewer(req.authUser.userId),
       prisma.forumTopic.findFirst({
         where: { id, ...visible },
-        select: { id: true, title: true, body: true, createdAt: true, author,
+        select: { id: true, title: true, body: true, pinnedAt: true, createdAt: true, author,
           replies: {
             where: visible, skip: (page - 1) * pageSize, take: pageSize + 1,
             orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -83,6 +84,21 @@ export async function forumRoutes(server: FastifyInstance) {
       return tx.forumReply.create({ data: { topicId: id, authorId, body }, select: { id: true } })
     })
     return reply.code(201).send(entry)
+  })
+
+  server.patch('/moderation/topics/:id/pin', { preHandler: authenticate }, async req => {
+    const { id } = idSchema.parse(req.params)
+    const { pinned } = pinSchema.parse(req.body)
+    const character = await viewer(req.authUser.userId)
+    if (!character.isModerator) throw new AppError(ErrorCode.FORBIDDEN, 'Закреплять темы может только модератор', 403)
+
+    const where = { id, ...visible }
+    const result = await prisma.forumTopic.updateMany({
+      where: { ...where, pinnedAt: pinned ? null : { not: null } },
+      data: { pinnedAt: pinned ? new Date() : null },
+    })
+    if (!result.count && !await prisma.forumTopic.count({ where })) throw AppError.notFound('Тема', id)
+    return { ok: true }
   })
 
   for (const scope of ['topics', 'replies'] as const) {

@@ -13,12 +13,12 @@ interface Post {
 }
 
 interface TopicList {
-  items: { id: string; title: string; activityAt: string; author: Post['author']; _count: { replies: number } }[]
+  items: { id: string; title: string; pinnedAt: string | null; activityAt: string; author: Post['author']; _count: { replies: number } }[]
   more: boolean
 }
 
 interface TopicDetail {
-  topic: Post & { title: string }
+  topic: Post & { title: string; pinnedAt: string | null }
   replies: Post[]
   more: boolean
   canModerate: boolean
@@ -67,7 +67,7 @@ function Topics() {
     {items.length > 0 && <ul className="forum__topics">{items.map(topic =>
       <li key={topic.id} className="forum__post">
         <Link to={'/forum/' + topic.id}>{topic.title}</Link>
-        <small>{topic.author.nickname} · ответов: {topic._count.replies} · {forumDate.format(new Date(topic.activityAt))}</small>
+        <small>{topic.pinnedAt && 'Закреплено · '}{topic.author.nickname} · ответов: {topic._count.replies} · {forumDate.format(new Date(topic.activityAt))}</small>
       </li>
     )}</ul>}
     <Pagination page={page} more={!!list.data?.more} go={setPage} />
@@ -84,6 +84,10 @@ function Topic({ id }: { id: string }) {
   const reply = useMutation({
     mutationFn: () => api.post(path + '/' + id + '/replies', { body: body.trim() }),
     onSuccess: () => { setBody(''); void qc.invalidateQueries({ queryKey: ['forum'] }) },
+  })
+  const pin = useMutation({
+    mutationFn: (pinned: boolean) => api.patch(path + '/moderation/topics/' + id + '/pin', { pinned }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['forum'] }),
   })
   const remove = useMutation({
     mutationFn: (target: { type: 'topics' | 'replies'; id: string }) => api.delete(path + '/moderation/' + target.type + '/' + target.id),
@@ -105,9 +109,15 @@ function Topic({ id }: { id: string }) {
     {topic && <>
       <article className="forum__post">
         <h2>{topic.title}</h2>
-        <small>{topic.author.nickname} · {forumDate.format(new Date(topic.createdAt))}</small>
+        <small>{topic.pinnedAt && 'Закреплено · '}{topic.author.nickname} · {forumDate.format(new Date(topic.createdAt))}</small>
         <p>{topic.body}</p>
-        {control('topics', topic.id)}
+        {detail.data?.canModerate && <div className="forum__actions">
+          <button type="button" className="btn" disabled={pin.isPending} onClick={() => pin.mutate(!topic.pinnedAt)}>
+            {topic.pinnedAt ? 'Открепить тему' : 'Закрепить тему'}
+          </button>
+          {control('topics', topic.id)}
+        </div>}
+        <Note text={pin.error?.message ?? ''} kind="bad" />
       </article>
       {detail.data?.replies.map(post => <article className="forum__post" key={post.id}>
         <small>{post.author.nickname} · {forumDate.format(new Date(post.createdAt))}</small>
