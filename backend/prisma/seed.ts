@@ -161,7 +161,7 @@ async function main() {
     await prisma.itemTemplate.upsert({
       where: { code },
       update: data,
-      create: { code, ...data },
+      create: { code, ...data, ...(code === 'weapon_knife_basic' ? { allocationMode: 'PLAYER', statBudget: 1 } : {}) },
     })
     console.log(`  ✓ Template: ${tpl.name}`)
   }

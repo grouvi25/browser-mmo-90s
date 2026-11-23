@@ -4,9 +4,6 @@
 .tutorial h2 { font-size: 1.2rem; margin: 8px 0; }
 .tutorial__lesson { padding: 14px; margin: 14px 0; background: var(--paper-warm); border: 1px solid var(--border); }
 .tutorial__place { margin: 0; font-weight: 700; }
-.tutorial__item { display: flex; gap: 10px; align-items: center; margin: 8px 0; }
-.tutorial__item img { width: 48px; height: 48px; object-fit: contain; }
-.tutorial__item small { display: block; }
 .tutorial__distance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 10px 0; }
 .tutorial__distance span { display: grid; min-height: 35px; place-items: center; padding: 3px; overflow-wrap: anywhere; border: 1px solid var(--border); background: var(--paper); font-size: .85rem; }
 .tutorial__distance span.is-selected { border-color: var(--ink-red); background: var(--paper-dark); }

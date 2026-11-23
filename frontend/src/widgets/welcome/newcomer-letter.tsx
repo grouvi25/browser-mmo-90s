@@ -1,13 +1,13 @@
-// Письмо Бывалого новичку (Дмитрий, 09.11.2026): окном сразу после создания
-// персонажа и страницей /novichok. Ник подставляется вместо «приезжего».
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '../../app/providers/auth-provider'
 import { charactersApi } from '../../shared/api/characters.api'
+import { tutorialKey, updateTutorial } from '../city-tutorial/use-city-tutorial'
 import {
   NEWCOMER_LETTER_INTRO, NEWCOMER_LETTER_OUTRO, NEWCOMER_LETTER_POINTS, NEWCOMER_LETTER_TITLE,
-  NEWCOMER_LETTER_EVENT, clearNewcomerLetter, hasNewcomerLetter, newcomerGreeting,
+  newcomerGreeting,
 } from '../../shared/lib/newcomer-letter'
 import './welcome-modal.css'
 
@@ -27,40 +27,37 @@ export function NewcomerLetterBody({ nick, links = true }: { nick?: string | nul
   </div>
 }
 
-/** Окно с письмом: один раз после создания персонажа. */
 export function NewcomerLetterModal() {
   const navigate = useNavigate()
-  const [open, setOpen] = useState(hasNewcomerLetter)
-  const me = useQuery({ queryKey: ['character', 'me'], queryFn: () => charactersApi.getMe(), retry: false, enabled: open })
+  const qc = useQueryClient()
+  const { userId } = useAuth()
+  const me = useQuery({ queryKey: ['character', 'me'], queryFn: () => charactersApi.getMe(), retry: false })
   const okRef = useRef<HTMLButtonElement>(null)
-  const close = () => { clearNewcomerLetter(); setOpen(false) }
+  const dismiss = useMutation({
+    mutationFn: () => updateTutorial('dismiss-letter'),
+    onSuccess: value => qc.setQueryData(tutorialKey(userId), value),
+  })
 
   useEffect(() => {
-    const show = () => setOpen(true)
-    window.addEventListener(NEWCOMER_LETTER_EVENT, show)
-    return () => window.removeEventListener(NEWCOMER_LETTER_EVENT, show)
-  }, [])
-
-  useEffect(() => {
-    if (!open) return
     okRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { clearNewcomerLetter(); setOpen(false) } }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') okRef.current?.click() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open])
+  }, [])
 
-  if (!open) return null
   return createPortal(
     <div className="welcome" role="dialog" aria-modal="true" aria-labelledby="newcomer-title">
-      <button type="button" className="welcome__scrim" aria-label="Закрыть" tabIndex={-1} onClick={close} />
+      <button type="button" className="welcome__scrim" aria-label="Закрыть" tabIndex={-1} disabled={dismiss.isPending} onClick={() => dismiss.mutate()} />
       <div className="welcome__box welcome__box--letter">
         <h2 id="newcomer-title">{NEWCOMER_LETTER_TITLE}</h2>
         <NewcomerLetterBody nick={me.data?.nickname} links={false} />
         <div className="welcome__actions">
-          <button type="button" className="btn" onClick={() => { close(); navigate('/training') }}>Пройти обучение</button>
-          <button type="button" className="btn" onClick={() => { close(); navigate('/library') }}>В Библиотеку</button>
-          <button ref={okRef} type="button" className="btn welcome__ok" onClick={close}>Понял, Бывалый</button>
+          <button type="button" className="btn" disabled={dismiss.isPending}
+            onClick={() => dismiss.mutate(undefined, { onSuccess: () => navigate('/library') })}>В Библиотеку</button>
+          <button ref={okRef} type="button" className="btn welcome__ok" disabled={dismiss.isPending}
+            onClick={() => dismiss.mutate()}>Понял, Бывалый</button>
         </div>
+        {dismiss.isError && <p role="alert">{dismiss.error.message}</p>}
       </div>
     </div>,
     document.body,

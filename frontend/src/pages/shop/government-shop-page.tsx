@@ -4,7 +4,7 @@
 // наличность в шапке — как нарисовано.
 // =============================================================
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Trash2 } from 'lucide-react'
 import { shopApi } from '../../shared/api/shop.api'
@@ -15,6 +15,7 @@ import { ApiError } from '../../shared/api/client'
 import { SHOP_IMAGES, templateImageUrl } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
 import { itemStatLines } from '../../shared/lib/item-stat-lines'
+import { useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
 import { DogGoods } from '../locations/dog-goods'
 import './shop.css'
 
@@ -54,6 +55,7 @@ const CATEGORIES: Array<{ key: Category; label: string; match?: (item: ShopItem)
 ]
 
 const money = (value: number) => value.toLocaleString('ru-RU')
+const shopTab = (tab: string | null): Category => tab === 'tools' ? 'TOOL' : tab === 'ranged' ? 'RANGED' : 'MELEE'
 
 function itemImage(item: ShopItem) {
   return templateImageUrl(item.template.code) ?? SHOP_IMAGES[item.template.code] ?? SHOP_IMAGES.weapon_fists
@@ -67,7 +69,10 @@ export function GovernmentShopPage() {
   const qc = useQueryClient()
   // С экрана работы приходят сразу к инструменту для нужной профессии.
   const [params] = useSearchParams()
-  const [category, setCategory] = useState<Category>(params.get('tab') === 'tools' ? 'TOOL' : 'MELEE')
+  const requestedTab = params.get('tab')
+  const [category, setCategory] = useState(() => shopTab(requestedTab))
+  useEffect(() => setCategory(shopTab(requestedTab)), [requestedTab])
+  const tutorial = useCityTutorial().data
   const [profession, setProfession] = useState(params.get('profession') ?? 'ALL')
   const [level, setLevel] = useState<number | 'ALL'>('ALL')
   const [cart, setCart] = useState<string[]>([])
@@ -283,6 +288,7 @@ export function GovernmentShopPage() {
                     <div className="gshop-card-actions">
                       <button
                         className="gshop-btn"
+                        data-tutorial-focus={tutorial?.lesson === 'buy' && tutorial.weapon?.id === t.id ? '' : undefined}
                         disabled={buyMut.isPending || tooPoor || tooLow}
                         title={tooLow ? `Нужен ${t.levelReq}-й уровень` : tooPoor ? 'Не хватает денег' : undefined}
                         onClick={() => buyMut.mutate(t.id)}

@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { siteApi } from '../../shared/api/site.api'
+import { useCityTutorial } from '../city-tutorial/use-city-tutorial'
 import './welcome-modal.css'
 
 const SEEN_KEY = 'mmo_welcome_seen'
@@ -28,11 +29,13 @@ export function WelcomeModal() {
   const navigate = useNavigate()
   const location = useLocation()
   const q = useQuery({ queryKey: ['site', 'welcome'], queryFn: siteApi.welcome, staleTime: 10 * 60_000, retry: false })
+  const tutorial = useCityTutorial()
   const welcome = q.data?.welcome
   const [closedVersion, setClosedVersion] = useState<number | null>(seenVersion)
   const okRef = useRef<HTMLButtonElement>(null)
-  // На первом входе место занимает письмо Бывалого, дальше его сменяет практика.
-  const open = !!welcome && closedVersion !== welcome.version && !location.state?.newCharacter && location.pathname !== '/training'
+  const training = tutorial.isLoading || tutorial.data?.active || tutorial.data?.letterPending
+  const open = !!welcome && closedVersion !== welcome.version && !training
+    && !location.state?.newCharacter && location.pathname !== '/training'
 
   const close = () => {
     if (!welcome) return

@@ -5,7 +5,9 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, beforeEach, vi } 
 import { testPrisma, cleanDatabase, uid } from './helpers'
 import { AuthService } from '../../modules/auth/auth.service'
 import { CharactersService } from '../../modules/characters/characters.service'
-import { getTutorial, practiceTutorial } from '../../modules/characters/tutorial.service'
+import { finishTutorialAction, getTutorial } from '../../modules/characters/tutorial.service'
+import { GovernmentShopService } from '../../modules/government-shop/government-shop.service'
+import { ItemStatsService } from '../../modules/items/item-stats.service'
 import { ItemsRepository } from '../../modules/items/item-instance.repository'
 import { AppError } from '../../shared/errors/app-error'
 import { calcHpMax } from '../../modules/stats/stats.formulas'
@@ -170,21 +172,51 @@ describe('CharactersService.create', () => {
 // ---------------------------------------------------------------
 // Get profile
 // ---------------------------------------------------------------
-describe('Практика новичка', () => {
-  it('сохраняет порядок шагов и начисляет обе награды один раз при повторе запроса', async () => {
+describe('Обучение в городе', () => {
+  it('проверяет покупку, экипировку и очки урона, затем один раз выдаёт награду и письмо', async () => {
     const { userId } = await createTestUser()
     const character = await CharactersService.create(userId, { nickname: uid('Practice'), archetype: 'ATHLETE' })
-    expect(await getTutorial(userId)).toMatchObject({ step: 0, completed: false })
-    await expect(practiceTutorial(userId, 'end-turn')).rejects.toThrow('предыдущий шаг')
-    for (const action of ['buy-jacket', 'equip-jacket', 'assign-endurance', 'buy-bandage', 'choose-strike', 'choose-block']) {
-      await practiceTutorial(userId, action)
-    }
-    const results = await Promise.all([practiceTutorial(userId, 'end-turn'), practiceTutorial(userId, 'end-turn')])
-    expect(results.every(result => result.completed)).toBe(true)
+    const template = await testPrisma.itemTemplate.create({
+      data: { code: uid('practice-knife'), name: 'Учебный нож', type: 'WEAPON', weaponType: 'KNIFE',
+        sourceType: 'GOVERNMENT', priceBase: 80, minDamage: 10, maxDamage: 20, allocationMode: 'PLAYER', statBudget: 1 },
+    })
+    await testPrisma.governmentShopItem.create({ data: { templateId: template.id, sortOrder: -100 } })
+    const letter = () => testPrisma.gameNotice.count({ where: { characterId: character.id, text: { startsWith: 'Бывалый' } } })
+
+    expect(await getTutorial(userId)).toMatchObject({ lesson: 'buy', weapon: { id: template.id, canAfford: true }, letterPending: false })
+    expect(await letter()).toBe(0)
+    await expect(finishTutorialAction(userId, 'complete')).rejects.toThrow('Сначала купите')
+    const { item } = await GovernmentShopService.buy(character.id, template.id, 'tutorial-test-buy')
+    expect(await getTutorial(userId)).toMatchObject({ lesson: 'equip', weapon: { itemId: item.id } })
+    await expect(finishTutorialAction(userId, 'complete')).rejects.toThrow('Сначала купите')
+    await ItemsRepository.equip(item.id, 'LEFT_HAND')
+    expect(await getTutorial(userId)).toMatchObject({ lesson: 'allocate' })
+    await expect(finishTutorialAction(userId, 'complete')).rejects.toThrow('Сначала купите')
+    await ItemStatsService.configure(character.id, item.id, { MAX_DAMAGE: 1 }, {
+      stats: {}, mastery: {}, minusMastery: {}, charms: {}, minusCharms: {},
+    })
+    expect(await getTutorial(userId)).toMatchObject({ lesson: 'stats', letterPending: false })
+    expect(await letter()).toBe(0)
+
+    const results = await Promise.all([finishTutorialAction(userId, 'complete'), finishTutorialAction(userId, 'complete')])
+    expect(results.every(result => result.completed && result.letterPending)).toBe(true)
     expect(await testPrisma.character.findUnique({ where: { id: character.id } }))
-      .toMatchObject({ money: character.money + 5000, dollars: character.dollars + 100 })
+      .toMatchObject({ money: character.money - 80 + 5000, dollars: character.dollars + 100 })
     expect(await testPrisma.currencyLog.count({ where: { characterId: character.id, reasonCode: 'TUTORIAL' } })).toBe(1)
     expect(await testPrisma.dollarLog.count({ where: { characterId: character.id, reason: 'TUTORIAL' } })).toBe(1)
+    expect(await letter()).toBe(1)
+    await finishTutorialAction(userId, 'dismiss-letter')
+    expect(await getTutorial(userId)).toMatchObject({ completed: true, letterPending: false })
+    expect(await finishTutorialAction(userId, 'complete')).toMatchObject({ letterPending: false })
+    expect(await letter()).toBe(1)
+  })
+
+  it('сохраняет завершённое старое обучение и не выдаёт награду повторно', async () => {
+    const { userId } = await createTestUser()
+    const character = await CharactersService.create(userId, { nickname: uid('Trained'), archetype: 'ATHLETE' })
+    await testPrisma.character.update({ where: { id: character.id }, data: { tutorialStep: 7 } })
+    expect(await finishTutorialAction(userId, 'complete')).toMatchObject({ active: false, completed: true, letterPending: false })
+    expect(await testPrisma.currencyLog.count({ where: { characterId: character.id, reasonCode: 'TUTORIAL' } })).toBe(0)
   })
 })
 

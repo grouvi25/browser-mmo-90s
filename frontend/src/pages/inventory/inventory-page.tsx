@@ -21,7 +21,8 @@
 // Держим отдельной полосой под плитками, чтобы не спорить с ним.
 // =============================================================
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { OutfitBar } from './outfit-bar'
 import { GearSummaryDialog, ItemSetupDialog } from './item-setup'
@@ -30,6 +31,7 @@ import { shopApi } from '../../shared/api/shop.api'
 import { ARMOR_SLOT_LABELS, QUALITY_LABELS, effectLabel, healLabel, type ItemInstance } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
+import { useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
 import { instanceImage, itemBonusLines, itemHoverText } from '../../shared/lib/item-bonuses'
 import { SPRITES } from '../../shared/ui/sprite'
 import { rangeLabel } from '../../shared/lib/weapon-range'
@@ -143,7 +145,12 @@ const CELLS: Cell[] = [
 const place = (r: Rect) => ({ left: `${r.x}%`, top: `${r.y}%`, width: `${r.w}%`, height: `${r.h}%` })
 export function InventoryPage() {
   const qc = useQueryClient()
-  const [tabKey, setTabKey] = useState('melee')
+  const [params] = useSearchParams()
+  const weaponTab = params.get('tab') === 'ranged' ? 'ranged' : 'melee'
+  const [tabKey, setTabKey] = useState<string>(weaponTab)
+  useEffect(() => setTabKey(weaponTab), [weaponTab])
+  const tutorial = useCityTutorial().data
+  const tutorialItem = tutorial?.weapon?.itemId
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const pocket = useBattleLoadout()
   const loadoutIds = pocket.ids
@@ -224,7 +231,8 @@ export function InventoryPage() {
   // Обращение №88: надетое уходит из сумки, оно и так на фигуре слева (снять — нажать на ячейку).
   // Остаётся только надетая вещь с нераспределёнными очками, иначе её не настроить.
   const visible = items.filter(i => i.status !== 'DELETED' && (tab.match?.(i) ?? false)
-    && (!i.isEquipped || (i.template.allocationMode === 'PLAYER' && (i.freePoints ?? 0) > 0)))
+    && (!i.isEquipped || (i.template.allocationMode === 'PLAYER' && ((i.freePoints ?? 0) > 0
+      || (tutorial?.lesson === 'allocate' && i.id === tutorialItem)))))
   // №112 (Mayday 14.11): одинаковые вещи одной карточкой с количеством. Только показ —
   // в базе каждая вещь своя, действия карточки идут к первой из пачки.
   const cards = useMemo(() => {
@@ -237,11 +245,14 @@ export function InventoryPage() {
     for (const item of visible) {
       const key = keyOf(item)
       const group = groups.get(key)
-      if (group) group.count++
+      if (group) {
+        group.count++
+        if (item.id === tutorialItem) group.item = item
+      }
       else groups.set(key, { item, count: 1 })
     }
     return [...groups.values()]
-  }, [visible, grouped])
+  }, [visible, grouped, tutorialItem])
   // Колец восемь, а на шаблоне слот один: у них смотрим только, куда надето.
   const bySlot = (slot: string) => equipped.find(i => i.armorSlot === slot || (!slot.startsWith('RING') && i.template.armorSlot === slot))
 
@@ -284,7 +295,9 @@ export function InventoryPage() {
         <span>{grouped ? 'Показать по одной' : 'Собрать похожие'}</span>
       </button>
       {summaryOpen && char && <GearSummaryDialog char={char} onClose={() => setSummaryOpen(false)} />}
-      {setupItem && <ItemSetupDialog key={setupItem.id} item={setupItem} disabled={inBattle} onClose={() => setSetupId(null)} onMessage={showMsg} />}
+      {setupItem && <ItemSetupDialog key={setupItem.id} item={setupItem} disabled={inBattle}
+        tutorial={tutorial?.lesson === 'allocate' && setupItem.id === tutorialItem}
+        onClose={() => setSetupId(null)} onMessage={showMsg} />}
 
       <nav className="inv-tabs" aria-label="Категории вещей">
         {TABS.map(t => (
@@ -346,7 +359,8 @@ export function InventoryPage() {
                           {t.allocationMode === 'PLAYER' && (item.budget ?? 0) > 0 && (
                             <div className="inv-card__actions">
                               <span className="inv-card__count">Очки: {item.freePoints} из {item.budget}</span>
-                              <button type="button" className="inv-btn" disabled={inBattle} onClick={() => setSetupId(item.id)}>
+                              <button type="button" className="inv-btn" disabled={inBattle} onClick={() => setSetupId(item.id)}
+                                data-tutorial-focus={tutorial?.lesson === 'allocate' && tutorialItem === item.id ? '' : undefined}>
                                 <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
                                 <span>Настроить</span>
                               </button>
@@ -379,6 +393,7 @@ export function InventoryPage() {
                               <span className="inv-card__note">{t.type === 'TOOL' ? 'Берётся на смену сам' : 'Не надевается'}</span>
                             ) : (
                               <button type="button" className="inv-btn"
+                                data-tutorial-focus={tutorial?.lesson === 'equip' && tutorialItem === item.id ? '' : undefined}
                                 disabled={inBattle || broken || tooLow || equipMut.isPending}
                                 title={broken ? 'Сломан — сначала починить' : tooLow ? `Нужен ${t.levelReq}-й уровень` : undefined}
                                 onClick={() => equipMut.mutate({ id: item.id })}>

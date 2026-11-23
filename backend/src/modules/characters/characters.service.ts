@@ -80,10 +80,6 @@ export const CharactersService = {
 
     await NoticesService.push(char.id, 'Добро пожаловать в «Кооператив»! Если есть вопросы, напиши в общий чат. Поможем освоиться.')
 
-    // Письмо Бывалого новичку (Дмитрий 09.11): строка в ленте «Системы», сам текст — на /novichok.
-    await NoticesService.push(char.id, `Бывалый оставил тебе письмо, ${char.nickname}: «Кодекс выживания приезжего». Читай в Библиотеке → «С чего начать» или по адресу kooperativ.space/novichok`)
-      .catch(() => undefined)
-
     if (B.newbiePremiumDays > 0) {
       await NoticesService.push(char.id, `Тебе подарена подписка на ${B.newbiePremiumDays} дней: быстрее восстанавливается здоровье, больше смен и помощники. Срок видно в профиле.`)
         .catch(() => undefined)

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { markNewcomerLetter } from '../../shared/lib/newcomer-letter'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { User, Check } from 'lucide-react'
@@ -35,14 +34,13 @@ export function CreateCharacterPage() {
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => charactersApi.create({ nickname: nickname.trim(), archetype, gender }),
-    // Новичку — письмо Бывалого (Дмитрий 09.11): окно откроется в игре.
+    // Новичок начинает на площади, даже если в этой вкладке раньше играл другой персонаж.
     onSuccess: async character => {
       createdHere.current = true
       const myCharacter = { queryKey: ['character', 'me'], exact: true } as const
       await queryClient.cancelQueries(myCharacter)
       queryClient.setQueryData(myCharacter.queryKey, character)
       void queryClient.invalidateQueries({ ...myCharacter, refetchType: 'none' })
-      markNewcomerLetter()
       navigate('/', { replace: true, state: { newCharacter: true } })
     },
     onError: (err) => {

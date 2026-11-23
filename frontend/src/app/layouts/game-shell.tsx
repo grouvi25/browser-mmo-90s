@@ -10,6 +10,7 @@ import { LocationPersistence } from '../location-persistence'
 import { ApplicationWatcher } from '../application-watcher'
 import { InviteStrip } from '../invite-strip'
 import { WelcomeModal } from '../../widgets/welcome/welcome-modal'
+import { CityTutorialGuide } from '../../widgets/city-tutorial/city-tutorial-guide'
 import { Outlet } from 'react-router-dom'
 
 import { ErrorBoundary } from '../error-boundary'
@@ -29,7 +30,8 @@ export function GameShell() {
   // Узкий экран получает свою композицию: сцена по макету на нём
   // ужимается до нечитаемого. Данные и графика — те же.
   const isMobile = useIsMobile()
-  if (isMobile) return <><LocationPersistence /><ApplicationWatcher /><InviteStrip /><WelcomeModal /><MobileShell /></>
+  const common = <><LocationPersistence /><ApplicationWatcher /><InviteStrip /><WelcomeModal /><CityTutorialGuide /></>
+  if (isMobile) return <>{common}<MobileShell /></>
 
   const plate = `-webkit-image-set(url("${PLATES['menu-plate@2x']}") 2x, url("${PLATES['menu-plate']}") 1x)`
   // За сценой — тот самый слой фона из макета («Слой 22» в «Фон
@@ -48,10 +50,7 @@ export function GameShell() {
       backdrop={wall}
       className="stage--menu"
     >
-      <LocationPersistence />
-      <ApplicationWatcher />
-      <InviteStrip />
-      <WelcomeModal />
+      {common}
       {/* Подложка держит полный холст 1550x900 и обрезается сценой снизу:
           растягивать её по укороченной сцене нельзя — рисунок сплющится. */}
       <div

@@ -33,12 +33,13 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   return <section className="inv-setup__group"><h4>{title}</h4>{children}</section>
 }
 
-function Field({ label, hint, value, min, onChange, disabled }: {
-  label: string; hint?: string; value: number; min: number; disabled: boolean; onChange: (value: number) => void
+function Field({ label, hint, value, min, onChange, disabled, guided }: {
+  label: string; hint?: string; value: number; min: number; disabled: boolean; guided?: boolean; onChange: (value: number) => void
 }) {
   return (
     <label className="inv-setup__row">
       <input type="number" min={min} step={1} value={value || ''} placeholder="0" disabled={disabled}
+        data-tutorial-focus={guided ? '' : undefined}
         onChange={event => {
           const next = Math.trunc(Number(event.target.value.replace(',', '.'))) || 0
           onChange(Math.max(min, next))
@@ -112,9 +113,10 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
   )
 }
 
-export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
+export function ItemSetupDialog({ item, disabled, tutorial, onClose, onMessage }: {
   item: ItemInstance
   disabled: boolean
+  tutorial?: boolean
   onClose: () => void
   onMessage: (type: 'success' | 'error', text: string) => void
 }) {
@@ -182,7 +184,9 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
 
       <div className="inv-setup__groups">
         {ownStats.length > 0 && <Section title="Сама вещь">
+          {tutorial && <p className="city-tutorial__inline">Впиши 1 в «Макс. урон» и нажми «Сохранить». Если очки уже заняты, сними одно с другой характеристики этой вещи.</p>}
           {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${perDamage} за очко` : key === 'ARMOR' ? `+${item.armorPerPoint ?? 5} брони` : hint} min={0} disabled={busy} value={own[key] ?? 0}
+            guided={tutorial && key === 'MAX_DAMAGE' && !own.MAX_DAMAGE}
             onChange={value => setOwn(prev => ({ ...prev, [key]: value }))} />)}
           {damage && <div className={'inv-setup__damage' + (inverted ? ' is-over' : '')}>
             <div>Базовый урон оружия <b>{t.minDamage ?? 0}–{t.maxDamage ?? 0}</b></div>
@@ -215,6 +219,7 @@ export function ItemSetupDialog({ item, disabled, onClose, onMessage }: {
           </button>
         )}
         <button type="button" className="btn btn-primary" disabled={busy || left < 0 || inverted}
+          data-tutorial-focus={tutorial && (own.MAX_DAMAGE ?? 0) > 0 ? '' : undefined}
           title={left < 0 ? `Лишних очков: ${-left}` : inverted ? 'Мин. урон выше макс.' : undefined} onClick={() => save.mutate()}>
           {save.isPending ? 'Сохраняем…' : 'Сохранить'}
         </button>

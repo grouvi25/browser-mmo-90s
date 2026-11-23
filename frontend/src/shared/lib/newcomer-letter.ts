@@ -24,11 +24,3 @@ export const NEWCOMER_LETTER_POINTS: LetterPoint[] = [
 ]
 
 export const NEWCOMER_LETTER_OUTRO = 'Вникай в тему, качайся на ботах и не тупи. Будешь делать всё по уму — быстро встанешь на ноги.'
-
-/** Письмо показывается окном один раз — сразу после создания персонажа. */
-const KEY = 'mmo_newcomer_letter'
-export const NEWCOMER_LETTER_EVENT = 'mmo:newcomer-letter'
-/** Пометить и сразу открыть окно: приложение уже запущено, когда создаётся персонаж. */
-export function markNewcomerLetter() { try { localStorage.setItem(KEY, '1') } catch { /* приватный режим */ } window.dispatchEvent(new Event(NEWCOMER_LETTER_EVENT)) }
-export function hasNewcomerLetter(): boolean { try { return localStorage.getItem(KEY) === '1' } catch { return false } }
-export function clearNewcomerLetter() { try { localStorage.removeItem(KEY) } catch { /* приватный режим */ } }
