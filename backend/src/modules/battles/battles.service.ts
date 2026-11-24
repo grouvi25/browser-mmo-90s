@@ -1,5 +1,6 @@
 import type { BattleAction, Prisma, WeaponType as PrismaWeaponType } from '@prisma/client'
 import { combatRating, typicalRatingForLevel } from './exp-rating'
+import { companionDamageHp } from './combat-hp'
 import { buffTotals, effectText, liveEffects, parseActiveEffects, parseUseEffect, regenPercentAt, withAppliedEffect, withEffectStats } from '../items/item-effects'
 import { loadCombatDog, type LiveDog } from './combat-dog'
 import { heldWeapon, registerWound, woundedArmor, woundedBotEquip, type Wounds } from './wounds'
@@ -2558,7 +2559,7 @@ export const BattleService = {
               const zone = BODY_ZONES[Math.floor(Math.random() * BODY_ZONES.length)]
               const armor = armorOfZone(armorListFromEquipped(victimCtx.armor, victimCtx.char, [victimCtx.weaponLeft, victimCtx.weaponRight]), zone)
               hit.rawDamage = hit.damage
-              hit.damage = Math.max(0, Math.floor(hit.damage - calcArmorFlat(armor, 0) * BalanceConfig.strike.damageScale))
+              hit.damage = companionDamageHp(hit.damage, calcArmorFlat(armor, 0))
               hit.zone = zone
               const zones = hitZones.get(targetId) ?? []
               zones.push(zone)

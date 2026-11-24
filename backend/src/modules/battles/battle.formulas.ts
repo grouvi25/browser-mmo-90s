@@ -3,6 +3,7 @@ import { calcWeaponSkillExp } from '../stats/stats.formulas'
 import { BalanceConfig } from '../../config/balance.config'
 import { clamp } from '../../shared/utils/clamp'
 import { randomFloat } from '../../shared/utils/random'
+import { attackDamageHp } from './combat-hp'
 
 // Types for battle formula inputs
 export interface AttackerSnapshot {
@@ -530,13 +531,8 @@ export function resolveZonalAttack(
   rawDamage = incomingForce * critMult
   if (crit) log.push('КРИТ!')
 
-  // 6. Броня зоны с половиной выносливости вычитается из удара (Дима 15.11),
-  //    затем разброс ±10% и масштаб под наши вещи и здоровье.
-  const dmg = Math.max(0, rawDamage - calcArmorFlat(zoneArmor, defender.end)) * calcSpread(rng) * B.strike.damageScale
-
-  // Броня или защита 250% могут свести удар в ноль — это норма (Дима 15.11).
-  const afterDefense = dmg * (defender.incomingDamageMultiplier ?? 1)
-  finalDamage = afterDefense <= 0 ? 0 : Math.max(B.damage.minFinalDamage, Math.floor(afterDefense))
+  finalDamage = attackDamageHp(rawDamage, calcArmorFlat(zoneArmor, defender.end), calcSpread(rng),
+    defender.incomingDamageMultiplier ?? 1, B.damage.minFinalDamage)
   log.push(`Удар в ${zoneName}: ${finalDamage}`)
   return base()
 }

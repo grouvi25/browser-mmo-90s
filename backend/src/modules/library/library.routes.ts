@@ -10,6 +10,7 @@ import type { FastifyInstance } from 'fastify'
 import { authenticate } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
 import { BalanceConfig } from '../../config/balance.config'
+import { catalogPointsToHp } from '../battles/combat-hp'
 import { PROFESSION_CUMULATIVE_XP, PROFESSION_GROUPS, PROFESSION_NAMES, professionEfficiency, previousProfession, type ProfessionCode } from '../professions/professions'
 import { soldGeneralTools, toolForTier } from '../work/tool-names'
 import { govCraftable, realShiftMinutes } from '../work/work.formulas'
@@ -121,7 +122,8 @@ export async function libraryTables() {
     const rules = {
       statGap: B.edge.statGap, charmGapPct: B.edge.charmGap * 100, critMult: B.crit.multiplierBase,
       dodgeCritPct: Math.round((B.edge.dodgePierceCrit ?? 0.33) * 100), dodgeLuckPct: Math.round((B.edge.dodgePierceLuck ?? 0.25) * 100),
-      endArmor: B.strike.endArmor, armorPerPoint: B.strike.armorPerPoint, damageScale: B.strike.damageScale, spreadPct: Math.round(B.strike.spread * 100),
+      endArmor: catalogPointsToHp(B.strike.endArmor), armorPerPoint: catalogPointsToHp(B.strike.armorPerPoint),
+      damagePerStrength: catalogPointsToHp(B.strike.strCoeff), spreadPct: Math.round(B.strike.spread * 100),
       defenseFullPct: (B.strike.defenseFullAt ?? 2.5) * 100, strengthFullPct: B.strengthMastery.fullAt * 100,
       strengthFloor: [B.strengthMastery.floorMin, B.strengthMastery.floorMax],
       antiFartPct: Math.round((B.edge.antiFartPerPoint ?? 0.01) * 100), antiFartCapPct: Math.round((B.edge.antiFartCap ?? 0.2) * 100),

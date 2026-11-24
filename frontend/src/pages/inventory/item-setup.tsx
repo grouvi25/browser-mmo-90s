@@ -14,6 +14,7 @@ import { inventoryApi } from '../../shared/api/inventory.api'
 import { ApiError } from '../../shared/api/client'
 import { squareImage } from '../../shared/lib/image-resize'
 import { CHARM_LABELS, MASTERY_LABELS, STAT_LABELS, instanceImage } from '../../shared/lib/item-bonuses'
+import { formatItemHp, itemDamageRange } from '../../shared/lib/combat-hp'
 import type { Character, ItemBonuses, ItemInstance, ItemStatKey } from '../../shared/types/api.types'
 
 // Урон оружия очками (обращение №89): единицы к нижней и верхней границе.
@@ -185,12 +186,12 @@ export function ItemSetupDialog({ item, disabled, tutorial, onClose, onMessage }
       <div className="inv-setup__groups">
         {ownStats.length > 0 && <Section title="Сама вещь">
           {tutorial && <p className="city-tutorial__inline">Впиши 1 в «Макс. урон» и нажми «Сохранить». Если очки уже заняты, сними одно с другой характеристики этой вещи.</p>}
-          {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${perDamage} за очко` : key === 'ARMOR' ? `+${item.armorPerPoint ?? 5} брони` : hint} min={0} disabled={busy} value={own[key] ?? 0}
+          {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${formatItemHp(perDamage)} HP за очко` : key === 'ARMOR' ? `+${formatItemHp(item.armorPerPoint ?? 5)} HP защиты` : hint} min={0} disabled={busy} value={own[key] ?? 0}
             guided={tutorial && key === 'MAX_DAMAGE' && !own.MAX_DAMAGE}
             onChange={value => setOwn(prev => ({ ...prev, [key]: value }))} />)}
           {damage && <div className={'inv-setup__damage' + (inverted ? ' is-over' : '')}>
-            <div>Базовый урон оружия <b>{t.minDamage ?? 0}–{t.maxDamage ?? 0}</b></div>
-            <div>Урон оружия с этим раскладом <b>{damage.min}–{damage.max}</b></div>
+            <div>Базовый урон оружия <b>{itemDamageRange(t.minDamage ?? 0, t.maxDamage ?? 0)}</b></div>
+            <div>Урон оружия с этим раскладом <b>{itemDamageRange(damage.min, damage.max)}</b></div>
             {inverted && <small>Минимум выше максимума. Перераспределите очки урона.</small>}
           </div>}
         </Section>}

@@ -33,6 +33,7 @@ import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
 import { instanceImage, itemBonusLines, itemHoverText } from '../../shared/lib/item-bonuses'
+import { formatItemHp, itemDamageRange, itemHp } from '../../shared/lib/combat-hp'
 import { SPRITES } from '../../shared/ui/sprite'
 import { rangeLabel } from '../../shared/lib/weapon-range'
 import { useBattleLoadout } from '../../shared/lib/battle-loadout'
@@ -93,7 +94,7 @@ interface Cell { slot: string | null; box: Rect; sockets: Rect[] }
  */
 /** Прибавка от очков, улучшений и камней к базовой характеристике. */
 function Gain({ value }: { value: number }) {
-  return value > 0 ? <span className="inv-card__gain"> (+{value})</span> : null
+  return value > 0 ? <span className="inv-card__gain"> (+{value.toLocaleString('ru-RU', { maximumFractionDigits: 3 })})</span> : null
 }
 /** Доли (0.05) в проценты с одним знаком после запятой, без хвостовых нулей. */
 const pct = (share: number) => Math.round(share * 1000) / 10
@@ -339,9 +340,9 @@ export function InventoryPage() {
                           {item.sellPrice != null && <div><dt>Продажа государству</dt><dd>{item.sellPrice.toLocaleString('ru-RU')} ₽</dd></div>}
                           <div><dt>Качество</dt><dd>{QUALITY_LABELS[item.quality]}</dd></div>
                           <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
-                          {t.minDamage != null && <div><dt>Урон</dt><dd>{eff?.minDamage ?? t.minDamage}–{eff?.maxDamage ?? t.maxDamage}<Gain value={(eff?.maxDamage ?? 0) - (t.maxDamage ?? 0)} /></dd></div>}
+                          {t.minDamage != null && <div><dt>Урон</dt><dd>{itemDamageRange(eff?.minDamage ?? t.minDamage, eff?.maxDamage ?? t.maxDamage ?? t.minDamage)}<Gain value={itemHp((eff?.maxDamage ?? t.maxDamage ?? 0) - (t.maxDamage ?? 0))} /></dd></div>}
                           {t.type === 'WEAPON' && !!t.maxRange && <div><dt>Дальность</dt><dd>{rangeLabel(t.maxRange)}</dd></div>}
-                          {!!t.armor && <div><dt>Броня тела</dt><dd>+{eff?.armor ?? t.armor}<Gain value={(eff?.armor ?? 0) - (t.armor ?? 0)} /></dd></div>}
+                          {!!(eff?.armor ?? t.armor) && <div><dt>Броня тела</dt><dd>+{formatItemHp(eff?.armor ?? t.armor ?? 0)} HP<Gain value={itemHp((eff?.armor ?? t.armor ?? 0) - (t.armor ?? 0))} /></dd></div>}
                           {(!!t.hpBonus || !!t.healPercent) && <div><dt>{t.type === 'CONSUMABLE' ? 'Восстановит' : 'Здоровье'}</dt><dd>+{healLabel(t)}</dd></div>}
                           {!!t.useEffect && <div><dt>Эффект</dt><dd>{effectLabel(t.useEffect)}</dd></div>}
                           {!!t.soberAmount && <div><dt>Опьянение</dt><dd>{t.soberAmount >= 100 ? 'снимает полностью' : `−${t.soberAmount}`}</dd></div>}

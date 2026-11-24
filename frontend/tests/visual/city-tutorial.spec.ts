@@ -26,6 +26,7 @@ test('новичок покупает и настраивает оружие в 
   await guide.getByRole('link', { name: 'В Госмагазин' }).click()
   const buy = page.locator('[data-tutorial-focus]').getByText('Купить', { exact: true })
   await expect(buy).toBeVisible()
+  await expect(page.locator('.gshop-card').filter({ has: buy })).toContainText('7–15,75 HP')
   await buy.click()
   await expect(guide.getByText('Надень оружие')).toBeVisible()
   await guide.getByRole('link', { name: 'На Склад' }).click()

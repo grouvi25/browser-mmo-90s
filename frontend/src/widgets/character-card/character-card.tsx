@@ -23,6 +23,7 @@ import type { ItemInstance } from '../../shared/types/api.types'
 import { WEAPON_TYPE_LABELS } from '../../shared/types/api.types'
 import { itemImage } from '../../shared/assets/shop/shop-images'
 import { MASTERY_LABELS, instanceImage, itemHoverText } from '../../shared/lib/item-bonuses'
+import { formatItemHp } from '../../shared/lib/combat-hp'
 import { IntoxicationBadge } from '../intoxication-badge/intoxication-badge'
 import { dogTitle } from '../../shared/lib/dog'
 import { dogImage } from '../../shared/assets/dogs/dog-images'
@@ -363,7 +364,7 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
                 active={own && zone === key}
                 disabled={!own}
                 // Броня чужого бойца приходит в боевом профиле (Дима 17.11).
-                title={own || profile?.zoneArmor ? `${z.label} · броня ${armor}` : z.label}
+                title={own || profile?.zoneArmor ? `${z.label} · броня ${formatItemHp(armor)} HP` : z.label}
                 onClick={own ? () => setZone(zone === key ? null : key) : undefined}
               />
             )
@@ -385,7 +386,7 @@ export function CharacterCard({ profile, wounds, liveHp, showRating }: {
             const armor = zoneArmor[z.key] ?? 0
             if (armor <= 0) return null
             return <span key={`armor-n-${z.key}`} className="zone-armor-n" aria-hidden="true"
-              style={{ left: z.box.x + z.box.w / 2, top: z.box.y + z.box.h / 2 }}>{armor}</span>
+              style={{ left: z.box.x + z.box.w / 2, top: z.box.y + z.box.h / 2 }}>{formatItemHp(armor)}</span>
           })}
 
           {/* Раны в бою: человечек зелёный, после попаданий жёлтый,

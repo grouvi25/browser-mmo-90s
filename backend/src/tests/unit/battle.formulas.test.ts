@@ -226,23 +226,16 @@ describe('calcSpread', () => {
   })
 })
 
-describe('book strike example', () => {
-  // Книга считает без масштаба под наши вещи — сверяем её же числа.
-  const strike = BalanceConfig.strike as { damageScale: number }
-  const scale = strike.damageScale
-  beforeEach(() => { strike.damageScale = 1 })
-  afterEach(() => { strike.damageScale = scale })
-
-  // Дима 15.11: броня единицами вычитается из удара (броня 5 + половина выносливости 10 = 10).
-  it('strength 10, weapon 10, armor 5, endurance 10, level 1: ordinary 15, crit 27', () => {
+describe('strike in hit points', () => {
+  it('uses the same HP scale for attack, critical damage and flat armor', () => {
     const attacker = makeAttacker({ str: 10, minDamage: 10, maxDamage: 10, weaponSkillLevel: 0, acc: 10, agr: 0 })
     const defender = makeDefender({ agi: 10, end: 10, armor: 5, level: 1, agr: 0 })
     // уворот нет (0), удачи нет (0.99), оружие (0.5), крит нет (0.99), средний разброс (0.5)
     const plain = (() => { const q = [0, 0.99, 0.5, 0.99, 0.5]; return resolveAttack(attacker, defender, false, () => q.shift() ?? 0.5) })()
-    expect(plain.finalDamage).toBe(15)
+    expect(plain.finalDamage).toBe(5)
     const crit = (() => { const q = [0, 0.99, 0.5, 0, 0.5]; return resolveAttack(attacker, defender, false, () => q.shift() ?? 0.5) })()
     expect(crit.crit).toBe(true)
-    expect(crit.finalDamage).toBe(27)
+    expect(crit.finalDamage).toBe(9)
   })
 })
 

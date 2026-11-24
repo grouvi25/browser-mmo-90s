@@ -221,12 +221,12 @@ export function balanceRegistry(): BalanceGroup[] {
         {
           id: 'battle.damage',
           title: 'Урон до брони',
-          formula: 'урон = (оружие × множитель_владения + СИЛ × 1.5 + плоский_бонус) × исходящий_множитель',
+          formula: 'атака в HP = (оружие в HP × владение + СИЛ × вклад силы в HP + бонус в HP) × исходящий эффект',
           what: 'Урон до брони.',
-          affects: 'Книга: база = 1,5 × сила + сила оружия. Владение оружием даёт до +50% к вкладу оружия. Новичок с навыком 1 бьёт на 100% урона оружия.',
+          affects: 'Сила и оружие складываются в шкале HP. Владение оружием даёт до +50% к вкладу оружия. Параметры справочника хранятся в исходных единицах.',
           inputs: ['урон оружия', 'эффективное владение', 'СИЛ'],
           params: [
-            p('strike.strCoeff', B.strike.strCoeff, 'вклад силы'),
+            p('strike.strCoeff', B.strike.strCoeff, 'вклад силы в единицах справочника'),
             p('damage.wskBase', B.damage.wskBase, 'множитель без навыка — ровно 100%'),
             p('damage.wskPerLevel', B.damage.wskPerLevel, 'прибавка за уровень до 20-го'),
             p('damage.wskPerLevelOver20', B.damage.wskPerLevelOver20, 'после 20-го растёт медленнее'),
@@ -237,13 +237,13 @@ export function balanceRegistry(): BalanceGroup[] {
         {
           id: 'battle.armor',
           title: 'Броня',
-          formula: `урон = (удар − (броня_зоны + ${B.strike.endArmor} × ВЫН_цели)) × разброс(1 ± ${B.strike.spread}) × ${B.strike.damageScale} × (1 − мастерство_защиты/${(B.strike.defenseFullAt ?? 2.5) * 100}%), не меньше 0`,
+          formula: `урон в HP = (атака в HP − защита в HP) × разброс(1 ± ${B.strike.spread}) × (1 − мастерство_защиты/${(B.strike.defenseFullAt ?? 2.5) * 100}%), не меньше 0`,
           what: 'Во что превращается урон на защите.',
-          affects: `Дима 15.11: броня единицами. Броня зоны плюс половина выносливости вычитается из удара; больше удара — урон в ноль, танка можно не пробить. Очко брони на вещи = ${B.strike.armorPerPoint} брони, вещь без зоны делит броню на все зоны. На красной зоне броня 0. Масштаб ${B.strike.damageScale}: без него бой кончался за один ход.`,
+          affects: 'Броня зоны и вклад выносливости вычитаются из атаки в HP. Вещь без зоны делит свою броню на все зоны. На красной зоне броня вещи не действует.',
           inputs: ['урон до брони', 'броня зоны', 'ВЫН защитника', 'уровень защитника'],
           params: [
-            p('strike.endArmor', B.strike.endArmor, 'сколько брони даёт единица выносливости'),
-            p('strike.armorPerPoint', B.strike.armorPerPoint, 'брони за 1 очко на вещи'),
+            p('strike.endArmor', B.strike.endArmor, 'броня за единицу выносливости в единицах справочника'),
+            p('strike.armorPerPoint', B.strike.armorPerPoint, 'броня за очко вещи в единицах справочника'),
             p('strike.defenseFullAt', B.strike.defenseFullAt, 'мастерство защиты, при котором урон в ноль (2.5 = 250%)'),
             p('strike.spread', B.strike.spread, 'разброс удара в обе стороны'),
             p('damage.minFinalDamage', B.damage.minFinalDamage, 'меньше этого удар не бывает'),

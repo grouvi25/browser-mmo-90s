@@ -10,6 +10,7 @@
 // «откуда столько».
 // =============================================================
 import { BalanceConfig as B } from '../../config/balance.config'
+import { attackDamageHp, catalogPointsToHp as hp } from '../battles/combat-hp'
 import {
   calcCritChance, calcDodgeChance, calcEffectiveWeaponSkill,
   calcWeaponSkillMultiplier, calcArmorFlat, calcLuckyPierceChance,
@@ -147,14 +148,14 @@ export const BALANCE_EXAMPLES: Record<string, () => BalanceExample> = {
     const mult = calcWeaponSkillMultiplier(effective)
     const raw = roll * mult + ATTACKER.str * B.strike.strCoeff
     return {
-      given: [`оружие ${ATTACKER.minDamage}–${ATTACKER.maxDamage} (берём среднее ${roll})`,
+      given: [`оружие ${hp(ATTACKER.minDamage)}–${hp(ATTACKER.maxDamage)} HP (берём ${hp(roll)})`,
         `владение ${ATTACKER.weaponSkillLevel}`, `сила ${ATTACKER.str}`],
       steps: [
         { text: `множитель владения при навыке ${effective}`, value: `×${round2(mult)}` },
-        { text: `оружие × множитель: ${roll} × ${round2(mult)}`, value: round2(roll * mult).toString() },
-        { text: `сила: ${ATTACKER.str} × ${B.strike.strCoeff}`, value: `+${ATTACKER.str * B.strike.strCoeff}` },
+        { text: `оружие × множитель: ${hp(roll)} × ${round2(mult)}`, value: round2(hp(roll * mult)).toString() },
+        { text: `сила: ${ATTACKER.str} × ${hp(B.strike.strCoeff)}`, value: `+${hp(ATTACKER.str * B.strike.strCoeff)} HP` },
       ],
-      result: `${Math.round(raw)} урона до брони`,
+      result: `${round2(hp(raw))} HP до брони`,
       meaning: 'Это ещё не то, что увидит защитник: дальше урон срежет броня.',
     }
   },
@@ -165,19 +166,18 @@ export const BALANCE_EXAMPLES: Record<string, () => BalanceExample> = {
     const mult = calcWeaponSkillMultiplier(ATTACKER.weaponSkillLevel)
     const raw = roll * mult + ATTACKER.str * C.strCoeff
     const flat = calcArmorFlat(DEFENDER.armor, DEFENDER.end)
-    const left = Math.max(0, raw - flat)
-    const final = Math.floor(left * C.damageScale)
+    const left = Math.max(0, hp(raw) - hp(flat))
+    const final = attackDamageHp(raw, flat, 1, 1, B.damage.minFinalDamage)
     return {
-      given: [`урон до брони ${Math.round(raw)}`, `броня зоны ${DEFENDER.armor}`, `выносливость цели ${DEFENDER.end}`],
+      given: [`атака до брони ${round2(hp(raw))} HP`, `броня зоны ${hp(DEFENDER.armor)} HP`, `выносливость цели ${DEFENDER.end}`],
       steps: [
-        { text: `броня: ${DEFENDER.armor} + ${C.endArmor} × ${DEFENDER.end}`, value: String(round2(flat)) },
-        { text: `вычитаем из удара: ${Math.round(raw)} − ${round2(flat)}`, value: String(round2(left)) },
-        { text: `масштаб под здоровье: × ${C.damageScale}`, value: String(final) },
+        { text: `броня: ${hp(DEFENDER.armor)} + ${hp(C.endArmor)} × ${DEFENDER.end}`, value: String(round2(hp(flat))) },
+        { text: `вычитаем из удара: ${round2(hp(raw))} − ${round2(hp(flat))}`, value: String(round2(left)) },
         { text: `разброс ±${pct(C.spread)}`, value: 'взят средний' },
         { text: `мастерство защиты ${C.defenseFullAt * 100}% (за вычетом минус-защиты бьющего)`, value: 'урон в ноль, меньше — пропорционально' },
       ],
       result: `${final} урона по здоровью`,
-      meaning: `Броня единицами (Дима 15.11): вычитается из удара, больше удара — урон 0, танка можно не пробить. Очко брони на вещи = ${C.armorPerPoint} брони. На красной зоне (третье попадание) броня зоны 0.`,
+      meaning: `Очко брони на вещи поглощает ${hp(C.armorPerPoint)} HP до разброса. На красной зоне (третье попадание) броня вещи не действует.`,
     }
   },
 
