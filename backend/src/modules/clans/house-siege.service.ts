@@ -395,6 +395,18 @@ export const HouseSiegeService = {
           data: { traumaUntil: new Date(now.getTime() + S.traumaHours * HOUR) },
         })
       }
+      // Травмы v8, раздел 9: личный авторитет за осаду. Защита: участие или
+      // успешная оборона; нападение: участие или победа.
+      if (row.battleId) {
+        const I = BalanceConfig.injuries
+        const fighters = await tx.battleParticipant.findMany({ where: { battleId: row.battleId, characterId: { not: null } }, select: { characterId: true, side: true } })
+        for (const { characterId, side } of fighters) {
+          const points = side === 1
+            ? (result === 'ATTACKERS_WON' ? I.authorityAttackWin : I.authorityAttack)
+            : (result === 'DEFENDERS_WON' ? I.authorityDefendWin : I.authorityDefend)
+          await tx.clanMember.updateMany({ where: { characterId: characterId!, status: 'ACTIVE' }, data: { authority: { increment: points } } })
+        }
+      }
       return row
     })
     if (!siege) return

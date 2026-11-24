@@ -231,7 +231,7 @@ export const ChatService = {
     if (!ids.length) return []
     const rows = await prisma.character.findMany({
       where: { id: { in: ids } },
-      select: { id: true, nickname: true, battleLevel: true, clanId: true },
+      select: { id: true, nickname: true, battleLevel: true, clanId: true, location: true },
     })
     const clanIds = [...new Set(rows.map(r => r.clanId).filter(Boolean) as string[])]
     const clans = new Map((await prisma.clan.findMany({
@@ -242,7 +242,8 @@ export const ChatService = {
     return ids.flatMap(id => {
       const row = byId.get(id)
       // Бригада с иконкой — в списке онлайн рядом с ником (правка 21.10).
-      return row ? [{ characterId: row.id, nickname: row.nickname, level: row.battleLevel, clan: row.clanId ? clans.get(row.clanId) ?? null : null }] : []
+      // Место — для засады (травмы v8): значок только у тех, кто стоит рядом. В досье оно и так открыто.
+      return row ? [{ characterId: row.id, nickname: row.nickname, level: row.battleLevel, clan: row.clanId ? clans.get(row.clanId) ?? null : null, location: row.location }] : []
     })
   },
 

@@ -225,6 +225,12 @@ export const ChatRedis = {
     await getRedis().zadd(CHAT_PRESENCE_KEY, Date.now(), charId)
   },
 
+  /** Когда игрок последний раз был в эфире, мс эпохи, или null. Список не чистит. */
+  async presenceAt(charId: string): Promise<number | null> {
+    const score = await getRedis().zscore(CHAT_PRESENCE_KEY, charId)
+    return score === null ? null : Number(score)
+  },
+
   async presenceLeave(charId: string): Promise<void> {
     await getRedis().zrem(CHAT_PRESENCE_KEY, charId)
   },

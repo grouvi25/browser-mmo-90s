@@ -8,6 +8,7 @@ import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
 import { clanObjectLimit } from '../production/ownership.service'
 import { CLAN_CREATE_COST_USD, CLAN_JOIN_MIN_LEVEL, CLAN_MIN_LEVEL, CLAN_REJOIN_HOURS, CLAN_RELATION_COOLDOWN_HOURS, DEFAULT_ROLES, clanMemberCapacity, clanStorageCapacity, storageWithdrawDailyLimit, treasurySpendDailyLimit, type ClanPermission } from './clans.formulas'
+import { authorityForDeposit } from '../battles/injuries.formulas'
 
 function permissions(role: { permissions: Prisma.JsonValue }): string[] {
   return Array.isArray(role.permissions) ? role.permissions.filter((value): value is string => typeof value === 'string') : []
@@ -265,6 +266,11 @@ export const ClansService = {
       const debtPaid = Math.min(member.clan.maintenanceDebt, amount)
       const updated = await tx.clan.update({ where: { id: member.clanId }, data: { treasury: { increment: amount - debtPaid }, maintenanceDebt: { decrement: debtPaid }, ...(member.clan.maintenanceDebt - debtPaid < 1500 ? { isFrozen: false } : {}) } })
       await tx.clanTreasuryLog.create({ data: { clanId: member.clanId, characterId, amount, balanceAfter: updated.treasury, reason: 'DEPOSIT' } })
+      // Травмы v8, раздел 9: взнос поднимает личный авторитет и гасит долг перед общаком.
+      await tx.clanMember.update({
+        where: { id: member.id },
+        data: { authority: { increment: authorityForDeposit(amount) }, treasuryDebt: Math.max(0, member.treasuryDebt - amount) },
+      })
       return { treasury: updated.treasury, debt: updated.maintenanceDebt, newBalance }
     })
   },

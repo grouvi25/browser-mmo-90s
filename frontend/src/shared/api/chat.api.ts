@@ -47,6 +47,8 @@ export interface OnlinePlayer {
   resident?: ResidentProfile
   /** Бригада игрока с версией иконки (правка 21.10). */
   clan?: { id: string; name: string; iconVersion: number } | null
+  /** Где стоит игрок: значок засады только у тех, кто рядом (травмы v8). */
+  location?: string | null
 }
 
 export const chatApi = {

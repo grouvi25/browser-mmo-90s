@@ -119,6 +119,7 @@ const PLACES: Place[] = [
       { key: 'helpers', label: 'Помощники', to: '/premium/helpers' },
       { key: 'exchange', label: 'Обменник', to: '/premium/exchange' },
       { key: 'referral', label: 'Рефералы', to: '/premium/referral' },
+      { key: 'underground', label: 'Подпольная лавка', to: '/premium/underground' },
     ],
   },
 ]

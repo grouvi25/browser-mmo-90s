@@ -4,6 +4,7 @@
 // Лента приходит из /api/chat, живые реплики — сокетом, присутствие
 // игроков и городских персонажей — из общего списка эфира.
 // =============================================================
+import { AmbushButton } from '../ambush/ambush-button'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -203,6 +204,7 @@ export function OnlineList() {
           >
             {p.clan?.iconVersion ? <img className="clan-icon" src={clansApi.iconUrl(p.clan.id, p.clan.iconVersion)} alt="" title={`Бригада «${p.clan.name}»`} width={14} height={14} /> : null}
             {!p.self && !p.resident && <PrivateArrow nick={p.nickname} />}
+            {!p.self && <AmbushButton player={p} />}
             {p.self
               ? <span className="online-list__nick">{p.nickname}</span>
               : <button type="button" className="online-list__nick" title={p.resident ? 'Открыть профиль' : 'Обратиться к игроку в чате'}

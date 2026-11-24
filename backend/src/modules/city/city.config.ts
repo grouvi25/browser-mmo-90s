@@ -42,7 +42,7 @@ export const CITY_PATHS = ['/', '/unsorted', '/housing', '/housing/home', '/pvp'
   '/skills', '/stats', '/battles/history', '/premium', '/premium/helpers', '/territories/raids',
   '/territories/wars', '/shops/private', '/district/market', '/district/suburb', '/district/station',
   '/radio', '/news', '/updates', '/forum', '/soon/storage', '/soon/equipment-production', '/soon/logistics',
-  '/hospital', '/clinic'] as const
+  '/hospital', '/clinic', '/premium/underground'] as const
 export function validCityPath(path: string): boolean {
   return (CITY_PATHS as readonly string[]).includes(path)
     || /^\/territories\/[a-z0-9_-]+\/claims\/[0-9a-f-]{36}$/i.test(path)

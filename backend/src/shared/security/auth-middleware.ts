@@ -7,6 +7,10 @@ import { ErrorCode } from '../errors/error-codes'
 import { prisma } from '../db/prisma'
 import { isAdminSessionValid, isSessionValid } from './jwt'
 import { markActiveDay } from '../../modules/analytics/acquisition'
+import { inReanimation } from '../../modules/battles/injuries.formulas'
+
+/** Что можно из реанимации: лечение, чат, поддержка, выход и место — сама больница. */
+const REANIMATION_ALLOWED = ['/api/hospital', '/api/chat', '/api/support', '/api/auth/logout', '/api/city/location']
 
 export interface AuthUser {
   userId: string
@@ -52,10 +56,15 @@ export async function authenticate(
     }
 
     if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
-      const character = await prisma.character.findUnique({ where: { userId: payload.sub }, select: { jailedUntil: true } })
+      const character = await prisma.character.findUnique({ where: { userId: payload.sub }, select: { jailedUntil: true, injuryTier: true, injuryUntil: true } })
       const path = request.url.split('?')[0]
       if (character && inPrison(character.jailedUntil) && path !== '/api/city/location' && path !== '/api/auth/logout') {
         throw AppError.forbidden('Персонаж находится в тюрьме: игровые действия недоступны до освобождения')
+      }
+      // Травмы v8: из реанимации нельзя ни драться, ни работать, ни торговать,
+      // ни ходить. Остаются лечение, разговоры и поддержка — позвать бригаду на помощь.
+      if (character && inReanimation(character) && !REANIMATION_ALLOWED.some(prefix => path === prefix || path.startsWith(prefix + '/'))) {
+        throw AppError.forbidden('Вы в реанимации: действия недоступны до выписки')
       }
     }
     request.authUser = {

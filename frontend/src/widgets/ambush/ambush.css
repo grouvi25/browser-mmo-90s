@@ -1,0 +1,21 @@
+/* Засада (травмы v8): значок у ника в списке онлайн и окно подтверждения. */
+.ambush-btn {
+  padding: 0 2px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: .8em; line-height: 1; filter: grayscale(.4);
+  transition: filter 120ms;
+}
+.ambush-btn:hover { filter: none; }
+.ambush-btn:active { filter: brightness(.8); }
+.ambush-btn:focus-visible { outline: 2px solid var(--ink-red); outline-offset: 1px; }
+.m-chat__player-row .ambush-btn { flex: 0 0 44px; min-height: 44px; font-size: 18px; border: 1px solid rgba(43, 43, 43, .35); background: rgba(255, 255, 255, .45); }
+
+.ambush-dialog {
+  position: fixed; inset: 0; margin: auto; height: fit-content;
+  box-sizing: border-box; width: min(370px, calc(100% - 24px)); padding: 0;
+  border: 2px solid #554235; background: #f4e8d4; color: #261d17; font-family: var(--font-ui);
+}
+.ambush-dialog::backdrop { background: rgb(18 13 10 / 58%); }
+.ambush-dialog article { padding: 16px; }
+.ambush-dialog h2 { margin: 0 0 8px; font-size: 20px; overflow-wrap: anywhere; }
+.ambush-dialog__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ambush-dialog__error { color: #8a1a1a; }

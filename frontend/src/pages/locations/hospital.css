@@ -13,3 +13,8 @@
   .hospital__sign li { grid-template-columns: 1fr auto; }
   .hospital__sign .hospital__muted { grid-column: 1 / -1; }
 }
+.hospital__actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.hospital__patients { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.hospital__patients li { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed var(--border-light, #3d3c2a); }
+.hospital__patients li:last-child { border-bottom: 0; }
+@media (max-width: 480px) { .hospital__patients li { flex-direction: column; align-items: stretch; } }

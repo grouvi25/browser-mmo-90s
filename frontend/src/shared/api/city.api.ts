@@ -1,6 +1,6 @@
 import { api } from './client'
 import type { ItemTemplate } from '../types/api.types'
-export interface CityLocation { path: string; jailedUntil: string | null; jailReason: string | null }
+export interface CityLocation { path: string; jailedUntil: string | null; jailReason: string | null; reanimationUntil?: string | null }
 export interface Pet { id: string; code: string; name: string; food: number; fedUntil: string | null }
 export interface DogEntry { code: string; name: string; role: string; price: number; priceDollars?: number; mainStat?: string; freeAllocation?: boolean; points: number }
 export interface DogGearItem { code: string; slot: 'MUZZLE' | 'ARMOR' | 'COLLAR' | 'BOOTS'; name: string; price: number; bonus: Record<string, number>; currency?: 'RUB' | 'USD'; budget?: number; named?: boolean }

@@ -219,6 +219,8 @@ enum CurrencyLogReason {
   HELPER_RENT // Аренда первого помощника, 2000 ₽ за 30 дней (Дима 15.11)
   LEVEL_BONUS // Премия за новый боевой или экономический уровень (№133)
   HOSPITAL // Травмпункт городской больницы (травмы v8, Дима 24.11)
+  REANIMATION // Платное сокращение отлёжки в реанимации
+  UNDERGROUND_SHOP // Подпольная лавка Чёрного рынка: бинокль
 }
 
 enum ItemLogAction {
@@ -663,6 +665,16 @@ model Character {
   injuryUntil     DateTime?   @map("injury_until")
   /// Когда оплатили лечение: дальше идёт только ожидание в травмпункте.
   injuryTreatedAt DateTime?   @map("injury_treated_at")
+  /// Когда наступило последнее критическое (или кома): начало отлёжки и
+  /// триггер комы «второе критическое за сутки».
+  injuryCriticalAt DateTime? @map("injury_critical_at")
+  /// Заявки из общака на это состояние и время последней (одна в полчаса).
+  injuryAidCount   Int       @default(0) @map("injury_aid_count")
+  injuryAidAt      DateTime? @map("injury_aid_at")
+  /// Сокращений через ЧМЦ на это состояние.
+  injuryClinicUsed Int       @default(0) @map("injury_clinic_used")
+  /// «Карманы» (травмы v8, раздел 12): бинокль для засады, не активирован.
+  pocketBinoculars Int       @default(0) @map("pocket_binoculars")
 
   // HP
   hpCurrent Int @map("hp_current")
@@ -1330,6 +1342,10 @@ model ClanMember {
   storageWithdrawn   Int              @default(0) @map("storage_withdrawn")
   treasurySpentAt    DateTime?        @map("treasury_spent_at")
   treasurySpent      Int              @default(0) @map("treasury_spent")
+  /// Личный авторитет в бригаде (травмы v8, раздел 9): осады и взносы.
+  authority          Int              @default(0)
+  /// Долг перед общаком за помощь в реанимации «Пассажиру».
+  treasuryDebt       Int              @default(0) @map("treasury_debt")
   clan               Clan             @relation(fields: [clanId], references: [id], onDelete: Cascade)
   role               ClanRole         @relation(fields: [roleId], references: [id])
 

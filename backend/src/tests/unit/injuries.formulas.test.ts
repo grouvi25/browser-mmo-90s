@@ -60,7 +60,10 @@ describe('травмы v8: состояние и лечение', () => {
   })
 
   it('новая травма заменяет только более лёгкую', () => {
-    expect(injuryUpdate({}, 'LIGHT', now)).toEqual({ injuryTier: 'LIGHT', injuryUntil: later(30), injuryTreatedAt: null })
+    expect(injuryUpdate({}, 'LIGHT', now)).toEqual({
+      injuryTier: 'LIGHT', injuryUntil: later(30), injuryTreatedAt: null, injuryAidCount: 0, injuryAidAt: null, injuryClinicUsed: 0,
+    })
+    expect(injuryUpdate({ injuryTier: 'HEAVY', injuryUntil: later(5) }, 'CRITICAL', now)).toMatchObject({ injuryTier: 'CRITICAL', injuryUntil: later(240), injuryCriticalAt: now })
     expect(injuryUpdate({ injuryTier: 'MEDIUM', injuryUntil: later(5) }, 'LIGHT', now)).toBeNull()
     expect(injuryUpdate({ injuryTier: 'MEDIUM', injuryUntil: later(5) }, 'HEAVY', now)?.injuryUntil).toEqual(later(120))
     expect(injuryUpdate({ injuryTier: 'HEAVY', injuryUntil: later(-1) }, 'LIGHT', now)?.injuryTier).toBe('LIGHT')
@@ -73,5 +76,46 @@ describe('травмы v8: состояние и лечение', () => {
     expect(clinicOffer('LIGHT')).toBeNull()
     expect(clinicOffer('MEDIUM')).toEqual({ dollars: 1 })
     expect(clinicOffer('HEAVY')).toEqual({ dollars: 2 })
+  })
+})
+
+describe('травмы v8, этап 2: засада и реанимация', () => {
+  it('второе критическое за сутки — кома', async () => {
+    const { knockoutTier } = await import('../../modules/battles/injuries.formulas')
+    expect(knockoutTier({}, now)).toBe('CRITICAL')
+    expect(knockoutTier({ injuryCriticalAt: later(-23 * 60) }, now)).toBe('COMA')
+    expect(knockoutTier({ injuryCriticalAt: later(-25 * 60) }, now)).toBe('CRITICAL')
+  })
+
+  it('сокращение отлёжки не опускается ниже минимума от начала', async () => {
+    const { shortenedUntil, inReanimation } = await import('../../modules/battles/injuries.formulas')
+    const state = { injuryTier: 'CRITICAL' as const, injuryUntil: later(240), injuryCriticalAt: now }
+    expect(inReanimation(state, now)).toBe(true)
+    expect(shortenedUntil(state, 60, now)).toEqual(later(180))
+    expect(shortenedUntil(state, 600, now)).toEqual(later(60))
+    expect(shortenedUntil({ ...state, injuryUntil: later(60) }, 60, now)).toBeNull()
+    const coma = { injuryTier: 'COMA' as const, injuryUntil: later(720), injuryCriticalAt: now }
+    expect(shortenedUntil(coma, 600, now)).toEqual(later(240))
+  })
+
+  it('авторитет: уровни, лимиты заявок и очки за взнос', async () => {
+    const { authorityLevel, brigadeAidLimit, authorityForDeposit } = await import('../../modules/battles/injuries.formulas')
+    expect(authorityLevel(99)).toBe('PASSENGER')
+    expect(authorityLevel(100)).toBe('OWN')
+    expect(authorityLevel(300)).toBe('FIGHTER')
+    expect(authorityLevel(600)).toBe('TRUSTED')
+    expect(brigadeAidLimit(0, 'CRITICAL')).toBe(1)
+    expect(brigadeAidLimit(600, 'CRITICAL')).toBe(3)
+    expect(brigadeAidLimit(600, 'COMA')).toBe(4)
+    expect(authorityForDeposit(2999)).toBe(4)
+  })
+
+  it('шанс засады в пределах и зависит от ловкости', async () => {
+    const { ambushChance } = await import('../../modules/battles/injuries.formulas')
+    expect(ambushChance(10, 10, {}, {}, now)).toBeCloseTo(0.5)
+    expect(ambushChance(15, 10, {}, {}, now)).toBeCloseTo(0.6)
+    expect(ambushChance(100, 0, {}, {}, now)).toBe(0.8)
+    expect(ambushChance(0, 100, {}, {}, now)).toBe(0.2)
+    expect(ambushChance(10, 10, { injuryTier: 'MEDIUM', injuryUntil: later(30) }, {}, now)).toBeCloseTo(0.4)
   })
 })

@@ -119,6 +119,42 @@ export const BalanceConfig = {
     winnerLowLight: 10, winnerMidLight: 25, winnerHighLight: 50,
     /// Оверкилл: последний удар перекрыл остаток HP на эту долю максимума — тяжёлая без броска.
     overkillShare: 0.5,
+
+    // ── Этап 2: засада, критическое, кома, реанимация (разделы 7–9, 12) ──
+    criticalMinutes: 240,
+    /// Отлёжка не короче: от начала состояния.
+    criticalFloorMinutes: 60,
+    comaMinutes: 720,
+    comaFloorMinutes: 240,
+    /// Второе критическое за столько часов — кома.
+    comaWindowHours: 24,
+    /// Реанимация, платит сам пациент: ₽ за заявку и минус минут.
+    criticalSelfRub: 2000, criticalSelfMinutes: 60,
+    comaSelfRub: 3000, comaSelfMinutes: 120,
+    /// ЧМЦ из реанимации: $ и минус минут, заявок на одно состояние.
+    criticalClinicUsd: 30, criticalClinicMinutes: 180,
+    comaClinicUsd: 50, comaClinicMinutes: 180,
+    clinicMaxPerState: 1,
+    /// Общак бригады: ₽ за заявку и минус минут, одна заявка в столько минут.
+    criticalAidRub: 1000, criticalAidMinutes: 60,
+    comaAidRub: 4000, comaAidMinutes: 120,
+    aidCooldownMinutes: 30,
+    /// Авторитет: пороги уровней «Свой», «Боец», «Проверенный».
+    authorityOwn: 100, authorityFighter: 300, authorityTrusted: 600,
+    /// Заявок из общака по уровням (Пассажир, Свой, Боец, Проверенный).
+    criticalAidPassenger: 1, criticalAidOwn: 2, criticalAidFighter: 3, criticalAidTrusted: 3,
+    comaAidPassenger: 1, comaAidOwn: 2, comaAidFighter: 3, comaAidTrusted: 4,
+    /// Очки авторитета.
+    authorityDefend: 10, authorityDefendWin: 15, authorityAttack: 5, authorityAttackWin: 10,
+    authorityPer1000: 2,
+    /// Засада: бинокль в подпольной лавке, сколько можно держать в карманах.
+    binocularsRub: 800, binocularsMax: 1,
+    /// Шанс засады: середина, сдвиг за единицу разницы ловкости, пределы.
+    ambushBase: 0.5, ambushAgiStep: 0.02, ambushMin: 0.2, ambushMax: 0.8,
+    /// Цель в сети: заходила не позже стольких минут назад.
+    ambushOnlineMinutes: 10,
+    /// На новичков ниже этого боевого уровня нападать нельзя (как с налётами на жильё).
+    ambushMinLevel: 3,
   },
 
   economy: {

@@ -29,6 +29,7 @@ type AuditEvent =
   | 'battle.application.cancelled'
   | 'battle.action'
   | 'battle.finished'
+  | 'ambush.finished'
   | 'battle.cleanup.orphaned'
   | 'battle.cleanup.released'
   | 'money.changed'

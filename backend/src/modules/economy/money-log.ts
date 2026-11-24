@@ -8,6 +8,8 @@ import { DOG_BREEDS } from '../city/dogs'
 
 const REASON: Partial<Record<CurrencyLogReason, string>> = {
   HOSPITAL: 'Травмпункт больницы',
+  REANIMATION: 'Реанимация',
+  UNDERGROUND_SHOP: 'Подпольная лавка',
   SHOP_PURCHASE: 'Покупка в госмагазине',
   SHOP_SELL: 'Продажа вещи государству',
   BATTLE_REWARD: 'Награда за бой',

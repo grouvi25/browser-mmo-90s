@@ -32,6 +32,10 @@ export interface InjuryState {
   injuryTier?: InjuryTier | null
   injuryUntil?: Date | null
   injuryTreatedAt?: Date | null
+  injuryCriticalAt?: Date | null
+  injuryAidCount?: number
+  injuryAidAt?: Date | null
+  injuryClinicUsed?: number
 }
 
 export function injuryMinutes(tier: InjuryTier): number {
@@ -39,7 +43,8 @@ export function injuryMinutes(tier: InjuryTier): number {
   if (tier === 'LIGHT') return c.lightMinutes
   if (tier === 'MEDIUM') return c.mediumMinutes
   if (tier === 'HEAVY') return c.heavyMinutes
-  return 0
+  if (tier === 'CRITICAL') return c.criticalMinutes
+  return c.comaMinutes
 }
 
 export function activeInjury(state: InjuryState, now = new Date()) {
@@ -121,7 +126,92 @@ export function injuryUpdate(state: InjuryState, tier: InjuryTier, now: Date) {
     injuryTier: tier,
     injuryUntil: new Date(now.getTime() + injuryMinutes(tier) * MINUTE),
     injuryTreatedAt: null,
+    injuryAidCount: 0,
+    injuryAidAt: null,
+    injuryClinicUsed: 0,
+    ...(tier === 'CRITICAL' || tier === 'COMA' ? { injuryCriticalAt: now } : {}),
   }
+}
+
+// ── Этап 2: засада, критическое, кома, реанимация ─────────────────
+
+/** Критическое или кома: персонаж в реанимации, все действия закрыты. */
+export function inReanimation(state: InjuryState, now = new Date()): boolean {
+  const injury = activeInjury(state, now)
+  return !!injury && (injury.tier === 'CRITICAL' || injury.tier === 'COMA')
+}
+
+/** Засада бьёт «на отключение»: критическое, а второе за сутки — кома. */
+export function knockoutTier(state: InjuryState, now: Date): 'CRITICAL' | 'COMA' {
+  const last = state.injuryCriticalAt
+  return last && now.getTime() - last.getTime() < I().comaWindowHours * 3_600_000 ? 'COMA' : 'CRITICAL'
+}
+
+export type ReanimationChannel = 'SELF' | 'CLINIC' | 'BRIGADE'
+
+/** Цена и сокращение по каналу. Платит пациент (SELF ₽, CLINIC $) или общак (BRIGADE ₽). */
+export function reanimationOffer(tier: InjuryTier, channel: ReanimationChannel): { rubles?: number; dollars?: number; minutes: number } | null {
+  const c = I()
+  const coma = tier === 'COMA'
+  if (tier !== 'CRITICAL' && !coma) return null
+  if (channel === 'SELF') return coma ? { rubles: c.comaSelfRub, minutes: c.comaSelfMinutes } : { rubles: c.criticalSelfRub, minutes: c.criticalSelfMinutes }
+  if (channel === 'CLINIC') return coma ? { dollars: c.comaClinicUsd, minutes: c.comaClinicMinutes } : { dollars: c.criticalClinicUsd, minutes: c.criticalClinicMinutes }
+  return coma ? { rubles: c.comaAidRub, minutes: c.comaAidMinutes } : { rubles: c.criticalAidRub, minutes: c.criticalAidMinutes }
+}
+
+/** Раньше этого времени отлёжка не кончится, сколько ни плати. */
+export function reanimationFloor(state: InjuryState): Date | null {
+  const c = I()
+  if (!state.injuryCriticalAt || (state.injuryTier !== 'CRITICAL' && state.injuryTier !== 'COMA')) return null
+  const floor = state.injuryTier === 'COMA' ? c.comaFloorMinutes : c.criticalFloorMinutes
+  return new Date(state.injuryCriticalAt.getTime() + floor * MINUTE)
+}
+
+/** Новое время выхода после сокращения или null, если сокращать уже некуда. */
+export function shortenedUntil(state: InjuryState, minutes: number, now: Date): Date | null {
+  const injury = activeInjury(state, now)
+  const floor = reanimationFloor(state)
+  if (!injury || !floor) return null
+  const next = new Date(Math.max(floor.getTime(), now.getTime(), injury.until.getTime() - minutes * MINUTE))
+  return next < injury.until ? next : null
+}
+
+export type AuthorityLevel = 'PASSENGER' | 'OWN' | 'FIGHTER' | 'TRUSTED'
+
+export const AUTHORITY_TITLE: Record<AuthorityLevel, string> = {
+  PASSENGER: 'Пассажир', OWN: 'Свой', FIGHTER: 'Боец', TRUSTED: 'Проверенный',
+}
+
+export function authorityLevel(points: number): AuthorityLevel {
+  const c = I()
+  if (points >= c.authorityTrusted) return 'TRUSTED'
+  if (points >= c.authorityFighter) return 'FIGHTER'
+  if (points >= c.authorityOwn) return 'OWN'
+  return 'PASSENGER'
+}
+
+/** Сколько заявок из общака даёт авторитет на это состояние. */
+export function brigadeAidLimit(points: number, tier: InjuryTier): number {
+  const c = I()
+  const level = authorityLevel(points)
+  const coma = tier === 'COMA'
+  if (level === 'TRUSTED') return coma ? c.comaAidTrusted : c.criticalAidTrusted
+  if (level === 'FIGHTER') return coma ? c.comaAidFighter : c.criticalAidFighter
+  if (level === 'OWN') return coma ? c.comaAidOwn : c.criticalAidOwn
+  return coma ? c.comaAidPassenger : c.criticalAidPassenger
+}
+
+/** Очки авторитета за взнос в общак: по 2 за каждую полную тысячу. */
+export function authorityForDeposit(rubles: number): number {
+  return Math.floor(rubles / 1000) * I().authorityPer1000
+}
+
+/** Шанс засады: середина ± ловкость, травмы сторон двигают шанс. */
+export function ambushChance(attackerAgi: number, targetAgi: number, attacker: InjuryState, target: InjuryState, now = new Date()): number {
+  const c = I()
+  const raw = c.ambushBase + (attackerAgi - targetAgi) * c.ambushAgiStep
+    - (1 - injuryEffects(attacker, now).damage) + (1 - injuryEffects(target, now).dodge)
+  return Math.min(c.ambushMax, Math.max(c.ambushMin, raw))
 }
 
 /** Травмпункт: цена в ₽ и ожидание после оплаты. */
@@ -139,6 +229,14 @@ export function clinicOffer(tier: InjuryTier): { dollars: number } | null {
   if (tier === 'MEDIUM') return { dollars: c.mediumClinicUsd }
   if (tier === 'HEAVY') return { dollars: c.heavyClinicUsd }
   return null
+}
+
+/** Уведомление пострадавшему в засаде (раздел 13). */
+export function knockoutNotice(tier: 'CRITICAL' | 'COMA'): string {
+  const c = I()
+  return tier === 'COMA'
+    ? `💀 Вы в коме. Второй раз за сутки вас выносят на носилках — и организм сдаётся. Реанимация: бои, экономика и перемещение закрыты, вещи сохранены. Время в коме: ${hours(c.comaMinutes)}.`
+    : `🚨 Вы в критическом состоянии. Последнее, что помните — вой сирены. Вас доставили в реанимацию: все действия закрыты, вещи сохранены, покинуть реанимацию нельзя. Отлёжка: ${hours(c.criticalMinutes)}.`
 }
 
 /** Уведомления из раздела 13 документа. */

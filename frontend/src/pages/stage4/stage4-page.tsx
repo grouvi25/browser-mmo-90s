@@ -25,15 +25,16 @@ import { PremiumShopSection } from './premium-shop-section'
 import { HelpersSection } from './helpers-section'
 import { ExchangeSection } from './exchange-section'
 import { ReferralSection } from './referral-section'
+import { UndergroundSection } from './underground-section'
 import '../stage3/stage3.css'
 import './stage4.css'
 
-export type Stage4Section = 'territories' | 'raids' | 'wars' | 'claim' | 'premium' | 'helpers' | 'exchange' | 'referral'
+export type Stage4Section = 'territories' | 'raids' | 'wars' | 'claim' | 'premium' | 'helpers' | 'exchange' | 'referral' | 'underground'
 
 interface SectionMeta { title: string; kicker: string; group: Stage4Section[] }
 
 const WAR_GROUP: Stage4Section[] = ['territories', 'raids', 'wars']
-const PREMIUM_GROUP: Stage4Section[] = ['premium', 'helpers', 'exchange', 'referral']
+const PREMIUM_GROUP: Stage4Section[] = ['premium', 'helpers', 'exchange', 'referral', 'underground']
 
 const SECTIONS: Record<Stage4Section, SectionMeta> = {
   territories: { title: 'Территории', kicker: 'Районы и война', group: WAR_GROUP },
@@ -48,6 +49,8 @@ const SECTIONS: Record<Stage4Section, SectionMeta> = {
   exchange: { title: 'Обменник', kicker: 'Рубли и доллары', group: PREMIUM_GROUP },
   // Заказчик 28.10: реферальные копятся отдельно, отсюда — на персонажа или на вывод.
   referral: { title: 'Реферальная система', kicker: 'Приглашай своих', group: PREMIUM_GROUP },
+  // Травмы v8 (Дима 24.11): бинокль для засады.
+  underground: { title: 'Подпольная лавка', kicker: 'Чёрный рынок', group: PREMIUM_GROUP },
 }
 
 
@@ -61,6 +64,7 @@ function Body({ section }: { section: Stage4Section }) {
     case 'helpers': return <HelpersSection />
     case 'exchange': return <ExchangeSection />
     case 'referral': return <ReferralSection />
+    case 'underground': return <UndergroundSection />
   }
 }
 

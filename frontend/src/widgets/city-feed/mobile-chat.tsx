@@ -3,6 +3,7 @@
 // экране: /api/chat плюс живые реплики сокетом. Отдельного мобильного
 // канала нет — окна разные, эфир один.
 // =============================================================
+import { AmbushButton } from '../ambush/ambush-button'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -69,6 +70,7 @@ export function MobileChat() {
           {players.map(p => (
             <div key={p.characterId} className="m-chat__player-row">
               {!p.self && !p.resident && <PrivateArrow nick={p.nickname} />}
+              {!p.self && <AmbushButton player={p} />}
               {!p.self && !p.resident && (
                 <button type="button" className="m-chat__mention" aria-label={`Обратиться в чате: ${p.nickname}`}
                   title="Обратиться к игроку в чате" onClick={() => mentionPlayer(p.nickname)}>@</button>

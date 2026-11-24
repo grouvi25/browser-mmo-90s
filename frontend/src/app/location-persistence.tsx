@@ -8,6 +8,8 @@ import { useAuth } from './providers/auth-provider'
 // где он был, а не записывало главную поверх последней локации. Дальше по
 // вкладке главная — обычная локация.
 const RESUMED_KEY = 'mmo_resumed'
+/** Куда можно из реанимации — те же адреса, что пропускает сервер. */
+const REANIMATION_PATHS = ['/hospital', '/forum', '/news', '/updates', '/radio', '/support', '/library']
 function markResumed() {
   try { sessionStorage.setItem(RESUMED_KEY, '1') } catch { /* приватный режим */ }
 }
@@ -31,11 +33,15 @@ export function LocationPersistence() {
   }, [navigate])
   const prison = useQuery({ queryKey: ['city', 'prison-check'], queryFn: cityApi.location, refetchInterval: 30_000, retry: false })
   const jailed = !!prison.data?.jailedUntil && new Date(prison.data.jailedUntil) > new Date()
+  // Травмы v8: из реанимации не уйти до выписки; читать форум и новости можно.
+  const reanimated = !jailed && !!prison.data?.reanimationUntil && new Date(prison.data.reanimationUntil) > new Date()
+  const stuck = reanimated && !REANIMATION_PATHS.includes(pathname) && !pathname.startsWith('/u/')
   useEffect(() => {
     if (jailed && pathname !== '/prison') navigate('/prison', { replace: true })
-  }, [jailed, pathname, navigate])
+    else if (stuck) navigate('/hospital', { replace: true })
+  }, [jailed, stuck, pathname, navigate])
   useEffect(() => {
-    if (prison.isLoading || prison.isError || (jailed && pathname !== '/prison')) return
+    if (prison.isLoading || prison.isError || (jailed && pathname !== '/prison') || stuck) return
     // Чужой профиль — не место в городе: сервер его не примет (422), а после
     // входа возвращать игрока на чужую карточку незачем.
     if (pathname.startsWith('/u/')) return
@@ -48,6 +54,6 @@ export function LocationPersistence() {
       await cityApi.move(pathname)
     }).catch(() => undefined)
     return () => { active = false }
-  }, [pathname, userId, jailed, prison.isLoading, prison.isError])
+  }, [pathname, userId, jailed, stuck, prison.isLoading, prison.isError])
   return null
 }

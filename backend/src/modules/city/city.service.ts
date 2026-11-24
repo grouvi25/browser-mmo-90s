@@ -9,8 +9,12 @@ import { PROFESSION_CODES, PROFESSION_NAMES, isProfessionCode } from '../profess
 import { DOG_BASE_POINTS, DOG_GEAR_SLOTS, DOG_STATS, breedOf, cleanStats, dogAllocation, dogGear, freeDogPoints, isDogGearSlot, type DogGearSlot, type DogGearSnapshot, type DogStat } from './dogs'
 import { dogSummary } from './city.config'
 import { CityConfig, artifactBonus, inPrison, validCityPath } from './city.config'
+import { inReanimation } from '../battles/injuries.formulas'
 
 const DOLLAR_SHOP = { tsum: 'TSUM', berezka: 'BEREZKA' } as const
+
+/** Куда можно из реанимации: сама больница и страницы для чтения. */
+export const REANIMATION_PATHS = ['/hospital', '/forum', '/news', '/updates', '/radio']
 
 export const CityService = {
   async character(userId: string) {
@@ -20,14 +24,18 @@ export const CityService = {
   },
   async location(userId: string) {
     const char = await this.character(userId)
-    return { path: inPrison(char.jailedUntil) ? '/prison' : validCityPath(char.lastLocation) ? char.lastLocation : '/',
-      jailedUntil: char.jailedUntil, jailReason: char.jailReason }
+    const reanimation = inReanimation(char)
+    return { path: inPrison(char.jailedUntil) ? '/prison' : reanimation ? '/hospital' : validCityPath(char.lastLocation) ? char.lastLocation : '/',
+      jailedUntil: char.jailedUntil, jailReason: char.jailReason,
+      // Травмы v8: из реанимации не уйти, пока не выпишут.
+      reanimationUntil: reanimation ? char.injuryUntil : null }
   },
   async move(userId: string, path: string) {
     if (!validCityPath(path)) throw AppError.validation('Неизвестная локация')
     return withTransaction(async tx => {
       const char = await tx.character.findUniqueOrThrow({ where: { userId } })
       if (inPrison(char.jailedUntil) && path !== '/prison') throw AppError.forbidden('До освобождения персонаж находится в тюрьме')
+      if (inReanimation(char) && !REANIMATION_PATHS.includes(path)) throw AppError.forbidden('Из реанимации не уйти до выписки')
       await tx.character.update({ where: { id: char.id }, data: { lastLocation: path, location: path } })
       // Вышел из дома туннелем и ушёл с того места другой дорогой — обратного
       // хода в дом больше нет (правка заказчика 22.10).
