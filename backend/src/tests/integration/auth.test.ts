@@ -24,6 +24,18 @@ beforeEach(async () => {
 // Register
 // ---------------------------------------------------------------
 describe('AuthService.register', () => {
+  it('согласие на рассылки сохраняется отдельно и только по отметке (24.11)', async () => {
+    const without = uid('nomail')
+    await AuthService.register({ acceptPolicy: true, login: without, email: `${without}@test.com`, password: 'password123' })
+    const withMail = uid('mail')
+    await AuthService.register({ acceptPolicy: true, marketingConsent: true, login: withMail, email: `${withMail}@test.com`, password: 'password123' })
+    const rows = await testPrisma.user.findMany({ where: { login: { in: [without, withMail] } }, select: { login: true, policyAcceptedAt: true, marketingConsentAt: true } })
+    const byLogin = new Map(rows.map(row => [row.login, row]))
+    expect(byLogin.get(without)?.policyAcceptedAt).toBeInstanceOf(Date)
+    expect(byLogin.get(without)?.marketingConsentAt).toBeNull()
+    expect(byLogin.get(withMail)?.marketingConsentAt).toBeInstanceOf(Date)
+  })
+
   it('creates a new user', async () => {
     const login = uid('user')
     const result = await AuthService.register({ acceptPolicy: true,

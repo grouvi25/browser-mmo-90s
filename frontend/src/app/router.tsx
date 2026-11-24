@@ -181,6 +181,7 @@ export function AppRouter() {
         {/* Политика открыта всем: на неё ведёт согласие при регистрации. */}
         <Route path="/politika" element={<PolitikaPage />} />
         <Route path="/soglasie" element={<LegalPage slug="soglasie" />} />
+        <Route path="/rassylka" element={<LegalPage slug="rassylka" />} />
         <Route path="/soglashenie" element={<LegalPage slug="soglashenie" />} />
         <Route path="/cookies" element={<LegalPage slug="cookies" />} />
       </Route>

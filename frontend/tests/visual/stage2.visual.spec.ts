@@ -129,10 +129,18 @@ test.describe('Stage 2 visual and browser flow', () => {
     await inputs.nth(1).fill(`${login}@visual.local`)
     await inputs.nth(2).fill(password)
     await inputs.nth(3).fill(password)
-    // Без согласия с политикой регистрация не проходит (правка 21.10).
+    // Каждое согласие отдельной галочкой, все пустые (Дима 24.11). Без трёх обязательных
+    // регистрация не проходит; рассылки по желанию, без них регистрация проходит.
+    const checkboxes = page.getByRole('checkbox')
+    await expect(checkboxes).toHaveCount(3)
+    for (let i = 0; i < 3; i += 1) await expect(checkboxes.nth(i)).not.toBeChecked()
     await page.locator('button[type="submit"]').click()
-    await expect(page.locator('.alert-error')).toContainText('согласие с политикой')
-    await page.getByRole('checkbox').check()
+    await expect(page.locator('.alert-error')).toContainText('пользовательское соглашение')
+    await page.getByRole('checkbox', { name: /Пользовательского соглашения/ }).check()
+    await page.locator('button[type="submit"]').click()
+    await expect(page.locator('.alert-error')).toContainText('согласие на обработку')
+    await page.getByRole('checkbox', { name: /Политикой обработки персональных данных/ }).check()
+    await expect(page.getByRole('checkbox', { name: /рекламно-информационных/ })).not.toBeChecked()
     await page.locator('button[type="submit"]').click()
     await expect(page).toHaveURL(/\/character\/create$/)
     await expect(page.locator('.arch-card')).toHaveCount(8)

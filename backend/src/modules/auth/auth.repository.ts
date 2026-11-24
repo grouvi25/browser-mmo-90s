@@ -66,6 +66,7 @@ export const AuthRepository = {
     lastIp?: string
     lastUserAgent?: string
     policyAcceptedAt?: Date
+    marketingConsentAt?: Date | null
     phone?: string
     utmSource?: string | null
     utmMedium?: string | null

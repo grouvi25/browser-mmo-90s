@@ -12,6 +12,8 @@ export const RegisterSchema = z.object({
   password: z.string().min(6).max(100),
   // Согласие с политикой обработки персональных данных обязательно.
   acceptPolicy: z.literal(true, { message: POLICY_REQUIRED }),
+  // Рассылки — отдельное согласие по желанию, по умолчанию его нет (24.11).
+  marketingConsent: z.boolean().optional(),
   // Ловушка для ботов (скрытое поле формы) и ответ капчи.
   website: z.string().max(200).optional(),
   captchaToken: z.string().max(4000).optional(),

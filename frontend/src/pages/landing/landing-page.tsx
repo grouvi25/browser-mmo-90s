@@ -164,6 +164,7 @@ export function LandingPage() {
         <nav aria-label="Документы">
           <Link to="/politika">Политика обработки персональных данных</Link>
           <Link to="/soglasie">Согласие на обработку персональных данных</Link>
+          <Link to="/rassylka">Согласие на рассылки</Link>
           <Link to="/soglashenie">Пользовательское соглашение</Link>
           <Link to="/cookies">Cookie и push-уведомления</Link>
         </nav>

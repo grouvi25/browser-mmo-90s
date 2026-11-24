@@ -16,7 +16,10 @@ export function RegisterPage() {
   const [form, setForm] = useState({ nickname: '', email: '', password: '', password2: '' })
   // Согласие с политикой обработки персональных данных (152-ФЗ, правка
   // заказчика 21.10): без него сервер регистрацию не примет.
-  const [agree, setAgree] = useState(false)
+  // Дима 24.11: соглашение, ПДн и рассылки — три отдельные галочки, все пустые по умолчанию.
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [agreePd, setAgreePd] = useState(false)
+  const [marketing, setMarketing] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   // Защита от ботов (28.10): капча, если включена на сервере, и поле-ловушка,
@@ -43,8 +46,12 @@ export function RegisterPage() {
       setError('Пароль должен быть не менее 6 символов')
       return
     }
-    if (!agree) {
-      setError('Нужно согласие с политикой обработки персональных данных')
+    if (!agreeTerms) {
+      setError('Нужно принять пользовательское соглашение')
+      return
+    }
+    if (!agreePd) {
+      setError('Нужно ознакомиться с политикой и дать согласие на обработку персональных данных')
       return
     }
     if (captchaKey && !captchaToken) {
@@ -54,7 +61,7 @@ export function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      await authApi.register({ nickname: form.nickname.trim(), email: form.email, password: form.password, acceptPolicy: true, website: trap, captchaToken: captchaToken || undefined, ref: referrer.trim() || undefined, phone: phone.trim() || undefined, attribution: readAttribution() })
+      await authApi.register({ nickname: form.nickname.trim(), email: form.email, password: form.password, acceptPolicy: true, marketingConsent: marketing, website: trap, captchaToken: captchaToken || undefined, ref: referrer.trim() || undefined, phone: phone.trim() || undefined, attribution: readAttribution() })
       reachGoal('registration')
       // Auto-login after register
       const res = await authApi.login({ login: form.nickname.trim(), password: form.password })
@@ -173,8 +180,16 @@ export function RegisterPage() {
             {captchaKey && <SmartCaptcha sitekey={captchaKey} onToken={setCaptchaToken} resetSignal={captchaReset} />}
 
             <label className="auth-consent">
-              <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} />
-              <span>Принимаю <Link to="/soglashenie" target="_blank" rel="noopener">пользовательское соглашение</Link>, ознакомлен с <Link to="/politika" target="_blank" rel="noopener">политикой обработки персональных данных</Link> и даю <Link to="/soglasie" target="_blank" rel="noopener">согласие на обработку персональных данных</Link></span>
+              <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} />
+              <span>Я ознакомлен и принимаю условия <Link to="/soglashenie" target="_blank" rel="noopener">Пользовательского соглашения</Link></span>
+            </label>
+            <label className="auth-consent">
+              <input type="checkbox" checked={agreePd} onChange={e => setAgreePd(e.target.checked)} />
+              <span>Я ознакомлен с <Link to="/politika" target="_blank" rel="noopener">Политикой обработки персональных данных</Link> и даю <Link to="/soglasie" target="_blank" rel="noopener">согласие</Link> на их обработку</span>
+            </label>
+            <label className="auth-consent">
+              <input type="checkbox" checked={marketing} onChange={e => setMarketing(e.target.checked)} />
+              <span>Я согласен на получение <Link to="/rassylka" target="_blank" rel="noopener">рекламно-информационных материалов</Link> игры «Кооператив» (ООО «АРТЕФАКТУМ»)</span>
             </label>
 
             <button

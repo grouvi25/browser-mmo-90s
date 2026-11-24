@@ -66,6 +66,7 @@ export const AuthService = {
       lastIp: ip,
       lastUserAgent: userAgent,
       policyAcceptedAt: new Date(),
+      marketingConsentAt: input.marketingConsent ? new Date() : null,
       referrerCharacterId: referrer?.id,
       ...(input.phone ? { phone: normalizePhone(input.phone) } : {}),
       ...attributionFields(input.attribution),
