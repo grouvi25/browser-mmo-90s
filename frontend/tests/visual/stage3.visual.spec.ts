@@ -242,10 +242,12 @@ const STAGE4_SCREENS: Array<[string, string, number]> = [
   ['/territories', 'Территории', 4],
   ['/territories/raids', 'Налёты', 4],
   ['/territories/wars', 'Войны бригады', 4],
-  // Чёрный рынок: Витрина, Помощники, Обменник и Рефералы (вкладка 28.10).
-  ['/premium', 'Чёрный рынок', 5],
-  ['/premium/helpers', 'Помощники', 5],
-  ['/premium/referral', 'Реферальная система', 5],
+  // Чёрный рынок: Витрина, Помощники, Обменник, Рефералы (вкладка 28.10)
+  // и Подпольная лавка с биноклем для засады (травмы v8, 24.11).
+  ['/premium', 'Чёрный рынок', 6],
+  ['/premium/helpers', 'Помощники', 6],
+  ['/premium/referral', 'Реферальная система', 6],
+  ['/premium/underground', 'Подпольная лавка', 6],
 ]
 
 for (const [path, title, tabs] of STAGE4_SCREENS) {
