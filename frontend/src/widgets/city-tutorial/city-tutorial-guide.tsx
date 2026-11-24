@@ -22,6 +22,10 @@ export function CityTutorialGuide() {
   const qc = useQueryClient()
   const { data } = useCityTutorial()
   const [paused, setPaused] = useState(false)
+  // На телефоне подсказка встаёт в раскладку экрана (полоса под шапкой), а не поверх:
+  // поверх она закрывала вкладки города и Поддержку, их нельзя было нажать.
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => { setSlot(document.getElementById('m-tutorial-slot')) }, [location.key])
   const finish = useMutation({
     mutationFn: () => updateTutorial('complete'),
     onSuccess: value => {
@@ -79,6 +83,6 @@ export function CityTutorialGuide() {
         onClick={() => finish.mutate()}>Завершить обучение</button>}
       {finish.isError && <p role="alert">{finish.error.message}</p>}
     </aside>,
-    document.body,
+    slot ?? document.body,
   )
 }

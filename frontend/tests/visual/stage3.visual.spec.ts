@@ -154,6 +154,10 @@ test('окно при входе: показывается раз за сеан�
   await page.route('**/api/site/welcome', route => route.fulfill({
     json: { welcome: { enabled: true, title: 'Игра на стадии тестирования', text: 'Тестируем формулы и механики.\n\nВопросы — в Поддержку.', version: 7 } },
   }))
+  // Окно при входе ждёт конца обучения новичка (24.11): здесь игрок его уже прошёл.
+  await page.route('**/api/characters/tutorial', route => route.fulfill({
+    json: { active: false, completed: true, letterPending: false, reward: { rubles: 5000, dollars: 100 } },
+  }))
   await authPage(page, owner)
   await page.goto('/')
   const dialog = page.getByRole('dialog', { name: 'Игра на стадии тестирования' })

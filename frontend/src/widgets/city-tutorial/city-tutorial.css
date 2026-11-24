@@ -47,3 +47,12 @@ body:not([data-city-tutorial]) .city-tutorial__inline { display: none; }
     width: auto;
   }
 }
+/* Телефон: подсказка в потоке экрана между шапкой и содержимым, ничего не перекрывает. */
+.m-tutorial-slot { flex: 0 0 auto; }
+.m-tutorial-slot .city-tutorial {
+  position: static;
+  width: auto;
+  margin: 6px 12px 0;
+  box-shadow: none;
+}
+.m-tutorial-slot .city-tutorial p { margin: 2px 0 6px; }

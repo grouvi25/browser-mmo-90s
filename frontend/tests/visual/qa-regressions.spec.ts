@@ -44,7 +44,8 @@ async function mockApi(page: Page, battle: () => unknown, action?: () => { statu
 
 const librarySection = { id: 'custom-library', title: 'Правила города', body: 'Очков за уровень: {{очки_за_уровень}}\n\n[[боевые уровни]]' }
 
-test('новый персонаж выходит на Центральную площадь с письмом Бывалого', async ({ page }) => {
+// Дима 23.11: новичок появляется на площади и проходит обучение, письмо Бывалого — после него.
+test('новый персонаж выходит на Центральную площадь и начинает обучение', async ({ page }) => {
   await authenticate(page, false)
   await mockApi(page, () => battle(), undefined, true)
   let created = false
@@ -55,9 +56,14 @@ test('новый персонаж выходит на Центральную п�
     created = true
     return route.fulfill({ status: 201, json: { ...character, status: 'ACTIVE' } })
   })
+  await page.route('**/api/characters/tutorial', route => route.fulfill({ json: {
+    active: true, completed: false, letterPending: false, reward: { rubles: 5000, dollars: 100 },
+    lesson: 'buy', weapon: { id: 'knife', name: 'Нож-бабочка', weaponType: 'KNIFE', price: 500, canAfford: true },
+  } }))
   await page.goto('/character/create')
   await page.getByRole('button', { name: 'Создать персонажа' }).click()
-  await expect(page.getByRole('dialog', { name: 'Кодекс выживания приезжего' })).toBeVisible()
+  await expect(page.getByRole('complementary', { name: 'Обучение в городе' }).getByText('Купи оружие')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Кодекс выживания приезжего' })).toHaveCount(0)
   await expect(page).toHaveURL(/\/$/)
   await expect(page.locator('img[alt="Центральная площадь"]')).toBeAttached()
 })
@@ -375,10 +381,11 @@ test('расклад оружия показывает обе границы с 
   await page.goto('/inventory')
   await page.getByRole('button', { name: 'Настроить' }).click()
   const dialog = page.getByRole('dialog', { name: 'Пистолет' })
-  await expect(dialog).toContainText('Базовый урон оружия 10–50')
-  await expect(dialog).toContainText('Урон оружия с этим раскладом 17–64')
+  // С 24.11 урон показывается в HP: те же числа ×0,35 (10–50 → 3,5–17,5 HP).
+  await expect(dialog).toContainText('Базовый урон оружия 3,5–17,5 HP')
+  await expect(dialog).toContainText('Урон оружия с этим раскладом 5,95–22,4 HP')
   await dialog.getByRole('spinbutton', { name: /Макс\. урон/ }).fill('4')
-  await expect(dialog).toContainText('Урон оружия с этим раскладом 17–74')
+  await expect(dialog).toContainText('Урон оружия с этим раскладом 5,95–25,9 HP')
   const bounds = await dialog.boundingBox()
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width)
 })
