@@ -15,11 +15,15 @@ import {
 } from '../../shared/api/battles.api'
 import { charactersApi } from '../../shared/api/characters.api'
 import { ApiError } from '../../shared/api/client'
+import type { InjuryTier } from '../../shared/types/api.types'
 import { PveStart } from '../../widgets/pve-start/pve-start'
 import { WornGear } from '../../widgets/worn-gear/worn-gear'
 import './applications.css'
 
 const KIND_LABEL: Record<ApplicationKind | 'SIEGE', string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Замес', SIEGE: 'Осада дома' }
+const INJURY_LABEL: Record<InjuryTier, string> = {
+  LIGHT: 'Лёгкая травма', MEDIUM: 'Средняя травма', HEAVY: 'Тяжёлая травма', CRITICAL: 'Критическое состояние', COMA: 'Кома',
+}
 const KIND_HINT: Record<ApplicationKind, string> = {
   DUEL: 'Один на один: подаёте вызов, соперник его принимает.',
   GROUP: 'Бой двух команд. Вы сами выбираете, за какую сторону встать: можно собрать своих на одну сторону и ждать противников на другую.',
@@ -115,6 +119,14 @@ export function BattleApplications() {
       {me.data?.traumaUntil && new Date(me.data.traumaUntil).getTime() > Date.now() && (
         <div className="alert alert-error" role="status">
           Кровавая травма после проигранной осады: в бой можно после {new Date(me.data.traumaUntil).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} по Москве.
+        </div>
+      )}
+
+      {me.data?.injuryTier && me.data.injuryUntil && new Date(me.data.injuryUntil).getTime() > now && (
+        <div className={`alert ${me.data.injuryTier === 'LIGHT' || me.data.injuryTier === 'MEDIUM' ? 'alert-warning' : 'alert-error'}`} role="status">
+          {INJURY_LABEL[me.data.injuryTier]} до {new Date(me.data.injuryUntil).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })} мск.{' '}
+          {me.data.injuryTier === 'LIGHT' || me.data.injuryTier === 'MEDIUM' ? 'Урон, уворот и опыт за бой снижены.' : 'Бои закрыты.'}{' '}
+          <Link to="/hospital">В больницу</Link>
         </div>
       )}
 

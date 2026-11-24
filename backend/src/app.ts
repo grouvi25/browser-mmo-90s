@@ -27,6 +27,7 @@ import { forumRoutes } from './modules/forum/forum.routes'
 import { inventoryRoutes } from './modules/inventory/inventory.routes'
 import { governmentShopRoutes } from './modules/government-shop/government-shop.routes'
 import { battlesRoutes } from './modules/battles/battles.routes'
+import { hospitalRoutes } from './modules/battles/hospital.routes'
 import { repairRoutes } from './modules/repair/repair.routes'
 import { adminBasicRoutes } from './modules/admin-basic/admin-basic.routes'
 import { adminStrategyRoutes } from './modules/admin-strategy/admin-strategy.routes'
@@ -170,6 +171,7 @@ export async function buildApp() {
   await fastify.register(cityAdminRoutes, { prefix: '/api/admin/city' })
   await fastify.register(governmentShopRoutes, { prefix: '/api/shops/government' })
   await fastify.register(battlesRoutes,        { prefix: '/api/battles' })
+  await fastify.register(hospitalRoutes,       { prefix: '/api/hospital' })
   await fastify.register(repairRoutes,         { prefix: '/api/repair' })
   await fastify.register(resourcesRoutes,      { prefix: '/api/resources' })
   await fastify.register(workRoutes,           { prefix: '/api/work' })

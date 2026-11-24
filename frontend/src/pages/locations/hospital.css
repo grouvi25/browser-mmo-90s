@@ -1,0 +1,15 @@
+/* Городская больница и ЧМЦ (травмы v8). Вывеска — таблица цен без меню. */
+.hospital { display: grid; gap: 12px; }
+.hospital__sign { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.hospital__sign li {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: baseline;
+  padding: 6px 0; border-bottom: 1px dashed var(--border-light, #3d3c2a);
+}
+.hospital__sign li:last-child { border-bottom: 0; }
+.hospital__muted { color: var(--text-dim, #6b6550); font-size: 0.9em; }
+.hospital__state { margin: 0 0 10px; }
+.hospital__title { margin: 0 0 4px; }
+@media (max-width: 480px) {
+  .hospital__sign li { grid-template-columns: 1fr auto; }
+  .hospital__sign .hospital__muted { grid-column: 1 / -1; }
+}

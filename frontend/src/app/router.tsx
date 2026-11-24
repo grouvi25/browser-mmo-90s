@@ -14,6 +14,7 @@ import { ForumPage } from '../pages/forum/forum-page'
 import { loginDestination, loginUrl } from '../shared/lib/login-redirect'
 import { ResumeLocation } from './location-persistence'
 import { CityPage } from '../pages/locations/city-page'
+import { HospitalPage, ClinicPage } from '../pages/locations/hospital-page'
 import { AnnouncementsFeed } from '../pages/radio/announcements-feed'
 
 import { LandingPage }         from '../pages/landing/landing-page'
@@ -210,6 +211,8 @@ export function AppRouter() {
       {/* ── Город: оболочка постоянна, меняется только вьюпорт ── */}
       <Route element={<RequireAuth><RequireCharacter><GameShell /></RequireCharacter></RequireAuth>}>
         <Route path="/" element={<HubPage />} />
+        <Route path="/hospital" element={<ViewportPanel title="Городская больница" subtitle="Травмпункт"><HospitalPage /></ViewportPanel>} />
+        <Route path="/clinic" element={<ViewportPanel title="ЧМЦ" subtitle="Частный медицинский центр"><ClinicPage /></ViewportPanel>} />
         <Route path="/city-hall" element={<CityPage kind="hall" />} />
         <Route path="/school" element={<CityPage kind="school" />} />
         <Route path="/prison" element={<CityPage kind="prison" />} />

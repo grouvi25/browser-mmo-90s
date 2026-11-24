@@ -29,6 +29,7 @@ import { ChatService } from '../chat/chat.service'
 import { AnnouncementsService } from '../announcements/announcements.service'
 import { BattleService } from '../battles/battles.service'
 import { houseBonusesOff, siegeRules, siegeStartsAt, when } from './house-siege.formulas'
+import { blocksCombat } from '../battles/injuries.formulas'
 
 export { houseBonusesOff, siegeStartsAt }
 
@@ -312,8 +313,8 @@ export const HouseSiegeService = {
         for (const id of ids) {
           if (out.length >= S.maxPerSide) break
           if (!online.has(id)) continue
-          const char = await tx.character.findUnique({ where: { id }, select: { traumaUntil: true, hpMax: true, hpCurrent: true } })
-          if (!char || (char.traumaUntil && char.traumaUntil > now)) continue
+          const char = await tx.character.findUnique({ where: { id }, select: { traumaUntil: true, hpMax: true, hpCurrent: true, injuryTier: true, injuryUntil: true } })
+          if (!char || (char.traumaUntil && char.traumaUntil > now) || blocksCombat(char, now)) continue
           const busy = await tx.character.updateMany({ where: { id, status: 'ACTIVE' }, data: { status: 'IN_BATTLE' } })
           if (busy.count === 1) out.push(id)
         }

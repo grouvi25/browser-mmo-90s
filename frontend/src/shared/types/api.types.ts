@@ -23,6 +23,8 @@ export interface CharacterStats {
   respecScrolls?: number
 }
 
+export type InjuryTier = 'LIGHT' | 'MEDIUM' | 'HEAVY' | 'CRITICAL' | 'COMA'
+
 export interface Character {
   id: string
   userId: string
@@ -45,6 +47,10 @@ export interface Character {
   isModerator?: boolean
   /** Кровавая травма после отбитой осады: до этого времени в бой нельзя. */
   traumaUntil?: string | null
+  /** Травма после боя на Стрелках (документ Димы v8). */
+  injuryTier?: InjuryTier | null
+  injuryUntil?: string | null
+  injuryTreatedAt?: string | null
   hpCurrent: number
   hpMax: number
   status: string

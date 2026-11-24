@@ -23,6 +23,8 @@ import { CityService } from '../city/city.service'
 import { TerritoriesService } from '../territories/territories.service'
 import { calcInitiative, weaponExpByType } from './battle.formulas'
 import { companionCells, companionDamage, type CompanionOwner } from './companions'
+import { injuryEffects } from './injuries.formulas'
+import { recordFairInjury } from './hospital.service'
 import { normalizeTurn, type ZonalTurnInput } from './zones'
 import {
   canAttackTarget,
@@ -69,6 +71,8 @@ export interface LiveTeamParticipant {
   hitsLanded: number
   skippedTurns: number
   position: GridPosition
+  /** Сняли ударом с большим запасом: травма v8 — тяжёлая без броска. */
+  overkill?: boolean
 }
 
 export interface LiveTeamState {
@@ -270,10 +274,21 @@ export async function finishTeamBattle(
   }
 
   return withTransaction(async tx => {
+    // Травмы v8 — только бои со Стрелок: осада дома, налёт на жильё и
+    // война за район тоже групповые, но у них свои последствия.
+    const fairFight = winnerSide !== null
+      && !(await tx.houseSiege.count({ where: { battleId } }))
+      && !(await tx.homeRaid.count({ where: { battleId } }))
+      && !(await tx.territoryClaim.count({ where: { battleId } }))
     const progress: Record<string, { expGain: number; newLevel: number; hp: number }> = {}
     for (const payout of payouts) {
       if (!payout.ctx) continue
-      payout.exp = Math.round(payout.exp * (1 + (expBonus.get(payout.ctx.char.id) ?? 0)))
+      payout.exp = Math.round(payout.exp * (1 + (expBonus.get(payout.ctx.char.id) ?? 0)) * injuryEffects(payout.ctx.char).exp)
+      if (fairFight) {
+        await recordFairInjury(tx, payout.ctx.char.id, {
+          won: payout.won, damageReceived: payout.part.damageReceived, hpMax: payout.part.hpMax, overkill: payout.part.overkill,
+        })
+      }
       // Опыт оружия — тем же кодом, что в дуэли: командный бой не начислял
       // его вовсе, и бой за район не качал навык ни одному участнику.
       const weaponEntries = weaponExpByType(

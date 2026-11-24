@@ -218,6 +218,7 @@ enum CurrencyLogReason {
   CURRENCY_EXCHANGE // Обменник Чёрного рынка
   HELPER_RENT // Аренда первого помощника, 2000 ₽ за 30 дней (Дима 15.11)
   LEVEL_BONUS // Премия за новый боевой или экономический уровень (№133)
+  HOSPITAL // Травмпункт городской больницы (травмы v8, Дима 24.11)
 }
 
 enum ItemLogAction {
@@ -609,6 +610,17 @@ model Session {
 // CHARACTER
 // =============================================================
 
+/// Ступени травм по документу Димы v8 (24.11). Первый этап — только
+/// честные бои на Стрелках: лёгкая, средняя, тяжёлая. Критическое и кома
+/// придут с засадами и наймом.
+enum InjuryTier {
+  LIGHT
+  MEDIUM
+  HEAVY
+  CRITICAL
+  COMA
+}
+
 model Character {
   id        String             @id @default(uuid())
   userId    String             @unique @map("user_id")
@@ -646,6 +658,11 @@ model Character {
   tutorialStep    Int?      @map("tutorial_step")
   /// «Кровавая травма» после проигранной осады: до этого времени в бой нельзя.
   traumaUntil     DateTime? @map("trauma_until")
+  /// Травма после честного боя (v8): ступень и время, до которого она держится.
+  injuryTier      InjuryTier? @map("injury_tier")
+  injuryUntil     DateTime?   @map("injury_until")
+  /// Когда оплатили лечение: дальше идёт только ожидание в травмпункте.
+  injuryTreatedAt DateTime?   @map("injury_treated_at")
 
   // HP
   hpCurrent Int @map("hp_current")
@@ -2502,6 +2519,7 @@ enum DollarReason {
   REFERRAL // процент с пополнения приглашённого игрока
   REFERRAL_PAYOUT // заявка на вывод реферальных на карту (возврат при отказе — с плюсом)
   TOPUP // покупка долларов картой или СБП (эквайринг)
+  CLINIC // лечение в ЧМЦ (травмы v8, Дима 24.11)
 }
 
 enum MarketCurrency {

@@ -39,6 +39,7 @@ import { BattleService } from '../battles/battles.service'
 import { ResourcesService } from '../resources/resources.service'
 import { when } from '../clans/house-siege.formulas'
 import { HOUSING, LOT_COUNT, TUNNELS, type TunnelCode, homeBonusActive, homeExpBonus, insideTunnelArea, isLot, lotKind, lotLabel, NEWBIE_PROTECTION_LEVEL } from './housing.config'
+import { blocksCombat } from '../battles/injuries.formulas'
 
 // Внутри своего жилья (правка 30.10): туннели только отсюда, сюда же «В дом».
 const HOME_PATH = '/housing/home'
@@ -125,8 +126,8 @@ async function startRaid(raidId: string): Promise<'STARTED' | 'ATTACKER_WON' | '
       for (const id of ids) {
         if (out.length >= HOUSING.raidMaxPerSide) break
         if (!online.has(id)) continue
-        const char = await tx.character.findUnique({ where: { id }, select: { traumaUntil: true } })
-        if (!char || (char.traumaUntil && char.traumaUntil > now)) continue
+        const char = await tx.character.findUnique({ where: { id }, select: { traumaUntil: true, injuryTier: true, injuryUntil: true } })
+        if (!char || (char.traumaUntil && char.traumaUntil > now) || blocksCombat(char, now)) continue
         const busy = await tx.character.updateMany({ where: { id, status: 'ACTIVE' }, data: { status: 'IN_BATTLE' } })
         if (busy.count === 1) out.push(id)
       }

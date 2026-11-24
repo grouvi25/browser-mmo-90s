@@ -19,6 +19,7 @@ import { logger } from '../../shared/logger/logger'
 import { CharactersRepository } from '../characters/characters.repository'
 import { BattleService, assertIntoxicationAllowsBattle } from './battles.service'
 import { TEAM_MAX_PER_SIDE } from './team-battle'
+import { combatReady } from './injuries.formulas'
 import { calcCharacterRating } from '../stats/stats.formulas'
 
 export type ApplicationKind = 'DUEL' | 'GROUP' | 'CHAOTIC'
@@ -308,10 +309,10 @@ export const ApplicationsService = {
       const ready: typeof battle.participants = []
       for (const part of battle.participants) {
         const taken = await tx.character.updateMany({
-          where: { id: part.characterId!, status: 'ACTIVE' },
+          where: { id: part.characterId!, status: 'ACTIVE', ...combatReady() },
           data: { status: 'IN_BATTLE' },
         })
-        // Кто к старту ушёл на смену или в другой бой — выпадает из заявки,
+        // Кто к старту ушёл на смену, в другой бой или слёг с тяжёлой травмой — выпадает из заявки,
         // а не срывает её остальным.
         if (taken.count !== 1) { await tx.battleParticipant.delete({ where: { id: part.id } }); continue }
         const fresh = await tx.character.findUniqueOrThrow({ where: { id: part.characterId! }, select: { hpMax: true, hpCurrent: true } })

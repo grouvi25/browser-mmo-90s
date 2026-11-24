@@ -84,6 +84,43 @@ export const BalanceConfig = {
     pairItemsDailyCap: 5,
   },
 
+  // ── Травмы после честных боёв (документ Димы v8, 24.11, этап 1) ──
+  // Источник — только бои на Стрелках (дуэль и групповая заявка). Осады,
+  // налёты и бои с ботами травм не дают. Критическое и кома — этап засад.
+  injuries: {
+    lightMinutes: 30,
+    mediumMinutes: 60,
+    heavyMinutes: 120,
+    /// Минус к урону и увороту, доля.
+    lightPenalty: 0.05,
+    mediumPenalty: 0.10,
+    /// Множитель опыта за любой бой, пока травма держится.
+    lightExp: 0.2,
+    mediumExp: 0.1,
+    /// Травмпункт городской больницы: цена в ₽ и ожидание после оплаты.
+    lightHospitalRub: 100,
+    mediumHospitalRub: 250,
+    heavyHospitalRub: 500,
+    lightHospitalWaitMinutes: 5,
+    mediumHospitalWaitMinutes: 10,
+    heavyHospitalWaitMinutes: 10,
+    /// ЧМЦ: в долларах, сразу готов. Лёгкую не принимает.
+    mediumClinicUsd: 1,
+    heavyClinicUsd: 2,
+    /// Проигравший: доля потерянного за бой HP от максимума → шансы ступеней, %.
+    loserMidFrom: 0.40,
+    loserHighFrom: 0.70,
+    loserLowLight: 70, loserLowMedium: 25, loserLowHeavy: 5,
+    loserMidLight: 30, loserMidMedium: 50, loserMidHeavy: 20,
+    loserHighLight: 10, loserHighMedium: 45, loserHighHeavy: 45,
+    /// Победитель: может получить только лёгкую, шанс в %.
+    winnerMidFrom: 0.30,
+    winnerHighFrom: 0.70,
+    winnerLowLight: 10, winnerMidLight: 25, winnerHighLight: 50,
+    /// Оверкилл: последний удар перекрыл остаток HP на эту долю максимума — тяжёлая без броска.
+    overkillShare: 0.5,
+  },
+
   economy: {
     work: { efficiencyPerProfessionLevel: 0.03, objectLevelStep: 0.25, salaryRandomMin: 0.9, salaryRandomMax: 1.1, salaryCapMultiplier: 3, dailyShiftLimit: 12, dailyShiftMinutes: 360,
       // Заказчик 06.11 (обращение №42): «время работ 5 минут, отдых не увеличивать».

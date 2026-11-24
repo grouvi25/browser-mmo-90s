@@ -27,6 +27,7 @@ const REASON: Record<DollarMove['reason'], string> = {
   REFERRAL_PAYOUT: 'Вывод реферальных',
   TOPUP: 'Покупка картой или СБП',
   TUTORIAL: 'Награда за обучение',
+  CLINIC: 'Лечение в ЧМЦ',
 }
 
 export function DollarsSection() {

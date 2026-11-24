@@ -26,6 +26,8 @@ export const CITY_LOCATIONS = [
 
 const KNOWN_PLACES: readonly { label: string; to: string }[] = [
   ...CITY_LOCATIONS, ...MENU.districts, ...Object.values(MENU.rooms).flat(),
+  // Травмы v8: больница и ЧМЦ — кнопки на Центральной площади, не районы.
+  { label: 'Городская больница', to: '/hospital' }, { label: 'ЧМЦ', to: '/clinic' },
 ]
 
 /** Название места для досье и профиля. Сервер хранит адрес страницы

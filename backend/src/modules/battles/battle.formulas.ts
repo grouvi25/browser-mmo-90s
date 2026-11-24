@@ -51,6 +51,8 @@ export interface DefenderSnapshot {
   /** Оберег крита за вычетом минус-оберега бьющего, со знаком. */
   critCharmEdge?: number
   incomingDamageMultiplier?: number
+  /** Травма v8 (лёгкая −5%, средняя −10%) режет шанс уворота. */
+  injuryDodgeMultiplier?: number
   // Базовый урон защитника (для ответки)
   minDamage: number; maxDamage: number
 }
@@ -165,6 +167,13 @@ export function hitEdgeChance(statDiff: number, charmDiff: number, mid: number):
 // точность оружия сверх обычной (0,7) тоже отнимает, хмель — прибавляет.
 // ---------------------------------------------------------------
 export function calcDodgeChance(
+  defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'> & Partial<Pick<DefenderSnapshot, 'injuryDodgeMultiplier'>>,
+  attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'> & Partial<Pick<AttackerSnapshot, 'agi' | 'dodgeCharmEdge' | 'rangedAccEdge'>>
+): number {
+  return baseDodgeChance(defender, attacker) * (defender.injuryDodgeMultiplier ?? 1)
+}
+
+function baseDodgeChance(
   defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'>,
   attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'> & Partial<Pick<AttackerSnapshot, 'agi' | 'dodgeCharmEdge' | 'rangedAccEdge'>>
 ): number {
@@ -195,7 +204,7 @@ export function calcDodgeChance(
 // Шанс, что удар дойдёт до защитника, — всё, кроме уворота.
 export function calcHitChance(
   attacker: Pick<AttackerSnapshot, 'acc' | 'antiDodgeBonus' | 'weaponAccuracy'> & Partial<Pick<AttackerSnapshot, 'agi' | 'dodgeCharmEdge' | 'rangedAccEdge'>>,
-  defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'>
+  defender: Pick<DefenderSnapshot, 'agi' | 'dodgeBonus'> & Partial<Pick<DefenderSnapshot, 'injuryDodgeMultiplier'>>
 ): number {
   return 1 - calcDodgeChance(defender, attacker)
 }

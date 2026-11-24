@@ -7,6 +7,7 @@ import { PROFESSION_NAMES } from '../professions/professions'
 import { DOG_BREEDS } from '../city/dogs'
 
 const REASON: Partial<Record<CurrencyLogReason, string>> = {
+  HOSPITAL: 'Травмпункт больницы',
   SHOP_PURCHASE: 'Покупка в госмагазине',
   SHOP_SELL: 'Продажа вещи государству',
   BATTLE_REWARD: 'Награда за бой',

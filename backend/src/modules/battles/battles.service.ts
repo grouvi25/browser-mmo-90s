@@ -43,6 +43,8 @@ import {
   type EquipArmorLike,
 } from './zones'
 import { FREEZE_AFTER_MISSED, IDLE_FROZEN, IDLE_SKIP } from './battle-timeout'
+import { blocksCombat, combatReady, injuryEffects, isOverkill, type InjuryState } from './injuries.formulas'
+import { recordFairInjury } from './hospital.service'
 import type { BodyZone } from '@prisma/client'
 import {
   BATTLE_GRID,
@@ -205,6 +207,8 @@ export interface LiveParticipant {
   position: GridPosition
   /** Попадания по зонам за бой: на третьем снимается оружие или броня (wounds.ts). */
   wounds?: Wounds
+  /** Сняли ударом с большим запасом: травма v8 — тяжёлая без броска. */
+  overkill?: boolean
 }
 
 export interface LiveBattleState {
@@ -485,8 +489,9 @@ export async function buildAttackerSnapshotAsync(
     counterCharmEdge: gear.antiCounter - opponentGear.minus.antiCounter,
     // Дима 13.11: урон с оружием в руках (и рукопашным тоже) от мастерства
     // исп. оружия, голыми руками от кулачного боя.
-    outgoingDamageMultiplier: 1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0) + buffs.damage
-      + Math.min(MASTERY_DAMAGE_CAP, masteryBalance(gear, opponentGear, !t ? 'fist' : 'weapon')),
+    // Травма v8 режет итоговый множитель: −5% лёгкая, −10% средняя.
+    outgoingDamageMultiplier: (1 + intox.outgoingDamage + (buffActive ? char.barBuffDamage : 0) + buffs.damage
+      + Math.min(MASTERY_DAMAGE_CAP, masteryBalance(gear, opponentGear, !t ? 'fist' : 'weapon'))) * injuryEffects(char, now).damage,
     // №95 (Nobody 12.11): из стрелкового антиметкость цели сверх своей меткости
     // мешает попасть; перевес 250% антиметкости — не попасть вовсе.
     rangedAccEdge: (t?.maxRange ?? 1) > 1 ? (gear.mastery.accuracy ?? 0) - (opponentGear.minusMastery.accuracy ?? 0) : undefined,
@@ -532,6 +537,7 @@ export function buildDefenderSnapshot(
     // Дима 15.11: мастерство защиты как оберег — своё минус минус-защита противника,
     // 250% = урон в ноль, меньше — пропорционально.
     incomingDamageMultiplier: (1 - Math.min(1, masteryBalance(gear, opponentGear, 'defense') / (BalanceConfig.strike.defenseFullAt ?? 2.5))) * (1 - buffs.resist),
+    injuryDodgeMultiplier: injuryEffects(char).dodge,
     minDamage: wMin, maxDamage: wMax,
   }
 }
@@ -681,11 +687,15 @@ function buildBotDefenderSnapshot(botStats: Record<string, number>, level = 1): 
 // ---------------------------------------------------------------
 // BattleService
 // ---------------------------------------------------------------
-export function assertIntoxicationAllowsBattle(character: Pick<CharacterWithStats, 'alcoholLevel' | 'alcoholUpdatedAt'> & { traumaUntil?: Date | null }): void {
+export function assertIntoxicationAllowsBattle(character: Pick<CharacterWithStats, 'alcoholLevel' | 'alcoholUpdatedAt'> & { traumaUntil?: Date | null } & InjuryState): void {
   // «Кровавая травма» после отбитой осады: сутки без боёв.
   if (character.traumaUntil && character.traumaUntil > new Date()) {
     const until = new Date(character.traumaUntil.getTime() + 3 * 3_600_000).toISOString().slice(11, 16)
     throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, `Кровавая травма: в бой можно после ${until} по Москве`, 409)
+  }
+  // Травмы v8: с тяжёлой бои закрыты целиком, лечение в больнице или ЧМЦ.
+  if (blocksCombat(character)) {
+    throw new AppError(ErrorCode.CHARACTER_IN_BATTLE, 'Тяжёлая травма: бои закрыты до выздоровления. Лечение — в больнице или ЧМЦ', 409)
   }
   const state = intoxicationModifiers(decayedAlcohol(character.alcoholLevel, character.alcoholUpdatedAt))
   if (!state.canBattle) throw new AppError(ErrorCode.BAR_TOO_DRUNK, 'Character is too drunk to fight', 409)
@@ -854,7 +864,7 @@ export const BattleService = {
 
     return withTransaction(async (tx) => {
       const claimed = await tx.character.updateMany({
-        where: { id: char.id, status: 'ACTIVE' },
+        where: { id: char.id, status: 'ACTIVE', ...combatReady() },
         data: { status: 'IN_BATTLE' },
       })
       if (claimed.count !== 1) {
@@ -958,7 +968,7 @@ export const BattleService = {
 
     return withTransaction(async tx => {
       const claimed = await tx.character.updateMany({
-        where: { id: char.id, status: 'ACTIVE' },
+        where: { id: char.id, status: 'ACTIVE', ...combatReady() },
         data: { status: 'IN_BATTLE' },
       })
       if (claimed.count !== 1) {
@@ -1004,7 +1014,7 @@ export const BattleService = {
 
     return withTransaction(async tx => {
       const claimed = await tx.character.updateMany({
-        where: { id: char.id, status: 'ACTIVE' },
+        where: { id: char.id, status: 'ACTIVE', ...combatReady() },
         data: { status: 'IN_BATTLE' },
       })
       if (claimed.count !== 1) {
@@ -1054,7 +1064,7 @@ export const BattleService = {
 
     return withTransaction(async tx => {
       const claimed = await tx.character.updateMany({
-        where: { id: char.id, status: 'ACTIVE' },
+        where: { id: char.id, status: 'ACTIVE', ...combatReady() },
         data: { status: 'IN_BATTLE' },
       })
       if (claimed.count !== 1) {
@@ -1272,7 +1282,7 @@ export const BattleService = {
 
     return withTransaction(async (tx) => {
       const claimedCharacter = await tx.character.updateMany({
-        where: { id: char.id, status: 'ACTIVE' },
+        where: { id: char.id, status: 'ACTIVE', ...combatReady() },
         data: { status: 'IN_BATTLE' },
       })
       if (claimedCharacter.count !== 1) {
@@ -2242,7 +2252,7 @@ export const BattleService = {
       targetLevel: bot.battleLevel,
       result,
       antiFarmCoeff,   // Apply daily anti-farm
-    }) * (1 + battleExpBonus))
+    }) * (1 + battleExpBonus) * injuryEffects(char).exp)
 
     // Премиум ускоряет НАБОР навыка, но не поднимает его потолок:
     // подписчик доходит до той же границы быстрее и там останавливается
@@ -2514,6 +2524,7 @@ export const BattleService = {
         if (r.hit && !r.dodge && !r.block) {
           const stripped = registerWound(target, r.zone, r.finalDamage)
           if (stripped) r.logParts.push(stripped)
+          if (isOverkill(target.hpCurrent, r.finalDamage, target.hpMax)) target.overkill = true
           target.hpCurrent = Math.max(0, target.hpCurrent - r.finalDamage)
           actor.hitsLanded++
           target.hitsTaken++
@@ -2527,6 +2538,7 @@ export const BattleService = {
       actor.damageDealt += res.damageToDefender
       target.damageReceived += res.damageToDefender - intercepted
       if (res.counterToAttacker > 0) {
+        if (isOverkill(actor.hpCurrent, res.counterToAttacker, actor.hpMax)) actor.overkill = true
         actor.hpCurrent = Math.max(0, actor.hpCurrent - res.counterToAttacker)
         target.damageDealt += res.counterToAttacker
         actor.damageReceived += res.counterToAttacker
@@ -2575,6 +2587,7 @@ export const BattleService = {
             }
             const victim = state.participants.find(p => p.participantId === targetId)
             if (!victim) return
+            if (isOverkill(victim.hpCurrent, hit.damage, victim.hpMax)) victim.overkill = true
             victim.hpCurrent = Math.max(0, victim.hpCurrent - hit.damage)
             victim.damageReceived += hit.damage
             victim.hitsTaken++
@@ -2800,6 +2813,7 @@ export const BattleService = {
         if (r.hit && !r.dodge && !r.block) {
           const stripped = registerWound(defPart, r.zone, r.finalDamage)
           if (stripped) r.logParts.push(stripped)
+          if (isOverkill(defPart === part1 ? hp1 : hp2, r.finalDamage, defPart.hpMax)) defPart.overkill = true
           if (defPart === part1) { hp1 = Math.max(0, hp1 - r.finalDamage); hitZonesOn1.push(r.zone) }
           else { hp2 = Math.max(0, hp2 - r.finalDamage); hitZonesOn2.push(r.zone) }
           atkPart.hitsLanded++; defPart.hitsTaken++
@@ -2813,6 +2827,7 @@ export const BattleService = {
       atkPart.damageDealt += res.damageToDefender
       defPart.damageReceived += res.damageToDefender
       if (res.counterToAttacker > 0) {   // защитник заблокировал и дал ответку
+        if (isOverkill(atkPart === part1 ? hp1 : hp2, res.counterToAttacker, atkPart.hpMax)) atkPart.overkill = true
         if (atkPart === part1) hp1 = Math.max(0, hp1 - res.counterToAttacker)
         else hp2 = Math.max(0, hp2 - res.counterToAttacker)
         defPart.damageDealt += res.counterToAttacker
@@ -2974,14 +2989,14 @@ export const BattleService = {
       targetHealed: part2.healedTotal,
       playerLevel: char1.battleLevel, targetLevel: char2.battleLevel,
       result: result1 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW',
-    }) * (1 + bonus1)
+    }) * (1 + bonus1) * injuryEffects(char1).exp
     const exp2 = calcBattleExp({
       ratingCoeff: ratingExpCoeff(rating2, rating1),
       damageDealt: part2.damageDealt, targetPower: power1, targetMaxHp: char1.hpMax,
       targetHealed: part1.healedTotal,
       playerLevel: char2.battleLevel, targetLevel: char1.battleLevel,
       result: result2 as 'PVP_WIN' | 'PVP_LOSS' | 'DRAW',
-    }) * (1 + bonus2)
+    }) * (1 + bonus2) * injuryEffects(char2).exp
 
     const wskEntries1 = weaponExpByType(part1, weapon1, char2.hpMax, winnerId === char1.id, levelDiff)
     const wskEntries2 = weaponExpByType(part2, weapon2, char1.hpMax, winnerId === char2.id, levelDiff)
@@ -3011,6 +3026,15 @@ export const BattleService = {
         hpCurrentAfterBattle: part2.hpCurrent,
         won: winnerId === char2.id,
       })
+
+      // Травмы v8: дуэль всегда со Стрелок. Ничья травм не даёт.
+      if (winnerId) {
+        for (const [part, char] of [[part1, char1], [part2, char2]] as const) {
+          await recordFairInjury(tx, char.id, {
+            won: winnerId === char.id, damageReceived: part.damageReceived, hpMax: part.hpMax, overkill: part.overkill,
+          })
+        }
+      }
 
       // Weapon skill exp follows the hand and weapon family that produced damage.
       for (const entry of wskEntries1) await saveWeaponSkillExp(tx as typeof prisma, char1.id, entry.weaponType, entry.exp)
