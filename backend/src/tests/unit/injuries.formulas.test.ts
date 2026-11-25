@@ -1,51 +1,58 @@
 import { describe, expect, it } from 'vitest'
 import {
-  blocksCombat, clinicOffer, hospitalOffer, injuryEffects, injuryUpdate, isOverkill, rollFairInjury,
+  blocksCombat, clinicOffer, hospitalOffer, injuryEffects, injuryUpdate, rollFairInjury,
 } from '../../modules/battles/injuries.formulas'
+import { BalanceConfig } from '../../config/balance.config'
 
 const now = new Date('2026-11-24T12:00:00Z')
 const later = (minutes: number) => new Date(now.getTime() + minutes * 60_000)
 
-describe('травмы v8: выпадение в честном бою', () => {
-  it('проигравший до 40% HP: 70 / 25 / 5', () => {
-    const fight = { won: false, damageReceived: 30, hpMax: 100 }
-    expect(rollFairInjury(fight, 0)).toBe('LIGHT')
-    expect(rollFairInjury(fight, 0.69)).toBe('LIGHT')
-    expect(rollFairInjury(fight, 0.70)).toBe('MEDIUM')
-    expect(rollFairInjury(fight, 0.94)).toBe('MEDIUM')
-    expect(rollFairInjury(fight, 0.96)).toBe('HEAVY')
+describe('травмы: выпадение в честном бою (Дима 25.11)', () => {
+  it('победитель травм не получает при любом броске', () => {
+    for (const roll of [0, 0.01, 0.2, 0.36, 0.99]) expect(rollFairInjury({ won: true }, roll)).toBeNull()
   })
 
-  it('проигравший 40–70%: 30 / 50 / 20 и свыше 70%: 10 / 45 / 45', () => {
-    const mid = { won: false, damageReceived: 40, hpMax: 100 }
-    expect(rollFairInjury(mid, 0.29)).toBe('LIGHT')
-    expect(rollFairInjury(mid, 0.79)).toBe('MEDIUM')
-    expect(rollFairInjury(mid, 0.81)).toBe('HEAVY')
-    const high = { won: false, damageReceived: 100, hpMax: 100 }
-    expect(rollFairInjury(high, 0.09)).toBe('LIGHT')
-    expect(rollFairInjury(high, 0.54)).toBe('MEDIUM')
-    expect(rollFairInjury(high, 0.56)).toBe('HEAVY')
+  it('проигравший: лёгкая 20%, средняя 10%, тяжёлая 5%, реанимация 2%, иначе целым', () => {
+    const lost = { won: false }
+    expect(rollFairInjury(lost, 0)).toBe('LIGHT')
+    expect(rollFairInjury(lost, 0.1999)).toBe('LIGHT')
+    expect(rollFairInjury(lost, 0.20)).toBe('MEDIUM')
+    expect(rollFairInjury(lost, 0.2999)).toBe('MEDIUM')
+    expect(rollFairInjury(lost, 0.30)).toBe('HEAVY')
+    expect(rollFairInjury(lost, 0.3499)).toBe('HEAVY')
+    expect(rollFairInjury(lost, 0.35)).toBe('CRITICAL')
+    expect(rollFairInjury(lost, 0.3699)).toBe('CRITICAL')
+    expect(rollFairInjury(lost, 0.37)).toBeNull()
+    expect(rollFairInjury(lost, 0.9999)).toBeNull()
   })
 
-  it('доля считается от максимума HP: танк и «стеклянная пушка» равны', () => {
-    expect(rollFairInjury({ won: false, damageReceived: 500, hpMax: 1000 }, 0.81))
-      .toBe(rollFairInjury({ won: false, damageReceived: 50, hpMax: 100 }, 0.81))
+  it('доли на миллионе бросков сходятся с шансами', () => {
+    const counts: Record<string, number> = {}
+    const n = 1_000_000
+    for (let i = 0; i < n; i++) {
+      const tier = rollFairInjury({ won: false }, (i + 0.5) / n) ?? 'NONE'
+      counts[tier] = (counts[tier] ?? 0) + 1
+    }
+    expect(counts).toEqual({ LIGHT: 200_000, MEDIUM: 100_000, HEAVY: 50_000, CRITICAL: 20_000, NONE: 630_000 })
   })
 
-  it('победитель получает только лёгкую: 10 / 25 / 50%', () => {
-    expect(rollFairInjury({ won: true, damageReceived: 10, hpMax: 100 }, 0.09)).toBe('LIGHT')
-    expect(rollFairInjury({ won: true, damageReceived: 10, hpMax: 100 }, 0.11)).toBeNull()
-    expect(rollFairInjury({ won: true, damageReceived: 30, hpMax: 100 }, 0.24)).toBe('LIGHT')
-    expect(rollFairInjury({ won: true, damageReceived: 30, hpMax: 100 }, 0.26)).toBeNull()
-    expect(rollFairInjury({ won: true, damageReceived: 90, hpMax: 100 }, 0.49)).toBe('LIGHT')
-    expect(rollFairInjury({ won: true, damageReceived: 90, hpMax: 100, overkill: true }, 0.51)).toBeNull()
+  it('шансы из админки: сумма больше 100 делит бросок по весам, без «целым»', () => {
+    const c = BalanceConfig.injuries
+    const saved = { ...c }
+    try {
+      Object.assign(c, { loserLight: 100, loserMedium: 100, loserHeavy: 0, loserCritical: 0 })
+      expect(rollFairInjury({ won: false }, 0.49)).toBe('LIGHT')
+      expect(rollFairInjury({ won: false }, 0.51)).toBe('MEDIUM')
+      expect(rollFairInjury({ won: false }, 0.9999)).toBe('MEDIUM')
+    } finally {
+      Object.assign(c, saved)
+    }
   })
 
-  it('оверкилл даёт проигравшему тяжёлую без броска', () => {
-    expect(rollFairInjury({ won: false, damageReceived: 10, hpMax: 100, overkill: true }, 0)).toBe('HEAVY')
-    expect(isOverkill(10, 60, 100)).toBe(true)
-    expect(isOverkill(10, 59, 100)).toBe(false)
-    expect(isOverkill(0, 100, 100)).toBe(false)
+  it('с критическим из боя бои закрыты, как после засады', () => {
+    const update = injuryUpdate({}, 'CRITICAL', now)!
+    expect(update).toMatchObject({ injuryTier: 'CRITICAL', injuryCriticalAt: now })
+    expect(blocksCombat(update, now)).toBe(true)
   })
 })
 

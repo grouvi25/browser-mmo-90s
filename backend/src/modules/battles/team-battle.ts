@@ -71,8 +71,6 @@ export interface LiveTeamParticipant {
   hitsLanded: number
   skippedTurns: number
   position: GridPosition
-  /** Сняли ударом с большим запасом: травма v8 — тяжёлая без броска. */
-  overkill?: boolean
 }
 
 export interface LiveTeamState {
@@ -285,9 +283,7 @@ export async function finishTeamBattle(
       if (!payout.ctx) continue
       payout.exp = Math.round(payout.exp * (1 + (expBonus.get(payout.ctx.char.id) ?? 0)) * injuryEffects(payout.ctx.char).exp)
       if (fairFight) {
-        await recordFairInjury(tx, payout.ctx.char.id, {
-          won: payout.won, damageReceived: payout.part.damageReceived, hpMax: payout.part.hpMax, overkill: payout.part.overkill,
-        })
+        await recordFairInjury(tx, payout.ctx.char.id, { won: payout.won })
       }
       // Опыт оружия — тем же кодом, что в дуэли: командный бой не начислял
       // его вовсе, и бой за район не качал навык ни одному участнику.

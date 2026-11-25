@@ -107,18 +107,9 @@ export const BalanceConfig = {
     /// ЧМЦ: в долларах, сразу готов. Лёгкую не принимает.
     mediumClinicUsd: 1,
     heavyClinicUsd: 2,
-    /// Проигравший: доля потерянного за бой HP от максимума → шансы ступеней, %.
-    loserMidFrom: 0.40,
-    loserHighFrom: 0.70,
-    loserLowLight: 70, loserLowMedium: 25, loserLowHeavy: 5,
-    loserMidLight: 30, loserMidMedium: 50, loserMidHeavy: 20,
-    loserHighLight: 10, loserHighMedium: 45, loserHighHeavy: 45,
-    /// Победитель: может получить только лёгкую, шанс в %.
-    winnerMidFrom: 0.30,
-    winnerHighFrom: 0.70,
-    winnerLowLight: 10, winnerMidLight: 25, winnerHighLight: 50,
-    /// Оверкилл: последний удар перекрыл остаток HP на эту долю максимума — тяжёлая без броска.
-    overkillShare: 0.5,
+    /// Дима 25.11: победитель травм не получает. Проигравший — шансы ступеней, %;
+    /// на остаток уходит без травмы. Реанимация — критическое состояние.
+    loserLight: 20, loserMedium: 10, loserHeavy: 5, loserCritical: 2,
 
     // ── Этап 2: засада, критическое, кома, реанимация (разделы 7–9, 12) ──
     criticalMinutes: 240,

@@ -41,7 +41,7 @@ describe('травмы v8: больница и ЧМЦ', () => {
   it('дуэль даёт проигравшему тяжёлую: бои закрыты, травмпункт берёт плату один раз', async () => {
     const winner = await player()
     const loser = await player()
-    vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    vi.spyOn(Math, 'random').mockReturnValue(0.32)
     await finishDuel(winner, loser)
     vi.restoreAllMocks()
 
@@ -63,11 +63,26 @@ describe('травмы v8: больница и ЧМЦ', () => {
     expect((await HospitalService.status(loser.user.id, new Date(now.getTime() + 11 * minute))).injury).toBeNull()
   })
 
+  it('победитель дуэли травм не получает, проигравший может уехать в реанимацию', async () => {
+    const winner = await player()
+    const loser = await player()
+    vi.spyOn(Math, 'random').mockReturnValue(0.36)
+    await finishDuel(winner, loser)
+    vi.restoreAllMocks()
+
+    const now = new Date()
+    expect((await HospitalService.status(winner.user.id, now)).injury).toBeNull()
+    expect((await HospitalService.status(loser.user.id, now)).injury)
+      .toMatchObject({ tier: 'CRITICAL', blocksCombat: true, reanimation: { self: { rubles: 2000, minutes: 60 } } })
+    expect(await testPrisma.gameNotice.count({ where: { characterId: loser.character.id, text: { contains: 'критическом состоянии' } } })).toBe(1)
+    expect(await testPrisma.gameNotice.count({ where: { characterId: winner.character.id } })).toBe(0)
+  })
+
   it('ЧМЦ лечит среднюю сразу за доллары и не берёт лёгкую', async () => {
     const patient = await player(0)
     const now = new Date()
-    vi.spyOn(Math, 'random').mockReturnValue(0.8)
-    await withTransaction(tx => recordFairInjury(tx, patient.character.id, { won: false, damageReceived: 10, hpMax: 100 }, now))
+    vi.spyOn(Math, 'random').mockReturnValue(0.25)
+    await withTransaction(tx => recordFairInjury(tx, patient.character.id, { won: false }, now))
     vi.restoreAllMocks()
     expect((await HospitalService.status(patient.user.id, now)).injury).toMatchObject({ tier: 'MEDIUM', blocksCombat: false, penaltyPercent: 10 })
 
@@ -79,7 +94,7 @@ describe('травмы v8: больница и ЧМЦ', () => {
     expect(await testPrisma.dollarLog.count({ where: { characterId: patient.character.id, reason: 'CLINIC', amount: -1 } })).toBe(1)
 
     vi.spyOn(Math, 'random').mockReturnValue(0)
-    await withTransaction(tx => recordFairInjury(tx, patient.character.id, { won: false, damageReceived: 10, hpMax: 100 }, now))
+    await withTransaction(tx => recordFairInjury(tx, patient.character.id, { won: false }, now))
     vi.restoreAllMocks()
     await expect(HospitalService.clinic(patient.user.id, now)).rejects.toThrow('не принимает')
   })

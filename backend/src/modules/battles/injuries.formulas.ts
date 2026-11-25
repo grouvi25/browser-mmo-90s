@@ -2,10 +2,9 @@
  * Травмы после честных боёв — документ Димы «Механика травм, лечения и
  * помощи» v8 (24.11), раздел I. Только Стрелки: дуэль и групповая заявка.
  *
- * Ступень выпадает по доле HP, потерянной за бой (урон / максимум HP):
- * полбака потерял — полбака и у танка, и у «стеклянной пушки». Победитель
- * может получить только лёгкую. Оверкилл — последний удар перекрыл остаток
- * HP на половину максимума и больше — тяжёлая без броска.
+ * Дима 25.11 заменил таблицы по доле HP фиксированными шансами: победитель
+ * травм не получает, проигравший — лёгкую 20%, среднюю 10%, тяжёлую 5%,
+ * реанимацию (критическое) 2%, в остальных случаях уходит целым.
  *
  * Все числа в BalanceConfig.injuries: Дима правит их из админки.
  */
@@ -15,8 +14,8 @@ import { BalanceConfig } from '../../config/balance.config'
 const MINUTE = 60_000
 const I = () => BalanceConfig.injuries
 
-/** Ступени первого этапа. Критическое и кома придут с засадами. */
-export type FairInjuryTier = Extract<InjuryTier, 'LIGHT' | 'MEDIUM' | 'HEAVY'>
+/** Что может выпасть в честном бою. Кома — только от засад. */
+export type FairInjuryTier = Extract<InjuryTier, 'LIGHT' | 'MEDIUM' | 'HEAVY' | 'CRITICAL'>
 
 const SEVERITY: Record<InjuryTier, number> = { LIGHT: 1, MEDIUM: 2, HEAVY: 3, CRITICAL: 4, COMA: 5 }
 
@@ -81,41 +80,27 @@ export function injuryEffects(state: InjuryState, now = new Date()): { damage: n
 
 export interface FightOutcome {
   won: boolean
-  /** HP, потерянные за бой. */
-  damageReceived: number
-  hpMax: number
-  /** Последний удар перекрыл остаток HP на долю максимума не меньше порога. */
-  overkill?: boolean
 }
 
-function pick(weights: [FairInjuryTier | null, number][], roll: number): FairInjuryTier | null {
-  const total = weights.reduce((sum, [, w]) => sum + Math.max(0, w), 0)
-  if (total <= 0) return null
-  let left = roll * total
+/**
+ * Бросок травмы проигравшему: шансы ступеней в процентах из конфига, на
+ * остаток — без травмы. Если Дима поднимет шансы так, что сумма перевалит
+ * за 100, «целым» не уйдёт никто, а ступени поделят бросок по весам.
+ * Ничья травм не даёт — её отсекают раньше.
+ */
+export function rollFairInjury(fight: FightOutcome, roll = Math.random()): FairInjuryTier | null {
+  if (fight.won) return null
+  const c = I()
+  const weights: [FairInjuryTier, number][] = [
+    ['LIGHT', c.loserLight], ['MEDIUM', c.loserMedium], ['HEAVY', c.loserHeavy], ['CRITICAL', c.loserCritical],
+  ]
+  const injured = weights.reduce((sum, [, w]) => sum + Math.max(0, w), 0)
+  let left = roll * Math.max(100, injured)
   for (const [tier, w] of weights) {
     left -= Math.max(0, w)
     if (left < 0) return tier
   }
-  return weights[weights.length - 1][0]
-}
-
-/** Бросок ступени по таблицам v8. Ничья травм не даёт — её отсекают раньше. */
-export function rollFairInjury(fight: FightOutcome, roll = Math.random()): FairInjuryTier | null {
-  const c = I()
-  const share = fight.hpMax > 0 ? fight.damageReceived / fight.hpMax : 0
-  if (fight.won) {
-    const light = share >= c.winnerHighFrom ? c.winnerHighLight : share >= c.winnerMidFrom ? c.winnerMidLight : c.winnerLowLight
-    return pick([['LIGHT', light], [null, 100 - light]], roll)
-  }
-  if (fight.overkill) return 'HEAVY'
-  if (share >= c.loserHighFrom) return pick([['LIGHT', c.loserHighLight], ['MEDIUM', c.loserHighMedium], ['HEAVY', c.loserHighHeavy]], roll)
-  if (share >= c.loserMidFrom) return pick([['LIGHT', c.loserMidLight], ['MEDIUM', c.loserMidMedium], ['HEAVY', c.loserMidHeavy]], roll)
-  return pick([['LIGHT', c.loserLowLight], ['MEDIUM', c.loserLowMedium], ['HEAVY', c.loserLowHeavy]], roll)
-}
-
-/** Удар, который снял цель: перекрыл ли он остаток HP на порог оверкилла. */
-export function isOverkill(hpBefore: number, damage: number, hpMax: number): boolean {
-  return hpBefore > 0 && damage >= hpBefore && damage - hpBefore >= I().overkillShare * hpMax
+  return null
 }
 
 /** Новая травма заменяет текущую, только если она тяжелее. */
@@ -242,6 +227,7 @@ export function knockoutNotice(tier: 'CRITICAL' | 'COMA'): string {
 /** Уведомления из раздела 13 документа. */
 export function injuryNotice(tier: FairInjuryTier): string {
   const c = I()
+  if (tier === 'CRITICAL') return knockoutNotice('CRITICAL')
   if (tier === 'LIGHT') {
     return `🩹 Вы получили лёгкие травмы. Потрепали вас прилично, но на ногах стоите. Опыт за бои: ×${fmt(c.lightExp)}. Отлёжка: ${c.lightMinutes} мин — или травмпункт больницы.`
   }

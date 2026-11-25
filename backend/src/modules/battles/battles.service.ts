@@ -43,7 +43,7 @@ import {
   type EquipArmorLike,
 } from './zones'
 import { FREEZE_AFTER_MISSED, IDLE_FROZEN, IDLE_SKIP } from './battle-timeout'
-import { blocksCombat, combatReady, injuryEffects, isOverkill, type InjuryState } from './injuries.formulas'
+import { blocksCombat, combatReady, injuryEffects, type InjuryState } from './injuries.formulas'
 import { recordFairInjury } from './hospital.service'
 import type { BodyZone } from '@prisma/client'
 import {
@@ -207,8 +207,6 @@ export interface LiveParticipant {
   position: GridPosition
   /** Попадания по зонам за бой: на третьем снимается оружие или броня (wounds.ts). */
   wounds?: Wounds
-  /** Сняли ударом с большим запасом: травма v8 — тяжёлая без броска. */
-  overkill?: boolean
 }
 
 export interface LiveBattleState {
@@ -2524,7 +2522,6 @@ export const BattleService = {
         if (r.hit && !r.dodge && !r.block) {
           const stripped = registerWound(target, r.zone, r.finalDamage)
           if (stripped) r.logParts.push(stripped)
-          if (isOverkill(target.hpCurrent, r.finalDamage, target.hpMax)) target.overkill = true
           target.hpCurrent = Math.max(0, target.hpCurrent - r.finalDamage)
           actor.hitsLanded++
           target.hitsTaken++
@@ -2538,7 +2535,6 @@ export const BattleService = {
       actor.damageDealt += res.damageToDefender
       target.damageReceived += res.damageToDefender - intercepted
       if (res.counterToAttacker > 0) {
-        if (isOverkill(actor.hpCurrent, res.counterToAttacker, actor.hpMax)) actor.overkill = true
         actor.hpCurrent = Math.max(0, actor.hpCurrent - res.counterToAttacker)
         target.damageDealt += res.counterToAttacker
         actor.damageReceived += res.counterToAttacker
@@ -2587,7 +2583,6 @@ export const BattleService = {
             }
             const victim = state.participants.find(p => p.participantId === targetId)
             if (!victim) return
-            if (isOverkill(victim.hpCurrent, hit.damage, victim.hpMax)) victim.overkill = true
             victim.hpCurrent = Math.max(0, victim.hpCurrent - hit.damage)
             victim.damageReceived += hit.damage
             victim.hitsTaken++
@@ -2813,7 +2808,6 @@ export const BattleService = {
         if (r.hit && !r.dodge && !r.block) {
           const stripped = registerWound(defPart, r.zone, r.finalDamage)
           if (stripped) r.logParts.push(stripped)
-          if (isOverkill(defPart === part1 ? hp1 : hp2, r.finalDamage, defPart.hpMax)) defPart.overkill = true
           if (defPart === part1) { hp1 = Math.max(0, hp1 - r.finalDamage); hitZonesOn1.push(r.zone) }
           else { hp2 = Math.max(0, hp2 - r.finalDamage); hitZonesOn2.push(r.zone) }
           atkPart.hitsLanded++; defPart.hitsTaken++
@@ -2827,7 +2821,6 @@ export const BattleService = {
       atkPart.damageDealt += res.damageToDefender
       defPart.damageReceived += res.damageToDefender
       if (res.counterToAttacker > 0) {   // защитник заблокировал и дал ответку
-        if (isOverkill(atkPart === part1 ? hp1 : hp2, res.counterToAttacker, atkPart.hpMax)) atkPart.overkill = true
         if (atkPart === part1) hp1 = Math.max(0, hp1 - res.counterToAttacker)
         else hp2 = Math.max(0, hp2 - res.counterToAttacker)
         defPart.damageDealt += res.counterToAttacker
@@ -3029,11 +3022,7 @@ export const BattleService = {
 
       // Травмы v8: дуэль всегда со Стрелок. Ничья травм не даёт.
       if (winnerId) {
-        for (const [part, char] of [[part1, char1], [part2, char2]] as const) {
-          await recordFairInjury(tx, char.id, {
-            won: winnerId === char.id, damageReceived: part.damageReceived, hpMax: part.hpMax, overkill: part.overkill,
-          })
-        }
+        for (const char of [char1, char2]) await recordFairInjury(tx, char.id, { won: winnerId === char.id })
       }
 
       // Weapon skill exp follows the hand and weapon family that produced damage.
