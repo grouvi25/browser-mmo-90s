@@ -13,6 +13,8 @@ test('city locations, return controls, readable fonts and resume after login', a
   const created = await request.post(`${API}/api/characters`, { headers: { Authorization: `Bearer ${auth.token}` }, data: { nickname: login, archetype: 'WORKER' } })
   expect(created.status()).toBe(201)
   await unlockLocations(request, ((await created.json()) as { id: string }).id)
+  // Подсказки обучения затемняют экран: здесь проверяются локации (обучение — city-tutorial.spec.ts).
+  await page.addInitScript(() => sessionStorage.setItem('mmo_tour_paused', '1'))
   await page.goto('/login')
   await page.getByPlaceholder('Ваш ник').fill(login); await page.getByPlaceholder('Пароль').fill(password)
   await page.getByRole('button', { name: 'Войти в игру' }).click()

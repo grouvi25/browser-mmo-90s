@@ -15,7 +15,7 @@ import { ApiError } from '../../shared/api/client'
 import { SHOP_IMAGES, templateImageUrl } from '../../shared/assets/shop/shop-images'
 import { SPRITES } from '../../shared/ui/sprite'
 import { itemStatLines } from '../../shared/lib/item-stat-lines'
-import { useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
+import { tutorialWeaponTab, useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
 import { DogGoods } from '../locations/dog-goods'
 import './shop.css'
 
@@ -73,6 +73,10 @@ export function GovernmentShopPage() {
   const [category, setCategory] = useState(() => shopTab(requestedTab))
   useEffect(() => setCategory(shopTab(requestedTab)), [requestedTab])
   const tutorial = useCityTutorial().data
+  // Обучение: оружие урока лежит в своём разделе, на чужом подсвечиваем вкладку.
+  const tutorialCategory: Category | null = tutorial?.lesson === 'buy' && tutorial.weapon
+    ? tutorialWeaponTab(tutorial.weapon.weaponType) === 'ranged' ? 'RANGED' : 'MELEE'
+    : null
   const [profession, setProfession] = useState(params.get('profession') ?? 'ALL')
   const [level, setLevel] = useState<number | 'ALL'>('ALL')
   const [cart, setCart] = useState<string[]>([])
@@ -195,6 +199,7 @@ export function GovernmentShopPage() {
             key={tab.key}
             className={category === tab.key ? 'active' : ''}
             aria-current={category === tab.key}
+            data-tutorial-focus={tutorialCategory && tutorialCategory !== category && tab.key === tutorialCategory ? 'shop-tab' : undefined}
             onClick={() => setCategory(tab.key)}
           >
             <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
@@ -288,7 +293,7 @@ export function GovernmentShopPage() {
                     <div className="gshop-card-actions">
                       <button
                         className="gshop-btn"
-                        data-tutorial-focus={tutorial?.lesson === 'buy' && tutorial.weapon?.id === t.id ? '' : undefined}
+                        data-tutorial-focus={tutorial?.lesson === 'buy' && tutorial.weapon?.id === t.id ? 'buy' : undefined}
                         disabled={buyMut.isPending || tooPoor || tooLow}
                         title={tooLow ? `Нужен ${t.levelReq}-й уровень` : tooPoor ? 'Не хватает денег' : undefined}
                         onClick={() => buyMut.mutate(t.id)}

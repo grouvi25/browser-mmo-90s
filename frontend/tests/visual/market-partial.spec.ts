@@ -14,6 +14,8 @@ test('частичная покупка отправляет котировку 
     localStorage.setItem('mmo_token', 'fixture-token')
     localStorage.setItem('mmo_user', JSON.stringify({ userId: 'u', login: 'qa' }))
     sessionStorage.setItem('mmo_resumed', '1')
+    // Подсказки обучения затемняют экран: здесь проверяется не обучение (city-tutorial.spec.ts).
+    sessionStorage.setItem('mmo_tour_paused', '1')
   })
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const url = new URL(route.request().url())

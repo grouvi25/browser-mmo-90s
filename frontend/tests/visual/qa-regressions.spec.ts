@@ -16,6 +16,8 @@ async function authenticate(page: Page, resumed = true) {
     localStorage.setItem('mmo_token', 'fixture-token')
     localStorage.setItem('mmo_user', JSON.stringify({ userId: 'u', login: 'qa' }))
     if (resumed) sessionStorage.setItem('mmo_resumed', '1')
+    // Подсказки обучения затемняют экран: здесь проверяется не обучение (city-tutorial.spec.ts).
+    sessionStorage.setItem('mmo_tour_paused', '1')
   }, resumed)
 }
 
@@ -47,6 +49,8 @@ const librarySection = { id: 'custom-library', title: 'Правила город
 // Дима 23.11: новичок появляется на площади и проходит обучение, письмо Бывалого — после него.
 test('новый персонаж выходит на Центральную площадь и начинает обучение', async ({ page }) => {
   await authenticate(page, false)
+  // Здесь проверяется само обучение: подсказки включены.
+  await page.addInitScript(() => sessionStorage.removeItem('mmo_tour_paused'))
   await mockApi(page, () => battle(), undefined, true)
   let created = false
   await page.route('**/api/characters/me', route => created
@@ -62,7 +66,9 @@ test('новый персонаж выходит на Центральную п�
   } }))
   await page.goto('/character/create')
   await page.getByRole('button', { name: 'Создать персонажа' }).click()
-  await expect(page.getByRole('complementary', { name: 'Обучение в городе' }).getByText('Купи оружие')).toBeVisible()
+  const intro = page.getByRole('dialog', { name: 'Первые шаги' })
+  await expect(intro).toBeVisible()
+  await expect(intro.getByRole('button', { name: 'Начать' })).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Кодекс выживания приезжего' })).toHaveCount(0)
   await expect(page).toHaveURL(/\/$/)
   await expect(page.locator('img[alt="Центральная площадь"]')).toBeAttached()

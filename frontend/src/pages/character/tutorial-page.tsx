@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
+import { reachGoal } from '../../shared/lib/attribution'
 import './tutorial.css'
 
 type Lesson = {
@@ -64,6 +65,11 @@ export function TutorialPage() {
     element.showModal()
     return () => element.close()
   }, [])
+
+  // Цели Метрики по шагам учебного боя: видно, где бросают (Дима 25.11).
+  useEffect(() => {
+    if (practiceStep !== null) reachGoal(`tutorial_practice_${practiceStep === lessons.length ? 'done' : lessons[practiceStep].action}`)
+  }, [practiceStep])
 
   const lesson = practiceStep === null ? undefined : lessons[practiceStep]
   const completed = practiceStep === lessons.length

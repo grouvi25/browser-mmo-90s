@@ -56,6 +56,9 @@ export function readAttribution(): Attribution | undefined {
 }
 
 /** Цель в Яндекс.Метрике (в счётчике заводится цель «JavaScript-событие» с этим id). */
-export function reachGoal(goal: 'registration'): void {
+/** Шаги обучения (Дима 25.11): по ним в Метрике видно, на каком шаге уходят новички. */
+export type GoalId = 'registration' | `tutorial_${string}`
+
+export function reachGoal(goal: GoalId): void {
   try { window.ym?.(COUNTER, 'reachGoal', goal) } catch { /* счётчик заблокирован — не страшно */ }
 }

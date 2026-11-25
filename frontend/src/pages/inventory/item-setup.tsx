@@ -40,7 +40,7 @@ function Field({ label, hint, value, min, onChange, disabled, guided }: {
   return (
     <label className="inv-setup__row">
       <input type="number" min={min} step={1} value={value || ''} placeholder="0" disabled={disabled}
-        data-tutorial-focus={guided ? '' : undefined}
+        data-tutorial-focus={guided ? 'max-damage' : undefined}
         onChange={event => {
           const next = Math.trunc(Number(event.target.value.replace(',', '.'))) || 0
           onChange(Math.max(min, next))
@@ -185,7 +185,6 @@ export function ItemSetupDialog({ item, disabled, tutorial, onClose, onMessage }
 
       <div className="inv-setup__groups">
         {ownStats.length > 0 && <Section title="Сама вещь">
-          {tutorial && <p className="city-tutorial__inline">Впиши 1 в «Макс. урон» и нажми «Сохранить». Если очки уже заняты, сними одно с другой характеристики этой вещи.</p>}
           {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${formatItemHp(perDamage)} HP за очко` : key === 'ARMOR' ? `+${formatArmor(item.armorPerPoint ?? 5)} защиты` : hint} min={0} disabled={busy} value={own[key] ?? 0}
             guided={tutorial && key === 'MAX_DAMAGE' && !own.MAX_DAMAGE}
             onChange={value => setOwn(prev => ({ ...prev, [key]: value }))} />)}
@@ -220,7 +219,7 @@ export function ItemSetupDialog({ item, disabled, tutorial, onClose, onMessage }
           </button>
         )}
         <button type="button" className="btn btn-primary" disabled={busy || left < 0 || inverted}
-          data-tutorial-focus={tutorial && (own.MAX_DAMAGE ?? 0) > 0 ? '' : undefined}
+          data-tutorial-focus={tutorial && (own.MAX_DAMAGE ?? 0) > 0 ? 'save' : undefined}
           title={left < 0 ? `Лишних очков: ${-left}` : inverted ? 'Мин. урон выше макс.' : undefined} onClick={() => save.mutate()}>
           {save.isPending ? 'Сохраняем…' : 'Сохранить'}
         </button>

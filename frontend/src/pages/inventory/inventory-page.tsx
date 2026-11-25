@@ -31,7 +31,7 @@ import { shopApi } from '../../shared/api/shop.api'
 import { ARMOR_SLOT_LABELS, QUALITY_LABELS, effectLabel, healLabel, type ItemInstance } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
-import { useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
+import { tutorialWeaponTab, useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
 import { instanceImage, itemBonusLines, itemHoverText } from '../../shared/lib/item-bonuses'
 import { formatArmor, itemDamageRange, itemHp } from '../../shared/lib/combat-hp'
 import { SPRITES } from '../../shared/ui/sprite'
@@ -152,6 +152,9 @@ export function InventoryPage() {
   useEffect(() => setTabKey(weaponTab), [weaponTab])
   const tutorial = useCityTutorial().data
   const tutorialItem = tutorial?.weapon?.itemId
+  // Обучение: на чужой вкладке подсвечиваем вкладку с оружием урока.
+  const tutorialTab = (tutorial?.lesson === 'equip' || tutorial?.lesson === 'allocate') && tutorial.weapon
+    ? tutorialWeaponTab(tutorial.weapon.weaponType) : null
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const pocket = useBattleLoadout()
   const loadoutIds = pocket.ids
@@ -306,6 +309,7 @@ export function InventoryPage() {
             className={tabKey === t.key ? 'active' : ''}
             aria-current={tabKey === t.key}
             title={t.label}
+            data-tutorial-focus={tutorialTab && tutorialTab !== tabKey && t.key === tutorialTab ? 'inventory-tab' : undefined}
             onClick={() => setTabKey(t.key)}>
             <img className="gshop-frame" src={SPRITES['shop-tab-frame']} alt="" draggable={false} />
             <span>{t.label}</span>
@@ -361,7 +365,7 @@ export function InventoryPage() {
                             <div className="inv-card__actions">
                               <span className="inv-card__count">Очки: {item.freePoints} из {item.budget}</span>
                               <button type="button" className="inv-btn" disabled={inBattle} onClick={() => setSetupId(item.id)}
-                                data-tutorial-focus={tutorial?.lesson === 'allocate' && tutorialItem === item.id ? '' : undefined}>
+                                data-tutorial-focus={tutorial?.lesson === 'allocate' && tutorialItem === item.id ? 'setup' : undefined}>
                                 <img className="gshop-frame" src={SPRITES['shop-btn-frame']} alt="" draggable={false} />
                                 <span>Настроить</span>
                               </button>
@@ -394,7 +398,7 @@ export function InventoryPage() {
                               <span className="inv-card__note">{t.type === 'TOOL' ? 'Берётся на смену сам' : 'Не надевается'}</span>
                             ) : (
                               <button type="button" className="inv-btn"
-                                data-tutorial-focus={tutorial?.lesson === 'equip' && tutorialItem === item.id ? '' : undefined}
+                                data-tutorial-focus={tutorial?.lesson === 'equip' && tutorialItem === item.id ? 'equip' : undefined}
                                 disabled={inBattle || broken || tooLow || equipMut.isPending}
                                 title={broken ? 'Сломан — сначала починить' : tooLow ? `Нужен ${t.levelReq}-й уровень` : undefined}
                                 onClick={() => equipMut.mutate({ id: item.id })}>

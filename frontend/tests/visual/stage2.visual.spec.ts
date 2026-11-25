@@ -43,6 +43,8 @@ async function authPage(page: Page, account: Account, { resume = false } = {}) {
     localStorage.setItem('mmo_token', token)
     localStorage.setItem('mmo_user', JSON.stringify({ userId, login }))
     if (!resume) sessionStorage.setItem('mmo_resumed', '1')
+    // Подсказки обучения затемняют экран: здесь проверяется не обучение (city-tutorial.spec.ts).
+    sessionStorage.setItem('mmo_tour_paused', '1')
   }, { ...account, resume })
 }
 

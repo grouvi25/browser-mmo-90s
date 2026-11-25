@@ -91,7 +91,6 @@ export function MobileShell() {
       </header>
 
 
-      <div id="m-tutorial-slot" className="m-tutorial-slot" />
       <main className="m-view" ref={viewRef}>
         <ErrorBoundary><LevelGate><Outlet /></LevelGate></ErrorBoundary>
       </main>
