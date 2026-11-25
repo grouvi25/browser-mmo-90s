@@ -13,7 +13,7 @@ vi.mock('../../modules/admin-balance/telegram.service', () => ({
 }))
 
 const reg = (login: string, email: string, extra: Record<string, unknown> = {}, ip = '203.0.113.7') =>
-  AuthService.register({ login, email, password: 'secret_pw_1', acceptPolicy: true, ...extra }, ip)
+  AuthService.register({ login, email, password: 'secret_pw_1', acceptPolicy: true, acceptPd: true, ...extra }, ip)
 
 describe('защита регистрации', () => {
   beforeAll(async () => { await testPrisma.$connect(); await getRedis().ping() })

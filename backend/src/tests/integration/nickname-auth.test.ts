@@ -12,7 +12,7 @@ import { EconomyService } from '../../modules/economy/economy.service'
 import { BalanceConfig } from '../../config/balance.config'
 import { prisma } from '../../shared/db/prisma'
 
-const policy = { acceptPolicy: true as const }
+const policy = { acceptPolicy: true, acceptPd: true as const }
 
 describe('Вход по нику', () => {
   beforeAll(async () => { await testPrisma.$connect(); await getRedis().ping() })

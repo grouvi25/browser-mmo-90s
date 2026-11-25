@@ -18,10 +18,7 @@ export function HubPage() {
       scene="center"
       alt="Центральная площадь"
       place="Центр · Центральная площадь"
-      actions={[
-        { key: 'hospital', label: 'Больница', to: '/hospital', hint: 'Травмпункт: лечение травм после боя' },
-        { key: 'clinic', label: 'ЧМЦ', to: '/clinic', hint: 'Частный медицинский центр: быстро и за доллары' },
-      ]}
+      actions={[]}
     >
       {battleId && (
         <button type="button" className="hub__resume" onClick={() => navigate(`/battle/${battleId}`)}>

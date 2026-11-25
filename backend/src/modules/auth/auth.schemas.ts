@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import { Nickname } from '../characters/characters.schemas'
 
-export const POLICY_REQUIRED = 'Нужно согласие с политикой обработки персональных данных'
+export const POLICY_REQUIRED = 'Нужно принять пользовательское соглашение и ознакомиться с политикой обработки персональных данных'
+export const PD_REQUIRED = 'Нужно дать согласие на обработку персональных данных'
 
 export const RegisterSchema = z.object({
   // Регистрация по нику (правка 29.10): ник и есть имя для входа. Отдельный
@@ -10,8 +11,10 @@ export const RegisterSchema = z.object({
   login: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Only letters, digits, underscores').optional(),
   email: z.string().email(),
   password: z.string().min(6).max(100),
-  // Согласие с политикой обработки персональных данных обязательно.
+  // Галочка 1 (Дима 25.11): соглашение и ознакомление с политикой, обязательна.
   acceptPolicy: z.literal(true, { message: POLICY_REQUIRED }),
+  // Галочка 2: согласие на обработку персональных данных, обязательна и отдельна.
+  acceptPd: z.literal(true, { message: PD_REQUIRED }),
   // Рассылки — отдельное согласие по желанию, по умолчанию его нет (24.11).
   marketingConsent: z.boolean().optional(),
   // Ловушка для ботов (скрытое поле формы) и ответ капчи.

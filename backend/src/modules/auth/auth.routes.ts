@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { AuthService } from './auth.service'
-import { RegisterSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema, POLICY_REQUIRED } from './auth.schemas'
+import { RegisterSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema, POLICY_REQUIRED, PD_REQUIRED } from './auth.schemas'
 import { PasswordResetService } from './password-reset.service'
 import { RegistrationGuard } from './registration-guard'
 import { env } from '../../config/env'
@@ -25,6 +25,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
     if (!parsed.success) {
       const fields = parsed.error.flatten().fieldErrors
       if (fields.acceptPolicy) return reply.code(422).send({ code: 'GEN_001', message: POLICY_REQUIRED, details: fields })
+      if (fields.acceptPd) return reply.code(422).send({ code: 'GEN_001', message: PD_REQUIRED, details: fields })
       if (fields.phone) return reply.code(422).send({ code: 'GEN_001', message: fields.phone[0], details: fields })
       return reply.code(422).send({
         code: 'GEN_001',

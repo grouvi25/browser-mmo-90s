@@ -555,6 +555,8 @@ model User {
   character      Character?
   activeDays     UserActiveDay[]
   sessions       Session[]
+  /// Журнал согласий при регистрации (Дима 25.11): доказательство галочек.
+  consentLogs    ConsentLog[]
   passwordResets PasswordReset[]
   staff          StaffMember?
 
@@ -3039,4 +3041,27 @@ model DevScoreEvent {
   @@index([who])
   @@index([itemId])
   @@map("dev_score_events")
+}
+
+/// Факт согласия с документом (Дима 25.11, требование 152-ФЗ): кто, когда,
+/// с какого адреса, с какой редакцией документа и каким текстом галочки.
+/// Записи только добавляются, не правятся.
+model ConsentLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  /// TERMS — соглашение, POLICY — политика ПДн, PD_CONSENT — согласие на обработку, MARKETING — рассылки.
+  kind      String
+  /// Адрес документа на сайте: soglashenie, politika, soglasie, rassylka.
+  document  String
+  /// Редакция документа, с которой согласился пользователь.
+  edition   String
+  /// Текст галочки, которую он отметил.
+  statement String
+  ip        String?
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@map("consent_logs")
 }

@@ -78,6 +78,7 @@ export async function cleanDatabase(): Promise<void> {
     testPrisma.character.deleteMany(),
     testPrisma.clan.deleteMany(),
     testPrisma.session.deleteMany(),
+    testPrisma.consentLog.deleteMany(),
     testPrisma.user.deleteMany(),
   ])
 }

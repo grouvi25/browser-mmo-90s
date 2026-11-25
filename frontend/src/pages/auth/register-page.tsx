@@ -47,11 +47,11 @@ export function RegisterPage() {
       return
     }
     if (!agreeTerms) {
-      setError('Нужно принять пользовательское соглашение')
+      setError('Нужно принять пользовательское соглашение и ознакомиться с политикой обработки персональных данных')
       return
     }
     if (!agreePd) {
-      setError('Нужно ознакомиться с политикой и дать согласие на обработку персональных данных')
+      setError('Нужно дать согласие на обработку персональных данных')
       return
     }
     if (captchaKey && !captchaToken) {
@@ -61,7 +61,7 @@ export function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      await authApi.register({ nickname: form.nickname.trim(), email: form.email, password: form.password, acceptPolicy: true, marketingConsent: marketing, website: trap, captchaToken: captchaToken || undefined, ref: referrer.trim() || undefined, phone: phone.trim() || undefined, attribution: readAttribution() })
+      await authApi.register({ nickname: form.nickname.trim(), email: form.email, password: form.password, acceptPolicy: true, acceptPd: true, marketingConsent: marketing, website: trap, captchaToken: captchaToken || undefined, ref: referrer.trim() || undefined, phone: phone.trim() || undefined, attribution: readAttribution() })
       reachGoal('registration')
       // Auto-login after register
       const res = await authApi.login({ login: form.nickname.trim(), password: form.password })
@@ -181,15 +181,16 @@ export function RegisterPage() {
 
             <label className="auth-consent">
               <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} />
-              <span>Я ознакомлен и принимаю условия <Link to="/soglashenie" target="_blank" rel="noopener">Пользовательского соглашения</Link></span>
+              {/* Тексты галочек (Дима 25.11) записываются в журнал согласий: меняя здесь, меняйте backend/src/modules/auth/consents.ts. */}
+              <span>Я принимаю условия <Link to="/soglashenie" target="_blank" rel="noopener">Пользовательского соглашения</Link> и ознакомлен(а) с <Link to="/politika" target="_blank" rel="noopener">Политикой обработки персональных данных</Link></span>
             </label>
             <label className="auth-consent">
               <input type="checkbox" checked={agreePd} onChange={e => setAgreePd(e.target.checked)} />
-              <span>Я ознакомлен с <Link to="/politika" target="_blank" rel="noopener">Политикой обработки персональных данных</Link> и даю <Link to="/soglasie" target="_blank" rel="noopener">согласие</Link> на их обработку</span>
+              <span>Я даю <Link to="/soglasie" target="_blank" rel="noopener">Согласие на обработку персональных данных</Link></span>
             </label>
             <label className="auth-consent">
               <input type="checkbox" checked={marketing} onChange={e => setMarketing(e.target.checked)} />
-              <span>Я согласен на получение <Link to="/rassylka" target="_blank" rel="noopener">рекламно-информационных материалов</Link> игры «Кооператив» (ООО «АРТЕФАКТУМ»)</span>
+              <span>Я согласен(на) на получение <Link to="/rassylka" target="_blank" rel="noopener">рекламно-информационных материалов</Link> игры «Кооператив» (ООО «АРТЕФАКТУМ»)</span>
             </label>
 
             <button

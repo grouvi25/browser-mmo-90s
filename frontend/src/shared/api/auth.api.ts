@@ -3,7 +3,7 @@ import { forgetPushToken } from '../lib/push-bridge'
 import type { Attribution } from '../lib/attribution'
 
 export const authApi = {
-  register: (data: { nickname?: string; login?: string; email: string; password: string; acceptPolicy?: boolean; marketingConsent?: boolean; website?: string; captchaToken?: string; ref?: string; phone?: string; attribution?: Attribution }) =>
+  register: (data: { nickname?: string; login?: string; email: string; password: string; acceptPolicy?: boolean; acceptPd?: boolean; marketingConsent?: boolean; website?: string; captchaToken?: string; ref?: string; phone?: string; attribution?: Attribution }) =>
     api.post<{ id: string; login: string; email: string }>('/api/auth/register', data, { noAuth: true }),
 
   login: (data: { login: string; password: string }) =>

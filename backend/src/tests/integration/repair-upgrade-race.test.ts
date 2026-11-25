@@ -11,7 +11,7 @@ async function registerAndCreateCharacter(app: FastifyInstance, money = 10_000) 
   const registered = await app.inject({
     method: 'POST',
     url: '/api/auth/register',
-    payload: { acceptPolicy: true, login, email: `${login}@test.local`, password },
+    payload: { acceptPolicy: true, acceptPd: true, login, email: `${login}@test.local`, password },
   })
   expect(registered.statusCode).toBe(201)
 

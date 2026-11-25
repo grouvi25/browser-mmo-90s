@@ -28,7 +28,7 @@ const LINK = /\/reset-password\?token=[A-Za-z0-9_-]{43}/
 
 async function account() {
   const login = uid('pw')
-  await AuthService.register({ login, email: `${login}@Example.test`, password: 'old_password_1', acceptPolicy: true })
+  await AuthService.register({ login, email: `${login}@Example.test`, password: 'old_password_1', acceptPolicy: true, acceptPd: true })
   return login
 }
 

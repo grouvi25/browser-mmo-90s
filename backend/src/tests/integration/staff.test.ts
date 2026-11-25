@@ -21,7 +21,7 @@ import { CharactersService } from '../../modules/characters/characters.service'
 let app: FastifyInstance
 
 async function member(role: 'OWNER' | 'ADMIN' | 'GAMEDESIGNER' | 'MODERATOR' | 'SUPPORT' | 'FINANCE', nick = uid('St').slice(0, 20)) {
-  const reg = await AuthService.register({ nickname: nick, email: `${uid('s')}@test.local`, password: 'staff-pass-1', acceptPolicy: true })
+  const reg = await AuthService.register({ nickname: nick, email: `${uid('s')}@test.local`, password: 'staff-pass-1', acceptPolicy: true, acceptPd: true })
   await CharactersService.create(reg.id, { archetype: 'STREET' })
   const row = await testPrisma.staffMember.create({ data: { userId: reg.id, role } })
   return { nick, userId: reg.id, staffId: row.id }
@@ -72,7 +72,7 @@ describe('Вход сотрудника в админку', () => {
   })
 
   it('не сотрудник и неверный пароль — одинаковый отказ без письма', async () => {
-    const reg = await AuthService.register({ nickname: 'ПростоИгрок', email: `${uid('p')}@test.local`, password: 'staff-pass-1', acceptPolicy: true })
+    const reg = await AuthService.register({ nickname: 'ПростоИгрок', email: `${uid('p')}@test.local`, password: 'staff-pass-1', acceptPolicy: true, acceptPd: true })
     void reg
     const owner = await member('OWNER')
     for (const payload of [{ nickname: 'ПростоИгрок', password: 'staff-pass-1' }, { nickname: owner.nick, password: 'wrong' }]) {
@@ -124,7 +124,7 @@ describe('Вход сотрудника в админку', () => {
   it('владелец назначает по нику; снятая роль закрывает сессии; последнего владельца не снять', async () => {
     const owner = await member('OWNER')
     const { token } = await signIn(owner.nick)
-    const reg = await AuthService.register({ nickname: 'Новичок', email: `${uid('n')}@test.local`, password: 'staff-pass-1', acceptPolicy: true })
+    const reg = await AuthService.register({ nickname: 'Новичок', email: `${uid('n')}@test.local`, password: 'staff-pass-1', acceptPolicy: true, acceptPd: true })
     await CharactersService.create(reg.id, { archetype: 'STREET' })
 
     const added = await app.inject({ method: 'POST', url: '/api/admin/staff', headers: auth(token), payload: { nickname: 'новичок', role: 'MODERATOR' } })

@@ -121,7 +121,7 @@ describe('админка: новая вещь', () => {
 
     const login = uid('vityaz')
     const password = 'local_test_pw_123'
-    await app.inject({ method: 'POST', url: '/api/auth/register', payload: { acceptPolicy: true, login, email: `${login}@test.local`, password } })
+    await app.inject({ method: 'POST', url: '/api/auth/register', payload: { acceptPolicy: true, acceptPd: true, login, email: `${login}@test.local`, password } })
     const { token: userToken } = (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { login, password } })).json<{ token: string }>()
     await app.inject({ method: 'POST', url: '/api/characters', headers: { authorization: `Bearer ${userToken}` }, payload: { nickname: 'Vit' + Math.random().toString(36).slice(2, 8), archetype: 'STREET' } })
     const character = await testPrisma.character.findFirstOrThrow({ where: { user: { login } } })

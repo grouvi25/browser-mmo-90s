@@ -4,7 +4,7 @@ test('новичок покупает и настраивает оружие в 
   const login = 'guide_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
   const password = 'visual_pass_123'
   const register = await request.post('/api/auth/register', {
-    data: { login, password, email: login + '@visual.local', acceptPolicy: true },
+    data: { login, password, email: login + '@visual.local', acceptPolicy: true, acceptPd: true },
   })
   expect(register.status()).toBe(201)
   const session = await request.post('/api/auth/login', { data: { login, password } })

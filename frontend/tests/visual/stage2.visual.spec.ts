@@ -18,7 +18,7 @@ async function createAccount(request: APIRequestContext, prefix: string): Promis
   const cleanPrefix = prefix.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 14)
   const login = `${cleanPrefix}_${suffix}`.slice(0, 30)
   const password = 'visual_pass_123'
-  const registration = await request.post('/api/auth/register', { data: { acceptPolicy: true, login, email: `${login}@visual.local`, password } })
+  const registration = await request.post('/api/auth/register', { data: { acceptPolicy: true, acceptPd: true, login, email: `${login}@visual.local`, password } })
   expect(registration.status()).toBe(201)
   const logged = await request.post('/api/auth/login', { data: { login, password } })
   expect(logged.status()).toBe(200)
@@ -139,7 +139,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     await page.getByRole('checkbox', { name: /Пользовательского соглашения/ }).check()
     await page.locator('button[type="submit"]').click()
     await expect(page.locator('.alert-error')).toContainText('согласие на обработку')
-    await page.getByRole('checkbox', { name: /Политикой обработки персональных данных/ }).check()
+    await page.getByRole('checkbox', { name: /Согласие на обработку персональных данных/ }).check()
     await expect(page.getByRole('checkbox', { name: /рекламно-информационных/ })).not.toBeChecked()
     await page.locator('button[type="submit"]').click()
     await expect(page).toHaveURL(/\/character\/create$/)
@@ -183,7 +183,7 @@ test.describe('Stage 2 visual and browser flow', () => {
     const login = `nochar_${suffix}`.slice(0, 30)
     const password = 'visual_pass_123'
     const registration = await apiContext.post('/api/auth/register', {
-      data: { acceptPolicy: true, login, email: `${login}@visual.local`, password },
+      data: { acceptPolicy: true, acceptPd: true, login, email: `${login}@visual.local`, password },
     })
     expect(registration.status()).toBe(201)
     const logged = await apiContext.post('/api/auth/login', { data: { login, password } })

@@ -1,3 +1,4 @@
+import { consentRecords } from './consents'
 import { AuthRepository } from './auth.repository'
 import { attributionFields } from '../analytics/acquisition'
 import { hashPassword, verifyPassword } from '../../shared/security/password'
@@ -68,6 +69,7 @@ export const AuthService = {
       policyAcceptedAt: new Date(),
       marketingConsentAt: input.marketingConsent ? new Date() : null,
       referrerCharacterId: referrer?.id,
+      consents: consentRecords(!!input.marketingConsent, ip, userAgent),
       ...(input.phone ? { phone: normalizePhone(input.phone) } : {}),
       ...attributionFields(input.attribution),
     })

@@ -1,3 +1,4 @@
+import type { ConsentRecord } from './consents'
 import { prisma } from '../../shared/db/prisma'
 import type { User } from '@prisma/client'
 
@@ -76,8 +77,11 @@ export const AuthRepository = {
     firstReferrer?: string | null
     landingPath?: string | null
     referrerCharacterId?: string
+    /** Журнал согласий пишется той же операцией: пользователь без записей не появится. */
+    consents?: ConsentRecord[]
   }): Promise<User> {
-    return prisma.user.create({ data })
+    const { consents, ...user } = data
+    return prisma.user.create({ data: { ...user, ...(consents?.length ? { consentLogs: { create: consents } } : {}) } })
   },
 
   async updateLastLogin(id: string, ip?: string, userAgent?: string): Promise<void> {
