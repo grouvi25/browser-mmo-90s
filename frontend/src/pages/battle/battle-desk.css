@@ -52,7 +52,10 @@
 .battle-field-v3__opponent {
   display: flex; flex-wrap: wrap; gap: 2px 12px;
   padding: 3px 7px; background: #f1e7d4; color: #3b2e23; font-size: 12px;
+  /* Высота не зависит от цели: иначе поле над строкой меняет масштаб. */
+  box-sizing: border-box; min-height: 22px; line-height: 16px;
 }
+.battle-field-v3__target { min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .battle-desk__field .fighter-token .token-label { font-size: 12px; }
 /* Клетки, до которых достаёт оружие (правка 22.10: дальность в клетках). */
 .hex-cell.is-in-range:not(.is-movable):not(.is-target) .designer-cell-hit { background: oklch(70% .09 230 / .22); }

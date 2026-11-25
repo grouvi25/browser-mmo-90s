@@ -355,8 +355,19 @@ export function BattlePage() {
     `${enemyProfile.primaryHand ?? 'Кулаки'} · ${enemyProfile.primaryRange} кл.`,
     ...(!isBotBattle ? [`${enemyProfile.secondaryHand ?? 'Кулаки'} · ${enemyProfile.secondaryRange} кл.`] : []),
   ] : []
-  const opponentInfo = (enemyWeapons.length > 0 || isBotBattle) && <div className="battle-field-v3__opponent">
-    {enemyWeapons.length > 0 && <span><b>Оружие цели</b> {Array.from(new Set(enemyWeapons)).join(' / ')}</span>}
+  // Собака или помощник целью: оружия у них нет, пишем, кто это.
+  const targetCompanion = (ePart as { companion?: 'helper' | 'dog' } | undefined)?.companion
+  const companionOwner = targetCompanion
+    ? live?.participants.find((p: LiveParticipant) => `${targetCompanion}:${p.participantId}` === ePart?.participantId)
+    : undefined
+  const companionName = targetCompanion === 'dog' ? companionOwner?.dog?.name : companionOwner?.helper?.name
+  // Строка под полем стоит всегда и в одну строку (Дима 25.11): когда она
+  // пропадала при выборе собаки или переносилась на длинном оружии, поле
+  // занимало её место и меняло масштаб.
+  const opponentInfo = <div className="battle-field-v3__opponent">
+    {enemyWeapons.length > 0
+      ? <span className="battle-field-v3__target"><b>Оружие цели</b> {Array.from(new Set(enemyWeapons)).join(' / ')}</span>
+      : targetCompanion && <span className="battle-field-v3__target"><b>Цель</b> {companionName ? `${companionName} · ` : ''}{targetCompanion === 'dog' ? 'собака' : 'помощник'}</span>}
     {isBotBattle && <span>Бот ходит автоматически при расчёте раунда. Порядок выбора удара и блока не важен. Итог в хронике.</span>}
   </div>
   // Обращение №121: рейтинг виден прямо в бою, как в досье («123,4»). У ботов его нет.
