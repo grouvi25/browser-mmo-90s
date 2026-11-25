@@ -20,7 +20,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { QUALITY_LABELS, type RepairItem } from '../../shared/types/api.types'
 import { ApiError } from '../../shared/api/client'
 import { SHOP_IMAGES, templateImageUrl } from '../../shared/assets/shop/shop-images'
-import { formatItemHp, itemDamageRange } from '../../shared/lib/combat-hp'
+import { formatArmor, itemDamageRange } from '../../shared/lib/combat-hp'
 import { SPRITES } from '../../shared/ui/sprite'
 import '../shop/shop.css'
 
@@ -47,7 +47,7 @@ function bonusLines(item: RepairItem): string[] {
   const t = item.template
   const out: string[] = []
   if (t.minDamage != null && t.maxDamage != null) out.push(`Урон: ${itemDamageRange(t.minDamage, t.maxDamage)}`)
-  if (t.armor) out.push(`Броня тела: +${formatItemHp(t.armor)} HP`)
+  if (t.armor) out.push(`Броня тела: +${formatArmor(t.armor)}`)
   if (t.strReq > 0) out.push(`Требует силы: ${t.strReq}`)
   return out
 }

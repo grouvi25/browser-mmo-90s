@@ -5,7 +5,7 @@
 import { healLabel, type ItemTemplate } from '../types/api.types'
 import { rangeLabel } from './weapon-range'
 import { itemBonusLines } from './item-bonuses'
-import { formatItemHp, itemDamageRange } from './combat-hp'
+import { formatArmor, itemDamageRange } from './combat-hp'
 
 export function itemStatLines(t: ItemTemplate, fits?: { name: string }[]): string[] {
   const out: string[] = []
@@ -13,7 +13,7 @@ export function itemStatLines(t: ItemTemplate, fits?: { name: string }[]): strin
   if (t.type === 'WEAPON' && t.weaponAccuracy) out.push(`Точность: ${Math.round(t.weaponAccuracy * 100)}%`)
   if (t.type === 'WEAPON' && t.maxRange) out.push(`Дальность: ${rangeLabel(t.maxRange)}`)
   if (t.critBonus) out.push(`Крит: +${Math.round(t.critBonus * 100)}%`)
-  if (t.armor) out.push(`Броня тела: +${formatItemHp(t.armor)} HP`)
+  if (t.armor) out.push(`Броня тела: +${formatArmor(t.armor)}`)
   if (t.dodgeBonus) out.push(`Уворот: +${Math.round(t.dodgeBonus * 100)}%`)
   if (t.blockBonus) out.push(`Блок: +${Math.round(t.blockBonus * 100)}%`)
   if (t.hpBonus || t.healPercent) out.push(`Восстановит: +${healLabel(t)}`)

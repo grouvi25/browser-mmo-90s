@@ -67,7 +67,8 @@ export function WorkPage(){
   useEffect(()=>{const id=setInterval(()=>setTick(x=>x+1),1000);return()=>clearInterval(id)},[])
   const objects=useQuery({queryKey:['work','objects'],queryFn:workApi.objects})
   const current=useQuery({queryKey:['work','current'],queryFn:workApi.current,refetchInterval:10_000})
-  const refresh=()=>{void qc.invalidateQueries({queryKey:['work']});void qc.invalidateQueries({queryKey:['character']});void qc.invalidateQueries({queryKey:['resources']})}
+  // Склад тоже: сделанная вещь иначе не появлялась там до 30 секунд (Дима 24.11: «сделал свиток, а его нет»).
+  const refresh=()=>{void qc.invalidateQueries({queryKey:['work']});void qc.invalidateQueries({queryKey:['character']});void qc.invalidateQueries({queryKey:['resources']});void qc.invalidateQueries({queryKey:['inventory']})}
   const start=useMutation({mutationFn:({object,recipe,quantity=1}:{object:ProductionObjectView;recipe?:GovCraftRecipe;quantity?:number})=>workApi.start(object.id,recipe?.id,quantity),onSuccess:(_,{object,recipe,quantity=1})=>{setReceipt(null);setOpenCraft(null);setMessage({type:'success',text:recipe?`Делаете «${recipe.output.name}»${quantity>1?` ×${quantity}`:''} в цехе «${object.name}»`:`Смена «${object.name}» началась`});refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})
   const claim=useMutation({mutationFn:workApi.claim,onSuccess:data=>{const before=current.data?.shift?.profession?.level??data.professionLevel;const object=objects.data?.items?.find(x=>x.code===current.data?.shift?.productionObject?.code);setReceipt({...data,levelBefore:before,resourceName:object?.producesResourceName??undefined});setMessage(null);refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})
   const cancel=useMutation({mutationFn:workApi.cancel,onSuccess:()=>{setCancelConfirm(false);setMessage({type:'success',text:'Смена отменена. Инструмент возвращён'});refresh()},onError:e=>setMessage({type:'error',text:errorText(e)})})

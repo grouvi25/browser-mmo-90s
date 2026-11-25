@@ -33,7 +33,7 @@ import { ApiError } from '../../shared/api/client'
 import { charactersApi } from '../../shared/api/characters.api'
 import { useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
 import { instanceImage, itemBonusLines, itemHoverText } from '../../shared/lib/item-bonuses'
-import { formatItemHp, itemDamageRange, itemHp } from '../../shared/lib/combat-hp'
+import { formatArmor, itemDamageRange, itemHp } from '../../shared/lib/combat-hp'
 import { SPRITES } from '../../shared/ui/sprite'
 import { rangeLabel } from '../../shared/lib/weapon-range'
 import { useBattleLoadout } from '../../shared/lib/battle-loadout'
@@ -342,7 +342,7 @@ export function InventoryPage() {
                           <div><dt>Требуемый уровень</dt><dd>{t.levelReq > 0 ? t.levelReq : '—'}</dd></div>
                           {t.minDamage != null && <div><dt>Урон</dt><dd>{itemDamageRange(eff?.minDamage ?? t.minDamage, eff?.maxDamage ?? t.maxDamage ?? t.minDamage)}<Gain value={itemHp((eff?.maxDamage ?? t.maxDamage ?? 0) - (t.maxDamage ?? 0))} /></dd></div>}
                           {t.type === 'WEAPON' && !!t.maxRange && <div><dt>Дальность</dt><dd>{rangeLabel(t.maxRange)}</dd></div>}
-                          {!!(eff?.armor ?? t.armor) && <div><dt>Броня тела</dt><dd>+{formatItemHp(eff?.armor ?? t.armor ?? 0)} HP<Gain value={itemHp((eff?.armor ?? t.armor ?? 0) - (t.armor ?? 0))} /></dd></div>}
+                          {!!(eff?.armor ?? t.armor) && <div><dt>Броня тела</dt><dd>+{formatArmor(eff?.armor ?? t.armor ?? 0)}<Gain value={(eff?.armor ?? t.armor ?? 0) - (t.armor ?? 0)} /></dd></div>}
                           {(!!t.hpBonus || !!t.healPercent) && <div><dt>{t.type === 'CONSUMABLE' ? 'Восстановит' : 'Здоровье'}</dt><dd>+{healLabel(t)}</dd></div>}
                           {!!t.useEffect && <div><dt>Эффект</dt><dd>{effectLabel(t.useEffect)}</dd></div>}
                           {!!t.soberAmount && <div><dt>Опьянение</dt><dd>{t.soberAmount >= 100 ? 'снимает полностью' : `−${t.soberAmount}`}</dd></div>}
