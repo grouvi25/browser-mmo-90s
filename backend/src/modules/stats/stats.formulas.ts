@@ -55,8 +55,13 @@ export function calcBattleExp(input: BattleExpInput): number {
   // и не больше трёх её полных шкал — лечение не кормит опыт бесконечно.
   const credit = Math.min(damageDealt, hp + healed, hp * cfg.creditOverhealQ)
   const k = Math.min(playerLevel, targetLevel) / Math.max(playerLevel, targetLevel, 1)
-  const raw = credit * (Math.max(targetPower, 0) / hp) * k * cfg.multiplierM
-  const capped = Math.min(raw, cfg.capPerBattle)
+  // K за цель слабее себя — после потолка (27.11). Раньше он стоял до потолка,
+  // и у сильных целей потолок его съедал: 15-й уровень за бота 10-го получал
+  // те же 25 000, что за бота своего уровня (Дима 26.11: «ппц как много опыта»).
+  // Цель сильнее или равна — как было: K до потолка, награда не урезается.
+  const stronger = playerLevel > targetLevel
+  const raw = credit * (Math.max(targetPower, 0) / hp) * (stronger ? 1 : k) * cfg.multiplierM
+  const capped = Math.min(raw, cfg.capPerBattle) * (stronger ? k : 1)
   const resultCoeff = cfg.resultCoeff[result] ?? 0
   return Math.max(0, Math.floor(capped * resultCoeff * antiFarmCoeff * (input.ratingCoeff ?? 1)))
 }
