@@ -44,6 +44,14 @@ describe('доска разработчиков', () => {
     expect(await DevBoard.scores()).toEqual([{ who: 'Егор', total: -2 }])
   })
 
+  it('пояснение дописывается к тексту обращения и заменяется целиком', async () => {
+    const task = await DevBoard.addTask('свитки', 'Миша', 'Свитки перераспределения не работает')
+    await DevBoard.setContext(task.id, 'Решение: подписать кнопку')
+    expect((await DevBoard.setContext(task.id, 'Решение 26.11: ответить игроку')).note)
+      .toBe('Свитки перераспределения не работает\n\nКОНТЕКСТ: Решение 26.11: ответить игроку')
+    await expect(DevBoard.setContext(999_999, 'нет')).rejects.toMatchObject({ statusCode: 404 })
+  })
+
   it('неготовое не оценивается', async () => {
     const task = await DevBoard.addTask('рано', 'Миша')
     await expect(DevBoard.rateItem(task.id, 1, 'Миша')).rejects.toMatchObject({ statusCode: 409 })

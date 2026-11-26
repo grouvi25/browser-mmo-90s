@@ -135,6 +135,13 @@ export async function devBoardRoutes(fastify: FastifyInstance): Promise<void> {
     })
   }
 
+  // Пояснение к карточке: решения и что делать (блок «КОНТЕКСТ»).
+  fastify.post<{ Params: { id: string } }>('/:id/context', async (req, reply) => {
+    if (!guard(req, reply)) return
+    const body = z.object({ text: z.string().max(1500) }).parse(req.body)
+    return reply.send(await DevBoard.setContext(IdParam.parse(req.params.id), body.text))
+  })
+
   fastify.post('/tasks', async (req, reply) => {
     if (!guard(req, reply)) return
     const body = z.object({ title: z.string().min(1).max(300), note: z.string().max(2000).optional(), who: Who }).parse(req.body)

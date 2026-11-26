@@ -314,6 +314,23 @@ export const DevBoard = {
     return next
   },
 
+  /**
+   * Пояснение к карточке (решения, что делать): блок «КОНТЕКСТ» под текстом
+   * обращения. Текст игрока не трогаем, прежний контекст заменяется.
+   */
+  async setContext(id: number, context: string) {
+    const item = await prisma.devBoardItem.findUnique({ where: { id } })
+    if (!item) throw new AppError(ErrorCode.NOT_FOUND, 'Нет такой карточки', 404)
+    const [note] = (item.note ?? '').split(/\n\nКОНТЕКСТ:\s*/)
+    const clean = context.trim()
+    const next = await prisma.devBoardItem.update({
+      where: { id },
+      data: { note: clean ? `${note.trim()}\n\nКОНТЕКСТ: ${clean}` : note.trim() || null },
+    })
+    await render(next)
+    return next
+  },
+
   async addTask(title: string, who: string, note?: string) {
     const clean = title.trim().replace(/\s+/g, ' ').slice(0, 300)
     if (!clean) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Пустая задача', 422)
