@@ -120,6 +120,34 @@ describe('админка: обратимость действий', () => {
     expect(undo.reason).toBe('ошиблись персонажем при выдаче')
   })
 
+  // ── Ник ───────────────────────────────────────────────────
+
+  it('смена ника: занятый не даёт, игрок получает уведомление, откат возвращает прежний', async () => {
+    const character = await player('badnick')
+    const other = await player('busynick')
+    const rename = (nickname: string, t = moderatorToken) => app.inject({
+      method: 'POST', url: `/api/admin/players/${character.userId}/rename`, headers: auth(t),
+      payload: { nickname, reason: REASON },
+    })
+
+    // Чужой ник, хоть другим регистром, и неверные знаки не проходят.
+    expect((await rename(other.nickname.toUpperCase())).statusCode).toBe(409)
+    expect((await rename('Ник!')).statusCode).toBe(422)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).nickname).toBe(character.nickname)
+
+    const res = await rename('  Новый   Ник ')
+    expect(res.statusCode).toBe(200)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).nickname).toBe('Новый Ник')
+    expect(await testPrisma.gameNotice.count({ where: { characterId: character.id, text: { contains: '«Новый Ник»' } } })).toBe(1)
+
+    const rollback = await app.inject({
+      method: 'POST', url: `/api/admin/actions/${res.json<{ actionId: string }>().actionId}/rollback`, headers: auth(token),
+      payload: { reason: 'сменили ник не тому игроку' },
+    })
+    expect(rollback.statusCode).toBe(200)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).nickname).toBe(character.nickname)
+  })
+
   it('дважды откатить нельзя: иначе откат выдачи стал бы списанием', async () => {
     const character = await player('twice')
     const grant = await app.inject({

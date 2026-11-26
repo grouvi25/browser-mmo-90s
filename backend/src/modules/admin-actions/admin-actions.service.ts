@@ -27,6 +27,7 @@ import { getEconomicLevelFromExp, getLevelFromExp } from '../stats/stats.formula
 import { clearOverride, setOverride } from '../admin-balance/balance-overrides.service'
 import { gearFor, hpWithGear } from '../items/gear-bonuses'
 import { ResourcesService } from '../resources/resources.service'
+import { Nickname } from '../characters/characters.schemas'
 
 /** Минимальная длина причины. Правило П2 в числе. */
 export const REASON_MIN = 10
@@ -655,6 +656,31 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
 
   UNSET_MODERATOR: async (tx, payload) => {
     await tx.character.update({ where: { id: str(payload, 'characterId') }, data: { isModerator: false } })
+  },
+
+  // Ник меняется, история остаётся; входить игрок может по-прежнему своим логином.
+  RENAME_CHARACTER: async (tx, payload) => {
+    const characterId = str(payload, 'characterId')
+    const parsed = Nickname.safeParse(payload.nickname)
+    if (!parsed.success) throw AppError.validation(parsed.error.issues[0]?.message ?? 'Неверный ник')
+    const nickname = parsed.data
+    const char = must(await tx.character.findUnique({ where: { id: characterId }, select: { userId: true, nickname: true } }), 'Персонажа больше нет')
+    if (char.nickname === nickname) return
+    const taken = await tx.user.findFirst({
+      where: {
+        id: { not: char.userId },
+        OR: [
+          { login: { equals: nickname, mode: 'insensitive' } },
+          { character: { nickname: { equals: nickname, mode: 'insensitive' } } },
+        ],
+      },
+      select: { id: true },
+    })
+    if (taken) throw AppError.conflict('Такой ник уже занят')
+    await tx.character.update({ where: { id: characterId }, data: { nickname } })
+    await tx.gameNotice.create({
+      data: { characterId, text: `Администрация сменила ник персонажа на «${nickname}». Входить можно прежним логином или новым ником.` },
+    })
   },
 
   JAIL_CHARACTER: async (tx, payload) => {

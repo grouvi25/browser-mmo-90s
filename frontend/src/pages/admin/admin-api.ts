@@ -575,6 +575,9 @@ export const adminApi = {
     request<{ actionId: string }>(`/api/admin/players/${userId}/ban`, { method: 'POST', body: { reason } }),
   unbanPlayer: (userId: string, reason: string) =>
     request<{ actionId: string }>(`/api/admin/players/${userId}/unban`, { method: 'POST', body: { reason } }),
+  /** Сменить ник персонажа (Дима 26.11): вместо удаления, откат из журнала. */
+  renamePlayer: (userId: string, nickname: string, reason: string) =>
+    request<{ actionId: string }>(`/api/admin/players/${userId}/rename`, { method: 'POST', body: { nickname, reason } }),
   mutePlayer: (userId: string, reason: string, hours: number) =>
     request<{ actionId: string }>(`/api/admin/players/${userId}/mute`, { method: 'POST', body: { reason, hours } }),
 

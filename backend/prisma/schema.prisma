@@ -344,6 +344,8 @@ enum AdminActionKind {
   // Шмот для собак из админки (10.11).
   SET_DOG_GEAR
   RESTORE_DOG_GEAR
+  // Смена плохого ника вместо удаления персонажа (Дима 26.11).
+  RENAME_CHARACTER
 }
 
 enum FarmBuildingType {

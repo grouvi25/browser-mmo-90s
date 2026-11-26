@@ -10,6 +10,7 @@ import { acquisitionReport } from '../analytics/acquisition'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
+import { Nickname } from '../characters/characters.schemas'
 import { requirePermission } from '../../shared/security/auth-middleware'
 import { prisma } from '../../shared/db/prisma'
 import { AdminActionsService, type AdminContext } from '../admin-actions/admin-actions.service'
@@ -1009,6 +1010,29 @@ export async function adminBalanceRoutes(fastify: FastifyInstance): Promise<void
       targetId: user.id,
       payload: { userId: user.id, banReason: parsed.data.reason },
       undo: { kind: 'UNBAN_USER', payload: { userId: user.id } },
+    })
+    return reply.send({ actionId: action.actionId })
+  })
+
+  // Сменить ник (Дима 26.11: «как удалять персонажей? ники такие не нужны»).
+  // Удалять персонажа нельзя: пропали бы бои, сделки и журналы. Ник меняется
+  // с причиной и откатом из журнала; :id — учётная запись, как у бана.
+  fastify.post<{ Params: { id: string } }>('/players/:id/rename', MODERATE_ADMIN, async (req, reply) => {
+    const parsed = z.object({ reason: REASON, nickname: Nickname }).safeParse(req.body)
+    if (!parsed.success) {
+      const nickIssue = parsed.error.issues.find(issue => issue.path[0] === 'nickname')
+      return reply.code(422).send({ code: 'GEN_001', message: nickIssue?.message ?? 'Нужна причина от 10 символов' })
+    }
+    const character = await prisma.character.findUnique({ where: { userId: req.params.id }, select: { id: true, nickname: true } })
+    if (!character) return reply.code(404).send({ code: 'GEN_002', message: 'Персонаж не найден' })
+    if (character.nickname === parsed.data.nickname) return reply.code(409).send({ code: 'GEN_005', message: 'Ник уже такой' })
+
+    const action = await AdminActionsService.perform(admin(req), parsed.data.reason, {
+      kind: 'RENAME_CHARACTER',
+      targetType: 'character',
+      targetId: character.id,
+      payload: { characterId: character.id, nickname: parsed.data.nickname },
+      undo: { kind: 'RENAME_CHARACTER', payload: { characterId: character.id, nickname: character.nickname } },
     })
     return reply.send({ actionId: action.actionId })
   })

@@ -9,7 +9,7 @@
 // немота — прежним сроком.
 // =============================================================
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ban, Search } from 'lucide-react'
 import { adminApi, REASON_MIN, type PlayerRow } from '../admin-api'
 import { Skeleton, Fault, Note } from '../../stage3/stage3-ui'
@@ -35,6 +35,9 @@ export function PlayersSection({ focusId, onTrace }: {
   const players = useQuery({
     queryKey: ['admin', 'players', search, sort],
     queryFn: () => adminApi.players({ search, sort }),
+    // Пока грузится новый поиск, виден прежний список: открытая карточка
+    // не схлопывается (после смены ника поиск переходит на новый ник).
+    placeholderData: keepPreviousData,
   })
 
   const items = players.data?.items ?? []
@@ -97,6 +100,7 @@ export function PlayersSection({ focusId, onTrace }: {
             player={pinnedRow}
             open={openId === pinnedRow.id}
             onTrace={onTrace}
+            onRenamed={setSearch}
             onToggle={() => setOpenId(openId === pinnedRow.id ? null : pinnedRow.id)}
           />
         )}
@@ -106,6 +110,7 @@ export function PlayersSection({ focusId, onTrace }: {
             player={player}
             open={openId === player.id}
             onTrace={onTrace}
+            onRenamed={setSearch}
             onToggle={() => setOpenId(openId === player.id ? null : player.id)}
           />
         ))}
@@ -117,10 +122,11 @@ export function PlayersSection({ focusId, onTrace }: {
 }
 
 function PlayerLine({
-  player, open, onToggle, onTrace,
+  player, open, onToggle, onTrace, onRenamed,
 }: {
   player: PlayerRow; open: boolean; onToggle: () => void
   onTrace?: (id: string) => void
+  onRenamed?: (nickname: string) => void
 }) {
   const muted = player.user.mutedUntil && new Date(player.user.mutedUntil) > new Date()
   const state = player.user.status === 'BANNED'
@@ -145,7 +151,7 @@ function PlayerLine({
       </tr>
       {open && (
         <tr className="adm-players__card">
-          <td colSpan={8}><PlayerCard player={player} onTrace={onTrace} /></td>
+          <td colSpan={8}><PlayerCard player={player} onTrace={onTrace} onRenamed={onRenamed} /></td>
         </tr>
       )}
     </>
@@ -203,9 +209,10 @@ const STAT_TITLE: Record<string, string> = {
  * Поэтому здесь и всё состояние — деньги, опыт, характеристики, вещи,
  * ресурсы, смены, — и все меры рядом, а не в другом разделе.
  */
-function PlayerCard({ player, onTrace }: {
+function PlayerCard({ player, onTrace, onRenamed }: {
   player: PlayerRow
   onTrace?: (id: string) => void
+  onRenamed?: (nickname: string) => void
 }) {
   const qc = useQueryClient()
   const [msg, setMsg] = useState('')
@@ -227,6 +234,17 @@ function PlayerCard({ player, onTrace }: {
   const jail = useMutation({ mutationFn: (reason: string) => adminApi.prison(player.id, 24, reason), onSuccess: () => done('Заключён на сутки.'), onError: fail })
   const release = useMutation({ mutationFn: (reason: string) => adminApi.prison(player.id, 0, reason), onSuccess: () => done('Освобождён.'), onError: fail })
   const mute = useMutation({ mutationFn: (reason: string) => adminApi.mutePlayer(player.user.id, reason, 24), onSuccess: () => done('Немота на сутки.'), onError: fail })
+  const [nick, setNick] = useState('')
+  const rename = useMutation({
+    mutationFn: (reason: string) => adminApi.renamePlayer(player.user.id, nick.trim(), reason),
+    onSuccess: () => {
+      const renamed = nick.trim().replace(/\s+/g, ' ')
+      setNick('')
+      done(`Ник сменён на «${renamed}», игроку пришло уведомление. Откат из журнала.`)
+      onRenamed?.(renamed)
+    },
+    onError: fail,
+  })
 
   if (card.isLoading) return <Skeleton rows={3} />
 
@@ -428,6 +446,11 @@ function PlayerCard({ player, onTrace }: {
               onSubmit={reason => mute.mutate(reason)} />
           </>
         )}
+        <ReasonForm label="Сменить ник" busy={rename.isPending || nick.trim().length < 2}
+          onSubmit={reason => rename.mutate(reason)}>
+          <input value={nick} onChange={event => setNick(event.target.value)} maxLength={30}
+            placeholder={`Новый ник вместо «${player.nickname}»`} aria-label="Новый ник" />
+        </ReasonForm>
       </div>
       <p className="adm-hint">
         <Ban size={11} /> Любое из этих действий записывается в журнал с причиной и
