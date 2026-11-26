@@ -13,7 +13,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../../app'
 import { hashPassword } from '../../shared/security/password'
-import { generateJti, storeAdminSession } from '../../shared/security/jwt'
+import { generateJti, isSessionValid, storeAdminSession, storeSession } from '../../shared/security/jwt'
 import { ClaimsService } from '../../modules/territories/claims.service'
 import { TERRITORIES, PREMIUM_PRODUCTS } from '../../../prisma/economy-data'
 import { cleanDatabase, testPrisma, uid, paidClan } from './helpers'
@@ -118,6 +118,21 @@ describe('админка: обратимость действий', () => {
     const undo = await testPrisma.adminActionLog.findUniqueOrThrow({ where: { rolledBackId: actionId } })
     expect(undo.kind).toBe('ROLLBACK')
     expect(undo.reason).toBe('ошиблись персонажем при выдаче')
+  })
+
+  // ── Бан ───────────────────────────────────────────────────
+
+  it('бан сразу закрывает открытые сессии игрока (Дима 26.11: забанен, а ходит по игре)', async () => {
+    const character = await player('banned')
+    const jti = generateJti()
+    await storeSession(jti, character.userId)
+    expect(await isSessionValid(jti)).toBe(true)
+    const res = await app.inject({
+      method: 'POST', url: `/api/admin/players/${character.userId}/ban`, headers: auth(moderatorToken),
+      payload: { reason: REASON },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(await isSessionValid(jti)).toBe(false)
   })
 
   // ── Ник ───────────────────────────────────────────────────

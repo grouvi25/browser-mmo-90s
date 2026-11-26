@@ -11,7 +11,7 @@
 //
 // ТЗ: docs/specs/stage-5/STAGE5_ADMIN_API.md разделы 2 и 3.
 // =============================================================
-import { getRedis } from '../../shared/db/redis'
+import { getRedis, SessionRedis } from '../../shared/db/redis'
 import { randomUUID } from 'crypto'
 import { Prisma } from '@prisma/client'
 import type { AdminActionKind, AdminRole } from '@prisma/client'
@@ -701,6 +701,10 @@ const EXECUTORS: Record<AdminActionKind, Executor> = {
       where: { id: userId },
       data: { status: 'BANNED', banReason: String(payload.banReason ?? '') },
     })
+    // Дима 26.11: «забанен в админке, но перемещается по игре». Бан закрывал
+    // только новый вход, открытая вкладка жила до конца сессии. Теперь все
+    // сессии гасятся сразу, следующий запрос игрока получает 401.
+    await SessionRedis.revokeAllForUser(userId)
   },
 
   UNBAN_USER: async (tx, payload) => {
