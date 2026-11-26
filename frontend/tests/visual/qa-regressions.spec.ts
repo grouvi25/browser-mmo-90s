@@ -370,10 +370,10 @@ test('расклад оружия показывает обе границы с 
   await page.getByRole('button', { name: 'Настроить' }).click()
   const dialog = page.getByRole('dialog', { name: 'Пистолет' })
   // С 24.11 урон показывается в HP: те же числа ×0,35 (10–50 → 3,5–17,5 HP).
-  await expect(dialog).toContainText('Базовый урон оружия 3,5–17,5 HP')
-  await expect(dialog).toContainText('Урон оружия с этим раскладом 5,95–22,4 HP')
+  await expect(dialog).toContainText('Базовый урон оружия 3,5–17,5')
+  await expect(dialog).toContainText('Урон оружия с этим раскладом 5,95–22,4')
   await dialog.getByRole('spinbutton', { name: /Макс\. урон/ }).fill('4')
-  await expect(dialog).toContainText('Урон оружия с этим раскладом 5,95–25,9 HP')
+  await expect(dialog).toContainText('Урон оружия с этим раскладом 5,95–25,9')
   const bounds = await dialog.boundingBox()
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width)
 })

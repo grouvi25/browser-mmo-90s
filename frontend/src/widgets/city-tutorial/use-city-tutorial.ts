@@ -6,7 +6,7 @@ export interface TutorialProgress {
   active: boolean
   completed: boolean
   letterPending: boolean
-  lesson?: 'buy' | 'equip' | 'allocate' | 'stats' | 'unavailable'
+  lesson?: 'buy' | 'equip' | 'allocate' | 'stats' | 'fight' | 'finish' | 'unavailable'
   weapon?: {
     id: string
     itemId?: string

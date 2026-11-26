@@ -41,7 +41,7 @@ test('новичок проходит обучение по подсказкам
   await press(page, page.locator('[data-stage-nav="shop"]'), isMobile)
   const buy = page.locator('[data-tutorial-focus="buy"]')
   await expect(hint).toContainText('Нажми «Купить»')
-  await expect(page.locator('.gshop-card').filter({ has: buy })).toContainText('7–15,75 HP')
+  await expect(page.locator('.gshop-card').filter({ has: buy })).toContainText('Урон: 7–15,75')
   await press(page, buy, isMobile)
 
   // Надеть: из магазина назад на площадь, потом Склад.
@@ -63,16 +63,38 @@ test('новичок проходит обучение по подсказкам
   await expect(settings.locator('.tour__bubble')).toContainText('Нажми «Сохранить».')
   await press(page, settings.locator('[data-tutorial-focus="save"]'), isMobile)
 
-  // Характеристики: площадь → Центр подготовки → «+» → «Подтвердить».
+  // Характеристики: у Студента 2 свободных очка, вкладываются оба, потом «Подтвердить».
   await expect(hint).toContainText('Характеристики')
   await press(page, page.locator('[data-stage-nav="center"]'), isMobile)
   await press(page, page.locator('[data-stage-nav="skills"]'), isMobile)
-  await expect(hint).toContainText('Нажми «+» у Силы.')
+  await expect(hint).toContainText('нажимай «+» у Силы')
   await press(page, page.locator('[data-tutorial-focus="stat-plus"]'), isMobile)
+  await press(page, page.locator('[data-tutorial-focus="stat-plus"]'), isMobile)
+  await expect(page.locator('[data-tutorial-focus="stat-plus"]')).toHaveCount(0)
   const savedStats = page.waitForResponse(response => response.url().endsWith('/api/characters/stats/apply')
     && response.request().method() === 'POST')
   await press(page, page.locator('[data-tutorial-focus="stat-confirm"]'), isMobile)
   expect((await savedStats).ok()).toBe(true)
+
+  // Первый бой (Дима 26.11): «К ботам» → «В бой» на Стрелках → бой → «Готово».
+  const fightHint = page.getByRole('dialog', { name: /Первый бой/ })
+  await expect(fightHint).toBeVisible()
+  await press(page, fightHint.getByRole('button', { name: 'К ботам' }), isMobile)
+  await expect(page).toHaveURL(/\/pvp\?opponent=bot$/)
+  await expect(hint).toContainText('Нажми «В бой».')
+  const started = page.waitForResponse(response => response.url().endsWith('/api/battles/pve/start'))
+  await press(page, page.locator('[data-tutorial-focus="fight"]'), isMobile)
+  const { battleId } = await (await started).json() as { battleId: string }
+  await expect(page).toHaveURL(new RegExp(`/battle/${battleId}$`))
+  // Исход боя обучению не важен: сдаёмся, чтобы тест не зависел от бросков.
+  const surrendered = await request.post(`/api/battles/${battleId}/action`, {
+    headers: { Authorization: `Bearer ${token}` }, data: { action: 'surrender' },
+  })
+  expect(surrendered.ok()).toBe(true)
+  await expect.poll(async () => (await (await request.get(`/api/battles/${battleId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })).json() as { battle: { status: string } }).battle.status).toMatch(/FINISHED|TECHNICAL_WIN/)
+  await page.goto('/')
   await expect(letter).toHaveCount(0)
   await page.getByRole('dialog', { name: 'Готово' }).getByRole('button', { name: 'Завершить обучение' }).click()
   await expect(letter).toBeVisible()

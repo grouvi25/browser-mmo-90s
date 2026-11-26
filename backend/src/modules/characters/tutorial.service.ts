@@ -12,11 +12,11 @@ const REWARD = { rubles: 5000, dollars: 100 }
 
 const character = {
   id: true, nickname: true, tutorialStep: true, money: true, battleLevel: true,
-  stats: { select: { str: true } },
+  stats: { select: { str: true, pointsAvailable: true } },
 } satisfies Prisma.CharacterSelect
 
 type Character = Prisma.CharacterGetPayload<{ select: typeof character }>
-type GuideDb = Pick<Prisma.TransactionClient, 'itemInstance' | 'governmentShopItem'>
+type GuideDb = Pick<Prisma.TransactionClient, 'itemInstance' | 'governmentShopItem' | 'battleParticipant'>
 type Action = 'complete' | 'dismiss-letter'
 
 const weaponSelect = { id: true, name: true, weaponType: true } as const
@@ -28,6 +28,18 @@ function status(step: number | null) {
     letterPending: step === LETTER_PENDING,
     reward: REWARD,
   }
+}
+
+/** Оружие готово. Дальше свободные очки характеристик, если они есть, потом
+ *  первый бой (Дима 26.11: «продолжить на бой, как с ботами, после первого
+ *  боя заканчивалось»). Любой завершённый бой засчитывается, победа не нужна. */
+async function afterWeapon(db: GuideDb, player: Character) {
+  if ((player.stats?.pointsAvailable ?? 0) > 0) return 'stats' as const
+  const fought = await db.battleParticipant.findFirst({
+    where: { characterId: player.id, battle: { status: { in: ['FINISHED', 'TECHNICAL_WIN'] } } },
+    select: { id: true },
+  })
+  return fought ? 'finish' as const : 'fight' as const
 }
 
 async function getLesson(db: GuideDb, player: Character) {
@@ -50,7 +62,7 @@ async function getLesson(db: GuideDb, player: Character) {
   })
   const item = done ?? weapons[0]
   if (item) return {
-    lesson: done ? 'stats' as const : item.isEquipped ? 'allocate' as const : 'equip' as const,
+    lesson: done ? await afterWeapon(db, player) : item.isEquipped ? 'allocate' as const : 'equip' as const,
     weapon: { ...item.template, itemId: item.id },
   }
 
@@ -83,8 +95,8 @@ export async function finishTutorialAction(userId: string, action: Action) {
       return status(COMPLETED)
     }
     if (flags.completed) return flags
-    if (!flags.active || (await getLesson(tx, player)).lesson !== 'stats') {
-      throw AppError.validation('Сначала купите и наденьте оружие, затем сохраните очки в урон')
+    if (!flags.active || (await getLesson(tx, player)).lesson !== 'finish') {
+      throw AppError.validation('Сначала купите и наденьте оружие, сохраните очки в урон и проведите первый бой')
     }
 
     const changed = await tx.character.updateMany({

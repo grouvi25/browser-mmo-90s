@@ -18,6 +18,7 @@ import { ApiError } from '../../shared/api/client'
 import type { InjuryTier } from '../../shared/types/api.types'
 import { PveStart } from '../../widgets/pve-start/pve-start'
 import { WornGear } from '../../widgets/worn-gear/worn-gear'
+import { useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
 import './applications.css'
 
 const KIND_LABEL: Record<ApplicationKind | 'SIEGE', string> = { DUEL: 'Дуэль', GROUP: 'Групповой', CHAOTIC: 'Замес', SIEGE: 'Осада дома' }
@@ -54,6 +55,7 @@ export function BattleApplications() {
   const [params] = useSearchParams()
   const raw = params.get('tab') as Tab | null
   const tab: Tab = raw && raw in TAB_LABEL ? raw : 'ALL'
+  const tutorialFight = useCityTutorial().data?.lesson === 'fight'
   const [kind, setKind] = useState<CreateKind>(() => params.get('opponent') === 'bot' ? 'BOT' : 'DUEL')
   const [teamSize, setTeamSize] = useState(2)
   const [delay, setDelay] = useState(5)
@@ -147,7 +149,8 @@ export function BattleApplications() {
               «Дуэль, Замес, Групповой, Боты». */}
           {(['DUEL', 'CHAOTIC', 'GROUP', 'BOT'] as CreateKind[]).map(item => (
             <button type="button" key={item} aria-pressed={kind === item}
-              className={'bapps-kind' + (kind === item ? ' is-active' : '')} onClick={() => setKind(item)}>
+              className={'bapps-kind' + (kind === item ? ' is-active' : '')} onClick={() => setKind(item)}
+              data-tutorial-focus={tutorialFight && item === 'BOT' && kind !== 'BOT' ? 'bots-tab' : undefined}>
               {item === 'DUEL' ? <Swords size={13} /> : item === 'GROUP' ? <Users size={13} /> : item === 'CHAOTIC' ? <Shuffle size={13} /> : <Bot size={13} />}
               {item === 'BOT' ? 'Боты' : KIND_LABEL[item]}
             </button>

@@ -48,9 +48,10 @@ function Delta({ now, next, digits = 0, unit = '' }: { now: number; next: number
     меняются производные параметры, — а тратятся очки по «Подтвердить». */
 export function StatsPage() {
   const qc = useQueryClient()
-  // Обучение: одно вложенное очко — и урок пройден, дальше подсказка «Готово».
-  const [tutorialApplied, setTutorialApplied] = useState(false)
-  const guided = useCityTutorial().data?.lesson === 'stats' && !tutorialApplied
+  // Обучение: все свободные очки в черновик и «Подтвердить»; урок сервер
+  // закрывает сам, когда свободных очков не осталось.
+  const tutorial = useCityTutorial()
+  const guided = tutorial.data?.lesson === 'stats'
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [draft, setDraft] = useState<Draft>({})
 
@@ -73,7 +74,7 @@ export function StatsPage() {
 
   const applyMut = useMutation({
     mutationFn: (deltas: Draft) => api.post<Reply>('/api/characters/stats/apply', { deltas }),
-    onSuccess: data => { setTutorialApplied(true); done(data) }, onError: fail,
+    onSuccess: data => { done(data); if (guided) void tutorial.refetch() }, onError: fail,
   })
   const respecMut = useMutation({
     mutationFn: () => api.post<Reply>('/api/characters/stats/respec', {}),
@@ -149,7 +150,7 @@ export function StatsPage() {
                       <button className="btn btn-sm" disabled={add <= 0 || busy}
                         onClick={() => bump(key, -1)} title={`−1 ${STAT_FULL[key]}`} aria-label={`−1 ${STAT_FULL[key]}`}>−</button>
                       <button className="btn btn-sm btn-success" disabled={points <= 0 || val >= MAX_STAT || busy}
-                        data-tutorial-focus={guided && key === 'str' && points > 0 && val < MAX_STAT && used === 0 ? 'stat-plus' : undefined}
+                        data-tutorial-focus={guided && key === 'str' && points > 0 && val < MAX_STAT && !applyMut.isPending ? 'stat-plus' : undefined}
                         onClick={() => bump(key, 1)} title={`+1 ${STAT_FULL[key]}`} aria-label={`+1 ${STAT_FULL[key]}`}>+</button>
                     </td>
                   </tr>
@@ -161,7 +162,7 @@ export function StatsPage() {
           <div className="stats-actions">
             <button className="btn" disabled={used === 0 || busy} onClick={() => setDraft({})}>Сбросить</button>
             <button className="btn btn-primary" disabled={used === 0 || busy}
-              data-tutorial-focus={guided && used > 0 ? 'stat-confirm' : undefined}
+              data-tutorial-focus={guided && used > 0 && (points === 0 || next.str >= MAX_STAT) ? 'stat-confirm' : undefined}
               onClick={() => applyMut.mutate(draft)}>Подтвердить</button>
           </div>
 

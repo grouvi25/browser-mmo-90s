@@ -15,6 +15,7 @@ export function formatArmor(points: number): string {
   return String(Math.round(points))
 }
 
+/** Урон оружия без «HP» (Дима 26.11: «дал в урон, а пишет ХП»). Числа те же, что снимаются со здоровья. */
 export function itemDamageRange(min: number, max: number): string {
-  return formatItemHp(min) + '–' + formatItemHp(max) + ' HP'
+  return formatItemHp(min) + '–' + formatItemHp(max)
 }

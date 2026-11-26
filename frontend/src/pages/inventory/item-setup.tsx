@@ -192,7 +192,7 @@ export function ItemSetupDialog({ item, disabled, tutorial, onClose, onMessage }
 
       <div className="inv-setup__groups">
         {ownStats.length > 0 && <Section title="Сама вещь">
-          {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${formatItemHp(perDamage)} HP за очко` : key === 'ARMOR' ? `+${formatArmor(item.armorPerPoint ?? 5)} защиты` : hint} min={0} disabled={busy} value={own[key] ?? 0}
+          {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${formatItemHp(perDamage)} к урону за очко` : key === 'ARMOR' ? `+${formatArmor(item.armorPerPoint ?? 5)} защиты` : hint} min={0} disabled={busy} value={own[key] ?? 0}
             onChange={value => setOwn(prev => ({ ...prev, [key]: value }))} />)}
           {tutorial && damage && !damagePoints && <button type="button" className="btn btn-sm" disabled={busy || left <= 0}
             data-tutorial-focus="fill-damage" onClick={fillDamage}>Все очки в урон</button>}

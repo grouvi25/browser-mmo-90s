@@ -195,7 +195,17 @@ describe('Обучение в городе', () => {
     await ItemStatsService.configure(character.id, item.id, { MAX_DAMAGE: 1 }, {
       stats: {}, mastery: {}, minusMastery: {}, charms: {}, minusCharms: {},
     })
+    // Свободные очки характеристик — отдельный шаг, пока они есть.
+    await testPrisma.characterStats.update({ where: { characterId: character.id }, data: { pointsAvailable: 1 } })
     expect(await getTutorial(userId)).toMatchObject({ lesson: 'stats', letterPending: false })
+    await testPrisma.characterStats.update({ where: { characterId: character.id }, data: { pointsAvailable: 0 } })
+    // Дальше первый бой: незаконченный не считается, проигранный тоже подходит.
+    expect(await getTutorial(userId)).toMatchObject({ lesson: 'fight' })
+    await expect(finishTutorialAction(userId, 'complete')).rejects.toThrow('Сначала купите')
+    const battle = await testPrisma.battle.create({ data: { type: 'PVE_BOT', status: 'ACTIVE', participants: { create: { characterId: character.id, side: 1, hpMax: 100, hpCurrent: 100 } } } })
+    expect(await getTutorial(userId)).toMatchObject({ lesson: 'fight' })
+    await testPrisma.battle.update({ where: { id: battle.id }, data: { status: 'FINISHED' } })
+    expect(await getTutorial(userId)).toMatchObject({ lesson: 'finish', letterPending: false })
     expect(await letter()).toBe(0)
 
     const results = await Promise.all([finishTutorialAction(userId, 'complete'), finishTutorialAction(userId, 'complete')])

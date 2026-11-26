@@ -15,6 +15,7 @@ import { charactersApi } from '../../shared/api/characters.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
 import { ApiError } from '../../shared/api/client'
 import { useBattleLoadout } from '../../shared/lib/battle-loadout'
+import { useCityTutorial } from '../city-tutorial/use-city-tutorial'
 
 /** Насколько бот опасен для этого игрока — по разнице уровней. */
 function toneOf(botLevel: number, myLevel: number): 'ok' | 'warn' | 'danger' {
@@ -42,6 +43,8 @@ export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
   })
 
   const bot = picked ?? list[0]?.code ?? null
+  // Обучение «Первый бой»: подсказка у кнопки «В бой» (бот по умолчанию самый слабый).
+  const tutorialFight = useCityTutorial().data?.lesson === 'fight'
   const start = useMutation({
     mutationFn: () => battlesApi.startPve(bot!),
     onSuccess: data => {
@@ -125,6 +128,7 @@ export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
 
         {inBattle && currentBattle ? (
           <button type="button" className="btn btn-primary arena-pve__go"
+            data-tutorial-focus={tutorialFight ? 'fight-back' : undefined}
             onClick={() => navigate(`/battle/${currentBattle}`)}>
             Вернуться в текущий бой →
           </button>
@@ -133,6 +137,7 @@ export function PveStart({ embedded = false }: { embedded?: boolean } = {}) {
             type="button"
             className="btn btn-primary arena-pve__go"
             disabled={start.isPending || !char || inBattle || !bot}
+            data-tutorial-focus={tutorialFight && !start.isPending ? 'fight' : undefined}
             onClick={() => { setError(''); start.mutate() }}
           >
             {start.isPending ? 'Начинаем…' : 'В бой'}

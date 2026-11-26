@@ -1,13 +1,14 @@
 // Обучение в городе (переделка 25.11 по образцу RomeWar, просьба Димы):
 // одна подсказка — одно действие, подсказка стоит у нужной кнопки со
-// стрелкой, остальное затемнено. Уроки те же, что и раньше: купить оружие,
-// надеть, вложить очки в урон, характеристики; потом письмо Бывалого.
+// стрелкой, остальное затемнено. Уроки: купить оружие, надеть, вложить очки
+// в урон, свободные очки характеристик (если есть), первый бой с ботом
+// (Дима 26.11); потом письмо Бывалого.
 //
 // Нужную кнопку страница помечает data-tutorial-focus="<шаг>". Если на
 // странице такой нет, игрок не там: подсвечиваем кнопку места на площади
 // (data-stage-nav) или «Центр», чтобы вернуться на площадь.
 import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../app/providers/auth-provider'
 import { reachGoal } from '../../shared/lib/attribution'
@@ -18,21 +19,26 @@ import './city-tutorial.css'
 
 type Lesson = NonNullable<TutorialProgress['lesson']>
 
-const scenes = new Set(['/', '/shop', '/inventory', '/stats', '/district/market'])
-const LESSONS: Lesson[] = ['buy', 'equip', 'allocate', 'stats']
+const scenes = new Set(['/', '/shop', '/inventory', '/stats', '/district/market', '/pvp'])
+// Характеристики не в счёте шагов: свободные очки есть не у всех новичков.
+const LESSONS: Lesson[] = ['buy', 'equip', 'allocate', 'fight']
 const TITLES: Record<Lesson, string> = {
   buy: 'Купи оружие',
   equip: 'Надень оружие',
   allocate: 'Вложи очки в урон',
   stats: 'Характеристики',
+  fight: 'Первый бой',
+  finish: 'Готово',
   unavailable: 'Стартовое оружие',
 }
-/** Куда идти за уроком: адрес и кнопка места на площади. */
-const PLACE: Record<Exclude<Lesson, 'unavailable'>, { path: string; nav: string }> = {
+/** Куда идти за уроком: адрес и кнопка места на площади. Стрелки не на
+ *  площади, туда ведёт кнопка в самой подсказке. */
+const PLACE: Record<Exclude<Lesson, 'unavailable' | 'finish'>, { path: string; nav: string | null }> = {
   buy: { path: '/shop', nav: 'shop' },
   equip: { path: '/inventory', nav: 'inventory' },
   allocate: { path: '/inventory', nav: 'inventory' },
   stats: { path: '/stats', nav: 'skills' },
+  fight: { path: '/pvp', nav: null },
 }
 
 interface Step { key: string; el: HTMLElement }
@@ -49,7 +55,7 @@ function findStep(lesson: Lesson, pathname: string): Step | null {
   const scope = modals[modals.length - 1] ?? document
   const focus = [...scope.querySelectorAll('[data-tutorial-focus]')].find(visible)
   if (focus) return { key: (focus as HTMLElement).dataset.tutorialFocus || lesson, el: focus as HTMLElement }
-  if (lesson === 'unavailable' || pathname === PLACE[lesson].path) return null
+  if (lesson === 'unavailable' || lesson === 'finish' || pathname === PLACE[lesson].path || !PLACE[lesson].nav) return null
   const nav = document.querySelector(`[data-stage-nav="${PLACE[lesson].nav}"]`)
   if (visible(nav)) return { key: `nav-${PLACE[lesson].nav}`, el: nav }
   const center = document.querySelector('[data-stage-nav="center"]')
@@ -95,8 +101,9 @@ function introSeen(userId: string | null): boolean {
 export function CityTutorialGuide() {
   const { userId } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const qc = useQueryClient()
-  const { data } = useCityTutorial()
+  const { data, refetch } = useCityTutorial()
   const [paused, setPaused] = useState(pausedNow)
   const [intro, setIntro] = useState(() => !introSeen(userId))
   const finish = useMutation({
@@ -117,6 +124,10 @@ export function CityTutorialGuide() {
     setPaused(false)
   }, [location.key, location.state])
   useEffect(() => { setIntro(!introSeen(userId)) }, [userId])
+  // Бой идёт на своей странице, без подсказок. Вернулся в город — спросим,
+  // засчитан ли бой, иначе «Готово» ждало бы устаревания кэша.
+  const fightLesson = data?.lesson === 'fight'
+  useEffect(() => { if (fightLesson) void refetch() }, [location.pathname, fightLesson, refetch])
 
   const lesson = data?.lesson
   const shown = !!data?.active && !!lesson && !paused && scenes.has(location.pathname)
@@ -139,7 +150,7 @@ export function CityTutorialGuide() {
 
   if (intro && lesson === 'buy') {
     return <TourSpotlight target={null} title="Первые шаги" onClose={close}
-      text={'Соберись к первому бою: купи оружие, возьми его в руку и вложи очки в урон.'
+      text={'Соберись и проведи первый бой: купи оружие, возьми его в руку, вложи очки в урон и выйди против бота.'
         + (reward ? ` Бывалый даст за это ${reward.rubles.toLocaleString('ru-RU')} ₽ и ${reward.dollars} $.` : '')}>
       <button type="button" className="btn tour__action" autoFocus onClick={() => {
         try { localStorage.setItem(introKey(userId), '1') } catch { /* приватный режим: покажем ещё раз */ }
@@ -162,8 +173,11 @@ export function CityTutorialGuide() {
     setup: `Нажми «Настроить» у ${name}.`,
     'fill-damage': 'Нажми «Все очки в урон».',
     save: 'Нажми «Сохранить».',
-    'stat-plus': 'Нажми «+» у Силы.',
+    'stat-plus': 'Вложи свободные очки: нажимай «+» у Силы.',
     'stat-confirm': 'Нажми «Подтвердить».',
+    'bots-tab': 'Выбери «Боты».',
+    fight: 'Первый бот самый слабый. Нажми «В бой».',
+    'fight-back': 'Бой уже идёт: вернись в него.',
   }
 
   if (lesson === 'unavailable') {
@@ -178,9 +192,17 @@ export function CityTutorialGuide() {
     return <TourSpotlight target={step.el} title={TITLES[lesson]} step={counter} onClose={close}
       text={TEXT[step.key] ?? TEXT[lesson] ?? ''} />
   }
-  if (lesson === 'stats' && location.pathname === '/stats') {
-    return <TourSpotlight target={null} title="Готово" step={counter} onClose={close}
-      text="Оружие в руке, урон настроен. Бывалый ждёт с письмом и наградой.">
+  if (lesson === 'fight') {
+    if (location.pathname === PLACE.fight.path) return null
+    return <TourSpotlight target={null} title={TITLES[lesson]} step={counter} onClose={close}
+      text="Оружие готово. Проверь его в бою с ботом на Стрелках: бот слабый, проиграть не страшно.">
+      <button type="button" className="btn tour__action" autoFocus
+        onClick={() => navigate('/pvp?opponent=bot')}>К ботам</button>
+    </TourSpotlight>
+  }
+  if (lesson === 'finish') {
+    return <TourSpotlight target={null} title={TITLES[lesson]} onClose={close}
+      text="Первый бой позади. Бывалый ждёт с письмом и наградой.">
       <button type="button" className="btn tour__action" autoFocus disabled={finish.isPending}
         onClick={() => finish.mutate()}>Завершить обучение</button>
       {finish.isError && <p role="alert">{finish.error.message}</p>}
