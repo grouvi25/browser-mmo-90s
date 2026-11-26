@@ -6,7 +6,7 @@ import { locationLabel } from '../../shared/lib/city-locations'
 import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import {
   Sword, Heart, ChevronDown, Skull,
-  CircleDot, Trophy, AlertTriangle, Backpack, Flag, Dog,
+  CircleDot, Trophy, AlertTriangle, Backpack, Flag,
 } from 'lucide-react'
 import { battlesApi, type AttackHand, type BodyZone, type Stance, type SubmitActionOpts } from '../../shared/api/battles.api'
 import { inventoryApi } from '../../shared/api/inventory.api'
@@ -25,6 +25,10 @@ import helperBlue from '../../shared/assets/battle/helper-blue.webp'
 import helperBlue2x from '../../shared/assets/battle/helper-blue@2x.webp'
 import helperRed from '../../shared/assets/battle/helper-red.webp'
 import helperRed2x from '../../shared/assets/battle/helper-red@2x.webp'
+import dogBlue from '../../shared/assets/battle/dog-blue.webp'
+import dogBlue2x from '../../shared/assets/battle/dog-blue@2x.webp'
+import dogRed from '../../shared/assets/battle/dog-red.webp'
+import dogRed2x from '../../shared/assets/battle/dog-red@2x.webp'
 import { EventIcon, getEvent, type TurnEvent } from './components/battle-events'
 import { BattlePockets } from './components/battle-pockets'
 import { BattleJournal } from '../../widgets/battle-journal/battle-journal'
@@ -206,8 +210,9 @@ export function BattleGrid({
                   </div>
                 )}
                 {occupant?.companion === 'dog' && (
-                  <div style={fighterStyle} className={`fighter-token token-companion ${isEnemy ? 'is-enemy' : 'is-ally'}`}>
-                    <Dog size={22} aria-hidden="true" />
+                  <div style={fighterStyle} className={`fighter-token token-dog ${isEnemy ? 'is-enemy' : 'is-ally'}`}>
+                    <img className="token-figure" src={isEnemy ? dogRed : dogBlue}
+                      srcSet={`${isEnemy ? dogRed2x : dogBlue2x} 2x`} alt={who} />
                     {tip}
                     {hpBar}
                     {isTarget && <span className="token-target-label">ЦЕЛЬ</span>}
