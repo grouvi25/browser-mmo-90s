@@ -1,7 +1,7 @@
 // Обучение в городе (переделка 25.11 по образцу RomeWar, просьба Димы):
 // одна подсказка — одно действие, подсказка стоит у нужной кнопки со
 // стрелкой, остальное затемнено. Уроки те же, что и раньше: купить оружие,
-// надеть, вложить очко в урон, характеристики; потом письмо Бывалого.
+// надеть, вложить очки в урон, характеристики; потом письмо Бывалого.
 //
 // Нужную кнопку страница помечает data-tutorial-focus="<шаг>". Если на
 // странице такой нет, игрок не там: подсвечиваем кнопку места на площади
@@ -23,7 +23,7 @@ const LESSONS: Lesson[] = ['buy', 'equip', 'allocate', 'stats']
 const TITLES: Record<Lesson, string> = {
   buy: 'Купи оружие',
   equip: 'Надень оружие',
-  allocate: 'Вложи очко в урон',
+  allocate: 'Вложи очки в урон',
   stats: 'Характеристики',
   unavailable: 'Стартовое оружие',
 }
@@ -139,7 +139,7 @@ export function CityTutorialGuide() {
 
   if (intro && lesson === 'buy') {
     return <TourSpotlight target={null} title="Первые шаги" onClose={close}
-      text={'Соберись к первому бою: купи оружие, возьми его в руку и вложи очко в урон.'
+      text={'Соберись к первому бою: купи оружие, возьми его в руку и вложи очки в урон.'
         + (reward ? ` Бывалый даст за это ${reward.rubles.toLocaleString('ru-RU')} ₽ и ${reward.dollars} $.` : '')}>
       <button type="button" className="btn tour__action" autoFocus onClick={() => {
         try { localStorage.setItem(introKey(userId), '1') } catch { /* приватный режим: покажем ещё раз */ }
@@ -160,7 +160,7 @@ export function CityTutorialGuide() {
     'inventory-tab': 'Открой раздел с оружием.',
     equip: `Нажми «Надеть» у ${name}.`,
     setup: `Нажми «Настроить» у ${name}.`,
-    'max-damage': 'Впиши 1 в «Макс. урон».',
+    'fill-damage': 'Нажми «Все очки в урон».',
     save: 'Нажми «Сохранить».',
     'stat-plus': 'Нажми «+» у Силы.',
     'stat-confirm': 'Нажми «Подтвердить».',

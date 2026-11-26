@@ -34,13 +34,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   return <section className="inv-setup__group"><h4>{title}</h4>{children}</section>
 }
 
-function Field({ label, hint, value, min, onChange, disabled, guided }: {
-  label: string; hint?: string; value: number; min: number; disabled: boolean; guided?: boolean; onChange: (value: number) => void
+function Field({ label, hint, value, min, onChange, disabled }: {
+  label: string; hint?: string; value: number; min: number; disabled: boolean; onChange: (value: number) => void
 }) {
   return (
     <label className="inv-setup__row">
       <input type="number" min={min} step={1} value={value || ''} placeholder="0" disabled={disabled}
-        data-tutorial-focus={guided ? 'max-damage' : undefined}
         onChange={event => {
           const next = Math.trunc(Number(event.target.value.replace(',', '.'))) || 0
           onChange(Math.max(min, next))
@@ -147,6 +146,14 @@ export function ItemSetupDialog({ item, disabled, tutorial, onClose, onMessage }
   const spent = sum(own) + sum(bonuses.stats as Numbers) + sum(bonuses.mastery as Numbers) + sum(bonuses.minusMastery as Numbers)
     + sum(bonuses.charms as Numbers) + sum(bonuses.minusCharms as Numbers)
   const left = budget - spent
+  const damagePoints = (own.MIN_DAMAGE ?? 0) + (own.MAX_DAMAGE ?? 0)
+  // Обучение (Дима 26.11): одно очко давало пистолету 0–1,75 HP. Кнопка кладёт
+  // все свободные очки в урон: 40% в минимум, остальное в максимум.
+  const fillDamage = () => {
+    const total = damagePoints + Math.max(0, left)
+    const min = Math.floor(total * 0.4)
+    setOwn(prev => ({ ...prev, MIN_DAMAGE: min, MAX_DAMAGE: total - min }))
+  }
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['inventory'] })
     void qc.invalidateQueries({ queryKey: ['character'] })
@@ -186,10 +193,11 @@ export function ItemSetupDialog({ item, disabled, tutorial, onClose, onMessage }
       <div className="inv-setup__groups">
         {ownStats.length > 0 && <Section title="Сама вещь">
           {ownStats.map(([key, label, hint]) => <Field key={key} label={label} hint={key === 'MIN_DAMAGE' || key === 'MAX_DAMAGE' ? `+${formatItemHp(perDamage)} HP за очко` : key === 'ARMOR' ? `+${formatArmor(item.armorPerPoint ?? 5)} защиты` : hint} min={0} disabled={busy} value={own[key] ?? 0}
-            guided={tutorial && key === 'MAX_DAMAGE' && !own.MAX_DAMAGE}
             onChange={value => setOwn(prev => ({ ...prev, [key]: value }))} />)}
+          {tutorial && damage && !damagePoints && <button type="button" className="btn btn-sm" disabled={busy || left <= 0}
+            data-tutorial-focus="fill-damage" onClick={fillDamage}>Все очки в урон</button>}
           {damage && <div className={'inv-setup__damage' + (inverted ? ' is-over' : '')}>
-            <div>Базовый урон оружия <b>{itemDamageRange(t.minDamage ?? 0, t.maxDamage ?? 0)}</b></div>
+            {((t.minDamage ?? 0) > 0 || (t.maxDamage ?? 0) > 0) && <div>Базовый урон оружия <b>{itemDamageRange(t.minDamage ?? 0, t.maxDamage ?? 0)}</b></div>}
             <div>Урон оружия с этим раскладом <b>{itemDamageRange(damage.min, damage.max)}</b></div>
             {inverted && <small>Минимум выше максимума. Перераспределите очки урона.</small>}
           </div>}
@@ -219,7 +227,7 @@ export function ItemSetupDialog({ item, disabled, tutorial, onClose, onMessage }
           </button>
         )}
         <button type="button" className="btn btn-primary" disabled={busy || left < 0 || inverted}
-          data-tutorial-focus={tutorial && (own.MAX_DAMAGE ?? 0) > 0 ? 'save' : undefined}
+          data-tutorial-focus={tutorial && damagePoints > 0 ? 'save' : undefined}
           title={left < 0 ? `Лишних очков: ${-left}` : inverted ? 'Мин. урон выше макс.' : undefined} onClick={() => save.mutate()}>
           {save.isPending ? 'Сохраняем…' : 'Сохранить'}
         </button>

@@ -53,12 +53,13 @@ test('новичок проходит обучение по подсказкам
   await expect(hint).toContainText('Нажми «Надеть»')
   await press(page, page.locator('[data-tutorial-focus="equip"]'), isMobile)
 
-  // Вложить очко: Настроить → Макс. урон → Сохранить, подсказка внутри окна.
+  // Вложить очки: Настроить → «Все очки в урон» → Сохранить, подсказка внутри окна.
   await expect(hint).toContainText('Нажми «Настроить»')
   await press(page, page.locator('[data-tutorial-focus="setup"]'), isMobile)
   const settings = page.locator('.inv-setup')
-  await expect(settings.locator('.tour__bubble')).toContainText('Впиши 1 в «Макс. урон».')
-  await settings.locator('[data-tutorial-focus="max-damage"]').fill('1')
+  await expect(settings.locator('.tour__bubble')).toContainText('Нажми «Все очки в урон».')
+  await press(page, settings.locator('[data-tutorial-focus="fill-damage"]'), isMobile)
+  await expect(settings.locator('.inv-setup__count')).toContainText('осталось 0')
   await expect(settings.locator('.tour__bubble')).toContainText('Нажми «Сохранить».')
   await press(page, settings.locator('[data-tutorial-focus="save"]'), isMobile)
 
