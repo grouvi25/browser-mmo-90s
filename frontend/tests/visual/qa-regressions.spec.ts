@@ -261,55 +261,37 @@ test('subscription shop separates the current personal total and limits advertis
   await expect(product).toContainText('На каждого рабочего помощника — 20 смен в сутки')
 })
 
-test('Rambler Top100 uses renewed consent, counts navigation and skips reset URLs', async ({ page, baseURL }) => {
+// Дима 26.11: из аналитики оставляем только Яндекс Метрику, Top.Mail.Ru и Рамблер/Топ-100 убраны.
+test('после согласия на cookie грузится только Яндекс Метрика', async ({ page, baseURL }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => false })
-    if (!sessionStorage.getItem('cookie-fixture-seeded')) {
-      sessionStorage.setItem('cookie-fixture-seeded', '1')
-      localStorage.setItem('kooperativ_cookies', 'all')
-    }
   })
+  const outside: string[] = []
   await page.route('**/*', async route => {
     const url = new URL(route.request().url())
-    if (url.hostname !== 'kooperativ.space') return route.abort()
+    if (url.hostname !== 'kooperativ.space') {
+      outside.push(url.hostname)
+      return route.abort()
+    }
     const response = await route.fetch({ url: new URL(url.pathname + url.search, baseURL).href })
     await route.fulfill({ response })
   })
-  await page.route('https://st.top100.ru/top100/top100.js', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
-      window.top100 = function (options) {
-        window.top100Project = options.project;
-        window.top100Manual = options.manualControl;
-        window.top100Pages = [];
-        this.trackPageview = function () { window.top100Pages.push(location.pathname) };
-      };
-      window._top100q.forEach(callback => callback());
-    `,
-  }))
   await page.goto('https://kooperativ.space/cookies')
-  await expect(page.locator('#rambler-top100')).toHaveCount(0)
+  await expect(page.locator('.cookie-banner')).toContainText('Яндекс Метрики для статистики посещаемости')
+  await expect(page.locator('.cookie-banner')).not.toContainText('Top.Mail.Ru')
   await page.getByRole('button', { name: 'Принять все' }).click()
-  const hits = () => page.evaluate(() => (window as typeof window & { top100Pages?: string[] }).top100Pages)
-  await expect.poll(hits).toEqual(['/cookies'])
-  expect(await page.evaluate(() => {
-    const w = window as typeof window & { top100Project?: number; top100Manual?: boolean }
-    return [w.top100Project, w.top100Manual]
-  })).toEqual([7753811, true])
-
-  const navigate = (path: string) => page.evaluate(url => {
-    history.pushState(history.state, '', url)
+  await expect.poll(() => outside.includes('mc.yandex.ru')).toBe(true)
+  await page.evaluate(() => {
+    history.pushState(history.state, '', '/soglashenie')
     window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }))
-  }, path)
-  await navigate('/soglashenie')
-  await expect.poll(hits).toEqual(['/cookies', '/soglashenie'])
-  await navigate('/reset-password?token=fixture-secret')
-  await expect(page).toHaveURL(/reset-password/)
-  await navigate('/cookies')
-  await expect.poll(hits).toEqual(['/cookies', '/soglashenie', '/cookies'])
-  await page.getByRole('button', { name: 'Изменить выбор' }).click()
-  await expect(page.getByRole('button', { name: 'Только необходимые' })).toBeVisible()
-  await expect(page.locator('#rambler-top100')).toHaveCount(0)
+  })
+  await expect(page).toHaveURL(/soglashenie/)
+  expect(outside.filter(host => /top100|rambler|mail\.ru/.test(host))).toEqual([])
+  expect(await page.evaluate(() => {
+    const w = window as typeof window & Record<string, unknown>
+    return [typeof w.__kooperativTopMail, typeof w.__kooperativTop100, typeof w._tmr, typeof w._top100q]
+  })).toEqual(['undefined', 'undefined', 'undefined', 'undefined'])
+  await expect(page.locator('#tmr-code, #rambler-top100')).toHaveCount(0)
 })
 
 test('new live data supersedes old action distance, HP and range; reload restores round', () => {

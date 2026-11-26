@@ -22,56 +22,6 @@
       try { if (['all', 'all-v2'].includes(localStorage.getItem('kooperativ_cookies'))) window.__kooperativMetrika() } catch (e) { /* приватный режим */ }
     </script>
     <!-- /Yandex.Metrika counter -->
-    <!-- Top.Mail.Ru counter (Дима 10.11). Те же условия, что у Метрики: боевой
-         домен, не автотест и только после согласия на аналитические cookie. -->
-    <script>
-      window.__kooperativTopMail = function () {
-        if (!/(^|\.)kooperativ\.space$/.test(location.hostname) || navigator.webdriver || document.getElementById('tmr-code')) return
-        var _tmr = window._tmr || (window._tmr = []);
-        _tmr.push({id: "3813305", type: "pageView", start: (new Date()).getTime()});
-        var ts = document.createElement("script"); ts.type = "text/javascript"; ts.async = true; ts.id = "tmr-code";
-        ts.src = "https://top-fwz1.mail.ru/js/code.js";
-        var f = document.getElementsByTagName("script")[0]; f.parentNode.insertBefore(ts, f);
-      }
-      try { if (['all', 'all-v2'].includes(localStorage.getItem('kooperativ_cookies'))) window.__kooperativTopMail() } catch (e) { /* приватный режим */ }
-    </script>
-    <!-- /Top.Mail.Ru counter -->
-    <!-- Rambler Top100 (Kraken), каталог и просмотры страниц. -->
-    <script>
-      (function (w, d) {
-        var counter, lastPage
-        w.__kooperativTop100 = function () {
-          if (!/^(www\.)?kooperativ\.space$/.test(location.hostname) || navigator.webdriver) return
-          try { if (localStorage.getItem('kooperativ_cookies') !== 'all-v2') return } catch (e) { return }
-          var params = new URLSearchParams(location.search)
-          if (/^\/reset-password\/?$/i.test(location.pathname) || params.has('token') || params.has('code')) {
-            lastPage = undefined
-            return
-          }
-          if (counter) {
-            if (lastPage !== location.href) {
-              lastPage = location.href
-              try { counter.trackPageview() } catch (e) { /* счётчик необязателен для работы игры */ }
-            }
-            return
-          }
-          if (d.getElementById('rambler-top100')) return
-          var queue = w._top100q = w._top100q || []
-          queue.push(function () {
-            try {
-              counter = new w.top100({ project: 7753811, manualControl: true })
-              w.__kooperativTop100()
-            } catch (e) { /* счётчик необязателен для работы игры */ }
-          })
-          var script = d.createElement('script')
-          script.id = 'rambler-top100'
-          script.async = true
-          script.src = 'https://st.top100.ru/top100/top100.js'
-          d.head.appendChild(script)
-        }
-        w.__kooperativTop100()
-      })(window, document)
-    </script>
   </head>
   <body>
     <div id="root"></div>

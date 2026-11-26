@@ -7,7 +7,8 @@ import { Link } from 'react-router-dom'
 import './cookie-banner.css'
 
 const KEY = 'kooperativ_cookies'
-// Старое согласие «all» охватывало только Яндекс Метрику и Top.Mail.Ru.
+// Согласие «all-v2» давали на Метрику, Top.Mail.Ru и Топ-100; с 26.11 (Дима)
+// осталась только Метрика — согласие на большее покрывает меньшее.
 const ALL_ANALYTICS = 'all-v2'
 export const COOKIE_CHOICE_EVENT = 'kooperativ:cookie-choice'
 type Choice = 'all' | 'necessary'
@@ -34,12 +35,8 @@ export function setCookieChoice(choice: Choice | null) {
   if (choice === 'all') {
     const w = window as typeof window & {
       __kooperativMetrika?: () => void
-      __kooperativTopMail?: () => void
-      __kooperativTop100?: () => void
     }
     w.__kooperativMetrika?.()
-    w.__kooperativTopMail?.()
-    w.__kooperativTop100?.()
   }
   window.dispatchEvent(new Event(COOKIE_CHOICE_EVENT))
 }
@@ -58,7 +55,7 @@ export function CookieBanner() {
     <div className="cookie-banner" role="region" aria-label="Cookie">
       <p>
         Мы используем необходимые cookie, без них игра не работает, а с вашего согласия также аналитические cookie
-        Яндекс Метрики, Top.Mail.Ru и Рамблер/Топ-100 для статистики посещаемости. <Link to="/cookies">Подробнее</Link>
+        Яндекс Метрики для статистики посещаемости. <Link to="/cookies">Подробнее</Link>
       </p>
       <div className="cookie-banner__acts">
         <button type="button" className="cookie-banner__btn" onClick={() => setCookieChoice('necessary')}>Только необходимые</button>

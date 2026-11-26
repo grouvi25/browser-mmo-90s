@@ -135,13 +135,8 @@ function AnalyticsTracker() {
     previous.current = page
     const analytics = window as typeof window & {
       ym?: (id: number, action: string, url: string, options: Record<string, string>) => void
-      _tmr?: unknown[]
-      __kooperativTop100?: () => void
     }
     analytics.ym?.(111441325, 'hit', page, { title: document.title, referer: document.referrer })
-    // Top.Mail.Ru считает переходы внутри игры тем же способом; без согласия на cookie его нет.
-    if (document.getElementById('tmr-code')) analytics._tmr?.push({ id: '3813305', type: 'pageView', start: Date.now() })
-    analytics.__kooperativTop100?.()
   }, [page])
   return null
 }
