@@ -82,7 +82,9 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
   const strip = turn.logLine?.match(STRIP_NOTE)?.[1]
   // Свиток отражения у защитника вернул бьющему часть урона.
   const reflected = turn.logLine?.match(/отражение (\d+)/)?.[1]
-  const tail = (strip ? ` — ${strip}` : '') + (reflected ? `, отражено −${reflected} HP` : '')
+  // №199: сколько брони вычлось из удара (зона + половина выносливости цели).
+  const armor = turn.logLine?.match(/\(броня (\d+)\)/)?.[1]
+  const tail = (armor ? ` (броня ${armor})` : '') + (strip ? ` — ${strip}` : '') + (reflected ? `, отражено −${reflected} HP` : '')
   // Дима 15.11: обычный удар серый, крит красный, удачный синий, крито-удачный
   // наполовину красный, наполовину синий. Крит, пробивший блок, раньше писался
   // только «пробил блок», и крит пропадал из журнала. Удачный без блока виден

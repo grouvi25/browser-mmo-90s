@@ -540,9 +540,12 @@ export function resolveZonalAttack(
   rawDamage = incomingForce * critMult
   if (crit) log.push('КРИТ!')
 
-  finalDamage = attackDamageHp(rawDamage, calcArmorFlat(zoneArmor, defender.end), calcSpread(rng),
+  const armorFlat = calcArmorFlat(zoneArmor, defender.end)
+  finalDamage = attackDamageHp(rawDamage, armorFlat, calcSpread(rng),
     defender.incomingDamageMultiplier ?? 1, B.damage.minFinalDamage)
-  log.push(`Удар в ${zoneName}: ${finalDamage}`)
+  // №199: игрок не видел, почему крит по «голой» зоне слабый или ушёл в ноль.
+  // Броня — это броня зоны плюс половина выносливости цели; журнал её показывает.
+  log.push(`Удар в ${zoneName}: ${finalDamage} (броня ${Math.round(armorFlat)})`)
   return base()
 }
 

@@ -89,6 +89,9 @@ describe('журнал боя', () => {
     expect(describeTurn({ ...base, zone: 'HEAD', hit: true, crit: true, blockPierced: true, finalDamage: 30 })).toEqual({ kind: 'critlucky', text: 'крито-удачный, пробил блок в голову, −30 HP' })
     expect(describeTurn({ ...base, zone: 'HEAD', hit: true, crit: true, finalDamage: 30, logLine: 'Крито-удачный сквозь уворот!, КРИТ!, Удар в голову: 30' })).toEqual({ kind: 'critlucky', text: 'крито-удачный в голову, −30 HP' })
     expect(describeTurn({ ...base, zone: 'CHEST', hit: true, finalDamage: 9, logLine: 'Удачный сквозь уворот!, Удар в корпус: 9' })).toEqual({ kind: 'lucky', text: 'удачный в корпус, −9 HP' })
+    // №199: броня, которая вычлась из удара, видна в журнале — и почему крит ушёл в ноль.
+    expect(describeTurn({ ...base, zone: 'CHEST', hit: true, crit: true, finalDamage: 0, logLine: 'КРИТ!, Удар в корпус: 0 (броня 46)' })).toEqual({ kind: 'crit', text: 'крит в корпус, −0 HP (броня 46)' })
+    expect(describeTurn({ ...base, zone: 'HEAD', hit: true, crit: true, finalDamage: 9, logLine: 'КРИТ!, Удар в голову: 9 (броня 20)' })).toEqual({ kind: 'crit', text: 'крит в голову, −9 HP (броня 20)' })
     expect(describeTurn({ ...base, action: 'MOVE', zone: null })).toEqual({ kind: 'move', text: 'делает шаг' })
     expect(describeTurn({ ...base, action: 'BLOCK', zone: null, logLine: 'Пропустил ход' })).toEqual({ kind: 'idle', text: 'пропустил ход и стоит' })
     expect(describeTurn({ ...base, action: 'BLOCK', zone: null, logLine: 'Замёрз' })).toEqual({ kind: 'idle', text: 'замёрз до конца боя' })
