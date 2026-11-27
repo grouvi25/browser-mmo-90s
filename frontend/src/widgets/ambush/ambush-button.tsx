@@ -1,12 +1,12 @@
 // =============================================================
-// Засада из списка «онлайн» — травмы v8, раздел 12. Место игрока — страница,
-// на которой он стоит, поэтому засада не уводит со страницы: значок у ника
-// и окно подтверждения. Значок виден, только если в карманах есть бинокль и
-// игрок стоит там же, где вы.
+// Засада из списка «онлайн» — травмы v8, раздел 12. Значок у ника и окно
+// подтверждения; значок виден, только если в карманах есть бинокль и игрок
+// стоит там же, где вы. С 26.11 (обращение №196) засада — пошаговая дуэль:
+// после «Напасть» сразу уводим в бой, цель туда же уводит наблюдатель боя.
 // =============================================================
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ambushApi } from '../../shared/api/ambush.api'
 import type { OnlinePlayer } from '../../shared/api/chat.api'
@@ -34,6 +34,7 @@ export function AmbushButton({ player }: { player: OnlinePlayer }) {
 
 function AmbushDialog({ player, onClose }: { player: OnlinePlayer; onClose: () => void }) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     const element = dialog.current
@@ -41,14 +42,19 @@ function AmbushDialog({ player, onClose }: { player: OnlinePlayer; onClose: () =
   }, [])
   const attack = useMutation({
     mutationFn: () => ambushApi.ambush(player.characterId),
+    onSuccess: data => {
+      try { localStorage.setItem('mmo_current_battle', data.battleId) } catch { /* приватный режим */ }
+      dialog.current?.close()
+      navigate(`/battle/${data.battleId}`)
+    },
     onSettled: () => Promise.all([
       qc.invalidateQueries({ queryKey: ['ambush'] }),
       qc.invalidateQueries({ queryKey: ['character'] }),
       qc.invalidateQueries({ queryKey: ['city'] }),
       qc.invalidateQueries({ queryKey: ['hospital'] }),
+      qc.invalidateQueries({ queryKey: ['battle', 'current'] }),
     ]),
   })
-  const result = attack.data
 
   return (
     <dialog ref={dialog} className="ambush-dialog" aria-label={`Засада на ${player.nickname}`} onClose={onClose}
@@ -56,8 +62,9 @@ function AmbushDialog({ player, onClose }: { player: OnlinePlayer; onClose: () =
       onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget && !attack.isPending) dialog.current?.close() }}>
       <article>
         <h2>Засада на {player.nickname}</h2>
-        {!result && <>
-          <p>Бинокль будет потрачен. Удача — цель уедет в реанимацию. Провал — туда попадёте вы.</p>
+          <p>Бинокль будет потрачен, начнётся бой один на один — без помощников и собак, расходники можно.
+            Засада удалась — первый раунд бьёте только вы. Не удалась — бой на равных.
+            Проигравший уедет в реанимацию.</p>
           {attack.error && <p className="ambush-dialog__error" role="alert">{attack.error.message}</p>}
           <div className="ambush-dialog__actions">
             <button type="button" className="btn btn-primary" disabled={attack.isPending} onClick={() => attack.mutate()}>
@@ -65,13 +72,6 @@ function AmbushDialog({ player, onClose }: { player: OnlinePlayer; onClose: () =
             </button>
             <button type="button" className="btn" disabled={attack.isPending} onClick={() => dialog.current?.close()}>Отмена</button>
           </div>
-        </>}
-        {result && <>
-          <p role="status">{result.success
-            ? `Засада удалась: ${result.target} в реанимации.`
-            : `Засада провалилась: ${result.target} ушёл, вы попали под встречный удар.`}</p>
-          <button type="button" className="btn" onClick={() => dialog.current?.close()}>Закрыть</button>
-        </>}
       </article>
     </dialog>
   )

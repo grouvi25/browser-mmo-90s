@@ -4,9 +4,15 @@
  * Бинокль покупается в подпольной лавке Чёрного рынка и лежит в «карманах»
  * не активированным. Активировать можно только там, где стоит цель: место
  * игрока — страница, на которой он сейчас. Цели нет на месте — бинокль цел.
- * Бросок нападающего против уворота цели. Успех — цель в критическом (второе
- * за сутки — кома), провал — в критическом сам нападающий. Промежуточных
- * травм нет. На беспомощного (тяжёлая, критическое, кома) не бьют.
+ * На беспомощного (тяжёлая, критическое, кома) не бьют.
+ *
+ * Решение 26.11 (Миша, обращение №196): засада — обычная дуэль по ходам, как
+ * на Стрелках. Цель сразу попадает в бой; не у экрана — за неё ходит общий
+ * таймер (60 с, на втором пропуске замерзает). Бросок засады остаётся как
+ * «внезапность»: успех — нападающий бьёт первый раунд, цель не отвечает;
+ * провал — бой на равных. Проигравший — в критическое (второе за сутки —
+ * кома), победитель без травм. Один на один, без помощников и собак,
+ * расходники можно. Опыт как за дуэль, денег нет.
  */
 import { prisma } from '../../shared/db/prisma'
 import { AppError } from '../../shared/errors/app-error'
@@ -16,34 +22,20 @@ import { ChatRedis } from '../../shared/db/redis'
 import { audit } from '../../shared/logger/audit-logger'
 import { BalanceConfig } from '../../config/balance.config'
 import { EconomyService } from '../economy/economy.service'
-import {
-  ambushChance, blocksCombat, injuryMinutes, injuryUpdate, knockoutNotice, knockoutTier,
-} from './injuries.formulas'
+import { ambushChance, blocksCombat, combatReady } from './injuries.formulas'
+import { BattleService } from './battles.service'
 
 const I = () => BalanceConfig.injuries
 
 const fighterFields = {
   id: true, nickname: true, status: true, location: true, battleLevel: true, pocketBinoculars: true, jailedUntil: true,
+  hpCurrent: true, hpMax: true,
   injuryTier: true, injuryUntil: true, injuryTreatedAt: true, injuryCriticalAt: true,
   stats: { select: { agi: true } },
 } as const
 
 function refuse(message: string): never {
   throw new AppError(ErrorCode.CONFLICT, message, 409)
-}
-
-function hoursText(minutes: number): string {
-  const h = minutes / 60
-  return Number.isInteger(h) ? (h === 1 ? '1 час' : h < 5 ? `${h} часа` : `${h} часов`) : `${minutes} мин`
-}
-
-/** Бригаде пострадавшего — что он в реанимации (раздел 13). */
-async function tellBrigade(tx: Parameters<Parameters<typeof withTransaction>[0]>[0], characterId: string, nickname: string, tier: 'CRITICAL' | 'COMA') {
-  const member = await tx.clanMember.findUnique({ where: { characterId }, select: { clanId: true, status: true } })
-  if (!member || member.status !== 'ACTIVE') return
-  const others = await tx.clanMember.findMany({ where: { clanId: member.clanId, status: 'ACTIVE', characterId: { not: characterId } }, select: { characterId: true } })
-  const text = `🚨 ${nickname} ${tier === 'COMA' ? 'в коме' : 'в критическом состоянии'}. Реанимация, ${hoursText(injuryMinutes(tier))}. Помочь из общака можно в больнице.`
-  if (others.length) await tx.gameNotice.createMany({ data: others.map(o => ({ characterId: o.characterId, text })) })
 }
 
 export const AmbushService = {
@@ -87,38 +79,59 @@ export const AmbushService = {
     if (!here) refuse('Цель не найдена в этой локации, предмет не потрачен')
 
     const chance = ambushChance(attacker.stats?.agi ?? 0, target.stats?.agi ?? 0, attacker, target, now)
-    const success = roll < chance
-    const loser = success ? target : attacker
-    const tier = knockoutTier(loser, now)
+    const surprise = roll < chance
 
-    await withTransaction(async tx => {
+    const battleId = await withTransaction(async tx => {
       // Бинокль расходуется одним запросом с проверкой: два клика подряд не потратят два.
       const used = await tx.character.updateMany({
         where: { id: attacker.id, pocketBinoculars: { gte: 1 }, status: 'ACTIVE' },
         data: { pocketBinoculars: { decrement: 1 } },
       })
       if (!used.count) refuse('В карманах нет бинокля')
-      const fresh = await tx.character.findUniqueOrThrow({ where: { id: loser.id }, select: fighterFields })
-      if (fresh.status !== 'ACTIVE' || blocksCombat(fresh, now)) refuse('Цель не найдена в этой локации, предмет не потрачен')
-      const data = injuryUpdate(fresh, tier, now)
-      if (!data) refuse('Состояние изменилось. Попробуйте ещё раз')
-      // Доставка в реанимацию: место персонажа — больница.
-      await tx.character.update({ where: { id: loser.id }, data: { ...data, location: '/hospital', lastLocation: '/hospital' } })
+      // Обоих в бой одним махом: цель могла за это время уйти на смену или в другой бой.
+      const claimedAttacker = await tx.character.updateMany({
+        where: { id: attacker.id, status: 'ACTIVE', ...combatReady(now) },
+        data: { status: 'IN_BATTLE' },
+      })
+      if (!claimedAttacker.count) refuse('Сейчас вы заняты: закончите бой или смену')
+      const claimedTarget = await tx.character.updateMany({
+        where: { id: target.id, status: 'ACTIVE', ...combatReady(now) },
+        data: { status: 'IN_BATTLE' },
+      })
+      if (!claimedTarget.count) refuse('Цель не найдена в этой локации, предмет не потрачен')
 
-      const notices = [
-        { characterId: loser.id, text: knockoutNotice(tier) },
-        success
-          ? { characterId: attacker.id, text: `Засада удалась: ${target.nickname} повержен(а).` }
-          : { characterId: attacker.id, text: `❌ Засада провалилась — ${target.nickname} ушёл(ла), вы попали под встречный удар. ${tier === 'COMA' ? 'Кома' : 'Критическое состояние'}, реанимация.` },
-        success
-          ? { characterId: target.id, text: `⚠️ Вас атаковал ${attacker.nickname}.` }
-          : { characterId: target.id, text: `⚠️ ${attacker.nickname} пытался(ась) вас атаковать, но вы ушли. Нападавший в реанимации.` },
-      ]
-      await tx.gameNotice.createMany({ data: notices })
-      await tellBrigade(tx, loser.id, loser.nickname, tier)
+      const battle = await tx.battle.create({
+        data: { type: 'PVP_DUEL', status: 'WAITING_PLAYERS', levelMin: 1, levelMax: 99, creatorId: attacker.id },
+      })
+      await tx.battleParticipant.createMany({ data: [
+        { battleId: battle.id, characterId: attacker.id, side: 1, hpMax: attacker.hpMax, hpCurrent: attacker.hpCurrent },
+        { battleId: battle.id, characterId: target.id, side: 2, hpMax: target.hpMax, hpCurrent: target.hpCurrent },
+      ] })
+      await tx.gameNotice.createMany({ data: [
+        {
+          characterId: target.id,
+          text: surprise
+            ? `⚠️ На вас напал из засады ${attacker.nickname}! Вы застигнуты врасплох: первый удар за ним. Бой уже идёт.`
+            : `⚠️ ${attacker.nickname} пытался(ась) напасть из засады, но вы заметили его(её) вовремя. Бой на равных уже идёт.`,
+        },
+      ] })
+      return battle.id
     })
 
-    audit('ambush.finished', { attackerId: attacker.id, targetId: target.id, success, chance, tier, location: attacker.location })
-    return { success, chance: Math.round(chance * 100), tier, target: target.nickname }
+    try {
+      await BattleService.beginDuelState(battleId, { ambush: { attackerId: attacker.id, targetId: target.id, surprise } })
+    } catch (error) {
+      // Бой не открылся: отпускаем обоих и возвращаем бинокль, иначе они
+      // висели бы «в бою» без боя до минутной уборки.
+      await withTransaction(async tx => {
+        await tx.battle.update({ where: { id: battleId }, data: { status: 'CANCELLED', finishedAt: new Date() } })
+        await tx.character.updateMany({ where: { id: { in: [attacker.id, target.id] }, status: 'IN_BATTLE' }, data: { status: 'ACTIVE' } })
+        await tx.character.update({ where: { id: attacker.id }, data: { pocketBinoculars: { increment: 1 } } })
+      })
+      throw error
+    }
+
+    audit('ambush.started', { attackerId: attacker.id, targetId: target.id, battleId, surprise, chance, location: attacker.location })
+    return { battleId, surprise, chance: Math.round(chance * 100), target: target.nickname }
   },
 }

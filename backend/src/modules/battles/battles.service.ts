@@ -42,9 +42,10 @@ import {
   type AttackHand,
   type EquipArmorLike,
 } from './zones'
-import { FREEZE_AFTER_MISSED, IDLE_FROZEN, IDLE_SKIP } from './battle-timeout'
+import { FREEZE_AFTER_MISSED, IDLE_FROZEN, IDLE_SKIP, IDLE_SURPRISED } from './battle-timeout'
 import { blocksCombat, combatReady, injuryEffects, type InjuryState } from './injuries.formulas'
 import { recordFairInjury } from './hospital.service'
+import { knockOut } from './ambush-knockout'
 import type { BodyZone } from '@prisma/client'
 import {
   BATTLE_GRID,
@@ -117,13 +118,14 @@ function weaponRangeOf(weapon: ItemWithTemplate | null | undefined): number {
  * противник за ход (походил, ударил и так далее), а раньше такой ход
  * не оставлял следа вовсе.
  */
-function blockedOnly(turn: { attackZones: BodyZone[]; blockZones: BodyZone[]; moveTo?: GridPosition; idle?: 'skip' | 'frozen' }, moved: boolean): boolean {
+function blockedOnly(turn: { attackZones: BodyZone[]; blockZones: BodyZone[]; moveTo?: GridPosition; idle?: ZonalTurnInput['idle'] }, moved: boolean): boolean {
   return !moved && turn.attackZones.length === 0 && (turn.blockZones.length > 0 || !!turn.idle)
 }
 
 /** Строка журнала для пропущенного хода: без неё боец, который стоит, из журнала пропадал. */
-function idleNote(turn: { idle?: 'skip' | 'frozen' }): { logLine?: string } {
-  return turn.idle ? { logLine: turn.idle === 'frozen' ? IDLE_FROZEN : IDLE_SKIP } : {}
+function idleNote(turn: { idle?: ZonalTurnInput['idle'] }): { logLine?: string } {
+  if (!turn.idle) return {}
+  return { logLine: turn.idle === 'frozen' ? IDLE_FROZEN : turn.idle === 'surprised' ? IDLE_SURPRISED : IDLE_SKIP }
 }
 
 /** Строка журнала для хода фигуры: удар или шаг (companions.ts). */
@@ -220,6 +222,15 @@ export interface LiveBattleState {
   grid?: typeof BATTLE_GRID
   arena?: Arena | null      // полоса дуэли; null — всё поле
   obstacles?: GridPosition[]
+  /** Дуэль из засады (обращение №196): итог — реанимация проигравшему, победитель без травм. */
+  ambush?: AmbushInfo
+}
+
+export interface AmbushInfo {
+  attackerId: string
+  targetId: string
+  /** Засада удалась: первый раунд бьёт только нападающий, цель не отвечает. */
+  surprise: boolean
 }
 
 function ensureGridState(state: LiveBattleState): void {
@@ -1176,7 +1187,7 @@ export const BattleService = {
    * Нужна заявкам с таймером — их стартует воркер, а не второй игрок,
    * поэтому живое состояние строится из базы, как у командного боя.
    */
-  async beginDuelState(battleId: string) {
+  async beginDuelState(battleId: string, opts: { ambush?: AmbushInfo } = {}) {
     const battle = await prisma.battle.findUnique({ where: { id: battleId }, include: { participants: true } })
     if (!battle) throw AppError.notFound('Battle', battleId)
     const one = battle.participants.find(p => p.side === 1)
@@ -1215,6 +1226,17 @@ export const BattleService = {
       distance: 6,
       grid: BATTLE_GRID,
       participants,
+      ...(opts.ambush ? { ambush: opts.ambush } : {}),
+    }
+    // Удачная засада: первый раунд цель застигнута врасплох — ход за неё уже
+    // сделан, без ударов и блоков. Таймер её не трогает, пропуском это не считается.
+    if (opts.ambush?.surprise) {
+      const target = participants.find(p => p.characterId === opts.ambush!.targetId)
+      if (target) {
+        target.pendingTurn = normalizeTurn({ stance: 'defense4', idle: 'surprised' })
+        target.pendingAction = 'surprised'
+        target.hasActedThisRound = true
+      }
     }
     await BattleRedis.setState(battleId, liveState)
     await prisma.battle.update({ where: { id: battleId }, data: { status: 'ACTIVE', startedAt: new Date() } })
@@ -1542,7 +1564,9 @@ export const BattleService = {
       if (!playerPart.isAlive) throw new AppError(ErrorCode.BATTLE_INVALID_ACTION, 'You are dead', 400)
       // За замёрзшего таймер ходит сразу в начале раунда, поэтому «уже сходил» у него
       // всегда; сдаться он должен мочь в любой момент, иначе стоит до смерти.
-      if (playerPart.hasActedThisRound && !(action === 'surrender' && playerPart.frozen)) throw new AppError(ErrorCode.BATTLE_ACTION_TAKEN, 'Already acted this round', 400)
+      // То же у застигнутого засадой в первом раунде (№196).
+      const forcedIdle = playerPart.frozen || playerPart.pendingAction === 'surprised'
+      if (playerPart.hasActedThisRound && !(action === 'surrender' && forcedIdle)) throw new AppError(ErrorCode.BATTLE_ACTION_TAKEN, 'Already acted this round', 400)
 
       // ── Anti-abuse: отслеживаем пропуски ────────────────
       // "block" без атаки — пассивный ход, считается как активный
@@ -3020,8 +3044,21 @@ export const BattleService = {
         won: winnerId === char2.id,
       })
 
-      // Травмы v8: дуэль всегда со Стрелок. Ничья травм не даёт.
-      if (winnerId) {
+      // Травмы v8: дуэль со Стрелок — обычные шансы травм. Ничья травм не даёт.
+      // Засада (№196): проигравший в критическое (второе за сутки — кома),
+      // победитель без травм.
+      if (winnerId && state.ambush) {
+        const loser = winnerId === char1.id ? char2 : char1
+        const winner = winnerId === char1.id ? char1 : char2
+        const tier = await knockOut(tx, loser.id)
+        const attackerWon = winner.id === state.ambush.attackerId
+        await tx.gameNotice.create({ data: {
+          characterId: winner.id,
+          text: attackerWon
+            ? `Засада удалась: ${loser.nickname} повержен(а)${tier ? ' и в реанимации' : ''}.`
+            : `Вы отбились от засады: ${loser.nickname} повержен(а)${tier ? ' и в реанимации' : ''}.`,
+        } })
+      } else if (winnerId) {
         for (const char of [char1, char2]) await recordFairInjury(tx, char.id, { won: winnerId === char.id })
       }
 

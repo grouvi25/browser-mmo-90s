@@ -56,8 +56,9 @@ export interface ZonalTurnInput {
   swapWeapon?: { hand: AttackHand; itemInstanceId: string }
   swapArmor?: { zone: BodyZone; itemInstanceId: string }
   /** Дима 15.11: пропущенный ход. Боец стоит без ударов и без блоков;
-   *  «frozen» — второй пропуск, замёрз до конца боя. */
-  idle?: 'skip' | 'frozen'
+   *  «frozen» — второй пропуск, замёрз до конца боя.
+   *  «surprised» — застигнут засадой: первый раунд стоит, не бьёт и не закрывается (№196). */
+  idle?: 'skip' | 'frozen' | 'surprised'
 }
 
 /**

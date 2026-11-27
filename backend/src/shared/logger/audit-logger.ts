@@ -30,6 +30,7 @@ type AuditEvent =
   | 'battle.action'
   | 'battle.finished'
   | 'ambush.finished'
+  | 'ambush.started'
   | 'battle.cleanup.orphaned'
   | 'battle.cleanup.released'
   | 'money.changed'

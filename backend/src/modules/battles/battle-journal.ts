@@ -11,7 +11,7 @@
 import type { AttackHand, BattleAction, BodyZone } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { INTERCEPT_MARK } from './companions'
-import { IDLE_FROZEN, IDLE_SKIP } from './battle-timeout'
+import { IDLE_FROZEN, IDLE_SKIP, IDLE_SURPRISED } from './battle-timeout'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 
@@ -60,6 +60,7 @@ export function describeTurn(turn: JournalTurn): { kind: JournalKind; text: stri
     case 'BLOCK':
       if (turn.logLine === IDLE_SKIP) return { kind: 'idle', text: 'пропустил ход и стоит' }
       if (turn.logLine === IDLE_FROZEN) return { kind: 'idle', text: 'замёрз до конца боя' }
+      if (turn.logLine === IDLE_SURPRISED) return { kind: 'idle', text: 'застигнут врасплох и не успел ответить' }
       return { kind: 'block', text: 'уходит в защиту' }
     // Строка хода называет вещь и что она сделала: иначе свиток выглядит пустым ходом.
     case 'USE_ITEM': {

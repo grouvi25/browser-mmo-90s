@@ -4,7 +4,8 @@ import { AmbushService } from '../../modules/battles/ambush.service'
 import { HospitalService } from '../../modules/battles/hospital.service'
 import { ClansService } from '../../modules/clans/clans.service'
 import { CityService } from '../../modules/city/city.service'
-import { ChatRedis } from '../../shared/db/redis'
+import { BattleService } from '../../modules/battles/battles.service'
+import { BattleRedis, ChatRedis } from '../../shared/db/redis'
 
 const minute = 60_000
 
@@ -27,7 +28,9 @@ describe('травмы v8, этап 2: засада, реанимация, об�
   beforeEach(() => cleanDatabase())
   afterAll(() => testPrisma.$disconnect())
 
-  it('бинокль покупается один, засада отправляет цель в реанимацию, на беспомощного не бьют', async () => {
+  type Live = { roundNumber: number; ambush?: { surprise: boolean }; participants: Array<{ characterId: string; hasActedThisRound: boolean; pendingAction?: string }> }
+
+  it('бинокль один; засада — сразу дуэль, при удаче цель первый раунд застигнута врасплох', async () => {
     const hunter = await player()
     const victim = await player()
     await AmbushService.buyBinoculars(hunter.user.id)
@@ -40,32 +43,75 @@ describe('травмы v8, этап 2: засада, реанимация, об�
     expect((await state(hunter.character.id)).pocketBinoculars).toBe(1)
     await testPrisma.character.update({ where: { id: victim.character.id }, data: { location: '/market' } })
 
-    const now = new Date()
-    const result = await AmbushService.ambush(hunter.user.id, victim.character.id, now, 0)
-    expect(result).toMatchObject({ success: true, tier: 'CRITICAL' })
-    expect(await state(hunter.character.id)).toMatchObject({ pocketBinoculars: 0, injuryTier: null })
-    expect(await state(victim.character.id)).toMatchObject({
-      injuryTier: 'CRITICAL', injuryUntil: new Date(now.getTime() + 240 * minute), location: '/hospital',
-    })
-    expect(await testPrisma.gameNotice.count({ where: { characterId: victim.character.id, text: { contains: 'Вас атаковал' } } })).toBe(1)
-    expect(await CityService.location(victim.user.id)).toMatchObject({ path: '/hospital' })
-    await expect(CityService.move(victim.user.id, '/market')).rejects.toThrow('реанимации')
+    const result = await AmbushService.ambush(hunter.user.id, victim.character.id, new Date(), 0)
+    expect(result).toMatchObject({ surprise: true, target: victim.character.nickname })
+    expect(await state(hunter.character.id)).toMatchObject({ pocketBinoculars: 0, status: 'IN_BATTLE' })
+    expect(await state(victim.character.id)).toMatchObject({ status: 'IN_BATTLE', injuryTier: null })
+    const battle = await testPrisma.battle.findUniqueOrThrow({ where: { id: result.battleId }, include: { participants: true } })
+    expect(battle).toMatchObject({ type: 'PVP_DUEL', status: 'ACTIVE' })
+    expect(battle.participants).toHaveLength(2)
+    expect(await testPrisma.gameNotice.count({ where: { characterId: victim.character.id, text: { contains: 'застигнуты врасплох' } } })).toBe(1)
 
-    await testPrisma.character.update({ where: { id: hunter.character.id }, data: { pocketBinoculars: 1 } })
-    await expect(AmbushService.ambush(hunter.user.id, victim.character.id, now, 0)).rejects.toThrow('беспомощного')
+    // Первый раунд за цель уже сыгран: стоит без ударов и блоков.
+    const live = await BattleRedis.getState<Live>(result.battleId)
+    expect(live!.ambush).toMatchObject({ surprise: true })
+    expect(live!.participants.find(p => p.characterId === victim.character.id)).toMatchObject({ hasActedThisRound: true, pendingAction: 'surprised' })
+
+    // Нападающий ходит — раунд закрывается, цель в журнале «застигнута врасплох».
+    await BattleService.submitAction(hunter.user.id, result.battleId, {
+      action: 'block', stance: 'defense4', attackZones: [], blockZones: ['HEAD', 'CHEST', 'LEFT_ARM', 'RIGHT_ARM'],
+    })
+    const after = await BattleRedis.getState<Live>(result.battleId)
+    expect(after!.roundNumber).toBe(2)
+    expect(after!.participants.every(p => !p.hasActedThisRound)).toBe(true)
+    expect(await testPrisma.battleTurn.count({
+      where: { battleId: result.battleId, actorCharId: victim.character.id, logLine: 'Застигнут врасплох' },
+    })).toBe(1)
+
+    // Нападающий сдаётся — он проигравший: реанимация ему, цель без травм.
+    const now = Date.now()
+    await BattleService.submitAction(hunter.user.id, result.battleId, { action: 'surrender' })
+    const loser = await state(hunter.character.id)
+    expect(loser).toMatchObject({ injuryTier: 'CRITICAL', location: '/hospital', status: 'ACTIVE' })
+    expect(loser.injuryUntil!.getTime()).toBeGreaterThanOrEqual(now + 240 * minute - 5_000)
+    expect(await state(victim.character.id)).toMatchObject({ injuryTier: null, status: 'ACTIVE' })
+    expect(await testPrisma.gameNotice.count({ where: { characterId: victim.character.id, text: { contains: 'отбились от засады' } } })).toBe(1)
+    expect(await testPrisma.battle.findUniqueOrThrow({ where: { id: result.battleId } })).toMatchObject({ status: 'FINISHED', winnerId: victim.character.id })
+    expect(await CityService.location(hunter.user.id)).toMatchObject({ path: '/hospital' })
+    await expect(CityService.move(hunter.user.id, '/market')).rejects.toThrow('реанимации')
+
+    // На беспомощного не бьют.
+    await testPrisma.character.update({ where: { id: victim.character.id }, data: { pocketBinoculars: 1 } })
+    await expect(AmbushService.ambush(victim.user.id, hunter.character.id, new Date(), 0)).rejects.toThrow('беспомощного')
   })
 
-  it('провал кладёт нападающего, второе критическое за сутки — кома', async () => {
+  it('провал засады — бой на равных; проигравшая цель второй раз за сутки — в коме', async () => {
     const hunter = await player()
     const victim = await player()
+    await testPrisma.character.update({ where: { id: hunter.character.id }, data: { pocketBinoculars: 1 } })
     await testPrisma.character.update({
-      where: { id: hunter.character.id },
-      data: { pocketBinoculars: 1, injuryCriticalAt: new Date(Date.now() - 3 * 3_600_000) },
+      where: { id: victim.character.id }, data: { injuryCriticalAt: new Date(Date.now() - 3 * 3_600_000) },
     })
     const result = await AmbushService.ambush(hunter.user.id, victim.character.id, new Date(), 0.99)
-    expect(result).toMatchObject({ success: false, tier: 'COMA' })
-    expect(await state(hunter.character.id)).toMatchObject({ injuryTier: 'COMA' })
-    expect(await state(victim.character.id)).toMatchObject({ injuryTier: null })
+    expect(result).toMatchObject({ surprise: false })
+    const live = await BattleRedis.getState<Live>(result.battleId)
+    expect(live!.participants.every(p => !p.hasActedThisRound)).toBe(true)
+
+    // Застигнутой врасплох цель не была — сдаться может, как в любой дуэли.
+    await BattleService.submitAction(victim.user.id, result.battleId, { action: 'surrender' })
+    expect(await state(victim.character.id)).toMatchObject({ injuryTier: 'COMA', location: '/hospital', status: 'ACTIVE' })
+    expect(await state(hunter.character.id)).toMatchObject({ injuryTier: null, status: 'ACTIVE', pocketBinoculars: 0 })
+    expect(await testPrisma.gameNotice.count({ where: { characterId: hunter.character.id, text: { contains: 'Засада удалась' } } })).toBe(1)
+  })
+
+  it('застигнутая врасплох цель может сдаться в первом раунде', async () => {
+    const hunter = await player()
+    const victim = await player()
+    await testPrisma.character.update({ where: { id: hunter.character.id }, data: { pocketBinoculars: 1 } })
+    const result = await AmbushService.ambush(hunter.user.id, victim.character.id, new Date(), 0)
+    await BattleService.submitAction(victim.user.id, result.battleId, { action: 'surrender' })
+    expect(await state(victim.character.id)).toMatchObject({ injuryTier: 'CRITICAL', status: 'ACTIVE' })
+    expect(await state(hunter.character.id)).toMatchObject({ injuryTier: null, status: 'ACTIVE' })
   })
 
   it('пациент сам сокращает отлёжку, ЧМЦ — один раз, ниже минимума нельзя', async () => {

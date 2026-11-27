@@ -28,3 +28,5 @@ export const FREEZE_AFTER_MISSED = 2
 /** Метки пропущенного хода в строке журнала (battle_turns.log_line). */
 export const IDLE_SKIP = 'Пропустил ход'
 export const IDLE_FROZEN = 'Замёрз'
+/** Цель удачной засады в первом раунде (обращение №196). */
+export const IDLE_SURPRISED = 'Застигнут врасплох'
