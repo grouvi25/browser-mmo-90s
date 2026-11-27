@@ -43,12 +43,12 @@ describe('согласие с политикой при регистрации',
     const quietUser = await testPrisma.user.findUniqueOrThrow({ where: { login: quiet } })
     const rows = await testPrisma.consentLog.findMany({ where: { userId: quietUser.id }, orderBy: { kind: 'asc' } })
     expect(rows.map(r => [r.kind, r.document, r.edition])).toEqual([
-      ['PD_CONSENT', 'soglasie', '25.11.2026'], ['POLICY', 'politika', '08.11.2026'], ['TERMS', 'soglashenie', '08.11.2026'],
+      ['PD_CONSENT', 'soglasie', '27.11.2026'], ['POLICY', 'politika', '27.11.2026'], ['TERMS', 'soglashenie', '27.11.2026'],
     ])
     expect(rows[0]).toMatchObject({ ip: '203.0.113.7', userAgent: 'ConsentTest/1.0', statement: 'Я даю Согласие на обработку персональных данных' })
     const loudUser = await testPrisma.user.findUniqueOrThrow({ where: { login: loud } })
     expect(await testPrisma.consentLog.findFirst({ where: { userId: loudUser.id, kind: 'MARKETING' } }))
-      .toMatchObject({ document: 'rassylka', edition: '25.11.2026' })
+      .toMatchObject({ document: 'rassylka', edition: '27.11.2026' })
   })
 
   it('с согласием — аккаунт создаётся и хранит время согласия', async () => {

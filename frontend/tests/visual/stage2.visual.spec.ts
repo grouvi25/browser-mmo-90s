@@ -161,7 +161,7 @@ test.describe('Stage 2 visual and browser flow', () => {
 
   test('политика открывается без входа и ведёт обратно к регистрации', async ({ page }) => {
     await page.goto('/politika')
-    // Редакция 08.11.2026: четыре документа заказчика для реестра Роскомнадзора.
+    // Редакция 27.11.2026: документы заказчика для реестра Роскомнадзора.
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Политика обработки персональных данных')
     await expect(page.locator('.politika h2')).toHaveCount(10)
     await expect(page.locator('body')).toContainText('unlockmosk@yandex.ru')

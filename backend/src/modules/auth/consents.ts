@@ -8,10 +8,10 @@
  * меняйте и другое, иначе журнал разойдётся с тем, что видел игрок.
  */
 export const LEGAL_EDITIONS = {
-  soglashenie: '08.11.2026',
-  politika: '08.11.2026',
-  soglasie: '25.11.2026',
-  rassylka: '25.11.2026',
+  soglashenie: '27.11.2026',
+  politika: '27.11.2026',
+  soglasie: '27.11.2026',
+  rassylka: '27.11.2026',
 } as const
 
 export const CONSENT_STATEMENTS = {
