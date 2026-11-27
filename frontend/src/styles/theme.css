@@ -1191,3 +1191,7 @@ button.online-list__nick:focus-visible { outline: 2px solid var(--ink-red); outl
 .market-item-card__noimg { width: 72px; flex-shrink: 0; }
 .market-item-card p { margin: 4px 0; max-width: 560px; }
 .market-item-card ul { margin: 4px 0 0; padding-left: 18px; columns: 2 200px; column-gap: 24px; }
+
+/* №191: доска ближайших осад в «Домах бригад». */
+.siege-board { margin-top: 12px; }
+.siege-board .btn-link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 4px; }

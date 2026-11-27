@@ -61,6 +61,11 @@ export async function clansRoutes(fastify: FastifyInstance) {
     const actor = await character(req.authUser.userId)
     return reply.code(201).send(await HouseSiegeService.file(actor.id, req.params.id))
   })
+  // №191: доска ближайших осад города с кнопкой «подать заявку».
+  fastify.get('/sieges/board', { preHandler: authenticate }, async (req, reply) => {
+    const actor = await character(req.authUser.userId)
+    return reply.send(await HouseSiegeService.board(actor.id))
+  })
   for (const action of ['signup', 'unsign', 'cancel'] as const) {
     fastify.post<{ Params: { siegeId: string } }>(`/sieges/:siegeId/${action}`, { preHandler: authenticate }, async (req, reply) => {
       if (!Id.safeParse(req.params.siegeId).success) return reply.code(422).send({ code: 'GEN_001', message: 'Validation error' })

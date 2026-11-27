@@ -15,6 +15,7 @@ import { publish } from '../../shared/realtime/io'
 import { prisma } from '../../shared/db/prisma'
 import { FLOOD, MAX_BODY, chatRoom, privateRoom, type Rejection } from './chat.formulas'
 import { pushLater } from '../push/push.service'
+import { pushGlobalMentions } from './mention-push'
 
 const Channel = z.enum(['DISTRICT', 'CLAN', 'GLOBAL', 'PRIVATE'])
 const Query = z.object({ scope: z.string().max(64).optional(), limit: z.coerce.number().int().min(1).max(1000).optional() })
@@ -127,6 +128,8 @@ export async function chatRoutes(fastify: FastifyInstance) {
         }
       } else {
         publish(chatRoom(channel.data, result.line.scope), 'chat:message', result.line)
+        // №191: «Ник, …» в общем чате — пуш тому, кого окликнули, если он не в сети.
+        if (channel.data === 'GLOBAL') void pushGlobalMentions(result.line).catch(() => undefined)
       }
       return reply.code(201).send({ ...result.line, lines: result.lines })
     },

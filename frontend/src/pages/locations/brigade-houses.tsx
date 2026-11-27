@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { charactersApi } from '../../shared/api/characters.api'
-import { clansApi, type BrigadeHouse } from '../../shared/api/clans.api'
+import { clansApi, type BrigadeHouse, type SiegeBoard as SiegeBoardData } from '../../shared/api/clans.api'
 import { ApiError } from '../../shared/api/client'
 import { ClanSection } from '../stage3/clan-section'
 import { IncomingInvites } from '../stage3/clan-invites'
@@ -68,7 +68,43 @@ export function BrigadeHouses() {
       </button>
     })}</nav>
     {!mine && list.data && <p><Link to="/city-hall">Зарегистрировать свою бригаду в Мэрии →</Link></p>}
+    <SiegeBoard onOpen={setPicked} />
   </>
+}
+
+/** Обращение №191 (Amadeus, решение Миши 26.11): доска ближайших осад —
+    зашёл, посмотрел, подал заявку, не обходя дома по одному. */
+function SiegeBoard({ onOpen }: { onOpen: (clanId: string) => void }) {
+  const qc = useQueryClient()
+  const board = useQuery({ queryKey: ['clans', 'siege-board'], queryFn: clansApi.siegeBoard, refetchInterval: 30_000 })
+  const [error, setError] = useState<string | null>(null)
+  const signup = useMutation({
+    mutationFn: (siegeId: string) => clansApi.siegeAction(siegeId, 'signup'),
+    onSuccess: () => { setError(null); void qc.invalidateQueries({ queryKey: ['clans'] }) },
+    onError: (e: unknown) => setError(e instanceof ApiError ? e.message : 'Не удалось подать заявку'),
+  })
+  const items: SiegeBoardData['items'] = board.data?.items ?? []
+  return <section className="panel siege-board" aria-label="Ближайшие осады">
+    <div className="panel-header"><span className="panel-title">Ближайшие осады</span></div>
+    <div className="panel-body">
+      {board.isLoading && <p role="status">Загрузка…</p>}
+      {board.data && items.length === 0 && <p>Осад пока не объявлено.</p>}
+      {error && <p className="alert alert-error" role="alert">{error}</p>}
+      {items.length > 0 && <table className="data-table"><thead><tr>
+        <th>Когда (МСК)</th><th>Нападают</th><th>Обороняют</th><th>Бойцы</th><th />
+      </tr></thead><tbody>{items.map(siege => <tr key={siege.id}>
+        <td>{siege.status === 'IN_BATTLE' ? <b>идёт сейчас</b> : msk(siege.startsAt)}</td>
+        <td>{siege.attacker && <button type="button" className="btn-link" onClick={() => onOpen(siege.attacker!.id)}><ClanIcon clan={siege.attacker} /> {siege.attacker.name}</button>}</td>
+        <td>{siege.defender && <button type="button" className="btn-link" onClick={() => onOpen(siege.defender!.id)}><ClanIcon clan={siege.defender} /> {siege.defender.name}</button>}</td>
+        <td>{siege.attackers} / {siege.defenders} из {board.data!.maxPerSide}</td>
+        <td>{siege.status === 'IN_BATTLE' && siege.battleId
+          ? <Link to={`/battle/${siege.battleId}`}>К бою →</Link>
+          : siege.canSignup
+            ? <button type="button" className="btn btn-sm btn-primary" disabled={signup.isPending} onClick={() => signup.mutate(siege.id)}>Подать заявку</button>
+            : <small>{siege.blocked}</small>}</td>
+      </tr>)}</tbody></table>}
+    </div>
+  </section>
 }
 
 /** Иконка бригады (загружает глава); без неё — ничего. */

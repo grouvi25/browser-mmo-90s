@@ -127,6 +127,7 @@ export const clansApi = {
   get: (id: string) => api.get<Clan>(`/api/clans/${id}`),
   storageLog: (page = 1) => api.get<{ items: Array<{ id: string; at: string; nickname: string; resource: string; amount: number }>; page: number; pages: number; total: number }>(`/api/clans/storage/log?page=${page}`),
   house: (id: string) => api.get<BrigadeHouse>(`/api/clans/${id}/house`),
+  siegeBoard: () => api.get<SiegeBoard>('/api/clans/sieges/board'),
   fileSiege: (id: string) => api.post<{ siegeId: string; startsAt: string }>(`/api/clans/${id}/siege`, {}),
   siegeAction: (siegeId: string, action: 'signup' | 'unsign' | 'cancel') => api.post(`/api/clans/sieges/${siegeId}/${action}`, {}),
   repairHouse: () => api.post<{ durability: number; cost: number; treasury: number }>('/api/clans/house/repair', {}),
@@ -151,4 +152,24 @@ export const clansApi = {
     api.post('/api/clans/storage/withdraw', { resourceCode, amount }),
   relation: (targetClanId: string, type: 'ALLIANCE' | 'HOSTILITY') =>
     api.put(`/api/clans/relations/${targetClanId}`, { type }),
+}
+
+/** Доска осад города (обращение №191). */
+export interface SiegeBoard {
+  now: string
+  maxPerSide: number
+  items: Array<{
+    id: string
+    status: 'SCHEDULED' | 'IN_BATTLE'
+    startsAt: string
+    attacker: { id: string; name: string; tag: string | null; iconVersion?: number | null } | null
+    defender: { id: string; name: string; tag: string | null; iconVersion?: number | null } | null
+    attackers: number
+    defenders: number
+    mySide: 1 | 2 | null
+    signedUp: boolean
+    canSignup: boolean
+    blocked: string | null
+    battleId: string | null
+  }>
 }

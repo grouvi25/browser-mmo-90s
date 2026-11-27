@@ -218,6 +218,55 @@ export const HouseSiegeService = {
   },
 
   /** Записаться на осаду за свою сторону. */
+  /**
+   * Доска осад (обращение №191, решение Миши 26.11): ближайшие назначенные
+   * осады всего города в «Домах бригад» с кнопкой «подать заявку». Записаться
+   * может боец одной из двух бригад — правило то же, что у signup.
+   */
+  async board(viewerCharacterId: string, now = new Date()) {
+    const [viewer, sieges] = await Promise.all([
+      membership(viewerCharacterId),
+      prisma.houseSiege.findMany({
+        where: { status: { in: OPEN } },
+        include: { signups: { select: { characterId: true, side: true } } },
+        orderBy: { startsAt: 'asc' },
+        take: 20,
+      }),
+    ])
+    const viewerClanId = viewer?.status === 'ACTIVE' ? viewer.clanId : null
+    const clans = new Map((await prisma.clan.findMany({
+      where: { id: { in: sieges.flatMap(s => [s.attackerClanId, s.defenderClanId]) } },
+      select: { id: true, name: true, tag: true, iconVersion: true },
+    })).map(c => [c.id, c]))
+    return {
+      now,
+      maxPerSide: S.maxPerSide,
+      items: sieges.map(siege => {
+        const mySide = viewerClanId === siege.attackerClanId ? 1 as const : viewerClanId === siege.defenderClanId ? 2 as const : null
+        const attackers = siege.signups.filter(s => s.side === 1).length
+        const defenders = siege.signups.filter(s => s.side === 2).length
+        const signedUp = siege.signups.some(s => s.characterId === viewerCharacterId)
+        let blocked: string | null = null
+        if (siege.status !== 'SCHEDULED') blocked = 'Осада уже идёт'
+        else if (signedUp) blocked = 'Вы записаны'
+        else if (!viewerClanId) blocked = 'Нужно состоять в бригаде'
+        else if (!mySide) blocked = 'Только бойцы двух бригад'
+        else if ((mySide === 1 ? attackers : defenders) >= S.maxPerSide) blocked = `На стороне уже ${S.maxPerSide} бойцов`
+        return {
+          id: siege.id,
+          status: siege.status,
+          startsAt: siege.startsAt,
+          attacker: clans.get(siege.attackerClanId) ?? null,
+          defender: clans.get(siege.defenderClanId) ?? null,
+          attackers, defenders, mySide, signedUp,
+          canSignup: blocked === null,
+          blocked,
+          battleId: mySide ? siege.battleId : null,
+        }
+      }),
+    }
+  },
+
   async signup(characterId: string, siegeId: string) {
     const member = await membership(characterId)
     if (!member || member.status !== 'ACTIVE') throw new AppError(ErrorCode.CLAN_NOT_FOUND, 'Вы не состоите в бригаде', 404)

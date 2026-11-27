@@ -116,3 +116,22 @@ export function chatRoom(channel: ChatChannel, scope: string): string {
 export function privateRoom(characterId: string): string {
   return `chat:PRIVATE:${characterId}`
 }
+
+// №191: обращение «Ник, …» в общем чате — пуш тому, кто не в сети.
+/** Сколько ников подряд в начале строки считаем обращением. */
+const MAX_ADDRESSED = 3
+const NICK_MAX = 32
+
+/** Ники, к которым обращаются в начале строки: «Ник, …», «Ник1, Ник2, …». */
+export function addressedNicknames(body: string): string[] {
+  const parts = body.split(',')
+  // Последний кусок — сам текст, обращением он быть не может.
+  const heads = parts.slice(0, Math.min(MAX_ADDRESSED, parts.length - 1))
+  const nicks: string[] = []
+  for (const head of heads) {
+    const nick = head.trim().replace(/^@/, '')
+    if (!nick || nick.length > NICK_MAX || /\s{2,}/.test(nick)) break
+    nicks.push(nick)
+  }
+  return [...new Set(nicks.map(n => n.toLocaleLowerCase('ru')))]
+}
