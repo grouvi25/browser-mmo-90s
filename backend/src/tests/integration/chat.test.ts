@@ -256,6 +256,14 @@ describe('эфир', () => {
     expect(await ChatService.history('GLOBAL', '')).toHaveLength(2)
   })
 
+  it('одновременная отправка одной реплики ложится в чат один раз (27.11: тройное сообщение)', async () => {
+    const { user } = await player('chat-burst')
+    const who = await ChatService.speaker(user.id)
+    const results = await Promise.all([1, 2, 3].map(() => ChatService.send(who, 'GLOBAL', undefined, 'там не читать')))
+    expect(results.filter(r => r.ok)).toHaveLength(1)
+    expect(await ChatService.history('GLOBAL', '')).toHaveLength(1)
+  })
+
   it('не пропускает одну и ту же реплику дважды подряд', async () => {
     const { user } = await player('chat-repeat')
     const who = await ChatService.speaker(user.id)

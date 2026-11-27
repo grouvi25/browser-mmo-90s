@@ -9,7 +9,8 @@
 // =============================================================
 import type { ChatChannel } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
-import { ChatRedis } from '../../shared/db/redis'
+import { createHash } from 'crypto'
+import { ChatRedis, getRedis } from '../../shared/db/redis'
 import { AppError } from '../../shared/errors/app-error'
 import { ErrorCode } from '../../shared/errors/error-codes'
 import { FLOOD, MAX_BODY, chatDayStart, chatRoom, floodKeys, normalizeBody, privateRoom, scopeFor, type Rejection } from './chat.formulas'
@@ -161,6 +162,13 @@ export const ChatService = {
     const fingerprint = body.toLowerCase()
     const previous = await ChatRedis.lastFingerprint(floodKeys.repeat(characterId))
     if (previous !== null && previous === fingerprint) return { kind: 'repeat' }
+
+    // Проверки выше читают, потом пишут: одновременные запросы проходили их
+    // все, и одна реплика ложилась в чат трижды (Admin 27.11, 11:37). Ставим
+    // атомарную метку на текст: второй такой же запрос в эти секунды — повтор.
+    const hash = createHash('sha1').update(fingerprint).digest('hex').slice(0, 16)
+    const fresh = await getRedis().set(`chat:dup:${characterId}:${hash}`, '1', 'EX', FLOOD.repeatSec, 'NX')
+    if (!fresh) return { kind: 'repeat' }
 
     await ChatRedis.markSpokeAt(floodKeys.last(characterId), now, FLOOD.windowSec)
     await ChatRedis.markFingerprint(floodKeys.repeat(characterId), fingerprint, FLOOD.repeatSec)
