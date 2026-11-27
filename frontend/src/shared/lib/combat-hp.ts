@@ -1,8 +1,9 @@
 // Item APIs retain their catalog values for compatibility and for the rating.
 const format = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 })
 
+/** Урон вещи в HP. С 27.11 один к одному: Дима убрал «резку 0,35». */
 export function itemHp(points: number): number {
-  return points * 35 / 100
+  return points
 }
 
 export function formatItemHp(points: number): string {

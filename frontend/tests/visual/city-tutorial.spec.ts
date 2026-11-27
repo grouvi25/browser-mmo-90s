@@ -41,7 +41,7 @@ test('новичок проходит обучение по подсказкам
   await press(page, page.locator('[data-stage-nav="shop"]'), isMobile)
   const buy = page.locator('[data-tutorial-focus="buy"]')
   await expect(hint).toContainText('Нажми «Купить»')
-  await expect(page.locator('.gshop-card').filter({ has: buy })).toContainText('Урон: 7–15,75')
+  await expect(page.locator('.gshop-card').filter({ has: buy })).toContainText('Урон: 20–45')
   await press(page, buy, isMobile)
 
   // Надеть: из магазина назад на площадь, потом Склад.

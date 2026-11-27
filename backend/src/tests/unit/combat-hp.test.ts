@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { attackDamageHp, catalogPointsToHp, companionDamageHp } from '../../modules/battles/combat-hp'
 
 describe('урон в HP', () => {
-  it('переводит атаку и броню в одну шкалу без потери целого HP', () => {
-    expect(catalogPointsToHp(5)).toBe(1.75)
-    expect(catalogPointsToHp(0.5)).toBe(0.175)
-    expect(attackDamageHp(100, 20, 1, 1, 1)).toBe(28)
-    expect(attackDamageHp(22, 2, 1, 1, 1)).toBe(7)
-    expect(attackDamageHp(181, 1, 1, 1, 1)).toBe(63)
-    expect(attackDamageHp(22, 2, 0.9, 0.5, 1)).toBe(3)
+  // 27.11: «резка 0,35» убрана, атака и броня идут в HP один к одному.
+  it('переводит атаку и броню в HP один к одному', () => {
+    expect(catalogPointsToHp(5)).toBe(5)
+    expect(catalogPointsToHp(0.5)).toBe(0.5)
+    expect(attackDamageHp(100, 20, 1, 1, 1)).toBe(80)
+    expect(attackDamageHp(22, 2, 1, 1, 1)).toBe(20)
+    expect(attackDamageHp(181, 1, 1, 1, 1)).toBe(180)
+    expect(attackDamageHp(22, 2, 0.9, 0.5, 1)).toBe(9)
   })
 
   it('сохраняет нулевую защиту от удара, минимальный урон и отдельную шкалу питомца', () => {

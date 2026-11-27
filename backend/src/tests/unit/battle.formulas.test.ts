@@ -232,10 +232,10 @@ describe('strike in hit points', () => {
     const defender = makeDefender({ agi: 10, end: 10, armor: 5, level: 1, agr: 0 })
     // уворот нет (0), удачи нет (0.99), оружие (0.5), крит нет (0.99), средний разброс (0.5)
     const plain = (() => { const q = [0, 0.99, 0.5, 0.99, 0.5]; return resolveAttack(attacker, defender, false, () => q.shift() ?? 0.5) })()
-    expect(plain.finalDamage).toBe(5)
+    expect(plain.finalDamage).toBe(15)
     const crit = (() => { const q = [0, 0.99, 0.5, 0, 0.5]; return resolveAttack(attacker, defender, false, () => q.shift() ?? 0.5) })()
     expect(crit.crit).toBe(true)
-    expect(crit.finalDamage).toBe(9)
+    expect(crit.finalDamage).toBe(27)
   })
 })
 

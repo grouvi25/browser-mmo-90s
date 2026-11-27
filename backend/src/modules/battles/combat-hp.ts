@@ -2,8 +2,14 @@
  * Existing catalog, upgrades, rolls, rating and stored chronicles keep their
  * original units. This conversion is a data boundary, not a combat modifier.
  */
-const CATALOG_HP_NUMERATOR = 35
+// Дима 27.11: «резку 0,35 убрать, чтобы был полноценный урон». Атака и броня
+// игроков теперь переходят в HP один к одному (было 35/100).
+const CATALOG_HP_NUMERATOR = 100
 const CATALOG_HP_DENOMINATOR = 100
+// Урон собак и помощников и раньше был в HP, против него броня шла по 0,35.
+// Оставляем так, иначе броня резала бы их втрое сильнее прежнего.
+const COMPANION_ARMOR_NUMERATOR = 35n
+const COMPANION_ARMOR_DENOMINATOR = 100n
 type Fraction = readonly [bigint, bigint]
 
 export function catalogPointsToHp(points: number): number {
@@ -42,6 +48,7 @@ export function attackDamageHp(attack: number, armor: number, spread: number, de
 /** Pet and helper attacks already arrive in HP. Only target armor uses the catalog scale. */
 export function companionDamageHp(damage: number, armor: number): number {
   if (![damage, armor].every(Number.isFinite)) return 0
-  const [net, divisor] = difference(decimal(damage), asCatalogHp(armor))
+  const [armorN, armorD] = decimal(armor)
+  const [net, divisor] = difference(decimal(damage), [armorN * COMPANION_ARMOR_NUMERATOR, armorD * COMPANION_ARMOR_DENOMINATOR])
   return Math.max(0, Number(net / divisor))
 }
