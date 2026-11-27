@@ -1897,7 +1897,11 @@ export const BattleService = {
     const attackerSnap = leftAttackerSnap
     const defenderSnap = buildBotDefenderSnapshot(botStats, bot.battleLevel)   // бот как защитник
     const botAttackSnap = buildBotAttackerSnapshot(botStats, botEquip)
-    const playerDefSnap = buildDefenderSnapshot(char, equippedArmor, playerGear)
+    const playerDefSnapFull = buildDefenderSnapshot(char, equippedArmor, playerGear)
+    // 27.11: «резку 0,35» сняли ради боёв между игроками. Боты под неё
+    // настроены: их удар по игроку режется по-старому, а HP ботов подняты
+    // в сиде, и бой с ботом идёт как раньше.
+    const playerDefSnap = { ...playerDefSnapFull, incomingDamageMultiplier: (playerDefSnapFull.incomingDamageMultiplier ?? 1) * BalanceConfig.pve.botDamageToHp }
 
     // Бот выбирает свою стойку и зоны
     const botTurn = botChooseTurn()

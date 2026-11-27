@@ -196,13 +196,15 @@ async function main() {
   console.log('  ✓ Government shop entries created')
 
   // --- Bots ---
+  // 27.11: «резка 0,35» с урона снята, HP ботов подняты в 100/35 раза (40→114 … 250→714),
+  // чтобы бой с ботом длился как раньше. Удары ботов по игрокам режутся по-старому (pve.botDamageToHp).
   const bots = [
     {
       code: 'training_bandit',
       name: 'Тренировочный хулиган',
       battleLevel: 1,
       power: 100,
-      hpMax: 40,
+      hpMax: 114,
       stats: { str: 2, agi: 2, rea: 1, acc: 2, end: 2, luck: 1, agr: 1, armor: 5 },
       equipment: {
         weapon: { minDamage: 10, maxDamage: 22, accuracy: 0.65, maxRange: 1 },
@@ -217,7 +219,7 @@ async function main() {
       name: 'Гопник',
       battleLevel: 2,
       power: 190,
-      hpMax: 75,
+      hpMax: 214,
       stats: { str: 3, agi: 3, rea: 2, acc: 3, end: 3, luck: 1, agr: 2, armor: 10 },
       equipment: {
         weapon: { minDamage: 20, maxDamage: 42, accuracy: 0.70, maxRange: 1 },
@@ -232,7 +234,7 @@ async function main() {
       name: 'Вооружённый бандит',
       battleLevel: 4,
       power: 679,
-      hpMax: 90,
+      hpMax: 257,
       // Ослаблен 26.10 (жалоба игрока 22.10: «−48 и −62 с четырёх клеток»).
       // Был пистолет 40–80 на 5 клеток при точности 72% и броне 18: игрок
       // 4-го уровня с трубой побеждал в 6% боёв — пока он подходил, бандит
@@ -260,7 +262,7 @@ async function main() {
       name: 'Браток',
       battleLevel: 6,
       power: 2429,
-      hpMax: 115,
+      hpMax: 329,
       stats: { str: 5, agi: 4, rea: 3, acc: 5, end: 6, luck: 2, agr: 3, armor: 24 },
       equipment: {
         weapon: { minDamage: 60, maxDamage: 110, accuracy: 0.66, maxRange: 3 },
@@ -275,7 +277,7 @@ async function main() {
       name: 'Боевик',
       battleLevel: 8,
       power: 8735,
-      hpMax: 140,
+      hpMax: 400,
       stats: { str: 6, agi: 5, rea: 4, acc: 6, end: 7, luck: 2, agr: 3, armor: 30 },
       equipment: {
         weapon: { minDamage: 75, maxDamage: 135, accuracy: 0.70, maxRange: 6 },
@@ -290,7 +292,7 @@ async function main() {
       name: 'Авторитет',
       battleLevel: 10,
       power: 31487,
-      hpMax: 170,
+      hpMax: 486,
       stats: { str: 7, agi: 6, rea: 5, acc: 7, end: 8, luck: 3, agr: 4, armor: 38 },
       equipment: {
         weapon: { minDamage: 90, maxDamage: 160, accuracy: 0.78, maxRange: 5 },
@@ -305,7 +307,7 @@ async function main() {
       name: 'Смотрящий',
       battleLevel: 15,
       power: 779069,
-      hpMax: 250,
+      hpMax: 714,
       stats: { str: 10, agi: 8, rea: 7, acc: 10, end: 11, luck: 4, agr: 5, armor: 55 },
       equipment: {
         weapon: { minDamage: 120, maxDamage: 210, accuracy: 0.78, maxRange: 5 },
