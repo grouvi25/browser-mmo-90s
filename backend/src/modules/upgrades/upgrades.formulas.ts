@@ -4,6 +4,8 @@ import { mergeAllocations } from '../items/item-stats.formulas'
 import { socketAllocation } from './upgrades.stones'
 export type UpgradeKind='DAMAGE'|'ACCURACY'|'CRIT'|'ARMOR'|'DURABILITY'|'ANTI_CRIT'
 export function calcUpgradeCost(priceBase:number,nextTotalLevel:number,qualityCoeff=1):number{return Math.max(1,Math.round(priceBase*UPGRADE_BALANCE.costRate*Math.pow(nextTotalLevel,UPGRADE_BALANCE.costPower)*qualityCoeff))}
+/** №195: стоимость улучшения крафтовой вещи — только уровень вещи и номер улучшения. */
+export function craftUpgradeCost(itemLevel:number,nextLevel:number):{money:number;resources:{code:string;amount:number}[]}{const c=BalanceConfig.economy.crafting;const level=Math.max(1,Math.floor(itemLevel));const n=Math.max(1,Math.floor(nextLevel));return{money:Math.max(1,Math.round(c.upgradeMoneyPerLevel*level*Math.pow(n,UPGRADE_BALANCE.costPower))),resources:[{code:c.upgradeHardwareCode,amount:level+n-1},{code:c.upgradeSteelCode,amount:n}]}}
 export function calcUpgradeSuccessChance(currentTotalLevel:number,productionLevel:number):number{return Math.min(UPGRADE_BALANCE.maxChance,Math.max(UPGRADE_BALANCE.minChance,UPGRADE_BALANCE.baseChance-currentTotalLevel*UPGRADE_BALANCE.chanceLossPerLevel+productionLevel*UPGRADE_BALANCE.professionBonusPerLevel))}
 export function requiredUpgradeResource(itemType:string,nextTotalLevel:number){if(itemType==='WEAPON')return{code:'comp_weapon_part',amount:nextTotalLevel};if(itemType==='ARMOR')return{code:'comp_armor_plate',amount:nextTotalLevel};throw new Error('Unsupported item type')}
 // Улучшения прочности больше не ставятся (правка 28.10, у всех вещей прочность 100).

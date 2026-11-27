@@ -7,7 +7,7 @@
  * которые ещё никто не правил. Владельцев объектов сид не трогает.
  */
 import { Prisma, type PrismaClient } from '@prisma/client'
-import { TABLE_ITEM_EFFECTS, TABLE_ITEMS, TABLE_OBJECTS, TABLE_RECIPES, TABLE_RESOURCES, TABLE_TOOLS, tablePrice } from './economy-table'
+import { TABLE_ITEM_EFFECTS, TABLE_ITEMS, TABLE_OBJECTS, TABLE_RECIPES, TABLE_RESOURCES, TABLE_TOOLS, gearRecipePlan, tablePrice, type GearRecipePlan } from './economy-table'
 
 const RENAMED_ITEMS: readonly (readonly [string, string, string])[] = [
   ['tb_item_a05', 'Аптечка полевая', 'Аптечка походная'],
@@ -125,5 +125,38 @@ export async function seedEconomyTable(prisma: PrismaClient) {
     where: { code: { startsWith: 'obj_tb_', notIn: TABLE_OBJECTS.map(object => object.code) }, ownerType: 'SYSTEM' },
     data: { isActive: false, isForSale: false },
   })
-  console.log(`  Экономика заказчика: ресурсов ${TABLE_RESOURCES.length}, объектов ${TABLE_OBJECTS.length}, рецептов ${TABLE_RECIPES.length}`)
+  const gear = await seedGearRecipes(prisma)
+  console.log(`  Экономика заказчика: ресурсов ${TABLE_RESOURCES.length}, объектов ${TABLE_OBJECTS.length}, рецептов ${TABLE_RECIPES.length}, рецептов шмота по схеме ${gear.length}`)
+}
+
+/**
+ * План рецептов шмота 1–5 уровня по схеме (обращение №190): вещи из базы, у
+ * которых нет ни одного рецепта. Сгенерированные раньше (rcp_gear_*) в план
+ * попадают снова — так правка схемы доезжает до них при следующем выкате.
+ */
+export async function planGearRecipes(prisma: PrismaClient): Promise<GearRecipePlan[]> {
+  const [templates, recipes] = await Promise.all([
+    prisma.itemTemplate.findMany({
+      where: { type: { in: ['WEAPON', 'ARMOR', 'ACCESSORY'] } },
+      select: { code: true, name: true, type: true, weaponType: true, armorSlot: true, levelReq: true, sourceType: true, isActive: true },
+    }),
+    prisma.productionRecipe.findMany({ where: { outputItemTemplateCode: { not: null } }, select: { code: true, outputItemTemplateCode: true } }),
+  ])
+  const withRecipe = new Set(recipes.filter(r => !r.code.startsWith('rcp_gear_')).map(r => r.outputItemTemplateCode as string))
+  return gearRecipePlan(templates, withRecipe)
+}
+
+async function seedGearRecipes(prisma: PrismaClient): Promise<GearRecipePlan[]> {
+  const plan = await planGearRecipes(prisma)
+  for (const recipe of plan) {
+    const data = {
+      name: recipe.name, productionObjectCode: recipe.object, outputResourceCode: null, outputItemTemplateCode: recipe.item,
+      outputAmount: 1, cycleMinutes: 1, laborRequired: recipe.minutes, requiredProfessionCode: recipe.profession, requiredToolCode: recipe.tool,
+      isActive: true,
+    }
+    const saved = await prisma.productionRecipe.upsert({ where: { code: recipe.code }, update: data, create: { code: recipe.code, ...data } })
+    await prisma.productionRecipeInput.deleteMany({ where: { recipeId: saved.id } })
+    await prisma.productionRecipeInput.createMany({ data: recipe.inputs.map(([resourceCode, amount]) => ({ recipeId: saved.id, resourceCode, amount })) })
+  }
+  return plan
 }

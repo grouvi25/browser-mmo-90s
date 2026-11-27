@@ -417,3 +417,105 @@ export const TABLE_RESOURCES: readonly [string, string, number, number][] = BOOK
 export const TABLE_ITEMS: readonly TableItem[] = BOOK_ITEMS.map(item => ({ ...item, units: newUnits.get(item.code) ?? item.units }))
 /** Числа книги до скидки: для отчётов и проверки, что скидка задела только своё. */
 export const TABLE_BOOK = { resources: BOOK_RESOURCES, items: BOOK_ITEMS, recipes: BOOK_RECIPES }
+
+// =============================================================
+// Рецепты на ходовой шмот 1–5 уровня — обращение №190, решение Миши 26.11:
+// «рецепты добавить только на ходовой шмот 1–5 уровня по одной схеме
+// (ресурсы по слоту и уровню)». У многих вещей рецепта не было вовсе
+// (дубинки 0/3, ножи 1/7, грудь 8/16…), а заводят их и в админке, поэтому
+// рецепт строится по вещи из базы: вид (тип оружия или слот) задаёт цех и
+// набор деталей, уровень — количество и труд. Рецепт, который у вещи уже
+// есть, не трогаем. Донат и премиум не крафтятся.
+//
+// Масштаб — как у таблицы после скидки на крафт (Дима 19.11): вещь
+// 1 уровня — по одной-две детали, 5 уровня — на две больше каждой.
+// =============================================================
+export type GearKind =
+  | 'blade' | 'pistol' | 'long_gun'
+  | 'chest' | 'head' | 'legs' | 'feet' | 'gloves' | 'back' | 'belt' | 'amulet' | 'ring'
+
+export const GEAR_KIND_TITLE: Record<GearKind, string> = {
+  blade: 'холодное (ножи, дубинки)', pistol: 'пистолеты', long_gun: 'ружья, дробовики, винтовки',
+  chest: 'грудь', head: 'голова', legs: 'штаны', feet: 'ноги (обувь)', gloves: 'перчатки',
+  back: 'накидки', belt: 'пояса', amulet: 'амулеты', ring: 'кольца',
+}
+
+/** Цех, профессия, инструмент, детали на 1 уровень и труд на 1 уровень, мин. */
+export const GEAR_SCHEME: Record<GearKind, { object: string; profession: string; tool: string; inputs: readonly (readonly [string, number])[]; minutes: number }> = {
+  blade:    { object: 'obj_tb_armor_metal', profession: 'metallurgist', tool: 'tool_tb_u01', inputs: [['tb_steel_blank', 1], ['tb_leather', 1], ['tb_hardware', 1]], minutes: 240 },
+  pistol:   { object: 'obj_tb_armor_metal', profession: 'metallurgist', tool: 'tool_tb_u01', inputs: [['tb_steel_blank', 1], ['tb_mechanism', 1], ['tb_hardware', 1]], minutes: 300 },
+  long_gun: { object: 'obj_tb_armor_metal', profession: 'metallurgist', tool: 'tool_tb_u01', inputs: [['tb_steel_blank', 2], ['tb_mechanism', 1], ['tb_hardware', 1]], minutes: 360 },
+  chest:    { object: 'obj_tb_armor_shop', profession: 'tailor', tool: 'tool_tb_u03', inputs: [['tb_cloth', 1], ['tb_leather', 1], ['tb_hardware', 1]], minutes: 300 },
+  head:     { object: 'obj_tb_armor_shop', profession: 'tailor', tool: 'tool_tb_u03', inputs: [['tb_leather', 1], ['tb_hardware', 1]], minutes: 180 },
+  legs:     { object: 'obj_tb_sewing', profession: 'tailor', tool: 'tool_tb_u03', inputs: [['tb_cloth', 1], ['tb_hemp_thread', 1], ['tb_hardware', 1]], minutes: 240 },
+  feet:     { object: 'obj_tb_sewing', profession: 'tailor', tool: 'tool_tb_u03', inputs: [['tb_leather', 1], ['tb_hemp_thread', 1], ['tb_hardware', 1]], minutes: 240 },
+  gloves:   { object: 'obj_tb_sewing', profession: 'tailor', tool: 'tool_tb_u03', inputs: [['tb_leather', 1], ['tb_cotton_thread', 1]], minutes: 180 },
+  back:     { object: 'obj_tb_sewing', profession: 'tailor', tool: 'tool_tb_u03', inputs: [['tb_cloth', 1], ['tb_linen_thread', 1], ['tb_leather_lining', 1]], minutes: 240 },
+  belt:     { object: 'obj_tb_sewing', profession: 'tailor', tool: 'tool_tb_u03', inputs: [['tb_leather', 1], ['tb_hardware', 1]], minutes: 150 },
+  amulet:   { object: 'obj_tb_armor_metal', profession: 'metallurgist', tool: 'tool_tb_u01', inputs: [['tb_copper_blank', 1], ['tb_hardware', 1]], minutes: 150 },
+  ring:     { object: 'obj_tb_armor_metal', profession: 'metallurgist', tool: 'tool_tb_u01', inputs: [['tb_bronze_blank', 1], ['tb_hardware', 1]], minutes: 120 },
+}
+
+export const GEAR_LEVEL_MAX = 5
+/** Не крафтятся: донат и премиум продаются, а не делаются (инвариант 12). */
+const GEAR_NOT_CRAFTED = new Set(['DONATE', 'PREMIUM'])
+
+export interface GearTemplate {
+  code: string; name: string; type: string; weaponType: string | null; armorSlot: string | null
+  levelReq: number; sourceType: string; isActive: boolean
+}
+
+/** Вид вещи по типу оружия или слоту; null — не ходовой шмот (щит, расходник…). */
+export function gearKind(t: Pick<GearTemplate, 'type' | 'weaponType' | 'armorSlot'>): GearKind | null {
+  if (t.type === 'WEAPON') {
+    if (t.weaponType === 'KNIFE' || t.weaponType === 'CLUB' || t.weaponType === 'MELEE') return 'blade'
+    if (t.weaponType === 'PISTOL' || t.weaponType === 'SMG') return 'pistol'
+    if (t.weaponType === 'SHOTGUN' || t.weaponType === 'RIFLE' || t.weaponType === 'SNIPER') return 'long_gun'
+    return null
+  }
+  if (t.type !== 'ARMOR' && t.type !== 'ACCESSORY') return null
+  switch (t.armorSlot) {
+    case 'CHEST': return 'chest'
+    case 'HEAD': return 'head'
+    case 'LEGS': return 'legs'
+    case 'FEET': return 'feet'
+    case 'GLOVES': case 'HANDS': return 'gloves'
+    case 'BACK': return 'back'
+    case 'BELT': return 'belt'
+    case 'ACCESSORY': return 'amulet'
+    default: return t.armorSlot?.startsWith('RING') ? 'ring' : null
+  }
+}
+
+export interface GearRecipePlan {
+  code: string; name: string; item: string; kind: GearKind; level: number
+  object: string; profession: string; tool: string; minutes: number; inputs: [string, number][]
+}
+
+/** Рецепт вещи по схеме: детали +1 каждые два уровня, труд ×(1 + 0,5 за уровень сверх первого). */
+export function gearRecipeFor(t: GearTemplate): GearRecipePlan | null {
+  const kind = gearKind(t)
+  if (!kind || !t.isActive || GEAR_NOT_CRAFTED.has(t.sourceType)) return null
+  if (t.levelReq > GEAR_LEVEL_MAX) return null
+  const level = Math.max(1, t.levelReq)
+  const scheme = GEAR_SCHEME[kind]
+  const extra = Math.floor((level - 1) / 2)
+  return {
+    code: `rcp_gear_${t.code}`,
+    name: t.name,
+    item: t.code,
+    kind, level,
+    object: scheme.object, profession: scheme.profession, tool: scheme.tool,
+    minutes: Math.round(scheme.minutes * (1 + 0.5 * (level - 1))),
+    inputs: scheme.inputs.map(([code, amount]) => [code, amount + extra]),
+  }
+}
+
+/** План: рецепты для вещей без рецепта. withRecipe — коды вещей, у которых он уже есть. */
+export function gearRecipePlan(templates: readonly GearTemplate[], withRecipe: ReadonlySet<string>): GearRecipePlan[] {
+  return templates
+    .filter(t => !withRecipe.has(t.code))
+    .map(gearRecipeFor)
+    .filter((plan): plan is GearRecipePlan => plan !== null)
+    .sort((a, b) => a.kind.localeCompare(b.kind) || a.level - b.level || a.name.localeCompare(b.name, 'ru'))
+}

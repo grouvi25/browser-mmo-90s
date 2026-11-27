@@ -28,7 +28,8 @@ function ProductCard({ product, linkOf }: { product: CatalogProduct; linkOf: (co
             <b>{way.gather ? 'Добывается' : 'Делается'}:</b> {way.objectName}
             {/* №104: надпись «работает после покупки» сбивала: госцех работает и некупленным. */}
             {way.craftMinutes != null && <span className="s3-howto__price"> · госцех, можно делать сразу</span>}
-            {way.ownedOnly && !way.gather && <span className="s3-howto__price"> · только на своём заводе</span>}
+            {/* №190 (Mayday): «только на своём заводе» не говорило, где этот завод взять. */}
+            {way.ownedOnly && !way.gather && <span className="s3-howto__price"> · только на своём заводе: купите «{way.objectName}» на <Link to="/objects">Рынке объектов</Link></span>}
           </p>
           <dl>
             {way.professionName && <div><dt>Профессия</dt><dd>{way.professionName}{way.professionKnown

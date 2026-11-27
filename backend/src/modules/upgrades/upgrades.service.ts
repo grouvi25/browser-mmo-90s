@@ -6,27 +6,20 @@ import { ErrorCode } from '../../shared/errors/error-codes'
 import { EconomyService } from '../economy/economy.service'
 import { ResourcesService } from '../resources/resources.service'
 import { craftProfessionForItem } from '../professions/professions'
-import { applyUpgradeModifiers, calcUpgradeCost, calcUpgradeSuccessChance, isUpgradeCompatible, requiredUpgradeResource, type UpgradeKind } from './upgrades.formulas'
+import { applyUpgradeModifiers, calcUpgradeCost, calcUpgradeSuccessChance, craftUpgradeCost, isUpgradeCompatible, requiredUpgradeResource, type UpgradeKind } from './upgrades.formulas'
 import { BalanceConfig } from '../../config/balance.config'
 import type { Prisma } from '@prisma/client'
 
 /**
  * Крафт (Дима 17.11): вещь из крафта улучшается не процентами, а очками на раскладку:
- * +20 за уровень. Платится ресурсами из рецепта этой же вещи, на уровне N — ×N.
+ * +20 за уровень. №195 (Миша 26.11): платится по одной формуле от уровня вещи и
+ * номера улучшения (craftUpgradeCost) — раньше ресурсы брались из рецепта вещи, и
+ * две вещи одного уровня улучшались за разное.
  */
 const MAX_LEVEL = 5
 type Db = Prisma.TransactionClient | typeof prisma
 function isPointsUpgrade(item: { sourceType: string }): boolean {
   return item.sourceType === 'CRAFTED'
-}
-async function craftUpgradeResources(db: Db, templateCode: string, nextLevel: number) {
-  const recipe = await db.productionRecipe.findFirst({
-    where: { outputItemTemplateCode: templateCode, isActive: true },
-    select: { inputs: { select: { resourceCode: true, amount: true } } },
-    orderBy: { code: 'asc' },
-  })
-  if (!recipe || recipe.inputs.length === 0) throw new AppError(ErrorCode.UPG_NOT_ALLOWED, 'Для этой вещи нет рецепта, улучшать нечем', 400)
-  return recipe.inputs.map(input => ({ code: input.resourceCode, amount: input.amount * nextLevel }))
 }
 async function resourceAvailability(db: Db, characterId: string, needs: { code: string; amount: number }[]) {
   const templates = await db.resourceTemplate.findMany({ where: { code: { in: needs.map(n => n.code) } }, select: { id: true, code: true, name: true } })
@@ -93,16 +86,17 @@ export const UpgradesService = {
   /** Предпросмотр улучшения крафтовой вещи: +20 очков за ресурсы её рецепта. */
   async previewPoints(
     character: { id: string; money: number },
-    item: { id: string; upgradeLevel: number; extraPoints: number; status: string; template: { code: string; type: string; priceBase: number; statBudget: number; upgradeAllowed: boolean; craftProfessionCode: string | null } },
+    item: { id: string; upgradeLevel: number; extraPoints: number; status: string; template: { code: string; type: string; priceBase: number; levelReq: number; statBudget: number; upgradeAllowed: boolean; craftProfessionCode: string | null } },
   ) {
     if (!item.template.upgradeAllowed) throw new AppError(ErrorCode.UPG_INVALID_TYPE, 'Эту вещь улучшать нельзя', 400)
     if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.UPG_ITEM_STATE, 'Item cannot be upgraded', 409)
     if (item.upgradeLevel >= MAX_LEVEL) throw new AppError(ErrorCode.UPG_MAX_LEVEL, 'Maximum upgrade level reached', 400)
     const next = item.upgradeLevel + 1
-    const cost = calcUpgradeCost(item.template.priceBase, next)
+    const price = craftUpgradeCost(item.template.levelReq, next)
+    const cost = price.money
     const craft = await professionLevel(character.id, item.template.type, item.template.craftProfessionCode)
     const chance = calcUpgradeSuccessChance(item.upgradeLevel, craft.level)
-    const required = await resourceAvailability(prisma, character.id, await craftUpgradeResources(prisma, item.template.code, next))
+    const required = await resourceAvailability(prisma, character.id, price.resources)
     const gain = BalanceConfig.economy.crafting.upgradePoints
     return {
       mode: 'POINTS' as const,
@@ -126,11 +120,12 @@ export const UpgradesService = {
         if (item.status === 'BROKEN' || item.status === 'ON_MARKET') throw new AppError(ErrorCode.UPG_ITEM_STATE, 'Item cannot be upgraded', 409)
         if (item.upgradeLevel >= MAX_LEVEL) throw new AppError(ErrorCode.UPG_MAX_LEVEL, 'Maximum upgrade level reached', 400)
         const next = item.upgradeLevel + 1
-        const cost = calcUpgradeCost(item.template.priceBase, next)
+        const price = craftUpgradeCost(item.template.levelReq, next)
+        const cost = price.money
         const professionCode = item.template.craftProfessionCode ?? craftProfessionForItem(item.template.type)
         const owned = await tx.characterProfession.findUnique({ where: { characterId_professionCode: { characterId, professionCode } } })
         const chance = calcUpgradeSuccessChance(item.upgradeLevel, owned?.level ?? 0)
-        const required = await resourceAvailability(tx, characterId, await craftUpgradeResources(tx, item.template.code, next))
+        const required = await resourceAvailability(tx, characterId, price.resources)
         const lacking = required.filter(row => !row.enough)
         if (lacking.length) {
           const what = lacking.map(row => row.resourceName + ' ' + row.available + '/' + row.amount).join(', ')

@@ -195,7 +195,13 @@ export const BalanceConfig = {
     namedItems: { pointsPerLevel: 50, levelPriceUsd: 1000, maxLevel: 10, percentPerPoint: 5, damagePerPoint: 4 },
     // Крафт (Дима 17.11): вещь из крафта даёт 40 очков на раскладку (в 2 раза больше госовской),
     // улучшение в Кузнице +20 очков за ресурсы из рецепта этой же вещи, ресурсов нужно ×уровень.
-    crafting: { itemPoints: 40, upgradePoints: 20 },
+    crafting: {
+      itemPoints: 40, upgradePoints: 20,
+      /// №195 (Миша 26.11): улучшение крафтовой вещи — одна формула от уровня вещи L
+      /// и номера улучшения n, одинаково для всех вещей уровня. Фурнитура L+n−1,
+      /// стальная заготовка n, деньги upgradeMoneyPerLevel × L × n^costPower.
+      upgradeHardwareCode: 'tb_hardware', upgradeSteelCode: 'tb_steel_blank', upgradeMoneyPerLevel: 150,
+    },
     upgrades: { costRate: 0.15, costPower: 1.4, baseChance: 0.9, chanceLossPerLevel: 0.12, professionBonusPerLevel: 0.01, minChance: 0.15, maxChance: 0.95 },
     simulation: {
       profiles: {
