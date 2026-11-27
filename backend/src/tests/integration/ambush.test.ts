@@ -80,7 +80,8 @@ describe('травмы v8, этап 2: засада, реанимация, об�
     expect(await CityService.location(hunter.user.id)).toMatchObject({ path: '/hospital' })
     await expect(CityService.move(hunter.user.id, '/market')).rejects.toThrow('реанимации')
 
-    // На беспомощного не бьют.
+    // На беспомощного не бьют. Уровень после боя пересчитан по опыту (у тестовых — ноль), возвращаем.
+    await testPrisma.character.updateMany({ where: { id: { in: [victim.character.id, hunter.character.id] } }, data: { battleLevel: 5 } })
     await testPrisma.character.update({ where: { id: victim.character.id }, data: { pocketBinoculars: 1 } })
     await expect(AmbushService.ambush(victim.user.id, hunter.character.id, new Date(), 0)).rejects.toThrow('беспомощного')
   })
