@@ -119,7 +119,7 @@ export const TABLE_TOOLS: readonly [string, string, number, number][] = [
 ]
 
 /** Изделия книги. Статов и эффектов в ней нет: их заполняет заказчик в админке. */
-type TableItem = { code: string; name: string; group: 'kit' | 'clothes' | 'scroll'; tier: number; units: number; slot: string | null; level?: number; armor?: number; durability?: number; healPercent?: number; soberAmount?: number }
+type TableItem = { code: string; name: string; group: 'kit' | 'clothes' | 'scroll'; tier: number; units: number; slot: string | null; level?: number; armor?: number; durability?: number; healPercent?: number; soberAmount?: number; description?: string }
 const BOOK_ITEMS: readonly TableItem[] = [
   { code: "tb_item_a01", name: "Аптечка простая", group: 'kit', tier: 2, units: 3601.6, slot: null, healPercent: 10 },
   { code: "tb_item_a02", name: "Настойка бодрости", group: 'kit', tier: 2, units: 2048.16, slot: null },
@@ -158,7 +158,9 @@ const BOOK_ITEMS: readonly TableItem[] = [
   { code: "tb_item_w11", name: "Свиток концентрации", group: 'scroll', tier: 3, units: 9358.94, slot: null },
   { code: "tb_item_w12", name: "Свиток высшего усиления", group: 'scroll', tier: 3, units: 21292.5, slot: null },
   // Юрист 18.11: договор подряда, +1 смена на сегодня (до 3:00 по Москве), один в день.
-  { code: "tb_item_d01", name: "Договор подряда", group: 'scroll', tier: 3, units: 1000, slot: null },
+  // Обращение №192 (Миша 26.11): описание было пустым — игрок не видел, что даёт договор.
+  { code: "tb_item_d01", name: "Договор подряда", group: 'scroll', tier: 3, units: 1000, slot: null,
+    description: '+1 смена сверх суточной нормы до 3:00 МСК. Один договор в день.' },
 ]
 
 /** Сбор — смена даёт ресурс сразу; цех — продаётся заводом за доллары и работает по рецепту. */

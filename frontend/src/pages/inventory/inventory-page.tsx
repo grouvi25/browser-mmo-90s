@@ -349,6 +349,8 @@ export function InventoryPage() {
                           {!!(eff?.armor ?? t.armor) && <div><dt>Броня тела</dt><dd>+{formatArmor(eff?.armor ?? t.armor ?? 0)}<Gain value={(eff?.armor ?? t.armor ?? 0) - (t.armor ?? 0)} /></dd></div>}
                           {(!!t.hpBonus || !!t.healPercent) && <div><dt>{t.type === 'CONSUMABLE' ? 'Восстановит' : 'Здоровье'}</dt><dd>+{healLabel(t)}</dd></div>}
                           {!!t.useEffect && <div><dt>Эффект</dt><dd>{effectLabel(t.useEffect)}</dd></div>}
+                          {/* №192: у договора подряда игрок не видел, что он даёт. */}
+                          {t.description && <div><dt>Описание</dt><dd>{t.description}</dd></div>}
                           {!!t.soberAmount && <div><dt>Опьянение</dt><dd>{t.soberAmount >= 100 ? 'снимает полностью' : `−${t.soberAmount}`}</dd></div>}
                           {/* Заказчик 30.10: «обереги не все в карточке шмота». Теперь здесь всё:
                               статы, мастерства и обереги, и базовые, и вписанные игроком. */}

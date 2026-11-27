@@ -78,6 +78,8 @@ export function WorkPage(){
   const done=shift?Math.max(0,Math.min(100,((total-remaining)/total)*100)):0
   const used=current.data?.daily?.shiftsUsedToday??objects.data?.daily?.shiftsUsedToday??0
   const limit=current.data?.daily?.shiftsLimit??objects.data?.daily?.shiftsLimit??12
+  // №193: договор подряда поднимает норму до 3:00 МСК — подписываем, иначе кажется, что он сгорел.
+  const contractShifts=current.data?.daily?.contractShifts??objects.data?.daily?.contractShifts??0
   const nextShiftRate=Math.round(Math.max(0.20,1-0.20*used)*100)
   const minutesLimit=current.data?.daily?.minutesLimit??objects.data?.daily?.minutesLimit??360
   const minutesLeft=Math.max(0,minutesLimit-(current.data?.daily?.minutesUsedToday??objects.data?.daily?.minutesUsedToday??0))
@@ -104,7 +106,7 @@ export function WorkPage(){
       </tbody></table><div className="work-actions"><button className="btn" onClick={()=>setReceipt(null)}>Закрыть</button><button className="btn btn-primary" onClick={()=>{setReceipt(null);document.querySelector('#vacancies')?.scrollIntoView()}}>Выбрать новую смену</button></div></div>
     </div>}
 
-    <div className="panel mb8"><div className="panel-header"><span className="panel-title">Рабочая смена</span><span>Сегодня: смен {used} из {limit} · времени осталось {hm(minutesLeft)} из {hm(minutesLimit)} · следующая смена: {nextShiftRate}% ставки</span></div><div className="panel-body">
+    <div className="panel mb8"><div className="panel-header"><span className="panel-title">Рабочая смена</span><span>Сегодня: смен {used} из {limit}{contractShifts>0&&<b className="work-contract"> (+{contractShifts} {contractShifts===1?'смена':'смены'} по договору до 3:00)</b>} · времени осталось {hm(minutesLeft)} из {hm(minutesLimit)} · следующая смена: {nextShiftRate}% ставки</span></div><div className="panel-body">
       {shift?<><div className="work-shift-line"><div><b>{shift.productionObject?.name}</b><small>{shift.profession?.name??shift.professionCode}, ур. {shift.profession?.level??0}</small></div><strong>{remaining?time(remaining):'ГОТОВО'}</strong></div>
         <div className="work-shift-progress"><i style={{transform:`scaleX(${done/100})`}}/></div>
         {shift.toolInstance&&<div className="text-dim mt8">Инструмент: {shift.toolInstance.template.name}, осталось {shift.toolInstance.usesLeft??0} использований</div>}

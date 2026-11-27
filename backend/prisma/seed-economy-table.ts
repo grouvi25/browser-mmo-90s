@@ -43,10 +43,14 @@ export async function seedEconomyTable(prisma: PrismaClient) {
       where: { code: item.code },
       update: {},
       create: {
-        code: item.code, name: item.name, type: worn ? 'ARMOR' : 'CONSUMABLE', armorSlot: worn ? item.slot as 'CHEST' : null,
+        code: item.code, name: item.name, description: item.description ?? null, type: worn ? 'ARMOR' : 'CONSUMABLE', armorSlot: worn ? item.slot as 'CHEST' : null,
         isEquippable: worn, healPercent: item.healPercent ?? 0, soberAmount: item.soberAmount ?? 0, armor: item.armor ?? 0, levelReq: item.level ?? 0, durabilityMax: item.durability ?? 100, itemTier: item.tier, priceBase: tablePrice(item.units), sourceType: 'CRAFTED',
       },
     })
+    // Описание — только пустое: текст, поправленный в админке, выкат не стирает.
+    if (item.description) {
+      await prisma.itemTemplate.updateMany({ where: { code: item.code, OR: [{ description: null }, { description: '' }] }, data: { description: item.description } })
+    }
     // Шаблон уже есть, поэтому лечение ставим отдельно и только там, где его ещё не правили.
     if (item.soberAmount) {
       await prisma.itemTemplate.updateMany({ where: { code: item.code, soberAmount: 0 }, data: { soberAmount: item.soberAmount } })

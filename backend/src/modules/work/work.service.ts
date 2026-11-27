@@ -172,6 +172,8 @@ export const WorkService = {
       daily: {
         shiftsUsedToday: used.length,
         shiftsLimit: dailyCap,
+        // №193: сколько из нормы дал договор подряда — экран смены подписывает их отдельно.
+        contractShifts: await PremiumService.contractShifts(characterId),
         minutesUsedToday: shiftMinutes(used),
         minutesLimit: Math.round(MAX_DAILY_MINUTES * (dailyCap / MAX_DAILY_SHIFTS)),
       },
@@ -199,6 +201,8 @@ export const WorkService = {
       daily: {
         shiftsUsedToday: used.length,
         shiftsLimit: dailyCap,
+        // №193: сколько из нормы дал договор подряда — экран смены подписывает их отдельно.
+        contractShifts: await PremiumService.contractShifts(characterId),
         minutesUsedToday: shiftMinutes(used),
         minutesLimit: Math.round(MAX_DAILY_MINUTES * (dailyCap / MAX_DAILY_SHIFTS)),
       },

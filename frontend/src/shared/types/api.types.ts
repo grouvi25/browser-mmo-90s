@@ -422,6 +422,8 @@ export interface UseEffect {
   rounds?: number
   regenPercent?: number
   directDamage?: number
+  /** Договор подряда: смен сверх суточной нормы до 3:00 МСК (№192). */
+  extraShifts?: number
 }
 const BUFF_LABEL: Record<NonNullable<UseEffect['buffs']>[number]['stat'], (v: number) => string> = {
   armor: v => `Броня +${Math.round(v * 100)}%`,
@@ -440,6 +442,7 @@ export function effectLabel(effect: UseEffect | null | undefined): string {
     ...(effect.buffs ?? []).map(buff => BUFF_LABEL[buff.stat]?.(buff.value) ?? ''),
     ...(effect.regenPercent ? [`Здоровье +${effect.regenPercent}% за раунд`] : []),
     ...(effect.directDamage ? [`${effect.directDamage} урона врагу мимо брони`] : []),
+    ...(effect.extraShifts ? [`+${effect.extraShifts} смена сверх суточной нормы до 3:00 МСК`] : []),
   ].filter(Boolean)
   const rounds = effect.rounds ?? 0
   const word = rounds === 1 ? 'раунд' : rounds >= 2 && rounds <= 4 ? 'раунда' : 'раундов'

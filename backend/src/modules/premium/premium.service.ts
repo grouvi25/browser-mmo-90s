@@ -267,6 +267,16 @@ export const PremiumService = {
   },
 
   /**
+   * Смен сверх нормы по договору подряда, действующих сейчас (до 3:00 МСК).
+   * Обращение №193: договор поднимает норму, а не даёт смену сразу — без
+   * подписи у кнопки смены игрок думал, что договор сгорел впустую.
+   */
+  async contractShifts(characterId: string, now = new Date()): Promise<number> {
+    const character = await prisma.character.findUniqueOrThrow({ where: { id: characterId }, select: { activeEffects: true } })
+    return extraShiftsNow(parseActiveEffects(character.activeEffects), now)
+  },
+
+  /**
    * Множитель набора навыка оружия — ТОЛЬКО в боях с ботами.
    *
    * В PvP он не применяется намеренно. Навык оружия — это боевая сила, и
