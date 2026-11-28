@@ -13,7 +13,7 @@ const seq = (...values: number[]) => { let i = 0; return () => values[i++ % valu
 
 describe('боевой помощник', () => {
   it('здоровье и опыт растут с уровнем', () => {
-    expect(helperHpMax(1)).toBe(COMBAT_HELPER.hpBase + COMBAT_HELPER.hpPerLevel)
+    expect(helperHpMax(1)).toBe(Math.round((COMBAT_HELPER.hpBase + COMBAT_HELPER.hpPerLevel) * 100 / 35))
     expect(helperHpMax(5)).toBeGreaterThan(helperHpMax(4))
     expect(expToNextLevel(2)).toBe(200)
     expect(helperLevelFromExp(0)).toBe(1)

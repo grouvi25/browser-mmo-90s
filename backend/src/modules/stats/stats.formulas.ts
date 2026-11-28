@@ -1,3 +1,4 @@
+import { hpUnits } from '../battles/combat-hp'
 import { BalanceConfig } from '../../config/balance.config'
 import { applyUpgradeModifiers } from '../upgrades/upgrades.formulas'
 
@@ -6,8 +7,9 @@ const B = BalanceConfig
 // ---------------------------------------------------------------
 // HP
 // ---------------------------------------------------------------
+/** Здоровье: формула справочника, умноженная на HP_SCALE (28.11, полный урон). */
 export function calcHpMax(end: number, battleLevel: number, itemHpBonus = 0): number {
-  return B.character.baseHp + end * B.character.hpPerEnd + battleLevel * B.character.hpPerBattleLevel + itemHpBonus
+  return hpUnits(B.character.baseHp + end * B.character.hpPerEnd + battleLevel * B.character.hpPerBattleLevel + itemHpBonus)
 }
 
 // ---------------------------------------------------------------

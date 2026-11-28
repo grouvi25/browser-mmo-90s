@@ -132,7 +132,8 @@ describe('админка: новая вещь', () => {
 
     const wear = await app.inject({ method: 'POST', url: '/api/inventory/equip', headers: { authorization: `Bearer ${userToken}` }, payload: { itemInstanceId: bought.itemIds[0] } })
     expect(wear.statusCode).toBe(200)
-    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).hpMax).toBe(before + 5 * 5 + 10)
+    // 28.11: +5 выносливости (по 5) и +10 HP справочника — в игре ×100/35, ровно +100.
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: character.id } })).hpMax).toBe(before + Math.round((5 * 5 + 10) * 100 / 35))
 
     const off = await app.inject({ method: 'POST', url: '/api/inventory/unequip', headers: { authorization: `Bearer ${userToken}` }, payload: { itemInstanceId: bought.itemIds[0] } })
     expect(off.statusCode).toBe(200)

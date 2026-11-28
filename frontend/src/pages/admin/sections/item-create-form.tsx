@@ -342,7 +342,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
         </div>}
         {kind === 'CONSUMABLE' && <div className="adm-item__fields">
           <label><span>Лечит, % здоровья</span><NumInput min={0} max={100} value={healPct} onChange={setHealPct} /></label>
-          <label><span>Лечит, HP</span><NumInput min={0} value={hp} onChange={setHp} /></label>
+          <label><span>Лечит, HP (в игре ×2,86)</span><NumInput min={0} value={hp} onChange={setHp} /></label>
         </div>}
       </>}
 
@@ -353,7 +353,7 @@ export function ItemCreateForm({ onDone, onCancel, initial, mode = 'create' }: {
           {GEAR_STATS.map(([key, label]) => <label key={key}><span>{label}</span>
             <NumInput min={-50} max={50} value={gearStats[key] ?? 0}
               onChange={(v: number) => setGearStats({ ...gearStats, [key]: v })} /></label>)}
-          <label><span>Здоровье, HP</span><NumInput min={0} value={hp} onChange={setHp} /></label>
+          <label><span>Здоровье, HP (в игре ×2,86)</span><NumInput min={0} value={hp} onChange={setHp} /></label>
           <label><span>Свой шанс крита, %</span><NumInput min={0} max={100} step="0.5" value={crit} onChange={setCrit} /></label>
           <label><span>Свой шанс уворота, %</span><NumInput min={0} max={100} step="0.5" value={dodge} onChange={setDodge} /></label>
         </div>

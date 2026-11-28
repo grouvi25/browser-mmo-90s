@@ -45,7 +45,7 @@ describe('Обещания из чата 22.10', () => {
     expect(ok.statusCode).toBe(200)
     let stats = await testPrisma.characterStats.findUniqueOrThrow({ where: { characterId: p.character.id } })
     expect(stats).toMatchObject({ end: 6, agi: 4, pointsAvailable: 0, respecScrolls: 2 })
-    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).hpMax).toBe(60 + 6 * 6 + 3 * 2)
+    expect((await testPrisma.character.findUniqueOrThrow({ where: { id: p.character.id } })).hpMax).toBe(Math.round((60 + 6 * 6 + 3 * 2) * 100 / 35))
 
     expect((await post('/api/characters/stats/respec', p.headers)).statusCode).toBe(200)
     stats = await testPrisma.characterStats.findUniqueOrThrow({ where: { characterId: p.character.id } })

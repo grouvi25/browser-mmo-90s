@@ -27,6 +27,7 @@ import {
 } from './grid'
 import { COMBAT_HELPER } from './combat-helper'
 import { COMBAT_DOG } from './combat-dog'
+import { hpUnits } from './combat-hp'
 
 export type CompanionKind = 'helper' | 'dog'
 
@@ -123,7 +124,7 @@ export function summonCell(owner: GridPosition, side: number, board: readonly Po
 
 /** Здоровье собаки на поле: уровень и выносливость. */
 export function dogHpMax(level: number, end: number): number {
-  return COMBAT_DOG.hpBase + COMBAT_DOG.hpPerLevel * Math.max(1, level) + COMBAT_DOG.hpPerEnd * Math.max(0, end)
+  return hpUnits(COMBAT_DOG.hpBase + COMBAT_DOG.hpPerLevel * Math.max(1, level) + COMBAT_DOG.hpPerEnd * Math.max(0, end))
 }
 
 export interface CompanionStrike {
@@ -141,7 +142,7 @@ export function companionStrike(owner: CompanionOwner, kind: CompanionKind, rnd:
     const min = COMBAT_HELPER.damageMin + COMBAT_HELPER.damageMinPerLevel * helper.level
     const max = COMBAT_HELPER.damageMax + COMBAT_HELPER.damageMaxPerLevel * helper.level
     const crit = rnd() < COMBAT_HELPER.critChance
-    return { hit: true, crit, damage: Math.max(1, Math.round((min + (max - min) * rnd()) * t.damage * (crit ? COMBAT_HELPER.critMultiplier : 1))) }
+    return { hit: true, crit, damage: Math.max(1, hpUnits((min + (max - min) * rnd()) * t.damage * (crit ? COMBAT_HELPER.critMultiplier : 1))) }
   }
   const dog = owner.dog!
   const s = dog.stats
@@ -150,7 +151,7 @@ export function companionStrike(owner: CompanionOwner, kind: CompanionKind, rnd:
   const min = COMBAT_DOG.damageMin + COMBAT_DOG.damageMinPerLevel * dog.level + COMBAT_DOG.damagePerStr * (s?.str ?? 0)
   const max = COMBAT_DOG.damageMax + COMBAT_DOG.damageMaxPerLevel * dog.level + COMBAT_DOG.damagePerStr * (s?.str ?? 0)
   const crit = rnd() < Math.min(0.5, COMBAT_DOG.critChance + COMBAT_DOG.critPerLuck * (s?.luck ?? 0))
-  return { hit: true, crit, damage: Math.max(1, Math.round((min + (max - min) * rnd()) * (crit ? COMBAT_DOG.critMultiplier : 1))) }
+  return { hit: true, crit, damage: Math.max(1, hpUnits((min + (max - min) * rnd()) * (crit ? COMBAT_DOG.critMultiplier : 1))) }
 }
 
 /** Характеристики фигуры как защитника — для удара игрока по ней. */

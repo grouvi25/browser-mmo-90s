@@ -6,10 +6,17 @@
 // игроков теперь переходят в HP один к одному (было 35/100).
 const CATALOG_HP_NUMERATOR = 100
 const CATALOG_HP_DENOMINATOR = 100
-// Урон собак и помощников и раньше был в HP, против него броня шла по 0,35.
-// Оставляем так, иначе броня резала бы их втрое сильнее прежнего.
-const COMPANION_ARMOR_NUMERATOR = 35n
-const COMPANION_ARMOR_DENOMINATOR = 100n
+
+/**
+ * 28.11: чтобы бои не стали втрое короче, всё, что раньше измерялось в HP,
+ * выросло в 100/35 раза: здоровье, лечение, еда, собаки и помощники, ответка.
+ * Числа в справочнике (база здоровья, «+HP» вещей, «лечит» в баре) остаются
+ * прежними, в игре они умножаются здесь, в одном месте.
+ */
+export const HP_SCALE = 100 / 35
+export function hpUnits(value: number): number {
+  return Math.round(value * HP_SCALE)
+}
 type Fraction = readonly [bigint, bigint]
 
 export function catalogPointsToHp(points: number): number {
@@ -45,10 +52,9 @@ export function attackDamageHp(attack: number, armor: number, spread: number, de
   return Math.max(minimum, Number(net * spreadN * defenseN / (divisor * spreadD * defenseD)))
 }
 
-/** Pet and helper attacks already arrive in HP. Only target armor uses the catalog scale. */
+/** Pet and helper attacks arrive in HP (already scaled by HP_SCALE); armor uses the catalog scale. */
 export function companionDamageHp(damage: number, armor: number): number {
   if (![damage, armor].every(Number.isFinite)) return 0
-  const [armorN, armorD] = decimal(armor)
-  const [net, divisor] = difference(decimal(damage), [armorN * COMPANION_ARMOR_NUMERATOR, armorD * COMPANION_ARMOR_DENOMINATOR])
+  const [net, divisor] = difference(decimal(damage), asCatalogHp(armor))
   return Math.max(0, Number(net / divisor))
 }

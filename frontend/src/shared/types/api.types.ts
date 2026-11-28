@@ -1,3 +1,4 @@
+import { hpUnits } from '../lib/combat-hp'
 // =============================================================
 // API types — mirrors backend Prisma/DTO shapes
 // =============================================================
@@ -451,7 +452,7 @@ export function effectLabel(effect: UseEffect | null | undefined): string {
 }
 
 export function healLabel(t: { healPercent?: number | null; hpBonus?: number | null }): string {
-  return (t.healPercent ?? 0) > 0 ? `${t.healPercent}% здоровья` : `${t.hpBonus ?? 0} HP`
+  return (t.healPercent ?? 0) > 0 ? `${t.healPercent}% здоровья` : `${hpUnits(t.hpBonus ?? 0)} HP`
 }
 
 /** Тип предмета: показывается, когда у вещи нет ни типа оружия, ни слота брони. */

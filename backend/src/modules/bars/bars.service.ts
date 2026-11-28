@@ -7,6 +7,7 @@ import { ObjectInventoryService } from '../production/inventory.service'
 import { ResourcesService } from '../resources/resources.service'
 import type { Prisma } from '@prisma/client'
 import { barPriceRange, barSaleSplit, canTakeBuff, decayedAlcohol, intoxicationModifiers } from './bars.formulas'
+import { hpUnits } from '../battles/combat-hp'
 
 type OfferEffect = { hpRestore: number; alcoholDegrees: number; accuracyBuff: number; damageBuff: number; buffMinutes: number }
 
@@ -24,7 +25,7 @@ async function prepareEffect(tx: Prisma.TransactionClient, characterId: string, 
     character,
     async apply() {
       const alcoholLevel = character.status === 'IN_BATTLE' ? currentAlcohol : Math.min(100, currentAlcohol + offer.alcoholDegrees)
-      const hpCurrent = Math.min(character.hpMax, character.hpCurrent + offer.hpRestore)
+      const hpCurrent = Math.min(character.hpMax, character.hpCurrent + hpUnits(offer.hpRestore))
       const buffExpiresAt = hasBuff ? new Date(now.getTime() + offer.buffMinutes * 60_000) : character.barBuffExpiresAt
       await tx.character.update({ where: { id: characterId }, data: {
         hpCurrent,

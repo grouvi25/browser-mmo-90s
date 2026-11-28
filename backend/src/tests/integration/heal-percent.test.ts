@@ -44,8 +44,9 @@ describe('Аптечка процентом', () => {
   })
 
   it('расходник с единицами работает как раньше', async () => {
-    const { item, use } = await fixture(10, 92)
-    expect((await use((await item({ hpBonus: 30 })).id)).json()).toMatchObject({ hpRestored: 30, newHp: 40 })
+    const { item, use } = await fixture(10, 292)
+    // 28.11: 30 HP справочника в игре × 100/35 = 86.
+    expect((await use((await item({ hpBonus: 30 })).id)).json()).toMatchObject({ hpRestored: 86, newHp: 96 })
   })
 
   it('настойка без действия остаётся у игрока', async () => {

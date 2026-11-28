@@ -705,7 +705,7 @@ const SHOP_FIELDS: EditField[] = [
 
 const BAR_FIELDS: EditField[] = [
   { key: 'price', label: 'Цена порции', note: 'денежный сток' },
-  { key: 'hpRestore', label: 'Лечит HP' },
+  { key: 'hpRestore', label: 'Лечит HP', note: 'в игре ×2,86' },
   { key: 'accuracyBuff', label: 'Точность', step: 0.01 },
   { key: 'damageBuff', label: 'Урон', step: 0.01 },
   { key: 'buffMinutes', label: 'Бафф, мин' },

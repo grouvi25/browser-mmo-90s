@@ -6,7 +6,7 @@
 // =============================================================
 import { itemImage } from '../assets/shop/shop-images'
 import { inventoryApi } from '../api/inventory.api'
-import { formatArmor, itemDamageRange } from './combat-hp'
+import { formatArmor, hpUnits, itemDamageRange } from './combat-hp'
 import type { ItemBonuses, ItemInstance, ItemTemplate } from '../types/api.types'
 
 export type StatKey = keyof ItemBonuses['stats']
@@ -75,7 +75,7 @@ export function itemHoverText(item: ItemInstance, action?: string): string {
   const lines = [action ? `${t.name} — ${action}` : t.name, `Прочность: ${item.durabilityCurrent}/${item.durabilityMax}`]
   if (t.minDamage != null) lines.push(`Урон: ${itemDamageRange(eff?.minDamage ?? t.minDamage, eff?.maxDamage ?? t.maxDamage ?? t.minDamage)}`)
   if (t.armor || eff?.armor) lines.push(`Броня: +${formatArmor(eff?.armor ?? t.armor ?? 0)}`)
-  if (t.hpBonus) lines.push(`Здоровье: +${t.hpBonus}`)
+  if (t.hpBonus) lines.push(`Здоровье: +${hpUnits(t.hpBonus)}`)
   for (const line of itemBonusLines(t, item)) lines.push(`${line.label}: ${line.value}`)
   if (t.type === 'WEAPON' && eff?.weaponAccuracy) lines.push(`Точность: ${round(eff.weaponAccuracy * 100)}%`)
   if (eff?.critBonus) lines.push(`Крит: +${round(eff.critBonus * 100)}%`)

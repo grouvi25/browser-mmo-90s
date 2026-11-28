@@ -122,8 +122,9 @@ describe('Именные вещи: столбики, уровни, картин�
     await ItemStatsService.configure(character.id, item.id, {}, { ...none(), stats: { end: 10 } })
     const row = await testPrisma.itemInstance.findUniqueOrThrow({ where: { id: item.id }, include: { template: true } })
     const gear = gearOf([row])
-    expect(hpWithGear(3, 1, gear)).toBe(calcHpMax(3, 1) + 50)
-    expect(hpWithGear(2, 1, { ...gear, stats: { ...gear.stats, end: -5 } })).toBe(calcHpMax(2, 1) - 10)
+    // Выносливость с вещи (по 5 HP справочника) идёт в ту же формулу, множитель HP — один раз.
+    expect(hpWithGear(3, 1, gear)).toBe(calcHpMax(3, 1, 50))
+    expect(hpWithGear(2, 1, { ...gear, stats: { ...gear.stats, end: -5 } })).toBe(calcHpMax(2, 1, -10))
   })
 
   it('расклад можно переделать, но не больше бюджета', async () => {

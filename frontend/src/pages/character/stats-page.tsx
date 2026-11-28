@@ -12,6 +12,7 @@ import {
   Dumbbell, Wind, Activity, Target, Droplet, Clover, Flame, Crown,
   Heart, Scale, Zap, BarChart2, ShieldCheck,
 } from 'lucide-react'
+import { hpUnits } from '../../shared/lib/combat-hp'
 
 // Авторитет скрыт до доработки (Дима 14.11).
 const STAT_KEYS = ['str', 'agi', 'rea', 'end', 'luck', 'agr', 'aluck'] as const
@@ -36,7 +37,7 @@ const STAT_ICON_MAP: Record<string, React.ReactNode> = {
 
 /** Производные параметры — формулы те же, что на сервере. */
 function derived(s: Record<string, number>, level: number) {
-  return { hp: 60 + s.end * 6 + level * 2, carry: 20 + s.str * 6, init: s.rea * 1.2 + s.agi * 0.6 }
+  return { hp: hpUnits(60 + s.end * 6 + level * 2), carry: 20 + s.str * 6, init: s.rea * 1.2 + s.agi * 0.6 }
 }
 
 function Delta({ now, next, digits = 0, unit = '' }: { now: number; next: number; digits?: number; unit?: string }) {
@@ -118,7 +119,7 @@ export function StatsPage() {
         <div className="panel-body">
           {/* Производные — сверху, чтобы при «+» и «−» были перед глазами. */}
           <div className="stats-derived">
-            <div><span><Heart size={11} /> HP</span><b><Delta now={before.hp + gearHp} next={after.hp + gearHp} /></b><small>60 + ВЫН×6 + Ур.×2{gearHp > 0 && <> = {before.hp}, с вещей +{gearHp}</>}</small></div>
+            <div><span><Heart size={11} /> HP</span><b><Delta now={before.hp + gearHp} next={after.hp + gearHp} /></b><small>(60 + ВЫН×6 + Ур.×2) × 2,86{gearHp > 0 && <> = {before.hp}, с вещей +{gearHp}</>}</small></div>
             <div><span><Scale size={11} /> Перенос веса</span><b><Delta now={before.carry} next={after.carry} unit=" кг" /></b><small>20 + СИЛ×6</small></div>
             <div><span><Zap size={11} /> Инициатива</span><b>~<Delta now={before.init} next={after.init} digits={1} /></b><small>РЕА×1.2 + ЛВК×0.6</small></div>
           </div>

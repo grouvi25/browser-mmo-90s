@@ -1,6 +1,13 @@
 // Item APIs retain their catalog values for compatibility and for the rating.
 const format = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 })
 
+/** 28.11: здоровье, лечение, еда и «+HP» вещей в игре в 100/35 раза больше
+ *  чисел справочника (как на сервере, battles/combat-hp.ts). */
+export const HP_SCALE = 100 / 35
+export function hpUnits(value: number): number {
+  return Math.round(value * HP_SCALE)
+}
+
 /** Урон вещи в HP. С 27.11 один к одному: Дима убрал «резку 0,35». */
 export function itemHp(points: number): number {
   return points

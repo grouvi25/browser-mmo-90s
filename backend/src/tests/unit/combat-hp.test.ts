@@ -16,7 +16,8 @@ describe('урон в HP', () => {
     expect(attackDamageHp(20, 20, 1, 1, 1)).toBe(0)
     expect(attackDamageHp(20, 19, 1, 0, 1)).toBe(0)
     expect(attackDamageHp(20, 19.5, 1, 0.1, 1)).toBe(1)
-    expect(companionDamageHp(10, 20)).toBe(3)
-    expect(companionDamageHp(10, 30)).toBe(0)
+    // 28.11: урон питомца приходит уже × 100/35 (10 → 29), броня 1:1 — итог тот же ×2,86 (3 → 9).
+    expect(companionDamageHp(29, 20)).toBe(9)
+    expect(companionDamageHp(29, 30)).toBe(0)
   })
 })

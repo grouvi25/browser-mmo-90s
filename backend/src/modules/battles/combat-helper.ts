@@ -17,6 +17,7 @@ import type { HelperTactic } from '@prisma/client'
 import { prisma } from '../../shared/db/prisma'
 import { PremiumService } from '../premium/premium.service'
 import { gridDistance, type GridPosition } from './grid'
+import { hpUnits } from './combat-hp'
 
 /** Стартовые числа; согласуются с заказчиком, как и остальной баланс. */
 export const COMBAT_HELPER = {
@@ -52,7 +53,7 @@ export interface LiveHelper {
 }
 
 export function helperHpMax(level: number): number {
-  return COMBAT_HELPER.hpBase + COMBAT_HELPER.hpPerLevel * Math.max(1, level)
+  return hpUnits(COMBAT_HELPER.hpBase + COMBAT_HELPER.hpPerLevel * Math.max(1, level))
 }
 
 export function expToNextLevel(level: number): number {
@@ -76,7 +77,7 @@ export function helperStrike(helper: LiveHelper, rnd: () => number = Math.random
   const max = COMBAT_HELPER.damageMax + COMBAT_HELPER.damageMaxPerLevel * helper.level
   const base = min + (max - min) * rnd()
   const crit = rnd() < COMBAT_HELPER.critChance
-  const damage = Math.max(1, Math.round(base * t.damage * (crit ? COMBAT_HELPER.critMultiplier : 1)))
+  const damage = Math.max(1, hpUnits(base * t.damage * (crit ? COMBAT_HELPER.critMultiplier : 1)))
   return { hit: true, crit, damage }
 }
 

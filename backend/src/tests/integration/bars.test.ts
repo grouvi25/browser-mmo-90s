@@ -7,7 +7,7 @@ async function player(prefix: string, money = 10_000) {
   const login = uid(prefix)
   const user = await testPrisma.user.create({ data: { login, email: `${login}@test.local`, passwordHash: 'x' } })
   return testPrisma.character.create({
-    data: { userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 60, hpMax: 100, money },
+    data: { userId: user.id, nickname: login, archetype: 'WORKER', hpCurrent: 60, hpMax: 300, money },
   })
 }
 
@@ -50,7 +50,7 @@ describe('bars', () => {
     expect(result.tax).toBe(Math.floor(55 * 0.20)) // 20% налог, раздел «Бары, еда и опьянение»
     expect(result.tax + result.ownerIncome).toBe(55)
     expect(result.newBalance).toBe(500 - 55)
-    expect(result.hpCurrent).toBe(75) // 60 + 15
+    expect(result.hpCurrent).toBe(103) // 60 + 15 HP справочника × 100/35 (28.11)
     expect(result.alcoholLevel).toBe(8)
 
     const barAfter = await testPrisma.productionObject.findUniqueOrThrow({ where: { id: bar.id } })
@@ -73,7 +73,7 @@ describe('bars', () => {
     await testPrisma.productionObject.update({ where: { id: bar.id }, data: { ownerType: 'SYSTEM', ownerCharacterId: null, isForSale: true } })
     const buyer = await player('stateBar', 500)
     const sold = await BarsService.buy(buyer.id, offer.id, uid('key'))
-    expect(sold).toMatchObject({ price: 110, hpCurrent: 70, newBalance: 390 })
+    expect(sold).toMatchObject({ price: 110, hpCurrent: 89, newBalance: 390 })
     expect((await testPrisma.productionObject.findUniqueOrThrow({ where: { id: bar.id } })).balance).toBe(0)
   })
 

@@ -3,7 +3,7 @@ import { calcWeaponSkillExp } from '../stats/stats.formulas'
 import { BalanceConfig } from '../../config/balance.config'
 import { clamp } from '../../shared/utils/clamp'
 import { randomFloat } from '../../shared/utils/random'
-import { attackDamageHp } from './combat-hp'
+import { attackDamageHp, hpUnits } from './combat-hp'
 
 // Types for battle formula inputs
 export interface AttackerSnapshot {
@@ -225,7 +225,7 @@ export function calcCounterAttack(
   const C = B.counter
   if (defender.rea < C.minReaction || rng() >= calcCounterAttackChance(defender, attacker)) return { triggered: false, damage: 0, logParts: [] }
   const ratio = clamp(C.incomingBase + defender.rea * C.reactionDamageBonus, C.incomingBase, C.incomingDamageCap)
-  const damage = Math.max(1, Math.round(incomingForce * ratio))
+  const damage = Math.max(1, hpUnits(incomingForce * ratio))
   return { triggered: true, damage, logParts: [`Ответный удар: −${damage} HP`] }
 }
 

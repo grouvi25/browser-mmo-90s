@@ -10,7 +10,7 @@
 // «откуда столько».
 // =============================================================
 import { BalanceConfig as B } from '../../config/balance.config'
-import { attackDamageHp, catalogPointsToHp as hp } from '../battles/combat-hp'
+import { HP_SCALE, attackDamageHp, catalogPointsToHp as hp } from '../battles/combat-hp'
 import {
   calcCritChance, calcDodgeChance, calcEffectiveWeaponSkill,
   calcWeaponSkillMultiplier, calcArmorFlat, calcLuckyPierceChance,
@@ -19,7 +19,7 @@ import { calcFinalSalary, dailyShiftSalaryCoeff, objectLevelCoeff, workerEfficie
 import { calcUpgradeCost, calcUpgradeSuccessChance } from '../upgrades/upgrades.formulas'
 import { calcListingFee, calcSaleTax, calcSellerPayout } from '../market/market.formulas'
 import { territoryUpkeepPerDay } from '../territories/territories.formulas'
-import { calcRepairCost } from '../stats/stats.formulas'
+import { calcHpMax, calcRepairCost } from '../stats/stats.formulas'
 
 export interface ExampleStep {
   /** Что считаем на этом шаге — с подставленными числами. */
@@ -71,8 +71,9 @@ export const BALANCE_EXAMPLES: Record<string, () => BalanceExample> = {
         { text: 'база одинаковая у всех', value: String(B.character.baseHp) },
         { text: `выносливость: ${end} × ${B.character.hpPerEnd}`, value: `+${fromEnd}` },
         { text: `уровень: ${level} × ${B.character.hpPerBattleLevel}`, value: `+${fromLevel}` },
+        { text: 'в игре всё здоровье × 100/35 (урон проходит полностью, 28.11)', value: `× ${HP_SCALE.toFixed(2).replace('.', ',')}` },
       ],
-      result: `${B.character.baseHp + fromEnd + fromLevel} HP`,
+      result: `${calcHpMax(end, level)} HP`,
       meaning: 'Столько урона держит боец до поражения. Каждая единица END дороже уровня втрое.',
     }
   },

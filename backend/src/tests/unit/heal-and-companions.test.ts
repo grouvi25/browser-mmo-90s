@@ -16,7 +16,8 @@ describe('Лечение', () => {
     expect(healAmount({ healPercent: 10 }, 83)).toBe(9)
   })
   it('без процента работает старое число, без обоих лечить нечем', () => {
-    expect(healAmount({ healPercent: 0, hpBonus: 30 }, 200)).toBe(30)
+    // 28.11: число справочника в игре × 100/35.
+    expect(healAmount({ healPercent: 0, hpBonus: 30 }, 200)).toBe(86)
     expect(healAmount({ hpBonus: null }, 200)).toBe(0)
   })
 })

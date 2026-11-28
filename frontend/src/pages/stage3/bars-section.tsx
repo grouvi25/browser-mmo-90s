@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Beer } from 'lucide-react'
 import { barsApi } from '../../shared/api/bars.api'
 import { fmt, remaining, Skeleton, Fault, Empty, Note } from './stage3-ui'
+import { hpUnits } from '../../shared/lib/combat-hp'
 
 export const INTOX_STATE: Record<string, string> = {
   SOBER: 'Трезв',
@@ -50,7 +51,7 @@ export function BarsSection() {
                 <span className="bar-name">{bar.name}</span>
                 <h2>{offer.name}</h2>
                 <p>
-                  {offer.hpRestore ? '+' + offer.hpRestore + ' HP' : ''}
+                  {offer.hpRestore ? '+' + hpUnits(offer.hpRestore) + ' HP' : ''}
                   {offer.accuracyBuff ? '+' + Math.round(offer.accuracyBuff * 100) / 100 + ' к точности' : ''}
                   {offer.damageBuff ? '+' + Math.round(offer.damageBuff * 100) + '% урона' : ''}
                   {offer.alcoholDegrees ? ' · ' + offer.alcoholDegrees + '°' : ''}

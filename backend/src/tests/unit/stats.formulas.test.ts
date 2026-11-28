@@ -19,8 +19,8 @@ import { BalanceConfig } from '../../config/balance.config'
 // ---------------------------------------------------------------
 describe('calcHpMax', () => {
   it('base HP at level 1, END=3 matches ТЗ formula', () => {
-    // hpMax = 60 + END*6 + BL*2
-    const expected = 60 + 3 * 6 + 1 * 2
+    // hpMax = (60 + END*6 + BL*2) × 100/35 (28.11: урон полный, здоровье в той же шкале)
+    const expected = Math.round((60 + 3 * 6 + 1 * 2) * 100 / 35)
     expect(calcHpMax(3, 1)).toBe(expected)
   })
 
@@ -35,7 +35,8 @@ describe('calcHpMax', () => {
   it('item HP bonus is added', () => {
     const base = calcHpMax(3, 1, 0)
     const withBonus = calcHpMax(3, 1, 20)
-    expect(withBonus - base).toBe(20)
+    // «+20 HP» вещи в справочнике — в игре ×100/35: 80 → 229, 100 → 286.
+    expect(withBonus - base).toBe(57)
   })
 
   it('starting HP for all archetypes is at least 60', () => {

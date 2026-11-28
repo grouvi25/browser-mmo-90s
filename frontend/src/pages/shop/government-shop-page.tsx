@@ -18,6 +18,7 @@ import { itemStatLines } from '../../shared/lib/item-stat-lines'
 import { tutorialWeaponTab, useCityTutorial } from '../../widgets/city-tutorial/use-city-tutorial'
 import { DogGoods } from '../locations/dog-goods'
 import './shop.css'
+import { hpUnits } from '../../shared/lib/combat-hp'
 
 /** Стрелковое отделено от ближнего боя — как на Складе. */
 const RANGED = new Set(['PISTOL', 'SHOTGUN', 'SMG', 'RIFLE', 'SNIPER', 'HEAVY', 'THROWN'])
@@ -344,7 +345,7 @@ function BarShowcase({ loading, bars }: {
               <span className="gshop-bar-name">{bar.name}</span>
               <h3>{offer.name}</h3>
               <ul className="gshop-bonuses">
-                {offer.hpRestore > 0 && <li>Восстановит: +{offer.hpRestore} HP</li>}
+                {offer.hpRestore > 0 && <li>Восстановит: +{hpUnits(offer.hpRestore)} HP</li>}
                 {offer.alcoholDegrees > 0 && <li>Градус: {offer.alcoholDegrees}°</li>}
                 {offer.accuracyBuff > 0 && <li>Точность: +{offer.accuracyBuff}</li>}
                 {offer.damageBuff > 0 && <li>Урон: +{Math.round(offer.damageBuff * 100)}%</li>}

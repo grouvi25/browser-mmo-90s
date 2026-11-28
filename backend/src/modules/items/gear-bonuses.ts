@@ -31,6 +31,7 @@
 import type { Prisma } from '@prisma/client'
 import { BalanceConfig } from '../../config/balance.config'
 import { calcHpMax } from '../stats/stats.formulas'
+import { hpUnits } from '../battles/combat-hp'
 
 // Без меткости (Дима 14.11): стат в бою не участвует, очки в него не вкладываются.
 export const GEAR_STAT_KEYS = ['str', 'end', 'luck', 'agi', 'agr', 'rea', 'aluck'] as const
@@ -159,7 +160,7 @@ export function normalizeStatBonuses(value: unknown, limit = GEAR_STAT_LIMIT): P
  */
 /** Сколько здоровья вернёт расходник: процент от максимума важнее старого числа в единицах. */
 export function healAmount(template: { healPercent?: number | null; hpBonus?: number | null }, hpMax: number): number {
-  return (template.healPercent ?? 0) > 0 ? Math.ceil(hpMax * (template.healPercent ?? 0) / 100) : template.hpBonus ?? 0
+  return (template.healPercent ?? 0) > 0 ? Math.ceil(hpMax * (template.healPercent ?? 0) / 100) : hpUnits(template.hpBonus ?? 0)
 }
 
 export function gearOf(items: ItemLike[]): GearBonuses {
@@ -214,7 +215,8 @@ export function withGearStats<T extends Partial<Record<GearStatKey, number>>>(st
 /** Здоровье с надетым: выносливость с вещи стоит своё (заказчик 31.10), в минус ниже нуля не уводит. */
 export function hpWithGear(baseEnd: number, battleLevel: number, gear: GearBonuses): number {
   const fromGear = Math.max(0, baseEnd + gear.stats.end) - baseEnd
-  return calcHpMax(baseEnd, battleLevel, gear.hp) + fromGear * BalanceConfig.character.hpPerGearEnd
+  // Выносливость с вещи идёт в ту же формулу, чтобы множитель HP применился один раз.
+  return calcHpMax(baseEnd, battleLevel, gear.hp + fromGear * BalanceConfig.character.hpPerGearEnd)
 }
 
 /** Прибавки от всего, что сейчас надето на персонажа. */

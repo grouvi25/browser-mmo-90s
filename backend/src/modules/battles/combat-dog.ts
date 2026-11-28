@@ -15,6 +15,7 @@ import { prisma } from '../../shared/db/prisma'
 import { DOG_BREEDS, dogBonus } from '../city/dogs'
 import { dogHpMax, type DogCombatStats } from './companions'
 import type { GridPosition } from './grid'
+import { hpUnits } from './combat-hp'
 
 export const COMBAT_DOG = {
   damageMin: 1, damageMinPerLevel: 1,
@@ -48,7 +49,7 @@ export function dogStrike(dog: LiveDog, rnd: () => number = Math.random): DogStr
   const min = COMBAT_DOG.damageMin + COMBAT_DOG.damageMinPerLevel * dog.level
   const max = COMBAT_DOG.damageMax + COMBAT_DOG.damageMaxPerLevel * dog.level
   const crit = rnd() < COMBAT_DOG.critChance
-  const damage = Math.max(1, Math.round((min + (max - min) * rnd()) * (crit ? COMBAT_DOG.critMultiplier : 1)))
+  const damage = Math.max(1, hpUnits((min + (max - min) * rnd()) * (crit ? COMBAT_DOG.critMultiplier : 1)))
   return { hit: true, crit, damage }
 }
 
