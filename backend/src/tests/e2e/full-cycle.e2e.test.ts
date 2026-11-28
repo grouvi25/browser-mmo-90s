@@ -72,8 +72,8 @@ describe('E2E: Full player cycle (Stage 1 TZ razdel 11)', () => {
     // ATHLETE: +1 STR +1 END (base str=3, end=3 → 4,4)
     expect(char.stats.str).toBe(4)
     expect(char.stats.end).toBe(4)
-    // hpMax = 60 + END×6 + BL×2 = 60 + 4×6 + 1×2 = 86
-    expect(char.hpMax).toBe(86)
+    // hpMax = (60 + END×6 + BL×2) × 100/35 = 86 × 100/35 ≈ 246 (28.11: урон полный, HP в той же шкале)
+    expect(char.hpMax).toBe(246)
     expect(char.money).toBe(5000)   // стартовые 5 000 ₽
     // На покупки дальше по сценарию — выдаём, как выдал бы админ.
     await testPrisma.character.update({ where: { id: (r.data as { id: string }).id }, data: { money: 5_000 } })
@@ -341,12 +341,12 @@ describe('E2E: Mathematical correctness', () => {
 
   afterAll(async () => { await testPrisma.$disconnect() })
 
-  it('Starting HP matches formula: 60 + END×6 + BL×2 (ATHLETE: END=4)', async () => {
+  it('Starting HP matches formula: (60 + END×6 + BL×2) × 100/35 (ATHLETE: END=4)', async () => {
     const char = (await api('GET', '/api/characters/me', undefined, token)).data as {
       hpMax: number; battleLevel: number; stats: { end: number }
     }
-    // hpMax = 60 + 4×6 + 1×2 = 60 + 24 + 2 = 86
-    const expected = 60 + char.stats.end * 6 + char.battleLevel * 2
+    // hpMax = (60 + 4×6 + 1×2) × 100/35 = 86 × 100/35 ≈ 246
+    const expected = Math.round((60 + char.stats.end * 6 + char.battleLevel * 2) * 100 / 35)
     expect(char.hpMax).toBe(expected)
   })
 
